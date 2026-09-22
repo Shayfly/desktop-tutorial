@@ -12,7 +12,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response, RedirectResp
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ZIP = ROOT / "omni_prod_runtime.zip"
-RUNTIME_DIR = Path("/tmp/148ai_v28_runtime")\nUI_DIR = ROOT / "ui"
+RUNTIME_DIR = Path("/tmp/148ai_v28_runtime")
+UI_DIR = ROOT / "ui"
 _lock = Lock()
 _loaded_app = None
 _load_error = None
