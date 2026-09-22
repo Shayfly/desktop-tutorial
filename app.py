@@ -5,6 +5,7 @@ import os
 import sys
 import zipfile
 from pathlib import Path
+from threading import Lock
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -12,49 +13,88 @@ from fastapi.responses import HTMLResponse, JSONResponse
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ZIP = ROOT / "omni_prod_runtime.zip"
 RUNTIME_DIR = Path("/tmp/148ai_v28_runtime")
-MARKER = RUNTIME_DIR / ".ready"
+_lock = Lock()
+_loaded_app = None
+_load_error = None
 
 os.environ.setdefault("OMNI_ENV", "development")
 os.environ.setdefault("OMNI_CREATOR_PERSISTENCE", "memory")
 
-try:
-    if not RUNTIME_ZIP.exists():
-        raise FileNotFoundError(f"Runtime package missing: {RUNTIME_ZIP.name}")
+bootstrap = FastAPI(title="148AI V28")
 
-    if not MARKER.exists():
-        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(RUNTIME_ZIP, "r") as zf:
-            zf.extractall(RUNTIME_DIR)
-        MARKER.write_text("148AI V28", encoding="utf-8")
+def _load_runtime():
+    global _loaded_app, _load_error
+    if _loaded_app is not None:
+        return _loaded_app
+    with _lock:
+        if _loaded_app is not None:
+            return _loaded_app
+        try:
+            if not RUNTIME_ZIP.is_file():
+                raise FileNotFoundError("omni_prod_runtime.zip is missing")
+            marker = RUNTIME_DIR / ".ready"
+            if not marker.exists():
+                RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+                with zipfile.ZipFile(RUNTIME_ZIP, "r") as zf:
+                    bad = zf.testzip()
+                    if bad:
+                        raise zipfile.BadZipFile(f"CRC failure: {bad}")
+                    zf.extractall(RUNTIME_DIR)
+                marker.write_text("148AI V28", encoding="utf-8")
+            if str(RUNTIME_DIR) not in sys.path:
+                sys.path.insert(0, str(RUNTIME_DIR))
+            from omni_prod.investor_app import app as runtime_app
+            _loaded_app = runtime_app
+            _load_error = None
+            return _loaded_app
+        except Exception as exc:
+            _load_error = (type(exc).__name__, str(exc))
+            return None
 
-    sys.path.insert(0, str(RUNTIME_DIR))
-    from omni_prod.investor_app import app  # noqa: E402,F401
+@bootstrap.get("/api/health")
+def health():
+    return {"ok": True, "service": "148AI V28 bootstrap", "runtime_zip": RUNTIME_ZIP.is_file()}
 
-except Exception as exc:
-    # Keep the Vercel function alive and expose only a sanitized startup diagnostic.
-    # This lets us identify packaging/runtime problems without leaking secrets.
-    startup_error_type = type(exc).__name__
-    startup_error_message = str(exc).replace(str(ROOT), "<app>").replace(str(RUNTIME_DIR), "<runtime>")
+@bootstrap.get("/api/startup-diagnostic")
+def diagnostic():
+    runtime = _load_runtime()
+    if runtime is not None:
+        return {"ok": True, "runtime": "148AI V28", "loaded": True}
+    kind, message = _load_error or ("UnknownError", "Runtime did not load")
+    return JSONResponse({"ok": False, "runtime": "148AI V28", "loaded": False,
+                         "error_type": kind, "error": message[:1200],
+                         "runtime_zip_exists": RUNTIME_ZIP.is_file()}, status_code=200)
 
-    app = FastAPI(title="148AI V28 startup diagnostics")
+@bootstrap.get("/", response_class=HTMLResponse)
+def root():
+    runtime = _load_runtime()
+    if runtime is None:
+        kind, message = _load_error or ("UnknownError", "Runtime did not load")
+        return f"""<!doctype html><html><head><meta charset="utf-8"><title>148AI V28</title>
+<style>body{{font-family:system-ui;background:#07101f;color:#eef6ff;padding:40px;max-width:900px;margin:auto}}code{{display:block;background:#0d1a2d;border:1px solid #233b5f;border-radius:12px;padding:16px;white-space:pre-wrap}}h1{{color:#2fd4ff}}</style></head>
+<body><h1>148AI V28</h1><p>Bootstrap is online. The packaged V28 runtime could not load.</p>
+<code>{html.escape(kind)}: {html.escape(message[:1200])}</code></body></html>"""
+    return HTMLResponse("<!doctype html><html><body><h1>148AI V28 runtime loaded</h1><p>Runtime is available. Open <a href='/app/'>/app/</a>.</p></body></html>")
 
-    @app.get("/", response_class=HTMLResponse)
-    def startup_diagnostics() -> str:
-        return f"""
-        <!doctype html>
-        <html><head><meta charset='utf-8'><title>148AI V28 Diagnostics</title>
-        <style>body{{font-family:system-ui;background:#07101f;color:#eef6ff;padding:40px;max-width:900px;margin:auto}}code{{display:block;background:#0d1a2d;border:1px solid #233b5f;border-radius:12px;padding:16px;white-space:pre-wrap}}h1{{color:#2fd4ff}}</style></head>
-        <body><h1>148AI V28 runtime diagnostic</h1><p>The Vercel function started, but the V28 runtime import failed.</p>
-        <code>{html.escape(startup_error_type)}: {html.escape(startup_error_message)}</code>
-        </body></html>
-        """
+@bootstrap.api_route("/app/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
+async def runtime_proxy(path: str, request):
+    runtime = _load_runtime()
+    if runtime is None:
+        kind, message = _load_error or ("UnknownError", "Runtime did not load")
+        return JSONResponse({"ok": False, "error_type": kind, "error": message[:1200]}, status_code=503)
+    # Re-dispatch to the ASGI app with /app stripped.
+    scope = dict(request.scope)
+    scope["path"] = "/" + path
+    scope["raw_path"] = scope["path"].encode()
+    response_started = {}
+    chunks = []
+    async def send(message):
+        if message["type"] == "http.response.start":
+            response_started.update(message)
+        elif message["type"] == "http.response.body":
+            chunks.append(message.get("body", b""))
+    await runtime(scope, request.receive, send)
+    return HTMLResponse(content=b"".join(chunks), status_code=response_started.get("status", 200),
+                        headers={k.decode(): v.decode() for k,v in response_started.get("headers", [])})
 
-    @app.get("/api/startup-diagnostic")
-    def startup_diagnostic_json() -> JSONResponse:
-        return JSONResponse({
-            "ok": False,
-            "runtime": "148AI V28",
-            "error_type": startup_error_type,
-            "error": startup_error_message,
-            "runtime_zip_exists": RUNTIME_ZIP.exists(),
-        })
+app = bootstrap
