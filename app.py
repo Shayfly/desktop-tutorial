@@ -7,8 +7,8 @@ import zipfile
 from pathlib import Path
 from threading import Lock
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ZIP = ROOT / "omni_prod_runtime.zip"
@@ -77,7 +77,7 @@ def root():
     return HTMLResponse("<!doctype html><html><body><h1>148AI V28 runtime loaded</h1><p>Runtime is available. Open <a href='/app/'>/app/</a>.</p></body></html>")
 
 @bootstrap.api_route("/app/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
-async def runtime_proxy(path: str, request):
+async def runtime_proxy(path: str, request: Request):
     runtime = _load_runtime()
     if runtime is None:
         kind, message = _load_error or ("UnknownError", "Runtime did not load")
