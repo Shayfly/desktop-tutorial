@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response, RedirectResp
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME_ZIP = ROOT / "omni_prod_runtime.zip"
-RUNTIME_DIR = Path("/tmp/148ai_v28_runtime")
+RUNTIME_DIR = Path("/tmp/148ai_v28_runtime")\nUI_DIR = ROOT / "ui"
 _lock = Lock()
 _loaded_app = None
 _load_error = None
@@ -87,6 +87,23 @@ def diagnostic():
         return {"ok": True, "runtime": "148AI V28", "loaded": True}
     kind, message = _load_error or ("UnknownError", "Runtime did not load")
     return JSONResponse({"ok": False, "error_type": kind, "error": message[:1200]}, status_code=200)
+
+@bootstrap.get("/", response_class=HTMLResponse)
+def customer_home():
+    page = UI_DIR / "index.html"
+    if page.is_file():
+        return page.read_text(encoding="utf-8")
+    return HTMLResponse("<h1>148AI</h1><p>UI package missing.</p>", status_code=503)
+
+@bootstrap.get("/ui/{asset_name}")
+def customer_asset(asset_name: str):
+    allowed = {"app.css": "text/css; charset=utf-8", "app.js": "application/javascript; charset=utf-8"}
+    if asset_name not in allowed:
+        return Response(status_code=404)
+    path = UI_DIR / asset_name
+    if not path.is_file():
+        return Response(status_code=404)
+    return Response(path.read_bytes(), media_type=allowed[asset_name], headers={"Cache-Control": "public,max-age=300"})
 
 @bootstrap.api_route("/app", methods=["GET","HEAD"])
 @bootstrap.api_route("/app/", methods=["GET","HEAD"])
