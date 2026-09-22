@@ -85,7 +85,7 @@ async def runtime_proxy(path: str, request: Request):
     # Re-dispatch to the ASGI app with /app stripped.
     scope = dict(request.scope)
     scope["path"] = "/" + path
-    scope["raw_path"] = scope["path"].encode()
+    scope["raw_path"] = scope["path"].encode()\n    # The V28 UI uses root-relative /api/... calls. Keep the runtime aware that\n    # it is mounted below /app so generated URLs and routing stay consistent.\n    scope["root_path"] = "/app"
     response_started = {}
     chunks = []
     async def send(message):
@@ -96,5 +96,32 @@ async def runtime_proxy(path: str, request: Request):
     await runtime(scope, request.receive, send)
     return HTMLResponse(content=b"".join(chunks), status_code=response_started.get("status", 200),
                         headers={k.decode(): v.decode() for k,v in response_started.get("headers", [])})
+
+# Forward root-level runtime API calls used by the V28 browser UI.
+# The HTML served from /app/ contains root-relative /api/... requests, so without
+# this bridge registration/sign-in/build calls hit the bootstrap and return 404.
+@bootstrap.api_route("/api/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
+async def runtime_api_proxy(path: str, request: Request):
+    # Keep bootstrap-owned diagnostics local.
+    if path in {"health", "startup-diagnostic"}:
+        return JSONResponse({"ok": False, "error": "reserved bootstrap route"}, status_code=404)
+    runtime = _load_runtime()
+    if runtime is None:
+        kind, message = _load_error or ("UnknownError", "Runtime did not load")
+        return JSONResponse({"ok": False, "error_type": kind, "error": message[:1200]}, status_code=503)
+    scope = dict(request.scope)
+    scope["path"] = "/api/" + path
+    scope["raw_path"] = scope["path"].encode()
+    scope["root_path"] = ""
+    response_started = {}
+    chunks = []
+    async def send(message):
+        if message["type"] == "http.response.start":
+            response_started.update(message)
+        elif message["type"] == "http.response.body":
+            chunks.append(message.get("body", b""))
+    await runtime(scope, request.receive, send)
+    return Response(content=b"".join(chunks), status_code=response_started.get("status", 200),
+                    headers={k.decode(): v.decode() for k,v in response_started.get("headers", [])})
 
 app = bootstrap
