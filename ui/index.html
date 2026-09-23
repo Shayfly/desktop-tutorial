@@ -1,9 +1,136 @@
-<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>148AI — Build Anything.</title><meta name="theme-color" content="#050913"><meta name="description" content="Turn an idea into a working product with 148AI."><link rel="icon" href="/brand/148ai-favicon-64.png"><link rel="stylesheet" href="/ui/app.css"><script defer src="/ui/app.js"></script></head><body>
-<div class="shell"><nav><a class="brand" href="/"><img src="/brand/148ai-logo-128.png" alt="148AI"><span><b>148AI</b><small>BUILD ANYTHING.</small></span></a><div class="navActions"><span class="status ok">V28 Core online</span><select id="lang"><option value="en">English</option><option value="he">עברית</option></select></div></nav>
-<main><section class="hero"><div class="eyebrow">FROM IDEA TO WORKING PRODUCT</div><h1>What do you want<br><span>to build?</span></h1><p>Describe it naturally. 148AI structures the product, generates the project, checks it, versions it and prepares a working preview.</p></section>
-<section id="authPanel" class="authPanel"><div class="authCopy"><div class="eyebrow">YOUR WORKSPACE</div><h2>Start building.</h2><p>Create a private workspace or sign in to continue your projects.</p></div><div class="authCard"><div class="tabs"><button id="signupTab" class="tab active">Create account</button><button id="signinTab" class="tab">Sign in</button></div><label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<div class="passwordWrap"><input id="password" type="password" autocomplete="new-password" placeholder="At least 10 characters"><button id="togglePassword" class="eye" type="button">Show</button></div></label><div id="authHint" class="hint">Use at least 10 characters.</div><button id="authSubmit" class="primary wide">Create free account</button><div id="accountState" class="message"></div></div></section>
-<section id="workspace" class="workspace hidden"><aside><div class="sideHead"><div><small>PROJECTS</small><b>Your workspace</b></div><button id="createProjectBtn" class="iconBtn">＋</button></div><input id="projectTitle" placeholder="New project name"><select id="projectSelect" size="5"></select><div id="projectState" class="message"></div><div class="accountMini"><span id="userEmail"></span><span id="planState"></span><button id="logoutBtn" class="textBtn">Sign out</button></div></aside>
-<section class="builder"><div class="builderTop"><div><div class="eyebrow">CREATE</div><h2>Build your next product</h2></div><span id="buildStatus" class="status">Ready</span></div><textarea id="prompt" placeholder="Example: Build an Uber-style marketplace for air-conditioning technicians with customer accounts, technician profiles, bookings, payments, reviews, live job status and an admin dashboard."></textarea><div class="chips"><button class="chip active">Web</button><button class="chip">Mobile</button><button class="chip">SaaS</button><button class="chip">Marketplace</button><button class="chip">Game</button><button class="chip">Automation</button></div><div class="buildRow"><label>Target markets<input id="targetMarkets" value="US,IL"></label><button id="buildBtn" class="primary buildBtn">Build with 148AI →</button></div><div id="state" class="message"></div>
-<div id="resultCard" class="resultCard hidden"><div class="resultText"><span class="successDot"></span><div><b>Your project is ready to review</b><small id="resultMeta"></small></div></div><div class="resultActions"><button id="previewBtn" class="primary">Open preview</button><button id="versionsBtn" class="secondary">Versions</button><button id="exportBtn" class="secondary">Export ZIP</button></div></div>
-<details class="advanced"><summary>Advanced controls</summary><div class="advancedGrid"><button id="rightsBtn" class="secondary">Rights & IP</button><button id="originalBtn" class="secondary">Original alternative</button><button id="integrationBtn" class="secondary">Integrations</button><button id="companyBtn" class="secondary">Company OS</button><button id="refreshBtn" class="secondary">Readiness</button></div><pre id="output">Build details will appear here.</pre></details></section></section></main>
-<footer><span>148AI · Build Anything.</span><span>V28 launch candidate · live AI/GPU and persistent cloud infrastructure are separate production gates.</span></footer></div></body></html>
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>148AI — Build Anything.</title>
+  <meta name="theme-color" content="#050913">
+  <meta name="description" content="Turn an idea into a working product with 148AI.">
+  <link rel="icon" href="/brand/148ai-favicon-64.png">
+  <link rel="stylesheet" href="/ui/app.css">
+  <script defer src="/ui/app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <nav>
+    <a class="brand" href="/">
+      <img src="/brand/148ai-logo-128.png" alt="148AI">
+      <span><b>148AI</b><small>BUILD ANYTHING.</small></span>
+    </a>
+    <div class="navActions">
+      <span id="coreStatus" class="status ok">Customer core online</span>
+      <select id="lang" aria-label="Language">
+        <option value="en">English</option>
+        <option value="he">עברית</option>
+      </select>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow" data-i18n="eyebrow">FROM IDEA TO WORKING PRODUCT</div>
+      <h1 id="heroTitle" data-i18n="headline">What do you want to build?</h1>
+      <p id="heroSub" data-i18n="subheadline">Describe the outcome. 148AI creates the project, generates the files, validates the result and prepares a working preview.</p>
+    </section>
+
+    <section id="authPanel" class="authPanel">
+      <div class="authCopy">
+        <div class="eyebrow">148AI WORKSPACE</div>
+        <h2 data-i18n="authTitle">Your private build workspace.</h2>
+        <p data-i18n="authCopy">Sign in once, then create and improve products from one natural-language prompt.</p>
+      </div>
+      <div class="authCard">
+        <div class="tabs">
+          <button id="signupTab" class="tab active" data-i18n="createAccount">Create account</button>
+          <button id="signinTab" class="tab" data-i18n="signIn">Sign in</button>
+        </div>
+        <label><span data-i18n="email">Email</span><input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label><span data-i18n="password">Password</span><div class="passwordWrap"><input id="password" type="password" autocomplete="new-password" placeholder="At least 10 characters"><button id="togglePassword" class="eye" type="button" data-i18n="show">Show</button></div></label>
+        <div id="authHint" class="hint" data-i18n="passwordHint">Use at least 10 characters.</div>
+        <button id="authSubmit" class="primary wide">Create free account</button>
+        <div id="accountState" class="message" role="status"></div>
+      </div>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <aside>
+        <div class="sideHead">
+          <div><small data-i18n="recentProjects">RECENT PROJECTS</small><b data-i18n="workspaceLabel">Your workspace</b></div>
+        </div>
+        <select id="projectSelect" size="7" aria-label="Recent projects"></select>
+        <div id="projectState" class="message"></div>
+        <div class="accountMini">
+          <span id="userEmail"></span>
+          <span id="persistenceState">Durable workspace</span>
+          <button id="logoutBtn" class="textBtn" data-i18n="signOut">Sign out</button>
+        </div>
+      </aside>
+
+      <section class="builder">
+        <div class="builderTop">
+          <div>
+            <div class="eyebrow" data-i18n="createLabel">CREATE</div>
+            <h2 data-i18n="buildTitle">Describe the product. 148AI handles the rest.</h2>
+          </div>
+          <span id="buildStatus" class="status" data-i18n="ready">Ready</span>
+        </div>
+
+        <textarea id="prompt" data-i18n-placeholder="promptPlaceholder" placeholder="Example: Build a Hebrew learning game for first graders with writing practice, vowels, levels, stars and rewards."></textarea>
+
+        <details class="advanced">
+          <summary data-i18n="advanced">Advanced</summary>
+          <div class="advancedFields">
+            <label><span data-i18n="targetMarkets">Target markets</span><input id="targetMarkets" value="IL,US"></label>
+          </div>
+        </details>
+
+        <div class="buildRow">
+          <div class="buildHint" data-i18n="buildHint">No product-type selection required. 148AI infers the structure from your request.</div>
+          <button id="buildBtn" class="primary buildBtn" data-i18n="build">Build with 148AI →</button>
+        </div>
+        <div id="state" class="message" role="status"></div>
+
+        <section class="timelineCard">
+          <div class="sectionHeader">
+            <div><small data-i18n="buildProgress">BUILD PROGRESS</small><b data-i18n="timelineTitle">What 148AI is doing</b></div>
+          </div>
+          <div id="timeline" class="timeline" aria-live="polite"></div>
+        </section>
+
+        <div id="resultCard" class="resultCard hidden">
+          <div class="resultText"><span class="successDot"></span><div><b data-i18n="resultReady">Your product is ready to review</b><small id="resultMeta"></small></div></div>
+          <div class="resultActions">
+            <button id="previewBtn" class="primary" data-i18n="preview">Preview</button>
+            <button id="versionsBtn" class="secondary" data-i18n="versions">Versions</button>
+            <button id="exportBtn" class="secondary" data-i18n="export">Export ZIP</button>
+          </div>
+        </div>
+
+        <section id="previewPanel" class="previewPanel hidden">
+          <div class="sectionHeader">
+            <div><small data-i18n="preview">PREVIEW</small><b data-i18n="previewTitle">Working product preview</b></div>
+            <button id="openPreviewBtn" class="secondary" data-i18n="openNewTab">Open in new tab</button>
+          </div>
+          <div class="deviceFrame">
+            <iframe id="previewFrame" title="148AI generated product preview" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+          </div>
+        </section>
+
+        <section id="versionsPanel" class="versionsPanel hidden">
+          <div class="sectionHeader">
+            <div><small data-i18n="versions">VERSIONS</small><b data-i18n="versionHistory">Version history</b></div>
+          </div>
+          <div class="versionRow">
+            <select id="versionSelect" aria-label="Versions"></select>
+            <button id="restoreBtn" class="secondary" data-i18n="restore">Restore</button>
+          </div>
+          <div id="versionState" class="message"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <footer><span>148AI · Build Anything.</span><span data-i18n="footerNote">Prompt → Build → Validate → Preview → Improve → Export</span></footer>
+</div>
+</body>
+</html>
