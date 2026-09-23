@@ -21,6 +21,7 @@ def test_bootstrap_mounts_live_core_before_legacy_runtime(monkeypatch):
     home = client.get("/")
     assert home.status_code == 200
     assert 'id="timeline"' in home.text
+    assert '/ui/live-runner.js' in home.text
 
     registered = client.post(
         "/api/live/auth/register",
