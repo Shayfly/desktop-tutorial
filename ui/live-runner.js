@@ -33,6 +33,13 @@ async function runPromptFirstBuild() {
 
     currentProjectId = started.project_id;
     rememberBuild(started.project_id, started.id);
+    localStorage.setItem('148ai_last_project', currentProjectId);
+
+    // Persist the prompt-first project in the visible workspace before execution.
+    // If generation/testing fails, the next attempt remains on this project instead
+    // of silently creating a second project.
+    await loadProjects();
+    $('projectSelect').value = currentProjectId;
 
     const initial = await fetchBuild(started.id);
     renderTimeline(initial);
@@ -59,6 +66,9 @@ async function runPromptFirstBuild() {
       $('projectSelect').value = currentProjectId;
       await loadVersions(currentProjectId, false);
     } else {
+      // Keep the failed build's project selected so a corrected prompt improves
+      // the same project instead of spawning a duplicate.
+      $('projectSelect').value = currentProjectId;
       msg('state', full.error || t('buildFailed'), 'error');
     }
   } catch (error) {
@@ -73,6 +83,7 @@ async function runPromptFirstBuild() {
         }
       }
     } catch (_) {}
+    if (currentProjectId) $('projectSelect').value = currentProjectId;
     $('buildStatus').textContent = t('failed');
     $('buildStatus').className = 'status bad';
     msg('state', error.message || t('buildFailed'), 'error');
