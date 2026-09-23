@@ -96,6 +96,7 @@ class Store(Protocol):
     def set_active_version(self, project_id: str, owner_id: str, version_id: str | None) -> ProjectRecord: ...
     def create_build(self, owner_id: str, project_id: str, prompt: str) -> BuildRecord: ...
     def get_build(self, build_id: str, owner_id: str | None = None) -> BuildRecord | None: ...
+    def claim_build(self, build_id: str, owner_id: str) -> BuildRecord | None: ...
     def update_build(self, build_id: str, *, stage: str | None = None, status: str | None = None, error: str | None = None, version_id: str | None = None) -> BuildRecord: ...
     def append_build_event(self, build_id: str, stage: str, message: str = "") -> BuildEventRecord: ...
     def get_build_events(self, build_id: str) -> list[str]: ...
@@ -180,7 +181,7 @@ class MemoryStore:
 
     def create_build(self, owner_id: str, project_id: str, prompt: str) -> BuildRecord:
         now = utcnow()
-        record = BuildRecord(str(uuid4()), owner_id, project_id, prompt, "planning", "running", None, None, now, now)
+        record = BuildRecord(str(uuid4()), owner_id, project_id, prompt, "planning", "queued", None, None, now, now)
         with self._lock:
             self.builds[record.id] = record
             self.events[record.id] = []
@@ -191,6 +192,15 @@ class MemoryStore:
         if build and owner_id is not None and build.owner_id != owner_id:
             return None
         return build
+
+    def claim_build(self, build_id: str, owner_id: str) -> BuildRecord | None:
+        with self._lock:
+            build = self.get_build(build_id, owner_id)
+            if not build or build.status != "queued":
+                return None
+            claimed = replace(build, status="running", updated_at=utcnow())
+            self.builds[build_id] = claimed
+            return claimed
 
     def update_build(self, build_id: str, *, stage: str | None = None, status: str | None = None, error: str | None = None, version_id: str | None = None) -> BuildRecord:
         with self._lock:
