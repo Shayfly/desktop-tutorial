@@ -32,12 +32,12 @@ def register(client: TestClient, email: str):
 
 def seeded_project(store: MemoryStore, owner_id: str):
     project = store.create_project(owner_id, "Secure app")
-    blob1 = zip_bytes({"index.html": "<h1>Version one</h1>", "app.js": "const v=1;"})
+    blob1 = zip_bytes({"index.html": "<h1>Version one</h1><script src='app.js'></script>", "app.js": "const v=1;"})
     artifact1 = store.create_artifact(owner_id, project.id, "a" * 64, blob1)
     version1 = store.create_version(owner_id, project.id, artifact1.id, "first")
     store.set_active_version(project.id, owner_id, version1.id)
 
-    blob2 = zip_bytes({"index.html": "<h1>Version two</h1>", "app.js": "const v=2;"})
+    blob2 = zip_bytes({"index.html": "<h1>Version two</h1><script src='app.js'></script>", "app.js": "const v=2;"})
     artifact2 = store.create_artifact(owner_id, project.id, "b" * 64, blob2)
     version2 = store.create_version(owner_id, project.id, artifact2.id, "second", parent_version_id=version1.id)
     store.set_active_version(project.id, owner_id, version2.id)
@@ -90,7 +90,7 @@ def test_restore_preserves_history_and_only_changes_active_version():
     assert [v.id for v in versions] == [version1.id, version2.id]
 
 
-def test_preview_handle_serves_verified_version_without_bearer_token():
+def test_preview_handle_serves_verified_version_assets_with_origin_isolation():
     client, store = make_client()
     alice, headers = register(client, "preview@example.com")
     project, version1, _ = seeded_project(store, alice["id"])
@@ -102,11 +102,19 @@ def test_preview_handle_serves_verified_version_without_bearer_token():
     assert created.status_code == 200, created.text
     preview_url = created.json()["url"]
     assert preview_url.startswith("/preview/live/")
+    assert preview_url.endswith("/")
 
     rendered = client.get(preview_url)
     assert rendered.status_code == 200, rendered.text
     assert "Version one" in rendered.text
     assert rendered.headers["content-type"].startswith("text/html")
+    assert "sandbox" in rendered.headers["content-security-policy"]
+    assert "allow-same-origin" not in rendered.headers["content-security-policy"]
+
+    asset = client.get(preview_url + "app.js")
+    assert asset.status_code == 200, asset.text
+    assert asset.text == "const v=1;"
+    assert "sandbox" in asset.headers["content-security-policy"]
 
 
 def test_build_status_includes_persisted_events_and_is_owner_scoped():
