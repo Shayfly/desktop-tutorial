@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import io
 import re
 from collections.abc import Callable
+from pathlib import PurePosixPath
+from uuid import UUID
+import zipfile
 
 from .executor import ExecutionResult, UnsafeArtifact, execute_web_artifact, repair_web_artifact, validate_zip
 from .runtime_bridge import generate_export
@@ -135,3 +140,69 @@ class CustomerService:
         if not self.store.get_project(project_id, owner_id):
             raise KeyError("project not found")
         return self.store.list_versions(project_id, owner_id)
+
+    def get_build(self, owner_id: str, build_id: str) -> tuple[BuildRecord, list]:
+        build = self.store.get_build(build_id, owner_id)
+        if not build:
+            raise KeyError("build not found")
+        return build, self.store.get_build_event_records(build.id)
+
+    def _owned_version(self, owner_id: str, project_id: str, version_id: str) -> VersionRecord:
+        project = self.store.get_project(project_id, owner_id)
+        if not project:
+            raise KeyError("project not found")
+        version = self.store.get_version(version_id, owner_id)
+        if not version or version.project_id != project.id:
+            raise KeyError("version not found")
+        return version
+
+    def restore_version(self, owner_id: str, project_id: str, version_id: str) -> ProjectRecord:
+        self._owned_version(owner_id, project_id, version_id)
+        return self.store.set_active_version(project_id, owner_id, version_id)
+
+    def export_version(self, owner_id: str, project_id: str, version_id: str) -> bytes:
+        version = self._owned_version(owner_id, project_id, version_id)
+        artifact = self.store.get_artifact(version.artifact_id, owner_id)
+        if not artifact or artifact.project_id != project_id:
+            raise KeyError("artifact not found")
+        validate_zip(artifact.data, self.artifact_limit_bytes)
+        return artifact.data
+
+    def create_preview_handle(self, owner_id: str, project_id: str, version_id: str) -> str:
+        version = self._owned_version(owner_id, project_id, version_id)
+        artifact = self.store.get_artifact(version.artifact_id, owner_id)
+        if not artifact or artifact.project_id != project_id:
+            raise KeyError("artifact not found")
+        validate_zip(artifact.data, self.artifact_limit_bytes)
+        raw = UUID(version.id).bytes + UUID(artifact.id).bytes
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    def preview_asset(self, preview_id: str, path: str | None = None) -> tuple[bytes, str]:
+        try:
+            raw = base64.urlsafe_b64decode(preview_id + "=" * (-len(preview_id) % 4))
+            if len(raw) != 32:
+                raise ValueError("invalid preview handle length")
+            version_id = str(UUID(bytes=raw[:16]))
+            artifact_id = str(UUID(bytes=raw[16:]))
+        except Exception as exc:
+            raise KeyError("preview not found") from exc
+
+        version = self.store.get_version(version_id)
+        if not version or version.artifact_id != artifact_id:
+            raise KeyError("preview not found")
+        artifact = self.store.get_artifact(artifact_id)
+        if not artifact or artifact.project_id != version.project_id:
+            raise KeyError("preview not found")
+        validate_zip(artifact.data, self.artifact_limit_bytes)
+
+        requested = (path or "index.html").replace("\\", "/").lstrip("/") or "index.html"
+        posix = PurePosixPath(requested)
+        if posix.is_absolute() or ".." in posix.parts:
+            raise KeyError("preview asset not found")
+        requested = str(posix)
+        try:
+            with zipfile.ZipFile(io.BytesIO(artifact.data), "r") as archive:
+                data = archive.read(requested)
+        except (KeyError, zipfile.BadZipFile) as exc:
+            raise KeyError("preview asset not found") from exc
+        return data, requested
