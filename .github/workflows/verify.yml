@@ -35,7 +35,7 @@ jobs:
       - name: Python compile
         run: python -m py_compile app.py live_core/*.py tests/*.py
       - name: Browser JavaScript syntax
-        run: node --check ui/app.js
+        run: node --check ui/app.js && node --check ui/live-runner.js
       - name: Bootstrap customer UI and routing smoke
         run: |
           python - <<'PY'
