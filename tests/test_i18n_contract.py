@@ -23,6 +23,15 @@ def test_live_runner_drives_run_endpoint_and_is_syntax_checked_in_ci():
     assert 'node --check ui/live-runner.js' in workflow
 
 
+def test_started_project_is_loaded_before_run_so_failed_build_can_retry_same_project():
+    runner = Path("ui/live-runner.js").read_text("utf-8")
+    remember_at = runner.index("rememberBuild(started.project_id, started.id)")
+    load_at = runner.index("await loadProjects();", remember_at)
+    run_at = runner.index("const runRequest = req(", remember_at)
+    assert remember_at < load_at < run_at
+    assert "$('projectSelect').value = currentProjectId;" in runner[load_at:run_at]
+
+
 def test_primary_ui_has_real_english_and_hebrew_dictionary():
     js = Path("ui/app.js").read_text("utf-8")
     assert "const I18N" in js
