@@ -6,6 +6,7 @@ from threading import RLock
 from uuid import uuid4
 
 import psycopg
+from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
 from .store import (
@@ -145,11 +146,14 @@ class PostgresStore:
         now = datetime.now().astimezone()
         uid = str(uuid4())
         normalized = email.strip().lower()
-        with self._connection() as conn:
-            row = conn.execute(
-                "INSERT INTO live_users(id,email,email_normalized,password_hash,created_at) VALUES (%s,%s,%s,%s,%s) RETURNING *",
-                (uid, normalized, normalized, password_hash, now),
-            ).fetchone()
+        try:
+            with self._connection() as conn:
+                row = conn.execute(
+                    "INSERT INTO live_users(id,email,email_normalized,password_hash,created_at) VALUES (%s,%s,%s,%s,%s) RETURNING *",
+                    (uid, normalized, normalized, password_hash, now),
+                ).fetchone()
+        except UniqueViolation as exc:
+            raise ValueError("email already exists") from exc
         return _user(row)
 
     def get_user(self, user_id: str) -> UserRecord | None:
@@ -224,7 +228,7 @@ class PostgresStore:
         bid, now = str(uuid4()), datetime.now().astimezone()
         with self._connection() as conn:
             row = conn.execute(
-                "INSERT INTO live_builds(id,owner_id,project_id,prompt,stage,status,created_at,updated_at) VALUES (%s,%s,%s,%s,'planning','running',%s,%s) RETURNING *",
+                "INSERT INTO live_builds(id,owner_id,project_id,prompt,stage,status,created_at,updated_at) VALUES (%s,%s,%s,%s,'planning','queued',%s,%s) RETURNING *",
                 (bid, owner_id, project_id, prompt, now, now),
             ).fetchone()
         return _build(row)
@@ -235,6 +239,14 @@ class PostgresStore:
                 row = conn.execute("SELECT * FROM live_builds WHERE id=%s", (build_id,)).fetchone()
             else:
                 row = conn.execute("SELECT * FROM live_builds WHERE id=%s AND owner_id=%s", (build_id, owner_id)).fetchone()
+        return _build(row)
+
+    def claim_build(self, build_id: str, owner_id: str) -> BuildRecord | None:
+        with self._connection() as conn:
+            row = conn.execute(
+                "UPDATE live_builds SET status='running',updated_at=%s WHERE id=%s AND owner_id=%s AND status='queued' RETURNING *",
+                (datetime.now().astimezone(), build_id, owner_id),
+            ).fetchone()
         return _build(row)
 
     def update_build(self, build_id: str, *, stage: str | None = None, status: str | None = None, error: str | None = None, version_id: str | None = None) -> BuildRecord:
