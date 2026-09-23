@@ -70,14 +70,23 @@ class CustomerService:
         self.store.append_build_event(build_id, "failed", safe_error)
         return build
 
-    def build(
+    def run_build(
         self,
         owner_id: str,
-        prompt: str,
-        project_id: str | None = None,
+        build_id: str,
         target_markets: list[str] | None = None,
     ) -> BuildRecord:
-        build = self.start_build(owner_id, prompt, project_id)
+        existing = self.store.get_build(build_id, owner_id)
+        if not existing:
+            raise KeyError("build not found")
+
+        build = self.store.claim_build(build_id, owner_id)
+        if build is None:
+            current = self.store.get_build(build_id, owner_id)
+            if not current:
+                raise KeyError("build not found")
+            return current
+
         project = self.store.get_project(build.project_id, owner_id)
         if not project:
             return self._fail(build.id, "Project disappeared during build")
@@ -111,8 +120,8 @@ class CustomerService:
 
             digest = hashlib.sha256(blob).hexdigest()
             artifact = self.store.create_artifact(owner_id, project.id, digest, blob)
-            current = self.store.get_project(project.id, owner_id)
-            parent_version_id = current.active_version_id if current else None
+            current_project = self.store.get_project(project.id, owner_id)
+            parent_version_id = current_project.active_version_id if current_project else None
             version = self.store.create_version(
                 owner_id,
                 project.id,
@@ -132,6 +141,16 @@ class CustomerService:
             return ready
         except Exception as exc:
             return self._fail(build.id, f"{type(exc).__name__}: {exc}")
+
+    def build(
+        self,
+        owner_id: str,
+        prompt: str,
+        project_id: str | None = None,
+        target_markets: list[str] | None = None,
+    ) -> BuildRecord:
+        build = self.start_build(owner_id, prompt, project_id)
+        return self.run_build(owner_id, build.id, target_markets)
 
     def list_projects(self, owner_id: str) -> list[ProjectRecord]:
         return self.store.list_projects(owner_id)
