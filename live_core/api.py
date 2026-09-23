@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+import mimetypes
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel, Field
 
 from .security import hash_password, new_session_token, token_digest, verify_password
 from .service import CustomerService
@@ -16,6 +18,7 @@ class AuthInput(BaseModel):
 class BuildInput(BaseModel):
     prompt: str
     project_id: str | None = None
+    target_markets: list[str] = Field(default_factory=list)
 
 
 def _normalize_email(value: str) -> str:
@@ -136,12 +139,73 @@ def create_router(store: Store) -> APIRouter:
     @router.post("/api/live/builds")
     def start_build(body: BuildInput, user: UserRecord = Depends(require_user)):
         try:
-            build = service.start_build(user.id, body.prompt, body.project_id)
+            build = service.build(user.id, body.prompt, body.project_id, body.target_markets)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Project not found") from exc
         return _build_payload(build)
+
+    @router.get("/api/live/builds/{build_id}")
+    def get_build(build_id: str, user: UserRecord = Depends(require_user)):
+        try:
+            build, events = service.get_build(user.id, build_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Build not found") from exc
+        payload = _build_payload(build)
+        payload["events"] = [
+            {
+                "stage": event.stage,
+                "message": event.message,
+                "created_at": event.created_at.isoformat(),
+            }
+            for event in events
+        ]
+        return payload
+
+    @router.post("/api/live/projects/{project_id}/versions/{version_id}/restore")
+    def restore(project_id: str, version_id: str, user: UserRecord = Depends(require_user)):
+        try:
+            project = service.restore_version(user.id, project_id, version_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Version not found") from exc
+        return _project_payload(project)
+
+    @router.get("/api/live/projects/{project_id}/versions/{version_id}/export")
+    def export(project_id: str, version_id: str, user: UserRecord = Depends(require_user)):
+        try:
+            blob = service.export_version(user.id, project_id, version_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Version not found") from exc
+        return Response(
+            content=blob,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="148AI-{project_id}.zip"'},
+        )
+
+    @router.post("/api/live/projects/{project_id}/versions/{version_id}/preview")
+    def create_preview(project_id: str, version_id: str, user: UserRecord = Depends(require_user)):
+        try:
+            handle = service.create_preview_handle(user.id, project_id, version_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Version not found") from exc
+        return {"url": f"/preview/live/{handle}", "preview_id": handle}
+
+    def _serve_preview(preview_id: str, path: str | None = None):
+        try:
+            data, resolved_path = service.preview_asset(preview_id, path)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Preview not found") from exc
+        media_type = mimetypes.guess_type(resolved_path)[0] or "application/octet-stream"
+        return Response(content=data, media_type=media_type)
+
+    @router.get("/preview/live/{preview_id}")
+    def preview_root(preview_id: str):
+        return _serve_preview(preview_id, None)
+
+    @router.get("/preview/live/{preview_id}/{path:path}")
+    def preview_asset(preview_id: str, path: str):
+        return _serve_preview(preview_id, path)
 
     router.state = {"require_user": require_user, "store": store, "service": service}
     return router
