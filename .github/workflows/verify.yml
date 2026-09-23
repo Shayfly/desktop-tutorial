@@ -1,4 +1,4 @@
-name: 148AI V28 Verify
+name: 148AI Customer Core Verify
 on:
   push:
     branches: [main]
@@ -14,21 +14,11 @@ jobs:
           python-version: "3.12"
       - name: Install runtime dependencies
         run: pip install -r requirements.txt pytest httpx
-      - name: Diagnose customer core checkout
-        run: |
-          pwd
-          find live_core -maxdepth 2 -type f -print || true
-          python - <<'PY'
-          import os, sys
-          print('cwd=', os.getcwd())
-          print('sys.path=', sys.path)
-          print('live_core_exists=', os.path.isdir('live_core'))
-          if os.path.isdir('live_core'):
-              print('live_core_files=', sorted(os.listdir('live_core')))
-          PY
-      - name: Run customer core tests
+      - name: Run complete customer core suite
         run: python -m pytest -q
-      - name: Validate packaged runtime
+      - name: Run customer end-to-end contract explicitly
+        run: python -m pytest tests/test_e2e_contract.py -q
+      - name: Validate packaged deterministic runtime
         run: |
           python - <<'PY'
           import zipfile
@@ -43,10 +33,10 @@ jobs:
           print("runtime zip OK", p.stat().st_size)
           PY
       - name: Python compile
-        run: python -m py_compile app.py
+        run: python -m py_compile app.py live_core/*.py tests/*.py
       - name: Browser JavaScript syntax
         run: node --check ui/app.js
-      - name: Bootstrap and customer UI smoke
+      - name: Bootstrap customer UI and routing smoke
         run: |
           python - <<'PY'
           from fastapi.testclient import TestClient
@@ -54,10 +44,13 @@ jobs:
           c=TestClient(app.app)
           r=c.get("/")
           assert r.status_code==200
-          assert "148AI" in r.text and "Create free account" in r.text
+          assert "148AI" in r.text and "Create free account" in r.text and 'id="timeline"' in r.text
           h=c.get("/_148ai/health")
           assert h.status_code==200 and h.json()["runtime_loaded"] is True, h.text
+          assert h.json()["live_core"]["configured"] is True, h.text
+          auth=c.post("/api/live/auth/register",json={"email":"ci-smoke@example.com","password":"Strong-password-123"})
+          assert auth.status_code==200, auth.text
           s=c.get("/api/status")
           assert s.status_code==200 and s.json()["product"]=="148AI", s.text
-          print("bootstrap + runtime API OK")
+          print("customer core + runtime routing OK")
           PY
