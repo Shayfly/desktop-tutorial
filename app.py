@@ -123,7 +123,11 @@ def customer_home():
 
 @bootstrap.get("/ui/{asset_name}")
 def customer_asset(asset_name: str):
-    allowed = {"app.css": "text/css; charset=utf-8", "app.js": "application/javascript; charset=utf-8"}
+    allowed = {
+        "app.css": "text/css; charset=utf-8",
+        "app.js": "application/javascript; charset=utf-8",
+        "live-runner.js": "application/javascript; charset=utf-8",
+    }
     if asset_name not in allowed:
         return Response(status_code=404)
     path = UI_DIR / asset_name
