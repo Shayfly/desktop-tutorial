@@ -5,6 +5,29 @@ from live_core.api import create_router
 from live_core.store import MemoryStore
 
 
+def start_and_run(client, headers, prompt, project_id=None):
+    started = client.post(
+        "/api/live/builds",
+        headers=headers,
+        json={"prompt": prompt, "project_id": project_id},
+    )
+    assert started.status_code == 200, started.text
+    queued = started.json()
+    assert queued["stage"] == "planning", queued
+    assert queued["status"] == "queued"
+
+    ran = client.post(
+        f"/api/live/builds/{queued['id']}/run",
+        headers=headers,
+        json={"target_markets": ["IL"]},
+    )
+    assert ran.status_code == 200, ran.text
+    completed = ran.json()
+    assert completed["stage"] == "ready", completed
+    assert completed["status"] == "ready"
+    return completed
+
+
 def test_customer_ready_flow_end_to_end_with_real_deterministic_runtime():
     store = MemoryStore()
     app = FastAPI()
@@ -22,18 +45,11 @@ def test_customer_ready_flow_end_to_end_with_real_deterministic_runtime():
     first_token = registered.json()["token"]
     headers = {"Authorization": f"Bearer {first_token}"}
 
-    first = client.post(
-        "/api/live/builds",
-        headers=headers,
-        json={
-            "prompt": "Build a small Hebrew first-grade writing practice web game with levels and stars",
-            "target_markets": ["IL"],
-        },
+    first_build = start_and_run(
+        client,
+        headers,
+        "Build a small Hebrew first-grade writing practice web game with levels and stars",
     )
-    assert first.status_code == 200, first.text
-    first_build = first.json()
-    assert first_build["stage"] == "ready", first_build
-    assert first_build["status"] == "ready"
     assert first_build["project_id"]
     assert first_build["version_id"]
     project_id = first_build["project_id"]
@@ -53,23 +69,20 @@ def test_customer_ready_flow_end_to_end_with_real_deterministic_runtime():
         headers=headers,
     )
     assert preview_create.status_code == 200, preview_create.text
-    preview = client.get(preview_create.json()["url"])
+    preview_url = preview_create.json()["url"]
+    assert preview_url.endswith("/")
+    preview = client.get(preview_url)
     assert preview.status_code == 200, preview.text
     assert preview.headers["content-type"].startswith("text/html")
+    assert "sandbox" in preview.headers["content-security-policy"]
     assert preview.content.strip()
 
-    second = client.post(
-        "/api/live/builds",
-        headers=headers,
-        json={
-            "project_id": project_id,
-            "prompt": "Improve the same product by adding another learning level and clearer rewards",
-            "target_markets": ["IL"],
-        },
+    second_build = start_and_run(
+        client,
+        headers,
+        "Improve the same product by adding another learning level and clearer rewards",
+        project_id=project_id,
     )
-    assert second.status_code == 200, second.text
-    second_build = second.json()
-    assert second_build["stage"] == "ready", second_build
     assert second_build["project_id"] == project_id
     assert second_build["version_id"] != first_version
     second_version = second_build["version_id"]
