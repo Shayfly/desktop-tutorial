@@ -51,6 +51,15 @@ def test_executes_valid_static_bundle():
     assert result.entrypoint == "index.html"
 
 
+def test_missing_referenced_local_asset_never_reaches_ready():
+    blob = zip_bytes({
+        "index.html": "<!doctype html><html><head><link rel='stylesheet' href='missing.css'></head><body><script src='missing.js'></script></body></html>",
+    })
+    result = execute_web_artifact(blob, timeout_seconds=10)
+    assert result.ok is False
+    assert "missing" in (result.error or "").lower()
+
+
 def test_invalid_javascript_never_passes_execution():
     blob = zip_bytes({
         "index.html": "<!doctype html><html><body><script src='app.js'></script></body></html>",
