@@ -10,6 +10,9 @@ from .service import CustomerService
 from .store import BuildRecord, ProjectRecord, Store, UserRecord, VersionRecord
 
 
+PREVIEW_CSP = "sandbox allow-scripts allow-forms allow-modals allow-popups; base-uri 'none'; object-src 'none'"
+
+
 class AuthInput(BaseModel):
     email: str
     password: str
@@ -18,6 +21,10 @@ class AuthInput(BaseModel):
 class BuildInput(BaseModel):
     prompt: str
     project_id: str | None = None
+    target_markets: list[str] = Field(default_factory=list)
+
+
+class RunBuildInput(BaseModel):
     target_markets: list[str] = Field(default_factory=list)
 
 
@@ -139,11 +146,19 @@ def create_router(store: Store) -> APIRouter:
     @router.post("/api/live/builds")
     def start_build(body: BuildInput, user: UserRecord = Depends(require_user)):
         try:
-            build = service.build(user.id, body.prompt, body.project_id, body.target_markets)
+            build = service.start_build(user.id, body.prompt, body.project_id)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Project not found") from exc
+        return _build_payload(build)
+
+    @router.post("/api/live/builds/{build_id}/run")
+    def run_build(build_id: str, body: RunBuildInput, user: UserRecord = Depends(require_user)):
+        try:
+            build = service.run_build(user.id, build_id, body.target_markets)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Build not found") from exc
         return _build_payload(build)
 
     @router.get("/api/live/builds/{build_id}")
@@ -189,7 +204,7 @@ def create_router(store: Store) -> APIRouter:
             handle = service.create_preview_handle(user.id, project_id, version_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Version not found") from exc
-        return {"url": f"/preview/live/{handle}", "preview_id": handle}
+        return {"url": f"/preview/live/{handle}/", "preview_id": handle}
 
     def _serve_preview(preview_id: str, path: str | None = None):
         try:
@@ -197,9 +212,18 @@ def create_router(store: Store) -> APIRouter:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Preview not found") from exc
         media_type = mimetypes.guess_type(resolved_path)[0] or "application/octet-stream"
-        return Response(content=data, media_type=media_type)
+        return Response(
+            content=data,
+            media_type=media_type,
+            headers={
+                "Content-Security-Policy": PREVIEW_CSP,
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+                "Cache-Control": "private, no-store",
+            },
+        )
 
-    @router.get("/preview/live/{preview_id}")
+    @router.get("/preview/live/{preview_id}/")
     def preview_root(preview_id: str):
         return _serve_preview(preview_id, None)
 
