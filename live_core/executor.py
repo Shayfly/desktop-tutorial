@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html.parser import HTMLParser
 import io
 import os
 from pathlib import Path, PurePosixPath
@@ -8,6 +9,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 
@@ -28,6 +30,21 @@ class ExecutionResult:
     entrypoint: str | None
     checked_js: int
     error: str | None
+
+
+class _LocalAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.references: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        values = dict(attrs)
+        if tag == "script" and values.get("src"):
+            self.references.append(values["src"])
+        elif tag == "link" and values.get("href"):
+            self.references.append(values["href"])
+        elif tag in {"img", "source", "audio", "video"} and values.get("src"):
+            self.references.append(values["src"])
 
 
 def _safe_member_name(name: str) -> str:
@@ -125,6 +142,41 @@ def _extract_verified(blob: bytes, root: Path, max_bytes: int) -> ArtifactManife
     return manifest
 
 
+def _validate_local_html_assets(html: str, root: Path) -> str | None:
+    parser = _LocalAssetParser()
+    try:
+        parser.feed(html)
+    except Exception as exc:
+        return f"index.html could not be parsed: {type(exc).__name__}: {exc}"
+
+    root_resolved = root.resolve()
+    for raw_ref in parser.references:
+        ref = (raw_ref or "").strip()
+        if not ref or ref.startswith(("#", "//")):
+            continue
+        parsed = urlsplit(ref)
+        if parsed.scheme.lower() in {"http", "https", "data", "blob", "mailto", "tel"}:
+            continue
+        if parsed.scheme:
+            continue
+        local_path = unquote(parsed.path or "").replace("\\", "/")
+        if not local_path:
+            continue
+        if local_path.startswith("/"):
+            candidate = root / local_path.lstrip("/")
+        else:
+            candidate = root / local_path
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            return f"Referenced local asset is invalid: {ref}"
+        if root_resolved not in resolved.parents and resolved != root_resolved:
+            return f"Referenced local asset escapes product root: {ref}"
+        if not resolved.is_file():
+            return f"Referenced local asset is missing: {ref}"
+    return None
+
+
 def execute_web_artifact(blob: bytes, timeout_seconds: int) -> ExecutionResult:
     max_bytes = 5 * 1024 * 1024
     try:
@@ -138,6 +190,10 @@ def execute_web_artifact(blob: bytes, timeout_seconds: int) -> ExecutionResult:
                 return ExecutionResult(False, manifest.entrypoint, 0, "index.html is not valid UTF-8")
             if not html.strip():
                 return ExecutionResult(False, manifest.entrypoint, 0, "index.html is empty")
+
+            asset_error = _validate_local_html_assets(html, root)
+            if asset_error:
+                return ExecutionResult(False, manifest.entrypoint, 0, asset_error)
 
             js_files = [root / name for name in manifest.files if name.lower().endswith((".js", ".mjs", ".cjs"))]
             node = shutil.which("node")
