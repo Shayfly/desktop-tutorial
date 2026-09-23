@@ -4,12 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from .security import hash_password, new_session_token, token_digest, verify_password
-from .store import Store, UserRecord
+from .service import CustomerService
+from .store import BuildRecord, ProjectRecord, Store, UserRecord, VersionRecord
 
 
 class AuthInput(BaseModel):
     email: str
     password: str
+
+
+class BuildInput(BaseModel):
+    prompt: str
+    project_id: str | None = None
 
 
 def _normalize_email(value: str) -> str:
@@ -31,8 +37,44 @@ def _user_payload(user: UserRecord) -> dict[str, str]:
     return {"id": user.id, "email": user.email}
 
 
+def _project_payload(project: ProjectRecord) -> dict:
+    return {
+        "id": project.id,
+        "title": project.title,
+        "active_version_id": project.active_version_id,
+        "created_at": project.created_at.isoformat(),
+        "updated_at": project.updated_at.isoformat(),
+    }
+
+
+def _version_payload(version: VersionRecord) -> dict:
+    return {
+        "id": version.id,
+        "project_id": version.project_id,
+        "artifact_id": version.artifact_id,
+        "prompt": version.prompt,
+        "parent_version_id": version.parent_version_id,
+        "created_at": version.created_at.isoformat(),
+    }
+
+
+def _build_payload(build: BuildRecord) -> dict:
+    return {
+        "id": build.id,
+        "project_id": build.project_id,
+        "prompt": build.prompt,
+        "stage": build.stage,
+        "status": build.status,
+        "error": build.error,
+        "version_id": build.version_id,
+        "created_at": build.created_at.isoformat(),
+        "updated_at": build.updated_at.isoformat(),
+    }
+
+
 def create_router(store: Store) -> APIRouter:
     router = APIRouter()
+    service = CustomerService(store)
 
     def require_user(request: Request) -> UserRecord:
         token = _extract_bearer(request)
@@ -79,5 +121,27 @@ def create_router(store: Store) -> APIRouter:
     def me(user: UserRecord = Depends(require_user)):
         return _user_payload(user)
 
-    router.state = {"require_user": require_user, "store": store}
+    @router.get("/api/live/projects")
+    def list_projects(user: UserRecord = Depends(require_user)):
+        return {"projects": [_project_payload(p) for p in service.list_projects(user.id)]}
+
+    @router.get("/api/live/projects/{project_id}/versions")
+    def list_versions(project_id: str, user: UserRecord = Depends(require_user)):
+        try:
+            versions = service.list_versions(user.id, project_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Project not found") from exc
+        return {"versions": [_version_payload(v) for v in versions]}
+
+    @router.post("/api/live/builds")
+    def start_build(body: BuildInput, user: UserRecord = Depends(require_user)):
+        try:
+            build = service.start_build(user.id, body.prompt, body.project_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Project not found") from exc
+        return _build_payload(build)
+
+    router.state = {"require_user": require_user, "store": store, "service": service}
     return router
