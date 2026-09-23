@@ -14,8 +14,20 @@ jobs:
           python-version: "3.12"
       - name: Install runtime dependencies
         run: pip install -r requirements.txt pytest httpx
+      - name: Diagnose customer core checkout
+        run: |
+          pwd
+          find live_core -maxdepth 2 -type f -print || true
+          python - <<'PY'
+          import os, sys
+          print('cwd=', os.getcwd())
+          print('sys.path=', sys.path)
+          print('live_core_exists=', os.path.isdir('live_core'))
+          if os.path.isdir('live_core'):
+              print('live_core_files=', sorted(os.listdir('live_core')))
+          PY
       - name: Run customer core tests
-        run: pytest -q
+        run: python -m pytest -q
       - name: Validate packaged runtime
         run: |
           python - <<'PY'
