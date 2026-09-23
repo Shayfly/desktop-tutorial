@@ -30,7 +30,7 @@ def test_project_cannot_be_reused_by_another_owner():
         service.ensure_project(bob.id, "Change Alice app", project.id)
 
 
-def test_live_build_endpoint_auto_creates_project_and_returns_validated_result():
+def test_live_build_endpoint_starts_prompt_first_then_runs_as_separate_request():
     store = MemoryStore()
     app = FastAPI()
     app.include_router(create_router(store))
@@ -41,20 +41,35 @@ def test_live_build_endpoint_auto_creates_project_and_returns_validated_result()
     ).json()
     headers = {"Authorization": f"Bearer {auth['token']}"}
 
-    created = client.post(
+    started = client.post(
         "/api/live/builds",
         headers=headers,
         json={"prompt": "Build a tiny Hebrew learning game"},
     )
-    assert created.status_code == 200, created.text
-    payload = created.json()
+    assert started.status_code == 200, started.text
+    payload = started.json()
     assert payload["project_id"]
-    assert payload["stage"] == "ready", payload
-    assert payload["status"] == "ready"
-    assert payload["version_id"]
+    assert payload["stage"] == "planning"
+    assert payload["status"] == "queued"
+    assert payload["version_id"] is None
+
+    before_run = client.get(f"/api/live/builds/{payload['id']}", headers=headers)
+    assert before_run.status_code == 200
+    assert [event["stage"] for event in before_run.json()["events"]] == ["planning"]
+
+    ran = client.post(
+        f"/api/live/builds/{payload['id']}/run",
+        headers=headers,
+        json={"target_markets": ["IL"]},
+    )
+    assert ran.status_code == 200, ran.text
+    result = ran.json()
+    assert result["stage"] == "ready", result
+    assert result["status"] == "ready"
+    assert result["version_id"]
 
     projects = client.get("/api/live/projects", headers=headers)
     assert projects.status_code == 200
     assert len(projects.json()["projects"]) == 1
-    assert projects.json()["projects"][0]["id"] == payload["project_id"]
-    assert projects.json()["projects"][0]["active_version_id"] == payload["version_id"]
+    assert projects.json()["projects"][0]["id"] == result["project_id"]
+    assert projects.json()["projects"][0]["active_version_id"] == result["version_id"]
