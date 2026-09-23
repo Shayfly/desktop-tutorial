@@ -23,6 +23,10 @@ def test_bootstrap_mounts_live_core_before_legacy_runtime(monkeypatch):
     assert 'id="timeline"' in home.text
     assert '/ui/live-runner.js' in home.text
 
+    runner = client.get("/ui/live-runner.js")
+    assert runner.status_code == 200
+    assert "runPromptFirstBuild" in runner.text
+
     registered = client.post(
         "/api/live/auth/register",
         json={"email": "bootstrap@example.com", "password": "Strong-password-123"},
