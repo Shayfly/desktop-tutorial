@@ -104,3 +104,120 @@ class PostgresSubscriptionService:
                     cur.execute('UPDATE creator_subscriptions SET credits_used=%s,provider_spend_usd=%s WHERE user_id=%s',
                                 (new_credits, new_spend, user_id))
         return self.snapshot(user_id)
+
+    # ---- M1 Revision 2: build-credit reservation lifecycle -----------------
+    # Additive (reserve/settle/release do not replace authorize/consume, which
+    # existing callers such as V28Platform.build() still use for the
+    # deterministic zero-cost path). `reserve()` is called from inside an
+    # already-open cursor/transaction supplied by the caller (investor_app.py's
+    # durable-build handler) so the reservation, build_requests row, build_jobs
+    # row and outbox row commit atomically.
+    #
+    # DEVIATION FROM THE PASTED PATCH: the pasted `reserve()` never received a
+    # project_id and inserted the literal string 'UNKNOWN' into
+    # credit_reservations.project_id on every call. That column is NOT NULL
+    # with no default (see infra/postgres/013_durable_async_builds.sql) and
+    # every real reservation needs a real project id for reporting/audit, so a
+    # `project_id` parameter was added here and must be threaded through by
+    # the caller. Everything else in reserve/settle/release is unchanged from
+    # the pasted patch.
+
+    def reserve(self, cur, *, build_id: str, user_id: str, project_id: str, cost_class: str | CostClass, credits: int, category: str='new_build', estimated_provider_cost_usd: Decimal | None=None) -> UsageDecision:
+        """Atomically reserves credits and enforces limits within a transaction."""
+        cc = cost_class if isinstance(cost_class, CostClass) else CostClass(cost_class)
+        if credits < 0: raise ValueError('credits must be non-negative')
+
+        # Load user sub strictly for update
+        cur.execute('SELECT plan_code,cycle,credits_used,provider_spend_usd FROM creator_subscriptions WHERE user_id=%s FOR UPDATE', (user_id,))
+        row = cur.fetchone()
+        if not row: raise RuntimeError('subscription row missing')
+
+        plan_code = row[0]
+        cycle = str(row[1])
+        used = int(row[2])
+        spend = Decimal(str(row[3]))
+
+        current_cycle = self._cycle_now()
+        if cycle != current_cycle:
+            cur.execute('UPDATE creator_subscriptions SET cycle=%s,credits_used=0,provider_spend_usd=0 WHERE user_id=%s', (current_cycle, user_id))
+            cycle, used, spend = current_cycle, 0, Decimal('0')
+
+        plan = PLAN_CATALOG[PlanCode(plan_code) if not isinstance(plan_code, PlanCode) else plan_code]
+        estimate = estimated_provider_cost_usd if estimated_provider_cost_usd is not None else Decimal('0.25')
+        user_billable = category not in {'system_bug','missing_requirement'}
+        charge = credits if user_billable else 0
+
+        allowed, reason = True, 'authorized'
+        if cc not in plan.allowed_cost_classes:
+            allowed, reason = False, 'cost class not included in plan'
+        elif plan.included_credits and used + charge > plan.included_credits:
+            allowed, reason = False, 'monthly credits exhausted'
+        elif plan.paid_provider_budget_usd is not None and spend + estimate > plan.paid_provider_budget_usd:
+            allowed, reason = False, 'paid-provider budget exhausted'
+
+        decision = UsageDecision(
+            allowed, plan.code.value, cc.value, str(estimate.quantize(Decimal('0.0001'))), charge,
+            max(0, plan.included_credits - (used + charge)) if plan.included_credits else 0,
+            None if plan.paid_provider_budget_usd is None else str(max(Decimal('0'), plan.paid_provider_budget_usd-(spend+estimate)).quantize(Decimal('0.0001'))),
+            reason, user_billable,
+        )
+
+        if allowed:
+            cur.execute(
+                "INSERT INTO credit_reservations(build_id, account_id, project_id, credits_reserved, estimated_provider_cost_usd, status) VALUES (%s, %s, %s, %s, %s, 'RESERVED') ON CONFLICT (build_id) DO NOTHING",
+                (build_id, user_id, project_id, charge, estimate)
+            )
+            # Only update if the insert wasn't ignored due to conflict (idempotency)
+            if cur.rowcount == 1:
+                cur.execute('UPDATE creator_subscriptions SET credits_used=%s, provider_spend_usd=%s WHERE user_id=%s', (used + charge, spend + estimate, user_id))
+
+        return decision
+
+    def settle(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None) -> None:
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT account_id, status, estimated_provider_cost_usd FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    row = cur.fetchone()
+                    if not row: return
+                    user_id, status, estimated_cost = row[0], row[1], Decimal(str(row[2]))
+
+                    if status != 'RESERVED': return
+
+                    actual = actual_provider_cost_usd if actual_provider_cost_usd is not None else estimated_cost
+                    settled = actual
+
+                    if actual < estimated_cost:
+                        refund = estimated_cost - actual
+                        cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (refund, user_id))
+                    elif actual > estimated_cost:
+                        shortfall = actual - estimated_cost
+                        cur.execute("SELECT plan_code, provider_spend_usd FROM creator_subscriptions WHERE user_id=%s", (user_id,))
+                        sub_row = cur.fetchone()
+                        plan = PLAN_CATALOG[PlanCode(sub_row[0])]
+                        current_spend = Decimal(str(sub_row[1]))
+
+                        if plan.paid_provider_budget_usd is not None:
+                            budget_remaining = max(Decimal('0'), plan.paid_provider_budget_usd - current_spend)
+                            charge = min(shortfall, budget_remaining)
+                            settled = estimated_cost + charge  # The rest is company overrun
+                        else:
+                            charge = shortfall
+
+                        cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = provider_spend_usd + %s WHERE user_id=%s", (charge, user_id))
+
+                    cur.execute("UPDATE credit_reservations SET status='SETTLED', resolved_at=now(), actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s", (actual, settled, build_id))
+
+    def release(self, *, build_id: str) -> None:
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    row = cur.fetchone()
+                    if not row: return
+                    user_id, status, credits_reserved, estimated_cost = row[0], row[1], row[2], Decimal(str(row[3]))
+
+                    if status != 'RESERVED': return
+
+                    cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now() WHERE build_id=%s", (build_id,))
+                    cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (credits_reserved, estimated_cost, user_id))

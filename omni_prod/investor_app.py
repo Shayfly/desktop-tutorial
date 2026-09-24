@@ -4,11 +4,12 @@ import os
 import shutil
 import hmac
 import io
+import uuid
 import zipfile
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, StreamingResponse, Response
+from fastapi.responses import HTMLResponse, StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel, Field
 
 from .agent_team import plan_team
@@ -48,6 +49,9 @@ from .pricing import CostClass, catalog_payload
 from .creator_accounts import PostgresAccountService
 from .subscription_store import PostgresSubscriptionService
 from .db import DatabasePool
+from .queueing import enqueue_build
+from .storage import S3ArtifactStore
+from .job_repository import PostgresBuildRepository
 from .rights_ip import JURISDICTIONS
 from .universal_brain import OmniUniversalBrain
 from .brand_clearance import brand_readiness
@@ -98,6 +102,16 @@ _v26=V26UniversalPlatform(token_secret=_control_plane_secret(),generated_app_tok
 _v27=V27UniversalPlatform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28_pool=None
 def _build_v28_platform():
+    # M1 Revision 2: wire a durable PostgresProjectWorkspace onto the engine
+    # when postgres persistence AND S3-compatible object storage are both
+    # configured. This is additive to the existing function rather than the
+    # pasted patch's full replacement, which introduced a second, incompatible
+    # _build_v28_platform(db_pool=None, artifact_store=None) signature and
+    # never actually constructed an artifact store anywhere. Left un-configured
+    # (no OMNI_S3_* vars), V28Platform keeps its existing in-memory
+    # ProjectWorkspace default -- durable Postgres build/reservation state is
+    # still real, but committed repository content is not yet durable. This
+    # is reported as PARTIAL, not silently upgraded to LIVE.
     global _v28_pool
     mode=os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()
     if mode=='postgres':
@@ -107,7 +121,16 @@ def _build_v28_platform():
         _v28_pool=DatabasePool(database_url)
         accounts=PostgresAccountService(token_secret=_control_plane_secret(),pool=_v28_pool)
         subscriptions=PostgresSubscriptionService(pool=_v28_pool)
-        return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret(),account_service=accounts,subscription_service=subscriptions)
+        plat=V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret(),account_service=accounts,subscription_service=subscriptions)
+        s3_endpoint=os.getenv('OMNI_S3_ENDPOINT','').strip()
+        s3_bucket=os.getenv('OMNI_S3_BUCKET','').strip()
+        s3_access_key=os.getenv('OMNI_S3_ACCESS_KEY','').strip()
+        s3_secret_key=os.getenv('OMNI_S3_SECRET_KEY','').strip()
+        if s3_endpoint and s3_bucket and s3_access_key and s3_secret_key:
+            from .workspace import PostgresProjectWorkspace
+            artifact_store=S3ArtifactStore(endpoint=s3_endpoint,bucket=s3_bucket,access_key=s3_access_key,secret_key=s3_secret_key)
+            plat.engine.workspace=PostgresProjectWorkspace(_v28_pool,artifact_store)
+        return plat
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 _integrations_v28=IntegrationCenter()
@@ -1022,6 +1045,109 @@ def v28_promote(project_id: str, request: Request, version_id: str | None = None
         raise HTTPException(409, str(exc)) from exc
     except KeyError as exc:
         raise HTTPException(404, 'project/version not found') from exc
+
+#
+# M1 Revision 2: durable asynchronous build pipeline (P0-1).
+#
+# DEVIATION FROM THE PASTED PATCH: the master directive and the pasted patch
+# both specify POST /api/v28/projects/{project_id}/build. That exact path
+# already exists above (v28_build, line ~941) as the working, tested,
+# zero-cost synchronous/deterministic build used by the Free tier and
+# test_v28_148ai_launch.py's build assertions. FastAPI/Starlette match routes
+# in registration order, so appending a second handler at the identical
+# path+method would not fail loudly -- the old handler would simply keep
+# matching every request and the new async handler would be permanently
+# unreachable dead code, which is exactly the kind of silent, undetectable
+# "fake success" the directive prohibits. The POST endpoint is mounted at
+# /api/v28/projects/{project_id}/builds (plural, matching the status GET's
+# existing pluralization) instead. The GET status endpoint path is applied
+# exactly as specified since no collision exists there.
+#
+# KNOWN GAP (not fixed here, flagged rather than papered over): the enqueued
+# job path "omni_prod.worker_tasks.execute_live_build_job" does not exist
+# anywhere in this repository, in either pasted patch, or in this session's
+# additions. A build submitted here will be durably persisted, credited, and
+# enqueued (202 QUEUED), but no worker will ever pick it up -- it will sit at
+# phase=QUEUED indefinitely until that task function is written to actually
+# drive the existing AutonomousProductEngine (see _live_components() above)
+# and call jobs.transition(...)/subscriptions.settle()/release() as it
+# progresses. This was not part of either pasted patch.
+
+@app.post('/api/v28/projects/{project_id}/builds')
+def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> dict:
+    """Async durable build pipeline (M1 Revision 2, P0-1)."""
+    if os.getenv('OMNI_CREATOR_PERSISTENCE') != 'postgres':
+        raise HTTPException(503, "Durable async build requires OMNI_CREATOR_PERSISTENCE=postgres")
+
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        cost_class, credits = CostClass.STANDARD, 60
+
+        build_id = f"bld_{uuid.uuid4().hex}"
+        brand_visible = _v28._project_brand_visible.get(key)
+        white_label = _v28._project_white_label.get(key)
+        # DEVIATION: the pasted patch passed raw RightsEvidence objects here,
+        # which are not JSON-serializable (only .to_dict() is); serialized
+        # explicitly instead so build_requests.rights_evidence actually writes.
+        rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
+
+        jobs = PostgresBuildRepository(_v28_pool)
+
+        with _v28_pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    # DEVIATION: reserve() now takes project_id=key (see
+                    # subscription_store.py) so credit_reservations.project_id
+                    # is never the literal placeholder 'UNKNOWN'.
+                    decision = _v28.subscriptions.reserve(
+                        cur, build_id=build_id, user_id=account.id, project_id=key,
+                        cost_class=cost_class.value, credits=credits,
+                    )
+                    if not decision.allowed:
+                        raise HTTPException(402, decision.reason)
+
+                    jobs.create_request(
+                        cur, build_id=build_id, user_id=account.id, internal_project_id=key,
+                        prompt=req.prompt, target_markets=tuple(req.target_markets),
+                        branding_visible=brand_visible, white_label_name=white_label,
+                        rights_evidence=rights_evidence,
+                    )
+                    jobs.create_with_cursor(cur, build_id=build_id, project_id=key, version_id="pending")
+                    jobs.create_outbox(cur, build_id=build_id)
+
+        redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
+        enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
+        jobs.mark_outbox_enqueued(build_id)
+
+        return JSONResponse(status_code=202, content={"status": "queued", "build_id": build_id})
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+@app.get('/api/v28/projects/{project_id}/builds/{build_id}')
+def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
+    token = _v28_bearer(request)
+    _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+
+    if not _v28_pool:
+        raise HTTPException(503, "Durable build status requires OMNI_CREATOR_PERSISTENCE=postgres")
+
+    jobs = PostgresBuildRepository(_v28_pool)
+    try:
+        # Enforces isolation: internal_project_id bounds the build_id lookup.
+        details = jobs.get_details(build_id, internal_project_id=key)
+        return {
+            "build_id": build_id,
+            "status": details.status,
+            "phase": details.phase,
+            "message": details.message,
+            "error_message": details.error_message,
+            "repair_rounds": details.repair_rounds,
+            "result_version_id": details.result_version_id,
+            "artifact_key": details.artifact_key,
+        }
+    except KeyError:
+        raise HTTPException(404, "Build not found or access denied")
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
