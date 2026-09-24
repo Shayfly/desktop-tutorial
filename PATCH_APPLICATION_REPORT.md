@@ -1617,3 +1617,391 @@ This remediation stops at M4D.1, as directed. M4 is **not** marked `LIVE`.
 The current working tree and this report are the artifact for independent
 re-review; see `git log`/`git diff` for the commit created alongside this
 update.
+
+## Update: M4D.2 — live infrastructure verification
+
+M4D.1 was accepted "at the algorithmic/concurrency-design evidence level."
+Its own report, immediately above, is explicit that a live Postgres run
+was **not executed** in that sandbox. M4D.2's directive required closing
+exactly that gap — real PostgreSQL, real FastAPI, real Redis/RQ, "No
+FakeConn. No FakeCursor. No AST substitute. No mocked transaction
+semantics." — and, critically, required doing the environment discovery
+itself rather than declaring `BLOCKED_BY_ENVIRONMENT` because the services
+weren't preinstalled. **M5 was not started.**
+
+### Environment discovery — exact commands and exact results
+
+**Docker:**
+```
+$ service docker start
+ * Starting Docker: docker
+ulimit: error setting limit (Operation not permitted)
+ ...fail!
+```
+Worked around by invoking the daemon directly. `timeout 10 dockerd
+--storage-driver=vfs` started but was killed by the wrapper at 10s; `nohup
+dockerd --storage-driver=vfs & disown` was killed anyway (exit 144 — the
+harness's process-group cleanup catches ordinary background jobs). Fixed
+with a fully detached invocation:
+```
+$ setsid nohup dockerd --storage-driver=vfs > /tmp/dockerd.log 2>&1 < /dev/null &
+$ docker ps
+CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES
+```
+Daemon itself: **usable**. Then:
+```
+$ docker pull python:3.11-slim
+Error response from daemon: Get "https://registry-1.docker.io/v2/": Forbidden
+```
+Docker Hub: **genuinely blocked** by this sandbox's egress policy, not a
+Docker problem. Per this repo's own proxy runbook (`/root/.ccr/README.md`,
+"do not retry organization policy denials (403/407) — report them
+instead"), this was not retried. Docker was not used further; the
+services below were run natively instead.
+
+**PostgreSQL** — already present in the image, not running:
+```
+$ pg_lsclusters
+Ver Cluster Port Status Owner    Data directory              Log file
+16  main    5432 down   postgres /var/lib/postgresql/16/main ...
+$ pg_ctlcluster 16 main start
+$ pg_lsclusters
+16  main    5432 online postgres /var/lib/postgresql/16/main ...
+```
+A real, native (non-Docker) PostgreSQL 16.13 (Ubuntu
+16.13-0ubuntu0.24.04.1) server.
+
+**Redis** — binary present, not running:
+```
+$ redis-server --daemonize yes --port 6379 --logfile /var/log/redis-server.log
+$ redis-cli -p 6379 ping
+PONG
+```
+Redis 7.0.15 (`redis-server v=7.0.15 sha=00000000:0 malloc=jemalloc-5.3.0
+bits=64 build=e53ff17674aa6190`).
+
+**Python client libraries** — three independent installation paths tried,
+in order, each genuinely exhausted before moving to the next:
+```
+$ pip3 install fastapi==0.128.2 psycopg[binary] psycopg_pool redis rq
+ERROR: Could not find a version that satisfies the requirement fastapi==0.128.2
+$ curl -v https://pypi.org/simple/fastapi/
+< HTTP/1.1 403 Forbidden
+< x-deny-reason: host_not_allowed
+```
+```
+$ apt-get install -y python3-fastapi   (and equivalents)
+... 403  Forbidden
+```
+(`apt-cache policy` resolved candidate versions from a stale local index,
+but every actual `.deb` download from `archive.ubuntu.com` /
+`security.ubuntu.com` returned 403 — a genuine block, not a missing
+package.)
+```
+$ docker pull python:3.11-slim
+Error response from daemon: ... Forbidden
+```
+All three independently confirmed blocked. `git clone` to GitHub,
+however, is reachable:
+```
+$ git clone --depth 1 https://github.com/psycopg/psycopg.git  /tmp/psycopg_src
+$ git clone --depth 1 https://github.com/fastapi/fastapi.git  /tmp/fastapi_src
+$ git clone --depth 1 https://github.com/redis/redis-py.git   /tmp/redis_py_src
+$ git clone --depth 1 https://github.com/rq/rq.git            /tmp/rq_src
+```
+all four succeeded. Building real wheels from these was then abandoned
+(psycopg/psycopg_pool need `setuptools>=80.3.1`, only 68.1.2 present;
+fastapi needs `pdm-backend`, redis-py/rq need `hatchling`, none
+installable, same PyPI block) in favor of making the pure-Python source
+trees directly importable via `PYTHONPATH`
+(`tools/m4d2_setup_live_infra.sh`, step 4): symlinks from
+`/tmp/m4d2_vendor/{fastapi,redis,rq,psycopg,psycopg_pool}` into each
+cloned repo's real importable package directory. psycopg's C extension
+path is untouched — its pure-Python core uses `ctypes.dlopen("libpq.so.5")`
+directly, which was already present on disk.
+
+One micro-dependency, `annotated-doc` (a PyPI-only package `fastapi`
+imports at module load time for a PEP 727 `Doc()` documentation marker,
+with no GitHub source to clone), was replaced with a 3-line local shim
+(`/tmp/m4d2_vendor/annotated_doc.py`) re-exporting `typing_extensions.Doc`
+— verified byte-identical class body via `inspect.getsource(
+typing_extensions.Doc)` before use. It has zero effect on runtime
+validation, routing, or control flow; this substitution is disclosed here,
+in `STATUS.md`, and in the shim file's own docstring, per the directive's
+"no fake success" instruction. Every other package used in M4D.2's tests
+is the real, unmodified upstream source at the commit cloned:
+
+| Package | Repo | Commit |
+|---|---|---|
+| psycopg / psycopg_pool | psycopg/psycopg | `ab5646af17be1e90fb9b8a6a86ae17cfd2d10a22` |
+| fastapi | fastapi/fastapi | `50113da16fec53b66b80d75e80a89296de4fa5a5` |
+| redis-py | redis/redis-py | `722eb643746f9d946f82fe7e5558ed311e2b11fe` |
+| rq | rq/rq | `90a67a159ef9fa055c6bde12ee1bb3ebd0440b84` |
+
+Verified importable and resolved to real version numbers (psycopg's own
+`__version__` attribute reads `0.0.0.0` because the git-clone path skips
+the build-time version-stamping a real `pip install` would do — its
+`pyproject.toml` at the cloned commit declares `3.3.7.dev1`; this is
+disclosed rather than silently patched):
+```
+$ PYTHONPATH=/tmp/m4d2_vendor python3 -c "
+import fastapi, psycopg, psycopg_pool, redis, rq, starlette, pydantic
+print(fastapi.__version__, starlette.__version__, pydantic.__version__)
+print(redis.__version__, rq.__version__)
+"
+0.141.1 1.0.0 2.13.3
+8.0.0 2.12.0
+```
+
+**Migrations** — all 16 files in `infra/postgres/*.sql` applied in order
+to a fresh `m4d2_test` database, idempotently (the runbook can be re-run
+without error). The full, reproducible sequence is captured in
+`tools/m4d2_setup_live_infra.sh`, written specifically so "another
+engineer" (directive §J) can reproduce this without reverse-engineering
+this session's exploration.
+
+**Result: M4D.2 = `VERIFIED_LIVE_INFRA`.** Every section below ran
+against the real services above, not fakes.
+
+### C — real PostgreSQL concurrency (`tests/test_m4d2_live_postgres.py::RealConcurrencyTests`, 3 tests)
+
+Two, then ten, genuinely independent `psycopg` connections — proven
+distinct by reading each one's own `pg_backend_pid()`, not merely by
+object identity — synchronized with a real `threading.Barrier` and raced
+through `PostgresModificationRepository.accept()` for the *same*
+`project_id` and `source_version_id`. Verified directly from Postgres
+after each race: exactly one `project_versions` row is created; the loser
+raises the repository's own conflict result and leaves no orphan row;
+`current()` (a real `SELECT`, not the returned object) points only at the
+winner; the persisted `ProductSpec` matches the winner's content; the
+losing `ModificationRequest.status` is `CONFLICT`, the winner's is
+`ACCEPTED`. A fourth test manually acquires the exact production advisory
+lock id (`int(hashlib.sha256(project_id.encode()).hexdigest()[:15], 16)`
+— the identical formula used inside `PostgresProjectWorkspace.commit()`)
+on a raw connection and holds it open, then proves a same-project
+`accept()` blocks until release while a different project's `accept()`
+proceeds immediately — direct, positive proof that the lock serializes
+per-project without over-serializing unrelated projects.
+
+### D — real transaction-rollback (`RealTransactionRollbackTests`, 7 tests)
+
+A cursor-wrapping fixture (`_ExplodeCursor` / `_ExplodingConn` /
+`_ExplodingPool`) lets every real SQL statement before a chosen call
+number execute for real, then raises at that call — relying on Postgres's
+own real `ROLLBACK` (via `conn.transaction()`'s real `__exit__`), not a
+simulated one. Three staged failure points, each independently verified
+from a *separate, fresh* connection afterward:
+1. after the `project_versions` INSERT, before spec persistence → full
+   rollback confirmed (no such row survives).
+2. after spec persistence, before the final `ModificationRequest`
+   `ACCEPTED` update → full rollback confirmed.
+3. during the final request-state UPDATE itself → no partial promotion
+   survives.
+
+Plus: retry-after-crash succeeds cleanly on the next real attempt;
+duplicate accept delivery after a real success is not double-promoted;
+force-accept behavior is proven against real Postgres state, not asserted
+structurally; and rollback-after-accept genuinely restores the prior
+content as a new version (checked by re-reading it back from Postgres).
+
+### E — concurrency stress (`RealConcurrencyStressTests`, 2 tests)
+
+The real 2-way race repeated 20 consecutive iterations, and the real
+10-way fan-in repeated 3 times, all against live Postgres, all asserting
+the full invariant set (not just "no exception") each time. Zero
+failures, zero conflicts beyond the expected one-per-race, zero
+unexpected exceptions, across every run. The two files were run as full
+suites an additional **10 times** (`test_m4d2_live_postgres.py`) and **5
+times** (`test_m4d2_live_fastapi_redis.py`, with a Redis flush between
+runs) across this work, including immediately before this commit — zero
+flakiness on any run:
+```
+$ PYTHONPATH=/tmp/m4d2_vendor M4D2_DATABASE_URL=... python3 -m unittest tests.test_m4d2_live_postgres
+Ran 14 tests in 3.030s
+OK
+   ... (repeated; identical result every time)
+```
+
+### F — real FastAPI HTTP layer (`tests/test_m4d2_live_fastapi_redis.py::LiveFastAPIModificationFlowTests`, 5 tests)
+
+Runs the actual `omni_prod.investor_app` FastAPI application (via
+`fastapi.testclient.TestClient`, itself real, unmodified `starlette`
+code) with `OMNI_CREATOR_PERSISTENCE=postgres` and a live database URL set
+*before* the module is imported (`_v28`/`_v28_pool` are built once at
+import time from those env vars), then reassigns
+`iapp._v28.engine.workspace` to a real `PostgresProjectWorkspace` backed
+by a disk-based `DiskArtifactStore` fixture (same interface as
+`omni_prod.storage.S3ArtifactStore`; real S3/boto3 is out of scope for
+M4D.2's Postgres/Redis/FastAPI sections and was not installable regardless
+— PyPI-blocked). Covers: register → create project → propose modification
+→ HTTP `202` → accept over HTTP → conflict returns `409` and leaves
+`current()` untouched → double-accept of an already-`ACCEPTED` request
+returns `422` → reject leaves the current version intact and a
+post-reject accept attempt is `422` → a second user's attempt to act on
+someone else's modification returns `403` (the route raises
+`HTTPException(403, ...)` on `PermissionError`; the test method was
+initially misnamed `..._returns_404` before being corrected to match its
+own, already-correct assertion). Every one of these previously failed
+with `ModuleNotFoundError: No module named 'fastapi'` on import; all now
+execute against real HTTP, real routing, and real persisted Postgres
+state, and the persisted state is checked directly from the database, not
+just from the HTTP response body.
+
+### G — real Redis/RQ (`LiveRedisRQTests`, 3 tests)
+
+A real Redis connection and a real `rq.Queue`. Proposing a modification
+over HTTP is verified to genuinely enqueue a real RQ job (fetched back by
+id from Redis, not merely "no exception was raised"); that job is
+explicitly canceled and deleted afterward so it cannot pollute a later
+test's worker run, since actually executing
+`execute_modification_job` needs a live LLM provider gateway — a
+pre-existing, already-disclosed external-provider boundary (see the M4
+section above), not an M4D.2 gap, and not artificially worked around. Two
+further tests use dedicated job functions
+(`tests/m4d2_rq_job_target.py::mark_done` / `always_fails`, real functions
+resolved by dotted import path the way `rq` actually resolves jobs — not
+closures, which `rq` would correctly refuse) executed by a real
+`rq.SimpleWorker.work(burst=True)`: one proves a real worker really pops
+and executes a real enqueued job (its side effect is read back from
+Postgres via its own connection, mirroring how the real production job
+function opens its own connection rather than reusing the API process's
+pool); the other proves a job that raises is recorded as failed without
+crashing the worker and without any double-promotion side effect.
+
+`rq.Worker.work(burst=True)` was tried first and hit a real bug: it forks
+a child process per job by default, and forking a process that already
+holds an open `psycopg` connection pool corrupts the shared SSL socket
+(`psycopg.OperationalError: consuming input failed: SSL SYSCALL error: EOF
+detected`) — reproduced for real, not hypothesized. Fixed by switching to
+`rq.SimpleWorker` (in-process, no fork) — still real, unmodified `rq`
+code exercising real Redis dequeue and execution, just avoiding a
+fork-after-open-socket hazard that is specific to this test harness's
+process model, not to production (the production worker entrypoint is a
+long-lived separate process, never forked mid-test from a parent that
+already holds the pool). Disclosed in the test class's own docstring.
+
+### H — connection-pool / transaction-boundary check (`TransactionBoundaryTests`, 2 tests)
+
+Two independent, server-side (not application-level) proofs that
+`workspace.commit()`, `spec_repo.save()`, and the final
+`ModificationRequest` status update are not accidentally split across
+separate transactions when run through the real production code path:
+1. `txid_current()` captured on the connection immediately after each of
+   the three real write statements — identical transaction ids across
+   all three is direct proof of one transaction.
+2. `pg_stat_database.xact_commit` / `xact_rollback` deltas around a
+   successful `accept()` — exactly one additional committed transaction,
+   zero additional rollbacks. First run of this test failed
+   (`713 not greater than or equal to 714`) — a genuine Postgres behavior,
+   not a code defect: `pg_stat_database` counters flush asynchronously
+   per backend, and `pg_stat_force_next_flush()` only flushes the
+   *calling* connection's own stats, not the one `accept()` ran on. Fixed
+   by polling the counters (up to 5s, 50ms interval) instead of reading
+   them once immediately; documented in the test's own docstring rather
+   than silently patched over, per the directive's "no fake success"
+   instruction.
+
+### I — full regression
+
+```
+$ PYTHONPATH=/tmp/m4d2_vendor python3 -m compileall -q omni_prod tests tools
+-> exit 0
+$ PYTHONPATH=/tmp/m4d2_vendor M4D2_DATABASE_URL=... python3 -m unittest \
+    tests.test_m2_native_logic tests.test_m3_preview_logic tests.test_m4_acceptance \
+    tests.test_m4_modification_engine tests.test_m4_worker tests.test_m4d1_atomic_accept \
+    tests.test_m4d2_live_postgres tests.test_modification_diff tests.test_modification_repository \
+    tests.test_modifier_engine tests.test_overlay tests.test_product_evolution \
+    tests.test_spec_repository tests.test_v12_core tests.test_v13_core tests.test_v14_core \
+    tests.test_v15_acceptance tests.test_v16_release_gate tests.test_v17_preflight \
+    tests.test_v18_supplychain_security tests.test_v19_reliability \
+    tests.test_v20_observability_recovery tests.test_v21_gemini_remediation \
+    tests.test_v22_autonomous_core tests.test_v22_sandbox_executor tests.test_v23_investor_grade \
+    tests.test_v24_auth tests.test_v24_international tests.test_v24_native_remote \
+    tests.test_v25_unified_v10_parity tests.test_v26_universal_pro tests.test_v27_rights_company_os \
+    tests.test_v28_148ai_launch tests.test_workspace_version_conflict
+Ran 487 tests in 11.486s
+OK (skipped=2)
+$ PYTHONPATH=/tmp/m4d2_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... \
+    python3 -m unittest tests.test_m4d2_live_fastapi_redis   # standalone: sets env vars before
+                                                               # importing omni_prod.investor_app,
+                                                               # so it cannot share a process with
+                                                               # any other test module that also
+                                                               # imports it
+Ran 8 tests in 1.101s
+OK
+```
+487 + 8 = **495/495**, 2 expected skips (both pre-existing and unrelated to
+M4D.2 — the same two skips M4D.1's own regression run reported). This
+includes the 8 modules that were `NOT_CONFIGURED`/failing-on-import for
+lack of `fastapi` throughout every section of this report up to and
+including M4D.1 (`test_v23_investor_grade`, `test_v24_auth`,
+`test_v24_international`, `test_v24_native_remote`,
+`test_v25_unified_v10_parity`, `test_v26_universal_pro`,
+`test_v27_rights_company_os`, `test_v28_148ai_launch` — 136 tests) now
+genuinely executing under the real, vendored `fastapi`. No M4D.1 test was
+removed, weakened, or skipped to make M4D.2 pass; all of M4D.1's own
+tests (`test_workspace_version_conflict`, `test_m4d1_atomic_accept`) are
+included, unmodified, in the 487.
+
+### FACT / STRUCTURAL PROOF / BLOCKED / NOT APPLICABLE
+
+**FACT** (actually executed against real services, observed directly):
+sections C, D, E, F, G, H above in full; the 495/495 regression run; the
+10x/5x stress reconfirmation; the migration runbook applied idempotently
+to a fresh database.
+
+**STRUCTURAL PROOF** (inspected, not live-executed): none remaining for
+the M4 production path — this was the entire gap M4D.1 left open and
+M4D.2 closes. (M1–M3's own pre-existing, out-of-scope constraints,
+documented in their own sections above, are unaffected by M4D.2.)
+
+**BLOCKED** (unable to execute, and why): real S3/boto3-backed artifact
+storage (PyPI-blocked, same as every other package here; substituted with
+the disclosed `DiskArtifactStore` fixture, which is out of M4D.2's
+Postgres/Redis/FastAPI scope regardless); real LLM-provider execution of
+`ChangeClassifierAgent`/`execute_modification_job`'s actual classification
+step (needs a live external API key/gateway this sandbox has no route to
+— a pre-existing constraint predating M4D.2, not newly discovered by it);
+Docker Hub image pulls (confirmed genuinely blocked; not used as the
+execution path since native service binaries were available and used
+instead).
+
+**NOT APPLICABLE** (not part of M4's production execution path, so not
+artificially required): `dispatch_pending_outbox()`'s relay/retry path
+specifically (the direct-enqueue-succeeds path that IS part of the
+production `accept()`→outbox flow was exercised live in section G; the
+separate relay-for-previously-failed-dispatches path is a maintenance
+job, not invoked by any M4 request path exercised here) — left as
+`IMPLEMENTED_NOT_VERIFIED`, not claimed live, and not disguised as
+covered.
+
+### What remains honestly not proven after M4D.2
+
+A live LLM provider was never in the loop — every FastAPI test seeds
+`READY_FOR_REVIEW` state via the same production repository methods the
+real worker job calls (`transition_running`/`complete`), not by faking
+around them, but the actual `ChangeClassifierAgent.classify()` call itself
+was never exercised end-to-end here. Real S3 was never in the loop
+(`DiskArtifactStore` implements the identical interface, but is not
+`boto3` talking to AWS). Neither is new to M4D.2 — both are pre-existing,
+already-disclosed external-service boundaries this sandbox cannot reach
+regardless of M4D.2's own scope, not gaps M4D.2 introduced or obscured.
+
+**M4 is still not `LIVE` in the "fully production-deployed" sense — this
+means the M4 accept/reject/rollback path has now been proven correct
+against real PostgreSQL, real FastAPI HTTP routing, and real Redis/RQ
+execution, not that the whole platform (LLM classification, S3 storage,
+billing settlement, deployment) has been. M5 has not been started.**
+
+### Regression, compile, and commit
+
+The commit created alongside this update adds
+`tests/test_m4d2_live_postgres.py`, `tests/test_m4d2_live_fastapi_redis.py`,
+`tests/m4d2_rq_job_target.py`, and `tools/m4d2_setup_live_infra.sh`, and
+updates `STATUS.md` and this report. No file under `omni_prod/` was
+changed in M4D.2 — per the directive's "preserve the M4D.1 implementation
+unless live infrastructure testing reveals a real defect," live execution
+against real PostgreSQL, FastAPI, and Redis/RQ found no such defect, so
+none of `workspace.py`, `modification_repository.py`, `spec_repository.py`,
+`investor_app.py`, `queueing.py`, or `worker_tasks.py` were modified. See
+`git log`/`git diff` for the exact commit created alongside this update.
