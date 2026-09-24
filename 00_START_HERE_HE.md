@@ -1,6 +1,6 @@
 # 148AI — הוראות מסירה ל-Antigravity
 
-פתחו את התיקייה הראשית הזו בפרויקט Antigravity. קראו תחילה את `AGENTS.md` ואת `PRODUCT_MISSION_AND_ACCEPTANCE.md`, ואחר כך את `CURRENT_TRUTH_V28_HE.md` ואת קוד המקור.
+פתחו את התיקייה הראשית הזו בפרויקט Antigravity. קראו תחילה את `AGENTS.md` ואת `PRODUCT_MISSION_AND_ACCEPTANCE.md`, אחר כך את `CURRENT_TRUTH_V28_HE.md`, ואחר כך את `STATUS.md` ו-`PATCH_APPLICATION_REPORT.md` (עבודת ה-async build/preview שנבנתה מעל בסיס V28) — ורק אז את קוד המקור. הרשימה המלאה של אילו מסמכים כאן עדיין קנוניים ואילו הם היסטוריים נמצאת ב-`GOVERNANCE.md`.
 
 **המצב הנוכחי:** זו חבילת מקור V28 שנועדה לבדיקה ופיתוח. דמו מקומי ומספר בדיקות קיימים; חיבורי תשתית ויצירה חיה בקנה מידה מסחרי טרם אומתו. מסמכי המשימה החדשים אינם תיעוד של יכולות שכבר פועלות.
 

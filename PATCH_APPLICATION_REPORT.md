@@ -869,3 +869,129 @@ leftover omni-preview workdirs: 0   leftover preview containers: 0
   bridge). An egress policy is a remaining hardening item.
 - **The spend figure is an authorized-estimate ledger,** not provider-measured
   usage (1a).
+
+## Update: `omni_prod/modifier_engine.py` — real gap found and closed, scoped honestly
+
+A follow-up directive asked for canonical governance docs, a
+`modifier_engine.py` stub, and a verification run. The founder had no
+preference on either open question (what the module should do; what
+"canonical governance docs" means), so both were resolved from the actual
+repository rather than guessed at from the phrase alone.
+
+**Governance docs.** `GOVERNANCE.md` (new) lists which of this repo's ~90
+root-level documents are current source of truth versus historical, and
+states the rule going forward (update `STATUS.md` in place; don't fork
+another `CURRENT_TRUTH_VNN_HE.md`). One-line "historical" / "check STATUS.md
+first" banners were added to `CURRENT_TRUTH_V24/26/27_HE.md` and to the three
+investor-facing docs (`INVESTOR_DEMO_SCRIPT_HE.md`,
+`PRELAUNCH_INVESTOR_READINESS_HE.md`, `VALUATION_EVIDENCE_PLAN_HE.md`) — the
+highest-cost place for a stale claim to survive unlabeled. `00_START_HERE_HE.md`
+was extended to point new sessions at `STATUS.md`/`PATCH_APPLICATION_REPORT.md`
+(it previously stopped at `CURRENT_TRUTH_V28_HE.md`, missing the M1–M3 layer
+entirely). Checked before writing any of this: grepped `omni_prod/`, `tests/`,
+`scripts/`, `.github/` for every filename touched — nothing in code or CI
+reads these `.md` files, so none of this carries functional risk. No file was
+deleted or rewritten; `GOVERNANCE.md` is additive and says so.
+
+**`modifier_engine.py` — what it does, and why this specific design wasn't
+invented from nothing.** Grepped the repo first, the same way every prior
+phase did, and found a real, already-built, already-tested piece with no
+caller: `ChangeClassifierAgent.classify()` and `ChangeAssessment.from_dict()`
+(`autonomous_agents.py`/`change_policy.py`) classify a user's follow-up
+against an approved `ProductSpec` as `system_bug` / `missing_requirement` /
+`change_request` / `ambiguous` — covered by `tests/test_v22_autonomous_core.py`
+— but nothing outside that one test ever calls `.classify()`, and nothing
+turns a classification into an actual repository change.
+`POST /api/billing/classify` (`investor_app.py:325`) looked like it might be
+that caller; it isn't — it calls a different function, `billing.classify_charge()`,
+which prices a `category` string the caller already decided on, never invokes
+the LLM classifier, and never touches a repository. Confirmed by grep:
+`ChangeClassifierAgent`/`ChangeAssessment` have exactly one call site outside
+their own definitions, in that test.
+
+`ModifierEngine.modify(spec, repository, followup)`:
+- **`system_bug` / `missing_requirement`** (the two categories
+  `ChangeAssessment.from_dict` already requires to name real, existing
+  acceptance ids, and marks non-billable): real, tested end-to-end. Builds
+  synthetic `AcceptanceFailure`s from the classifier's `reason`/referenced
+  ids, then runs the *same* `RepairAgent.repair()` → `repository_patch.apply_patch()`
+  → `Executor.execute()` loop `AutonomousProductEngine.build()` uses for its
+  own repair rounds — no new agent, no new prompt, no new patch format.
+  Returns `status='applied'` or `'failed'` with the real `ExecutionReport`.
+- **`change_request`** (billable, and `ChangeAssessment.from_dict` allows it
+  to reference *no* acceptance id — e.g. "add a calendar view" isn't a
+  failing criterion): classified but deliberately **not executed**. Reducing
+  an open-ended feature add to RepairAgent's "fix these failing acceptance
+  ids" framing would be exactly the kind of unrequested, unverified
+  invention this repo's `AGENTS.md` warns against — it needs its own
+  generation prompt and usually a spec update, a real product decision.
+  Returns `status='change_request_not_supported'` with the real
+  `ChangeAssessment` attached, so a caller can bill/queue it once that path
+  exists. Flagged here the same way M1 flagged the missing worker and M3
+  flagged the missing generator-prompt `start`/`port` fields — not invented,
+  not silently dropped.
+- **`ambiguous`**: classified, nothing executed, `status='needs_clarification'`.
+
+**Explicitly out of scope, stated up front in the module docstring rather
+than discovered later:**
+1. `ProductSpec` persistence. Nothing in this codebase persists the spec a
+   project was built against — `ProjectVersion` (`workspace.py`) stores only
+   the repository; grepped `job_repository.py`, `acceptance_pipeline.py`,
+   `v27_platform.py`, `project_memory.py` for it, found nothing. The caller
+   must supply the spec it already holds from build time. Inventing a spec
+   store inside a "modify" engine would be unrequested scope creep on the
+   commit path.
+2. No route, no worker task, no wiring. Nothing calls `ModifierEngine.modify()`
+   except `tests/test_modifier_engine.py`. `execute_live_build_job` and
+   `execute_preview_launch` were only written once a directive explicitly
+   asked for them (see the M1/M3 sections above) — the same bar applies here:
+   route/queue wiring for a capability whose product shape (an endpoint under
+   which project? synchronous or async? does the UI show a diff before
+   committing?) was never specified is guessed at, not built.
+
+**Tests (`tests/test_modifier_engine.py`, real output, run twice):**
+```
+$ python3 -m unittest tests.test_modifier_engine -v
+test_change_request_is_classified_but_not_executed ... ok
+test_missing_requirement_applies_after_one_repair_round ... ok
+test_never_converging_repair_stops_at_max_rounds_and_reports_failed ... ok
+test_system_bug_repair_failures_carry_the_classifier_reason_and_followup ... ok
+test_zero_max_repair_rounds_never_calls_the_repairer_but_still_verifies ... ok
+test_empty_followup_rejected ... ok
+test_empty_repository_rejected ... ok
+test_negative_max_repair_rounds_rejected ... ok
+test_ambiguous_does_not_touch_repair_or_sandbox ... ok
+test_ambiguous_returned_repository_does_not_alias_the_input ... ok
+
+Ran 10 tests in 0.001s
+
+OK
+```
+Coverage: all four classification branches; the free-repair loop converging
+after one round and never converging (stops exactly at `max_repair_rounds`,
+reports `'failed'` honestly rather than `'applied'`); the failure payload
+handed to `RepairAgent.repair()` carries the classifier's real `reason` and
+the user's real `followup` text (asserted on the literal dict, not just its
+shape); `max_repair_rounds=0` still runs one real verification pass instead
+of claiming success unverified; the returned repository is a copy in every
+path (mutating the result never mutates the caller's original dict); empty
+`followup`/`repository` and negative `max_repair_rounds` are rejected before
+any agent or sandbox call.
+
+*Mutation check* (manual, one regression applied and reverted, not
+committed): removed the `change_request` early-return so it fell through to
+the repair path. `test_change_request_is_classified_but_not_executed` failed
+immediately with the `Unreachable` executor's `AssertionError`, confirming
+the test actually exercises the guard rather than passing vacuously.
+
+### Regression: full suite after this change
+
+```
+$ python3 -m compileall -q omni_prod tests infra scripts        -> exit 0
+$ python3 -m unittest <all 16 non-fastapi test modules>          -> Ran 197 tests ... OK
+      (the same 187 pre-existing tests, unmodified, + 10 new modifier_engine tests)
+```
+Same 8 fastapi-dependent test files still cannot import here
+(`ModuleNotFoundError: No module named 'fastapi'`) — unchanged, pre-existing,
+unrelated to this change; confirmed again by re-running the same per-file
+import check used in every prior phase of this report.

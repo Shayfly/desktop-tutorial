@@ -1,0 +1,141 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from .product_spec import ProductSpec
+from .change_policy import ChangeAssessment
+from .autonomous_core import AcceptanceFailure, ExecutionReport, Executor
+from .repository_patch import apply_patch
+
+
+@dataclass(frozen=True)
+class ModifierResult:
+    status: str  # 'applied' | 'failed' | 'needs_clarification' | 'change_request_not_supported'
+    assessment: ChangeAssessment
+    repository: dict[str, str]
+    repair_rounds: int
+    report: ExecutionReport | None
+    billable: bool
+
+
+class ModifierEngine:
+    """Applies a user's follow-up request against an *already generated and
+    committed* project, instead of building one from scratch.
+
+    Real, pre-existing gap this closes: `ChangeClassifierAgent`
+    (omni_prod/autonomous_agents.py) and `ChangeAssessment`
+    (omni_prod/change_policy.py) already classify a follow-up as
+    system_bug / missing_requirement / change_request / ambiguous, and
+    `ChangeAssessment.from_dict` is exercised by
+    tests/test_v22_autonomous_core.py -- but nothing in this repository ever
+    calls `ChangeClassifierAgent.classify()` outside that one test, and
+    nothing turns a classification into an actual repository change.
+    `POST /api/billing/classify` (investor_app.py) is not that path: it calls
+    a different function, `billing.classify_charge()`, which prices a
+    `category` string the *caller* already decided on -- it never invokes the
+    LLM classifier and never touches a repository. Confirmed by grep before
+    writing this: `ChangeClassifierAgent`/`ChangeAssessment` have exactly one
+    call site outside their own definitions and this file, in that test.
+
+    Scope of this stub, deliberately:
+
+    - **system_bug / missing_requirement**: real, tested end-to-end here.
+      These are the "free" categories (`ChangeAssessment.billable` is
+      `False`) that `ChangeAssessment.from_dict` already requires to
+      reference specific existing acceptance ids. Routed through the *same*
+      `RepairAgent` + `Executor` + `repository_patch.apply_patch()` that
+      `AutonomousProductEngine`'s own repair loop (autonomous_core.py) uses
+      for the initial build -- no new agent, no new prompt, no new patch
+      format invented for this.
+    - **change_request**: classified (so billing/UI can show the right
+      category and credit cost) but deliberately NOT executed here. A
+      billable "add a new capability" request cannot be safely reduced to
+      RepairAgent's "make the smallest safe patch that fixes supplied
+      acceptance failures" framing -- `ChangeAssessment.from_dict` allows it
+      to reference *no* acceptance id at all, since there may be nothing
+      failing yet to point at. Executing it needs its own generation
+      prompt and, usually, a spec update: a real product decision, not
+      something to guess at silently. Returns
+      `status='change_request_not_supported'` with the real
+      `ChangeAssessment` attached, so a caller can bill/queue it once that
+      path exists -- the same "flag the real gap instead of faking it"
+      practice `PATCH_APPLICATION_REPORT.md` used for the M1 worker and the
+      M3 generator-prompt gap.
+    - **ambiguous**: classified, nothing executed,
+      `status='needs_clarification'`.
+
+    Also deliberately out of scope: persisting/retrieving the `ProductSpec`
+    a project was originally built against. Nothing in this codebase
+    currently does -- `ProjectVersion` (workspace.py) stores only the
+    repository, and grepping job_repository.py, acceptance_pipeline.py,
+    v27_platform.py and project_memory.py for a stored spec finds nothing.
+    The caller of `.modify()` must supply the `spec` it already holds from
+    build time. Adding durable spec storage is a separate, real change to
+    the commit path, not something to invent inside a "modify" engine.
+
+    Also not wired up here, for the same reason: no FastAPI route and no
+    worker task call this. `execute_live_build_job` / `execute_preview_launch`
+    (worker_tasks.py) were only written once a directive explicitly asked for
+    them (see PATCH_APPLICATION_REPORT.md's M1 section); inventing route/queue
+    wiring for a brand-new, previously-unspecified capability before that is
+    asked for would be exactly the kind of unrequested addition this
+    repository's AGENTS.md warns against.
+    """
+
+    def __init__(self, *, classifier, repairer, executor: Executor, max_repair_rounds: int = 3):
+        if max_repair_rounds < 0:
+            raise ValueError('max_repair_rounds cannot be negative')
+        self.classifier = classifier
+        self.repairer = repairer
+        self.executor = executor
+        self.max_repair_rounds = max_repair_rounds
+
+    @staticmethod
+    def _summary(repo: dict[str, str]) -> dict:
+        # Identical shape to AutonomousProductEngine._summary: a {path, chars}
+        # listing, never file content. autonomous_agents._filter_repo_summary
+        # (already applied inside RepairAgent.repair) strips vendor/build
+        # noise and caps it before it reaches the model.
+        return {
+            'files': [{'path': p, 'chars': len(c)} for p, c in sorted(repo.items())],
+            'file_count': len(repo),
+            'total_chars': sum(len(c) for c in repo.values()),
+        }
+
+    def modify(self, *, spec: ProductSpec, repository: dict[str, str], followup: str) -> ModifierResult:
+        if not followup.strip():
+            raise ValueError('followup cannot be empty')
+        if not repository:
+            raise ValueError('repository cannot be empty -- nothing to modify')
+
+        assessment = self.classifier.classify(spec=spec, followup=followup)
+        repo = dict(repository)
+
+        if assessment.category == 'ambiguous':
+            return ModifierResult('needs_clarification', assessment, repo, 0, None, assessment.billable)
+
+        if assessment.category == 'change_request':
+            return ModifierResult('change_request_not_supported', assessment, repo, 0, None, assessment.billable)
+
+        # system_bug / missing_requirement. ChangeAssessment.from_dict already
+        # guarantees assessment.acceptance_ids is non-empty and every id is a
+        # real id in spec.acceptance for these two categories -- checked
+        # there, at classification time, against the same spec passed in
+        # above, so it is not re-validated here.
+        failures = [
+            AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
+            for aid in assessment.acceptance_ids
+        ]
+        report: ExecutionReport | None = None
+        rounds = 0
+        while failures and rounds < self.max_repair_rounds:
+            rounds += 1
+            patch = self.repairer.repair(spec=spec, repo_summary=self._summary(repo), failures=failures)
+            repo = apply_patch(repo, patch)
+            report = self.executor.execute(repository=repo, spec=spec)
+            failures = [f.__dict__ for f in report.failures]
+        if report is None:
+            # max_repair_rounds == 0: still report the real, current state of
+            # `repo` rather than claiming 'applied' with no verification run.
+            report = self.executor.execute(repository=repo, spec=spec)
+
+        status = 'applied' if report.passed else 'failed'
+        return ModifierResult(status, assessment, repo, rounds, report, assessment.billable)

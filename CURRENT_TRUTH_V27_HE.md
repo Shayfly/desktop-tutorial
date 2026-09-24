@@ -1,3 +1,5 @@
+> **היסטורי — לא המצב הנוכחי.** הוחלף על ידי `CURRENT_TRUTH_V28_HE.md` ולאחר מכן על ידי `STATUS.md` (עבודת M1–M3 מעל בסיס V28). ראו `GOVERNANCE.md`.
+
 # V27 — Current Truth
 
 ## מוכח בקוד/בדיקות

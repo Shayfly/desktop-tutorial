@@ -1,3 +1,5 @@
+> **היסטורי — לא המצב הנוכחי.** הוחלף על ידי `CURRENT_TRUTH_V27_HE.md`, `CURRENT_TRUTH_V28_HE.md`, ולאחר מכן `STATUS.md`. ראו `GOVERNANCE.md`.
+
 # מצב אמת — V26
 
 ## מוכח בסביבה הזו
