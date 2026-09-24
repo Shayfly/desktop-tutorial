@@ -52,6 +52,8 @@ from .db import DatabasePool
 from .queueing import enqueue_build
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
+from .preview_repository import PostgresPreviewRepository
+from .preview_runtime import DockerPreviewProvider
 from .rights_ip import JURISDICTIONS
 from .universal_brain import OmniUniversalBrain
 from .brand_clearance import brand_readiness
@@ -1148,6 +1150,68 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
         }
     except KeyError:
         raise HTTPException(404, "Build not found or access denied")
+
+#
+# M3: real running preview (separate lifecycle from the build sandbox above).
+#
+
+@app.post('/api/v28/projects/{project_id}/versions/{version_id}/previews')
+def v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
+    if os.getenv('OMNI_CREATOR_PERSISTENCE') != 'postgres':
+        raise HTTPException(503, "Real running preview requires OMNI_CREATOR_PERSISTENCE=postgres")
+
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+    try:
+        _v28.engine.workspace.get(project_id=key, version_id=version_id)
+    except KeyError:
+        raise HTTPException(404, 'version not found')
+
+    preview_id = f"prv_{uuid.uuid4().hex}"
+    preview_repo = PostgresPreviewRepository(_v28_pool)
+    preview_repo.create(preview_id, key, version_id, ttl_seconds=3600)
+
+    redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
+    enqueue_build(
+        redis_url, "omni_prod.worker_tasks.execute_preview_launch",
+        preview_id, key, version_id, job_id=preview_id,
+    )
+
+    return JSONResponse(status_code=202, content={"status": "starting", "preview_id": preview_id})
+
+@app.get('/api/v28/projects/{project_id}/previews/{preview_id}')
+def v28_preview_status(project_id: str, preview_id: str, request: Request) -> dict:
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+    if not _v28_pool:
+        raise HTTPException(503, "Real running preview requires OMNI_CREATOR_PERSISTENCE=postgres")
+
+    preview_repo = PostgresPreviewRepository(_v28_pool)
+    try:
+        preview = preview_repo.get(preview_id, key)
+    except KeyError:
+        raise HTTPException(404, "Preview not found or access denied")
+
+    if preview['status'] == 'RUNNING' and preview['internal_container_id']:
+        try:
+            provider = DockerPreviewProvider(workspace=_v28.engine.workspace)
+            preview['logs'] = provider.logs(preview['internal_container_id'], tail=50)
+        except Exception as exc:
+            # A live-logs fetch failing does not change the durable status
+            # returned above -- report the log failure honestly instead of
+            # silently omitting the field or failing the whole request.
+            preview['logs'] = None
+            preview['logs_error'] = str(exc)[:500]
+
+    return preview
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:

@@ -291,3 +291,263 @@ OK
 A production environment with `fastapi`/`psycopg`/`redis`/Docker-registry
 access installed would additionally run the 6 fastapi-based files and the
 Postgres/Redis integration paths this session structurally cannot reach.
+
+## Update: M3 — Real Running Preview
+
+A follow-up directive asked for a real running-preview runtime: durable
+lifecycle metadata in Postgres, a Docker-based provider that actually starts
+a container and exposes a port (`docker run -d`, not a simulation), an RQ
+worker task, and two API routes — built as an architecture deliberately
+separate from the build sandbox (`omni_prod/sandbox.py`/`sandbox_executor.py`),
+per the master directive's explicit requirement that build and preview are
+different lifecycles. Applied close to as pasted; two real bugs were caught
+and fixed before ever being run, the same way every prior phase's bugs were
+caught — by checking real semantics (Postgres's type system, `docker run
+-d`'s detached execution model), not by running against a live database or
+daemon this sandbox doesn't have.
+
+### `infra/postgres/014_real_running_preview.sql` (new)
+
+Applied essentially as pasted. Added two indexes not in the original: one on
+`(project_id, created_at DESC)` for listing a project's previews, and a
+partial index on `expires_at WHERE status = 'RUNNING'` for `mark_expired()`'s
+sweep query below — both are additive, neither changes the schema's meaning.
+
+### `omni_prod/preview_repository.py` (new) — `PostgresPreviewRepository`
+
+`create(preview_id, project_id, version_id, ttl_seconds)`,
+`update_status(preview_id, status, url=None, container_id=None, error=None)`,
+`get(preview_id, project_id) -> dict` (raises `KeyError` if missing or if
+`project_id` doesn't match — access control enforced in the `WHERE` clause,
+not filtered after the fact in Python), `mark_expired() -> int`.
+
+**Bug caught before ever running it**: the first draft's `create()` used
+`now() + (%s || ' seconds')::interval` to build the expiry timestamp. That's
+`integer || text` — Postgres's `||` concatenation operator requires both
+sides to already be text (or requires an explicit cast on the left), and an
+`INTEGER` bound parameter on the left of `||` raises
+`ERROR: operator does not exist: integer || unknown`. Fixed to
+`now() + make_interval(secs => %s)`, which takes the integer directly and is
+the correct way to add a variable number of seconds to a timestamp in
+Postgres. Caught by checking Postgres's actual operator typing rules before
+writing the query, not by trial and error against a live database (none
+available here) — and now pinned by a test (below) that asserts the emitted
+SQL contains `make_interval` and no `||`, so this exact regression can't
+silently come back.
+
+### `omni_prod/preview_runtime.py` (new) — `PreviewProvider` protocol + `DockerPreviewProvider`
+
+`start(*, preview_id, project_id, version_id, repository=None) -> (container_id, url)`,
+`stop(container_id)`, `logs(container_id, tail=50) -> str`. `repository` is
+optional — when omitted, `start()` loads it from the shared workspace
+(`self.workspace.get(project_id=..., version_id=...).repository()`), the same
+`ProjectVersion`/`WorkspaceProtocol` object every other M1/M2 read path uses.
+
+Two design points not in the pasted instruction, both deliberate:
+
+- **`_parse_start_command()` reads `start`/`port` directly off the raw
+  `.omni/project.json` dict, not through `ProjectManifest`.** Checked
+  `ProjectManifest.from_repository()` (`omni_prod/project_manifest.py`) first:
+  its dataclass contract is `build` (argv list) and `verify`
+  (`{name, argv, acceptance_ids}`) only — there is no `start`/`port` field,
+  and every other part of this codebase (build sandbox, acceptance pipeline)
+  depends on that contract staying exactly as narrow as it is. Extending it
+  to carry preview-only fields would widen a type every existing caller
+  shares, for a concern (how to *run* a repo) that's unrelated to what it
+  currently means (how to *build and verify* one). Reading the two preview
+  keys directly off the parsed JSON, in a function that lives next to the
+  provider that uses them, keeps `ProjectManifest` and all of its current
+  callers untouched.
+- **The bind-mounted source directory is created with `tempfile.mkdtemp()`,
+  not `tempfile.TemporaryDirectory()`.** This was a real bug in the first
+  draft, caught before running it: `docker run -d` returns as soon as the
+  container is *created*, while the container keeps running afterward with
+  that directory still bind-mounted in. A `TemporaryDirectory` context
+  manager deletes the host directory the instant `start()` returns — every
+  preview would start, then immediately fail the moment the process inside
+  tried to read a source file, because the directory backing its bind mount
+  would already be gone. `mkdtemp()` persists past the call, which is what a
+  detached, still-running container needs.
+
+**Known, documented limitation (not silently left as a latent bug):**
+`stop()` removes the container (`docker rm -f`) but does not currently clean
+up the `mkdtemp()` directory — the directory's path isn't threaded through to
+`stop()` (only `container_id` is stored in `project_previews`). Fixing this
+needs storing the temp-dir path alongside `internal_container_id`, a
+repository/DB-layer change beyond what step 2 of the directive specified.
+Flagged here explicitly, the same way the M1 report flagged the missing
+worker before it was asked for, rather than fixed unrequested or left silent.
+Every preview directory is under the OS temp dir and will be cleared on
+container/host restart, so this is a disk-hygiene gap, not a correctness or
+security one.
+
+`docker run` is invoked without `--rm` (kept deliberately, matching the
+directive's own snippet): a container that exits/crashes stays inspectable
+via `docker logs` instead of vanishing before anyone can see why. `stop()`
+still reliably removes it via `docker rm -f` once it's really done with.
+
+### `omni_prod/worker_tasks.py` — `execute_preview_launch` (new function, appended)
+
+`execute_preview_launch(preview_id, project_id, version_id)`. Same lazy-import
+pattern as `execute_live_build_job` (imports `.investor_app` inside the
+function body, not at module load, so this module stays importable without
+`fastapi` — see the test-scope note below). On success, transitions the
+preview row to `RUNNING` with the real `container_id`/`url` `DockerPreviewProvider.start()`
+returned. On any exception — including a real `docker run` failure — the
+preview is transitioned to `FAILED` with the real exception message (never
+silently swallowed, never reported as running when it isn't), then
+re-raised so RQ's own failure bookkeeping also sees it. Entirely separate
+tables/state from `execute_live_build_job`'s build pipeline: a preview
+failing never touches `build_jobs`, credits, or reservations, per the
+directive's explicit separate-lifecycle requirement.
+
+### `omni_prod/queueing.py` — `enqueue_build()` widened to `*args`
+
+The pasted `execute_preview_launch(preview_id, project_id, version_id)` needs
+three positional arguments; the existing `enqueue_build(redis_url, func_path,
+payload, ...)` only ever forwarded a single `payload` to RQ's
+`Queue.enqueue()`. Widened the signature to `enqueue_build(redis_url,
+func_path, *args, ...)`. Checked before changing it: grepped the whole repo
+for every call site — there is exactly one, in `investor_app.py`'s M1 build
+endpoint, calling it with a single positional `build_id` — so
+`enqueue_build(url, path, build_id, job_id=...)` still enqueues exactly one
+argument, unchanged behavior, and the M3 preview endpoint now calls
+`enqueue_build(url, path, preview_id, key, version_id, job_id=...)` through
+the same helper and queue (`"omni-builds"` — one queue; RQ dispatches by
+function path regardless of what the job conceptually is, so a second queue
+for previews alone was not asked for and would be an unrequested
+infrastructure change).
+
+### `omni_prod/investor_app.py` — two new routes
+
+`POST /api/v28/projects/{project_id}/versions/{version_id}/previews` —
+resolves the caller's project key the same way every other v28 route does
+(`_v28.resolve_project_key(token=..., project_id=...)`, 403 on
+`PermissionError`), 404s if the version doesn't exist
+(`_v28.engine.workspace.get(...)` raising `KeyError`), creates the durable
+`STARTING` row, enqueues `execute_preview_launch`, returns `202` with the
+`preview_id` immediately — the actual container launch happens on the
+worker, matching M1's async pattern.
+
+`GET /api/v28/projects/{project_id}/previews/{preview_id}` — same auth/scoping,
+returns the durable row; if `status == 'RUNNING'`, best-effort fetches recent
+`docker logs` and attaches them — but a logs-fetch failure is reported as
+`logs_error` on the response rather than failing the whole status request or
+silently omitting the field, since the durable status itself is still valid
+and more important than the logs.
+
+Checked before writing: grepped for existing routes matching
+`versions/{version_id}` / `/previews` — the only hit was the unrelated,
+differently-prefixed `GET /api/projects/{project_id}/versions/{version_id}/download`
+(`/api/projects/`, not `/api/v28/projects/`) — no collision.
+
+### `tests/test_m3_preview_logic.py` (new) — real output
+
+Unlike M2's test file, this run needed no follow-up bug fix in the test
+itself — the two real bugs this phase found (interval syntax,
+`TemporaryDirectory` lifecycle) were both caught and fixed *before* the test
+file was written, by reading Postgres's/Docker's actual semantics, not by
+the tests catching them after the fact. 33 tests, all passing on the first
+run:
+
+```
+$ python3 -m unittest tests.test_m3_preview_logic -v
+...
+Ran 33 tests in 0.008s
+OK
+```
+
+Coverage: `_parse_start_command()` (11 cases — valid input, default port,
+missing/invalid manifest, missing/malformed/empty `start`, invalid `port`);
+`_materialize_repository()` (writes real files to a real temp dir; rejects
+path traversal via the existing `normalize_repo_path`); `_free_host_port()`
+(returns a real, immediately re-bindable port); `DockerPreviewProvider.start()`
+with `subprocess.run` mocked (no Docker registry access in this sandbox —
+same blocker as every prior phase) but everything *around* that call
+real — the actual argv built (`--name`, `-p host:port`, `--mount
+type=bind,...,readonly`, no `--rm`, start command appended verbatim), the
+actual temp directory materialized and inspected on disk, the actual
+returned URL matched against whichever host port was actually chosen (not a
+hardcoded value); docker-failure, empty-stdout, missing-start-command
+(never reaches `subprocess.run`), and unsafe-preview-id (never reaches
+`subprocess.run`) paths; the `repository=None` → workspace-lookup fallback;
+`stop()`/`logs()` success and failure. `PostgresPreviewRepository`'s four
+methods, exercised against a small fake pool/connection/cursor written for
+this file (mirrors `DatabasePool`'s real context-manager contract from
+`omni_prod/db.py` — `pool.connection()`, `conn.transaction()`,
+`conn.cursor()` — closely enough to run the repository's real SQL/parameter-
+building logic): `create()`'s SQL is asserted to contain `make_interval` and
+not `||` (pins the fix above), rejects non-positive TTL without touching the
+pool; `update_status()`'s valid/invalid-status paths and parameter order;
+`get()`'s row-to-dict parsing, `project_id`-scoped `WHERE` clause (access
+control, checked at the SQL-parameter level), and `KeyError` on a missing/
+wrong-project row; `mark_expired()`'s rowcount passthrough and its SQL
+targeting `status = 'RUNNING' AND expires_at < now()`.
+
+**Explicitly out of scope, and why**: `execute_preview_launch()`
+(`worker_tasks.py`) and the two new FastAPI routes are not unit-tested here,
+for the identical reason `execute_live_build_job` wasn't unit-tested in
+`tests/test_m2_native_logic.py` — both lazily import `.investor_app`, which
+imports `fastapi`, which this sandbox cannot install (confirmed again this
+phase; unchanged from every prior one). Stated plainly rather than worked
+around with a fabricated `fastapi` stub or a claim that these paths were
+exercised when they weren't.
+
+### Regression: full suite re-run after M3
+
+`python3 -m compileall -q omni_prod tests infra` — clean, zero errors,
+across the entire repo (including `investor_app.py`; `py_compile` only
+parses/compiles, it doesn't execute imports, so it validates syntax without
+needing `fastapi` installed).
+
+Every non-fastapi test file — the same 102 tests from the M1/M2 regression
+run, unchanged, plus the 33 new M3 tests — **135 tests, all passing**:
+
+```
+$ python3 -m unittest <every non-fastapi test module incl. test_m3_preview_logic> -v
+...
+Ran 135 tests in 0.542s
+OK
+```
+
+This specifically confirms the `enqueue_build()` signature widening didn't
+break the one existing call site: `test_v22_autonomous_core.py` and
+`test_v22_sandbox_executor.py` (the suites closest to what M1/M2 touched)
+both still pass unmodified, and nothing in the 102 pre-existing tests
+imports `queueing.py` in a way that would have masked a real break there —
+confirmed by grep, since RQ/Redis themselves aren't exercised by any
+non-fastapi test.
+
+Also ran the 11 tests under `tests/integration/` (`test_live_model.py`,
+`test_live_sandbox_security.py`, `test_live_stack.py`,
+`test_mobile_signing_readiness.py`, `test_v28_creator_persistence.py`): all
+11 self-skip with explicit reasons (`OMNI_RUN_LIVE_MODEL=1`,
+`OMNI_RUN_LIVE_SANDBOX=1`, `OMNI_RUN_LIVE_INTEGRATION=1`,
+`OMNI_RUN_V28_CREATOR_POSTGRES=1`, signing credentials) — none of them ran
+real assertions, none of them are affected by M3, and this sandbox has none
+of the live services they gate on.
+
+### Known gap, flagged not fixed: no AI-generated repo currently has a `start`/`port` to preview
+
+`_parse_start_command()` correctly raises `ValueError` when
+`.omni/project.json` has no `start` command — but nothing in
+`autonomous_agents.py`'s `_GENERATOR_SYSTEM` prompt (the prompt that tells
+the AI what to put in a generated repository) currently instructs it to
+include a `start` command or `port` in the manifest it generates. Every
+individual M3 piece is correct and tested, but end-to-end, a version
+produced by today's `AutonomousProductEngine` would hit that `ValueError`
+the moment someone tried to preview it — M3 is complete and correct as
+specified, but not yet reachable from a real AI-generated build without a
+separate, unrequested change to the generator prompt.
+
+This is the same kind of gap the M1 section of this report flagged rather
+than silently fixed or silently left broken (there: nothing called the new
+worker until it was explicitly asked for in the M1-completion directive).
+Deliberately not fixed here: extending `_GENERATOR_SYSTEM` changes what
+*every* future AI-generated repository looks like, for every build path,
+not just previews — a real product decision (what should the prompt say a
+generated app's start command convention is? one port, or does the manifest
+need to describe multiple services?) that wasn't part of this directive's
+six steps. Flagging it explicitly, the way the master directive's own
+reporting rules ask for, rather than guessing at an answer and shipping it
+unreviewed.

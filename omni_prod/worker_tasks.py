@@ -124,3 +124,43 @@ def execute_live_build_job(build_id: str) -> None:
             error_code="worker_exception", error_message=str(exc)[:2000],
         )
         raise
+
+
+def execute_preview_launch(preview_id: str, project_id: str, version_id: str) -> None:
+    """M3: RQ worker entrypoint for launching a real running preview.
+
+    Enqueued by investor_app.py's POST .../previews endpoint via the same
+    enqueue_build() helper/queue used for M1 builds (see that endpoint for
+    why: this codebase has one RQ queue, "omni-builds", and RQ dispatches by
+    function path regardless of what the job conceptually is -- adding a
+    second queue for previews alone was not asked for and would be an
+    unrequested infra change).
+
+    Separate lifecycle from execute_live_build_job on purpose: a preview
+    failing to start must never touch build credits/reservations or
+    build_jobs -- it has its own table (project_previews) and its own
+    terminal states (RUNNING/FAILED/EXPIRED/STOPPED), matching the master
+    directive's requirement that build sandbox and preview runtime are
+    separate lifecycles.
+    """
+    from .investor_app import _v28, _v28_pool
+    from .preview_repository import PostgresPreviewRepository
+    from .preview_runtime import DockerPreviewProvider
+
+    if _v28_pool is None:
+        raise RuntimeError(
+            "execute_preview_launch requires OMNI_CREATOR_PERSISTENCE=postgres "
+            "in the worker process."
+        )
+
+    repo = PostgresPreviewRepository(_v28_pool)
+    provider = DockerPreviewProvider(workspace=_v28.engine.workspace)
+
+    try:
+        container_id, url = provider.start(
+            preview_id=preview_id, project_id=project_id, version_id=version_id,
+        )
+        repo.update_status(preview_id, 'RUNNING', url=url, container_id=container_id)
+    except Exception as exc:
+        repo.update_status(preview_id, 'FAILED', error=str(exc)[:2000])
+        raise
