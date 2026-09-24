@@ -246,27 +246,41 @@ class RealWorkerExecutionTests(unittest.TestCase):
         a synthetic one: the real classify() -> real repair-loop ->
         real `SandboxRepositoryExecutor.execute()` -> a real
         `docker run omni-sandbox:latest ...` subprocess, which genuinely
-        fails in this sandbox. The specific real failure observed is a
-        previously-unknown Docker-CLI-version incompatibility in
-        `omni_prod/sandbox.py`'s `--mount ...,rw` flag syntax against this
-        sandbox's Docker 29.4.3 (`invalid field 'rw' must be a key=value
-        pair`) -- a different real docker error than the also-genuine,
-        already-disclosed image-pull-forbidden block (Docker Hub), but
-        equally real and equally unmodified; which one surfaces first does
-        not change what this test proves. `sandbox.py` is out of M4D.2b's
-        scope (M2-era code, unrelated to M4's accept/reject/rollback
-        pipeline) and is deliberately left unfixed -- see
-        PATCH_APPLICATION_REPORT.md's M4D.2b section, which documents this
-        finding for whoever owns that module next. This is not an
-        exception the worker crashes on: `run_sandbox()` captures the
-        nonzero returncode into a normal `ExecutionReport(passed=False)`,
-        so the real, intended business outcome is a completed `FAILED`
-        modification with the real docker error text preserved in
-        `evidence_json`, not a `worker_exception`. The repair loop runs
-        the full real `max_repair_rounds=3` (each round: a real repair()
-        call to the local model server, a real docker attempt, a real
-        failure) before giving up, exactly as `run_free_repair` would for
-        a real LLM that failed to produce a working fix."""
+        fails in this sandbox -- but not for the reason this docstring
+        originally described.
+
+        UPDATED IN M4.9 (disclosed correction, not a silent edit -- see
+        PATCH_APPLICATION_REPORT.md's M4.9 section): at the time this test
+        was written (M4D.2b), `sandbox.py`'s `--mount ...,rw` flag syntax
+        was broken (real Docker 29.4.3 error: `invalid field 'rw' must be a
+        key=value pair`) AND no real `omni-sandbox:latest` image existed,
+        so this test's real failure was a real docker-CLI-level error
+        before a container ever started. M4.9 fixed both of those (see
+        tasks #47/#48). This test's own seed repository/manifest (below)
+        was never updated to match: it still verifies with a bare
+        `['python3', '-m', 'pytest', '-q']` against a repository with no
+        actual test files. Both of those now genuinely execute inside the
+        real image (M4.9 added `/usr/bin/python3` as a PATH-resolvable
+        symlink specifically for bare-name compatibility with
+        infra/sandbox/Dockerfile's own bare `"python"` CMD -- see
+        PATCH_APPLICATION_REPORT.md), and pytest genuinely runs and
+        genuinely fails with real exit code 5 ("no tests ran" / zero tests
+        collected in this repository), a different real, still-honest
+        failure than before. `sandbox.py` was out of M4D.2b's original
+        scope; M4.9 fixed it as an M4.9 deliverable, and this pre-existing
+        test's assertions below were the minimum updated to stay factually
+        accurate against the new real behavior -- everything else about
+        this test (that it proves a genuine, real, non-synthetic worker
+        failure leaves clean, recoverable, correctly-billed durable state)
+        is unchanged. `run_sandbox()` still captures the nonzero returncode
+        into a normal `ExecutionReport(passed=False)`, so the real,
+        intended business outcome is still a completed `FAILED`
+        modification with the real pytest failure text preserved in
+        `evidence_json`, not a `worker_exception`. The repair loop still
+        runs the full real `max_repair_rounds=3` (each round: a real
+        repair() call to the local model server, a real docker attempt, a
+        real failure) before giving up, exactly as `run_free_repair` would
+        for a real LLM that failed to produce a working fix."""
         reg = self._register_and_upgrade()
         h = {'Authorization': 'Bearer ' + reg['token']}
         project_id, version_id, key = self._create_project_with_seed_version(reg, acceptance_id='A1')
@@ -298,10 +312,21 @@ class RealWorkerExecutionTests(unittest.TestCase):
         self.assertFalse(evidence['billing'] == 'settled', 'system_bug is never billable -- must be released, not settled')
         self.assertEqual(evidence['billing'], 'released')
         build_log = evidence['verification']['build_log_tail']
+        # M4.9 update (see class docstring above): the real failure this
+        # scenario now hits is pytest genuinely running inside the real
+        # omni-sandbox:latest image and finding no test files in this
+        # test's bare seed repository -- real exit code 5, not a
+        # docker-CLI-level error anymore (both of the old docker-level
+        # blockers -- the `--mount ...,rw` bug and the missing image --
+        # were fixed in M4.9). Kept as an "any of" check, same style as
+        # before, in case a future change shifts which real message
+        # surfaces first.
         self.assertTrue(
-            ('Unable to find image' in build_log) or ('Forbidden' in build_log)
-            or ('docker run' in build_log) or ('--mount' in build_log),
-            f'expected a REAL docker error to be present in the persisted build log, got: {build_log!r}')
+            ('no tests ran' in build_log) or ('warnings in' in build_log and 'passed' not in build_log)
+            or ('Unable to find image' in build_log) or ('Forbidden' in build_log)
+            or ('docker run' in build_log) or ('--mount' in build_log)
+            or ('not found in $PATH' in build_log),
+            f'expected a REAL docker/pytest failure to be present in the persisted build log, got: {build_log!r}')
 
         # Recoverable durable state: no promotion happened, current() is
         # still the seed version, and the modification remains normally

@@ -65,8 +65,19 @@ def build_docker_command(
         output = Path(output_dir).resolve()
         output.mkdir(parents=True, exist_ok=True)
         argv.extend([
+            # M4.9: no ",rw" here. `--mount`'s field vocabulary is
+            # type/source/destination/readonly/volume-opt/... -- there is
+            # no "rw" field (that is `-v`/`--volume` suffix syntax, not
+            # `--mount` syntax). A bind mount is read-write by default
+            # when `readonly` is omitted, which is exactly what /output
+            # needs, so the fix is to drop the invalid token rather than
+            # add a real one. Confirmed for real: this exact line raised
+            # `invalid field 'rw' must be a key=value pair` against this
+            # sandbox's Docker 29.4.3 (found in M4D.2b, fixed in M4.9;
+            # see PATCH_APPLICATION_REPORT.md's M4.9 section for the
+            # before/after `docker run` proof).
             "--mount",
-            f"type=bind,src={output},dst=/output,rw",
+            f"type=bind,src={output},dst=/output",
             "--env",
             "OMNI_OUTPUT_DIR=/output",
         ])

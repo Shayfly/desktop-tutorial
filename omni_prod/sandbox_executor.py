@@ -1,5 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
+import os
+import stat
 import tempfile
 from typing import Callable
 from .autonomous_core import ExecutionReport, AcceptanceFailure
@@ -48,6 +50,35 @@ class SandboxRepositoryExecutor:
              tempfile.TemporaryDirectory(prefix='omni-out-') as out:
             root = Path(td)
             _materialize_repository(root, repository)
+            # M4.9: real, previously-undiscovered bug. `tempfile.
+            # TemporaryDirectory()` always creates its directory mode 0700
+            # (owner-only), regardless of umask -- that's fine for a
+            # same-uid caller, but `root`/`out` are then bind-mounted into
+            # the sandbox container, which runs as an UNPRIVILEGED,
+            # different uid (SandboxLimits.user, 10001:10001 in production)
+            # per the least-privilege posture item 8 requires. A non-owner
+            # uid cannot even traverse into a 0700 directory, so every
+            # sandboxed process failed before it could do anything real --
+            # observed for real as pytest's own config-discovery raising
+            # `PermissionError: [Errno 13] Permission denied:
+            # '/workspace/pytest.ini'` while just trying to `stat()` a path
+            # inside the read-only bind mount (see PATCH_APPLICATION_REPORT.md's
+            # M4.9 section for the full traceback). This was never caught
+            # before M4.9 because every earlier real-sandbox attempt in this
+            # codebase's history failed earlier still, on the also-real
+            # `--mount ...,rw` command-line parse error (task #47) -- so no
+            # container had ever actually started and tried to read a real
+            # bind-mounted repository until now. Fix: widen `root`/`out` to
+            # world-readable+traversable (0755) after materializing content
+            # -- `out` additionally needs world-writable (0777) since the
+            # sandboxed uid must be able to write real artifacts into it
+            # (OMNI_OUTPUT_DIR). Nested directories _materialize_repository
+            # creates are unaffected (`Path.mkdir()` already follows umask,
+            # not tempfile's hardcoded 0700 -- confirmed 0755 by default in
+            # this environment) and files stay 0644 (world-readable), so
+            # only these two top-level mount roots needed the explicit fix.
+            os.chmod(root, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)  # 0755
+            os.chmod(out, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)  # 0777
             counter = 0
             for command in manifest.build:
                 counter += 1
