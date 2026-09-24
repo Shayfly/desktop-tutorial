@@ -46,6 +46,8 @@ import time
 from decimal import Decimal
 
 from .models import BuildStatus
+from .modification_engine import CandidateModificationEngine
+from .spec_repository import SpecNotFound
 
 # Order matters: the first failing gate is the one reported as error_code.
 GATE_ORDER = ('verification', 'quality', 'security', 'rights')
@@ -230,6 +232,166 @@ def execute_live_build_job(build_id: str) -> None:
         # the build (and releases its credits) instead of leaving it QUEUED
         # with credits reserved forever.
         preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
+    )
+
+
+# --------------------------------------------------------------------------
+# M4: natural-language product modification (candidate build + gates)
+# --------------------------------------------------------------------------
+#
+# Structurally this is `_run_live_build_job`'s M4 sibling: same claim
+# (transition_running, conditional on QUEUED -> duplicate-delivery safe),
+# same shape of exception handling (billing resolved from the real spend
+# ledger, terminal status always written even on a worker crash), same
+# evidence-dict convention. What's different: a modification's source is an
+# *existing* ProjectVersion + its M4B-durable ProductSpec (never "the
+# project's latest spec" -- see spec_repository.py's module docstring),
+# gates run through CandidateModificationEngine (M4C/D/E) instead of
+# evaluate_release_gates(), and the candidate this produces is deliberately
+# NOT committed to project_versions here -- see modification_repository.py's
+# complete()/accept() for why (the M4 concurrency requirement depends on it).
+
+def resolve_modification_billing(subscriptions, *, modification_id: str, billable: bool,
+                                 spent: Decimal, external_calls: int) -> str:
+    """The classification-driven counterpart to resolve_billing(): whether a
+    modification is free is a *product policy* decision already made by
+    ChangeAssessment.billable (change_policy.py) -- system_bug/
+    missing_requirement/ambiguous are free regardless of real spend incurred
+    producing them, change_request settles for the real spend actually
+    incurred, exactly as a build does. `subscriptions.reserve()` is called
+    at request-creation time (investor_app.py) before classification is
+    known, so it always reserves as billable; this is what turns that
+    reservation into a real charge or a full refund once the real
+    classification exists. Used only on the *normal* completion path, where
+    a real ChangeAssessment exists -- the exception path (worker crashes
+    before classification even runs) has no billable signal to key off and
+    falls back to resolve_billing()'s spend-triggered rule instead."""
+    if billable:
+        subscriptions.settle(build_id=modification_id, actual_provider_cost_usd=spent)
+        return 'settled'
+    subscriptions.release(build_id=modification_id)
+    return 'released'
+
+
+_MODIFICATION_STATUS_MAP = {
+    'needs_clarification': 'NEEDS_CLARIFICATION',
+    'ready_for_review': 'READY_FOR_REVIEW',
+    'failed': 'FAILED',
+}
+
+
+def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, subscriptions,
+                          components_factory, quality_fn, security_fn, rights_engine,
+                          min_quality: int = 80, preflight=None) -> str | None:
+    """Returns the terminal status written, or None if nothing was done
+    (unknown modification id / already claimed by another delivery)."""
+    try:
+        request = jobs.get_request(modification_id)
+    except KeyError:
+        return None
+    if not jobs.transition_running(modification_id):
+        return None  # duplicate delivery / already handled: idempotent no-op
+
+    project_id = request['project_id']
+    source_version_id = request['source_version_id']
+    gateway = None
+
+    try:
+        if preflight is not None:
+            preflight()
+        source_version = workspace.get(project_id=project_id, version_id=source_version_id)
+        repository = source_version.repository()
+        try:
+            spec = spec_repo.get(source_version_id, project_id)
+        except SpecNotFound as exc:
+            # Real, expected failure mode (not a worker_exception): a version
+            # committed before migration 016 / M4B has no stored spec, and
+            # M4B's whole point is never guessing "the latest spec" instead.
+            raise RuntimeError(
+                f'version {source_version_id!r} has no stored ProductSpec (pre-M4B); '
+                f'it cannot be modified through this pipeline: {exc}'
+            ) from exc
+
+        classifier, repairer, evolver, executor, gateway = components_factory()
+        engine = CandidateModificationEngine(
+            classifier=classifier, repairer=repairer, executor=executor, evolver=evolver,
+            quality_fn=quality_fn, security_fn=security_fn, rights_engine=rights_engine,
+            min_quality=min_quality,
+        )
+        rights_evidence = _rights_evidence_from_dicts(request['rights_evidence'])
+        outcome = engine.propose(
+            spec=spec, repository=repository, followup=request['followup'],
+            target_markets=request['target_markets'], rights_evidence=rights_evidence,
+        )
+        status = _MODIFICATION_STATUS_MAP.get(outcome.status)
+        if status is None:
+            # CandidateModificationEngine.propose() never actually returns
+            # 'change_request_not_supported' (see its docstring); this is a
+            # contract-violation guard, not a real code path.
+            raise RuntimeError(f'unexpected CandidateModificationEngine outcome status: {outcome.status!r}')
+    except Exception as exc:
+        spent, calls = spend_snapshot(gateway)
+        billing = resolve_billing(subscriptions, build_id=modification_id, ready=False, spent=spent, external_calls=calls)
+        jobs.complete(
+            modification_id, project_id=project_id, status='FAILED',
+            error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
+            evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+        )
+        raise
+
+    spent, calls = spend_snapshot(gateway)
+    evidence = outcome.to_evidence_dict()
+    evidence['billing'] = resolve_modification_billing(
+        subscriptions, modification_id=modification_id, billable=outcome.billable, spent=spent, external_calls=calls)
+    evidence['provider_spend_usd'] = str(spent)
+    evidence['external_model_calls'] = calls
+    evidence['provider_spend_basis'] = SPEND_BASIS
+
+    error_code = error_message = None
+    if status == 'FAILED' and outcome.gates is not None:
+        error_code, error_message = outcome.gates.blocking_gate, outcome.gates.detail
+    elif status == 'FAILED':
+        error_code, error_message = 'verification_failed', 'candidate did not pass sandbox verification'
+
+    jobs.complete(
+        modification_id, project_id=project_id, status=status,
+        classification=outcome.assessment.category, classification_reason=outcome.assessment.reason,
+        billable=outcome.billable,
+        candidate_repository=outcome.candidate_repository if status == 'READY_FOR_REVIEW' else None,
+        candidate_spec=outcome.candidate_spec if status == 'READY_FOR_REVIEW' else None,
+        repair_rounds=outcome.repair_rounds, evidence_json=evidence,
+        error_code=error_code, error_message=error_message,
+    )
+    return status
+
+
+def execute_modification_job(modification_id: str) -> None:
+    from .investor_app import _v28, _v28_pool, _modification_components
+    from .modification_repository import PostgresModificationRepository
+    from .preview_runtime import ensure_durable_workspace
+    from .quality_gate import assess_repository
+    from .security_testing import hostile_repository_scan
+    from .spec_repository import PostgresSpecRepository
+
+    if _v28_pool is None:
+        raise RuntimeError(
+            "execute_modification_job requires OMNI_CREATOR_PERSISTENCE=postgres "
+            "in the worker process (this process was not started with it)."
+        )
+    workspace = _v28.engine.workspace
+    _run_modification_job(
+        modification_id,
+        jobs=PostgresModificationRepository(_v28_pool),
+        spec_repo=PostgresSpecRepository(_v28_pool),
+        workspace=workspace,
+        subscriptions=_v28.subscriptions,
+        components_factory=_modification_components,
+        quality_fn=assess_repository,
+        security_fn=hostile_repository_scan,
+        rights_engine=_v28.rights,
+        min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
+        preflight=lambda: ensure_durable_workspace(workspace, purpose='Natural-language product modification'),
     )
 
 

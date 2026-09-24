@@ -78,6 +78,17 @@ class ModifierEngine:
     wiring for a brand-new, previously-unspecified capability before that is
     asked for would be exactly the kind of unrequested addition this
     repository's AGENTS.md warns against.
+
+    M4 update: the repair loop below is also used, unmodified, by
+    `omni_prod.modification_engine.CandidateModificationEngine` for its own
+    system_bug/missing_requirement path -- extracted to the module-level
+    `run_free_repair()` function so that engine can reuse it with an
+    `assessment` it already computed, instead of calling `self.classify()`
+    a second time (which would spend a second real model call classifying
+    the same followup twice, and could theoretically disagree with the first
+    classification). `ModifierEngine.modify()` itself is unchanged in
+    behavior -- this is a pure extraction, pinned by the fact every test in
+    tests/test_modifier_engine.py still passes unmodified.
     """
 
     def __init__(self, *, classifier, repairer, executor: Executor, max_repair_rounds: int = 3):
@@ -87,18 +98,6 @@ class ModifierEngine:
         self.repairer = repairer
         self.executor = executor
         self.max_repair_rounds = max_repair_rounds
-
-    @staticmethod
-    def _summary(repo: dict[str, str]) -> dict:
-        # Identical shape to AutonomousProductEngine._summary: a {path, chars}
-        # listing, never file content. autonomous_agents._filter_repo_summary
-        # (already applied inside RepairAgent.repair) strips vendor/build
-        # noise and caps it before it reaches the model.
-        return {
-            'files': [{'path': p, 'chars': len(c)} for p, c in sorted(repo.items())],
-            'file_count': len(repo),
-            'total_chars': sum(len(c) for c in repo.values()),
-        }
 
     def modify(self, *, spec: ProductSpec, repository: dict[str, str], followup: str) -> ModifierResult:
         if not followup.strip():
@@ -120,22 +119,57 @@ class ModifierEngine:
         # real id in spec.acceptance for these two categories -- checked
         # there, at classification time, against the same spec passed in
         # above, so it is not re-validated here.
-        failures = [
-            AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
-            for aid in assessment.acceptance_ids
-        ]
-        report: ExecutionReport | None = None
-        rounds = 0
-        while failures and rounds < self.max_repair_rounds:
-            rounds += 1
-            patch = self.repairer.repair(spec=spec, repo_summary=self._summary(repo), failures=failures)
-            repo = apply_patch(repo, patch)
-            report = self.executor.execute(repository=repo, spec=spec)
-            failures = [f.__dict__ for f in report.failures]
-        if report is None:
-            # max_repair_rounds == 0: still report the real, current state of
-            # `repo` rather than claiming 'applied' with no verification run.
-            report = self.executor.execute(repository=repo, spec=spec)
-
+        repo, rounds, report = run_free_repair(
+            spec=spec, repository=repository, assessment=assessment, followup=followup,
+            repairer=self.repairer, executor=self.executor, max_repair_rounds=self.max_repair_rounds,
+        )
         status = 'applied' if report.passed else 'failed'
         return ModifierResult(status, assessment, repo, rounds, report, assessment.billable)
+
+
+def repo_summary(repo: dict[str, str]) -> dict:
+    # Identical shape to AutonomousProductEngine._summary: a {path, chars}
+    # listing, never file content. autonomous_agents._filter_repo_summary
+    # (already applied inside RepairAgent.repair) strips vendor/build noise
+    # and caps it before it reaches the model.
+    return {
+        'files': [{'path': p, 'chars': len(c)} for p, c in sorted(repo.items())],
+        'file_count': len(repo),
+        'total_chars': sum(len(c) for c in repo.values()),
+    }
+
+
+def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment: ChangeAssessment,
+                     followup: str, repairer, executor: Executor,
+                     max_repair_rounds: int = 3) -> tuple[dict[str, str], int, ExecutionReport]:
+    """The system_bug/missing_requirement repair loop, shared by
+    `ModifierEngine.modify()` and `modification_engine.CandidateModificationEngine`.
+
+    Callers must have already classified `followup` into `assessment` and
+    confirmed its category is one of the two free-repair categories --
+    `ChangeAssessment.from_dict` guarantees `assessment.acceptance_ids` is
+    non-empty and every id is real for those two categories, checked at
+    classification time against this same `spec`, so it is not re-validated
+    here. Returns `(candidate_repository, repair_rounds, final_report)`; the
+    caller decides what a passing/failing report means for its own status
+    vocabulary (`ModifierEngine` calls it 'applied'/'failed',
+    `CandidateModificationEngine` calls it 'ready_for_review'/'failed').
+    """
+    failures = [
+        AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
+        for aid in assessment.acceptance_ids
+    ]
+    repo = dict(repository)
+    report: ExecutionReport | None = None
+    rounds = 0
+    while failures and rounds < max_repair_rounds:
+        rounds += 1
+        patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo), failures=failures)
+        repo = apply_patch(repo, patch)
+        report = executor.execute(repository=repo, spec=spec)
+        failures = [f.__dict__ for f in report.failures]
+    if report is None:
+        # max_repair_rounds == 0: still report the real, current state of
+        # `repo` rather than claiming success with no verification run.
+        report = executor.execute(repository=repo, spec=spec)
+    return repo, rounds, report

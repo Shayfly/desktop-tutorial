@@ -995,3 +995,393 @@ Same 8 fastapi-dependent test files still cannot import here
 (`ModuleNotFoundError: No module named 'fastapi'`) — unchanged, pre-existing,
 unrelated to this change; confirmed again by re-running the same per-file
 import check used in every prior phase of this report.
+
+## Update: M4 — Natural-Language Product Modification
+
+The M4 directive was explicit that the `ModifierEngine` stub above is "an M4
+foundation, not completed M4" — it classifies but never executes
+`change_request`, has no durable `ProductSpec`, is never invoked from a
+route or worker, and always patches destructively-in-place conceptually
+(no candidate isolation, no accept/reject/rollback). All of that is closed
+here, on top of `ModifierEngine` rather than replacing it (`ModifierEngine`
+itself is untouched; its regression tests still pass — see §Regression).
+
+### `infra/postgres/016_durable_modifications.sql` (new) — M4A/M4B schema
+
+`project_version_specs` (`version_id` PRIMARY KEY, `spec_json JSONB`) is the
+M4B invariant made durable: `ProjectVersion N <-> ProductSpec N`, one row per
+version, no `UPDATE` path in code (see `spec_repository.py` below) so a spec
+can only ever gain a new row for a new version, never be mutated in place.
+
+`modification_requests` carries the full `ModificationRequest` the directive
+asked for (id, project/version/user ids, followup, classification,
+status/phase, evidence/error, billing reference, timestamps) plus
+`target_markets_json`/`rights_evidence_json` — captured durably at
+request-creation time rather than read from the API process's in-memory
+state at worker-run time, since the worker is commonly a separate process.
+
+`modification_candidates` (new table, not in the original draft of this
+migration) is the single most important schema decision in M4: a candidate's
+`repository_json`/`spec_json` are stored here, **never** written to
+`project_versions`, until `accept()` explicitly promotes them. This was
+changed mid-implementation after tracing the directive's own Version 10/11
+concurrency scenario end-to-end and finding it unrepresentable under the
+first draft (which had `build()` commit a real `ProjectVersion` for every
+candidate) — see the M4D section below for why.
+
+`modification_outbox` reuses the exact transactional-outbox shape M1
+established (`FOR UPDATE SKIP LOCKED`, one row per transaction).
+
+### `omni_prod/spec_repository.py` (new) — `PostgresSpecRepository`
+
+`save(version_id, project_id, spec)` / `get(version_id, project_id)`. No
+`update()` method exists at all — asserted directly in
+`tests/test_m4_acceptance.py::AcceptanceS`
+(`assertFalse(hasattr(PostgresSpecRepository, 'update'))`). `get()` raises
+`SpecNotFound` rather than falling back to "latest" or any other version.
+Tests: `tests/test_spec_repository.py` (5), real output:
+```
+$ python3 -m unittest tests.test_spec_repository -v
+Ran 5 tests ... OK
+```
+
+### `omni_prod/modification_diff.py` (new) — M4F deterministic diff
+
+`diff_repositories(old, new)` / `diff_specs(old, new)` — pure functions,
+sets/sorted-tuples internally so dict insertion order never changes the
+result (files added/modified/deleted; dependency changes; requirements/
+acceptance-criteria added/removed/changed). No LLM call anywhere in this
+module — the directive's "do not rely on an LLM-only prose summary as the
+canonical diff" is structural, not a convention to remember. Tests:
+`tests/test_modification_diff.py` (13) plus
+`tests/test_m4_acceptance.py::AcceptanceQR`, which independently re-derives
+order-independence by diffing the same content built from differently
+ordered source dicts and asserting identical results.
+```
+$ python3 -m unittest tests.test_modification_diff -v
+Ran 13 tests ... OK
+```
+
+### `omni_prod/product_evolution.py` (new) — `ProductEvolutionAgent`, M4C
+
+A thin wrapper over the same `RoutedModelGateway`/`OpenAICompatibleGateway.complete_json`
+every other agent in this codebase uses (`RepairAgent`, `ChangeClassifierAgent`)
+— no new model-calling machinery. `evolve(spec, repo_summary, followup)`
+returns a *new* `ProductSpec` (never mutates the input — `ProductSpec` is a
+frozen dataclass anyway) plus a repository patch, i.e. `change_request` gets
+its own generation path instead of being coerced into `RepairAgent`'s
+"fix this failing acceptance id" framing, which is exactly what the
+directive said `RepairAgent` cannot honestly do for an open-ended feature
+add. Tests: `tests/test_product_evolution.py` (5).
+```
+$ python3 -m unittest tests.test_product_evolution -v
+Ran 5 tests ... OK
+```
+
+### `omni_prod/modification_engine.py` (new) — `CandidateModificationEngine`, M4C/D/E
+
+`propose(spec, repository, followup, target_markets, rights_evidence) ->
+CandidateOutcome`. Routes on the same `ChangeClassifierAgent` classification
+as `ModifierEngine`:
+- `system_bug` / `missing_requirement` → the real `RepairAgent` + `Executor`
+  loop (identical mechanics to `ModifierEngine`, reused not reinvented).
+- `change_request` → `ProductEvolutionAgent.evolve()`, then the *same*
+  `Executor` runs against the generated repository — change_request candidates
+  go through the identical build/verify path as repair candidates, not a
+  shortcut.
+- `ambiguous` → `status='needs_clarification'`, nothing built.
+
+Every outcome — including a successful one — then runs the same
+`quality_fn`/`security_fn`/`RightsEngine` gates the rest of the pipeline
+uses (M4E: "no READY/APPLIED state based only on an LLM response"); a gate
+failure returns `status='failed'` with the real gate result attached, never
+`'ready_for_review'`. `propose()` never mutates its `spec`/`repository`
+arguments — proven directly in `AcceptanceK` and, at the worker-integration
+level, by `test_m4_worker.py`'s `workspace.commit.assert_not_called()`
+assertions guarding every non-accept code path.
+
+Tests: `tests/test_m4_modification_engine.py` (12).
+```
+$ python3 -m unittest tests.test_m4_modification_engine -v
+Ran 12 tests ... OK
+```
+
+### `omni_prod/modification_repository.py` (new) — `PostgresModificationRepository`, M4A/D — the central design decision
+
+**The bug this design avoids.** An earlier draft had `complete()` write the
+candidate straight into `project_versions` (via `candidate_version_id`
+columns) so `accept()` would just flip a pointer. Tracing the directive's own
+concurrency scenario against that draft breaks it: if building Modification A
+from Version 10 already creates a real `ProjectVersion`, `current()` has
+silently moved before anyone decided anything, and a concurrently-building
+Modification B (also "from Version 10") is now unknowingly building against
+a version nobody accepted. The fix: `complete()` writes
+`repository_json`/`spec_json` to the new `modification_candidates` table
+only; `project_versions` is untouched until `accept()` runs.
+
+**`accept()` — two-phase, and honest about what it can't make atomic.**
+1. Pre-check: a row-locked read of `modification_requests` +
+   `modification_candidates`, and a pure function,
+   `resolve_accept(status, expected_source_version_id, current_version_id,
+   force) -> 'invalid_status'|'conflict'|'accept'|'accept_forced'`, decides
+   the outcome from that snapshot.
+2. `workspace.commit()` is called — this must own its own connection to take
+   its `pg_advisory_xact_lock`, so it cannot be nested inside the same
+   transaction as the pre-check. That means two concurrent `accept()` calls
+   for *different* modification ids are **not** mutually excluded by the row
+   lock; the real serialization is `workspace.commit()`'s own lock. A second,
+   post-commit check — `new_version.parent_id != source_version_id` — catches
+   a race that slipped past the pre-check and, unless `force=True`, discards
+   nothing (the new version was already committed by `workspace.commit()`
+   itself; `accept()`'s bookkeeping just refuses to also flip
+   `modification_requests` to accepted/promoted).
+3. **Disclosed gap, not hidden:** `workspace.commit()`, `spec_repo.save()`,
+   and the final `modification_requests` status `UPDATE` are three separate
+   transactions. The version itself is atomic (fully committed or not at
+   all), but a crash between step 2 and the final `UPDATE` leaves a live,
+   current, promoted `ProjectVersion` while `modification_requests` still
+   reads `READY_FOR_REVIEW`. Making this fully atomic needs either a single
+   connection spanning `workspace.commit()` and the status update (which
+   would also have to span its advisory lock — a larger change to
+   `workspace.py` not requested here) or a reconciliation job; neither exists.
+   This is exactly the kind of gap `AGENTS.md` says to flag, not paper over —
+   see `accept()`'s own docstring and `AcceptanceN`'s docstring in the test
+   file, and `STATUS.md` §5's M4D row.
+
+`reject()` only updates `modification_requests`; never touches
+`project_versions` (`AcceptanceO`). `rollback()` re-commits the *exact*
+stored repository of a historical `ProjectVersion` as a brand-new version —
+never regenerates code, matching the directive's explicit "rollback must
+reference durable historical versions, not regenerate old code."
+
+**Bug found and fixed while building this:** the `forced` field in
+`accept()`'s return value originally only checked
+`decision == 'accept_forced'`, missing the case where the pre-check found no
+conflict but a belated post-commit race was overridden by `force=True`.
+Fixed to `forced = decision == 'accept_forced' or new_version.parent_id !=
+source_version_id`.
+
+Tests: `tests/test_modification_repository.py` (43) — `ScriptedCursor`/fake-pool
+fixtures for the pure SQL-shape logic, the real `MemoryProjectWorkspace` for
+version-history mechanics, and a purpose-built `RacyWorkspace` wrapper that
+injects a concurrent "interloper" commit inside the first `.commit()` call to
+deterministically reproduce the post-commit race window.
+```
+$ python3 -m unittest tests.test_modification_repository -v
+Ran 43 tests ... OK
+```
+*Mutation checks* (each applied, confirmed failing tests, reverted — none
+committed): `resolve_accept()`'s mismatch check forced to always pass;
+`accept()`'s post-commit race check forced to `if False:`. Both caught by
+the relevant `AcceptTests` cases.
+
+### `omni_prod/worker_tasks.py` — M4 section appended
+
+`execute_modification_job(modification_id: str) -> None` — the only
+argument, matching the directive's "queue payload should ideally contain
+only modification_id. Worker reloads durable state." Lazy-imports
+`investor_app` internals (so this module stays importable without
+`fastapi`/`psycopg`, same convention as `execute_live_build_job`), then
+delegates to `_run_modification_job()`, which takes every dependency by
+injection and is what actually gets unit-tested.
+
+`_run_modification_job()`: loads the request, loads the *exact* source
+`ProjectVersion` by id (never `current()`), loads the *exact* `ProductSpec`
+for that version id (never "latest"), classifies, dispatches to
+`CandidateModificationEngine.propose()`, and on `'ready_for_review'` calls
+`complete()` (never touches `project_versions` here — see above). On any
+exception it records a terminal `FAILED` state and **re-raises**, matching
+`_run_live_build_job`'s established convention (M1) exactly — it does not
+swallow worker exceptions into a success-shaped return.
+
+`resolve_modification_billing(category, billable, spend_incurred) ->
+'settle'|'release'`: M4G's billing rule, decided by the *real classification*
+from `ChangeAssessment.billable`, not by whether compute happened to be
+spent. `system_bug`/`missing_requirement`/`ambiguous` always `release()`
+(free-by-policy) even if repair rounds burned provider spend;
+`change_request` always `settle()` at the real amount. This is a genuinely
+different rule from `resolve_billing()` (M1, unmodified, still used for the
+exception path here where no classification exists yet, and for ordinary
+builds which have no classification concept at all).
+
+Tests: `tests/test_m4_worker.py` (11) — `ModHarness` over
+`Classifier`/`RepairsOnFirstTry`/`RaisingRepairer`/`EvolverImmediatelyPassing`/
+fake gates/fake rights engine/`FakeModJobs`/`FakeSpecRepo`/`fake_workspace()`.
+```
+$ python3 -m unittest tests.test_m4_worker -v
+Ran 11 tests ... OK
+```
+*Mutation check*: `resolve_modification_billing` forced to always return
+`'release'`; caught by 2 tests; reverted.
+
+### `omni_prod/investor_app.py` — M4A routes
+
+Six new routes, all delegating to `PostgresModificationRepository` and
+`enqueue_build()` (the same enqueue helper M1/M3 use, with the same
+try/except → `dispatch='deferred'` outbox fallback — **never fails the
+request** if Redis is down, satisfying the directive's "ensure enqueue
+failure is recoverable through the outbox"):
+
+| Method | Path | Handler |
+|---|---|---|
+| POST | `/api/v28/projects/{project_id}/versions/{version_id}/modifications` | `v28_propose_modification` (line 1378) |
+| GET | `/api/v28/projects/{project_id}/modifications/{modification_id}` | `v28_modification_status` (line 1430) |
+| GET | `/api/v28/projects/{project_id}/modifications/{modification_id}/candidate` | `v28_modification_candidate` (line 1448) |
+| POST | `/api/v28/projects/{project_id}/modifications/{modification_id}/accept` | `v28_modification_accept` (line 1464) |
+| POST | `/api/v28/projects/{project_id}/modifications/{modification_id}/reject` | `v28_modification_reject` (line 1480) |
+| POST | `/api/v28/projects/{project_id}/rollback` | `v28_rollback` (line 1492) |
+
+`v28_propose_modification` reserves credits via `subscriptions.reserve(...,
+category='product_modification')` **at request-creation time**, inside the
+same transaction as `create()`/`create_outbox()` — always billable at
+reservation (the real classification isn't known yet; the worker's
+`resolve_modification_billing()` settles or releases once it is).
+
+`fastapi` is not installable in this sandbox, so none of this can be
+exercised over real HTTP here. It was instead verified without importing
+`fastapi` at all:
+- `ast.parse()` on the full 1646-line file (syntax-valid), checked for
+  duplicate top-level function names and duplicate
+  `@app.<method>('<path>')` registrations across all 117 routes (none found).
+- Every new import/attribute/call this section makes into
+  `modification_repository.py`/`spec_repository.py`/`subscription_store.py`
+  cross-checked with `inspect.signature()` against the real target
+  functions, imported directly (those modules have no `fastapi` dependency)
+  — confirmed `create`/`create_outbox`/`mark_outbox_enqueued`/`get_details`/
+  `get_candidate`/`accept`/`reject`/`rollback` and `reserve()` all match
+  their call sites exactly.
+- `tests/test_m4_acceptance.py::AcceptanceB` proves, by parsing
+  `investor_app.py`'s source text with `ast` (no import, so no `fastapi`
+  needed), that `v28_propose_modification`'s own function body never
+  references `CandidateModificationEngine`, `propose`, or any agent class —
+  the strongest statically-provable form of "the API process never performs
+  the modification synchronously" available without a live server.
+
+This is genuinely `IMPLEMENTED_NOT_VERIFIED`, not `VERIFIED` — see
+`STATUS.md` §5.
+
+### `tests/test_m4_acceptance.py` (new) — the directive's own A–W list, verbatim
+
+Maps each of the 23 lettered acceptance tests plus the concurrency
+requirement onto either a new minimal self-contained proof, or a pointer to
+deeper existing coverage. Letter A is `@unittest.skip(...)` with a reason
+naming exactly what would need `fastapi` to verify live, rather than a fake
+pass. The concurrency requirement (`AcceptanceU`) reproduces the directive's
+own scenario verbatim against a real `MemoryProjectWorkspace`:
+```
+Version 10 is current.
+A is accepted -> Version 11.                    (assertTrue(out_a['accepted']))
+B (also from Version 10) tries to accept ->      out_b['reason'] == 'conflict'
+Version 11 is NOT overwritten ->                 workspace.current('p1').id == v11_id
+B may still be force-accepted as an explicit,
+controlled decision ->                           force=True succeeds, forced=True
+```
+```
+$ python3 -m compileall -q tests/test_m4_acceptance.py    -> exit 0
+$ python3 -m unittest tests.test_m4_acceptance -v
+test_A_post_returns_202_and_durable_id ... skipped '...'
+test_B_the_propose_route_never_calls_the_candidate_engine_itself ... ok
+test_C_worker_entrypoint_takes_only_the_id_and_reloads_everything_else ... ok
+test_D_enqueue_failure_leaves_the_row_pending_for_relay_to_retry ... ok
+test_E_and_F_worker_loads_the_exact_source_version_and_its_own_spec ... ok
+test_G_system_bug_executes_the_real_repair_loop ... ok
+test_H_missing_requirement_executes_the_real_repair_loop ... ok
+test_I_ambiguous_builds_and_repairs_nothing ... ok
+test_J_change_request_runs_the_evolver_not_the_repairer ... ok
+test_K_propose_never_mutates_its_input_repository_or_spec ... ok
+test_L_a_failed_modification_is_never_acceptable ... ok
+test_M_a_gate_failure_never_reaches_ready_for_review ... ok
+test_N_accept_promotes_the_candidate_to_a_brand_new_current_version ... ok
+test_O_reject_never_touches_project_versions ... ok
+test_P_rollback_recommits_the_exact_historical_repository ... ok
+test_Q_repository_diff_is_order_independent ... ok
+test_R_spec_diff_is_order_independent ... ok
+test_S_spec_lookup_is_exact_version_scoped_with_no_update_path ... ok
+test_T_duplicate_delivery_of_queued_and_of_a_completion_are_both_noops ... ok
+test_U_resolve_accept_pure_decision_table ... ok
+test_U_version_10_11_scenario_from_the_directive ... ok
+test_V_reserve_called_twice_with_the_same_modification_id_charges_once ... ok
+test_W_every_non_fastapi_test_module_passes ... ok
+
+Ran 23 tests in 0.968s
+
+OK (skipped=1)
+```
+Two real bugs were found and fixed *in this test file* while first verifying
+it (not in production code): `AcceptanceB` originally did
+`import omni_prod.investor_app`, which raises `ModuleNotFoundError: fastapi`
+before any AST inspection can happen — fixed to read the file as text and
+`ast.parse()` it directly, without importing. `AcceptanceV` originally
+hardcoded a fake subscription cycle (`'2026-01'`) that didn't match
+`PostgresSubscriptionService._cycle_now()`'s real current-UTC-month value,
+which silently triggered `reserve()`'s cycle-reset branch and shifted the
+expected SQL-statement sequence — fixed to compute the real current cycle
+the same way `_cycle_now()` does, and to script the scripted cursor's
+per-call rowcounts correctly (`ON CONFLICT DO NOTHING` on the retried
+`INSERT` must report `rowcount=0`, not fall through to the fake cursor's
+default of 1). Both were test-double bugs, not application-code bugs; caught
+by actually running this file before moving on, the same discipline used for
+every other new module in this and the prior M1/M3 phases.
+
+`AcceptanceW` runs the real, full non-fastapi regression suite as a guarded
+subprocess (`OMNI_M4_ACCEPTANCE_W_NESTED=1` prevents it recursing into
+itself when the child process's own test discovery re-imports this same
+file) and asserts a clean exit.
+
+### Regression: full suite after M4
+
+```
+$ python3 -m compileall -q omni_prod tests                       -> exit 0
+$ python3 -m unittest <23 non-fastapi test modules>               -> Ran 309 tests ... OK (skipped=2)
+```
+309 tests: the 197 from the `modifier_engine.py` phase (unchanged) + 112 new
+M4 tests (43 `test_modification_repository` + 11 `test_m4_worker` + 23
+`test_m4_acceptance` + 12 `test_m4_modification_engine` + 13
+`test_modification_diff` + 5 `test_product_evolution` + 5
+`test_spec_repository`). The same 8 fastapi-dependent test files still fail
+only at `ModuleNotFoundError: No module named 'fastapi'` on import —
+unchanged, pre-existing, confirmed again by direct per-file import.
+
+### Known gaps, flagged not fixed
+
+- `accept()`'s cross-transaction atomicity window (see above) — disclosed,
+  not hidden; needs either a schema/connection change to `workspace.py` not
+  requested here, or a reconciliation job.
+- Everything requiring `fastapi`, live Postgres, or live Redis is
+  `IMPLEMENTED_NOT_VERIFIED`/`NOT_CONFIGURED` in this sandbox — pre-existing
+  constraint (see the M1/M3 sections above), not new to M4, and not a code
+  defect: every one of those paths is statically checked (AST, duplicate
+  routes, `inspect.signature()` cross-referencing against real target
+  functions) rather than skipped silently.
+- `ModifierEngine` itself is unmodified and remains unwired to any route —
+  M4 does not call it; `CandidateModificationEngine` is the intended entry
+  point going forward (see `STATUS.md` §4/§5).
+- M5 and beyond: out of scope by the directive's own stop condition; not
+  started, not designed.
+
+### EXECUTED / STATICALLY VERIFIED / NOT EXECUTED (per the directive's stop condition)
+
+**EXECUTED** (real Python processes, real assertions, real failures on
+mutation, run in this session): `spec_repository.py`, `modification_diff.py`,
+`product_evolution.py`, `modification_engine.py`, `modification_repository.py`
+(including the real `MemoryProjectWorkspace` concurrency scenario and the
+`RacyWorkspace` post-commit-race reproduction), the `worker_tasks.py` M4
+functions (`_run_modification_job`, `resolve_modification_billing`), and the
+full 309-test non-fastapi regression suite, including
+`tests/test_m4_acceptance.py` letters B–W (22 of 23 lettered tests; the
+concurrency requirement; 309/309 green).
+
+**STATICALLY VERIFIED** (compiles, AST-inspected, signatures cross-checked
+against real functions, but never actually run as a live process): the six
+new FastAPI routes in `investor_app.py` (acceptance letter A), the
+Redis/outbox dispatch path end-to-end (only its logic is executed; no live
+Redis), and migration `016`'s SQL against an actual Postgres server.
+
+**NOT EXECUTED**: nothing in this M4 pass has zero evidence — every claim
+above lands in one of the two categories. Not attempted at all: M5+.
+
+M4 is stopped here per the directive's own stop condition. This report and
+the current working tree are the artifact for independent review; no
+packaged ZIP was produced since this environment produces its evidence and
+diffs directly in-repo (see `git log`/`git diff` for the commit created
+alongside this report).

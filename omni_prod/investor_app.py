@@ -17,7 +17,7 @@ from .auth import verify_token, AuthError
 from .metrics import MetricsRegistry
 from .observability import configure_observability
 from .web_security import configure_web_security
-from .autonomous_agents import ArchitectAgent, GeneratorAgent, RepairAgent
+from .autonomous_agents import ArchitectAgent, ChangeClassifierAgent, GeneratorAgent, RepairAgent
 from .autonomous_core import AutonomousProductEngine
 from .benchmark_suite import CASES
 from .billing import classify_charge
@@ -28,7 +28,9 @@ from .integrations import catalog as integration_catalog
 from .international_readiness import payload as international_payload
 from .i18n import SUPPORTED_LOCALES
 from .mobile_pipeline import build_plan as mobile_build_plan
+from .modification_repository import PostgresModificationRepository
 from .native_source import android_project, ios_project, game_project, omni_android_release_project
+from .product_evolution import ProductEvolutionAgent
 from .remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
 from .model_runtime_config import ModelRuntimeConfig
 from .project_memory import ProjectMemory
@@ -38,6 +40,7 @@ from .routed_gateway import ProviderRoute, RoutedModelGateway
 from .sandbox import SandboxLimits
 from .sandbox_executor import SandboxRepositoryExecutor
 from .security_testing import hostile_repository_scan
+from .spec_repository import PostgresSpecRepository, SpecNotFound
 from .specialist_agents import MultiAgentReviewTeam
 from .workspace import ProjectWorkspace
 from .unified_engine import UnifiedOmniEngine
@@ -257,6 +260,21 @@ class V28PlanAdminRequest(BaseModel):
     user_id: str = Field(min_length=1,max_length=160)
     plan: str = Field(min_length=1,max_length=40)
 
+class V28ModificationRequest(BaseModel):
+    followup: str = Field(min_length=3,max_length=12000)
+    target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
+
+class V28ModificationAcceptRequest(BaseModel):
+    force: bool = False
+    message: str = Field(default='modification accepted',max_length=500)
+
+class V28ModificationRejectRequest(BaseModel):
+    reason: str = Field(default='',max_length=1000)
+
+class V28RollbackRequest(BaseModel):
+    target_version_id: str = Field(min_length=1,max_length=160)
+    message: str = Field(default='rollback',max_length=500)
+
 class V28CheckoutRequest(BaseModel):
     plan: str = Field(min_length=1,max_length=40)
 
@@ -366,7 +384,12 @@ def project_memory(project_id:str)->dict:
     return {'project_id':project_id,'context':_memory.context(project_id),'entries':[x.__dict__ for x in _memory.list(project_id)]}
 
 
-def _live_components():
+def _model_gateway_and_executor():
+    # M4: pure extraction out of _live_components() (behavior-preserving --
+    # _live_components() below is unchanged in what it returns) so
+    # _modification_components() can build the *same* gateway/sandbox-executor
+    # wiring for its own, different set of agents (ChangeClassifierAgent /
+    # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
     if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
     cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
     gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary),fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),policy=cfg.policy)
@@ -377,12 +400,30 @@ def _live_components():
     else:
         if not shutil.which('docker'): raise RuntimeError('docker or OMNI_SANDBOX_RUNNER_URL is required for live generated-code execution')
         executor=SandboxRepositoryExecutor(limits=SandboxLimits())
+    return gateway,executor
+
+def _live_components():
+    gateway,executor=_model_gateway_and_executor()
     engine=AutonomousProductEngine(architect=ArchitectAgent(gateway),generator=GeneratorAgent(gateway),repairer=RepairAgent(gateway),
         executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','5')))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:
     return _live_components()[0]
+
+def _modification_components():
+    # M4A/C: the same gateway + sandbox executor _live_components() uses, but
+    # wired to the M4 agents CandidateModificationEngine needs instead of the
+    # build agents. RepairAgent is reused verbatim (M4's own foundation
+    # already established that: ModifierEngine.modify()'s free-repair path
+    # and CandidateModificationEngine's do too, via run_free_repair()).
+    # Returns (classifier, repairer, evolver, executor, gateway), matching
+    # worker_tasks._run_modification_job()'s unpacking order.
+    gateway,executor=_model_gateway_and_executor()
+    classifier=ChangeClassifierAgent(gateway)
+    repairer=RepairAgent(gateway)
+    evolver=ProductEvolutionAgent(gateway)
+    return classifier,repairer,evolver,executor,gateway
 
 @app.post('/api/live/build')
 def live_build(req:PromptRequest)->dict:
@@ -1300,6 +1341,167 @@ def v28_preview_stop(project_id: str, preview_id: str, request: Request):
     return JSONResponse(status_code=202 if cleanup == 'enqueued' else 200,
                         content={'preview_id': preview_id, 'status': outcome['status'],
                                  'changed': outcome['changed'], 'cleanup': cleanup})
+
+#
+# M4: natural-language product modification.
+#
+# Same async shape as M1/M3 above: the API never runs the candidate build
+# itself. It validates the target version has an M4B-durable spec (M4B:
+# "never load latest spec when modifying an older version" -- checked here,
+# not guessed), reserves credits (M4G) and durably records the request
+# (create() + create_outbox() in the same transaction as the reservation,
+# the same transactional-outbox shape job_repository.py established for
+# builds) before enqueueing. worker_tasks.execute_modification_job does the
+# real work; PostgresModificationRepository.accept()/reject()/rollback()
+# (M4D) are the only ways a candidate becomes -- or is kept from becoming --
+# the project's current version.
+#
+# DEVIATION: target_markets/rights_evidence are captured durably at creation
+# time (modification_requests.target_markets_json/rights_evidence_json,
+# migration 016) rather than re-read from _v28's in-memory per-project state
+# when the worker runs, since the worker is commonly a separate process/host
+# and must not depend on the API process's own memory for a
+# compliance-relevant gate input -- see modification_repository.create()'s
+# docstring.
+
+_MODIFICATION_CREDITS = int(os.getenv('OMNI_MODIFICATION_CREDITS', '30'))
+
+def _modification_key(project_id: str, request: Request) -> str:
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return key
+
+@app.post('/api/v28/projects/{project_id}/versions/{version_id}/modifications')
+def v28_propose_modification(project_id: str, version_id: str, req: V28ModificationRequest, request: Request) -> dict:
+    _require_durable_backend('Natural-language product modification')
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+    try:
+        _v28.engine.workspace.get(project_id=key, version_id=version_id)
+    except KeyError:
+        raise HTTPException(404, 'version not found')
+    try:
+        PostgresSpecRepository(_v28_pool).get(version_id, key)
+    except SpecNotFound:
+        raise HTTPException(422, 'this version predates spec tracking (M4B) and cannot be modified through this pipeline')
+
+    modification_id = f"mod_{uuid.uuid4().hex}"
+    mods = PostgresModificationRepository(_v28_pool)
+    rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
+
+    with _v28_pool.connection() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                decision = _v28.subscriptions.reserve(
+                    cur, build_id=modification_id, user_id=account.id, project_id=key,
+                    cost_class=CostClass.STANDARD.value, credits=_MODIFICATION_CREDITS,
+                    category='product_modification',
+                )
+                if not decision.allowed:
+                    raise HTTPException(402, decision.reason)
+                mods.create(
+                    cur, modification_id=modification_id, project_id=key, user_id=account.id,
+                    source_version_id=version_id, followup=req.followup,
+                    target_markets=tuple(req.target_markets), rights_evidence=rights_evidence,
+                )
+                mods.create_outbox(cur, modification_id=modification_id)
+
+    redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
+    try:
+        enqueue_build(redis_url, "omni_prod.worker_tasks.execute_modification_job", modification_id, job_id=modification_id)
+        mods.mark_outbox_enqueued(modification_id)
+        dispatch = "enqueued"
+    except Exception:
+        # Durably accepted already (request + reservation + outbox row are
+        # committed); the outbox relay re-dispatches rows with
+        # enqueued_at IS NULL, same as the build path above.
+        dispatch = "deferred"
+
+    return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch})
+
+@app.get('/api/v28/projects/{project_id}/modifications/{modification_id}')
+def v28_modification_status(project_id: str, modification_id: str, request: Request) -> dict:
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    try:
+        d = PostgresModificationRepository(_v28_pool).get_details(modification_id, key)
+    except KeyError:
+        raise HTTPException(404, 'modification not found or access denied')
+    return {
+        'modification_id': modification_id, 'status': d.status,
+        'classification': d.classification, 'classification_reason': d.classification_reason,
+        'billable': d.billable, 'source_version_id': d.source_version_id,
+        'promoted_version_id': d.promoted_version_id, 'repair_rounds': d.repair_rounds,
+        'evidence': d.evidence, 'error_code': d.error_code, 'error_message': d.error_message,
+        'created_at': d.created_at, 'started_at': d.started_at, 'completed_at': d.completed_at,
+        'accepted_at': d.accepted_at, 'rejected_at': d.rejected_at,
+    }
+
+@app.get('/api/v28/projects/{project_id}/modifications/{modification_id}/candidate')
+def v28_modification_candidate(project_id: str, modification_id: str, request: Request) -> dict:
+    """The reviewable candidate for a READY_FOR_REVIEW modification: a
+    summary (not full file content, matching _repo_summary's use elsewhere)
+    of the pending repository plus the full candidate spec, so the person
+    can decide accept/reject before anything touches project_versions."""
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    try:
+        candidate = PostgresModificationRepository(_v28_pool).get_candidate(modification_id, key)
+    except KeyError:
+        raise HTTPException(404, 'no reviewable candidate for this modification '
+                                 '(wrong status, not found, or access denied)')
+    return {'modification_id': modification_id, 'repository': _repo_summary(candidate['repository']),
+            'spec': candidate['spec'].to_dict()}
+
+@app.post('/api/v28/projects/{project_id}/modifications/{modification_id}/accept')
+def v28_modification_accept(project_id: str, modification_id: str, req: V28ModificationAcceptRequest, request: Request):
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    try:
+        outcome = PostgresModificationRepository(_v28_pool).accept(
+            modification_id, key, workspace=_v28.engine.workspace,
+            spec_repo=PostgresSpecRepository(_v28_pool), message=req.message, force=req.force,
+        )
+    except KeyError:
+        raise HTTPException(404, 'modification not found or access denied')
+    if outcome['accepted']:
+        return outcome
+    status_code = 409 if outcome['reason'] in ('conflict', 'conflict_detected_at_commit') else 422
+    return JSONResponse(status_code=status_code, content=outcome)
+
+@app.post('/api/v28/projects/{project_id}/modifications/{modification_id}/reject')
+def v28_modification_reject(project_id: str, modification_id: str, req: V28ModificationRejectRequest, request: Request):
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    try:
+        outcome = PostgresModificationRepository(_v28_pool).reject(modification_id, key, reason=req.reason)
+    except KeyError:
+        raise HTTPException(404, 'modification not found or access denied')
+    if not outcome['rejected']:
+        return JSONResponse(status_code=422, content=outcome)
+    return outcome
+
+@app.post('/api/v28/projects/{project_id}/rollback')
+def v28_rollback(project_id: str, req: V28RollbackRequest, request: Request) -> dict:
+    """M4D: references durable history only -- workspace.restore() re-commits
+    the exact stored repository of `target_version_id` as a new version;
+    nothing is regenerated."""
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    try:
+        return PostgresModificationRepository(_v28_pool).rollback(
+            key, target_version_id=req.target_version_id, workspace=_v28.engine.workspace,
+            spec_repo=PostgresSpecRepository(_v28_pool), message=req.message,
+        )
+    except KeyError:
+        raise HTTPException(404, 'target version not found')
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
