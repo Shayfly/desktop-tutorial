@@ -2005,3 +2005,389 @@ against real PostgreSQL, FastAPI, and Redis/RQ found no such defect, so
 none of `workspace.py`, `modification_repository.py`, `spec_repository.py`,
 `investor_app.py`, `queueing.py`, or `worker_tasks.py` were modified. See
 `git log`/`git diff` for the exact commit created alongside this update.
+
+## Update: M4D.2b — dependency parity + real worker execution
+
+An independent review of M4D.2's evidence found two real gaps and
+accepted the rest ("M4D.2 is accepted for the live PostgreSQL
+concurrency/transaction path"). This section documents both, closed for
+real, with the same evidence standard as every section above. **M5 was
+not started.**
+
+### Gap 1: RQ documentation overclaim
+
+STATUS.md's M4A worker-entrypoint capability-table row read "real `rq`
+dequeue of a real `execute_modification_job` job." That is not what
+M4D.2's own `LiveRedisRQTests.test_propose_modification_over_http_really_enqueues_a_redis_rq_job`
+did — it fetched the real job from Redis to check its `func_name`/`args`,
+then explicitly called `job.cancel(); job.delete()` and never ran a
+worker on it, precisely because executing it needs a live LLM provider.
+The real dequeue-and-execute proof in that same file used **dedicated
+test job functions** (`tests/m4d2_rq_job_target.py::mark_done` /
+`always_fails`) through `rq.SimpleWorker`, not `execute_modification_job`
+itself. STATUS.md's table row is corrected to say exactly this. Gap 3
+below closes the underlying gap for real, not just the wording.
+
+### Gap 2: exact production dependency parity
+
+```
+$ cat requirements-production.txt
+# V24 top-level production pins (2026-09-22). Transitive hashes should be generated in networked CI.
+fastapi==0.128.2
+uvicorn==0.48.0
+pydantic==2.13.4
+psycopg[binary,pool]==3.3.6
+redis==8.1.0
+rq==2.12.0
+boto3==1.43.94
+```
+
+M4D.2 vendored HEAD of each package's default branch. Every package
+materially involved in the M4 live tests was re-vendored from the
+**exact git tag** matching its pin (directive preference **A**), building
+a separate `/tmp/m4d2b_vendor` via `tools/m4d2b_setup_parity_infra.sh` —
+M4D.2's own `/tmp/m4d2_vendor` is untouched and still independently
+re-runnable.
+
+**fastapi** — tag `0.128.2` exists directly:
+```
+$ git -C /tmp/fastapi_src fetch --depth 1 origin tag 0.128.2
+$ git -C /tmp/fastapi_src log --oneline -1 0.128.2
+79406a4b 🔖 Release version 0.128.2
+$ git -C /tmp/fastapi_src checkout 0.128.2
+```
+
+**psycopg** — `psycopg` and `psycopg_pool` are independently-versioned
+packages living in the SAME repo, so checking out one tag would force
+both to that tag's (wrong, for the other) commit. Fetched the exact
+`3.3.6` tag into a separate `git worktree` instead, leaving the original
+clone (already at HEAD == `pool-3.3.3`, confirmed by
+`git describe --tags --exact-match HEAD`) as the `psycopg_pool` source:
+```
+$ git -C /tmp/psycopg_src fetch --depth 1 origin tag 3.3.6
+$ git -C /tmp/psycopg_src worktree add /tmp/psycopg_src_3_3_6 3.3.6
+Preparing worktree (detached HEAD a67654d)
+HEAD is now at a67654d chore: bump psycopg package version to 3.3.6
+$ git -C /tmp/psycopg_src show 3.3.6:psycopg/pyproject.toml | grep -i psycopg-pool
+    "psycopg-pool",   # unpinned inside the [pool] extra -- pool-3.3.3 (latest) is what
+                       # pip's resolver would pick absent a lock file; no change needed.
+```
+
+**redis-py** — tag `v8.1.0`:
+```
+$ git -C /tmp/redis_py_src fetch --depth 1 origin tag v8.1.0
+$ git -C /tmp/redis_py_src log --oneline -1 v8.1.0
+e013126 Testing with 8.10 GA (#4227)
+$ git -C /tmp/redis_py_src checkout v8.1.0
+```
+
+**rq** — the pin `2.12.0` has no `v2.12.0` tag; the actual tag is `v2.12`:
+```
+$ git -C /tmp/rq_src ls-remote --tags origin | grep -i "2\.12"
+aa76e6841d69dad4fe5498e15544a5f26180a6b7  refs/tags/v2.12
+$ git -C /tmp/rq_src rev-parse HEAD
+90a67a159ef9fa055c6bde12ee1bb3ebd0440b84
+$ git -C /tmp/rq_src log --oneline v2.12..HEAD
+90a67a1 Bump github/codeql-action from 4.37.8 to 4.38.0 (#2485)
+```
+M4D.2's HEAD-based vendor was **one commit past** the real `v2.12` tag —
+a GitHub Actions CI dependency bump, unrelated to `rq`'s own source, but
+a real, exact-version miss nonetheless (`rq.__version__` printed
+"2.12.0" either way, which is exactly the kind of overclaim-by-coincidence
+this parity pass exists to catch rather than trust). Re-checked out at
+the exact tag.
+
+**starlette** — not pinned directly by `requirements-production.txt`
+(transitive via fastapi). fastapi `0.128.2`'s own `pyproject.toml`, read
+directly:
+```
+$ git -C /tmp/fastapi_src show 0.128.2:pyproject.toml | grep -i starlette
+    "starlette>=0.40.0,<0.51.0",
+```
+The pre-installed `starlette` actually in use throughout M4D.2 was
+**1.0.0** — outside this range entirely, a real non-parity condition
+M4D.2 never checked. Latest tag satisfying the constraint:
+```
+$ git ls-remote --tags https://github.com/encode/starlette | grep -E "refs/tags/0\.(4[0-9]|50)\.[0-9]+$" | sort -t/ -k3 -V | tail -3
+...
+7d88ea6f8ec8aa99cdb5fc7a10b88db5aadfdfee  refs/tags/0.49.0
+4941b4a04993d087dea66e9287fe9472babee879  refs/tags/0.50.0
+$ git clone https://github.com/encode/starlette.git /tmp/starlette_src
+$ git -C /tmp/starlette_src checkout 0.50.0
+```
+
+**pydantic** — pin `2.13.4`. `pydantic/pydantic`'s own `pyproject.toml`
+at that exact tag:
+```
+$ git clone --depth 1 https://github.com/pydantic/pydantic.git /tmp/pydantic_src
+$ git -C /tmp/pydantic_src fetch --depth 1 origin tag v2.13.4
+$ git -C /tmp/pydantic_src show v2.13.4:pyproject.toml | grep "pydantic-core=="
+    'pydantic-core==2.46.4',
+```
+`pydantic-core` is a compiled Rust/PyO3 extension. `rustc`/`cargo` ARE
+present in this sandbox, but building requires fetching crate
+dependencies over the network:
+```
+$ curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 https://crates.io/
+000 (curl: (56) CONNECT tunnel failed, response 403)
+$ curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 https://index.crates.io/config.json
+403
+```
+Genuinely blocked, confirmed directly — the identical egress-policy
+pattern as PyPI/apt/Docker Hub, just a different host. Not retried, per
+the repo's own proxy runbook instruction. Verified the pre-installed
+`pydantic` (2.13.3) is a real, internally consistent, correctly-paired
+release, not a mismatch:
+```
+$ git -C /tmp/pydantic_src fetch --depth 1 origin tag v2.13.3
+$ git -C /tmp/pydantic_src show v2.13.3:pyproject.toml | grep "pydantic-core=="
+    'pydantic-core==2.46.3',
+$ python3 -c "import pydantic, pydantic_core; print(pydantic.__version__, pydantic_core.__version__)"
+2.13.3 2.46.3
+```
+Used as-is (directive option **C**, "use an existing cached wheel/package
+if available"). This is a genuine, disclosed, one-patch-version gap —
+**not** claimed as parity. `uvicorn` (0.48.0 pinned) and `boto3` (1.43.94
+pinned) are not exercised by any M4D.2/M4D.2b test (`TestClient` needs no
+live `uvicorn` server; `boto3`/S3 is out of scope throughout, per
+M4D.2's own disclosure) and were not vendored.
+
+**Parity vendor build and verification:**
+```
+$ ./tools/m4d2b_setup_parity_infra.sh
+...
+fastapi       0.128.2 (pin 0.128.2)
+starlette     0.50.0 (latest compatible with fastapi's <0.51.0)
+psycopg_pool  True (pool-3.3.3, unpinned by psycopg[pool])
+redis-py      8.1.0 (pin 8.1.0)
+rq            2.12.0 (pin 2.12.0, exact tag v2.12)
+pydantic      2.13.3 (pin 2.13.4 -- KNOWN GAP, see script header)
+pydantic_core 2.46.3 (paired with installed pydantic)
+
+$ PYTHONPATH=/tmp/m4d2b_vendor python3 -c "
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+app = FastAPI()
+@app.get('/ping')
+def ping(): return {'ok': True}
+print(TestClient(app).get('/ping').status_code)
+"
+200
+```
+Full regression under the exact-parity vendor:
+```
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... python3 -m unittest tests.test_m4d2_live_postgres
+Ran 14 tests in 2.974s
+OK
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... python3 -m unittest tests.test_m4d2_live_fastapi_redis
+Ran 8 tests in 1.086s
+OK
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... python3 -m unittest <34 combined modules>
+Ran 487 tests in 15.404s
+OK (skipped=2)
+$ PYTHONPATH=/tmp/m4d2b_vendor python3 -m compileall -q omni_prod tests tools
+exit 0
+```
+Identical counts to M4D.2's HEAD-based vendor — the version differences
+found above did not change behavior for anything this suite exercises.
+
+### Gap 3: real production-job execution through RQ
+
+The directive required actually dequeuing and executing the real
+`omni_prod.worker_tasks.execute_modification_job` through RQ, replacing
+only the external LLM dependency at its documented boundary, without
+monkeypatching internal state transitions.
+
+**The real, already-existing local-model boundary.** Read directly:
+`omni_prod/model_runtime_config.py::ModelRuntimeConfig.from_env()`
+builds its *primary* route from `OMNI_LOCAL_MODEL_NAME` /
+`OMNI_LOCAL_MODEL_URL` (default `http://127.0.0.1:8001/v1`) /
+`OMNI_LOCAL_MODEL_ID`, with `external=False`; `OMNI_ZERO_COST_MODE`
+defaults to `'1'` and `OMNI_ALLOW_EXTERNAL_FALLBACK` to `'0'`.
+`omni_prod/routed_gateway.py::RoutedModelGateway.__init__` enforces
+`if primary.endpoint.external: raise ValueError('primary route must be
+local/self-hosted')`. Production is *designed*, by default, to talk to a
+local model server. `omni_prod/model_gateway.py::OpenAICompatibleGateway.complete()`
+speaks a plain, documented protocol: `POST {base_url}/chat/completions`
+with `{model, messages, temperature, max_tokens}`, expecting
+`{"choices":[{"message":{"content": "..."}}]}`.
+
+`tests/m4d2b_local_model_server.py` implements exactly this protocol as
+a real `http.server.ThreadingHTTPServer` bound to a real loopback TCP
+port — not a monkeypatch of anything in `omni_prod`. Verified directly
+against the real gateway/agent classes before wiring into the worker
+test:
+```
+$ PYTHONPATH=/tmp/m4d2b_vendor python3 -c "
+... LocalModelServer(port=8091).start() ...
+... ChangeClassifierAgent(gw).classify(spec=spec, followup='... M4D2B_CLASSIFY:ambiguous ...') ...
+"
+ambiguous -> ChangeAssessment(category='ambiguous', reason=\"m4d2b deterministic local test model: forced category='ambiguous'\", acceptance_ids=(), billable=False)
+system_bug -> ChangeAssessment(category='system_bug', reason=\"...\", acceptance_ids=('A1',), billable=False)
+... RepairAgent(gw).repair(...) -> (FilePatch(path='M4D2B_NOTES.md', content='...'),)
+```
+Real HTTP round trips, real JSON parsing on both ends, real
+`ChangeAssessment`/`FilePatch` construction from the response.
+
+**A genuinely separate worker OS process, not `SimpleWorker`.** The
+directive preferred a clean, separate `rq.Worker` process over M4D.2's
+in-process `SimpleWorker` substitution. Traced why the original hazard
+would or would not reproduce, directly in the vendored `rq` source
+before writing the script (not just reasoned about):
+```
+$ grep -n "os.fork\|def fork_work_horse\|def main_work_horse" /tmp/rq_src/rq/worker/worker_classes.py /tmp/rq_src/rq/worker/base.py
+rq/worker/worker_classes.py:65:    child_pid = os.fork()
+rq/worker/worker_classes.py:66:      ... if child_pid == 0: ... self.main_work_horse(job, queue) ...
+rq/worker/base.py:1682:  def main_work_horse(self, job, queue):
+rq/worker/base.py:1699:      self.perform_job(job, queue, self.execution)
+rq/worker/base.py:1652:  def perform_job(...): ... job.perform() ...
+```
+`job.perform()` (the dotted-import resolution of
+`execute_modification_job`, and therefore the only place
+`omni_prod.investor_app`'s connection pool gets built) is reachable ONLY
+from inside `main_work_horse`, which itself only ever runs inside the
+forked child. `omni_prod/db.py::DatabasePool.open()` is lazy (only
+called on first real `.connection()` use), so as long as the parent
+worker process never makes a real query before calling `.work()`, no
+live socket exists yet at fork time to be corrupted. `tests/m4d2b_worker_process.py`
+imports `omni_prod.investor_app` in the parent ONLY to apply the same
+disclosed `PostgresProjectWorkspace`/`DiskArtifactStore` override M4D.2
+used (which also touches no network), then calls the real, default
+`rq.Worker([queue]).work(burst=True)`. Verified empirically, not just by
+this reasoning: the first real run reproduced the safe outcome directly
+(see below), no `SSL SYSCALL error` recurrence.
+
+**`tests/test_m4d2b_parity_and_worker.py` — 3 tests, all passing, re-run
+4 times consecutively with zero flakiness:**
+```
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... python3 -m unittest tests.test_m4d2b_parity_and_worker -v
+test_duplicate_delivery_of_the_same_modification_does_not_reexecute_or_duplicate_state ... ok
+test_real_worker_process_dequeues_and_executes_execute_modification_job_ambiguous_path ... ok
+test_real_worker_process_system_bug_path_hits_real_sandbox_docker_image_blocker ... ok
+Ran 3 tests in 4.4s
+OK
+```
+
+- **Ambiguous path** (proofs 1-7): real HTTP propose enqueues the real
+  job; the real, separate worker process (`M4D2B_WORKER_PROCESS_DONE
+  ran=True` printed by the child on completion) dequeues and executes
+  `execute_modification_job` for real; real `ChangeClassifierAgent`
+  call; real `QUEUED -> RUNNING -> NEEDS_CLARIFICATION` transition,
+  confirmed independently via the real HTTP status route AND directly
+  via `PostgresModificationRepository.get_details`.
+- **System-bug path** (proof 9, a REAL failure, not synthetic): the real
+  repair loop reaches `SandboxRepositoryExecutor.execute()` for real,
+  running `docker run ... omni-sandbox:latest python3 -m pytest -q`.
+  This failed with a real, previously-undiscovered error:
+  ```
+  invalid argument "type=bind,src=/tmp/omni-out-XXXXXXXX,dst=/output,rw" for "--mount" flag: invalid field 'rw' must be a key=value pair
+  ```
+  — `omni_prod/sandbox.py::build_docker_command()`'s `--mount
+  type=bind,src=...,dst=/output,rw` syntax is rejected by this sandbox's
+  Docker 29.4.3 CLI (a stricter `--mount` parser than whatever version
+  this flag syntax was written against). This is DIFFERENT from, and in
+  addition to, the already-disclosed image-pull-forbidden block found in
+  M4D.2 — both are real, unmodified `docker` failures; which one
+  surfaces first doesn't change what the test proves. `run_sandbox()`
+  captures this as a normal `ExecutionReport(passed=False)`, not an
+  exception, so `execute_modification_job` completes cleanly:
+  `status='FAILED'`, `error_code='verification'` (the real
+  `GateResult.blocking_gate`, not the dead-code `'verification_failed'`
+  fallback string used only when `outcome.gates is None`, which cannot
+  happen on this path), `repair_rounds=3` (the real
+  `max_repair_rounds`, each round independently hitting the same real
+  docker error), `evidence_json.billing == 'released'` (never
+  `'settled'` -- `system_bug` is never billable),
+  `evidence_json.verification.build_log_tail` containing the real
+  stderr above verbatim. Recoverable state confirmed: `current()` still
+  points at the seed version, and the modification remains normally
+  gettable over HTTP afterward. `omni_prod/sandbox.py` is unrelated
+  M2-era code, out of M4D.2b's scope, and is **deliberately left
+  unfixed** — flagged here for whoever owns that module next.
+- **Duplicate delivery** (proof 8): a second RQ delivery of the same
+  production function for the same `modification_id` (different job id,
+  same args), run through a second separate-process worker run.
+  `jobs.transition_running()`'s own idempotency guard makes the second
+  execution a real no-op: identical `completed_at` before/after, no
+  version promoted or duplicated.
+
+**What was not, and could not be, proven:** a `READY_FOR_REVIEW` (fully
+passing) result from `execute_modification_job` — that would require the
+real `omni-sandbox:latest` image to actually build or pull, which
+remains blocked for two independent, genuine reasons (Docker Hub 403,
+and now also the `--mount` flag incompatibility above). Not worked
+around with a mock; documented as a real, current limitation instead.
+
+### FACT / STRUCTURAL PROOF / BLOCKED / NOT APPLICABLE — M4D.2b
+
+**FACT:** the exact tag/commit table above, all built and imported
+successfully; the `TestClient` smoke test under the new fastapi/starlette
+pairing; all 498 regression tests passing under the exact-parity vendor;
+the real separate-process `rq.Worker` dequeuing and executing the real
+`execute_modification_job` for two distinct real terminal outcomes
+(`NEEDS_CLARIFICATION`, sandbox-verification `FAILED`); the real
+duplicate-delivery no-op; the real `--mount` flag Docker-CLI
+incompatibility in `omni_prod/sandbox.py`.
+
+**STRUCTURAL PROOF:** none remaining for what this pass set out to prove
+(exact dependency parity and real RQ execution of the real production
+job) other than the two disclosed, unavoidable exceptions below.
+
+**BLOCKED, confirmed with exact commands and error text, not assumed:**
+`pydantic-core==2.46.4` cannot be built (crates.io/index.crates.io 403,
+same egress policy as PyPI/apt/Docker Hub); `omni-sandbox:latest` cannot
+be pulled (Docker Hub 403, per M4D.2) or built locally in a way that
+would currently succeed even if the base image were available
+(`omni_prod/sandbox.py`'s `--mount` flag syntax independently fails
+against this sandbox's Docker 29.4.3).
+
+**NOT APPLICABLE:** `uvicorn`/`boto3` exact-version parity (pinned in
+`requirements-production.txt` but not exercised by any live test here --
+`TestClient` needs no live ASGI server, and S3/`boto3` is out of scope
+throughout, per M4D.2's own disclosure); real external LLM execution of
+the classifier's actual natural-language understanding (the real
+`ChangeClassifierAgent.classify()` call happens for real, over real
+HTTP, against a real server -- only the model behind that server is a
+disclosed deterministic stand-in, for the same pre-existing reason
+noted throughout this whole project).
+
+### Status discipline (directive item 4) and regression
+
+- PostgreSQL concurrency/atomicity: `VERIFIED_LIVE_INFRA` (unchanged).
+- FastAPI execution: `VERIFIED_LIVE_INFRA` at exact parity for
+  fastapi/starlette/psycopg/psycopg_pool/redis-py/rq; pydantic remains
+  one disclosed patch version behind its pin (2.13.3 vs. 2.13.4).
+- Redis production enqueue: `VERIFIED_LIVE_INFRA` (unchanged).
+- RQ production `execute_modification_job` execution:
+  `VERIFIED_LIVE_INFRA` (`REAL_RQ_SEPARATE_PROCESS_WORKER_VERIFIED`) for
+  the `NEEDS_CLARIFICATION` and sandbox-`FAILED` terminal paths;
+  `READY_FOR_REVIEW` remains `IMPLEMENTED_NOT_VERIFIED` (blocked on the
+  real sandbox image, for two independent reasons, both documented
+  above).
+- **`M4 VERIFIED_LIVE_INFRA`** — explicitly NOT `PRODUCTION_DEPLOYED` and
+  NOT `FULL_EXTERNAL_E2E`: real external LLM/S3/provider execution, and a
+  real passing sandboxed-code-verification run, remain separately
+  unverified, for pre-existing and newly-documented infrastructure
+  reasons unrelated to M4's own accept/reject/rollback correctness.
+
+```
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... python3 -m unittest <34 combined modules>          # 487/487, 2 skips
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... python3 -m unittest tests.test_m4d2_live_fastapi_redis   # 8/8
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... python3 -m unittest tests.test_m4d2b_parity_and_worker   # 3/3
+```
+Total: **498/498**, 2 expected skips. No M4D.1 or M4D.2 test was removed
+or weakened. `omni_prod/sandbox.py`'s discovered `--mount`-flag
+incompatibility is **not** fixed by this pass (out of scope, unrelated to
+M4) -- flagged in STATUS.md and here for its next owner.
+
+### Regression, compile, and commit
+
+New files added by this update: `tests/test_m4d2b_parity_and_worker.py`,
+`tests/m4d2b_local_model_server.py`, `tests/m4d2b_worker_process.py`,
+`tools/m4d2b_setup_parity_infra.sh`. Modified: `STATUS.md`, this report.
+No file under `omni_prod/` was changed -- the one real defect this pass
+found (`sandbox.py`'s `--mount` flag) is outside M4's own scope and is
+deliberately left for separate remediation, not silently patched around.
+**M4 is `VERIFIED_LIVE_INFRA`, not `PRODUCTION_DEPLOYED`. M5 has not been
+started.** See `git log`/`git diff` for the exact commit created
+alongside this update.

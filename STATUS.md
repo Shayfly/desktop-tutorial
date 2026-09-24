@@ -107,7 +107,7 @@ evidence and exact commands: `PATCH_APPLICATION_REPORT.md` (M4 section).
 | M4A — durable `ModificationRequest` repository (create/get/transition/complete/accept/reject/rollback, optimistic concurrency) | `VERIFIED` | `tests/test_modification_repository.py` (43 tests, fake-pool + real `MemoryProjectWorkspace`, 2 independent mutation tests) |
 | M4A — transactional outbox (`modification_outbox`, `FOR UPDATE SKIP LOCKED`, dispatch) | `VERIFIED` (logic, and the enqueue+outbox-row half live — see **M4D.2**) / `IMPLEMENTED_NOT_VERIFIED` (the `dispatch_pending_outbox()` relay path specifically — not exercised live in M4D.2, only the direct-enqueue-succeeds path was) | `tests/test_modification_repository.py::OutboxDispatchTests` (logic); `tests/test_m4d2_live_fastapi_redis.py::LiveRedisRQTests` (live enqueue) |
 | M4A — FastAPI routes (propose/status/candidate/accept/reject/rollback) | `VERIFIED` — live, via a real ASGI `TestClient` against real Postgres | See **M4D.2** below; superseded the static-only proof this row previously cited |
-| M4A — worker entrypoint (`execute_modification_job`, lazy-imports investor_app internals) | `VERIFIED` (orchestration logic via dependency injection, AND the lazy-import wiring itself now proven live — see **M4D.2**) | `tests/test_m4_worker.py` (11 tests against `_run_modification_job`); `tests/test_m4d2_live_fastapi_redis.py` (real `rq` dequeue of a real `execute_modification_job` job, real import of `investor_app` internals under `fastapi`) |
+| M4A — worker entrypoint (`execute_modification_job`, lazy-imports investor_app internals) | `VERIFIED` (orchestration logic via dependency injection) / see **M4D.2b** for the real-dequeue-and-execute proof of `execute_modification_job` itself | `tests/test_m4_worker.py` (11 tests against `_run_modification_job`); `tests/test_m4d2_live_fastapi_redis.py` (real HTTP enqueue of the real job into Redis, and real `rq.SimpleWorker` dequeue/execution/failure-handling proven using **dedicated test job functions**, not `execute_modification_job` itself — see the correction in **M4D.2b** below); `tests/test_m4d2b_*` (real dequeue and real execution of `execute_modification_job` itself) |
 | M4B — versioned `ProductSpec` repository + `project_version_specs` (exact-version scoped, no `update()`) | `VERIFIED` (logic and live — see **M4D.2**) | `tests/test_spec_repository.py`; `infra/postgres/016_durable_modifications.sql`; `tests/test_m4d2_live_postgres.py` (applied for real, read/written for real) |
 | M4C — intent routing reused (`system_bug`/`missing_requirement`/`change_request`/`ambiguous`) | `VERIFIED` | `tests/test_m4_acceptance.py::AcceptanceGH/I/J` |
 | M4C — dedicated `change_request` path (`ProductEvolutionAgent`, real spec+repo generation, not forced into `RepairAgent`) | `VERIFIED` | `tests/test_product_evolution.py`, `tests/test_m4_acceptance.py::AcceptanceJ` |
@@ -439,6 +439,204 @@ tests), `tools/m4d2_setup_live_infra.sh` (the reproducible runbook). Full
 commands, exact output, and version numbers: `PATCH_APPLICATION_REPORT.md`'s
 M4D.2 section.
 
+### M4D.2b — dependency parity + real worker execution (2026-09-24)
+
+Two verification gaps in M4D.2's own evidence and documentation, found by
+an independent review and accepted as real:
+
+**1. RQ documentation overclaim, corrected.** The M4A worker-entrypoint
+capability-table row above previously read "real `rq` dequeue of a real
+`execute_modification_job` job" — but M4D.2's own `LiveRedisRQTests`
+(section G, `PATCH_APPLICATION_REPORT.md`) explicitly fetched that real
+job from Redis, then **cancelled and deleted it without running a
+worker on it**, and proved the real `rq.SimpleWorker` dequeue/execute/
+fail path only with **dedicated test job functions**
+(`tests/m4d2_rq_job_target.py`), not `execute_modification_job` itself.
+The table row above is now corrected; this section documents the real
+fix (item 2 below closes the gap for real, rather than just fixing the
+wording).
+
+**2. Exact production dependency parity, verified.** M4D.2's vendored
+packages were HEAD of each GitHub repo's default branch, not the exact
+versions `requirements-production.txt` pins. Read directly:
+
+```
+$ cat requirements-production.txt
+fastapi==0.128.2
+uvicorn==0.48.0
+pydantic==2.13.4
+psycopg[binary,pool]==3.3.6
+redis==8.1.0
+rq==2.12.0
+boto3==1.43.94
+```
+
+Every package was re-vendored (`tools/m4d2b_setup_parity_infra.sh`,
+building a separate `/tmp/m4d2b_vendor`, leaving M4D.2's own
+`/tmp/m4d2_vendor` untouched and independently re-runnable) from the
+**exact upstream git tag** for its pin — not master/main HEAD:
+
+| Package | Pin | Exact tag checked out | Was HEAD the same commit? |
+|---|---|---|---|
+| fastapi | 0.128.2 | `0.128.2` | No |
+| psycopg | 3.3.6 | `3.3.6` (separate `git worktree`, since psycopg/psycopg_pool are independently-versioned packages in one repo) | No |
+| psycopg_pool | (unpinned by `psycopg[pool]`) | `pool-3.3.3` (latest — no constraint to violate) | Yes (M4D.2's HEAD already was this tag) |
+| redis-py | 8.1.0 | `v8.1.0` | No |
+| rq | 2.12.0 | `v2.12` | **No — M4D.2's HEAD was 1 commit past this tag** (a `codeql-action` GitHub Actions version bump, unrelated to `rq`'s own source; `rq.__version__` read "2.12.0" either way, which is exactly the kind of overclaim-by-coincidence this parity pass exists to catch) |
+| starlette | *(unpinned — transitive via fastapi)* | `0.50.0` — the latest tag satisfying fastapi 0.128.2's own declared `starlette>=0.40.0,<0.51.0` (its `pyproject.toml`, read directly) | N/A — M4D.2 never vendored starlette at all; it used whatever was pre-installed (**1.0.0** — see below) |
+
+**Real, material finding:** the pre-installed `starlette` was **1.0.0**,
+which is *outside* fastapi 0.128.2's own declared compatible range
+(`<0.51.0`) — a real non-parity condition M4D.2 never checked. This pass
+vendors the correct `0.50.0` and confirms the app still imports and
+serves real requests correctly under it (`fastapi.testclient.TestClient`
+round-trip re-verified — see below).
+
+**Known, disclosed, unavoidable gap: `pydantic`.** The pin is
+`pydantic==2.13.4`; the pre-installed version is `2.13.3`. `pydantic`
+2.13.4 requires `pydantic-core==2.46.4` **exactly** (`pydantic/pydantic`'s
+own `pyproject.toml` at tag `v2.13.4`, read directly). `pydantic-core` is
+a compiled Rust/PyO3 extension — building it needs `cargo` to fetch crate
+dependencies from `crates.io`/`index.crates.io`, and:
+```
+$ curl -sS -o /dev/null -w "%{http_code}\n" https://index.crates.io/config.json
+403
+```
+genuinely blocked, confirmed the same way PyPI/apt/Docker Hub were in
+M4D.2 — a different host, the same egress policy. `rustc`/`cargo`
+themselves are present in this sandbox, but with no reachable crate
+registry a real build is not possible here. The pre-installed `pydantic`
+2.13.3 is paired with its own correctly-matching `pydantic-core` 2.46.3
+(`pydantic` 2.13.3's own `pyproject.toml` pins exactly that — a real,
+internally consistent, already-installed release, not a mismatched
+hack) and is used as the closest available option (directive's option
+**C**, "use an existing cached wheel/package if available"). This is a
+genuine, disclosed, one-patch-version gap — not claimed as parity.
+
+After building the parity vendor, every M4D.2/M4D.2b live suite was
+re-run against it, plus a direct `fastapi.testclient.TestClient`
+round-trip smoke test of the new fastapi/starlette pairing:
+```
+$ PYTHONPATH=/tmp/m4d2b_vendor python3 -c "from fastapi import FastAPI; from fastapi.testclient import TestClient; ..."
+200 {'ok': True}
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... python3 -m unittest tests.test_m4d2_live_postgres        # 14/14 OK
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... M4D2_REDIS_URL=... python3 -m unittest tests.test_m4d2_live_fastapi_redis   # 8/8 OK
+$ PYTHONPATH=/tmp/m4d2b_vendor M4D2_DATABASE_URL=... python3 -m unittest <34 combined modules>                 # 487/487 OK (2 skips)
+$ PYTHONPATH=/tmp/m4d2b_vendor python3 -m compileall -q omni_prod tests tools                                  # exit 0
+```
+All pass under exact parity, identical counts to M4D.2's HEAD-based run.
+
+**3. Real production-job execution through RQ, proven.** The directive
+required actually dequeuing and executing the real
+`omni_prod.worker_tasks.execute_modification_job` through a real RQ
+worker — not a substitute test job — while replacing only the external
+LLM dependency at its documented boundary. That boundary already exists
+in production for exactly this purpose:
+`omni_prod.model_runtime_config.ModelRuntimeConfig.from_env()`'s
+*primary* model route defaults to a **local**, non-external endpoint
+(`OMNI_LOCAL_MODEL_URL=http://127.0.0.1:8001/v1`, `external=False`;
+`OMNI_ZERO_COST_MODE=1` and `OMNI_ALLOW_EXTERNAL_FALLBACK=0` are also the
+defaults), and `omni_prod.routed_gateway.RoutedModelGateway` enforces
+`if primary.endpoint.external: raise ValueError(...)`. `tests/m4d2b_local_model_server.py`
+is a real HTTP server bound to a real loopback TCP port, implementing the
+exact OpenAI-chat-completions-compatible protocol
+`OpenAICompatibleGateway.complete()` speaks, returning deterministic
+(marker-based, disclosed in its own docstring) responses instead of a
+real hosted model's output — because this sandbox has no route to one, a
+pre-existing constraint, not new to M4D.2b.
+
+Rather than reuse M4D.2's in-process `rq.SimpleWorker` substitution, this
+pass runs the real, default `rq.Worker` (which forks a child process per
+job) in a **genuinely separate OS process**
+(`tests/m4d2b_worker_process.py`, launched via `subprocess.run`), per the
+directive's stated preference. This avoids the fork-after-open-pool
+SSL-socket hazard M4D.2 hit (traced to rq's own source: the job's dotted
+import — and therefore `omni_prod.investor_app`'s connection pool — is
+only ever touched inside the *forked child*, per
+`rq/worker/worker_classes.py::Worker.fork_work_horse` ->
+`rq/worker/base.py::BaseWorker.main_work_horse` -> `perform_job` ->
+`job.perform()`; as long as the parent process never opens a live
+connection before calling `.work()`, nothing corrupted is inherited by
+the fork — verified empirically, not just reasoned about). Labeled per
+the directive's own vocabulary: **`REAL_RQ_SEPARATE_PROCESS_WORKER_VERIFIED`**
+(`tests/test_m4d2b_parity_and_worker.py`, 3 tests, all passing, re-run 4
+times consecutively with zero flakiness):
+
+- `test_real_worker_process_dequeues_and_executes_execute_modification_job_ambiguous_path`
+  — real HTTP propose -> real Redis job (`func_name ==
+  'omni_prod.worker_tasks.execute_modification_job'`) -> the separate
+  worker process dequeues and executes it for real -> real
+  `ChangeClassifierAgent.classify()` call over real HTTP to the local
+  test model server -> real `QUEUED -> RUNNING -> NEEDS_CLARIFICATION`
+  transition, independently confirmed via the real HTTP status route and
+  directly via `PostgresModificationRepository`.
+- `test_real_worker_process_system_bug_path_hits_real_sandbox_docker_image_blocker`
+  — the real classify/repair loop this time genuinely reaches
+  `SandboxRepositoryExecutor.execute()` -> a real `docker run
+  omni-sandbox:latest ...` subprocess. The real failure this produced
+  turned out to be a **previously-unknown Docker-CLI-version
+  incompatibility**: `omni_prod/sandbox.py`'s `--mount
+  type=bind,...,rw` flag syntax is rejected by this sandbox's Docker
+  29.4.3 (`invalid field 'rw' must be a key=value pair`) — a different
+  real docker failure than the already-disclosed image-pull-forbidden
+  block, equally real and equally unmodified. `run_sandbox()` captures
+  this as a normal `ExecutionReport(passed=False)`, not an exception, so
+  the real outcome is a cleanly completed `FAILED` modification
+  (`error_code='verification'`, the real docker stderr preserved
+  verbatim in `evidence_json`, `repair_rounds=3`, billing correctly
+  `released` not `settled`) — proof that a real, uncontrived worker
+  failure is recorded correctly and leaves fully recoverable durable
+  state (current() untouched, the modification still normally gettable).
+  `omni_prod/sandbox.py` is out of M4D.2b's scope (M2-era code, unrelated
+  to M4's accept/reject/rollback pipeline) and is **deliberately left
+  unfixed** here — flagged for whoever owns that module next.
+- `test_duplicate_delivery_of_the_same_modification_does_not_reexecute_or_duplicate_state`
+  — a second, independent RQ delivery (different job id, same
+  `modification_id`) of the real production function, run through a
+  second separate-process worker run: `jobs.transition_running()`'s own
+  guard makes it a real no-op (identical `completed_at`, no version
+  promoted or duplicated).
+
+**What was not, and could not be, proven:** a `READY_FOR_REVIEW` (fully
+passing) candidate via `execute_modification_job` — that requires the
+real sandbox-executor Docker image (`omni-sandbox:latest`) to actually
+build or pull, which remains blocked for the same reason M4D.2 already
+disclosed (Docker Hub 403) *and* now, independently, for the `--mount`
+flag incompatibility above. Both are genuine infrastructure/tooling
+limits, not gaps papered over with a mock. A real hosted LLM and real
+S3 remain out of reach, unchanged from M4D.2.
+
+**Status discipline (directive item 4), applied literally:**
+- PostgreSQL concurrency/atomicity: `VERIFIED_LIVE_INFRA` (unchanged).
+- FastAPI execution: `VERIFIED_LIVE_INFRA` at exact production version
+  parity for fastapi/starlette/psycopg/psycopg_pool/redis-py/rq; **one
+  disclosed non-parity exception** — pydantic 2.13.3 vs. the 2.13.4 pin
+  (pydantic-core==2.46.4 unbuildable here; see above).
+- Redis production enqueue: `VERIFIED_LIVE_INFRA` (unchanged).
+- RQ production `execute_modification_job` execution:
+  `VERIFIED_LIVE_INFRA` (`REAL_RQ_SEPARATE_PROCESS_WORKER_VERIFIED`) for
+  the `NEEDS_CLARIFICATION` and sandbox-verification-`FAILED` terminal
+  paths; a `READY_FOR_REVIEW` terminal path remains
+  `IMPLEMENTED_NOT_VERIFIED` (blocked on the real sandbox image, as
+  above).
+- **`M4 VERIFIED_LIVE_INFRA`** — per the directive: this does **not**
+  mean `PRODUCTION_DEPLOYED` or `FULL_EXTERNAL_E2E`; real external
+  LLM/S3/provider execution, and a real, successfully-passing sandboxed
+  code-verification run, remain separately unverified, both for
+  pre-existing reasons unrelated to M4's own accept/reject/rollback
+  correctness.
+
+Regression after M4D.2b, exact-parity vendor: 487/487 combined + 8/8
+(`test_m4d2_live_fastapi_redis`, standalone) + 3/3
+(`test_m4d2b_parity_and_worker`, standalone) = **498/498**, 2 expected
+skips. **M5 has not been started.**
+
+Evidence: `tests/test_m4d2b_parity_and_worker.py` (3 tests),
+`tests/m4d2b_local_model_server.py`, `tests/m4d2b_worker_process.py`,
+`tools/m4d2b_setup_parity_infra.sh`. Full command transcripts, exact
+tag/commit table, and the exact real docker error text:
+`PATCH_APPLICATION_REPORT.md`'s M4D.2b section.
+
 | M4E — verification pipeline reuse (build/tests/repair/quality/security/rights/target gates) | `VERIFIED` | `CandidateModificationEngine` calls the same `quality_fn`/`security_fn`/`RightsEngine`/`Executor` as the rest of the pipeline — `tests/test_m4_modification_engine.py`, `tests/test_m4_acceptance.py::AcceptanceM` |
 | M4F — deterministic diff (repository + spec) | `VERIFIED` | `omni_prod/modification_diff.py`; `tests/test_modification_diff.py`, `tests/test_m4_acceptance.py::AcceptanceQR` (order-independence proven directly) |
 | M4G — billing (reserve at request time, settle/release by real classification, not by spend) | `VERIFIED` (decision logic + idempotency, AND the route's `reserve()` call itself, live — see **M4D.2**) | `tests/test_m4_worker.py::ResolveModificationBillingTests`; `tests/test_m4_acceptance.py::AcceptanceV`; `tests/test_m4d2_live_fastapi_redis.py` (every propose call reserves real credits via `PostgresSubscriptionService.reserve()` against real Postgres) |
@@ -470,7 +668,7 @@ point to it in their docstring.
 | T | retry (queued redelivery, completion redelivery) is idempotent | `VERIFIED` |
 | U | concurrency — explicit conflict semantics | `VERIFIED` |
 | V | reservation not double-charged on retry | `VERIFIED` |
-| W | all existing regression tests remain green | `VERIFIED` — as of **M4D.2**, 495/495 tests pass across the full suite (487/487 in the combined run + 8/8 in the standalone-required `test_m4d2_live_fastapi_redis.py`, 2 expected skips total), including all 8 previously-`NOT_CONFIGURED` fastapi-dependent modules (136 tests) now actually executing under real `fastapi` instead of failing on import. Supersedes the 309/309 (pre-M4D.1) and 337/337 (post-M4D.1, pre-M4D.2) counts this row previously cited — see `PATCH_APPLICATION_REPORT.md` for the exact commands |
+| W | all existing regression tests remain green | `VERIFIED` — as of **M4D.2b**, 498/498 tests pass across the full suite (487/487 in the combined run + 8/8 in the standalone-required `test_m4d2_live_fastapi_redis.py` + 3/3 in the standalone-required `test_m4d2b_parity_and_worker.py`, all under exact production-dependency-parity versions, 2 expected skips total), including all 8 previously-`NOT_CONFIGURED` fastapi-dependent modules (136 tests) now actually executing under real `fastapi` instead of failing on import. Supersedes the 309/309 (pre-M4D.1), 337/337 (post-M4D.1, pre-M4D.2), and 495/495 (M4D.2, HEAD-based vendor) counts this row previously cited — see `PATCH_APPLICATION_REPORT.md` for the exact commands |
 | Concurrency requirement (Version 10/11 scenario) | Do not silently overwrite; B must rebase, stay alternate, or be an explicit forced accept | `VERIFIED` — reproduced verbatim in `AcceptanceU`: A accepts → Version 11; B's plain accept returns `reason='conflict'` and Version 11 is untouched; B's `force=True` accept is the explicit third option |
 
 ### Not implemented / out of scope for this M4 pass
