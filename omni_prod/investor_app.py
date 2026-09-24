@@ -1473,7 +1473,11 @@ def v28_modification_accept(project_id: str, modification_id: str, req: V28Modif
         raise HTTPException(404, 'modification not found or access denied')
     if outcome['accepted']:
         return outcome
-    status_code = 409 if outcome['reason'] in ('conflict', 'conflict_detected_at_commit') else 422
+    # M4D.1: 'conflict_detected_at_commit' no longer exists -- accept() now
+    # detects a stale source atomically, inside workspace.commit()'s own
+    # lock, strictly before any ProjectVersion is written, so there is only
+    # one conflict outcome now, never a post-commit one.
+    status_code = 409 if outcome['reason'] == 'conflict' else 422
     return JSONResponse(status_code=status_code, content=outcome)
 
 @app.post('/api/v28/projects/{project_id}/modifications/{modification_id}/reject')

@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass
 from .product_spec import ProductSpec
 from .spec_repository import SpecNotFound
+from .workspace import SKIP_VERSION_CHECK, VersionConflict
 
 
 def _iso(value):
@@ -23,6 +24,23 @@ def resolve_accept(*, status: str, expected_source_version_id: str,
     finishes and tries to accept -- B's `expected_source_version_id` (V10) no
     longer equals `current_version_id` (V11), so B must not silently become
     the new current version and overwrite what A did.
+
+    M4D.1: this pure function is the specification of that decision table,
+    and its own tests pin it down independent of SQL/locking concerns. The
+    LIVE `accept()` below does not call this function against a separately
+    read `current_version_id` -- doing that (read current, decide, *then*
+    write) is exactly the TOCTOU gap M4D.1 closed. Instead `accept()` passes
+    `expected_source_version_id` straight to `workspace.commit(...,
+    expected_current_version_id=...)`, which reads the real current version
+    and compares atomically, under the same lock/transaction that would
+    perform the insert, raising `VersionConflict` instead of ever returning
+    an ill-gotten `current_version_id` for this function to reason about
+    after the fact. The states below are still the real states `accept()`
+    produces -- 'invalid_status' from its own status gate, 'conflict' from a
+    caught `VersionConflict` (force=False), 'accept'/'accept_forced' from a
+    successful `workspace.commit()` (force=False/True respectively) -- this
+    function documents and regression-tests that mapping without being the
+    thing that has to get the timing right.
 
     Returns one of:
       'invalid_status'  -- not READY_FOR_REVIEW; nothing to accept.
@@ -285,15 +303,19 @@ class PostgresModificationRepository:
 
     # ---- M4D: accept / reject / rollback -----------------------------
 
-    def _mark_conflict(self, modification_id: str, *, promoted_version_id: str | None = None) -> None:
+    def _mark_conflict(self, modification_id: str) -> None:
+        """Bookkeeping only, run AFTER the merged promotion transaction in
+        `accept()` has already rolled back on `VersionConflict` -- by the
+        time this runs, `project_versions` is guaranteed untouched by this
+        modification_id (see `accept()`), so there is no
+        `promoted_version_id` to ever record for a conflict; it stays NULL."""
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute(
-                        "UPDATE modification_requests "
-                        "SET status='CONFLICT', promoted_version_id=COALESCE(%s, promoted_version_id) "
+                        "UPDATE modification_requests SET status='CONFLICT' "
                         "WHERE id=%s AND status='READY_FOR_REVIEW'",
-                        (promoted_version_id, modification_id),
+                        (modification_id,),
                     )
 
     def accept(self, modification_id: str, project_id: str, *, workspace, spec_repo,
@@ -301,100 +323,111 @@ class PostgresModificationRepository:
         """Promotes a READY_FOR_REVIEW candidate to the project's current
         version. The candidate has never touched `project_versions` before
         this call (see `complete()`/migration 016); this is the first time
-        its stored repository becomes a real, brand-new `ProjectVersion` (via
-        the existing, unmodified `workspace.commit()`), the same append-only
-        way every other write path in this codebase produces a new version --
-        nothing is edited in place, and a rejected/conflicted modification
-        never mutates `project_versions` at all.
+        its stored repository becomes a real, brand-new `ProjectVersion`,
+        the same append-only way every other write path in this codebase
+        produces a new version -- nothing is edited in place, and a
+        rejected/conflicted modification never mutates `project_versions`
+        at all.
 
-        Concurrency (M4's CONCURRENCY REQUIREMENT): see `resolve_accept()`.
-        The row lock taken below (over both `modification_requests` and the
-        `modification_candidates` read) is released before
-        `workspace.commit()` is called -- holding it across that call would
-        buy nothing (it does not lock `project_versions`) while risking pool
-        exhaustion, since `workspace.commit()` opens its own connection from
-        the same pool. The real serialization against a *concurrent accept on
-        the same project* happens inside `workspace.commit()` itself, via its
-        own `pg_advisory_xact_lock` keyed by project_id
-        (`workspace.PostgresProjectWorkspace.commit()`). This method's own
-        job is (a) the READY_FOR_REVIEW / stale-source pre-check, done under
-        a row lock so two concurrent accept() calls for the *same*
-        modification_id can't both proceed, and (b) a post-commit check of
-        `new_version.parent_id` -- the ground truth of what was actually
-        current at commit time -- to catch the rare window where a *second*
-        modification's accept() raced through its own pre-check between this
-        call's pre-check and its commit. On that rare race, the commit
-        already happened (an extra, valid-but-unlinked version now exists in
-        history); this is reported as `conflict_detected_at_commit` rather
-        than silently marked ACCEPTED, and never promoted onto
-        `promoted_version_id` as this modification's success.
+        M4D.1 (production-blocking fix over the original M4 design): the
+        entire promotion -- validating the ModificationRequest is still
+        READY_FOR_REVIEW, reading its stored candidate, checking the
+        candidate's source version against the project's REAL current
+        version, inserting the new ProjectVersion, inserting its
+        ProductSpec, and flipping the ModificationRequest to ACCEPTED -- now
+        happens inside ONE database transaction, sharing a single cursor
+        (`cur`) across `workspace.commit(cur=cur, ...)` and
+        `spec_repo.save(cur=cur, ...)`. The expected-source-version check is
+        `workspace.commit()`'s own atomic compare (see workspace.py's
+        `VersionConflict`), performed under the SAME lock that would
+        otherwise perform the INSERT -- so a conflict is detected and
+        refused strictly BEFORE any row is written, never audited
+        afterward. The original design called `workspace.commit()`
+        unconditionally and only compared `new_version.parent_id` to the
+        expected source *after* the row already existed in
+        `project_versions` (and `current()` had therefore already silently
+        advanced) -- a real, production-blocking bug: a caller could be
+        told "conflict, not accepted" while the project's actual current
+        version had already changed to the rejected candidate's content.
+        That post-commit check is gone; `VersionConflict` is now the only
+        way this method learns about a stale source, and by construction it
+        can only be raised before the write.
+
+        `force=True` passes `SKIP_VERSION_CHECK` to `workspace.commit()`
+        instead of the real expected id, so the commit succeeds
+        unconditionally on top of whatever is actually current -- the
+        directive's explicit, controlled third option. `forced` in the
+        return value reports whether this ended up mounting on top of a
+        version other than the one the modification was proposed against
+        (`new_version.parent_id != source_version_id`), which can only be
+        true when `force=True`, since otherwise a mismatch always raises
+        `VersionConflict` instead of succeeding.
         """
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT source_version_id, status FROM modification_requests "
-                        "WHERE id = %s AND project_id = %s FOR UPDATE",
-                        (modification_id, project_id),
-                    )
-                    row = cur.fetchone()
-                    if not row:
-                        raise KeyError('modification not found or access denied')
-                    source_version_id, status = row
-                    candidate_row = None
-                    if status == 'READY_FOR_REVIEW':
+        try:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT source_version_id, status FROM modification_requests "
+                            "WHERE id = %s AND project_id = %s FOR UPDATE",
+                            (modification_id, project_id),
+                        )
+                        row = cur.fetchone()
+                        if not row:
+                            raise KeyError('modification not found or access denied')
+                        source_version_id, status = row
+                        if status != 'READY_FOR_REVIEW':
+                            return {'accepted': False, 'reason': 'invalid_status', 'status': status}
+
                         cur.execute(
                             "SELECT repository_json, spec_json FROM modification_candidates "
                             "WHERE modification_id = %s",
                             (modification_id,),
                         )
                         candidate_row = cur.fetchone()
+                        if not candidate_row:
+                            # Defensive only: complete() always writes
+                            # modification_candidates in the same transaction
+                            # as the READY_FOR_REVIEW status flip, so a
+                            # READY_FOR_REVIEW row with no candidate should
+                            # not happen.
+                            raise RuntimeError(
+                                f'modification {modification_id!r} is READY_FOR_REVIEW but has no stored candidate')
+                        repository_json, spec_json = candidate_row
+                        if isinstance(repository_json, str):
+                            repository_json = json.loads(repository_json)
+                        if isinstance(spec_json, str):
+                            spec_json = json.loads(spec_json)
 
-        if status != 'READY_FOR_REVIEW':
-            return {'accepted': False, 'reason': 'invalid_status', 'status': status}
-        if not candidate_row:
-            # Defensive only: complete() always writes modification_candidates
-            # in the same transaction as the READY_FOR_REVIEW status flip, so
-            # a READY_FOR_REVIEW row with no candidate should not happen.
-            raise RuntimeError(f'modification {modification_id!r} is READY_FOR_REVIEW but has no stored candidate')
-        repository_json, spec_json = candidate_row
-        if isinstance(repository_json, str):
-            repository_json = json.loads(repository_json)
-        if isinstance(spec_json, str):
-            spec_json = json.loads(spec_json)
+                        expected = SKIP_VERSION_CHECK if force else source_version_id
+                        new_version = workspace.commit(
+                            project_id=project_id, repository=repository_json, message=message,
+                            expected_current_version_id=expected, cur=cur,
+                        )
 
-        current = workspace.current(project_id=project_id)
-        current_version_id = current.id if current is not None else None
-        decision = resolve_accept(status=status, expected_source_version_id=source_version_id,
-                                  current_version_id=current_version_id, force=force)
-        if decision == 'conflict':
+                        spec_repo.save(version_id=new_version.id, project_id=project_id,
+                                       spec=ProductSpec.from_dict(spec_json), cur=cur)
+
+                        cur.execute(
+                            "UPDATE modification_requests SET status='ACCEPTED', accepted_at=now(), "
+                            "promoted_version_id=%s WHERE id=%s",
+                            (new_version.id, modification_id),
+                        )
+        except VersionConflict as exc:
+            # Everything above rolled back with the transaction (real
+            # Postgres: conn.transaction()'s __exit__ rolls back on
+            # exception; this in-memory double never wrote anything to
+            # begin with, since VersionConflict is raised before
+            # bucket.append()). No INSERT, no spec row, no status change --
+            # `current()` for this project is exactly what it was before
+            # this call. Only now, in a fresh follow-up transaction, do we
+            # record that this modification lost the race.
             self._mark_conflict(modification_id)
             return {'accepted': False, 'reason': 'conflict',
-                    'current_version_id': current_version_id, 'source_version_id': source_version_id}
+                    'current_version_id': exc.actual_current_version_id,
+                    'source_version_id': exc.expected_current_version_id}
 
-        new_version = workspace.commit(project_id=project_id, repository=repository_json, message=message)
-
-        if new_version.parent_id != source_version_id and not force:
-            self._mark_conflict(modification_id, promoted_version_id=new_version.id)
-            return {'accepted': False, 'reason': 'conflict_detected_at_commit',
-                    'orphaned_version_id': new_version.id, 'source_version_id': source_version_id}
-
-        spec_repo.save(version_id=new_version.id, project_id=project_id, spec=ProductSpec.from_dict(spec_json))
-
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE modification_requests SET status='ACCEPTED', accepted_at=now(), "
-                        "promoted_version_id=%s WHERE id=%s",
-                        (new_version.id, modification_id),
-                    )
-        # `forced` reports whether this accept only succeeded because `force`
-        # overrode a stale source -- either detected up front (decision ==
-        # 'accept_forced') or only discovered belatedly by the post-commit
-        # check above (new_version.parent_id != source_version_id, force=True).
-        # Checking both keeps this field accurate for the rare commit-time race.
-        forced = decision == 'accept_forced' or new_version.parent_id != source_version_id
+        forced = new_version.parent_id != source_version_id
         return {'accepted': True, 'new_version_id': new_version.id, 'forced': forced}
 
     def reject(self, modification_id: str, project_id: str, *, reason: str = '') -> dict:
@@ -423,25 +456,38 @@ class PostgresModificationRepository:
     def rollback(self, project_id: str, *, target_version_id: str, workspace, spec_repo,
                  message: str = 'rollback') -> dict:
         """M4D: 'Rollback must reference durable historical versions, not
-        regenerate old code.' `workspace.restore()` (workspace.py,
-        unmodified) already does exactly that for the repository: it loads
-        the named historical `ProjectVersion` and re-commits its *exact*
-        stored repository as a new version -- nothing regenerated, no model
-        call. This wraps it to also carry the historical `ProductSpec`
-        forward, so the new version keeps M4B's ProjectVersion<->ProductSpec
-        pairing. Raises KeyError (from workspace.get() inside restore()) if
-        `target_version_id` is not a real version of this project -- a
-        rollback target must be durable history, never invented."""
-        new_version = workspace.restore(project_id=project_id, version_id=target_version_id, message=message)
-        try:
-            spec = spec_repo.get(target_version_id, project_id)
-            spec_repo.save(version_id=new_version.id, project_id=project_id, spec=spec)
-            spec_restored = True
-        except SpecNotFound:
-            # A version committed before migration 016 / M4B (or one never
-            # produced by a modification) may have no spec row. Restoring its
-            # repository is still real and correct; the spec pairing is left
-            # unestablished for the new version too, matching the target --
-            # not fabricated here.
-            spec_restored = False
+        regenerate old code.' `workspace.restore()` (workspace.py) already
+        does exactly that for the repository: it loads the named historical
+        `ProjectVersion` and re-commits its *exact* stored repository as a
+        new version -- nothing regenerated, no model call. This wraps it to
+        also carry the historical `ProductSpec` forward, so the new version
+        keeps M4B's ProjectVersion<->ProductSpec pairing. Raises KeyError
+        (from workspace.get() inside restore()) if `target_version_id` is
+        not a real version of this project -- a rollback target must be
+        durable history, never invented.
+
+        Rollback is an explicit, operator-directed override by design (like
+        `accept(force=True)`) -- it does not pass an
+        `expected_current_version_id`, so it always succeeds on top of
+        whatever is actually current, the same as before M4D.1. What M4D.1
+        adds here is consistency with `accept()`: the version commit and its
+        spec save now share one transaction (`cur`), instead of two
+        separate ones."""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    new_version = workspace.restore(project_id=project_id, version_id=target_version_id,
+                                                     message=message, cur=cur)
+                    try:
+                        spec = spec_repo.get(target_version_id, project_id)
+                        spec_repo.save(version_id=new_version.id, project_id=project_id, spec=spec, cur=cur)
+                        spec_restored = True
+                    except SpecNotFound:
+                        # A version committed before migration 016 / M4B (or
+                        # one never produced by a modification) may have no
+                        # spec row. Restoring its repository is still real
+                        # and correct; the spec pairing is left unestablished
+                        # for the new version too, matching the target -- not
+                        # fabricated here.
+                        spec_restored = False
         return {'version_id': new_version.id, 'restored_from': target_version_id, 'spec_restored': spec_restored}

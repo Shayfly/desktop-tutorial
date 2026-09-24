@@ -1385,3 +1385,235 @@ the current working tree are the artifact for independent review; no
 packaged ZIP was produced since this environment produces its evidence and
 diffs directly in-repo (see `git log`/`git diff` for the commit created
 alongside this report).
+
+## Update: M4D.1 — atomic expected-version accept (remediation)
+
+An independent architecture review of the M4 work above found a
+production-blocking correctness bug in `accept()` and flagged it before M5
+was allowed to start. This section documents the finding, confirms it was
+real (not merely trusted), and reports the fix with the same evidence
+standard as every other section of this file.
+
+### The bug, confirmed by direct code inspection, not by trusting the report
+
+The review's claim: `accept()`'s "post-commit check" — call
+`workspace.commit()` unconditionally, *then* compare
+`new_version.parent_id != source_version_id` — is not a safety check at all,
+because by the time the comparison runs, the new `ProjectVersion` row already
+exists and `current()` has already silently advanced to it. A caller can be
+told `reason='conflict'` while the project's real current version has
+already mutated to the "rejected" candidate's content. **A post-commit check
+is not a substitute for a pre-commit guard.**
+
+Before writing a line of remediation code, this was verified directly
+against the actual source, not accepted on the strength of the report:
+
+```
+$ grep -n "def commit" omni_prod/workspace.py
+```
+confirmed `MemoryProjectWorkspace.commit()` and
+`PostgresProjectWorkspace.commit()` had **zero** compare-and-swap logic —
+`current()` in both implementations is simply "the most recently
+appended/inserted row." The prior `modification_repository.accept()`
+(documented honestly in the M4 section above as a "disclosed gap") called
+`workspace.commit()` unconditionally and only compared
+`new_version.parent_id != source_version_id` *afterward* — exactly the
+unsound pattern the review described. The bug was real.
+
+### The fix
+
+**1. Push the compare-and-abort inside the same lock as the write.**
+`omni_prod/workspace.py` gained a sentinel and an exception:
+
+```python
+SKIP_VERSION_CHECK = object()   # "commit unconditionally" — the default,
+                                  # preserving every pre-M4D.1 call site
+
+class VersionConflict(Exception):
+    def __init__(self, *, project_id, expected_current_version_id,
+                 actual_current_version_id): ...
+```
+
+`commit()`/`restore()` on both `MemoryProjectWorkspace` and
+`PostgresProjectWorkspace` gained `expected_current_version_id=
+SKIP_VERSION_CHECK` and `cur=None` parameters. In `MemoryProjectWorkspace`,
+the compare now happens **inside** `with self._lock:`, immediately before
+`bucket.append(version)` — read-current, compare, raise-or-write, all under
+one lock acquisition, with no gap a second thread can land in. In
+`PostgresProjectWorkspace`, the same shape is enforced inside one advisory-
+locked transaction: `pg_advisory_xact_lock` → `SELECT ... ORDER BY
+created_at DESC LIMIT 1` (the real current version) → compare → raise
+`VersionConflict` (no insert) or `INSERT INTO project_versions` — same
+cursor, same transaction, no commit in between.
+
+**2. Merge `accept()` into one transaction.** `modification_repository.py`'s
+`accept()` was rewritten to open exactly one
+`connection()`/`transaction()`/`cursor()` block and share that cursor with
+`workspace.commit(cur=cur, expected_current_version_id=source_version_id,
+...)` and `spec_repo.save(cur=cur, ...)` (the latter's `cur` parameter
+already existed from the original M4 work, which is what made the merge
+possible without a larger schema change). The row-locked status read, the
+version insert, the spec insert, and the final `ACCEPTED` status update are
+now one atomic unit: either all of it commits, or none of it does, and a
+`VersionConflict` raised partway through means *nothing* in that attempt
+was written — proven below via `FakeConn.transactions` counts, not asserted
+by inspection alone. `force=True` passes `SKIP_VERSION_CHECK` explicitly
+instead of the source version — the same override semantics as before, now
+implemented at the correct layer.
+
+**3. Route status code.** `investor_app.py`'s `v28_modification_accept`
+route was simplified from checking two reason strings
+(`'conflict'`/`'conflict_detected_at_commit'`) to one — the second string no
+longer exists, because there is no longer a separate post-commit-race
+category distinct from an ordinary pre-commit conflict; both are now the
+same atomic check.
+
+### What "VERIFIED" means here, precisely
+
+Two new test files were added specifically for this remediation, both
+required by the directive:
+
+**`tests/test_workspace_version_conflict.py`** (14 tests) — workspace-level
+proof that the guard is unconditional-by-default, matches-succeeds,
+mismatch-raises-before-any-write, and — for Postgres — that a shared `cur`
+never opens a second connection from the pool (proven with an
+`ExplodingPool` that raises `AssertionError` if `.connection()` is ever
+called while a `cur` was supplied) and that lock-acquire happens before the
+insert decision (a statement-order assertion against a scripted fake
+cursor).
+```
+$ python3 -m unittest tests.test_workspace_version_conflict -v
+Ran 14 tests ... OK
+```
+
+**`tests/test_m4d1_atomic_accept.py`** (14 tests, 13 executed + 1 intentional
+skip) — the directive's own required-test list, mapped one-to-one:
+concurrent A/B accept from the same source, a 10-way fan-in, three staged
+transaction-failure points (before any insert, after the version insert but
+before the spec write, before the final status update — each via a cursor
+fake that raises `RuntimeError` on a specific, numbered `.execute()` call),
+retry-after-crash idempotency, force-accept behavior (with and without an
+actual conflict to override), rollback-after-accept, the spec-per-version
+bijection invariant, and — stated as its own invariant test, not inferred
+from the others — "a failed or conflicted accept never changes current
+version," asserted by object identity (`assertIs`) against the pre-accept
+`current()` result.
+```
+$ python3 -m unittest tests.test_m4d1_atomic_accept -v
+Ran 14 tests ... OK (skipped=1)
+```
+
+**The true-concurrency proof, specifically.** `TrueConcurrencyTests` does
+not simulate a race by sequencing test code — it uses two (and, in a second
+test, ten) real `threading.Thread` workers and a real `threading.Barrier` so
+every thread enters `workspace.commit()` at the same instant, contending for
+the real `threading.RLock` inside `MemoryProjectWorkspace`. Which thread
+wins is genuinely nondeterministic; what's asserted is the invariant, not
+the winner: exactly one promotion, version count unchanged beyond that one
+promotion, `current()` is the winner's version, the loser is durably marked
+`CONFLICT` (not silently dropped, not left `READY_FOR_REVIEW`), no
+`DELETE` is ever issued, and the winner's spec is saved exactly once. Run
+40 times consecutively in this session to rule out flakiness masking a race
+window:
+```
+$ for i in $(seq 1 40); do python3 -m unittest \
+    tests.test_m4d1_atomic_accept.TrueConcurrencyTests -q 2>&1 | tail -1; done \
+    | sort | uniq -c
+     40 OK
+```
+
+**Mutation testing, made permanent.** Rather than a one-off manual
+apply/revert, `MutationTests` monkeypatches `MemoryProjectWorkspace.commit`
+and `PostgresProjectWorkspace.commit` at the class level (inside a
+`try/finally` that always restores the original) with a mutant that omits
+the compare-and-raise, proves the exact M4D.1 bug reappears under that
+mutant (a "conflicting" accept silently succeeds and moves `current()`),
+then restores the real method and re-confirms the fix holds. This runs as
+an ordinary test method every time the suite runs — it is evidence
+generated on every regression, not a claim made once and left unverified
+thereafter.
+```
+$ python3 -m unittest tests.test_m4d1_atomic_accept.MutationTests -v
+test_removing_the_check_from_memory_workspace_reintroduces_the_m4d1_bug ... ok
+test_removing_the_check_from_postgres_workspace_reintroduces_the_m4d1_bug ... ok
+Ran 2 tests in 0.000s
+OK
+```
+
+**Existing suites re-verified green after the rewrite**, including two new
+assertions added specifically to prove the transaction-merge claim
+(`FakeConn.transactions == 1` on the happy path; `== 2` on the conflict
+path — the aborted attempt plus a separate `_mark_conflict()` bookkeeping
+statement):
+```
+$ python3 -m unittest tests.test_modification_repository -v
+Ran 43 tests ... OK
+$ python3 -m unittest tests.test_m4_acceptance -v
+Ran 23 tests ... OK (skipped=1)
+```
+
+### What is honestly still not proven, and why
+
+`PostgresProjectWorkspace`'s SQL-level guard (`pg_advisory_xact_lock` →
+`SELECT` → compare → `INSERT`) is proven only structurally: a scripted fake
+cursor confirms the statements execute in the right order, on the right
+cursor, inside the right transaction boundary. It has never run against a
+live Postgres server with real concurrent connections actually contending
+for the same advisory lock — this sandbox has no reachable Postgres (the
+same pre-existing constraint noted throughout the M1–M4 sections above).
+The `MemoryProjectWorkspace` test double also cannot simulate Postgres's
+real transaction-rollback guarantee (its "transaction" is just a Python
+lock, not a WAL-backed rollback), so the staged-failure tests prove *this
+codebase's* control flow never marks something accepted after a failure —
+they do not re-prove Postgres's own atomicity, which is not this
+codebase's claim to make.
+
+**M4 is not `LIVE`. This remediation is not "production-closed."** It is:
+the identified correctness bug is fixed at the code and lock-ordering
+level, proven by real multi-threaded concurrency, permanent mutation
+tests, and the directive's full required-test list, entirely within this
+sandbox's `MemoryProjectWorkspace` and structural Postgres proofs. Running
+it against a live Postgres cluster remains `IMPLEMENTED_NOT_VERIFIED`, not
+`VERIFIED`, and is not claimed otherwise. See `STATUS.md` §5's `M4D.1`
+subsection for the same disclosure in status-table form.
+
+### Regression: full suite after M4D.1
+
+```
+$ python3 -m compileall -q omni_prod tests                        -> exit 0
+$ python3 -m unittest <24 non-fastapi test modules> -v            -> Ran 337 tests ... OK (skipped=2)
+```
+337 tests: the 309 from the M4 phase above (unchanged) + 14 new
+`test_workspace_version_conflict` + 14 new `test_m4d1_atomic_accept`
+(13 executed + 1 intentional skip in each of the two files' totals — see
+above). The same 8 fastapi-dependent test modules (`test_v23_investor_grade`,
+`test_v24_auth`, `test_v24_international`, `test_v24_native_remote`,
+`test_v25_unified_v10_parity`, `test_v26_universal_pro`,
+`test_v27_rights_company_os`, `test_v28_148ai_launch`) still fail only at
+`ModuleNotFoundError: No module named 'fastapi'` on import — unchanged,
+pre-existing, not touched by this remediation.
+
+### EXECUTED / STATICALLY VERIFIED / NOT EXECUTED — M4D.1
+
+**EXECUTED**: `omni_prod/workspace.py`'s new guard (both implementations,
+via the fake-pool/fake-cursor harness for Postgres and the real
+`threading.RLock` for Memory), `modification_repository.py`'s rewritten
+`accept()`/`rollback()`, the real 2-thread and 10-thread barrier-
+synchronized concurrency scenarios, both permanent mutation tests, the
+three staged transaction-failure points, force-accept, rollback-after-
+accept, both invariants, and the full 337-test non-fastapi regression
+suite.
+
+**STATICALLY VERIFIED**: the `investor_app.py` route's simplified
+status-code logic (recompiled, `ast.parse()`-checked, no live HTTP call
+possible without `fastapi`, unchanged from the M4 section's constraint
+above); the Postgres SQL statement ordering (scripted-cursor proof, never
+run against a live server).
+
+**NOT EXECUTED**: a live Postgres cluster under real concurrent
+connections. M5 and beyond remain untouched, per **"Do not start M5"**.
+
+This remediation stops at M4D.1, as directed. M4 is **not** marked `LIVE`.
+The current working tree and this report are the artifact for independent
+re-review; see `git log`/`git diff` for the commit created alongside this
+update.

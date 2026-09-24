@@ -7,7 +7,8 @@ it (see §5 below — M4 uses the vocabulary required by its own directive;
 rather than rewriting sections it did not touch). Evidence and exact commands
 are in `PATCH_APPLICATION_REPORT.md`. See `GOVERNANCE.md` for which other
 documents in this repo are still current versus historical. Last updated
-2026-09-24 (M4 section added).
+2026-09-24 (M4 section added; M4D.1 atomic expected-version accept
+remediation applied same day — see §5).
 
 ## 1. Implemented and independently verified
 
@@ -93,8 +94,98 @@ exact commands: `PATCH_APPLICATION_REPORT.md` (M4 section).
 | M4C — intent routing reused (`system_bug`/`missing_requirement`/`change_request`/`ambiguous`) | `VERIFIED` | `tests/test_m4_acceptance.py::AcceptanceGH/I/J` |
 | M4C — dedicated `change_request` path (`ProductEvolutionAgent`, real spec+repo generation, not forced into `RepairAgent`) | `VERIFIED` | `tests/test_product_evolution.py`, `tests/test_m4_acceptance.py::AcceptanceJ` |
 | M4D — candidate isolation (never commits to `project_versions` until `accept()`) | `VERIFIED` | `tests/test_m4_acceptance.py::AcceptanceK`; `tests/test_m4_worker.py`'s `workspace.commit.assert_not_called()` |
-| M4D — accept / reject / rollback | `PARTIAL` | promotion, conflict detection and rollback logic are `VERIFIED`; `accept()` is **not** atomic across `workspace.commit()` + `spec_repo.save()` + the final status `UPDATE` (three separate Postgres transactions — `workspace.commit()` must own its own connection for its advisory lock). A crash in that narrow window leaves a live promoted version with a stale `READY_FOR_REVIEW` row. Disclosed, not hidden — see `accept()`'s docstring and `AcceptanceN`'s docstring |
-| M4D — optimistic concurrency (expected-source-version semantics) | `VERIFIED` | `tests/test_m4_acceptance.py::AcceptanceU` (the directive's own Version 10/11 scenario, reproduced verbatim against a real workspace) |
+| M4D — accept / reject / rollback | `VERIFIED` (logic, incl. real multi-threaded concurrency) / `IMPLEMENTED_NOT_VERIFIED` (live Postgres) | See **M4D.1** below — this row previously read `PARTIAL` for a real, now-fixed bug; superseded |
+| M4D — optimistic concurrency (expected-source-version semantics) | `VERIFIED` | See **M4D.1** below (supersedes the sequential-only proof this row previously cited) |
+
+### M4D.1 — atomic expected-version accept (remediation, 2026-09-24)
+
+An independent architecture review of the original M4D `accept()` correctly
+identified it as **production-blocking**: it called `workspace.commit()`
+unconditionally and only compared `new_version.parent_id` to the expected
+source version *after* the row already existed in `project_versions` — so a
+concurrent accept could be told "conflict, not accepted" while the
+project's real current version had already silently mutated to the
+rejected candidate's content. A post-commit check is not sound optimistic
+concurrency; the review's own summary — "a modification must NEVER change
+the current ProjectVersion and then return conflict" — was correct, and the
+bug was real, not hypothetical (reproduced directly by grepping
+`workspace.py`: both `MemoryProjectWorkspace.commit()` and
+`PostgresProjectWorkspace.commit()` had no compare-and-swap at all before
+this fix; `current()` is simply "the most recently inserted row").
+
+**Fix.** `workspace.commit()` (both implementations) now takes an optional
+`expected_current_version_id`; the compare against the REAL current version
+happens under the same lock (`MemoryProjectWorkspace`'s `self._lock`) or the
+same `pg_advisory_xact_lock`-held transaction (`PostgresProjectWorkspace`,
+via a plain `SELECT` on the same cursor, immediately before the `INSERT`)
+that would perform the write. A mismatch raises `VersionConflict` **before**
+any row is written — never audited after. `modification_repository.accept()`
+no longer performs a separate pre-check-then-commit-then-post-check
+sequence; it opens ONE transaction, shares its cursor with
+`workspace.commit(cur=..., expected_current_version_id=...)` and
+`spec_repo.save(cur=...)` (which already supported a `cur` parameter for
+exactly this), and the whole promotion — status validation, the version
+insert, the spec insert, and the final `ACCEPTED` update — is one atomic
+unit. This also closes the M4D `PARTIAL` row above: the three/four-
+transaction promotion window is gone for the Postgres path (proven via
+`FakeConn.transactions == 1` in `test_modification_repository.py`'s happy-
+path test). `rollback()` was brought in line the same way for consistency.
+
+`VersionConflict` replaces the old `conflict_detected_at_commit` reason
+entirely — there is no longer a "the write already happened, but..." case
+to name. `investor_app.py`'s accept route was simplified to match (single
+`reason == 'conflict'` check) and re-verified statically (AST parse, no
+duplicate routes, `inspect.signature()` cross-checks — same method used
+throughout this report for `fastapi`-blocked code).
+
+**What "VERIFIED" means here, precisely** — this is real, not a facade:
+- A genuine two-real-OS-thread test
+  (`tests/test_m4d1_atomic_accept.py::TrueConcurrencyTests`), synchronized
+  with a `threading.Barrier` so both threads are dispatched into
+  `workspace.commit()` at the same instant, against the real (thread-safe,
+  `RLock`-protected) `MemoryProjectWorkspace` — not a simulated or
+  single-threaded race. Stress-run 40 consecutive times with zero flakiness
+  before being accepted into the suite (see `PATCH_APPLICATION_REPORT.md`).
+  A 10-way fan-in variant proves the same property beyond the minimal A/B
+  case.
+- Mutation tests against **both** `MemoryProjectWorkspace.commit()` and
+  `PostgresProjectWorkspace.commit()`: the expected-version compare is
+  temporarily replaced with a mutant that omits it, the exact M4D.1 bug is
+  shown to reappear (a stale commit silently succeeds and corrupts
+  `current()`), then the real method is restored and re-confirmed correct
+  — automated, part of the permanent suite, not a one-off manual check.
+- The full required-test list from the M4D.1 directive: staged failures at
+  each point in the merged transaction (before the version insert, after
+  the version insert but before the spec write, before the final status
+  update), retry-after-crash / duplicate-delivery idempotency,
+  force-accept (both the real-override and the no-op-when-nothing-to-
+  override cases), rollback after an accepted modification, and two
+  invariant tests (every promoted version has exactly one spec; a
+  failed/conflicted accept never changes `current()`, asserted by object
+  identity, not just by id equality).
+
+**What is honestly still not proven, and why.** `PostgresProjectWorkspace`'s
+SQL-level guard is proven only against a fake cursor (statement order:
+`pg_advisory_xact_lock` → `SELECT` current → compare-then-raise-with-no-
+`INSERT`, or `INSERT`) — structurally correct and matches exactly how
+`workspace.commit()` already worked pre-M4D.1 (same lock, same statement
+shape, just with the compare added), but never executed against a real
+Postgres server, because this sandbox has none. The genuinely convincing
+remaining step, not done here, is the same class of true-concurrency test
+run against **real** Postgres connections and a real `pg_advisory_xact_lock`
+under concurrent load — the in-sandbox `MemoryProjectWorkspace` thread test
+proves the *algorithm* is correct, not that Postgres's actual lock
+semantics behave as assumed under real network/connection-pool conditions.
+**M4 is not `LIVE`. This fix is not "production-closed"** — it is
+`VERIFIED` at the logic/algorithm level with real concurrency, and
+`IMPLEMENTED_NOT_VERIFIED` for the live-Postgres half, exactly like every
+other Postgres-dependent path in this report.
+
+Evidence: `tests/test_workspace_version_conflict.py` (14 tests, the
+mechanism), `tests/test_m4d1_atomic_accept.py` (14 tests — 1 intentional
+skip pointing at where that scenario is actually covered — the required
+list plus the two mutation tests), `tests/test_modification_repository.py`
+(unchanged count, 43 tests, `AcceptTests` rewritten for the new design).
 | M4E — verification pipeline reuse (build/tests/repair/quality/security/rights/target gates) | `VERIFIED` | `CandidateModificationEngine` calls the same `quality_fn`/`security_fn`/`RightsEngine`/`Executor` as the rest of the pipeline — `tests/test_m4_modification_engine.py`, `tests/test_m4_acceptance.py::AcceptanceM` |
 | M4F — deterministic diff (repository + spec) | `VERIFIED` | `omni_prod/modification_diff.py`; `tests/test_modification_diff.py`, `tests/test_m4_acceptance.py::AcceptanceQR` (order-independence proven directly) |
 | M4G — billing (reserve at request time, settle/release by real classification, not by spend) | `VERIFIED` (decision logic + idempotency) / `IMPLEMENTED_NOT_VERIFIED` (the route's `reserve()` call itself, same fastapi/Postgres constraint as above) | `tests/test_m4_worker.py::ResolveModificationBillingTests`; `tests/test_m4_acceptance.py::AcceptanceV` (new test — no prior coverage existed for `subscription_store.reserve()`'s own idempotency) |
@@ -118,7 +209,7 @@ point to it in their docstring.
 | K | source version unchanged while candidate builds | `VERIFIED` |
 | L | failed candidate can never be accepted | `VERIFIED` |
 | M | gate failure never reaches `READY_FOR_REVIEW` | `VERIFIED` |
-| N | accept promotes the candidate | `PARTIAL` — see M4D row above (disclosed non-atomic window) |
+| N | accept promotes the candidate | `VERIFIED` — see **M4D.1** above; the promotion path (status validate → candidate read → version insert → spec insert → final status update) now executes inside one merged transaction with an atomic expected-version guard, proven by real 2-thread and 10-thread barrier-synchronized concurrency tests plus mutation tests |
 | O | reject leaves current version intact | `VERIFIED` |
 | P | rollback restores an exact historical version | `VERIFIED` |
 | Q/R | repository diff / spec diff are deterministic | `VERIFIED` |
@@ -132,5 +223,5 @@ point to it in their docstring.
 ### Not implemented / out of scope for this M4 pass
 
 - Live end-to-end run of the HTTP layer, Redis dispatch and Postgres schema — `NOT_CONFIGURED` (sandbox has no `fastapi`, Redis, or reachable Postgres; not a code gap).
-- Full cross-transaction atomicity of `accept()` — `PARTIAL`, disclosed above; would need either a single connection spanning `workspace.commit()` and the status update, or a compensating-reconciliation job, neither of which exists yet.
+- ~~Full cross-transaction atomicity of `accept()`~~ — **closed by M4D.1** (see above): `accept()` now shares a single cursor across `workspace.commit()` and the status update inside one transaction. What remains genuinely out of scope: running that transaction against a *live* Postgres server (this sandbox has none) to observe the advisory lock and rollback behavior for real, rather than through a fake-cursor/statement-order proof — tracked as `IMPLEMENTED_NOT_VERIFIED` in the M4D.1 section above, not as a design gap.
 - M5 and later milestones — out of scope by the directive's own stop condition; not started.

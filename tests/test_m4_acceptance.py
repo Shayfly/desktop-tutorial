@@ -118,7 +118,11 @@ class FakeSpecRepo:
     def __init__(self):
         self._store = {}
 
-    def save(self, *, version_id, project_id, spec):
+    def save(self, *, version_id, project_id, spec, cur=None):
+        # `cur` accepted-and-ignored for interface parity with
+        # PostgresSpecRepository (M4D.1: accept()/rollback() pass the same
+        # cursor they gave workspace.commit(), merging everything into one
+        # transaction) -- this is a pure in-memory double, nothing to share.
         self._store.setdefault(version_id, spec)
 
     def get(self, version_id, project_id):
@@ -399,20 +403,23 @@ class AcceptanceM(unittest.TestCase):
 
 class AcceptanceN(unittest.TestCase):
     def test_N_accept_promotes_the_candidate_to_a_brand_new_current_version(self):
-        """Full coverage (pre-check conflict, post-commit race, force):
-        test_modification_repository.py AcceptTests.
+        """Full coverage (atomic expected-version check, true concurrent
+        race, force): test_modification_repository.py AcceptTests and
+        tests/test_m4d1_atomic_accept.py (M4D.1's dedicated remediation
+        suite -- the real-threaded true-race test, staged-failure tests,
+        and mutation tests for the atomic compare live there).
 
-        HONEST LIMITATION, disclosed rather than hidden: workspace.commit()
-        (new project_versions row), spec_repo.save() and the final
-        modification_requests status UPDATE are three separate Postgres
-        transactions (workspace.commit() must own its own connection to
-        take its pg_advisory_xact_lock -- see accept()'s own docstring for
-        why they cannot be nested). The *version itself* is atomic (a
-        candidate is either fully committed as a new ProjectVersion or not
-        at all -- never partially) but a crash between the commit and the
-        final status UPDATE would leave the promoted version live and
-        current while modification_requests still reads READY_FOR_REVIEW.
-        This is a disclosed gap, not a silent one; see PATCH_APPLICATION_REPORT.md.
+        M4D.1 (supersedes the earlier disclosed-but-flawed design this
+        docstring used to describe): the version insert, the spec insert,
+        and the final modification_requests ACCEPTED update all now share
+        ONE Postgres transaction/cursor -- see
+        modification_repository.accept()'s own docstring and
+        workspace.py's VersionConflict. The expected-source-version compare
+        happens under the SAME lock that would perform the insert, so a
+        conflict is refused strictly before any row is written, never
+        audited after the fact. See test_modification_repository.py's
+        `test_happy_path_promotes_the_candidate_and_saves_its_spec`
+        (asserts exactly one `conn.transaction()`) for the executed proof.
         """
         workspace = MemoryProjectWorkspace()
         v10 = workspace.commit(project_id='p1', repository={'a.py': '1'}, message='init')
@@ -543,8 +550,11 @@ class AcceptanceU(unittest.TestCase):
         """"Version 10 is current. User starts Modification A from Version 10.
         User also starts Modification B from Version 10. A is accepted and
         creates Version 11. Then B finishes. Do NOT silently overwrite
-        Version 11." Full mechanics (including the post-commit race window):
-        test_modification_repository.py AcceptTests."""
+        Version 11." This is the sequential form (A fully lands before B's
+        accept() even starts). Full mechanics, including a REAL two-thread
+        concurrent race where both accepts are dispatched simultaneously:
+        test_modification_repository.py AcceptTests and
+        tests/test_m4d1_atomic_accept.py (M4D.1)."""
         workspace = MemoryProjectWorkspace()
         v10 = workspace.commit(project_id='p1', repository={'a.py': 'orig'}, message='v10')
 

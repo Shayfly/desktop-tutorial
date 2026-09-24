@@ -29,7 +29,7 @@ from omni_prod.modification_repository import (
 )
 from omni_prod.product_spec import ProductSpec
 from omni_prod.spec_repository import SpecNotFound
-from omni_prod.workspace import MemoryProjectWorkspace
+from omni_prod.workspace import MemoryProjectWorkspace, SKIP_VERSION_CHECK, VersionConflict
 
 SPEC = {
     'title': 'Todo', 'summary': 'Todo app', 'stack': ['python'],
@@ -110,7 +110,11 @@ class FakeSpecRepo:
         self._store: dict[str, ProductSpec] = {}
         self.save_calls: list[tuple[str, str]] = []
 
-    def save(self, *, version_id, project_id, spec):
+    def save(self, *, version_id, project_id, spec, cur=None):
+        # `cur` is accepted for interface parity with PostgresSpecRepository
+        # (M4D.1: accept()/rollback() now pass the same cursor they gave
+        # workspace.commit(), to merge everything into one transaction) but
+        # is unused here -- this is a pure in-memory double, no SQL to share.
         self.save_calls.append((version_id, project_id))
         self._store.setdefault(version_id, spec)  # ON CONFLICT DO NOTHING, like the real one
 
@@ -123,11 +127,19 @@ class FakeSpecRepo:
 
 class RacyWorkspace:
     """Wraps a real MemoryProjectWorkspace. Its first commit() call injects
-    a *different* commit before performing the one accept() actually asked
-    for, simulating a second modification's accept() landing in the narrow
-    window between this call's pre-check (which already read `current`) and
-    this call's own commit -- the exact TOCTOU window
-    conflict_detected_at_commit exists to catch."""
+    a *different*, unconditional commit -- simulating a second
+    modification's accept() landing -- immediately before delegating to the
+    inner workspace's real (M4D.1) commit(), simulating a second
+    modification's accept() winning the race in the narrow window between
+    this call's own read-of-current and its own write. Because the inner
+    MemoryProjectWorkspace.commit() now does its expected-version compare
+    INSIDE the same lock as the read+write (not after), the delegated call
+    below -- called with whatever `expected_current_version_id`/`cur`
+    accept() actually passed -- will correctly raise VersionConflict itself
+    when the interloper has moved current out from under it (force=False),
+    or correctly succeed on top of the interloper (force=True). This class
+    no longer needs to special-case the race outcome; it only needs to make
+    the race happen, and let the real atomic check do its job."""
     def __init__(self, inner):
         self.inner = inner
         self.commit_calls = 0
@@ -135,15 +147,19 @@ class RacyWorkspace:
     def current(self, project_id):
         return self.inner.current(project_id)
 
-    def restore(self, *, project_id, version_id, message='restore'):
-        return self.inner.restore(project_id=project_id, version_id=version_id, message=message)
+    def restore(self, *, project_id, version_id, message='restore', cur=None):
+        return self.inner.restore(project_id=project_id, version_id=version_id, message=message, cur=cur)
 
-    def commit(self, *, project_id, repository, message):
+    def commit(self, *, project_id, repository, message,
+               expected_current_version_id=SKIP_VERSION_CHECK, cur=None):
         self.commit_calls += 1
         if self.commit_calls == 1:
             self.inner.commit(project_id=project_id, repository={'interloper.py': '1'},
                               message='a different accept() wins the race')
-        return self.inner.commit(project_id=project_id, repository=repository, message=message)
+        # Delegate with exactly what was passed in (or workspace.py's own
+        # "no check" sentinel, matching its default, if nothing was passed).
+        return self.inner.commit(project_id=project_id, repository=repository, message=message,
+                                 expected_current_version_id=expected_current_version_id, cur=cur)
 
 
 def repo_of(**kw):
@@ -425,6 +441,12 @@ class AcceptTests(unittest.TestCase):
         spec_repo = FakeSpecRepo()
 
         out = r.accept('mod_1', 'proj_1', workspace=workspace, spec_repo=spec_repo)
+        # M4D.1: the whole promotion -- status/candidate read, the version
+        # commit (via the shared cur), the spec save (via the shared cur),
+        # and the final ACCEPTED update -- now happens inside exactly ONE
+        # `conn.transaction()`, not the pre-M4D.1 two (pre-check + a later,
+        # separate final-update transaction).
+        self.assertEqual(r.pool.conn.transactions, 1)
 
         self.assertTrue(out['accepted'])
         self.assertFalse(out['forced'])
@@ -456,10 +478,15 @@ class AcceptTests(unittest.TestCase):
         self.assertEqual(out, {'accepted': False, 'reason': 'conflict',
                                'current_version_id': v11.id, 'source_version_id': v10.id})
         self.assertEqual(workspace.current('proj_1').id, v11.id)  # untouched
+        self.assertEqual(len(workspace.history('proj_1')), 2)  # v10, v11 only -- nothing extra
         self.assertEqual(spec_repo.save_calls, [])
         conflict_sql, conflict_params = cur.executed[-1]
         self.assertIn("SET status='CONFLICT'", conflict_sql)
-        self.assertEqual(conflict_params, (None, 'mod_1'))
+        self.assertEqual(conflict_params, ('mod_1',))
+        # The aborted promotion attempt (rolled back on VersionConflict) plus
+        # _mark_conflict()'s own follow-up update: two transactions, never
+        # one that somehow both wrote a version AND reported conflict.
+        self.assertEqual(r.pool.conn.transactions, 2)
 
     def test_pre_check_conflict_with_force_promotes_onto_whatever_is_current(self):
         workspace = MemoryProjectWorkspace()
@@ -478,6 +505,18 @@ class AcceptTests(unittest.TestCase):
         self.assertEqual(new.repository(), {'a.py': 'from-mod'})
 
     def test_race_at_commit_time_is_caught_even_though_the_pre_check_passed(self):
+        """M4D.1: this is the 'late race between pre-check and commit'
+        required test. Before the fix, RacyWorkspace's injected interloper
+        commit would already have landed in project_versions (and become
+        `current()`) by the time accept() noticed the mismatch -- the exact
+        production-blocking bug the M4D.1 directive named: a caller told
+        'conflict, not accepted' while the project had already silently
+        mutated to unintended content. After the fix, the interloper commit
+        happens, but THIS modification's own attempt to commit on top of a
+        now-stale expectation raises VersionConflict from inside
+        workspace.commit() itself, before any row for THIS modification is
+        ever written -- no orphaned version, no extra history entry, current
+        stays exactly the interloper's version and nothing more."""
         inner = MemoryProjectWorkspace()
         v10 = inner.commit(project_id='proj_1', repository={'a.py': '1'}, message='init')
         workspace = RacyWorkspace(inner)
@@ -487,14 +526,19 @@ class AcceptTests(unittest.TestCase):
         out = r.accept('mod_1', 'proj_1', workspace=workspace, spec_repo=spec_repo)
 
         self.assertFalse(out['accepted'])
-        self.assertEqual(out['reason'], 'conflict_detected_at_commit')
+        self.assertEqual(out['reason'], 'conflict')
         self.assertEqual(out['source_version_id'], v10.id)
-        orphan = inner.get(project_id='proj_1', version_id=out['orphaned_version_id'])
-        self.assertNotEqual(orphan.parent_id, v10.id)  # its true parent is the interloper, not v10
+        self.assertNotIn('orphaned_version_id', out)  # M4D.1: there is no such thing anymore
+        # Exactly v10 + the interloper's version exist -- nothing from this
+        # modification's failed attempt was ever written.
+        self.assertEqual(len(inner.history('proj_1')), 2)
+        current = inner.current('proj_1')
+        self.assertNotEqual(current.id, v10.id)  # the interloper's version is current
+        self.assertEqual(current.repository(), {'interloper.py': '1'})
         self.assertEqual(spec_repo.save_calls, [])  # never promoted as this modification's success
         conflict_sql, conflict_params = cur.executed[-1]
         self.assertIn("SET status='CONFLICT'", conflict_sql)
-        self.assertEqual(conflict_params, (out['orphaned_version_id'], 'mod_1'))
+        self.assertEqual(conflict_params, ('mod_1',))
 
     def test_race_at_commit_time_with_force_is_accepted_and_reported_as_forced(self):
         inner = MemoryProjectWorkspace()
