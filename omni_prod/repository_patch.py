@@ -40,12 +40,24 @@ def parse_patch(payload: dict) -> tuple[FilePatch, ...]:
 
 def apply_patch(repo: dict[str, str], patches: tuple[FilePatch, ...], *,
                 max_files: int = 2000, max_total_chars: int = 8_000_000) -> dict[str, str]:
+    # M2 Revision 4 (native adaptation): normalize every patch path here too,
+    # not only in parse_patch(). parse_patch() already runs each incoming
+    # path through normalize_repo_path() -- the same pure lexical POSIX
+    # normalizer used here -- which rejects absolute paths, NUL bytes and any
+    # literal '..' component. But apply_patch() itself is also called
+    # directly with hand-built FilePatch objects that bypass parse_patch()
+    # (see omni_prod/v27_platform.py's build()/`_refresh_rights_manifest()
+    # call sites), so re-validating inside apply_patch() closes that gap for
+    # every caller uniformly instead of relying on each call site to have
+    # pre-validated. Re-normalizing an already-normalized path is a no-op, so
+    # existing callers are unaffected.
     result = dict(repo)
     for patch in patches:
+        safe_path = normalize_repo_path(patch.path)
         if patch.content is None:
-            result.pop(patch.path, None)
+            result.pop(safe_path, None)
         else:
-            result[patch.path] = patch.content
+            result[safe_path] = patch.content
     if len(result) > max_files:
         raise PatchValidationError('repository file limit exceeded')
     if sum(len(x) for x in result.values()) > max_total_chars:

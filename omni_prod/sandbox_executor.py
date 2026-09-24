@@ -15,6 +15,18 @@ def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
 
+# M2 Revision 4 (native adaptation): close the fake-verification loophole.
+# A generated manifest must not be able to "pass" acceptance by proposing a
+# verification command that trivially succeeds without exercising anything --
+# most obviously `["true"]`, or any command that shells out to `echo` instead
+# of running a real test framework. These are rejected before self.runner is
+# ever invoked for them, so the sandbox can never be asked to "confirm" a
+# no-op as a pass.
+def _is_fake_verification(argv: tuple[str, ...]) -> bool:
+    if tuple(argv) == ('true',):
+        return True
+    return any(token == 'echo' for token in argv)
+
 class SandboxRepositoryExecutor:
     def __init__(
         self,
@@ -62,6 +74,22 @@ class SandboxRepositoryExecutor:
                 unknown = [x for x in check.acceptance_ids if x not in valid_acceptance]
                 if unknown:
                     raise ValueError('verification references unknown acceptance ids: ' + ','.join(unknown))
+
+                if _is_fake_verification(check.argv):
+                    # Never trust a no-op as evidence of a pass. Fail every
+                    # acceptance id this check claimed to cover, and do not
+                    # spend a sandbox run on it.
+                    for aid in check.acceptance_ids:
+                        failures.append(
+                            AcceptanceFailure(
+                                aid,
+                                f'verification failed: {check.name}',
+                                '[FATAL] Fake verification command detected. You must write an '
+                                'executable test framework (pytest, jest, etc).',
+                            )
+                        )
+                    continue
+
                 counter += 1
                 result = self.runner(
                     source_dir=root,

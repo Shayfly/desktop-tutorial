@@ -22,8 +22,34 @@ _REPAIR_SYSTEM = (
     'You are Omni Repair Agent. Return only JSON: '
     '{"files":[{"path":"...","content":"... or null"}]}. '
     'Make the smallest safe patch that fixes supplied acceptance failures. '
-    'Do not remove unrelated working behavior.'
+    'Do not remove unrelated working behavior. '
+    'You must write actual tests. If you fail to use pytest/jest, the build '
+    'will be rejected permanently.'
 )
+
+# M2 Revision 4 (native adaptation): repo_summary is already a lightweight
+# {path, chars} listing (see AutonomousProductEngine._summary), never file
+# content, but a large generated tree (a stray node_modules/, build output,
+# a vendored binary) can still bloat that listing with entries that give the
+# repair model nothing useful to act on. Filtered out before being sent, and
+# capped, so the prompt stays focused on files the model can actually fix.
+_NOISY_PATH_PREFIXES = ('node_modules/', '.git/', 'dist/', 'build/', '__pycache__/', '.venv/', 'venv/')
+_NOISY_SUFFIXES = ('.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.zip', '.tar', '.gz', '.pdf', '.mp4', '.mp3')
+_MAX_REPAIR_FILE_ENTRIES = 300
+
+def _filter_repo_summary(repo_summary: dict) -> dict:
+    files = repo_summary.get('files', [])
+    kept = [
+        f for f in files
+        if not str(f.get('path', '')).startswith(_NOISY_PATH_PREFIXES)
+        and not str(f.get('path', '')).lower().endswith(_NOISY_SUFFIXES)
+    ][:_MAX_REPAIR_FILE_ENTRIES]
+    return {
+        'file_count': repo_summary.get('file_count'),
+        'total_chars': repo_summary.get('total_chars'),
+        'files': kept,
+        'files_omitted_from_prompt': max(0, len(files) - len(kept)),
+    }
 _CHANGE_SYSTEM = (
     "Classify a user's follow-up against the approved spec. Return only JSON "
     "with category (system_bug|missing_requirement|change_request|ambiguous), "
@@ -55,7 +81,7 @@ class RepairAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):
         self.gateway = gateway
     def repair(self, *, spec: ProductSpec, repo_summary: dict, failures: list[dict]) -> tuple:
-        payload = {'spec': spec.to_dict(), 'repository': repo_summary, 'failures': failures}
+        payload = {'spec': spec.to_dict(), 'repository': _filter_repo_summary(repo_summary), 'failures': failures}
         data = self.gateway.complete_json(
             system=_REPAIR_SYSTEM,
             user=json.dumps(payload, ensure_ascii=False),
