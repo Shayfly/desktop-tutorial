@@ -151,3 +151,143 @@ Not fixable from this sandbox specifically:
 
 None of that is a reason to fake it in the meantime — hence this report
 instead of invented pytest output.
+
+---
+
+## Update: M1 completion + M2 Revision 4 (native adaptation)
+
+A follow-up directive correctly accepted the M2 rejection above and asked for
+the same *logic* implemented natively, inside the real signatures, instead of
+the incompatible pasted files. Applied. One more deviation was found and
+fixed the same way as everything above — verified against the actual code,
+not assumed.
+
+### `omni_prod/worker_tasks.py` (new) — the M1 worker
+
+The instruction said: `result = _v28.engine.build(prompt)`. Checked it before
+writing it, the same way everything above was checked:
+
+- `_v28.engine` is `UnifiedOmniEngine` (`omni_prod/unified_engine.py`), set in
+  `V26UniversalPlatform.__init__` (`v26_platform.py:12`) and inherited
+  unchanged all the way to `V28Platform`. It's the **deterministic,
+  zero-paid-provider template engine** — the same one the synchronous
+  Free-tier `/build` endpoint uses. It is not AI generation.
+- Its actual signature is `build(self, *, project_id: str, prompt: str) -> BuildResult`
+  — keyword-only, needs a `project_id`, returns `BuildResult` (has
+  `.launch_score`/`.launch_ready`), not `AutonomousResult`.
+- Calling it from the worker would have made every "durable async AI build"
+  silently produce the same deterministic template output as the free
+  synchronous path — textbook "deterministic template fallback that pretends
+  an AI build succeeded," which section 3.1 of the founder's own master
+  directive lists first among forbidden behaviors.
+
+The actual real-AI-generation path already exists: `investor_app.py`'s
+`_live_engine()` — the same `AutonomousProductEngine` (real model gateway +
+sandbox executor) the existing synchronous `/api/live/build` endpoint uses.
+Its `.build(self, prompt: str) -> AutonomousResult` matches the instruction's
+intent exactly, just needed the right object. That's what the worker calls.
+`_v28.engine.workspace` (the correct, shared project-version store) is still
+used to persist the result, since that part of the instruction was right.
+
+Everything else follows the instruction as given: `PostgresBuildRepository`
+to fetch the request and transition status, `settle()`/`release()` on success
+/exception, `result.status == 'ready'` to decide READY vs FAILED (confirmed
+this field name against the real `AutonomousProductEngine.build()`, which
+does return exactly `'ready'`/`'failed'`).
+
+### `omni_prod/sandbox_executor.py` — fake-verify loophole closed, signatures untouched
+
+`__init__` and `execute(self, *, repository, spec)` are byte-for-byte
+unchanged. Added a check, per verification command, before it's ever handed
+to `self.runner`: if `argv == ('true',)` or any token is `'echo'`, every
+acceptance id that check claimed is marked failed with an explicit
+`[FATAL] Fake verification command detected...` message, and the runner is
+**never called** for it — there's no code path left where a real docker
+invocation could be skipped in a way that still returns a pass. Real
+verification commands run exactly as before.
+
+Verified with a test that queues zero extra sandbox-runner return codes for
+the fake check — if the fix ever regressed and let a fake check reach the
+runner, the test fails loudly with `IndexError: pop from empty list` rather
+than silently passing.
+
+### `omni_prod/repository_patch.py` — path normalization moved inside `apply_patch()`
+
+`apply_patch(repo: dict, patches: tuple[FilePatch,...]) -> dict` signature is
+unchanged. Two things were already true before this change and didn't need
+rebuilding: `normalize_repo_path()` (a real, already-existing pure lexical
+POSIX normalizer — rejects absolute paths, NUL bytes, `..` components) and
+`max_files=2000`/`max_total_chars=8_000_000` limits were already enforced.
+
+What was missing: `apply_patch()` itself never called `normalize_repo_path()`
+— it trusted `patch.path` was already clean, which is only true when the
+caller went through `parse_patch()` first. It doesn't always: `v27_platform.py`
+constructs `FilePatch` objects directly from request data in at least two
+places (`build()` and `_refresh_rights_manifest()`) without going through
+`parse_patch()`. Added the normalization call inside `apply_patch()` itself,
+so every caller is covered uniformly regardless of how the `FilePatch` was
+built. A dedicated test constructs a `FilePatch('../../etc/passwd', ...)`
+directly (bypassing `parse_patch()` on purpose) and confirms `apply_patch()`
+now catches it on its own.
+
+### `omni_prod/autonomous_agents.py` — `RepairAgent`, signature untouched
+
+`repair(self, *, spec, repo_summary, failures)` unchanged. Added one sentence
+to the system prompt about pytest/jest being mandatory. `repo_summary` was
+already just `{path, chars}` metadata (never file content — see
+`AutonomousProductEngine._summary()`), so "don't send massive binaries" meant
+filtering the *listing* itself: vendor/build directories
+(`node_modules/`, `.git/`, `dist/`, `build/`, `__pycache__/`, `venv/`) and
+binary-looking extensions are dropped from what's sent to the model, capped
+at 300 entries, before the repair prompt is built.
+
+### `tests/test_m2_native_logic.py` — real output, run twice
+
+First run caught a real bug **in the test itself**, not the fix: the sandbox
+executor runs the build command before verification, so a test that queued
+zero fake-runner return codes failed with `IndexError: pop from empty list`
+on the build call, not the verify call. Fixed the test to queue one code for
+the build phase and assert the runner was called exactly once (for the build,
+never for the fake verify). Final run:
+
+```
+$ python3 -m unittest tests.test_m2_native_logic -v
+test_echo_verify_is_rejected ... ok
+test_real_verification_command_still_runs_and_can_pass ... ok
+test_verify_true_is_rejected_without_running_the_sandbox ... ok
+test_apply_patch_rejects_absolute_path ... ok
+test_apply_patch_rejects_traversal_even_when_parse_patch_is_bypassed ... ok
+test_apply_patch_still_works_for_normal_paths ... ok
+test_parse_patch_rejects_traversal ... ok
+
+Ran 7 tests in 0.003s
+OK
+```
+
+### Regression: every test in this repo that this sandbox can actually run
+
+`pytest` still cannot be installed here (unchanged from before). Ran the full
+suite with `python3 -m unittest` instead. 6 of the existing test files
+(`test_v24_international`, `test_v24_native_remote`, `test_v25_unified_v10_parity`,
+`test_v26_universal_pro`, `test_v27_rights_company_os`, `test_v28_148ai_launch`)
+fail to even import here — `ModuleNotFoundError: No module named 'fastapi'` —
+because they use `fastapi.testclient.TestClient`, and this sandbox cannot
+install `fastapi` (pre-existing limitation, unrelated to anything changed
+today; confirmed by the identical failure on a completely clean baseline
+checkout before any of this session's edits).
+
+Every test file that doesn't need `fastapi` — **102 tests**, including the
+full existing `test_v22_sandbox_executor.py` (all 4 tests, unmodified) and
+`test_v22_autonomous_core.py` suites that exercise the exact modules touched
+today — passes:
+
+```
+$ python3 -m unittest <every non-fastapi test module> -v
+...
+Ran 102 tests in 0.536s
+OK
+```
+
+A production environment with `fastapi`/`psycopg`/`redis`/Docker-registry
+access installed would additionally run the 6 fastapi-based files and the
+Postgres/Redis integration paths this session structurally cannot reach.
