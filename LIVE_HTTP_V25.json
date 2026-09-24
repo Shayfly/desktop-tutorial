@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "build_status": "READY",
+  "file_count": 82,
+  "modules": [
+    "customers",
+    "drivers",
+    "rides",
+    "payments"
+  ],
+  "capabilities": [
+    "analytics",
+    "auth",
+    "export",
+    "maps",
+    "notifications",
+    "payments",
+    "realtime",
+    "roles",
+    "search"
+  ],
+  "launch_score": 100,
+  "deployment_id": "dpl-000001",
+  "first_user_role": "admin",
+  "unauth_crud_status": 401,
+  "auth_crud_items": 1,
+  "export_zip_files": 82,
+  "current_release": "V25 Unified Core"
+}

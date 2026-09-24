@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: omni
+      POSTGRES_USER: omni
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [omni_pg:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U omni -d omni"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server","--appendonly","yes","--maxmemory-policy","noeviction"]
+    volumes: [omni_redis:/data]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${OMNI_S3_ACCESS_KEY:?set OMNI_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${OMNI_S3_SECRET_KEY:?set OMNI_S3_SECRET_KEY}
+    volumes: [omni_objects:/data]
+    networks: [backend]
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OMNI_DATABASE_URL: ${OMNI_DATABASE_URL:?set OMNI_DATABASE_URL}
+      OMNI_REDIS_URL: redis://redis:6379/0
+      OMNI_S3_ENDPOINT: http://minio:9000
+      OMNI_SANDBOX_RUNNER_URL: ${OMNI_SANDBOX_RUNNER_URL:?dedicated sandbox runner required}
+      OMNI_LOCAL_MODEL_URL: ${OMNI_LOCAL_MODEL_URL:?local model endpoint required}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [backend]
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: ["python","-m","omni_prod.worker"]
+    environment:
+      OMNI_DATABASE_URL: ${OMNI_DATABASE_URL:?set OMNI_DATABASE_URL}
+      OMNI_REDIS_URL: redis://redis:6379/0
+      OMNI_S3_ENDPOINT: http://minio:9000
+      OMNI_SANDBOX_RUNNER_URL: ${OMNI_SANDBOX_RUNNER_URL:?dedicated sandbox runner required}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
+volumes:
+  omni_pg:
+  omni_redis:
+  omni_objects:

@@ -1,0 +1,39 @@
+{
+  "version": "V16",
+  "working_tree_compile": true,
+  "working_tree_tests": true,
+  "test_count": 41,
+  "release_manifest_valid": true,
+  "release_manifest_errors": [],
+  "embedded_secret_findings": [],
+  "migration_count": 5,
+  "migration_versions": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "staging_simulation": {
+    "build_status": "ready",
+    "final_canary_status": "complete",
+    "final_canary_percent": 100,
+    "deployments": 1,
+    "artifacts": 1
+  },
+  "zip_integrity": true,
+  "clean_extract_compile": true,
+  "clean_extract_tests": true,
+  "clean_extract_manifest": true,
+  "clean_extract_staging": true,
+  "zip_sha256": "0f47b06a9f44af867f7d6480ca092deac9cfa0d388f9d9d2e3310f1c3ba0b2f3",
+  "overall": "PASS",
+  "live_external_gates": {
+    "postgres": "NOT_RUN",
+    "redis": "NOT_RUN",
+    "object_storage": "NOT_RUN",
+    "docker_sandbox": "NOT_RUN",
+    "android_signing": "NOT_RUN",
+    "ios_signing": "NOT_RUN"
+  }
+}

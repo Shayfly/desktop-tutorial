@@ -1,0 +1,23 @@
+{
+  "current": "V27 Rights & Company OS",
+  "parent": "V26 Universal Pro Reviewer Release",
+  "legacy_behavior_baseline": "V10 Production",
+  "layers": [
+    "V11 production overlay",
+    "V12 control plane",
+    "V13 resilience/cost",
+    "V15 acceptance",
+    "V16 release safety",
+    "V17 preflight",
+    "V18 supply-chain/web security",
+    "V19 reliability/outbox",
+    "V20 observability/recovery",
+    "V21 remediation",
+    "V22 autonomous core",
+    "V23 prelaunch UI",
+    "V24 international readiness",
+    "V25 unified V10 behavior parity",
+    "V26 creator accounts / universal pro / multimodal contracts",
+    "V27 rights & IP publish gate / one-founder company OS"
+  ]
+}

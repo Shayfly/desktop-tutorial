@@ -1,0 +1,24 @@
+name: V11 Overlay CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m compileall -q omni_prod tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate compose
+        run: docker compose -f docker-compose.production.yml config > /dev/null
+        env:
+          POSTGRES_PASSWORD: test-postgres-password
+          OMNI_S3_ACCESS_KEY: test-access
+          OMNI_S3_SECRET_KEY: test-secret-password

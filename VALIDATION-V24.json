@@ -1,0 +1,272 @@
+{
+  "version": "V24 International Readiness",
+  "pytest_output": "sssssssss............................................................... [ 41%]\n........................................................................ [ 82%]\n..............................                                           [100%]\n165 passed, 9 skipped in 1.31s",
+  "expected_summary": "165 passed, 9 skipped",
+  "compileall": true,
+  "node_check_control_center_js": true,
+  "secret_scan": {
+    "passed": true,
+    "findings": []
+  },
+  "top_level_dependency_lock": {
+    "locked": true,
+    "total": 7,
+    "unpinned": []
+  },
+  "hostile_static": {
+    "ok": true,
+    "cases": [
+      {
+        "name": "path_traversal",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PATH_ESCAPE",
+            "severity": "blocker",
+            "detail": "../escape.txt"
+          }
+        ]
+      },
+      {
+        "name": "private_key",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PRIVATE_KEY",
+            "severity": "blocker",
+            "detail": "secret.pem"
+          }
+        ]
+      },
+      {
+        "name": "shell_command",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "SHELL_COMMAND",
+            "severity": "high",
+            "detail": "bash -lc id"
+          }
+        ]
+      },
+      {
+        "name": "privileged_arg",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PRIVILEGE_ESCAPE",
+            "severity": "blocker",
+            "detail": "python --privileged"
+          }
+        ]
+      }
+    ]
+  },
+  "international_gate": {
+    "ok": true,
+    "checks": {
+      "compileall": {
+        "ok": true,
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "pytest": {
+        "ok": true,
+        "returncode": 0,
+        "stdout": "sssssssss............................................................... [ 41%]\n........................................................................ [ 82%]\n..............................                                           [100%]\n165 passed, 9 skipped in 1.38s\n",
+        "stderr": ""
+      },
+      "benchmark_catalog": {
+        "ok": true,
+        "detail": "200 cases"
+      },
+      "quality_gate": {
+        "ok": true,
+        "detail": "{\"score\": 100, \"passed\": true, \"minimum_score\": 75, \"dimensions\": [{\"name\": \"functional_traceability\", \"score\": 100, \"weight\": 30, \"notes\": []}, {\"name\": \"maintainability\", \"score\": 100, \"weight\": 15, \"notes\": []}, {\"name\": \"security_hygiene\", \"score\": 100, \"weight\": 20, \"notes\": []}, {\"name\": \"ux_accessibility\", \"score\": 100, \"weight\": 15, \"notes\": []}, {\"name\": \"internationalization\", \"score\": 100, \"weight\": 10, \"notes\": []}, {\"name\": \"delivery_readiness\", \"score\": 100, \"weight\": 10, \"notes\": []}], \"blockers\": []}"
+      },
+      "security_gate": {
+        "ok": true,
+        "detail": "{\"passed\": true, \"findings\": []}"
+      },
+      "native_android": {
+        "ok": true,
+        "detail": ""
+      },
+      "native_ios": {
+        "ok": true,
+        "detail": ""
+      },
+      "games": {
+        "ok": true,
+        "detail": ""
+      },
+      "secret_scan": {
+        "ok": true,
+        "detail": "0 findings"
+      }
+    },
+    "live_claims": {
+      "gpu_model_verified": false,
+      "docker_sandbox_verified": false,
+      "postgres_redis_s3_verified": false,
+      "signed_mobile_binaries_verified": false
+    }
+  },
+  "http_load_smoke": {
+    "url": "http://127.0.0.1:8765/api/status",
+    "requests": 200,
+    "concurrency": 20,
+    "ok": 200,
+    "errors": 0,
+    "success_rate": 1.0,
+    "p95_ms": 145,
+    "rps": 187.11
+  },
+  "yaml_validation": {
+    "docker-compose.production.yml": {
+      "parsed": true,
+      "top_keys": [
+        "services",
+        "networks",
+        "volumes"
+      ]
+    },
+    "docker-compose.international.yml": {
+      "parsed": true,
+      "top_keys": [
+        "services",
+        "networks",
+        "volumes"
+      ]
+    },
+    ".github/workflows/v24-ci.yml": {
+      "parsed": true,
+      "top_keys": [
+        "name",
+        "on",
+        "jobs"
+      ]
+    }
+  },
+  "international_readiness": {
+    "implemented": 13,
+    "total": 13,
+    "live_verified": 3,
+    "gates": [
+      {
+        "capability": "autonomous_core",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Prompt→Spec→Generate→Sandbox→Repair is implemented; arbitrary-app success requires live benchmark"
+      },
+      {
+        "capability": "model_routing",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Local-first + paid fail-closed fallback implemented; no GPU endpoint verified in this environment"
+      },
+      {
+        "capability": "benchmark_catalog",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "200 cases catalogued; live autonomous pass rate not measured here"
+      },
+      {
+        "capability": "mobile_android",
+        "implemented": true,
+        "live_verified": true,
+        "evidence": "AAB build contract and signing secret contract"
+      },
+      {
+        "capability": "mobile_ios",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "IPA archive/signing contract; requires macOS/Xcode credentials"
+      },
+      {
+        "capability": "games_godot",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Godot headless verification plan"
+      },
+      {
+        "capability": "games_unity",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Unity batch verification plan"
+      },
+      {
+        "capability": "games_unreal",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Unreal commandlet verification plan"
+      },
+      {
+        "capability": "integrations",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "10 provider contracts; credentials required for live verification"
+      },
+      {
+        "capability": "internationalization",
+        "implemented": true,
+        "live_verified": true,
+        "evidence": "12 locale contracts including RTL"
+      },
+      {
+        "capability": "production_runtime",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Postgres/Redis/S3/queue/autoscaling contracts exist; live stack depends on Docker/services"
+      },
+      {
+        "capability": "security",
+        "implemented": true,
+        "live_verified": false,
+        "evidence": "Static hostile-repository scan + hardened sandbox; penetration/sandbox-escape suite needs live Docker"
+      },
+      {
+        "capability": "commercial_platform",
+        "implemented": true,
+        "live_verified": true,
+        "evidence": "Teams/RBAC, credits/free-repair policy, workspace/versioning implemented as domain layer"
+      }
+    ],
+    "topology": {
+      "api_replicas": {
+        "min_replicas": 2,
+        "max_replicas": 30,
+        "target_cpu_percent": 65,
+        "max_queue_depth_per_worker": 10
+      },
+      "worker_replicas": {
+        "min_replicas": 2,
+        "max_replicas": 100,
+        "target_cpu_percent": 70,
+        "max_queue_depth_per_worker": 3
+      },
+      "database_pool_max": 40,
+      "object_storage_required": true,
+      "queue_required": true
+    }
+  },
+  "toolchains": {
+    "docker": false,
+    "java": true,
+    "node": true,
+    "xcodebuild": false,
+    "godot": false,
+    "godot4": false,
+    "UnrealEditor": false,
+    "unity-editor": false
+  },
+  "live_truth": {
+    "open_weight_gpu_model_run": false,
+    "postgres_redis_s3_live_tests": false,
+    "docker_hostile_live_tests": false,
+    "signed_android_aab": false,
+    "signed_ios_ipa": false,
+    "live_200_case_benchmark": false
+  }
+}

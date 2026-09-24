@@ -1,0 +1,23 @@
+{
+  "version": "V23",
+  "pytest_returncode": 0,
+  "pytest_stdout": "sss..................................................................... [ 66%]\n....................................                                     [100%]\n105 passed, 3 skipped in 2.08s",
+  "tests_total": 108,
+  "passed": 105,
+  "skipped": 3,
+  "live_integration_skipped": [
+    "PostgreSQL",
+    "Redis",
+    "S3"
+  ],
+  "compileall": true,
+  "secret_findings": 0,
+  "claims": {
+    "offline_control_center": true,
+    "offline_verified_demo_repository": true,
+    "local_first_routed_gateway": true,
+    "live_model_build_proven_here": false,
+    "docker_live_generated_build_proven_here": false,
+    "public_production_deployment": false
+  }
+}

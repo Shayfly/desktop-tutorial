@@ -1,0 +1,20 @@
+name: v24-ci
+"on": [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - run: python -m compileall -q omni_prod tests
+      - run: python -m pytest -q
+      - run: python scripts/run_hostile_static_suite.py
+      - run: python scripts/run_international_gate.py
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose -f docker-compose.international.yml config >/dev/null

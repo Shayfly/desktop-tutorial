@@ -1,0 +1,14 @@
+sssssssss............................................................... [ 37%]
+........................................................................ [ 74%]
+.................................................                        [100%]
+=========================== short test summary info ============================
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_model.py:6: requires OMNI_RUN_LIVE_MODEL=1 and configured local endpoint
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_sandbox_security.py:11: requires isolated Docker host and OMNI_RUN_LIVE_SANDBOX=1
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_sandbox_security.py:12: requires isolated Docker host and OMNI_RUN_LIVE_SANDBOX=1
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_sandbox_security.py:13: requires isolated Docker host and OMNI_RUN_LIVE_SANDBOX=1
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_stack.py:17: set OMNI_RUN_LIVE_INTEGRATION=1 to run real service tests
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_stack.py:20: set OMNI_RUN_LIVE_INTEGRATION=1 to run real service tests
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_live_stack.py:23: set OMNI_RUN_LIVE_INTEGRATION=1 to run real service tests
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_mobile_signing_readiness.py:5: requires Android signing credentials
+SKIPPED [1] ../v25work/OmniCreator-V24-International-Readiness/tests/integration/test_mobile_signing_readiness.py:11: requires macOS/Xcode/App Store credentials
+184 passed, 9 skipped in 1.89s

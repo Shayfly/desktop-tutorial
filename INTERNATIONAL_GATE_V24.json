@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "checks": {
+    "compileall": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "pytest": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "sssssssss............................................................... [ 41%]\n........................................................................ [ 82%]\n..............................                                           [100%]\n165 passed, 9 skipped in 1.38s\n",
+      "stderr": ""
+    },
+    "benchmark_catalog": {
+      "ok": true,
+      "detail": "200 cases"
+    },
+    "quality_gate": {
+      "ok": true,
+      "detail": "{\"score\": 100, \"passed\": true, \"minimum_score\": 75, \"dimensions\": [{\"name\": \"functional_traceability\", \"score\": 100, \"weight\": 30, \"notes\": []}, {\"name\": \"maintainability\", \"score\": 100, \"weight\": 15, \"notes\": []}, {\"name\": \"security_hygiene\", \"score\": 100, \"weight\": 20, \"notes\": []}, {\"name\": \"ux_accessibility\", \"score\": 100, \"weight\": 15, \"notes\": []}, {\"name\": \"internationalization\", \"score\": 100, \"weight\": 10, \"notes\": []}, {\"name\": \"delivery_readiness\", \"score\": 100, \"weight\": 10, \"notes\": []}], \"blockers\": []}"
+    },
+    "security_gate": {
+      "ok": true,
+      "detail": "{\"passed\": true, \"findings\": []}"
+    },
+    "native_android": {
+      "ok": true,
+      "detail": ""
+    },
+    "native_ios": {
+      "ok": true,
+      "detail": ""
+    },
+    "games": {
+      "ok": true,
+      "detail": ""
+    },
+    "secret_scan": {
+      "ok": true,
+      "detail": "0 findings"
+    }
+  },
+  "live_claims": {
+    "gpu_model_verified": false,
+    "docker_sandbox_verified": false,
+    "postgres_redis_s3_verified": false,
+    "signed_mobile_binaries_verified": false
+  }
+}

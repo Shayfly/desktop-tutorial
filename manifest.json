@@ -1,0 +1,42 @@
+{
+  "name": "Omni Creator V27 Rights & Company OS",
+  "based_on": "Omni Creator V26 Universal Pro Reviewer Release",
+  "legacy_behavior_baseline": "Omni Creator V10 Production validation",
+  "status": "reviewer_release_code_complete_external_live_gates_pending",
+  "implemented": [
+    "all_v26_creator_security_and_universal_product_contracts",
+    "v10_behavior_parity_gate",
+    "rights_ip_risk_triage",
+    "project_rights_manifest_and_provenance",
+    "copyright_trademark_persona_voice_performer_music_right_categories",
+    "us_eu_israel_jurisdiction_baseline_profiles",
+    "fail_closed_publish_gate_for_unresolved_high_risk_rights",
+    "customer_evidence_upload_unverified_by_default",
+    "separate_rights_reviewer_authorization",
+    "original_alternative_non_evasive_workflow",
+    "eu_ai_transparency_disclosure_analysis_hook",
+    "control_plane_and_generated_app_secret_separation",
+    "one_founder_company_os_13_departments",
+    "cross_functional_release_council",
+    "v27_control_center_rights_visibility",
+    "200_case_offline_unified_benchmark",
+    "release_lineage_backup_and_recovery_policy"
+  ],
+  "truth": {
+    "rights_engine_is_legal_advice": false,
+    "worldwide_legal_completeness_claimed": false,
+    "live_global_trademark_clearance_search": false,
+    "forensic_multimedia_similarity_engine": false,
+    "customer_can_self_verify_rights_evidence": false,
+    "separate_reviewer_credential_required": true,
+    "real_open_weight_gpu_model_run_in_this_environment": false,
+    "live_postgres_redis_s3_tests_run_in_this_environment": false,
+    "live_docker_hostile_tests_run_in_this_environment": false,
+    "signed_android_aab": false,
+    "signed_ios_ipa": false,
+    "offline_200_case_unified_benchmark_completed": true,
+    "real_http_v27_acceptance_completed": true,
+    "unit_and_nonexternal_integration_suite_completed": true,
+    "external_paid_models_enabled_by_default": false
+  }
+}

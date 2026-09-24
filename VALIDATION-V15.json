@@ -1,0 +1,21 @@
+{
+  "compile_pass": true,
+  "tests_pass": true,
+  "tests_run": 33,
+  "preliminary_zip_integrity": true,
+  "clean_compile_pass": true,
+  "clean_tests_pass": true,
+  "clean_tests_run": 33,
+  "required_files_present": true,
+  "missing_required_files": [],
+  "external_services_not_verified": [
+    "PostgreSQL live",
+    "Redis/RQ live",
+    "S3/MinIO live",
+    "Docker sandbox daemon",
+    "DNS/TLS",
+    "Android signing",
+    "iOS signing",
+    "payment webhooks"
+  ]
+}

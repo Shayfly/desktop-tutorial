@@ -1,0 +1,59 @@
+{
+  "version": "V17",
+  "working_tree_compile": true,
+  "working_tree_tests": true,
+  "test_count": 47,
+  "real_environment_preflight": {
+    "ready": false,
+    "issues": [
+      {
+        "code": "missing_python_psycopg",
+        "message": "Required production capability is unavailable: python_psycopg.",
+        "blocking": true
+      },
+      {
+        "code": "missing_python_redis",
+        "message": "Required production capability is unavailable: python_redis.",
+        "blocking": true
+      },
+      {
+        "code": "missing_python_rq",
+        "message": "Required production capability is unavailable: python_rq.",
+        "blocking": true
+      },
+      {
+        "code": "missing_docker_or_podman",
+        "message": "Required production capability is unavailable: docker_or_podman.",
+        "blocking": true
+      }
+    ],
+    "capabilities": {
+      "python_psycopg": false,
+      "python_redis": false,
+      "python_rq": false,
+      "python_boto3": true,
+      "docker_or_podman": false,
+      "java": true,
+      "node": true,
+      "gradle": false
+    }
+  },
+  "staging_simulation": "PASS",
+  "migration_versions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "secret_scan_findings": 0,
+  "external_live_gates": {
+    "postgres_service": "NOT_RUN",
+    "redis_service": "NOT_RUN",
+    "object_storage_service": "NOT_RUN",
+    "docker_sandbox": "NOT_RUN",
+    "android_signing": "NOT_RUN",
+    "ios_signing": "NOT_RUN"
+  }
+}

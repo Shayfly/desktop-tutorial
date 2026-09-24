@@ -1,0 +1,42 @@
+{
+  "release": "V26 Universal Pro Reviewer Release",
+  "date": "2026-09-22",
+  "tests": {
+    "passed": 194,
+    "skipped_live_only": 9,
+    "failed": 0,
+    "total": 203
+  },
+  "production_http_acceptance": {
+    "register": 200,
+    "build_status": "READY",
+    "file_count": 69,
+    "creative_planned": 7,
+    "creative_materialized": 0,
+    "cross_user_history_status": 403,
+    "history_versions": 2,
+    "export_status": 200,
+    "export_zip_valid": true,
+    "promote_status": 200,
+    "runtime_unauth_status": 401,
+    "runtime_first_role": "admin",
+    "runtime_create_status": 200,
+    "runtime_item": {
+      "id": "items-00001",
+      "name": "hello",
+      "_created_by": "appadmin@example.com"
+    }
+  },
+  "secret_scan_findings": 0,
+  "javascript_syntax": "PASS",
+  "truth": {
+    "open_weight_gpu_live": false,
+    "real_multimodal_gpu_live": false,
+    "docker_hostile_live": false,
+    "postgres_redis_s3_live": false,
+    "creator_postgres_persistence_wired": false,
+    "signed_mobile_binaries": false,
+    "reviewer_release_ready": true,
+    "public_worldwide_launch_ready": false
+  }
+}

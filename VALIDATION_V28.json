@@ -1,0 +1,266 @@
+{
+  "release": "148AI V28 Launch Candidate Reviewer",
+  "date": "2026-09-22",
+  "brand": {
+    "name": "148AI",
+    "tagline": "Build Anything.",
+    "working_domain": "148ailabs.com",
+    "domain_owned_verified": false,
+    "trademark_clearance_completed": false
+  },
+  "tests": {
+    "full_pytest": "231 passed, 11 skipped",
+    "v28_tests": "22 passed",
+    "benchmark": {
+      "cases": 200,
+      "passed": 200,
+      "failed": 0
+    },
+    "hostile_static_ok": true,
+    "international_gate_ok": true,
+    "secret_scan_findings": 0
+  },
+  "http_acceptance": {
+    "brand_manifest_in_export": true,
+    "default_plan": "free",
+    "export_status": 200,
+    "free_live_build_status": 402,
+    "free_live_detail": "cost class not included in plan",
+    "free_third_project_status": 402,
+    "integration_blockers": [
+      "open-weight-model",
+      "postgres",
+      "redis",
+      "sandbox-runner"
+    ],
+    "integration_payload_contains_secret_values": false,
+    "integrations_status": 200,
+    "launch_candidate": "V28 148AI Launch Candidate",
+    "plans": [
+      "free",
+      "basic",
+      "pro",
+      "business",
+      "enterprise"
+    ],
+    "pricing_status": 200,
+    "product": "148AI",
+    "project1_status": 200,
+    "project2_status": 200,
+    "provenance_in_export": true,
+    "register_status": 200,
+    "risky_build_status": 200,
+    "risky_promote_status": 409,
+    "risky_rights": "LEGAL_REVIEW_REQUIRED",
+    "safe_brand": "148AI",
+    "safe_build_status": 200,
+    "safe_files": 80,
+    "safe_promote_status": 200,
+    "safe_rights": "CLEAR",
+    "status_code": 200,
+    "unauthorized_plan_upgrade_status": 401,
+    "creator_without_billing_admin_key_status": 403
+  },
+  "local_load_smoke": {
+    "url": "http://127.0.0.1:8098/api/status",
+    "requests": 200,
+    "concurrency": 20,
+    "ok": 200,
+    "errors": 0,
+    "success_rate": 1.0,
+    "p95_ms": 91,
+    "rps": 286.25
+  },
+  "plans": {
+    "free": {
+      "code": "free",
+      "name": "Free",
+      "monthly_price_usd": "0",
+      "annual_price_usd": "0",
+      "included_credits": 150,
+      "paid_provider_budget_usd": "0",
+      "max_projects": 2,
+      "seats": 1,
+      "allowed_cost_classes": [
+        "zero"
+      ],
+      "branding": "required",
+      "removable_branding": false,
+      "white_label": false,
+      "priority": "standard",
+      "features": [
+        "deterministic/local zero-paid-provider builds",
+        "version history",
+        "rights/IP checks",
+        "export with 148AI branding",
+        "community/self-service support"
+      ],
+      "status": "prelaunch-proposed",
+      "variable_margin_floor": null
+    },
+    "basic": {
+      "code": "basic",
+      "name": "Basic",
+      "monthly_price_usd": "12",
+      "annual_price_usd": "120",
+      "included_credits": 900,
+      "paid_provider_budget_usd": "2.50",
+      "max_projects": 10,
+      "seats": 1,
+      "allowed_cost_classes": [
+        "zero",
+        "light",
+        "standard"
+      ],
+      "branding": "subtle-required",
+      "removable_branding": false,
+      "white_label": false,
+      "priority": "standard",
+      "features": [
+        "everything in Free",
+        "budgeted local/open-weight AI",
+        "standard code repair",
+        "limited image/audio materialization",
+        "private projects",
+        "email support"
+      ],
+      "status": "prelaunch-proposed",
+      "variable_margin_floor": "0.792"
+    },
+    "pro": {
+      "code": "pro",
+      "name": "Pro",
+      "monthly_price_usd": "39",
+      "annual_price_usd": "390",
+      "included_credits": 4000,
+      "paid_provider_budget_usd": "10",
+      "max_projects": 50,
+      "seats": 1,
+      "allowed_cost_classes": [
+        "zero",
+        "light",
+        "standard",
+        "advanced",
+        "heavy"
+      ],
+      "branding": "optional",
+      "removable_branding": true,
+      "white_label": false,
+      "priority": "priority",
+      "features": [
+        "everything in Basic",
+        "advanced model routing",
+        "deep repair loops",
+        "image/audio/music/voice",
+        "video/3D within usage budget",
+        "mobile/game pipelines",
+        "remove visible 148AI branding",
+        "priority builds"
+      ],
+      "status": "prelaunch-proposed",
+      "variable_margin_floor": "0.744"
+    },
+    "business": {
+      "code": "business",
+      "name": "Business",
+      "monthly_price_usd": "99",
+      "annual_price_usd": "990",
+      "included_credits": 12000,
+      "paid_provider_budget_usd": "25",
+      "max_projects": 250,
+      "seats": 5,
+      "allowed_cost_classes": [
+        "zero",
+        "light",
+        "standard",
+        "advanced",
+        "heavy",
+        "extreme"
+      ],
+      "branding": "white-label-eligible",
+      "removable_branding": true,
+      "white_label": true,
+      "priority": "high",
+      "features": [
+        "everything in Pro",
+        "5 seats",
+        "team/RBAC workflows",
+        "API access",
+        "white-label exports",
+        "higher media/GPU budget",
+        "shared projects",
+        "audit/Company OS",
+        "priority support"
+      ],
+      "status": "prelaunch-proposed",
+      "variable_margin_floor": "0.747"
+    },
+    "enterprise": {
+      "code": "enterprise",
+      "name": "Enterprise",
+      "monthly_price_usd": null,
+      "annual_price_usd": null,
+      "included_credits": 0,
+      "paid_provider_budget_usd": null,
+      "max_projects": null,
+      "seats": null,
+      "allowed_cost_classes": [
+        "zero",
+        "light",
+        "standard",
+        "advanced",
+        "heavy",
+        "extreme"
+      ],
+      "branding": "contract",
+      "removable_branding": true,
+      "white_label": true,
+      "priority": "dedicated",
+      "features": [
+        "custom usage contract",
+        "SSO/SCIM target",
+        "custom data residency",
+        "dedicated capacity",
+        "custom SLA/support",
+        "security/compliance review"
+      ],
+      "status": "prelaunch-proposed",
+      "variable_margin_floor": null
+    }
+  },
+  "billing_safety": [
+    "No self-service plan assignment without billing-admin authorization",
+    "Checkout fails closed when Stripe is not configured",
+    "Invalid Stripe webhook signature cannot upgrade a plan",
+    "Valid signed Stripe webhook can assign Basic/Pro/Business"
+  ],
+  "verified_locally": [
+    "148AI branded Control Center",
+    "Free/Basic/Pro/Business/Enterprise pricing contracts",
+    "hard provider cost caps",
+    "branding/provenance policy",
+    "Rights/IP publish gate",
+    "Company OS inherited from V27",
+    "private creator accounts/projects in reviewer mode",
+    "PostgreSQL account/subscription adapters and migrations",
+    "secret-safe Integration Center",
+    "20 locale contracts with RTL for Hebrew/Arabic",
+    "V10-V27 regression compatibility"
+  ],
+  "not_live_verified": [
+    "creator PostgreSQL persistence",
+    "Redis",
+    "S3/R2",
+    "open-weight GPU model",
+    "remote Docker sandbox",
+    "media generation providers",
+    "Stripe checkout against real Stripe",
+    "Resend live email",
+    "signed Android AAB",
+    "signed iOS IPA",
+    "public DNS/TLS",
+    "148AI trademark clearance",
+    "human translation QA for all 20 locales"
+  ],
+  "truth_note": "Configured contracts and adapters are not reported as live integrations until real external infrastructure and credentials are tested."
+}
