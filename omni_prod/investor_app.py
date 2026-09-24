@@ -49,11 +49,12 @@ from .pricing import CostClass, catalog_payload
 from .creator_accounts import PostgresAccountService
 from .subscription_store import PostgresSubscriptionService
 from .db import DatabasePool
-from .queueing import enqueue_build
+from .queueing import enqueue_build, preview_host_queue
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .preview_repository import PostgresPreviewRepository
-from .preview_runtime import DockerPreviewProvider
+from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
+                              external_preview_url, parse_preview_contract)
 from .rights_ip import JURISDICTIONS
 from .universal_brain import OmniUniversalBrain
 from .brand_clearance import brand_readiness
@@ -135,6 +136,36 @@ def _build_v28_platform():
         return plat
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
+
+def _async_build_mode()->bool:
+    """M1 blocker resolution: True when this deployment runs the durable
+    async pipeline end to end -- Postgres persistence AND a durable (S3-backed)
+    project workspace shared by API and workers. In that mode the async flow
+    (POST /api/v28/projects/{id}/builds + worker) *replaces* every route that
+    runs a build synchronously inside the API process; those return 410 so
+    none of them survives as an unbilled, ungated shadow path. Outside that
+    mode (local demo / memory persistence) the legacy routes are unchanged."""
+    if os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()!='postgres' or _v28_pool is None:
+        return False
+    try:
+        ensure_durable_workspace(_v28.engine.workspace)
+    except PreviewBackendUnavailable:
+        return False
+    return True
+
+def _reject_legacy_sync_build()->None:
+    if _async_build_mode():
+        raise HTTPException(410,'Synchronous builds are disabled in this deployment. Use POST '
+                                '/api/v28/projects/{project_id}/builds (durable async pipeline) and poll '
+                                'GET /api/v28/projects/{project_id}/builds/{build_id}.')
+
+def _require_durable_backend(purpose:str)->None:
+    if os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()!='postgres' or _v28_pool is None:
+        raise HTTPException(503,f'{purpose} requires OMNI_CREATOR_PERSISTENCE=postgres')
+    try:
+        ensure_durable_workspace(_v28.engine.workspace,purpose=purpose)
+    except PreviewBackendUnavailable as exc:
+        raise HTTPException(503,str(exc)) from exc
 _integrations_v28=IntegrationCenter()
 _stripe_webhooks_v28=StripeSubscriptionWebhookProcessor(_v28.subscriptions)
 
@@ -355,6 +386,7 @@ def _live_engine()->AutonomousProductEngine:
 
 @app.post('/api/live/build')
 def live_build(req:PromptRequest)->dict:
+    _reject_legacy_sync_build()
     try:
         engine,gateway=_live_components()
         context=_memory.context(req.project_id,max_chars=4000) if _memory.list(req.project_id) else ''
@@ -461,6 +493,7 @@ def v26_brain_plan(req:V26BuildRequest,request:Request)->dict:
 
 @app.post('/api/v26/projects/{project_id}/live-build')
 def v26_live_build(project_id:str,req:V26BuildRequest,request:Request)->dict:
+    _reject_legacy_sync_build()
     token=_v26_bearer(request)
     try:
         account,key=_v26.resolve_project_key(token=token,project_id=project_id)
@@ -777,6 +810,7 @@ def v27_release_council_evaluate(req:V27ReleaseCouncilRequest)->dict:
 
 @app.post('/api/v27/projects/{project_id}/live-build')
 def v27_live_build(project_id:str,req:V27BuildRequest,request:Request)->dict:
+    _reject_legacy_sync_build()
     token=_v27_bearer(request)
     try:
         account,key=_v27.resolve_project_key(token=token,project_id=project_id)
@@ -965,6 +999,7 @@ def v28_projects(request: Request) -> dict:
 
 @app.post('/api/v28/projects/{project_id}/build')
 def v28_build(project_id: str, req: V27BuildRequest, request: Request) -> dict:
+    _reject_legacy_sync_build()
     try:
         return _v28.build(token=_v28_bearer(request), project_id=project_id, prompt=req.prompt, target_markets=tuple(req.target_markets))
     except PermissionError as exc:
@@ -1065,21 +1100,18 @@ def v28_promote(project_id: str, request: Request, version_id: str | None = None
 # existing pluralization) instead. The GET status endpoint path is applied
 # exactly as specified since no collision exists there.
 #
-# KNOWN GAP (not fixed here, flagged rather than papered over): the enqueued
-# job path "omni_prod.worker_tasks.execute_live_build_job" does not exist
-# anywhere in this repository, in either pasted patch, or in this session's
-# additions. A build submitted here will be durably persisted, credited, and
-# enqueued (202 QUEUED), but no worker will ever pick it up -- it will sit at
-# phase=QUEUED indefinitely until that task function is written to actually
-# drive the existing AutonomousProductEngine (see _live_components() above)
-# and call jobs.transition(...)/subscriptions.settle()/release() as it
-# progresses. This was not part of either pasted patch.
+# The worker (omni_prod/worker_tasks.py::execute_live_build_job) runs the
+# same verification + quality + security + rights gates as v28_live_build and
+# is the only build path in async mode (see _async_build_mode()). If Redis is
+# unavailable at enqueue time the build is still durably accepted; the
+# outbox relay (python -m omni_prod.build_outbox_relay) dispatches it later.
 
 @app.post('/api/v28/projects/{project_id}/builds')
 def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> dict:
     """Async durable build pipeline (M1 Revision 2, P0-1)."""
-    if os.getenv('OMNI_CREATOR_PERSISTENCE') != 'postgres':
-        raise HTTPException(503, "Durable async build requires OMNI_CREATOR_PERSISTENCE=postgres")
+    # Also requires the durable workspace: the worker commits the version in
+    # its own process, which the API can only read back if storage is shared.
+    _require_durable_backend('Durable async build')
 
     token = _v28_bearer(request)
     try:
@@ -1113,23 +1145,34 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                         cur, build_id=build_id, user_id=account.id, internal_project_id=key,
                         prompt=req.prompt, target_markets=tuple(req.target_markets),
                         branding_visible=brand_visible, white_label_name=white_label,
-                        rights_evidence=rights_evidence,
+                        rights_evidence=rights_evidence, public_project_id=project_id,
                     )
                     jobs.create_with_cursor(cur, build_id=build_id, project_id=key, version_id="pending")
                     jobs.create_outbox(cur, build_id=build_id)
 
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
-        enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
-        jobs.mark_outbox_enqueued(build_id)
+        try:
+            enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
+            jobs.mark_outbox_enqueued(build_id)
+            dispatch = "enqueued"
+        except Exception:
+            # The build, its reservation and its outbox row are already
+            # committed. Failing the request here would tell the client the
+            # build was rejected when it was in fact accepted; the outbox
+            # relay re-dispatches rows with enqueued_at IS NULL.
+            dispatch = "deferred"
 
-        return JSONResponse(status_code=202, content={"status": "queued", "build_id": build_id})
+        return JSONResponse(status_code=202, content={"status": "queued", "build_id": build_id, "dispatch": dispatch})
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
 
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}')
 def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
     token = _v28_bearer(request)
-    _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
 
     if not _v28_pool:
         raise HTTPException(503, "Durable build status requires OMNI_CREATOR_PERSISTENCE=postgres")
@@ -1147,71 +1190,116 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
             "repair_rounds": details.repair_rounds,
             "result_version_id": details.result_version_id,
             "artifact_key": details.artifact_key,
+            "error_code": details.error_code,
+            "evidence": details.evidence,
         }
     except KeyError:
         raise HTTPException(404, "Build not found or access denied")
 
 #
-# M3: real running preview (separate lifecycle from the build sandbox above).
+# M3 Revision 2: real running preview (separate lifecycle from the build sandbox).
 #
+# The API never talks to a Docker daemon: it validates, records durable state
+# and enqueues. Containers are started, probed and removed by workers, which
+# may be on other hosts (see worker_tasks.py / queueing.preview_host_queue).
+#
+
+_PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600'))
+
+def _preview_public_view(preview: dict, public_project_id: str) -> dict:
+    # Internal routing/runtime fields (container id, worker host/port, host
+    # workdir, internal tenant key) stay server-side.
+    return {
+        'id': preview['id'], 'project_id': public_project_id, 'version_id': preview['version_id'],
+        'status': preview['status'], 'preview_url': preview['preview_url'],
+        'error_message': preview['error_message'], 'created_at': preview['created_at'],
+        'expires_at': preview['expires_at'], 'stopped_at': preview.get('stopped_at'),
+        'logs': None, 'logs_available': False,
+        'logs_note': ('Live log streaming needs a distributed logging pipeline (worker -> log store) and is not '
+                      'implemented; the API does not reach into worker Docker daemons. Startup/health-probe '
+                      'failures include the container log tail in error_message.'),
+    }
+
+def _preview_key(project_id: str, request: Request) -> str:
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return key
 
 @app.post('/api/v28/projects/{project_id}/versions/{version_id}/previews')
 def v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
-    if os.getenv('OMNI_CREATOR_PERSISTENCE') != 'postgres':
-        raise HTTPException(503, "Real running preview requires OMNI_CREATOR_PERSISTENCE=postgres")
-
-    token = _v28_bearer(request)
+    _require_durable_backend('Real running preview')
     try:
-        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
-    except PermissionError as exc:
-        raise HTTPException(403, str(exc)) from exc
+        external_preview_url('probe', os.getenv('PREVIEW_DOMAIN_TEMPLATE'))
+    except PreviewBackendUnavailable as exc:
+        raise HTTPException(503, f'preview routing not configured: {exc}') from exc
+    key = _preview_key(project_id, request)
 
     try:
-        _v28.engine.workspace.get(project_id=key, version_id=version_id)
+        version = _v28.engine.workspace.get(project_id=key, version_id=version_id)
     except KeyError:
         raise HTTPException(404, 'version not found')
+    try:
+        parse_preview_contract(version.repository())
+    except NotPreviewable as exc:
+        # Deterministic property of an immutable version: answer now instead
+        # of creating a row and spending a worker slot to learn the same thing.
+        return JSONResponse(status_code=422, content={'status': 'NOT_PREVIEWABLE', 'reason': str(exc)})
 
     preview_id = f"prv_{uuid.uuid4().hex}"
     preview_repo = PostgresPreviewRepository(_v28_pool)
-    preview_repo.create(preview_id, key, version_id, ttl_seconds=3600)
+    preview_repo.create(preview_id, key, version_id, ttl_seconds=_PREVIEW_TTL_SECONDS)
 
     redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
-    enqueue_build(
-        redis_url, "omni_prod.worker_tasks.execute_preview_launch",
-        preview_id, key, version_id, job_id=preview_id,
-    )
+    try:
+        enqueue_build(redis_url, "omni_prod.worker_tasks.execute_preview_launch",
+                      preview_id, key, version_id, job_id=preview_id)
+    except Exception as exc:
+        preview_repo.mark_failed(preview_id, error=f'could not dispatch preview launch: {exc}'[:2000])
+        raise HTTPException(503, 'preview launch could not be dispatched; try again') from exc
 
-    return JSONResponse(status_code=202, content={"status": "starting", "preview_id": preview_id})
+    return JSONResponse(status_code=202, content={"status": "STARTING", "preview_id": preview_id})
 
 @app.get('/api/v28/projects/{project_id}/previews/{preview_id}')
 def v28_preview_status(project_id: str, preview_id: str, request: Request) -> dict:
-    token = _v28_bearer(request)
+    _require_durable_backend('Real running preview')
+    key = _preview_key(project_id, request)
     try:
-        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
-    except PermissionError as exc:
-        raise HTTPException(403, str(exc)) from exc
+        preview = PostgresPreviewRepository(_v28_pool).get(preview_id, key)
+    except KeyError:
+        raise HTTPException(404, "Preview not found or access denied")
+    return _preview_public_view(preview, project_id)
 
-    if not _v28_pool:
-        raise HTTPException(503, "Real running preview requires OMNI_CREATOR_PERSISTENCE=postgres")
-
-    preview_repo = PostgresPreviewRepository(_v28_pool)
+@app.delete('/api/v28/projects/{project_id}/previews/{preview_id}')
+def v28_preview_stop(project_id: str, preview_id: str, request: Request):
+    _require_durable_backend('Real running preview')
+    key = _preview_key(project_id, request)
     try:
-        preview = preview_repo.get(preview_id, key)
+        outcome = PostgresPreviewRepository(_v28_pool).request_stop(preview_id, key)
     except KeyError:
         raise HTTPException(404, "Preview not found or access denied")
 
-    if preview['status'] == 'RUNNING' and preview['internal_container_id']:
+    cleanup = 'not_needed'
+    if outcome['needs_cleanup']:
+        host = outcome.get('runtime_host')
+        redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
         try:
-            provider = DockerPreviewProvider(workspace=_v28.engine.workspace)
-            preview['logs'] = provider.logs(preview['internal_container_id'], tail=50)
+            # Container + workdir live on the launching worker's host; with
+            # no host recorded yet the launch task itself tears down (it sees
+            # STOPPED on its next conditional write).
+            enqueue_build(redis_url, "omni_prod.worker_tasks.stop_preview_task", preview_id,
+                          job_id=f'stop-{preview_id}-{uuid.uuid4().hex[:8]}',
+                          **({'queue_name': preview_host_queue(host)} if host else {}))
+            cleanup = 'enqueued'
         except Exception as exc:
-            # A live-logs fetch failing does not change the durable status
-            # returned above -- report the log failure honestly instead of
-            # silently omitting the field or failing the whole request.
-            preview['logs'] = None
-            preview['logs_error'] = str(exc)[:500]
+            # STOPPED is durable; cleanup is retried by repeating DELETE.
+            raise HTTPException(503, 'preview marked STOPPED but cleanup could not be dispatched; retry DELETE') from exc
 
-    return preview
+    return JSONResponse(status_code=202 if cleanup == 'enqueued' else 200,
+                        content={'preview_id': preview_id, 'status': outcome['status'],
+                                 'changed': outcome['changed'], 'cleanup': cleanup})
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
@@ -1237,6 +1325,7 @@ def v28_company_os(request: Request) -> dict:
 
 @app.post('/api/v28/projects/{project_id}/live-build')
 def v28_live_build(project_id: str, req: V27BuildRequest, request: Request) -> dict:
+    _reject_legacy_sync_build()
     token = _v28_bearer(request)
     usage_decision = None
     try:

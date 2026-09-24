@@ -551,3 +551,321 @@ need to describe multiple services?) that wasn't part of this directive's
 six steps. Flagging it explicitly, the way the master directive's own
 reporting rules ask for, rather than guessing at an answer and shipping it
 unreviewed.
+
+## Update: M3 Revision 2 + M1 blocker resolution
+
+All six steps applied natively. Every claim below is backed by a command in
+"Verification" at the end of this section. For the first time in this
+project, the preview runtime was exercised against a **real Docker daemon**
+(29.4.3, started inside this sandbox) — and that run found two bugs that every
+mocked test had passed over (items 3c and 4b). Where the directive's wording
+did not match the real code, it was adapted, with the evidence below.
+
+### Step 1 — M1 billing, gates, outbox, routing
+
+**1a. No `budget` object exists; the real spend ledger is used instead.**
+The directive says to settle with `budget.provider_cost_usd`. Nothing named
+that exists: `AutonomousResult` (`autonomous_core.py`) has no cost field, and
+`OpenAICompatibleGateway.complete()` reads only
+`payload['choices'][0]['message']['content']` and discards the provider's
+`usage` block. The only real spend signal is `RoutedModelGateway.state`
+(`external_spend_usd`, `external_calls`), incremented by
+`model_policy.authorize_model_call()` for every external call the platform
+authorized and dispatched (local/self-hosted calls cost 0 and are not
+counted). The worker could not see it — `_live_engine()` returns
+`_live_components()[0]` and drops the gateway — so the worker now calls
+`_live_components()` (the same call every synchronous live-build route makes).
+
+Rule, now in `worker_tasks.resolve_billing()`:
+
+| outcome | external spend or calls | action |
+|---|---|---|
+| READY | any | `settle(actual_provider_cost_usd=spent)` |
+| FAILED (gate or exception) | > 0 | `settle(actual_provider_cost_usd=spent)` |
+| FAILED (gate or exception) | none | `release()` |
+
+The evidence JSON labels this figure honestly: *authorized external-model
+spend ledger … provider-reported token usage is not captured*. Capturing real
+`usage` needs a change to `OpenAICompatibleGateway`, which was not asked for.
+
+**1b. READY now requires the canonical gates.** Before this change READY meant
+only `result.status == 'ready'` (sandbox verification). The canonical
+synchronous path `v28_live_build` computes release readiness as verification
+AND `assess_repository(...).passed` AND `hostile_repository_scan(...).passed`
+AND `_v28.rights.assess(...).publish_allowed`, and also adds the creative
+manifest, rights manifest and plan branding/provenance to the committed
+repository. The async worker skipped all of that. It now does exactly the
+same, rebuilding `RightsEvidence` from the JSONB stored in `build_requests`
+(which M1 already persisted for this purpose). The first failing gate is
+reported as `error_code`: `verification_failed` → `quality_gate_failed` →
+`security_gate_failed` → `rights_gate_not_clear`. The version is still
+committed on a gate failure (as in the sync path), so a user whose build is
+`rights_gate_not_clear` can add evidence or use the original alternative.
+Note the semantic cost of following the directive literally: a rights
+`REVIEW` build now ends in `FAILED`, where the sync path returned a version
+with `release_ready: false`. The `error_message` says the version was
+committed and what to do next.
+
+The branding step embeds the user-facing project id, which `build_requests`
+did not store (only the internal tenant key). Migration 015 adds a nullable
+`build_requests.public_project_id`; `create_request()` takes it as an
+optional keyword (old callers unaffected).
+
+**1c. Outbox relay (the "outbox blocker").** The API committed reservation +
+request + job + outbox row, then enqueued to Redis — but if Redis was down,
+the request returned 500 while the build was in fact durably accepted, and
+nothing ever retried it: credits stayed `RESERVED` and the job sat at
+`QUEUED` forever. Now the endpoint returns `202 {"dispatch": "deferred"}` in
+that case, and `PostgresBuildRepository.dispatch_pending_outbox()` (one row
+per transaction, `FOR UPDATE SKIP LOCKED`, rows younger than 30s left alone)
+re-dispatches them. Duplicate delivery is harmless because the worker's
+`QUEUED→RUNNING` transition is conditional. Runner:
+`python -m omni_prod.build_outbox_relay [--loop 15]`. **Nothing schedules it**
+— that is deployment configuration.
+
+**1d. Routing: the async flow replaces the sync path in async deployments.**
+`_async_build_mode()` is true when `OMNI_CREATOR_PERSISTENCE=postgres` AND the
+workspace is the durable `PostgresProjectWorkspace`. In that mode, **every
+route that runs a build synchronously inside the API process returns 410**:
+`POST /api/v28/projects/{id}/build`, `/api/v28/projects/{id}/live-build`,
+`/api/v27/projects/{id}/live-build`, `/api/v26/projects/{id}/live-build`, and
+the unauthenticated `/api/live/build`. The last one matters: it runs real
+model spend with no account and no billing, and in a deployment where the
+API shares the worker's `OMNI_ENABLE_LIVE_BUILD=1` it would have stayed open.
+`app.js` now posts to `/builds` and polls `/builds/{id}`, falling back to the
+legacy route only on 503 (async backend not configured).
+
+*Why the legacy routes are gated, not deleted:* they are the only build path
+in memory/demo mode, `scripts/run_v28_http_acceptance.py` depends on them,
+and `test_v23`/`test_v26`/`test_v28` exercise them through `fastapi`, which
+cannot run here — deleting them would be an unverifiable break. In memory
+mode `_async_build_mode()` returns False on its first line, so those tests
+are unaffected (static analysis; not runnable here). The v26/v27
+*deterministic* `/build` routes (in-memory legacy platforms, no model spend)
+are not gated.
+
+The async POST now also requires the durable workspace (503 otherwise): with
+postgres persistence but no S3, `_build_v28_platform()` leaves the in-memory
+workspace in place, so the worker would commit versions the API can never
+read back. `GET /builds/{id}` now returns `error_code` and the gate
+`evidence`, and maps `PermissionError` to 403 (it was an unhandled 500).
+
+### Step 2 — Preview manifest contract
+
+The generator prompt now requires `schema_version: 2`, `runtime`
+(`python:3.11-slim` | `node:20-slim`), `start`, `port`, `health_path` in
+`.omni/project.json`, and states the real runtime conditions: no install
+step, read-only filesystem except `/tmp`, unprivileged user, listen on
+`0.0.0.0:$PORT`. A model that can't meet them is told to omit the keys.
+`ProjectManifest` ignores unknown keys, so build/verify parsing is unchanged
+(pinned by a test).
+
+**"Target adapters" do not exist in this codebase** (grep: no adapter class,
+no `NOT_PREVIEWABLE`). The native equivalent is the contract boundary itself:
+`parse_preview_contract()` raises `NotPreviewable` for a missing/legacy
+manifest, wrong `schema_version` (including `"2"`, `True`, `2.0`), a runtime
+outside the allowlist, or a malformed start/port/health_path. The API
+answers `422 {"status": "NOT_PREVIEWABLE"}` without creating a row or using
+a worker, and the worker persists `NOT_PREVIEWABLE` as its own terminal
+status (migration 015 extends the CHECK constraint) — never FAILED, never
+RUNNING. The runtime allowlist is a security control, not a nicety: `runtime`
+comes from AI-generated output, and without it a repository could make the
+worker pull and run any image. Operators can override it with
+`OMNI_PREVIEW_ALLOWED_RUNTIMES`.
+
+### Step 3 — Secure Docker provider, dynamic ports
+
+Final argv (`build_run_argv()`, pure and unit-tested):
+```
+docker run --cpus=0.5 --memory=512m --pids-limit=64 --read-only --cap-drop=ALL
+  --security-opt=no-new-privileges --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+  --user 65534:65534 -e HOME=/tmp -e PORT=<port> -e PYTHONDONTWRITEBYTECODE=1
+  -d -p 127.0.0.1::<port> --name omni-preview-<id> --label omni.preview_id=<id>
+  --mount type=bind,src=<workdir>,dst=/workspace,readonly --workdir /workspace
+  <IMAGE> <START_CMD...>
+```
+then `docker port <cid> <port>/tcp` to read the port Docker chose.
+
+**3a. `-p ADDR::PORT` instead of the literal `-P`.** `-P` publishes only
+ports the image declares with `EXPOSE`; `python:3.11-slim` and `node:20-slim`
+declare none, so `-P` would publish nothing and every `docker port` lookup
+would fail. It also binds `0.0.0.0`, putting untrusted generated code on
+every interface of the worker host, around the routing layer. `-p
+127.0.0.1::PORT` keeps what the directive wants — Docker allocates the host
+port, so the draft-1 bind-then-release race is gone — on one interface
+(`OMNI_PREVIEW_BIND_ADDRESS`, default loopback). The live test confirms
+`HostPort: ""` in the request and a real allocated port in the result.
+
+**3b. Two additions beyond the directive's flag list.** `--user 65534:65534`:
+every listed flag constrains a *root* process, and the build sandbox already
+runs non-root. And `chmod 0755/0644` on the materialized source:
+`mkdtemp()` creates `0700`, which uid 65534 without `CAP_DAC_OVERRIDE`
+cannot read.
+
+**3c. Found by the live run: `/tmp` was not writable.** Docker's `--tmpfs`
+default mode is not world-writable, so uid 65534 got `PermissionError` on
+its first write to `/tmp` — the "writable scratch space" the directive asked
+for was unusable. Reproduced directly with and without `mode=1777`, fixed,
+and pinned by a unit test.
+
+**Draft-1 leak, confirmed.** Eight `omni-preview-prv_test*` directories from
+the previous phase's test run (13:41, mode `0700`) were still in `/tmp`,
+including ones from the *failure* tests (`docker run` non-zero exit, empty
+stdout) — draft 1 leaked the workdir even when the container never started.
+Rev2 removes the workdir on every failure path in `start()`, in every worker
+teardown, and in the stop task. After the full unit + live runs: 0 workdirs
+and 0 containers left.
+
+### Step 4 — Health probes, external URL
+
+`wait_until_healthy()` polls `http://<probe_host>:<host_port><health_path>`
+(default 30s, `OMNI_PREVIEW_HEALTH_TIMEOUT_SECONDS`). 2xx/3xx is healthy;
+404/5xx is not. Container liveness is checked **before** every attempt, so a
+dead container fails at once with its exit code instead of using up the
+budget. On any failure the worker captures `docker logs --tail 50`, then runs
+`docker rm -f`, deletes the workdir, and writes FAILED with the probe detail
+and the log tail. **RUNNING is written in exactly one place: after the probe
+passes** (pinned by an event-order test and by mutation testing).
+
+The persisted URL comes from `PREVIEW_DOMAIN_TEMPLATE`
+(`https://{preview_id}.preview.148ai.com`). `external_preview_url()` refuses a
+missing template or placeholder, a non-http(s) scheme, and any
+localhost/127.x/0.0.0.0/::1/`*.localhost` host. The API returns 503 if it is
+not configured, before creating anything.
+
+**4b. Found by the live run: a crash on boot lost its own diagnosis.** A
+container that exits immediately has its port bindings released, so `docker
+port` fails with "no public port published". Draft Rev2 treated that as a
+runtime error, removed the container, and reported `docker port failed`,
+losing the exit code and logs. Now `start()` checks liveness when the port
+lookup fails and returns the exited container with `host_port=None`. The
+worker then records `container exited before its port was published (exit
+code 3)` plus the log tail (`fatal: config missing` in the live test) before
+teardown. Pinned by two unit tests.
+
+### Step 5 — Distributed lifecycle, cleanup
+
+- **GET no longer calls `docker logs`.** It returns durable state with
+  `logs: null, logs_available: false` and a note saying live logs need a
+  distributed logging pipeline. Startup/probe failures already carry the log
+  tail in `error_message`. Internal fields (container id, worker host/port,
+  host workdir, internal tenant key) are no longer returned.
+- **Durable storage is enforced, not just the env var.** POST/GET/DELETE
+  return 503 unless the workspace is `PostgresProjectWorkspace`. The env-var
+  check alone was insufficient: postgres mode without S3 still uses
+  `MemoryProjectWorkspace`. The worker checks the same thing
+  (`ensure_durable_workspace`) and fails closed.
+- **`DELETE /api/v28/projects/{id}/previews/{preview_id}`**:
+  `request_stop()` (row lock, tenant-scoped) moves STARTING/RUNNING/EXPIRED to
+  STOPPED and enqueues `stop_preview_task`, which runs `docker rm -f` (a
+  missing container counts as already stopped), deletes the workdir, and sets
+  `cleaned_at`. Idempotent: a terminal preview returns 200 unchanged, and a
+  STOPPED-but-not-cleaned preview re-dispatches cleanup, so a retried DELETE
+  recovers from a failed enqueue.
+- **Host affinity.** A container and its bind-mounted workdir live on the
+  worker host that launched it; a stop task picked up by any other worker
+  would talk to the wrong daemon and the wrong filesystem. The launch task
+  records `runtime_host` (`OMNI_PREVIEW_RUNTIME_HOST` or hostname), and
+  DELETE enqueues cleanup on `omni-preview-host-<host>`
+  (`queueing.preview_host_queue`; `enqueue_build()` gained an optional
+  `queue_name`, default unchanged). **Preview workers must run
+  `rq worker omni-builds omni-preview-host-$OMNI_PREVIEW_RUNTIME_HOST`.** A
+  stop task that lands on the wrong host raises instead of marking the
+  preview clean.
+- **Stop-vs-launch race.** Every write the launch task makes
+  (`record_runtime`, `mark_running`, `mark_failed`) is conditional on
+  `status = 'STARTING'` and reports whether it applied. If a DELETE lands
+  while the worker is starting or probing, the worker sees the write refused
+  and tears down the container itself. The draft-1 unconditional
+  `update_status()` is removed (no callers outside the worker and its tests).
+- **`get_route(preview_id)`** returns `(runtime_host, host_port)` only while
+  the preview is RUNNING and unexpired — the lookup the external router needs.
+
+### Tests
+
+`tests/test_m3_preview_logic.py`, rewritten: **85 tests**, including every
+case the directive asked for — argv ordering (security flags first in exact
+order, then options, then IMAGE, then START_CMD; nothing after the image
+except the command), RUNNING impossible before a successful probe
+(event-order assertions, stop-during-probe, stop-before-record), and
+memory-only workspace rejected (for previews, for the preview launch task,
+and for the build worker). Also covered: the billing table above against a
+spend ledger produced by the real `authorize_model_call()`, gate ordering,
+repository SQL (conditional writes, tenant scoping, `make_interval`), and the
+outbox relay.
+
+*Mutation check* (scratch script, not committed): 15 deliberate regressions,
+each applied alone — RUNNING before the probe, release despite spend,
+rights/security gate skipped, localhost URL persisted, `--read-only`
+dropped, image/command swapped, literal `-P`, allowlist removed, memory
+workspace accepted, dead container still probed, `rmtree` of any path,
+unconditional `mark_running`, relay never enqueues. **All 15 caught.**
+
+*Live Docker test* (new, `tests/integration/test_live_preview_runtime.py`,
+gated by `OMNI_RUN_LIVE_PREVIEW=1`, runtime `OMNI_PREVIEW_TEST_RUNTIME`): the
+real provider and the real `_run_preview_launch`/`_run_preview_stop`, with an
+in-memory stand-in for the Postgres repository. It checks `docker inspect`
+(ReadonlyRootfs, CapDrop ALL, no-new-privileges, 512 MiB, 0.5 CPU, pids 64,
+tmpfs, user 65534, loopback binding with a Docker-chosen port), real
+HTTP content through the allocated port, that writes to `/workspace` and `/`
+fail while writes to `/tmp` succeed, that uid is 65534, and full cleanup — plus
+the crash-on-boot, HTTP-500 timeout, and bound-to-container-loopback cases.
+**Honest caveat on the image:** the registry is still blocked here, so this
+did not run on `python:3.11-slim`. It ran on `omni-local/python-host:3.11`, an
+image built with `docker import` from this host's own Python 3.11.15
+interpreter and stdlib, allowed through the operator override. The Docker
+behaviour tested (flags, ports, mounts, probe, teardown) does not depend on
+the image, but the official image itself has not been exercised.
+
+*Frontend* (scratch Node harness, not committed): the real `app.js` run in
+`vm` with a stubbed DOM and `fetch`. Async mode: POST `/builds`, three polls,
+final `ready · version ver_9`, legacy route never called. Demo mode: 503,
+then legacy `/build`. A 402 is surfaced with no fallback. A gate failure
+shows `rights_gate_not_clear` with a REVIEW badge.
+
+### Verification
+
+```
+$ python3 -m compileall -q omni_prod tests infra scripts        -> exit 0
+$ node --check omni_prod/assets/app.js                           -> OK
+$ python3 -m unittest tests.test_m3_preview_logic                -> Ran 85 tests ... OK
+$ python3 -m unittest <all 15 non-fastapi test modules>          -> Ran 187 tests ... OK
+      (the same 102 pre-existing tests, unmodified, + 85 M3)
+$ python3 -m unittest discover -s tests/integration              -> OK (skipped=15)
+$ OMNI_RUN_LIVE_PREVIEW=1 OMNI_PREVIEW_TEST_RUNTIME=omni-local/python-host:3.11 \
+    python3 -m unittest tests.integration.test_live_preview_runtime -v
+test_app_bound_to_container_loopback_is_not_reported_running ... ok
+test_crashing_app_is_failed_with_exit_code_and_logs_then_removed ... ok
+test_healthy_app_runs_hardened_and_is_fully_cleaned_up ... ok
+test_unhealthy_app_times_out_and_is_removed ... ok
+Ran 4 tests in 10.540s
+OK
+leftover omni-preview workdirs: 0   leftover preview containers: 0
+```
+
+### Not verified here / still open
+
+- **FastAPI routes** (`/builds`, the 410 guards, POST/GET/DELETE previews) and
+  the three `execute_*`/`stop_preview_task` wrappers were not executed here:
+  `fastapi` still cannot be installed. They were compiled and statically
+  name-checked. All their decisions live in the injected `_run_*` functions
+  and pure helpers tested above.
+- **Migration 015 and all repository SQL** have not run against real
+  Postgres (no psycopg or Postgres here). The SQL was checked against the
+  schema by reading it, and the constraint name `project_previews_status_check`
+  follows Postgres's naming rule for 014's inline CHECK.
+- **Not scheduled anywhere:** `build_outbox_relay`, and `mark_expired()`,
+  which also does not stop containers (a DELETE on an EXPIRED preview does
+  clean it up). An expiry sweep that enqueues cleanup is the natural next
+  step.
+- **The router behind `PREVIEW_DOMAIN_TEMPLATE`** (wildcard DNS + TLS + a
+  proxy to `get_route()`'s upstream) is infrastructure outside this
+  repository. Until it exists, a RUNNING preview's URL is correct by contract
+  but not yet reachable.
+- **Previews have no install step.** Apps that need third-party packages
+  fail the health probe honestly (see the prompt text). Real dependency
+  support needs an image-build stage, which is natural M4 scope.
+- **Outbound network from preview containers is not restricted** (default
+  bridge). An egress policy is a remaining hardening item.
+- **The spend figure is an authorized-estimate ledger,** not provider-measured
+  usage (1a).

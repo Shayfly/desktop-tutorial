@@ -16,6 +16,18 @@ _GENERATOR_SYSTEM = (
     '{"files":[{"path":"...","content":"..."}]}. '
     'Generate a coherent runnable repository. Include .omni/project.json with build '
     'commands and verification commands mapped to acceptance_ids. Commands must be argv arrays, not shell strings. '
+    # M3 Revision 2: versioned preview contract, parsed by
+    # preview_runtime.parse_preview_contract(). Build/verify keys are unchanged
+    # (ProjectManifest ignores unknown keys).
+    'The same .omni/project.json must also declare the running-preview contract exactly as: '
+    '"schema_version": 2, "runtime": "python:3.11-slim" or "node:20-slim", '
+    '"start": argv array that starts the app server, "port": integer the server listens on, '
+    '"health_path": URL path that returns HTTP 200 once the app is ready (e.g. "/"). '
+    'The preview container runs "start" from the repository root as committed: no install step runs first, '
+    'the filesystem is read-only except /tmp, it runs as an unprivileged user, and it must listen on 0.0.0.0 '
+    'at "port" (also provided as the PORT environment variable). Prefer a start command that needs only the '
+    'runtime standard library. If the product cannot be served that way, omit the preview keys: the platform '
+    'then reports the version as NOT_PREVIEWABLE instead of faking a preview. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product.'
 )
 _REPAIR_SYSTEM = (

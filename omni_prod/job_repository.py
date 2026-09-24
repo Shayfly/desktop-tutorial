@@ -14,6 +14,12 @@ class BuildJobDetails:
     repair_rounds: int
     result_version_id: str | None
     artifact_key: str | None
+    # M1 blocker resolution: surfaced so API clients can see *which* gate
+    # failed (verification / quality / security / rights) and the gate
+    # evidence, not just a bare FAILED. Defaulted -> existing constructors
+    # keep working.
+    error_code: str | None = None
+    evidence: dict | None = None
 
 
 class PostgresBuildRepository:
@@ -113,19 +119,22 @@ class PostgresBuildRepository:
 
     def create_request(self, cur, *, build_id: str, user_id: str, internal_project_id: str, prompt: str,
                         target_markets: tuple, branding_visible: bool | None, white_label_name: str | None,
-                        rights_evidence: list) -> None:
+                        rights_evidence: list, public_project_id: str | None = None) -> None:
+        # public_project_id (migration 015): the worker's branding/provenance
+        # step embeds the user-facing project id, which the internal tenant
+        # key does not reveal. Optional keyword -> old call sites unaffected.
         cur.execute(
-            "INSERT INTO build_requests(build_id, user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)",
-            (build_id, user_id, internal_project_id, prompt, json.dumps(list(target_markets)), branding_visible, white_label_name, json.dumps(rights_evidence))
+            "INSERT INTO build_requests(build_id, user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence, public_project_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)",
+            (build_id, user_id, internal_project_id, prompt, json.dumps(list(target_markets)), branding_visible, white_label_name, json.dumps(rights_evidence), public_project_id)
         )
 
     def get_request(self, build_id: str) -> dict:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence FROM build_requests WHERE build_id = %s", (build_id,))
+                cur.execute("SELECT user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence, public_project_id FROM build_requests WHERE build_id = %s", (build_id,))
                 row = cur.fetchone()
                 if not row: raise KeyError("Build request not found")
-                return {"user_id": row[0], "internal_project_id": row[1], "prompt": row[2], "target_markets": tuple(row[3]), "branding_visible": row[4], "white_label_name": row[5], "rights_evidence": row[6]}
+                return {"user_id": row[0], "internal_project_id": row[1], "prompt": row[2], "target_markets": tuple(row[3]), "branding_visible": row[4], "white_label_name": row[5], "rights_evidence": row[6], "public_project_id": row[7]}
 
     def create_with_cursor(self, cur, *, build_id: str, project_id: str, version_id: str) -> None:
         """Renamed from the pasted patch's create(cur, ...) to avoid colliding
@@ -144,6 +153,44 @@ class PostgresBuildRepository:
                 with conn.cursor() as cur:
                     cur.execute("UPDATE build_outbox SET enqueued_at = now() WHERE build_id = %s", (build_id,))
 
+    def dispatch_pending_outbox(self, enqueue, *, older_than_seconds: int = 30, limit: int = 100) -> list[str]:
+        """Transactional-outbox relay (M1 blocker resolution).
+
+        The API commits reservation + request + job + outbox row atomically,
+        *then* enqueues to Redis. If Redis is down at that moment the build is
+        durably accepted but was never dispatched, and before this method
+        nothing ever retried it: the credits stayed RESERVED and the job sat
+        at QUEUED forever. This re-dispatches such rows, one per transaction,
+        with FOR UPDATE SKIP LOCKED so concurrent relays never double-claim a
+        row. `older_than_seconds` leaves rows the API is still in the middle
+        of enqueueing alone. Duplicate delivery (enqueue succeeded, commit
+        failed) is safe: the worker's QUEUED->RUNNING transition is
+        conditional, so a second delivery is a no-op."""
+        dispatched: list[str] = []
+        for _ in range(max(0, int(limit))):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            SELECT build_id FROM build_outbox
+                            WHERE enqueued_at IS NULL
+                              AND created_at < now() - make_interval(secs => %s)
+                            ORDER BY id
+                            LIMIT 1
+                            FOR UPDATE SKIP LOCKED
+                            """,
+                            (int(older_than_seconds),),
+                        )
+                        row = cur.fetchone()
+                        if not row:
+                            return dispatched
+                        build_id = row[0]
+                        enqueue(build_id)  # raises -> transaction rolls back, row stays pending
+                        cur.execute("UPDATE build_outbox SET enqueued_at = now() WHERE build_id = %s", (build_id,))
+            dispatched.append(build_id)
+        return dispatched
+
     def update_phase(self, build_id: str, phase: str, message: str = "") -> None:
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -153,7 +200,7 @@ class PostgresBuildRepository:
     def get_details(self, build_id: str, internal_project_id: str) -> BuildJobDetails:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT status, phase, message, error_message, repair_rounds, result_version_id, artifact_key FROM build_jobs WHERE id = %s AND project_id = %s", (build_id, internal_project_id))
+                cur.execute("SELECT status, phase, message, error_message, repair_rounds, result_version_id, artifact_key, error_code, evidence_json FROM build_jobs WHERE id = %s AND project_id = %s", (build_id, internal_project_id))
                 row = cur.fetchone()
                 if not row: raise KeyError("Job not found or access denied")
-                return BuildJobDetails(build_id=build_id, status=row[0], phase=row[1], message=row[2], error_message=row[3], repair_rounds=row[4], result_version_id=row[5], artifact_key=row[6])
+                return BuildJobDetails(build_id=build_id, status=row[0], phase=row[1], message=row[2], error_message=row[3], repair_rounds=row[4], result_version_id=row[5], artifact_key=row[6], error_code=row[7], evidence=row[8])

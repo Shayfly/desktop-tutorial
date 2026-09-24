@@ -1,166 +1,404 @@
 from __future__ import annotations
 
-"""RQ worker entrypoint for the M1 durable async build pipeline.
+"""RQ worker entrypoints: M1 durable async builds and M3 real running previews.
 
-Enqueued (see investor_app.py's v28_build_async) as
-"omni_prod.worker_tasks.execute_live_build_job" with the build_id as the sole
-payload -- no bearer token, no secret, no process-local state, per the M1
-spec. Everything this function needs is reconstructed from durable Postgres
-state via PostgresBuildRepository, so it can run in a separate worker process
-(or be retried in a new one) with nothing carried over from the request that
-created the job.
+Each entrypoint is a thin wrapper that lazily imports `.investor_app` (so this
+module stays importable without fastapi) and delegates to a `_run_*` function
+whose dependencies are all injected. The `_run_*` functions hold every
+decision -- billing, gates, state transitions, cleanup -- and are what
+tests/test_m3_preview_logic.py exercises.
 
-DEVIATION FROM THE LITERAL M1-COMPLETION INSTRUCTION: it specified calling
-`_v28.engine.build(prompt)`. `_v28.engine` is `UnifiedOmniEngine`
-(omni_prod/unified_engine.py) -- the deterministic, zero-paid-provider
-TEMPLATE engine used by the synchronous Free-tier `/build` endpoint, not real
-AI generation. Its `.build()` signature is also
-`build(self, *, project_id: str, prompt: str) -> BuildResult`, not a
-single-argument `build(prompt)`. Calling it here would silently route every
-"durable async AI build" through the same deterministic templates as the
-free synchronous path -- exactly the "deterministic template fallback that
-pretends an AI build succeeded" the founder's master directive explicitly
-forbids as fake success (section 3.1).
+M1 history (still true): the worker drives the real AI engine
+(`AutonomousProductEngine` via investor_app._live_components()), not
+`_v28.engine` (`UnifiedOmniEngine`, the deterministic template engine) --
+calling the latter would be the "deterministic template fallback that pretends
+an AI build succeeded" the master directive forbids.
 
-The actual real-AI-generation engine already exists in this codebase at
-investor_app.py's `_live_engine()` (a fresh `AutonomousProductEngine` wired
-to `RoutedModelGateway` + `SandboxRepositoryExecutor`/
-`RemoteSandboxRepositoryExecutor`, the same one the existing synchronous
-`/api/live/build` endpoint uses) and its `.build(self, prompt: str) ->
-AutonomousResult` signature matches the instruction's intent exactly. That is
-what is called below. `_v28.engine.workspace` (the actual, correct project
-version store shared by /history, /export, /restore) is still used to commit
-the result, since that part of the instruction was correct.
+M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
+
+* Billing. Failures no longer blindly `release()`. The directive refers to a
+  `budget.provider_cost_usd`; no such object exists anywhere in this codebase
+  (`AutonomousResult` carries no cost, and `OpenAICompatibleGateway` discards
+  the provider's `usage` block). The only real spend signal is
+  `RoutedModelGateway.state` -- `external_spend_usd` / `external_calls`,
+  incremented by `model_policy.authorize_model_call()` for every external
+  model call the platform authorized and dispatched. That is what is used,
+  and it is labelled in the build evidence as an authorized-estimate ledger,
+  not provider-measured usage. Rule: READY -> settle(actual=spent);
+  FAILED with spent > 0 or any external call -> settle(actual=spent);
+  FAILED with no external spend -> release().
+  `_live_engine()` discarded the gateway, so the worker now uses
+  `_live_components()` (engine, gateway) -- the same call the synchronous
+  live-build endpoints make.
+
+* Gates. READY previously meant only `result.status == 'ready'` (sandbox
+  verification). The canonical synchronous path (`v28_live_build`) computes
+  release readiness as verification AND `assess_repository` AND
+  `hostile_repository_scan` AND `rights.assess(...).publish_allowed`, and adds
+  the creative manifest, rights manifest and plan branding/provenance to the
+  committed repository. The async worker now does exactly the same, so it is
+  a real replacement for that path rather than a weaker shadow of it.
 """
+
+import os
+import socket
+import time
+from decimal import Decimal
 
 from .models import BuildStatus
 
+# Order matters: the first failing gate is the one reported as error_code.
+GATE_ORDER = ('verification', 'quality', 'security', 'rights')
+
+SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state.external_spend_usd); '
+               'provider-reported token usage is not captured by OpenAICompatibleGateway')
+
+
+# --------------------------------------------------------------------------
+# M1: durable async build
+# --------------------------------------------------------------------------
+
+def spend_snapshot(gateway) -> tuple[Decimal, int]:
+    state = getattr(gateway, 'state', None) if gateway is not None else None
+    if state is None:
+        return Decimal('0'), 0
+    spent = getattr(state, 'external_spend_usd', Decimal('0')) or Decimal('0')
+    calls = int(getattr(state, 'external_calls', 0) or 0)
+    return Decimal(str(spent)), calls
+
+
+def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
+    """settle() whenever real provider spend was incurred (or the build is
+    READY); release() only when a failed build incurred no external spend."""
+    if ready or spent > 0 or external_calls > 0:
+        subscriptions.settle(build_id=build_id, actual_provider_cost_usd=spent)
+        return 'settled'
+    subscriptions.release(build_id=build_id)
+    return 'released'
+
+
+def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
+    if result.status != 'ready' or not result.report.passed:
+        return False, 'verification_failed', 'build did not pass sandbox verification'
+    if not quality.passed:
+        blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
+        return False, 'quality_gate_failed', (
+            f'quality score {quality.score} below minimum {quality.minimum_score} ({blockers})')
+    if not security.passed:
+        return False, 'security_gate_failed', f'hostile repository scan: {len(security.findings)} finding(s)'
+    if not rights.publish_allowed:
+        status = getattr(rights.status, 'value', rights.status)
+        return False, 'rights_gate_not_clear', (
+            f'rights status {status}: the version was committed, but it is not releasable until rights '
+            'evidence is added or the original alternative is used')
+    return True, None, None
+
+
+def _rights_evidence_from_dicts(items) -> tuple:
+    from .rights_ip import RightKind, RightsEvidence
+    out = []
+    for item in items or ():
+        if isinstance(item, RightsEvidence):
+            out.append(item)
+            continue
+        out.append(RightsEvidence(
+            id=str(item['id']), right_kind=RightKind(item['right_kind']), subject=str(item['subject']),
+            evidence_type=str(item['evidence_type']), scope=str(item['scope']),
+            source_reference=str(item.get('source_reference', '')), verified=bool(item.get('verified', False)),
+        ))
+    return tuple(out)
+
+
+def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
+                        quality_fn, security_fn, min_quality: int = 80, preflight=None) -> str | None:
+    """Returns the terminal BuildStatus value written, or None if nothing was
+    done (unknown build id / already claimed by another delivery)."""
+    try:
+        request = jobs.get_request(build_id)
+    except KeyError:
+        return None
+    if not jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.RUNNING):
+        return None  # duplicate delivery / already handled: idempotent no-op
+
+    subscriptions = platform.subscriptions
+    internal_project_id = request['internal_project_id']
+    prompt = request['prompt']
+    markets = tuple(request.get('target_markets') or ()) or ('US', 'EU', 'IL')
+    gateway = None
+    version_id = None
+    artifact_key = None
+
+    try:
+        if preflight is not None:
+            preflight()
+        brain = platform.brain.decide(prompt, target_markets=markets)
+        rights = platform.rights.assess(
+            prompt, target_markets=markets,
+            evidence=_rights_evidence_from_dicts(request.get('rights_evidence')),
+            synthetic_person_media=bool(brain.rights.required_disclosures),
+        )
+        engine, gateway = components_factory()
+        result = engine.build(prompt)
+        quality = quality_fn(spec=result.spec, repository=result.repository, minimum_score=min_quality)
+        security = security_fn(result.repository)
+
+        repo = dict(result.repository)
+        repo.update(platform.brain.creative.repository_files(brain.creative))
+        repo.update(platform.rights.repository_files(rights, original_prompt=prompt))
+        plan = subscriptions.plan_for(request['user_id'])
+        repo = platform.branding.decorate_repository(
+            repo, plan=plan.code,
+            # Rows written before migration 015 have no public id; the
+            # internal tenant key is an opaque hash, so falling back to it
+            # leaks nothing, it is just less friendly in provenance.json.
+            project_id=request.get('public_project_id') or internal_project_id,
+            requested_visible=request.get('branding_visible'),
+            white_label_name=request.get('white_label_name'),
+        )
+        version = workspace.commit(project_id=internal_project_id, repository=repo,
+                                   message=f'148AI async live build {build_id}')
+        version_id = version.id
+        artifact_key = getattr(version, 'artifact_key', None)
+
+        ready, error_code, error_message = evaluate_release_gates(
+            result=result, quality=quality, security=security, rights=rights)
+        spent, calls = spend_snapshot(gateway)
+        evidence = {
+            'gates': {
+                'verification': {'passed': bool(result.report.passed and result.status == 'ready'),
+                                 'failures': [{'acceptance_id': f.acceptance_id, 'message': f.message,
+                                               'evidence': f.evidence} for f in result.report.failures]},
+                'quality': quality.to_dict(),
+                'security': security.to_dict(),
+                'rights': rights.to_dict(),
+            },
+            'release_ready': ready,
+            'repair_rounds': result.repair_rounds,
+            'build_log_tail': result.report.build_log[-4000:],
+            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+            'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+        }
+    except Exception as exc:
+        spent, calls = spend_snapshot(gateway)
+        billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+        jobs.transition(
+            build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
+            error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
+            result_version_id=version_id, artifact_key=artifact_key,
+            evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+            actual_provider_cost_usd=spent,
+        )
+        raise
+
+    evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
+                                          spent=spent, external_calls=calls)
+    target = BuildStatus.READY if ready else BuildStatus.FAILED
+    jobs.transition(
+        build_id=build_id, expected=BuildStatus.RUNNING, target=target,
+        error_code=error_code, error_message=error_message,
+        result_version_id=version_id, artifact_key=artifact_key,
+        repair_rounds=result.repair_rounds, evidence_json=evidence,
+        actual_provider_cost_usd=spent,
+    )
+    return target.value
+
 
 def execute_live_build_job(build_id: str) -> None:
-    # Imported lazily so this module can be imported (e.g. by tests) without
-    # requiring the full investor_app.py dependency graph (fastapi, the
-    # entire routes module, etc.) unless a job is actually being executed.
-    from .investor_app import _v28, _v28_pool, _live_engine
+    from .investor_app import _v28, _v28_pool, _live_components
     from .job_repository import PostgresBuildRepository
+    from .preview_runtime import ensure_durable_workspace
+    from .quality_gate import assess_repository
+    from .security_testing import hostile_repository_scan
 
     if _v28_pool is None:
         raise RuntimeError(
             "execute_live_build_job requires OMNI_CREATOR_PERSISTENCE=postgres "
             "in the worker process (this process was not started with it)."
         )
+    workspace = _v28.engine.workspace
+    _run_live_build_job(
+        build_id,
+        jobs=PostgresBuildRepository(_v28_pool),
+        platform=_v28,
+        workspace=workspace,
+        components_factory=_live_components,
+        quality_fn=assess_repository,
+        security_fn=hostile_repository_scan,
+        min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
+        # Checked after the job is claimed, so a misconfigured worker fails
+        # the build (and releases its credits) instead of leaving it QUEUED
+        # with credits reserved forever.
+        preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
+    )
 
-    jobs = PostgresBuildRepository(_v28_pool)
 
+# --------------------------------------------------------------------------
+# M3: real running preview
+# --------------------------------------------------------------------------
+
+def preview_runtime_host() -> str:
+    """Identity of this worker for host-scoped cleanup routing and for the
+    external router's upstream address. Set OMNI_PREVIEW_RUNTIME_HOST to a
+    name/IP the router can reach when it is not on this host."""
+    return os.getenv('OMNI_PREVIEW_RUNTIME_HOST', '').strip() or socket.gethostname()
+
+
+def preview_probe_host(bind_address: str) -> str:
+    explicit = os.getenv('OMNI_PREVIEW_PROBE_HOST', '').strip()
+    if explicit:
+        return explicit
+    return '127.0.0.1' if bind_address in {'0.0.0.0', '', '::'} else bind_address
+
+
+def _teardown(provider, repo, preview_id: str, started) -> list[str]:
+    """Best-effort removal of a container + its source dir. Returns errors
+    instead of raising so the caller can still record the real outcome."""
+    errors = []
     try:
-        request = jobs.get_request(build_id)
-    except KeyError:
-        # Nothing durable to work from. This should not happen for a build_id
-        # that reached the queue (create_request() commits before enqueue),
-        # but there is nothing safe to do about it here besides not crash the
-        # worker loop on an unknown id.
-        return
-
-    internal_project_id = request["internal_project_id"]
-    prompt = request["prompt"]
-
-    if not jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.RUNNING):
-        # Already transitioned (duplicate delivery, a previous worker attempt,
-        # or a cancelled job). Idempotent no-op rather than an error.
-        return
-
-    try:
-        engine = _live_engine()
-        result = engine.build(prompt)
-
-        version_id = None
-        artifact_key = None
-        if result.repository:
-            version = _v28.engine.workspace.commit(
-                project_id=internal_project_id,
-                repository=result.repository,
-                message=f"live build {build_id}",
-            )
-            version_id = version.id
-            # version.artifact_key is only non-None when the workspace is the
-            # durable PostgresProjectWorkspace (S3 configured); the in-memory
-            # fallback leaves it None rather than inventing one.
-            artifact_key = version.artifact_key
-
-        evidence = {
-            "passed": result.report.passed,
-            "repair_rounds": result.repair_rounds,
-            "failures": [
-                {"acceptance_id": f.acceptance_id, "message": f.message, "evidence": f.evidence}
-                for f in result.report.failures
-            ],
-            "build_log_tail": result.report.build_log[-4000:],
-        }
-
-        # Real spend is not tracked per-model-call in this codebase yet (see
-        # PATCH_APPLICATION_REPORT.md); settle() with no actual_provider_cost_usd
-        # falls back to the estimate reserved at request time rather than
-        # fabricating a real-usage number, per the master directive's
-        # "do not invent token/cost numbers and call them actual usage".
-        _v28.subscriptions.settle(build_id=build_id)
-
-        if result.status == "ready":
-            jobs.transition(
-                build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.READY,
-                result_version_id=version_id, artifact_key=artifact_key,
-                repair_rounds=result.repair_rounds, evidence_json=evidence,
-            )
-        else:
-            jobs.transition(
-                build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
-                error_code="verification_failed",
-                error_message="build did not pass verification",
-                result_version_id=version_id,
-                repair_rounds=result.repair_rounds, evidence_json=evidence,
-            )
+        provider.stop(started.container_id)
     except Exception as exc:
-        _v28.subscriptions.release(build_id=build_id)
-        jobs.transition(
-            build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
-            error_code="worker_exception", error_message=str(exc)[:2000],
-        )
+        errors.append(f'docker rm: {exc}')
+    try:
+        provider.remove_workdir(started.workdir)
+    except Exception as exc:
+        errors.append(f'workdir: {exc}')
+    if not errors:
+        try:
+            repo.mark_cleaned(preview_id)
+        except Exception as exc:
+            errors.append(f'mark_cleaned: {exc}')
+    return errors
+
+
+def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, repo, provider,
+                        runtime_host: str, url_template: str | None, probe_host: str,
+                        probe_timeout: float = 30.0, probe_interval: float = 1.0,
+                        http_get=None, sleep=time.sleep, clock=time.monotonic,
+                        preflight=None) -> str:
+    """Returns the final status this task observed/wrote. RUNNING is written
+    in exactly one place -- after wait_until_healthy() succeeds -- and only
+    if the preview is still STARTING (not stopped by the user meanwhile)."""
+    from .preview_runtime import (HealthResult, NotPreviewable, PreviewBackendUnavailable,
+                                  external_preview_url, wait_until_healthy)
+
+    # Validate everything that doesn't need a container before starting one.
+    try:
+        if preflight is not None:
+            preflight()
+        url = external_preview_url(preview_id, url_template)
+    except PreviewBackendUnavailable as exc:
+        repo.mark_failed(preview_id, error=f'preview backend not configured: {exc}')
+        return 'FAILED'
+
+    try:
+        started = provider.start(preview_id=preview_id, project_id=project_id, version_id=version_id)
+    except NotPreviewable as exc:
+        repo.mark_failed(preview_id, error=str(exc), status='NOT_PREVIEWABLE')
+        return 'NOT_PREVIEWABLE'
+    except Exception as exc:
+        repo.mark_failed(preview_id, error=f'container start failed: {exc}')
+        raise
+
+    try:
+        if not repo.record_runtime(preview_id, container_id=started.container_id, runtime_host=runtime_host,
+                                   host_port=started.host_port, workdir=started.workdir):
+            _teardown(provider, repo, preview_id, started)  # stopped while starting
+            return 'STOPPED'
+
+        if started.host_port is None:
+            # Crashed before Docker published its port (see
+            # DockerPreviewProvider.start). Nothing to probe; report why.
+            _, exit_code = provider.is_running(started.container_id)
+            health = HealthResult(False, f'container exited before its port was published (exit code {exit_code})', 0)
+        else:
+            probe_url = f'http://{probe_host}:{started.host_port}{started.contract.health_path}'
+            health = wait_until_healthy(
+                url=probe_url, is_alive=lambda: provider.is_running(started.container_id),
+                timeout_seconds=probe_timeout, interval_seconds=probe_interval,
+                http_get=http_get, sleep=sleep, clock=clock,
+            )
+        if not health.ok:
+            try:
+                tail = provider.logs(started.container_id, tail=50)
+            except Exception as exc:
+                tail = f'(logs unavailable: {exc})'
+            errors = _teardown(provider, repo, preview_id, started)
+            message = f'health probe failed after {health.attempts} attempt(s): {health.detail}'
+            if errors:
+                message += f'\ncleanup errors: {"; ".join(errors)}'
+            message += f'\n--- container logs (tail) ---\n{tail[-2500:]}'
+            repo.mark_failed(preview_id, error=message)
+            return 'FAILED'
+
+        if not repo.mark_running(preview_id, url=url):
+            _teardown(provider, repo, preview_id, started)  # stopped during the probe
+            return 'STOPPED'
+        return 'RUNNING'
+    except Exception as exc:
+        errors = _teardown(provider, repo, preview_id, started)
+        repo.mark_failed(preview_id, error=f'preview launch aborted: {exc}'
+                         + (f'; cleanup errors: {"; ".join(errors)}' if errors else ''))
         raise
 
 
 def execute_preview_launch(preview_id: str, project_id: str, version_id: str) -> None:
-    """M3: RQ worker entrypoint for launching a real running preview.
-
-    Enqueued by investor_app.py's POST .../previews endpoint via the same
-    enqueue_build() helper/queue used for M1 builds (see that endpoint for
-    why: this codebase has one RQ queue, "omni-builds", and RQ dispatches by
-    function path regardless of what the job conceptually is -- adding a
-    second queue for previews alone was not asked for and would be an
-    unrequested infra change).
-
-    Separate lifecycle from execute_live_build_job on purpose: a preview
-    failing to start must never touch build credits/reservations or
-    build_jobs -- it has its own table (project_previews) and its own
-    terminal states (RUNNING/FAILED/EXPIRED/STOPPED), matching the master
-    directive's requirement that build sandbox and preview runtime are
-    separate lifecycles.
-    """
     from .investor_app import _v28, _v28_pool
     from .preview_repository import PostgresPreviewRepository
-    from .preview_runtime import DockerPreviewProvider
+    from .preview_runtime import DockerPreviewProvider, ensure_durable_workspace
 
     if _v28_pool is None:
         raise RuntimeError(
             "execute_preview_launch requires OMNI_CREATOR_PERSISTENCE=postgres "
             "in the worker process."
         )
+    workspace = _v28.engine.workspace
+    provider = DockerPreviewProvider(workspace=workspace)
+    _run_preview_launch(
+        preview_id, project_id, version_id,
+        repo=PostgresPreviewRepository(_v28_pool),
+        provider=provider,
+        runtime_host=preview_runtime_host(),
+        url_template=os.getenv('PREVIEW_DOMAIN_TEMPLATE'),
+        probe_host=preview_probe_host(provider.bind_address),
+        probe_timeout=float(os.getenv('OMNI_PREVIEW_HEALTH_TIMEOUT_SECONDS', '30')),
+        preflight=lambda: ensure_durable_workspace(workspace),
+    )
 
-    repo = PostgresPreviewRepository(_v28_pool)
-    provider = DockerPreviewProvider(workspace=_v28.engine.workspace)
 
-    try:
-        container_id, url = provider.start(
-            preview_id=preview_id, project_id=project_id, version_id=version_id,
-        )
-        repo.update_status(preview_id, 'RUNNING', url=url, container_id=container_id)
-    except Exception as exc:
-        repo.update_status(preview_id, 'FAILED', error=str(exc)[:2000])
-        raise
+def _run_preview_stop(preview_id: str, *, repo, provider, this_host: str) -> dict:
+    info = repo.get_runtime(preview_id)
+    if info is None:
+        return {'cleaned': False, 'reason': 'unknown preview'}
+    if info['status'] not in ('STOPPED', 'EXPIRED'):
+        # Never tear down a STARTING/RUNNING preview from a (stale or
+        # duplicate) cleanup job -- only the API's stop transition licenses it.
+        return {'cleaned': False, 'reason': f'status is {info["status"]}'}
+    if info.get('cleaned_at'):
+        return {'cleaned': True, 'reason': 'already cleaned'}
+    if info.get('runtime_host') and info['runtime_host'] != this_host:
+        # Wrong Docker daemon / wrong filesystem. Surfacing this as a job
+        # failure beats "cleaning" nothing and marking it clean.
+        raise RuntimeError(f'preview {preview_id} runs on {info["runtime_host"]}, this worker is {this_host}; '
+                           'the stop task must be consumed from that host\'s queue')
+    if info.get('container_id'):
+        provider.stop(info['container_id'])  # idempotent; raises on real docker failure
+    if info.get('workdir'):
+        provider.remove_workdir(info['workdir'])
+    repo.mark_cleaned(preview_id)
+    return {'cleaned': True, 'reason': 'container and workdir removed'}
+
+
+def stop_preview_task(preview_id: str) -> None:
+    from .investor_app import _v28, _v28_pool
+    from .preview_repository import PostgresPreviewRepository
+    from .preview_runtime import DockerPreviewProvider
+
+    if _v28_pool is None:
+        raise RuntimeError("stop_preview_task requires OMNI_CREATOR_PERSISTENCE=postgres in the worker process.")
+    _run_preview_stop(
+        preview_id,
+        repo=PostgresPreviewRepository(_v28_pool),
+        provider=DockerPreviewProvider(workspace=_v28.engine.workspace),
+        this_host=preview_runtime_host(),
+    )

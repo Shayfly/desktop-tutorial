@@ -18,10 +18,26 @@ def redis_connection(
         decode_responses=False,
     )
 
-def queue(redis_url: str, **redis_kwargs):
+PREVIEW_HOST_QUEUE_PREFIX = "omni-preview-host-"
+
+def preview_host_queue(runtime_host: str) -> str:
+    """M3 Rev2: per-host queue for preview stop/cleanup tasks.
+
+    A preview container and its bind-mounted source directory live on the
+    worker host that launched it. A stop task picked up by any other worker
+    would talk to the wrong Docker daemon and the wrong filesystem. Every
+    worker that launches previews must therefore also consume its own host
+    queue:  rq worker omni-builds omni-preview-host-$OMNI_PREVIEW_RUNTIME_HOST
+    """
+    safe = ''.join(c if (c.isalnum() or c in '-_.') else '-' for c in runtime_host.strip())
+    if not safe:
+        raise ValueError('runtime_host is required for a host-scoped queue')
+    return PREVIEW_HOST_QUEUE_PREFIX + safe[:120]
+
+def queue(redis_url: str, queue_name: str = BUILD_QUEUE, **redis_kwargs):
     from rq import Queue
     return Queue(
-        BUILD_QUEUE,
+        queue_name,
         connection=redis_connection(redis_url, **redis_kwargs),
         default_timeout=900,
     )
@@ -32,6 +48,7 @@ def enqueue_build(
     *args,
     timeout: int = 900,
     job_id: str | None = None,
+    queue_name: str = BUILD_QUEUE,
     **redis_kwargs,
 ):
     # M3: widened from a single `payload` positional to `*args` so this one
@@ -40,7 +57,9 @@ def enqueue_build(
     # not just the single-value payload M1's execute_live_build_job(build_id)
     # needed. Backward compatible: enqueue_build(url, path, build_id,
     # job_id=...) still enqueues exactly one arg, same as before.
-    q = queue(redis_url, **redis_kwargs)
+    # M3 Rev2: optional queue_name (default unchanged) for host-scoped
+    # preview cleanup -- see preview_host_queue().
+    q = queue(redis_url, queue_name, **redis_kwargs)
     return q.enqueue(
         func_path,
         *args,
