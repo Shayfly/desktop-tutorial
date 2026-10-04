@@ -4,6 +4,9 @@ from .unified_engine import UnifiedPromptPlanner, UnifiedPlan
 from .agent_team import plan_team
 from .media_pipeline import CreativeDirector, CreativePlan
 from .rights_ip import RightsEngine, RightsAssessment
+from .capabilities import CapabilityPlan
+from .capability_planner import CapabilityPlanner
+from .capability_registry import CapabilityRegistry
 
 @dataclass(frozen=True)
 class BrainDecision:
@@ -12,6 +15,7 @@ class BrainDecision:
     creative: CreativePlan
     rights: RightsAssessment
     principles: tuple[str, ...]
+    capabilities: CapabilityPlan
 
     def to_dict(self):
         return {
@@ -20,6 +24,7 @@ class BrainDecision:
             'creative': self.creative.to_dict(),
             'rights': self.rights.to_dict(),
             'principles': list(self.principles),
+            'capabilities': self.capabilities.to_dict(),
         }
 
 class OmniUniversalBrain:
@@ -33,6 +38,7 @@ class OmniUniversalBrain:
         self.planner = UnifiedPromptPlanner()
         self.creative = CreativeDirector()
         self.rights = RightsEngine()
+        self.capability_planner = CapabilityPlanner(CapabilityRegistry())
 
     def decide(self, prompt: str, *, target_markets: tuple[str, ...] = ('US', 'EU', 'IL')) -> BrainDecision:
         plan = self.planner.plan(prompt)
@@ -45,6 +51,9 @@ class OmniUniversalBrain:
         low = prompt.lower()
         synthetic_person_media = any(x in low for x in ('voice of', 'face of', 'likeness of', 'digital replica', 'בקול של', 'פנים של', 'דמות של'))
         rights = self.rights.assess(prompt, target_markets=target_markets, synthetic_person_media=synthetic_person_media)
+        capabilities = self.capability_planner.plan(
+            prompt=prompt, unified_plan=plan, creative_plan=creative
+        )
         return BrainDecision(
             plan, agents, creative, rights,
             (
@@ -52,4 +61,5 @@ class OmniUniversalBrain:
                 'verify-before-claim', 'version-every-change', 'accessibility-by-default',
                 'rights-aware-assets', 'provenance-by-default', 'no-small-change-evasion',
             ),
+            capabilities,
         )

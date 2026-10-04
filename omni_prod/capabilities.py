@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Mapping
 
@@ -47,9 +47,19 @@ class CapabilityRequirement:
         if self.quantity < 1:
             raise ValueError("capability requirement quantity must be >= 1")
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
 
 @dataclass(frozen=True)
 class CapabilityPlan:
     requirements: tuple[CapabilityRequirement, ...]
     target_keys: tuple[str, ...]
     notes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "requirements": [requirement.to_dict() for requirement in self.requirements],
+            "target_keys": list(self.target_keys),
+            "notes": list(self.notes),
+        }

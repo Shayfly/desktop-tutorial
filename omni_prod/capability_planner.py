@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+from collections import OrderedDict
+
+from .capabilities import CapabilityPlan, CapabilityRequirement
+from .capability_registry import CapabilityRegistry
+from .media_pipeline import AssetKind
+
+
+class CapabilityPlanner:
+    """Compile deterministic product intent into a capability DAG.
+
+    Model output may enrich constraints later, but this layer owns the minimum
+    requirements that may never be silently removed.
+    """
+
+    def __init__(self, registry: CapabilityRegistry | None = None) -> None:
+        self.registry = registry or CapabilityRegistry()
+
+    def plan(self, *, prompt: str, unified_plan, creative_plan) -> CapabilityPlan:
+        low = " ".join(prompt.lower().split())
+        requested: OrderedDict[str, tuple[str, bool]] = OrderedDict()
+
+        def add(key: str, purpose: str, required: bool = True) -> None:
+            if not self.registry.contains(key):
+                raise ValueError(f"planner requested unknown capability: {key}")
+            if key in requested:
+                old_purpose, old_required = requested[key]
+                requested[key] = (old_purpose, old_required or required)
+            else:
+                requested[key] = (purpose, required)
+
+        # Every real product build gets the same minimum software lifecycle.
+        for key in (
+            "software.plan",
+            "software.architecture",
+            "software.code.generate",
+            "software.dependencies.install",
+            "software.build",
+            "software.test",
+            "software.repair",
+            "software.preview",
+            "software.export",
+        ):
+            add(key, "minimum real-product build lifecycle")
+
+        explicit_2d = any(term in low for term in ("2d game", "2-d game", "משחק 2d", "משחק דו ממד"))
+        for target in unified_plan.targets:
+            if target == "web":
+                add("target.web", "web product target")
+            elif target == "android":
+                add("target.android.source", "Android source target")
+                if self._has_any(low, "publish", "release", "signed", "play store", "aab", "פרסום", "חתום"):
+                    add("target.android.build", "Android release/build target")
+            elif target == "ios":
+                add("target.ios.source", "iOS source target")
+                if self._has_any(low, "publish", "release", "signed", "app store", "ipa", "פרסום", "חתום"):
+                    add("target.ios.build", "iOS release/build target")
+            elif target == "game3d" and not explicit_2d:
+                add("target.game.3d", "3D game target")
+
+        if explicit_2d:
+            add("target.game.2d", "2D game target")
+        if "saas" in low:
+            add("target.saas", "SaaS product target")
+        if self._has_any(low, "backend", "api", "rest api", "graphql", "שרת", "ממשק api"):
+            add("target.backend", "backend/API target")
+        if self._has_any(low, "database", "postgres", "mysql", "sqlite", "db", "מסד נתונים"):
+            add("target.database", "database target")
+        if self._has_any(low, "desktop", "windows app", "mac app", "electron", "תוכנת מחשב"):
+            add("target.desktop.source", "desktop product target")
+        if self._has_any(low, "ai agent", "agent", "assistant", "סוכן ai", "עוזר ai"):
+            add("target.agent", "AI agent product target")
+            add("ai.agent.tools", "agent tool execution")
+            if self._has_any(low, "memory", "persistent context", "long-term memory", "זיכרון"):
+                add("ai.agent.memory", "agent persistent memory")
+            add("ai.agent.eval", "agent evaluation", required=False)
+        if self._has_any(low, "automation", "workflow", "zapier", "אוטומציה", "תהליך אוטומטי"):
+            add("target.automation", "automation product target")
+
+        asset_map = {
+            AssetKind.ICON: "media.image.generate",
+            AssetKind.IMAGE: "media.image.generate",
+            AssetKind.AUDIO: "media.audio.sfx",
+            AssetKind.MUSIC: "media.audio.music",
+            AssetKind.VOICE: "media.audio.tts",
+            AssetKind.VIDEO: "media.video.generate",
+            AssetKind.MODEL3D: "media.3d.mesh.generate",
+            AssetKind.TEXTURE: "media.3d.texture",
+        }
+        for asset in creative_plan.requests:
+            capability_key = asset_map.get(asset.kind)
+            if capability_key:
+                add(capability_key, asset.purpose, asset.required)
+
+        if self._has_any(low, "speech to text", "stt", "transcrib", "microphone", "listens", "listen to", "תמלול", "מיקרופון", "מאזין"):
+            add("media.audio.stt", "speech input/transcription")
+        if self._has_any(low, "realtime voice", "real-time voice", "live voice", "voice chat", "שיחה קולית", "קול בזמן אמת"):
+            add("media.audio.realtime_voice", "real-time bidirectional voice")
+
+        if self._has_any(low, "multiplayer", "multi-player", "online multiplayer", "רב משתתפים", "מרובה משתתפים"):
+            add("game.multiplayer", "multiplayer gameplay")
+        if self._has_any(low, "matchmaking", "match making", "lobby", "שידוך שחקנים", "לובי"):
+            add("game.matchmaking", "player matchmaking")
+
+        unified_capability_map = {
+            "maps": "integration.maps",
+            "payments": "integration.payment",
+            "messaging": "integration.messaging",
+        }
+        for capability in unified_plan.capabilities:
+            mapped = unified_capability_map.get(capability)
+            if mapped:
+                add(mapped, f"integration required by {capability}")
+
+        if self._has_any(low, "github", "gitlab", "source control", "git repo"):
+            add("integration.source_control", "source control integration")
+        if self._has_any(low, "oauth", "google login", "google sign-in", "apple login", "sign in with apple"):
+            add("integration.oauth", "OAuth identity integration")
+        if self._has_any(low, "analytics", "telemetry", "product analytics"):
+            add("integration.analytics", "analytics integration")
+
+        if self._has_any(low, "publish", "deploy", "go live", "production url", "פרסם", "העלה לאוויר"):
+            add("software.deploy.web", "requested production web deployment")
+            add("publish.web", "requested public web publishing")
+
+        # Requiredness propagates backwards through definition dependencies so an
+        # optional child never makes a dependency mandatory unless another required
+        # request needs it.
+        required_by_key = {key: required for key, (_, required) in requested.items()}
+        changed = True
+        while changed:
+            changed = False
+            for key, required in tuple(required_by_key.items()):
+                for dependency in self.registry.get(key).dependency_keys:
+                    previous = required_by_key.get(dependency, False)
+                    next_value = previous or required
+                    if dependency not in required_by_key or next_value != previous:
+                        required_by_key[dependency] = next_value
+                        changed = True
+
+        ordered_keys = self.registry.dependency_closure(tuple(requested))
+        id_by_key = {key: self._requirement_id(key) for key in ordered_keys}
+        requirements = []
+        for key in ordered_keys:
+            definition = self.registry.get(key)
+            purpose, explicit_required = requested.get(
+                key, (f"dependency required by capability DAG for {key}", False)
+            )
+            requirements.append(
+                CapabilityRequirement(
+                    id=id_by_key[key],
+                    key=key,
+                    purpose=purpose,
+                    required=required_by_key.get(key, explicit_required),
+                    dependency_ids=tuple(id_by_key[dep] for dep in definition.dependency_keys),
+                )
+            )
+
+        target_keys = tuple(key for key in ordered_keys if key.startswith("target."))
+        result = CapabilityPlan(
+            requirements=tuple(requirements),
+            target_keys=target_keys,
+            notes=("deterministic-minimum-requirements",),
+        )
+        self.registry.validate_plan(result)
+        return result
+
+    @staticmethod
+    def _has_any(text: str, *terms: str) -> bool:
+        return any(term in text for term in terms)
+
+    @staticmethod
+    def _requirement_id(key: str) -> str:
+        return "cap-" + key.replace(".", "-")
