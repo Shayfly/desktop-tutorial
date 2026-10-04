@@ -80,6 +80,55 @@ def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal
     return 'released'
 
 
+def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
+    usage = [] if not capability_evidence else list(capability_evidence.get('usage') or [])
+    if not usage:
+        return Decimal('0'), False
+    total = Decimal('0')
+    for event in usage:
+        raw = event.get('actual_cost_usd')
+        if raw is None:
+            return None, True
+        total += Decimal(str(raw))
+    return total, True
+
+
+def resolve_m5_billing(
+    subscriptions, *, build_id: str, ready: bool, gateway, capability_evidence, economics_quote: dict | None,
+) -> tuple[str, dict, Decimal | None]:
+    """Truth-preserving M5 settlement.
+
+    RoutedModelGateway exposes an authorized estimate ledger, not provider-reported
+    usage, so any external model call makes the overall actual provider cost unknown
+    unless a later normalized usage adapter supplies it. Capability-provider events,
+    by contrast, may carry real actual cost. Unknown actuals remain NULL and settle
+    against the conservative reservation rather than being relabelled as actual.
+    """
+    _, external_calls = spend_snapshot(gateway)
+    capability_actual, capability_activity = _capability_actual_cost(capability_evidence)
+    paid_activity = external_calls > 0 or capability_activity
+    if not ready and not paid_activity:
+        subscriptions.release(build_id=build_id)
+        return 'released', {'action': 'released'}, None
+
+    actual = None if external_calls > 0 else capability_actual
+    quote = dict(economics_quote or {})
+    revenue_raw = quote.get('revenue_usd')
+    infra_max = Decimal(str(quote.get('infrastructure_maximum_usd', '0') or '0'))
+    # Gross contribution is only computed when all non-provider variable cost
+    # inputs are known. A non-zero infrastructure maximum is still a reserve,
+    # not an actual, so suppress contribution rather than fabricate precision.
+    revenue = None if revenue_raw is None or infra_max != 0 else Decimal(str(revenue_raw))
+    settlement = subscriptions.settle(
+        build_id=build_id, actual_provider_cost_usd=actual,
+        revenue_usd=revenue, infra_cost_usd=Decimal('0'),
+    )
+    evidence = {'action': 'settled'}
+    if settlement:
+        evidence.update(settlement)
+    return 'settled', evidence, actual
+
+
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         return False, 'verification_failed', 'build did not pass sandbox verification'
@@ -206,39 +255,69 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         }
     except CapabilityStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
-        billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+        economics_quote = request.get('economics_quote') or {}
+        if economics_quote:
+            billing, settlement_evidence, actual_cost = resolve_m5_billing(
+                subscriptions, build_id=build_id, ready=False, gateway=gateway,
+                capability_evidence=exc.evidence, economics_quote=economics_quote,
+            )
+        else:
+            billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+            settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
             error_code='capability_not_configured', error_message=str(exc)[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
-            evidence_json={'billing': billing, 'capabilities': exc.evidence,
+            evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           'economics_settlement': settlement_evidence, 'capabilities': exc.evidence,
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
-            actual_provider_cost_usd=spent,
+            actual_provider_cost_usd=actual_cost,
         )
         raise
     except Exception as exc:
         spent, calls = spend_snapshot(gateway)
-        billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+        economics_quote = request.get('economics_quote') or {}
+        if economics_quote:
+            billing, settlement_evidence, actual_cost = resolve_m5_billing(
+                subscriptions, build_id=build_id, ready=False, gateway=gateway,
+                capability_evidence=capability_evidence, economics_quote=economics_quote,
+            )
+        else:
+            billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+            settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
             error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
-            evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
+            evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           'economics_settlement': settlement_evidence,
+                           'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
-            actual_provider_cost_usd=spent,
+            actual_provider_cost_usd=actual_cost,
         )
         raise
 
-    evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
-                                          spent=spent, external_calls=calls)
+    economics_quote = request.get('economics_quote') or {}
+    if economics_quote:
+        billing, settlement_evidence, actual_cost = resolve_m5_billing(
+            subscriptions, build_id=build_id, ready=ready, gateway=gateway,
+            capability_evidence=capability_evidence, economics_quote=economics_quote,
+        )
+        evidence['billing'] = billing
+        evidence['economics_quote'] = economics_quote
+        evidence['economics_settlement'] = settlement_evidence
+    else:
+        evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
+                                              spent=spent, external_calls=calls)
+        actual_cost = spent if evidence['billing'] == 'settled' else None
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,
         error_code=error_code, error_message=error_message,
         result_version_id=version_id, artifact_key=artifact_key,
         repair_rounds=result.repair_rounds, evidence_json=evidence,
-        actual_provider_cost_usd=spent,
+        actual_provider_cost_usd=actual_cost,
     )
     return target.value
 

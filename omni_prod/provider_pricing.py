@@ -129,6 +129,120 @@ class ProviderPriceCatalog:
         return {"version": self.version, "currency": "USD", "entries": entries}
 
 
+
+@dataclass(frozen=True)
+class BuildEconomicsQuote:
+    provider_estimated_usd: Decimal
+    provider_maximum_usd: Decimal
+    infrastructure_estimated_usd: Decimal
+    infrastructure_maximum_usd: Decimal
+    retry_reserve_usd: Decimal
+    total_estimated_variable_usd: Decimal
+    total_authorized_variable_usd: Decimal
+    pricing_versions: tuple[str, ...]
+    revenue_usd: Decimal | None
+    minimum_margin: Decimal | None
+    conservative_contribution_usd: Decimal | None
+    conservative_margin: Decimal | None
+    margin_floor_passed: bool | None
+
+    def __post_init__(self) -> None:
+        numeric = (
+            self.provider_estimated_usd, self.provider_maximum_usd,
+            self.infrastructure_estimated_usd, self.infrastructure_maximum_usd,
+            self.retry_reserve_usd, self.total_estimated_variable_usd,
+            self.total_authorized_variable_usd,
+        )
+        if any(Decimal(v) < 0 for v in numeric):
+            raise ValueError("build economics costs must be non-negative")
+        if self.provider_maximum_usd < self.provider_estimated_usd:
+            raise ValueError("provider maximum must cover estimate")
+        if self.infrastructure_maximum_usd < self.infrastructure_estimated_usd:
+            raise ValueError("infrastructure maximum must cover estimate")
+        if self.revenue_usd is not None and self.revenue_usd < 0:
+            raise ValueError("revenue_usd must be non-negative")
+        if self.minimum_margin is not None and not Decimal("-1") <= self.minimum_margin <= Decimal("1"):
+            raise ValueError("minimum_margin must be between -1 and 1")
+
+    def to_dict(self) -> dict:
+        return {
+            "provider_estimated_usd": str(self.provider_estimated_usd),
+            "provider_maximum_usd": str(self.provider_maximum_usd),
+            "infrastructure_estimated_usd": str(self.infrastructure_estimated_usd),
+            "infrastructure_maximum_usd": str(self.infrastructure_maximum_usd),
+            "retry_reserve_usd": str(self.retry_reserve_usd),
+            "total_estimated_variable_usd": str(self.total_estimated_variable_usd),
+            "total_authorized_variable_usd": str(self.total_authorized_variable_usd),
+            "pricing_versions": list(self.pricing_versions),
+            "revenue_usd": None if self.revenue_usd is None else str(self.revenue_usd),
+            "minimum_margin": None if self.minimum_margin is None else str(self.minimum_margin),
+            "conservative_contribution_usd": None if self.conservative_contribution_usd is None else str(self.conservative_contribution_usd),
+            "conservative_margin": None if self.conservative_margin is None else str(self.conservative_margin),
+            "margin_floor_passed": self.margin_floor_passed,
+            "cost_truth": "CONSERVATIVE_MAXIMUM",
+        }
+
+
+def aggregate_build_quote(
+    *,
+    provider_quotes: Iterable[ProviderQuote],
+    infrastructure_estimated_usd: Decimal = Decimal("0"),
+    infrastructure_maximum_usd: Decimal = Decimal("0"),
+    retry_reserve_usd: Decimal = Decimal("0"),
+    revenue_usd: Decimal | None = None,
+    minimum_margin: Decimal | None = None,
+) -> BuildEconomicsQuote:
+    quotes = tuple(provider_quotes)
+    infra_est = Decimal(infrastructure_estimated_usd)
+    infra_max = Decimal(infrastructure_maximum_usd)
+    retry = Decimal(retry_reserve_usd)
+    if infra_est < 0 or infra_max < 0 or retry < 0:
+        raise ValueError("build economics inputs must be non-negative")
+    if infra_max < infra_est:
+        raise ValueError("infrastructure maximum must cover estimate")
+    provider_est = sum((Decimal(q.estimated_cost_usd) for q in quotes), Decimal("0"))
+    provider_max = sum((Decimal(q.maximum_cost_usd) for q in quotes), Decimal("0"))
+    total_est = provider_est + infra_est
+    total_max = provider_max + infra_max + retry
+    revenue = None if revenue_usd is None else Decimal(revenue_usd)
+    min_margin = None if minimum_margin is None else Decimal(minimum_margin)
+    contribution = None
+    margin = None
+    passed = None
+    if revenue is not None:
+        if revenue < 0:
+            raise ValueError("revenue_usd must be non-negative")
+        contribution = revenue - total_max
+        margin = None if revenue == 0 else contribution / revenue
+        if min_margin is not None:
+            passed = False if margin is None else margin >= min_margin
+    versions = tuple(sorted({q.pricing_version for q in quotes}))
+    return BuildEconomicsQuote(
+        provider_estimated_usd=provider_est,
+        provider_maximum_usd=provider_max,
+        infrastructure_estimated_usd=infra_est,
+        infrastructure_maximum_usd=infra_max,
+        retry_reserve_usd=retry,
+        total_estimated_variable_usd=total_est,
+        total_authorized_variable_usd=total_max,
+        pricing_versions=versions,
+        revenue_usd=revenue,
+        minimum_margin=min_margin,
+        conservative_contribution_usd=contribution,
+        conservative_margin=margin,
+        margin_floor_passed=passed,
+    )
+
+
+def enforce_margin_floor(quote: BuildEconomicsQuote) -> BuildEconomicsQuote:
+    if quote.revenue_usd is None or quote.minimum_margin is None or quote.margin_floor_passed is None:
+        raise PermissionError("build margin gate requires an explicit revenue basis and minimum margin")
+    if not quote.margin_floor_passed:
+        raise PermissionError(
+            f"build variable-cost margin below floor: {quote.conservative_margin} < {quote.minimum_margin}"
+        )
+    return quote
+
 def validate_live_quote_within_reservation(
     *,
     local_quote: ProviderQuote,

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from .db import DatabasePool
 from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD
+from .provider_pricing import contribution_evidence
 
 
 class PostgresSubscriptionService:
@@ -144,6 +145,9 @@ class PostgresSubscriptionService:
 
         plan = PLAN_CATALOG[PlanCode(plan_code) if not isinstance(plan_code, PlanCode) else plan_code]
         estimate = estimated_provider_cost_usd if estimated_provider_cost_usd is not None else Decimal('0.25')
+        estimate = Decimal(str(estimate))
+        if estimate < 0:
+            raise ValueError('estimated provider cost must be non-negative')
         user_billable = category not in {'system_bug','missing_requirement'}
         charge = credits if user_billable else 0
 
@@ -173,21 +177,30 @@ class PostgresSubscriptionService:
 
         return decision
 
-    def settle(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None) -> None:
+    def settle(
+        self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None,
+        revenue_usd: Decimal | None = None, infra_cost_usd: Decimal = Decimal('0'),
+        payment_fee_usd: Decimal = Decimal('0'), support_allocation_usd: Decimal = Decimal('0'),
+    ) -> dict | None:
+        """Resolve one durable reservation without promoting estimates to actuals.
+
+        The reservation amount remains a conservative settlement basis when the
+        provider does not report an actual cost.  Contribution evidence is
+        returned only when an explicit revenue basis is supplied; callers can
+        persist that evidence in their durable build/deployment record.
+        """
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute("SELECT account_id, status, estimated_provider_cost_usd FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
-                    if not row: return
+                    if not row:
+                        return None
                     user_id, status, estimated_cost = row[0], row[1], Decimal(str(row[2]))
 
-                    if status != 'RESERVED': return
+                    if status != 'RESERVED':
+                        return None
 
-                    # Preserve truth: an estimate/reservation is never promoted to
-                    # provider-reported actual cost.  When actual usage is not yet
-                    # known we conservatively keep the reserved amount as the
-                    # settlement basis while leaving actual_provider_cost_usd NULL.
                     reported_actual = (
                         None if actual_provider_cost_usd is None
                         else Decimal(str(actual_provider_cost_usd))
@@ -203,21 +216,45 @@ class PostgresSubscriptionService:
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (refund, user_id))
                     elif settlement_basis > estimated_cost:
                         shortfall = settlement_basis - estimated_cost
-                        cur.execute("SELECT plan_code, provider_spend_usd FROM creator_subscriptions WHERE user_id=%s", (user_id,))
+                        cur.execute("SELECT plan_code, provider_spend_usd FROM creator_subscriptions WHERE user_id=%s FOR UPDATE", (user_id,))
                         sub_row = cur.fetchone()
+                        if not sub_row:
+                            raise RuntimeError('subscription row missing during settlement')
                         plan = PLAN_CATALOG[PlanCode(sub_row[0])]
                         current_spend = Decimal(str(sub_row[1]))
 
                         if plan.paid_provider_budget_usd is not None:
                             budget_remaining = max(Decimal('0'), plan.paid_provider_budget_usd - current_spend)
                             charge = min(shortfall, budget_remaining)
-                            settled = estimated_cost + charge  # The rest is company overrun
+                            settled = estimated_cost + charge
                         else:
                             charge = shortfall
 
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = provider_spend_usd + %s WHERE user_id=%s", (charge, user_id))
 
                     cur.execute("UPDATE credit_reservations SET status='SETTLED', resolved_at=now(), actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s", (reported_actual, settled, build_id))
+
+                    result = {
+                        'build_id': build_id,
+                        'actual_provider_cost_usd': reported_actual,
+                        'settled_provider_cost_usd': settled,
+                        'provider_cost_truth': 'ACTUAL' if reported_actual is not None else 'CONSERVATIVE_RESERVATION',
+                        'gross_contribution_usd': None,
+                        'contribution_margin': None,
+                    }
+                    if revenue_usd is not None:
+                        economics = contribution_evidence(
+                            revenue_usd=Decimal(str(revenue_usd)),
+                            actual_provider_cost_usd=reported_actual,
+                            conservative_provider_cost_usd=estimated_cost,
+                            infra_cost_usd=Decimal(str(infra_cost_usd)),
+                            payment_fee_usd=Decimal(str(payment_fee_usd)),
+                            support_allocation_usd=Decimal(str(support_allocation_usd)),
+                        )
+                        result['provider_cost_truth'] = economics['provider_cost_truth'] if reported_actual is not None else 'CONSERVATIVE_RESERVATION'
+                        result['gross_contribution_usd'] = economics['contribution_usd']
+                        result['contribution_margin'] = economics['contribution_margin']
+                    return result
 
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:

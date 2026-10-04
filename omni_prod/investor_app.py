@@ -33,6 +33,8 @@ from .native_source import android_project, ios_project, game_project, omni_andr
 from .product_evolution import ProductEvolutionAgent
 from .remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
 from .model_runtime_config import ModelRuntimeConfig
+from .provider_contracts import ProviderQuote
+from .provider_pricing import aggregate_build_quote, enforce_margin_floor
 from .project_memory import ProjectMemory
 from .quality_gate import assess_repository
 from .readiness import readiness_payload
@@ -142,6 +144,46 @@ def _build_v28_platform():
         return plat
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
+
+def _m5_build_economics_quote(plan, *, credits: int):
+    """Conservative pre-execution variable-cost authorization for M5 builds.
+
+    The external model budget is already a whole-build ceiling (including repair
+    calls), so it is represented as one provider maximum rather than a per-call
+    guess. Infrastructure reserve is explicit and server-configurable.
+    """
+    cfg = ModelRuntimeConfig.from_env()
+    provider_quotes = ()
+    provider_budget = Decimal(str(cfg.policy.external_budget_usd))
+    if provider_budget > 0:
+        provider_quotes = (ProviderQuote(
+            provider='model-router', capability_key='software.code.generate',
+            estimated_cost_usd=Decimal('0'), maximum_cost_usd=provider_budget,
+            pricing_version='runtime-model-policy-v1', unit_name='build-budget', units=Decimal('1'),
+        ),)
+    infra_est = Decimal(os.getenv('OMNI_BUILD_INFRA_ESTIMATED_USD', '0'))
+    infra_max = Decimal(os.getenv('OMNI_BUILD_INFRA_MAX_USD', str(infra_est)))
+    retry_reserve = Decimal(os.getenv('OMNI_BUILD_RETRY_RESERVE_USD', '0'))
+
+    revenue_basis = None
+    minimum_margin = None
+    if getattr(plan, 'monthly_price_usd', None) not in (None, Decimal('0')) and getattr(plan, 'included_credits', 0):
+        revenue_basis = (Decimal(plan.monthly_price_usd) * Decimal(int(credits)) / Decimal(int(plan.included_credits)))
+        minimum_margin = Decimal(os.getenv('OMNI_MIN_BUILD_VARIABLE_MARGIN', '0.20'))
+
+    quote = aggregate_build_quote(
+        provider_quotes=provider_quotes,
+        infrastructure_estimated_usd=infra_est,
+        infrastructure_maximum_usd=infra_max,
+        retry_reserve_usd=retry_reserve,
+        revenue_usd=revenue_basis,
+        minimum_margin=minimum_margin,
+    )
+    if revenue_basis is None:
+        if quote.total_authorized_variable_usd > 0:
+            raise PermissionError('zero/unknown revenue plan cannot authorize paid variable build cost')
+        return quote
+    return enforce_margin_floor(quote)
 
 def _async_build_mode()->bool:
     """M1 blocker resolution: True when this deployment runs the durable
@@ -1212,6 +1254,12 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     try:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
         cost_class, credits = CostClass.STANDARD, 60
+        plan = _v28.subscriptions.plan_for(account.id)
+        try:
+            economics_quote = _m5_build_economics_quote(plan, credits=credits)
+        except PermissionError as exc:
+            raise HTTPException(402, str(exc)) from exc
+        provider_reservation_usd = economics_quote.provider_maximum_usd + economics_quote.retry_reserve_usd
 
         build_id = f"bld_{uuid.uuid4().hex}"
         brand_visible = _v28._project_brand_visible.get(key)
@@ -1232,6 +1280,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                     decision = _v28.subscriptions.reserve(
                         cur, build_id=build_id, user_id=account.id, project_id=key,
                         cost_class=cost_class.value, credits=credits,
+                        estimated_provider_cost_usd=provider_reservation_usd,
                     )
                     if not decision.allowed:
                         raise HTTPException(402, decision.reason)
@@ -1242,7 +1291,11 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                         branding_visible=brand_visible, white_label_name=white_label,
                         rights_evidence=rights_evidence, public_project_id=project_id,
                     )
-                    jobs.create_with_cursor(cur, build_id=build_id, project_id=key, version_id="pending")
+                    jobs.create_with_cursor(
+                        cur, build_id=build_id, project_id=key, version_id="pending",
+                        evidence_json={'economics_quote': economics_quote.to_dict()},
+                        estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
+                    )
                     jobs.create_outbox(cur, build_id=build_id)
 
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
@@ -1257,7 +1310,10 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             # relay re-dispatches rows with enqueued_at IS NULL.
             dispatch = "deferred"
 
-        return JSONResponse(status_code=202, content={"status": "queued", "build_id": build_id, "dispatch": dispatch})
+        return JSONResponse(status_code=202, content={
+            "status": "queued", "build_id": build_id, "dispatch": dispatch,
+            "economics": economics_quote.to_dict(),
+        })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
 

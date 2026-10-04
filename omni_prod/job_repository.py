@@ -131,17 +131,54 @@ class PostgresBuildRepository:
     def get_request(self, build_id: str) -> dict:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence, public_project_id FROM build_requests WHERE build_id = %s", (build_id,))
+                cur.execute(
+                    """
+                    SELECT br.user_id, br.internal_project_id, br.prompt, br.target_markets,
+                           br.branding_visible, br.white_label_name, br.rights_evidence, br.public_project_id,
+                           cr.estimated_provider_cost_usd, bj.evidence_json
+                    FROM build_requests br
+                    JOIN credit_reservations cr ON cr.build_id = br.build_id
+                    JOIN build_jobs bj ON bj.id = br.build_id
+                    WHERE br.build_id = %s
+                    """,
+                    (build_id,),
+                )
                 row = cur.fetchone()
-                if not row: raise KeyError("Build request not found")
-                return {"user_id": row[0], "internal_project_id": row[1], "prompt": row[2], "target_markets": tuple(row[3]), "branding_visible": row[4], "white_label_name": row[5], "rights_evidence": row[6], "public_project_id": row[7]}
+                if not row:
+                    raise KeyError("Build request not found")
+                initial_evidence = row[9] or {}
+                if isinstance(initial_evidence, str):
+                    initial_evidence = json.loads(initial_evidence)
+                return {
+                    "user_id": row[0], "internal_project_id": row[1], "prompt": row[2],
+                    "target_markets": tuple(row[3]), "branding_visible": row[4],
+                    "white_label_name": row[5], "rights_evidence": row[6],
+                    "public_project_id": row[7],
+                    "authorized_provider_cost_usd": row[8],
+                    "economics_quote": dict(initial_evidence.get("economics_quote") or {}),
+                }
 
-    def create_with_cursor(self, cur, *, build_id: str, project_id: str, version_id: str) -> None:
-        """Renamed from the pasted patch's create(cur, ...) to avoid colliding
-        with the pre-existing, still-in-use create() above."""
+    def create_with_cursor(
+        self, cur, *, build_id: str, project_id: str, version_id: str,
+        evidence_json: dict | None = None, estimated_provider_cost_usd=None,
+    ) -> None:
+        """Create a durable job inside the caller's transaction.
+
+        M5 may attach conservative pre-execution economics evidence here so the
+        worker can load exactly the authorization that was committed with the
+        reservation rather than recomputing it from mutable environment values.
+        """
         cur.execute(
-            "INSERT INTO build_jobs(id, project_id, version_id, status, phase) VALUES (%s, %s, %s, %s, %s)",
-            (build_id, project_id, version_id, BuildStatus.QUEUED.value, 'QUEUED')
+            """
+            INSERT INTO build_jobs(
+                id, project_id, version_id, status, phase, evidence_json, estimated_provider_cost_usd
+            ) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s)
+            """,
+            (
+                build_id, project_id, version_id, BuildStatus.QUEUED.value, 'QUEUED',
+                json.dumps(evidence_json) if evidence_json is not None else None,
+                estimated_provider_cost_usd,
+            ),
         )
 
     def create_outbox(self, cur, *, build_id: str) -> None:
