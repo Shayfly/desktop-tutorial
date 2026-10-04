@@ -264,6 +264,49 @@ class MemoryCapabilityRepository:
         row["status"] = target
         return True
 
+    def finalize_execution_success(
+        self, *, idempotency_key: str, worker_id: str, build_id: str,
+        requirement_id: str, event: Mapping[str, Any], artifact_key: str | None,
+        verification: Mapping[str, Any], selected_provider: str, pricing_version: str,
+    ) -> bool:
+        attempt = self._attempts.get(idempotency_key)
+        if attempt is None:
+            raise KeyError("provider execution attempt not found")
+        if attempt.get("lease_owner") != worker_id:
+            raise AttemptLeaseConflict("lease owner mismatch")
+        if attempt["status"] == "SUCCEEDED":
+            row = self._requirements.get((build_id, requirement_id))
+            return bool(row and row["status"] == "VERIFIED")
+        if attempt["status"] not in {"SUBMITTED", "RUNNING"}:
+            raise InvalidAttemptTransition(f"cannot finalize provider attempt from {attempt['status']}")
+        row = self._requirements.get((build_id, requirement_id))
+        if row is None:
+            raise KeyError("capability requirement not found")
+        if row["status"] != "RUNNING":
+            raise InvalidAttemptTransition(f"cannot finalize requirement from {row['status']}")
+
+        # Memory implementation mirrors one database transaction: validate the
+        # complete write-set first, then mutate all three truth surfaces.
+        event_key = str(event.get("event_key", "")).strip()
+        if not event_key:
+            raise ValueError("usage event_key must not be empty")
+        existing = self._usage.get(event_key)
+        payload = dict(event)
+        if existing is not None and existing != payload:
+            raise ValueError("usage event idempotency conflict")
+        if payload.get("actual_cost_usd") is not None and Decimal(str(payload["actual_cost_usd"])) < 0:
+            raise ValueError("actual cost must be >= 0 when known")
+
+        if existing is None:
+            self._usage[event_key] = payload
+        row["status"] = "VERIFIED"
+        row["selected_provider"] = selected_provider
+        row["pricing_version"] = pricing_version
+        row["artifact_key"] = artifact_key
+        row["verification"] = dict(verification)
+        attempt["status"] = "SUCCEEDED"
+        return True
+
     # Compatibility helpers used by the executor implementation.
     @property
     def attempts(self) -> dict[str, ProviderExecutionAttempt]:
@@ -607,6 +650,87 @@ class PostgresCapabilityRepository:
             row[0], expected=expected, target=target, worker_id=lease_owner
         ):
             raise InvalidAttemptTransition("provider attempt compare-and-swap failed")
+
+    def finalize_execution_success(
+        self, *, idempotency_key: str, worker_id: str, build_id: str,
+        requirement_id: str, event: Mapping[str, Any], artifact_key: str | None,
+        verification: Mapping[str, Any], selected_provider: str, pricing_version: str,
+    ) -> bool:
+        event_key = str(event.get("event_key", "")).strip()
+        if not event_key:
+            raise ValueError("usage event_key must not be empty")
+        estimated = Decimal(str(event.get("estimated_cost_usd", 0)))
+        maximum = Decimal(str(event.get("maximum_cost_usd", estimated)))
+        actual_raw = event.get("actual_cost_usd")
+        actual = None if actual_raw is None else Decimal(str(actual_raw))
+        if estimated < 0 or maximum < estimated or (actual is not None and actual < 0):
+            raise ValueError("invalid provider cost evidence")
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """SELECT status, lease_owner FROM provider_execution_attempts
+                           WHERE idempotency_key=%s FOR UPDATE""",
+                        (idempotency_key,),
+                    )
+                    attempt = cur.fetchone()
+                    if attempt is None:
+                        raise KeyError("provider execution attempt not found")
+                    if attempt[1] != worker_id:
+                        raise AttemptLeaseConflict("lease owner mismatch")
+                    if attempt[0] == "SUCCEEDED":
+                        cur.execute(
+                            "SELECT status FROM build_capability_requirements WHERE build_id=%s AND requirement_id=%s",
+                            (build_id, requirement_id),
+                        )
+                        row = cur.fetchone()
+                        return bool(row and row[0] == "VERIFIED")
+                    if attempt[0] not in {"SUBMITTED", "RUNNING"}:
+                        raise InvalidAttemptTransition(f"cannot finalize provider attempt from {attempt[0]}")
+
+                    cur.execute(
+                        """
+                        INSERT INTO provider_usage_events(
+                            event_key, build_id, requirement_id, provider, pricing_version,
+                            estimated_cost_usd, maximum_cost_usd, actual_cost_usd,
+                            usage_json, evidence_json
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb)
+                        ON CONFLICT (event_key) DO NOTHING
+                        """,
+                        (
+                            event_key, build_id, requirement_id, str(event.get("provider", "")),
+                            pricing_version, estimated, maximum, actual,
+                            json.dumps(dict(event.get("usage", {}))),
+                            json.dumps(dict(event.get("evidence", {}))),
+                        ),
+                    )
+                    cur.execute(
+                        """
+                        UPDATE build_capability_requirements
+                        SET status='VERIFIED', selected_provider=%s, pricing_version=%s,
+                            estimated_cost_usd=%s, maximum_cost_usd=%s, actual_cost_usd=%s,
+                            artifact_key=%s, verification_json=%s::jsonb, updated_at=now()
+                        WHERE build_id=%s AND requirement_id=%s AND status='RUNNING'
+                        """,
+                        (
+                            selected_provider, pricing_version, estimated, maximum, actual,
+                            artifact_key, json.dumps(dict(verification)), build_id, requirement_id,
+                        ),
+                    )
+                    if cur.rowcount != 1:
+                        raise InvalidAttemptTransition("requirement completion compare-and-swap failed")
+                    cur.execute(
+                        """
+                        UPDATE provider_execution_attempts
+                        SET status='SUCCEEDED', updated_at=now()
+                        WHERE idempotency_key=%s AND lease_owner=%s
+                          AND status IN ('SUBMITTED','RUNNING')
+                        """,
+                        (idempotency_key, worker_id),
+                    )
+                    if cur.rowcount != 1:
+                        raise InvalidAttemptTransition("provider completion compare-and-swap failed")
+                    return True
 
     def record_usage_event(
         self, *, event_key: str, build_id: str, requirement_id: str, provider: str,

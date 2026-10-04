@@ -178,6 +178,7 @@ class MigrationContractTests(unittest.TestCase):
         text = Path("infra/postgres/017_capability_foundation.sql").read_text()
         normalized = " ".join(text.lower().split())
         self.assertIn("create table if not exists build_capability_requirements", normalized)
+        self.assertIn("'skipped'", normalized)
         self.assertIn("create table if not exists provider_execution_attempts", normalized)
         self.assertIn("provider_task_id text", normalized)
         self.assertIn("idempotency_key text not null unique", normalized)

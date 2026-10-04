@@ -7,7 +7,9 @@ from typing import Mapping
 
 from .artifact_keys import build_capability_artifact_key
 from .capabilities import CapabilityPlan, CapabilityRequirement
-from .capability_verification import verify_capability_artifact
+from .capability_verification import (
+    ArtifactVerificationError, verify_capability_artifact, verify_capability_artifact_stream,
+)
 from .provider_contracts import CapabilityArtifact, ProviderQuote, ProviderTaskHandle
 
 
@@ -141,10 +143,12 @@ class CapabilityExecutor:
             max_size_bytes=self.max_artifact_bytes,
         )
         try:
-            self.artifact_store.put_bytes(key, payload.data)
+            stored = self.artifact_store.put_bytes(key, payload.data)
+            if getattr(stored, "sha256", digest) != digest or getattr(stored, "size", len(payload.data)) != len(payload.data):
+                raise CapabilityExecutionError(f"artifact store integrity mismatch: {key}")
         except KeyError:
-            # Retry after a crash may encounter the immutable object written by
-            # the previous worker. Reuse only if bytes are identical.
+            # Retry after a crash may encounter an immutable object written by
+            # the previous worker. Reuse only if the stored bytes verify.
             existing = self.artifact_store.get_bytes(key)
             if bytes(existing) != bytes(payload.data):
                 raise CapabilityExecutionError(f"artifact key collision with different bytes: {key}")
@@ -247,61 +251,70 @@ class CapabilityExecutor:
             )
 
         result = provider.collect(handle)
-        artifacts: list[CapabilityArtifact] = list(result.artifacts)
+        artifacts: list[CapabilityArtifact] = []
         verification_items: list[dict] = []
-        for payload in result.payloads:
-            artifact, verification = self._persist_payload(
-                build_id=build_id,
-                project_id=project_id,
-                requirement=requirement,
-                provider_name=assignment.provider,
-                payload=payload,
-            )
-            artifacts.append(artifact)
-            verification_items.append(verification)
+        try:
+            # A provider-supplied CapabilityArtifact is evidence, not trust.
+            # Verify the declared bytes from platform-owned storage before it
+            # can contribute to a VERIFIED requirement.
+            for artifact in result.artifacts:
+                if artifact.provider != assignment.provider or artifact.capability_key != requirement.key:
+                    raise CapabilityExecutionError("provider artifact identity mismatch")
+                if hasattr(self.artifact_store, "iter_bytes"):
+                    verification = verify_capability_artifact_stream(
+                        artifact, self.artifact_store.iter_bytes(artifact.artifact_key),
+                        max_size_bytes=self.max_artifact_bytes,
+                    )
+                else:
+                    verification = verify_capability_artifact(
+                        artifact, self.artifact_store.get_bytes(artifact.artifact_key),
+                        max_size_bytes=self.max_artifact_bytes,
+                    )
+                artifacts.append(artifact)
+                verification_items.append({
+                    "verified": verification.verified, "checks": list(verification.checks),
+                    "sha256": verification.sha256, "size_bytes": verification.size_bytes,
+                })
 
-        current_status = self.repository.execution_attempt(idempotency_key)["status"]
-        if current_status != "SUCCEEDED":
-            ok = self.repository.transition_execution_attempt(
-                idempotency_key,
-                expected=current_status,
-                target="SUCCEEDED",
-                worker_id=self.worker_id,
-            )
-            if not ok:
-                raise CapabilityExecutionError("provider attempt completion CAS failed")
+            for payload in result.payloads:
+                artifact, verification = self._persist_payload(
+                    build_id=build_id, project_id=project_id, requirement=requirement,
+                    provider_name=assignment.provider, payload=payload,
+                )
+                artifacts.append(artifact)
+                verification_items.append(verification)
+        except CapabilityExecutionError:
+            raise
+        except (ArtifactVerificationError, KeyError, OSError, ValueError) as exc:
+            raise CapabilityExecutionError(f"artifact verification/storage failed: {exc}") from exc
 
-        self.repository.record_usage(event={
+        event = {
             "event_key": f"{build_id}:{requirement.id}:{assignment.provider}:collect:{assignment.quote.pricing_version}",
-            "build_id": build_id,
-            "requirement_id": requirement.id,
-            "capability_key": requirement.key,
-            "provider": assignment.provider,
-            "provider_operation": "collect",
-            "pricing_version": assignment.quote.pricing_version,
+            "build_id": build_id, "requirement_id": requirement.id,
+            "capability_key": requirement.key, "provider": assignment.provider,
+            "provider_operation": "collect", "pricing_version": assignment.quote.pricing_version,
             "status": "SUCCEEDED",
             "estimated_cost_usd": assignment.quote.estimated_cost_usd,
             "maximum_cost_usd": assignment.quote.maximum_cost_usd,
             "actual_cost_usd": result.actual_cost_usd,
-            "usage": dict(result.usage),
-            "evidence": dict(result.evidence),
-        })
-
+            "usage": dict(result.usage), "evidence": dict(result.evidence),
+        }
         artifact_key = artifacts[0].artifact_key if artifacts else None
-        if not self._transition_requirement(
-            build_id=build_id,
-            requirement_id=requirement.id,
-            expected="RUNNING",
-            target="VERIFIED",
+        verification_evidence = {
+            "artifacts": verification_items,
+            "provider_evidence": dict(result.evidence),
+        }
+        # The repository owns the atomic truth transition. In Postgres this
+        # commits usage + requirement VERIFIED + attempt SUCCEEDED in one
+        # transaction, eliminating the crash window between those writes.
+        if not self.repository.finalize_execution_success(
+            idempotency_key=idempotency_key, worker_id=self.worker_id,
+            build_id=build_id, requirement_id=requirement.id, event=event,
+            artifact_key=artifact_key, verification=verification_evidence,
             selected_provider=assignment.provider,
             pricing_version=assignment.quote.pricing_version,
-            artifact_key=artifact_key,
-            verification={"artifacts": verification_items, "provider_evidence": dict(result.evidence)},
         ):
-            # A replay after a crash may already have finished the requirement.
-            row = self._requirement_row(build_id, requirement.id)
-            if row["status"] != "VERIFIED":
-                raise CapabilityExecutionError("requirement completion CAS failed")
+            raise CapabilityExecutionError("atomic capability finalization failed")
         return tuple(artifacts)
 
     def execute_plan(

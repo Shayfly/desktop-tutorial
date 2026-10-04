@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS build_capability_requirements (
     dependency_ids_json JSONB NOT NULL DEFAULT '[]'::jsonb,
     status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (
         status IN ('PLANNED','QUOTED','RESERVED','QUEUED','RUNNING','GENERATED',
-                   'VERIFIED','FAILED','CANCELLED','NOT_CONFIGURED','BLOCKED')
+                   'VERIFIED','FAILED','CANCELLED','SKIPPED','NOT_CONFIGURED','BLOCKED')
     ),
     selected_provider TEXT,
     pricing_version TEXT,
