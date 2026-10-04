@@ -53,14 +53,14 @@ class RequirementLedgerTests(unittest.TestCase):
                 test_path = test_id.split("::", 1)[0]
                 self.assertTrue((ROOT / test_path).exists(), f"{record.requirement_id}: missing {test_path}")
 
-    def test_m5_truth_is_exactly_1_10_11_verified_today(self):
+    def test_m5_truth_is_exactly_1_2_10_11_verified_today(self):
         ledger = load_requirement_ledger(LEDGER)
         verified = {
             int(r.requirement_id.split("T", 1)[1])
             for r in ledger.all()
             if r.milestone == "M5" and r.status is RequirementStatus.VERIFIED_LOCAL
         }
-        self.assertEqual(verified, {1, 10, 11})
+        self.assertEqual(verified, {1, 2, 10, 11})
 
     def test_truth_lock_fails_when_requirement_ledger_check_fails(self):
         from omni_prod.truth_lock import TruthDriftError, check_truth_files
