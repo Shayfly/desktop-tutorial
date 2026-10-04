@@ -133,6 +133,14 @@ class ProviderAdapterTests(unittest.TestCase):
                 durable_idempotency=False, paid_external=True,
             )
 
+    def test_paid_synchronous_media_adapter_cannot_claim_crash_resumable_execution(self):
+        with self.assertRaisesRegex(ValueError, 'durable result retrieval'):
+            HTTPMediaCapabilityProvider(
+                gateway=FakeMediaGateway(), capability_keys=('media.image.generate',),
+                output_formats=('image/png',), quote_factory=media_quote,
+                durable_idempotency=True, paid_external=True,
+            )
+
 
 class FakeLLM:
     def complete(self, **kwargs): return 'hello world'

@@ -6,7 +6,7 @@ from omni_prod.provider_contracts import (
     CapabilityArtifact,
     CapabilityProvider,
     ProviderCapability,
-    ProviderExecutionResult,
+    ProviderExecutionResult, ProviderArtifactPayload,
     ProviderQuote,
     ProviderTaskHandle,
     ProviderTaskState,
@@ -55,6 +55,21 @@ class ProviderContractTests(unittest.TestCase):
             CapabilityArtifact("a", "model/gltf-binary", "a" * 64, -1, "p", "media.3d.mesh.generate", {}, {})
         with self.assertRaisesRegex(ValueError, "sha256"):
             CapabilityArtifact("a", "model/gltf-binary", "not-a-hash", 1, "p", "media.3d.mesh.generate", {}, {})
+
+    def test_artifact_payload_supports_exactly_one_memory_or_file_source(self):
+        memory = ProviderArtifactPayload("image/png", b"bytes", filename="x.png")
+        self.assertEqual(memory.data, b"bytes")
+        self.assertIsNone(memory.file_path)
+        file_backed = ProviderArtifactPayload(
+            "video/mp4", None, filename="clip.mp4", file_path="/tmp/clip.mp4"
+        )
+        self.assertEqual(file_backed.file_path, "/tmp/clip.mp4")
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            ProviderArtifactPayload("image/png", None, filename="x.png")
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            ProviderArtifactPayload(
+                "image/png", b"bytes", filename="x.png", file_path="/tmp/x.png"
+            )
 
     def test_execution_result_never_turns_unknown_actual_into_estimate(self):
         result = ProviderExecutionResult(artifacts=(), actual_cost_usd=None, usage={}, evidence={})

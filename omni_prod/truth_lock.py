@@ -11,6 +11,8 @@ from typing import Any, Iterable
 from .agents_registry import build_canonical_agents_registry, validate_master_registries
 from .capability_registry import CapabilityRegistry
 from .integration_center import IntegrationCenter
+from .integrations import catalog as integration_catalog
+from .provider_pricing import PriceStatus
 from .skills_registry import build_canonical_skills_registry
 
 
@@ -52,6 +54,19 @@ def canonical_truth_snapshot() -> dict[str, Any]:
     skill_rows = [_json_safe(asdict(skill)) for skill in skills.all()]
     agent_rows = [_json_safe(asdict(agent)) for agent in agents.all()]
 
+    provider_definitions = integration_catalog()
+    provider_catalog = {
+        "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME",
+        "commercial_adapters_status": "NOT_CONFIGURED",
+        "definitions": provider_definitions,
+    }
+    cost_contract = {
+        "price_status_vocabulary": [status.value for status in PriceStatus],
+        "unknown_is_never_zero": True,
+        "estimate_is_never_actual": True,
+        "canonical_commercial_price_catalog_status": "NOT_CONFIGURED",
+    }
+
     base = {
         "schema_version": 1,
         "milestone": "M4.95",
@@ -60,6 +75,9 @@ def canonical_truth_snapshot() -> dict[str, Any]:
         "capability_count": len(capability_rows),
         "skill_count": len(skill_rows),
         "agent_count": len(agent_rows),
+        "provider_definition_count": len(provider_definitions),
+        "provider_catalog": provider_catalog,
+        "cost_contract": cost_contract,
         "registry_report": {
             "uncovered_capabilities": list(report["uncovered_capabilities"]),
             "unknown_agent_skills": [list(item) for item in report["unknown_agent_skills"]],
@@ -141,6 +159,51 @@ def render_skills_registry(skills=None) -> str:
     return "\n".join(lines)
 
 
+def render_cost_model() -> str:
+    return """# 148AI Cost Model — M4.95 Truth Contract
+
+M4.95 treats cost as release-critical evidence, not a cosmetic estimate.
+
+## Required fields
+
+Every paid provider action has a versioned price source and records `estimated_cost_usd`, `maximum_cost_usd`, a durable reservation ceiling, and `actual_cost_usd` when the provider exposes measured billing/usage. `pricing_version` and effective dates make historical builds auditable.
+
+**UNKNOWN is never zero.** A provider price with status `UNKNOWN_NOT_APPROVED` cannot be used for an approved paid execution. `CUSTOMER_PAYS_DIRECTLY` is tracked separately and must never be interpreted as a free platform service.
+
+**An estimate is never actual.** `actual_cost_usd=NULL` remains unknown; the ledger must not replace it with `estimated_cost_usd` or the reserved maximum. Contribution analysis may use a conservative cost basis, but it must label that basis `CONSERVATIVE`, not `ACTUAL`.
+
+## Authorization lifecycle
+
+`local versioned price catalog -> conservative maximum quote -> durable reserve -> optional live quote validation -> provider execution -> measured usage -> actual settlement/release`
+
+A paid external provider is not called before a durable authorization ceiling exists. A live quote that exceeds the reserved maximum blocks execution or requires an explicit reservation expansion.
+
+## Cost dimensions still required before public production
+
+Provider/model tokens or credits, image/3D/video/audio units, retries and paid failures, sandbox CPU/GPU, build time, object storage, egress, database/queue/monitoring, payment fees, non-recoverable tax, refunds/chargebacks where applicable, and support allocation. M4.95 establishes the accounting contracts; production telemetry and commercial provider price catalogs remain `NOT_CONFIGURED` until live credentials/contracts and measured usage exist.
+"""
+
+
+def render_provider_catalog(snapshot: dict[str, Any]) -> str:
+    payload = {
+        "schema_version": 1,
+        "truth_sha256": snapshot["sha256"],
+        **snapshot["provider_catalog"],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def render_provider_price_catalog(snapshot: dict[str, Any]) -> str:
+    payload = {
+        "schema_version": 1,
+        "truth_sha256": snapshot["sha256"],
+        "status": snapshot["cost_contract"]["canonical_commercial_price_catalog_status"],
+        "currency": "USD",
+        "entries": [],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def render_agents_registry(agents=None) -> str:
     capabilities = CapabilityRegistry()
     skills = build_canonical_skills_registry(capabilities)
@@ -184,6 +247,9 @@ def render_truth_files() -> dict[str, str]:
         "MASTER_AGENTS_REGISTRY.md": render_agents_registry(agents),
         "MASTER_SKILLS_REGISTRY.json": json.dumps(skill_json, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         "MASTER_AGENTS_REGISTRY.json": json.dumps(agent_json, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "PROVIDER_CATALOG.json": render_provider_catalog(snapshot),
+        "PROVIDER_PRICE_CATALOG.json": render_provider_price_catalog(snapshot),
+        "COST_MODEL.md": render_cost_model(),
         "M4_95_MACHINE_TRUTH.json": json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
     }
 
@@ -207,6 +273,12 @@ def check_truth_files(root: Path = Path(".")) -> None:
         path = root / relative
         if not path.exists() or path.read_text(encoding="utf-8") != content:
             drift.append(relative)
+    status_path = root / "STATUS.md"
+    if status_path.exists():
+        fingerprint = canonical_truth_snapshot()["sha256"]
+        marker = f"M4.95 machine truth SHA-256: `{fingerprint}`"
+        if marker not in status_path.read_text(encoding="utf-8"):
+            drift.append("STATUS.md#M4.95-machine-truth")
     if drift:
         raise TruthDriftError("truth-lock drift: " + ", ".join(drift))
 

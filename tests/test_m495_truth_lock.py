@@ -55,5 +55,36 @@ class MachineTruthLockTests(unittest.TestCase):
         self.assertIn('partial', mission)
 
 
+    def test_provider_and_cost_truth_are_machine_locked(self):
+        files = render_truth_files()
+        machine = json.loads(files['M4_95_MACHINE_TRUTH.json'])
+        providers = json.loads(files['PROVIDER_CATALOG.json'])
+        prices = json.loads(files['PROVIDER_PRICE_CATALOG.json'])
+        self.assertGreaterEqual(machine['provider_definition_count'], 16)
+        self.assertEqual(machine['provider_catalog']['runtime_registry_mode'], 'DYNAMIC_CONFIGURED_AT_RUNTIME')
+        self.assertEqual(machine['provider_catalog']['commercial_adapters_status'], 'NOT_CONFIGURED')
+        self.assertIn('UNKNOWN_NOT_APPROVED', machine['cost_contract']['price_status_vocabulary'])
+        self.assertTrue(machine['cost_contract']['unknown_is_never_zero'])
+        self.assertTrue(machine['cost_contract']['estimate_is_never_actual'])
+        self.assertEqual(providers['truth_sha256'], machine['sha256'])
+        self.assertEqual(prices['truth_sha256'], machine['sha256'])
+        self.assertEqual(prices['status'], 'NOT_CONFIGURED')
+        self.assertEqual(prices['entries'], [])
+        self.assertIn('COST_MODEL.md', files)
+
+    def test_status_fingerprint_is_required_by_truth_check(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_truth_files(root)
+            snapshot = canonical_truth_snapshot()
+            (root / 'STATUS.md').write_text(
+                f"M4.95 machine truth SHA-256: `{snapshot['sha256']}`\n",
+                encoding='utf-8',
+            )
+            check_truth_files(root)
+            (root / 'STATUS.md').write_text('stale\n', encoding='utf-8')
+            with self.assertRaises(TruthDriftError):
+                check_truth_files(root)
+
 
 if __name__=='__main__': unittest.main()

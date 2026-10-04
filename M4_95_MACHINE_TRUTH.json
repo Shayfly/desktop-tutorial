@@ -1780,14 +1780,176 @@
     }
   ],
   "capability_count": 87,
+  "cost_contract": {
+    "canonical_commercial_price_catalog_status": "NOT_CONFIGURED",
+    "estimate_is_never_actual": true,
+    "price_status_vocabulary": [
+      "PUBLIC_LIST_PRICE",
+      "NEGOTIATED_CONTRACT",
+      "VOLUME_TIER",
+      "CUSTOMER_PAYS_DIRECTLY",
+      "UNKNOWN_NOT_APPROVED"
+    ],
+    "unknown_is_never_zero": true
+  },
   "milestone": "M4.95",
+  "provider_catalog": {
+    "commercial_adapters_status": "NOT_CONFIGURED",
+    "definitions": [
+      {
+        "category": "mobile-signing",
+        "key": "apple-developer",
+        "optional": [],
+        "required_secrets": [
+          "APPLE_TEAM_ID",
+          "APPLE_SIGNING_IDENTITY"
+        ]
+      },
+      {
+        "category": "storage",
+        "key": "cloudflare-r2",
+        "optional": [],
+        "required_secrets": [
+          "S3_ENDPOINT_URL",
+          "S3_BUCKET",
+          "S3_ACCESS_KEY_ID",
+          "S3_SECRET_ACCESS_KEY"
+        ]
+      },
+      {
+        "category": "backend",
+        "key": "firebase",
+        "optional": [],
+        "required_secrets": [
+          "FIREBASE_PROJECT_ID",
+          "FIREBASE_CREDENTIALS_JSON"
+        ]
+      },
+      {
+        "category": "source-control",
+        "key": "github",
+        "optional": [],
+        "required_secrets": [
+          "GITHUB_TOKEN"
+        ]
+      },
+      {
+        "category": "maps",
+        "key": "google-maps",
+        "optional": [],
+        "required_secrets": [
+          "GOOGLE_MAPS_API_KEY"
+        ]
+      },
+      {
+        "category": "mobile-signing",
+        "key": "google-play",
+        "optional": [],
+        "required_secrets": [
+          "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+        ]
+      },
+      {
+        "category": "ai",
+        "key": "local-openai-compatible-model",
+        "optional": [],
+        "required_secrets": [
+          "OMNI_LOCAL_MODEL_BASE_URL",
+          "OMNI_LOCAL_MODEL_NAME"
+        ]
+      },
+      {
+        "category": "maps",
+        "key": "mapbox",
+        "optional": [],
+        "required_secrets": [
+          "MAPBOX_TOKEN"
+        ]
+      },
+      {
+        "category": "media",
+        "key": "media-gateway",
+        "optional": [],
+        "required_secrets": [
+          "OMNI_MEDIA_BASE_URL"
+        ]
+      },
+      {
+        "category": "auth",
+        "key": "oidc",
+        "optional": [],
+        "required_secrets": [
+          "OIDC_ISSUER",
+          "OIDC_CLIENT_ID",
+          "OIDC_CLIENT_SECRET"
+        ]
+      },
+      {
+        "category": "email",
+        "key": "resend",
+        "optional": [],
+        "required_secrets": [
+          "RESEND_API_KEY"
+        ]
+      },
+      {
+        "category": "gpu",
+        "key": "runpod",
+        "optional": [],
+        "required_secrets": [
+          "RUNPOD_API_KEY"
+        ]
+      },
+      {
+        "category": "storage",
+        "key": "s3",
+        "optional": [],
+        "required_secrets": [
+          "S3_ENDPOINT_URL",
+          "S3_BUCKET",
+          "S3_ACCESS_KEY_ID",
+          "S3_SECRET_ACCESS_KEY"
+        ]
+      },
+      {
+        "category": "email",
+        "key": "sendgrid",
+        "optional": [],
+        "required_secrets": [
+          "SENDGRID_API_KEY"
+        ]
+      },
+      {
+        "category": "payments",
+        "key": "stripe",
+        "optional": [],
+        "required_secrets": [
+          "STRIPE_SECRET_KEY",
+          "STRIPE_WEBHOOK_SECRET"
+        ]
+      },
+      {
+        "category": "backend",
+        "key": "supabase",
+        "optional": [
+          "SUPABASE_ANON_KEY"
+        ],
+        "required_secrets": [
+          "SUPABASE_URL",
+          "SUPABASE_SERVICE_ROLE_KEY"
+        ]
+      }
+    ],
+    "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME"
+  },
+  "provider_definition_count": 16,
   "registry_report": {
     "uncovered_capabilities": [],
     "unknown_agent_skills": []
   },
   "registry_version": "m4.95-v2",
   "schema_version": 1,
-  "sha256": "c89f2dda9f4255613d6f865d6eebc3836083d0bae85609c742b6711ae1d93517",
+  "sha256": "31c06ae684685475f6dcf031f7412fb35b22afef5076e787ad6fafe9e8a2c424",
   "skill_count": 104,
   "skills": [
     {

@@ -137,16 +137,19 @@ class CapabilityArtifact:
 @dataclass(frozen=True)
 class ProviderArtifactPayload:
     mime_type: str
-    data: bytes
+    data: bytes | None
     filename: str = "artifact.bin"
     metadata: Mapping[str, Any] = field(default_factory=dict)
     provenance: Mapping[str, Any] = field(default_factory=dict)
+    file_path: str | None = None
 
     def __post_init__(self) -> None:
         if not self.mime_type.strip() or "/" not in self.mime_type:
             raise ValueError("mime_type must be a valid media type")
-        if not self.data:
-            raise ValueError("provider artifact payload must not be empty")
+        has_data = self.data is not None and len(self.data) > 0
+        has_file = self.file_path is not None and bool(str(self.file_path).strip())
+        if has_data == has_file:
+            raise ValueError("provider artifact payload must contain exactly one data or file_path source")
         if not self.filename.strip() or "/" in self.filename or "\\" in self.filename:
             raise ValueError("filename must be a safe basename")
 
@@ -167,6 +170,9 @@ class ProviderExecutionResult:
 @runtime_checkable
 class CapabilityProvider(Protocol):
     name: str
+    paid_external: bool
+    durable_idempotency: bool
+    durable_result_retrieval: bool
 
     def capabilities(self) -> tuple[ProviderCapability, ...]: ...
 

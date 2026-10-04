@@ -1,5 +1,7 @@
 import hashlib
 import unittest
+import tempfile
+from pathlib import Path
 from decimal import Decimal
 
 from omni_prod.capabilities import CapabilityPlan, CapabilityRequirement
@@ -55,6 +57,7 @@ class MemoryStore:
 class FakeProvider:
     name = "media"
     durable_idempotency = True
+    durable_result_retrieval = True
     paid_external = True
 
     def __init__(self, *, fail_first_poll=False, terminal="SUCCEEDED", result_factory=None):
@@ -106,6 +109,19 @@ class CrashBeforeAtomicFinalizeRepository(MemoryCapabilityRepository):
         raise AssertionError("executor must not split usage from atomic finalization")
 
 
+class FileOnlyStore(MemoryStore):
+    def __init__(self):
+        super().__init__()
+        self.put_file_calls = 0
+    def put_bytes(self, key, data):
+        raise AssertionError("file-backed payload must not be materialized through put_bytes")
+    def put_file(self, path, key, **kwargs):
+        self.put_file_calls += 1
+        payload = Path(path).read_bytes()
+        self.objects[key] = payload
+        return StoredObject(key=key, sha256=hashlib.sha256(payload).hexdigest(), size=len(payload))
+
+
 class CapabilityExecutorTests(unittest.TestCase):
     def make_executor(self, provider, repo=None, store=None, *, worker_id="w1", lease_seconds=5):
         repo = repo or MemoryCapabilityRepository()
@@ -124,6 +140,15 @@ class CapabilityExecutorTests(unittest.TestCase):
             build_id="b1", project_id=project_id, plan=plan,
             assignments={req.id: CapabilityExecutionAssignment("media", quote())}, now=now,
         )
+
+    def test_paid_provider_without_durable_result_retrieval_fails_before_submit(self):
+        provider = FakeProvider()
+        provider.durable_result_retrieval = False
+        executor, repo, _ = self.make_executor(provider)
+        req = requirement()
+        with self.assertRaisesRegex(CapabilityExecutionError, "durable result retrieval"):
+            self.run_one(executor, repo, req)
+        self.assertEqual(provider.submit_calls, [])
 
     def test_restart_resumes_persisted_provider_task_without_duplicate_submit(self):
         provider = FakeProvider(fail_first_poll=True)
@@ -177,6 +202,24 @@ class CapabilityExecutorTests(unittest.TestCase):
         self.assertIsNone(usage[0]["actual_cost_usd"])
         self.assertEqual(usage[0]["maximum_cost_usd"], Decimal("0.20"))
         self.assertEqual(store.objects[summary.artifacts[0].artifact_key], PNG)
+
+    def test_file_backed_provider_payload_streams_to_artifact_store_without_put_bytes(self):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "large.png"
+            source.write_bytes(PNG + (b"x" * 1024 * 1024))
+            provider = FakeProvider(result_factory=lambda handle: ProviderExecutionResult(
+                artifacts=(), actual_cost_usd=Decimal("0.10"), usage={"images": 1}, evidence={},
+                payloads=(ProviderArtifactPayload(
+                    "image/png", None, filename="large.png", file_path=str(source)
+                ),),
+            ))
+            store = FileOnlyStore()
+            executor, repo, _ = self.make_executor(provider, store=store)
+            summary = self.run_one(executor, repo, requirement())
+        self.assertEqual(summary.status, "VERIFIED")
+        self.assertEqual(store.put_file_calls, 1)
+        self.assertEqual(len(store.objects), 1)
+        self.assertEqual(next(iter(store.objects.values())), PNG + (b"x" * 1024 * 1024))
 
     def test_pre_materialized_artifact_is_not_trusted_without_storage_verification(self):
         store = MemoryStore()

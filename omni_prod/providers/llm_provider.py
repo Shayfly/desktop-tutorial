@@ -25,6 +25,9 @@ class LLMCapabilityProvider:
         self.capability_keys = tuple(capability_keys)
         self.quote_factory = quote_factory
         self.commercial_use = commercial_use
+        self.paid_external = False
+        self.durable_idempotency = False
+        self.durable_result_retrieval = False
         self._results: dict[str, ProviderExecutionResult] = {}
 
     def capabilities(self) -> tuple[ProviderCapability, ...]:

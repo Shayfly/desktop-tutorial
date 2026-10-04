@@ -865,10 +865,21 @@ has started.
 
 ## 6. M4.95 — Capability Foundation & Truth Lock V2 (2026-10-04)
 
-**Status: IMPLEMENTATION_IN_PROGRESS.** This section supersedes the sentence in the historical header that said M5 was authorized to begin. The current gate is M4.95 V2 Tasks 1–16 followed by the Golden E2E.
+**Status: VERIFIED_LOCAL_PROVIDER_NEUTRAL_FOUNDATION.** Tasks 1–16 are implemented and verified in this execution environment. This status is intentionally narrower than `PRODUCTION_DEPLOYED` or `FULL_EXTERNAL_E2E`.
 
 Canonical execution plan: `docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md`.
 Design authority: `docs/superpowers/specs/2026-10-04-m495-capability-foundation-design.md`.
 World-class gap baseline: `docs/148AI_WORLD_CLASS_COMPLETENESS_AUDIT_V2_2026-10-04.md`.
+Validation evidence: `M4_95_VALIDATION.md`.
 
-Fresh pre-change baseline in this execution environment: `518` tests run, `OK`, `47` skipped. M4.9 clean-room/lifecycle live-infra tests are `NOT_CONFIGURED` here because `psycopg` is not importable; this does not downgrade the recorded historical M4.9 evidence and is not re-labelled as live evidence for this run.
+Fresh pre-change baseline: `518` tests, `OK`, `47` skipped.
+Fresh post-M4.95 full regression: `633` tests, `OK`, `47` skipped.
+Focused Golden/failure/recovery gate: `22` tests, `OK`.
+
+Verified locally: canonical Capability/Skills/Agents registries; dependency closure; provider-neutral contracts and routing; provider+capability 429/quota cooldown; streaming artifact integrity; durable execution attempt identity, lease/resume and `provider_task_id`; credential-binding abstraction; crash-safe capability execution; versioned local price/authorization/actual-cost truth; durable worker capability gate; tenant-scoped readiness evidence; artifact provenance/export evidence; machine truth drift enforcement; provider-neutral heterogeneous Golden E2E; localhost HTTP fake-provider integration; paid-provider durable-result guard; file-backed streaming provider artifacts.
+
+Not re-claimed as live in this environment: clean-room/lifecycle Postgres proof (`psycopg` unavailable), isolated Docker sandbox proof, live Postgres/Redis/S3, commercial media/3D providers, and mobile signing. The historical M4.9 live-infra evidence remains recorded above but is not substituted for current evidence.
+
+The Golden E2E uses an in-process fake multimodal provider with structurally valid artifacts. It proves the universal execution/verification/evidence contract, **not** that a named commercial provider is LIVE.
+
+M4.95 machine truth SHA-256: `31c06ae684685475f6dcf031f7412fb35b22afef5076e787ad6fafe9e8a2c424`

@@ -40,12 +40,20 @@ class HTTPMediaCapabilityProvider:
     ) -> None:
         if paid_external and not durable_idempotency:
             raise ValueError("paid external providers require durable idempotency support")
+        if paid_external:
+            raise ValueError(
+                "paid external HTTPMediaCapabilityProvider requires durable result retrieval; "
+                "this synchronous compatibility adapter keeps results only in process memory"
+            )
         self.gateway = gateway
         self.name = gateway.endpoint.name
         self.capability_keys = tuple(capability_keys)
         self.output_formats = tuple(output_formats)
         self.quote_factory = quote_factory
         self.durable_idempotency = durable_idempotency
+        # This compatibility adapter stores completed results in process memory.
+        # It is therefore never crash-resumable by provider_task_id.
+        self.durable_result_retrieval = False
         self.paid_external = paid_external
         self.commercial_use = commercial_use
         self._results: dict[str, ProviderExecutionResult] = {}

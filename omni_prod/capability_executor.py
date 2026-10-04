@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 import hashlib
 from typing import Mapping
 
@@ -111,6 +112,15 @@ class CapabilityExecutor:
             **kwargs,
         )
 
+    @staticmethod
+    def _file_chunks(path: Path, *, chunk_size: int = 1024 * 1024):
+        with path.open("rb") as source:
+            while True:
+                chunk = source.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
     def _persist_payload(
         self,
         *,
@@ -126,32 +136,87 @@ class CapabilityExecutor:
             requirement_id=requirement.id,
             filename=payload.filename,
         )
-        digest = hashlib.sha256(payload.data).hexdigest()
-        expected = CapabilityArtifact(
-            artifact_key=key,
-            mime_type=payload.mime_type,
-            sha256=digest,
-            size_bytes=len(payload.data),
-            provider=provider_name,
-            capability_key=requirement.key,
-            metadata=dict(payload.metadata),
-            provenance=dict(payload.provenance),
-        )
-        verification = verify_capability_artifact(
-            expected,
-            payload.data,
-            max_size_bytes=self.max_artifact_bytes,
-        )
-        try:
-            stored = self.artifact_store.put_bytes(key, payload.data)
-            if getattr(stored, "sha256", digest) != digest or getattr(stored, "size", len(payload.data)) != len(payload.data):
-                raise CapabilityExecutionError(f"artifact store integrity mismatch: {key}")
-        except KeyError:
-            # Retry after a crash may encounter an immutable object written by
-            # the previous worker. Reuse only if the stored bytes verify.
-            existing = self.artifact_store.get_bytes(key)
-            if bytes(existing) != bytes(payload.data):
-                raise CapabilityExecutionError(f"artifact key collision with different bytes: {key}")
+
+        if payload.file_path is not None:
+            source_path = Path(payload.file_path)
+            if not source_path.is_file():
+                raise CapabilityExecutionError(
+                    f"provider artifact file does not exist: {source_path}"
+                )
+            digest_state = hashlib.sha256()
+            size = 0
+            for chunk in self._file_chunks(source_path):
+                size += len(chunk)
+                if size > self.max_artifact_bytes:
+                    raise ArtifactVerificationError(
+                        f"artifact exceeds maximum size of {self.max_artifact_bytes} bytes"
+                    )
+                digest_state.update(chunk)
+            digest = digest_state.hexdigest()
+            expected = CapabilityArtifact(
+                artifact_key=key,
+                mime_type=payload.mime_type,
+                sha256=digest,
+                size_bytes=size,
+                provider=provider_name,
+                capability_key=requirement.key,
+                metadata=dict(payload.metadata),
+                provenance=dict(payload.provenance),
+            )
+            verification = verify_capability_artifact_stream(
+                expected,
+                self._file_chunks(source_path),
+                max_size_bytes=self.max_artifact_bytes,
+            )
+            put_file = getattr(self.artifact_store, "put_file", None)
+            if not callable(put_file):
+                raise CapabilityExecutionError(
+                    "artifact store does not support streaming put_file for file-backed provider payload"
+                )
+            try:
+                stored = put_file(source_path, key)
+                if getattr(stored, "sha256", digest) != digest or getattr(stored, "size", size) != size:
+                    raise CapabilityExecutionError(f"artifact store integrity mismatch: {key}")
+            except KeyError:
+                iter_bytes = getattr(self.artifact_store, "iter_bytes", None)
+                if not callable(iter_bytes):
+                    raise CapabilityExecutionError(
+                        "artifact store cannot stream-verify an existing large artifact"
+                    )
+                verify_capability_artifact_stream(
+                    expected,
+                    iter_bytes(key, max_size_bytes=self.max_artifact_bytes),
+                    max_size_bytes=self.max_artifact_bytes,
+                )
+        else:
+            data = bytes(payload.data or b"")
+            digest = hashlib.sha256(data).hexdigest()
+            expected = CapabilityArtifact(
+                artifact_key=key,
+                mime_type=payload.mime_type,
+                sha256=digest,
+                size_bytes=len(data),
+                provider=provider_name,
+                capability_key=requirement.key,
+                metadata=dict(payload.metadata),
+                provenance=dict(payload.provenance),
+            )
+            verification = verify_capability_artifact(
+                expected,
+                data,
+                max_size_bytes=self.max_artifact_bytes,
+            )
+            try:
+                stored = self.artifact_store.put_bytes(key, data)
+                if getattr(stored, "sha256", digest) != digest or getattr(stored, "size", len(data)) != len(data):
+                    raise CapabilityExecutionError(f"artifact store integrity mismatch: {key}")
+            except KeyError:
+                # Retry after a crash may encounter an immutable object written by
+                # the previous worker. Reuse only if the stored bytes verify.
+                existing = self.artifact_store.get_bytes(key)
+                if bytes(existing) != data:
+                    raise CapabilityExecutionError(f"artifact key collision with different bytes: {key}")
+
         return expected, {
             "verified": verification.verified,
             "checks": list(verification.checks),
@@ -204,8 +269,11 @@ class CapabilityExecutor:
             # on every retry. A process death after this line but before the
             # handle write is therefore recoverable without duplicate spend for
             # providers truthfully marked durable-idempotent.
-            if getattr(provider, "paid_external", False) and not getattr(provider, "durable_idempotency", False):
-                raise CapabilityExecutionError("paid provider lacks durable idempotency")
+            if getattr(provider, "paid_external", False):
+                if not getattr(provider, "durable_idempotency", False):
+                    raise CapabilityExecutionError("paid provider lacks durable idempotency")
+                if not getattr(provider, "durable_result_retrieval", False):
+                    raise CapabilityExecutionError("paid provider lacks durable result retrieval")
             handle = provider.submit(requirement, idempotency_key=idempotency_key)
             if handle.idempotency_key != idempotency_key or handle.provider != assignment.provider:
                 raise CapabilityExecutionError("provider returned inconsistent durable handle")

@@ -343,62 +343,6 @@ class PostgresCapabilityRepository:
     def __init__(self, pool) -> None:
         self.pool = pool
 
-    def ensure_execution_attempt(
-        self, *, attempt_id: str, build_id: str, requirement_id: str,
-        provider: str, pricing_version: str, idempotency_key: str,
-    ) -> dict[str, Any]:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT id, build_id, requirement_id, provider, pricing_version, "
-                        "idempotency_key, provider_task_id, status, lease_owner, lease_expires_at "
-                        "FROM provider_execution_attempts WHERE idempotency_key=%s FOR UPDATE",
-                        (idempotency_key,),
-                    )
-                    row = cur.fetchone()
-                    if row is not None:
-                        if (row[1], row[2], row[3], row[4]) != (build_id, requirement_id, provider, pricing_version):
-                            raise ValueError("execution idempotency key identity conflict")
-                        return {
-                            "attempt_id": row[0], "build_id": row[1], "requirement_id": row[2],
-                            "provider": row[3], "pricing_version": row[4], "idempotency_key": row[5],
-                            "provider_task_id": row[6], "status": row[7], "lease_owner": row[8],
-                            "lease_expires_at": row[9],
-                        }
-                    cur.execute(
-                        "INSERT INTO provider_execution_attempts("
-                        "id, build_id, requirement_id, provider, pricing_version, idempotency_key, status"
-                        ") VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                        (attempt_id, build_id, requirement_id, provider, pricing_version, idempotency_key, "SUBMITTING"),
-                    )
-                    return {
-                        "attempt_id": attempt_id, "build_id": build_id, "requirement_id": requirement_id,
-                        "provider": provider, "pricing_version": pricing_version,
-                        "idempotency_key": idempotency_key, "provider_task_id": None,
-                        "status": "SUBMITTING", "lease_owner": None, "lease_expires_at": None,
-                    }
-
-    def transition_execution_attempt(
-        self, idempotency_key: str, *, expected: str, target: str, worker_id: str | None = None
-    ) -> bool:
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    if worker_id is None:
-                        cur.execute(
-                            "UPDATE provider_execution_attempts SET status=%s, updated_at=now() "
-                            "WHERE idempotency_key=%s AND status=%s",
-                            (target, idempotency_key, expected),
-                        )
-                    else:
-                        cur.execute(
-                            "UPDATE provider_execution_attempts SET status=%s, updated_at=now() "
-                            "WHERE idempotency_key=%s AND status=%s AND lease_owner=%s",
-                            (target, idempotency_key, expected, worker_id),
-                        )
-                    return cur.rowcount == 1
-
     def save_plan(self, build_id: str, plan: CapabilityPlan) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():
