@@ -165,6 +165,25 @@ def _reject_legacy_sync_build()->None:
                                 '/api/v28/projects/{project_id}/builds (durable async pipeline) and poll '
                                 'GET /api/v28/projects/{project_id}/builds/{build_id}.')
 
+
+def _m5_status_payload() -> dict:
+    persistence = os.getenv('OMNI_CREATOR_PERSISTENCE', 'memory').strip().lower() or 'memory'
+    durable = _async_build_mode()
+    blockers = ['external_proof_required']
+    if not durable:
+        blockers.insert(0, 'durable_postgres_s3_backend_required')
+    return {
+        'milestone': 'M5',
+        'status': 'M5_PARTIAL',
+        'persistence': persistence,
+        'durable_async_build_path': '/api/v28/projects/{project_id}/builds',
+        'legacy_sync_builds_disabled_when_durable': True,
+        'staging_ready': False,
+        'production_ready': False,
+        'blockers': blockers,
+        'truth_note': 'M5 remains partial until all M5 gates and required external staging proofs pass.',
+    }
+
 def _require_durable_backend(purpose:str)->None:
     if os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()!='postgres' or _v28_pool is None:
         raise HTTPException(503,f'{purpose} requires OMNI_CREATOR_PERSISTENCE=postgres')
@@ -1601,6 +1620,10 @@ def v28_build_capability_truth(project_id: str, build_id: str, request: Request)
             for row in records
         ],
     }
+
+@app.get('/api/v28/m5/status')
+def v28_m5_status() -> dict:
+    return _m5_status_payload()
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:

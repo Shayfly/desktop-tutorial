@@ -883,3 +883,7 @@ Not re-claimed as live in this environment: clean-room/lifecycle Postgres proof 
 The Golden E2E uses an in-process fake multimodal provider with structurally valid artifacts. It proves the universal execution/verification/evidence contract, **not** that a named commercial provider is LIVE.
 
 M4.95 machine truth SHA-256: `31c06ae684685475f6dcf031f7412fb35b22afef5076e787ad6fafe9e8a2c424`
+
+## M5 Production Vertical Slice — 2026-10-04
+
+Current machine-facing classification: **M5_PARTIAL**. M5 implementation has started from the verified M4.95 baseline. Durable deployments use the plural `/builds` asynchronous pipeline as the canonical arbitrary-generation path; developer memory mode is not staging or production proof. Production readiness remains prohibited until M5 acceptance, recovery/security, deployment/billing, full regression and external staging proofs are complete.
