@@ -14,6 +14,7 @@ requirements into owned, durable bindings through an
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, Iterable, Mapping
 
 from .build_contract import InfrastructureRequirement
@@ -239,6 +240,25 @@ class InfrastructureProvisioningService:
         _, requirements = self.requirements_for(contract)
         return [self.provisioner.quote(r, project_id=project_id, environment=environment).to_dict()
                 for r in requirements]
+
+    def cost_quotes(self, contract, *, tenant_id: str, project_id: str, environment) -> list[InfrastructureQuote]:
+        """Per-build provisioning quotes. A kind that already has an owned LIVE
+        binding is reused and costs nothing to provision again."""
+        env = InfrastructureEnvironment(environment) if not isinstance(environment, InfrastructureEnvironment) else environment
+        profile_key, requirements = self.requirements_for(contract)
+        quotes = []
+        for requirement in requirements:
+            kind = InfrastructureKind(requirement.kind)
+            key = provisioning_idempotency_key(profile_key=profile_key, project_id=project_id, environment=env, kind=kind)
+            existing = self.repository.get_by_idempotency_key(key)
+            if existing is not None and existing.live and existing.tenant_id == tenant_id:
+                quotes.append(InfrastructureQuote(
+                    profile_key=profile_key, kind=kind, environment=env, estimated_monthly_usd=None,
+                    maximum_monthly_usd=None, basis="reuse existing LIVE binding",
+                    provisioning_estimated_usd=Decimal("0"), provisioning_maximum_usd=Decimal("0")))
+            else:
+                quotes.append(self.provisioner.quote(requirement, project_id=project_id, environment=env))
+        return quotes
 
     # -- provisioning -----------------------------------------------------
     def _provision_one(self, requirement, *, profile_key, tenant_id, project_id, environment) -> InfrastructureBinding:

@@ -174,11 +174,18 @@ class InfrastructureQuote:
     estimated_monthly_usd: Decimal | None
     maximum_monthly_usd: Decimal | None
     basis: str
+    # One-time variable cost of provisioning this binding for a build. This is
+    # what build economics reserves; None means unknown and blocks the build.
+    provisioning_estimated_usd: Decimal | None = None
+    provisioning_maximum_usd: Decimal | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "kind", _coerce_kind(self.kind))
         object.__setattr__(self, "environment", _coerce_environment(self.environment))
-        for name in ("estimated_monthly_usd", "maximum_monthly_usd"):
+        if (self.provisioning_estimated_usd is not None and self.provisioning_maximum_usd is not None
+                and self.provisioning_maximum_usd < self.provisioning_estimated_usd):
+            raise ValueError("provisioning_maximum_usd must be >= provisioning_estimated_usd")
+        for name in ("estimated_monthly_usd", "maximum_monthly_usd", "provisioning_estimated_usd", "provisioning_maximum_usd"):
             value = getattr(self, name)
             if value is not None and value < 0:
                 raise ValueError(f"{name} must be >= 0")
@@ -193,6 +200,8 @@ class InfrastructureQuote:
             "profile_key": self.profile_key, "kind": self.kind.value, "environment": self.environment.value,
             "estimated_monthly_usd": None if self.estimated_monthly_usd is None else str(self.estimated_monthly_usd),
             "maximum_monthly_usd": None if self.maximum_monthly_usd is None else str(self.maximum_monthly_usd),
+            "provisioning_estimated_usd": None if self.provisioning_estimated_usd is None else str(self.provisioning_estimated_usd),
+            "provisioning_maximum_usd": None if self.provisioning_maximum_usd is None else str(self.provisioning_maximum_usd),
             "basis": self.basis,
         }
 

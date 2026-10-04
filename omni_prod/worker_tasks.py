@@ -123,6 +123,20 @@ def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
     return total, True
 
 
+def capability_authorization_ceiling(request: dict) -> Decimal:
+    """Ceiling for the external capability stage.
+
+    M5 remediation: when the durable quote carries a component breakdown, the
+    capability stage may only spend the capability slice that was priced and
+    reserved for it -- never the LLM budget. Legacy quotes without components
+    keep the previous behaviour (the reservation amount).
+    """
+    components = (request.get('economics_quote') or {}).get('components') or {}
+    if 'capability_authorization_usd' in components:
+        return Decimal(str(components['capability_authorization_usd']))
+    return Decimal(str(request.get('authorized_provider_cost_usd', '0.25')))
+
+
 def resolve_m5_billing(
     subscriptions, *, build_id: str, ready: bool, gateway, capability_evidence, economics_quote: dict | None,
 ) -> tuple[str, dict, Decimal | None]:
@@ -150,10 +164,15 @@ def resolve_m5_billing(
         ledger = getattr(gateway, 'usage', None)
         llm_actual = (ledger.actual_external_cost_usd(authorized_external_calls=external_calls)
                       if isinstance(ledger, ProviderUsageLedger) else None)
-    actual = None if llm_actual is None or capability_actual is None else llm_actual + capability_actual
     quote = dict(economics_quote or {})
-    revenue_raw = quote.get('revenue_usd')
+    # Generated-app/platform infrastructure is reserved at its conservative
+    # maximum; no provider reports its actual per-build cost, so any non-zero
+    # infrastructure maximum leaves the total actual unknown (NULL).
     infra_max = Decimal(str(quote.get('infrastructure_maximum_usd', '0') or '0'))
+    infra_actual = Decimal('0') if infra_max == 0 else None
+    actual = (None if llm_actual is None or capability_actual is None or infra_actual is None
+              else llm_actual + capability_actual + infra_actual)
+    revenue_raw = quote.get('revenue_usd')
     # Gross contribution is only computed when all non-provider variable cost
     # inputs are known. A non-zero infrastructure maximum is still a reserve,
     # not an actual, so suppress contribution rather than fabricate precision.
@@ -262,7 +281,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 raise RuntimeError('capability stage requires a bound or planned capability plan')
             capability_evidence = capability_stage.prepare(
                 build_id=build_id, project_id=internal_project_id, plan=capability_plan,
-                authorized_maximum_usd=Decimal(str(request.get('authorized_provider_cost_usd', '0.25'))),
+                authorized_maximum_usd=capability_authorization_ceiling(request),
                 now=time.time(),
             )
         rights = platform.rights.assess(

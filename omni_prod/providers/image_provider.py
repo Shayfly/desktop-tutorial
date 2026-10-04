@@ -507,10 +507,9 @@ def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlop
 def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, artifact_store, journal,
                                  worker_id: str, urlopen=None):
     """DurableCapabilityBuildStage with the configured image provider (or none)."""
-    from ..capability_executor import CapabilityExecutionAssignment, CapabilityExecutor
+    from ..capability_executor import CapabilityExecutor
     from ..capability_worker import DurableCapabilityBuildStage
     from ..provider_registry import ProviderRegistry
-    from ..provider_router import CapabilityProviderRouter, CapabilityRoutingPolicy, ProviderCandidate
 
     provider = build_image_provider(env, journal=journal, urlopen=urlopen)
     if provider is None:
@@ -520,6 +519,26 @@ def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, a
     if artifact_store is not None:
         executor = CapabilityExecutor(provider_registry=registry, repository=repository,
                                       artifact_store=artifact_store, worker_id=worker_id)
+    return DurableCapabilityBuildStage(repository=repository, executor=executor,
+                                       assignments_resolver=capability_assignments_resolver(registry))
+
+
+def build_image_quote_resolver(env: Mapping[str, str] | None = None):
+    """Pricing-only resolver for the API process: identical routing to the
+    worker stage, no journal writes, no network calls."""
+    from ..provider_registry import ProviderRegistry
+
+    provider = build_image_provider(env, journal=MemorySubmissionJournal())
+    if provider is None:
+        return lambda plan: {}
+    return capability_assignments_resolver(ProviderRegistry([provider]))
+
+
+def capability_assignments_resolver(registry):
+    """Shared by pricing (API) and execution (worker) so they can never diverge."""
+    from ..capability_executor import CapabilityExecutionAssignment
+    from ..provider_router import CapabilityProviderRouter, CapabilityRoutingPolicy, ProviderCandidate
+
     router = CapabilityProviderRouter()
 
     def resolve(plan) -> dict:
@@ -543,4 +562,4 @@ def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, a
                 provider=selection.candidate.provider, quote=selection.candidate.quote)
         return assignments
 
-    return DurableCapabilityBuildStage(repository=repository, executor=executor, assignments_resolver=resolve)
+    return resolve

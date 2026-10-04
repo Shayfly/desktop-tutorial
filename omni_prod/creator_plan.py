@@ -8,6 +8,7 @@ creator confirms first, then POST .../builds runs with this build_contract_id.
 """
 from __future__ import annotations
 
+import inspect
 from typing import Any, Callable, Mapping
 
 from .build_contract import BuildContractStatus
@@ -32,7 +33,7 @@ def build_plan_preview(
     repository,
     project_id: str,
     prompt: str,
-    economics: Callable[[], Any],
+    economics: Callable[..., Any],
     durable_backend: bool,
     infrastructure_readiness: Mapping[str, Any],
     image_readiness: Mapping[str, Any],
@@ -51,7 +52,9 @@ def build_plan_preview(
 
     quote, quote_error = None, None
     try:
-        quote = economics()
+        # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
+        # callable accepts the contract; zero-argument callables are legacy.
+        quote = economics(contract) if inspect.signature(economics).parameters else economics()
     except PermissionError as exc:
         quote_error = str(exc)
 

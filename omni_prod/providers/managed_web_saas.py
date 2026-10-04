@@ -37,6 +37,7 @@ Environment variables (all optional; absence yields NOT_CONFIGURED):
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from decimal import Decimal
 import logging
 import os
 import secrets as _secrets
@@ -84,6 +85,8 @@ class ManagedWebSaaSConfig:
     scheduler_token_ref: str = ""
     email_api_key_ref: str = ""
     email_from_domain: str = ""
+    provisioning_estimated_usd: Decimal | None = None
+    provisioning_maximum_usd: Decimal | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "ManagedWebSaaSConfig":
@@ -106,6 +109,8 @@ class ManagedWebSaaSConfig:
             scheduler_token_ref=_clean(env, "OMNI_GENAPP_SCHEDULER_TOKEN_REF"),
             email_api_key_ref=_clean(env, "OMNI_GENAPP_EMAIL_API_KEY_REF"),
             email_from_domain=_clean(env, "OMNI_GENAPP_EMAIL_FROM_DOMAIN"),
+            provisioning_estimated_usd=_money(_clean(env, "OMNI_GENAPP_PROVISIONING_ESTIMATED_USD")),
+            provisioning_maximum_usd=_money(_clean(env, "OMNI_GENAPP_PROVISIONING_MAXIMUM_USD")),
         )
 
     @property
@@ -153,6 +158,16 @@ class ManagedWebSaaSConfig:
                 if key and key == _clean(control_env, "RESEND_API_KEY"):
                     return _STATUS_BLOCKED, "generated apps must not reuse the control-plane email key"
         return _STATUS_PARTIAL, "configured; LIVE only after a per-binding verification succeeds"
+
+
+def _money(value: str) -> Decimal | None:
+    if not value:
+        return None
+    try:
+        amount = Decimal(value)
+    except Exception:
+        return None
+    return amount if amount.is_finite() and amount >= 0 else None
 
 
 def _valid_ref(reference: str) -> bool:
@@ -291,10 +306,17 @@ class ManagedWebSaaSProvisioner:
 
     # -- protocol -----------------------------------------------------------
     def quote(self, requirement, *, project_id, environment) -> InfrastructureQuote:
+        maximum = self.config.provisioning_maximum_usd
+        estimate = self.config.provisioning_estimated_usd if self.config.provisioning_estimated_usd is not None else maximum
+        if maximum is not None and estimate is not None and estimate > maximum:
+            estimate = maximum
         return InfrastructureQuote(
             profile_key=self.profile_key, kind=requirement.kind, environment=environment,
             estimated_monthly_usd=None, maximum_monthly_usd=None,
-            basis="operator-provided shared generated-app infrastructure; per-app cost is not metered (unknown, not zero)",
+            basis=("operator-configured per-kind provisioning maximum (OMNI_GENAPP_PROVISIONING_MAXIMUM_USD)"
+                   if maximum is not None else
+                   "provisioning cost not configured (OMNI_GENAPP_PROVISIONING_MAXIMUM_USD); unknown, not zero"),
+            provisioning_estimated_usd=estimate, provisioning_maximum_usd=maximum,
         )
 
     def provision(self, requirement, *, tenant_id, project_id, environment, idempotency_key) -> InfrastructureBinding:

@@ -61,7 +61,11 @@ from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
 from .creator_plan import build_plan_preview
 from .providers.managed_web_saas import managed_web_saas_readiness
-from .providers.image_provider import image_provider_readiness
+from .providers.image_provider import build_image_quote_resolver, image_provider_readiness
+from .providers.managed_web_saas import build_managed_web_saas_provisioner
+from .build_cost_plan import CostQuoteUnknown, build_economics_quote, collect_build_cost_inputs
+from .infrastructure_provisioner import (
+    InfrastructureProvisioningService, MemoryInfrastructureBindingRepository, PostgresInfrastructureBindingRepository)
 from .product_architect import ProductArchitect
 from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
@@ -151,12 +155,17 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
-def _m5_build_economics_quote(plan, *, credits: int):
+def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
     calls), so it is represented as one provider maximum rather than a per-call
     guess. Infrastructure reserve is explicit and server-configurable.
+
+    M5 remediation: ``cost_inputs`` (from omni_prod.build_cost_plan) adds the
+    required paid capability quotes and generated-app infrastructure maxima to
+    the same quote, so one reservation covers every paid external effect.
+    Called without it, the result is identical to the Task 10 quote.
     """
     cfg = ModelRuntimeConfig.from_env()
     provider_quotes = ()
@@ -177,19 +186,35 @@ def _m5_build_economics_quote(plan, *, credits: int):
         revenue_basis = (Decimal(plan.monthly_price_usd) * Decimal(int(credits)) / Decimal(int(plan.included_credits)))
         minimum_margin = Decimal(os.getenv('OMNI_MIN_BUILD_VARIABLE_MARGIN', '0.20'))
 
-    quote = aggregate_build_quote(
-        provider_quotes=provider_quotes,
-        infrastructure_estimated_usd=infra_est,
-        infrastructure_maximum_usd=infra_max,
-        retry_reserve_usd=retry_reserve,
-        revenue_usd=revenue_basis,
-        minimum_margin=minimum_margin,
+    quote, components = build_economics_quote(
+        llm_quotes=provider_quotes, cost_inputs=cost_inputs,
+        platform_infrastructure_estimated_usd=infra_est, platform_infrastructure_maximum_usd=infra_max,
+        retry_reserve_usd=retry_reserve, revenue_usd=revenue_basis, minimum_margin=minimum_margin,
     )
     if revenue_basis is None:
         if quote.total_authorized_variable_usd > 0:
             raise PermissionError('zero/unknown revenue plan cannot authorize paid variable build cost')
-        return quote
-    return enforce_margin_floor(quote)
+    else:
+        enforce_margin_floor(quote)
+    return (quote, components) if with_components else quote
+
+
+def _m5_cost_inputs(contract, *, tenant_id: str, project_id: str):
+    """Price everything the Build Contract requires (raises CostQuoteUnknown)."""
+    image_resolver = build_image_quote_resolver()
+    infrastructure = InfrastructureProvisioningService(
+        provisioner=build_managed_web_saas_provisioner(),
+        repository=(PostgresInfrastructureBindingRepository(_v28_pool) if _v28_pool is not None
+                    else MemoryInfrastructureBindingRepository()),
+    )
+    return collect_build_cost_inputs(
+        contract,
+        capability_assignments=image_resolver(contract.capability_plan),
+        infrastructure_quotes=infrastructure.cost_quotes(
+            contract, tenant_id=tenant_id, project_id=project_id,
+            environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview')),
+        require_capability_quotes=True, require_infrastructure_quotes=True,
+    )
 
 class M5BuildContractBlocked(RuntimeError):
     def __init__(self, contract):
@@ -1501,9 +1526,14 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         raise HTTPException(403, str(exc)) from exc
     repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
     plan = _v28.subscriptions.plan_for(account.id)
+
+    def economics(contract):
+        inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
+        return _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs)
+
     return build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=req.prompt,
-        economics=lambda: _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS),
+        economics=economics,
         durable_backend=_async_build_mode(),
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
@@ -1534,10 +1564,18 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
         try:
-            economics_quote = _m5_build_economics_quote(plan, credits=credits)
+            cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
+            economics_quote, cost_components = _m5_build_economics_quote(
+                plan, credits=credits, cost_inputs=cost_inputs, with_components=True)
+        except CostQuoteUnknown as exc:
+            raise HTTPException(402, detail={'error': 'cost_quote_unknown', 'unknown': list(exc.unknown)}) from exc
         except PermissionError as exc:
             raise HTTPException(402, str(exc)) from exc
-        provider_reservation_usd = economics_quote.provider_maximum_usd + economics_quote.retry_reserve_usd
+        # M5 remediation: one durable reservation of the FULL conservative total
+        # (LLM + required capabilities + generated-app infra + platform infra +
+        # retry) before anything is enqueued. No later separate reservation.
+        provider_reservation_usd = economics_quote.total_authorized_variable_usd
+        economics_evidence = {**economics_quote.to_dict(), 'components': cost_components}
 
         build_id = f"bld_{uuid.uuid4().hex}"
         brand_visible = _v28._project_brand_visible.get(key)
@@ -1572,7 +1610,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                     )
                     jobs.create_with_cursor(
                         cur, build_id=build_id, project_id=key, version_id="pending",
-                        evidence_json={'economics_quote': economics_quote.to_dict(), 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
+                        evidence_json={'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
                         estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
                     )
                     jobs.create_outbox(cur, build_id=build_id)
@@ -1593,7 +1631,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             "status": "queued", "build_id": build_id, "dispatch": dispatch,
             "build_contract_id": build_contract.id,
             "build_contract_fingerprint": build_contract.contract_fingerprint,
-            "economics": economics_quote.to_dict(),
+            "economics": economics_evidence,
         })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
