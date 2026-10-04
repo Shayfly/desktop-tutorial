@@ -111,7 +111,7 @@ const T = {
 
 const S = {
   lang: localStorage.getItem('148ai_lang') || 'he',
-  token: localStorage.getItem('148ai_token') || '',
+  signedIn: false,
   me: null, projects: [], projectId: localStorage.getItem('148ai_project') || '',
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
@@ -137,11 +137,12 @@ class ApiError extends Error {
   constructor(status, detail) { super(typeof detail === 'string' ? detail : (detail && (detail.error || detail.reason)) || `HTTP ${status}`); this.status = status; this.detail = detail; }
 }
 async function api(path, { method = 'GET', body, raw = false } = {}) {
+  // The session travels in the HttpOnly cookie set by the server; the token is
+  // never readable by or stored in this page.
   const headers = {};
-  if (S.token) headers.Authorization = `Bearer ${S.token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   let res;
-  try { res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }); }
+  try { res = await fetch(path, { method, headers, credentials: 'same-origin', body: body === undefined ? undefined : JSON.stringify(body) }); }
   catch { throw new ApiError(0, t('errNet')); }
   if (raw && res.ok) return res;
   let data = null;
@@ -149,7 +150,7 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!res.ok) {
     const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : data;
-    if (res.status === 401 && S.token) signOutLocal();
+    if (res.status === 401 && S.signedIn) signOutLocal();
     throw new ApiError(res.status, detail);
   }
   return data;
@@ -185,7 +186,7 @@ function applyLang() {
 
 /* ---------- auth ---------- */
 function signOutLocal() {
-  S.token = ''; S.me = null; localStorage.removeItem('148ai_token');
+  S.signedIn = false; S.me = null;
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   showView();
 }
@@ -195,8 +196,7 @@ async function authSubmit(kind) {
   if (!email.includes('@') || password.length < 10) { msg.textContent = t('needEmail'); return; }
   try {
     const path = kind === 'register' ? '/api/v28/auth/register' : '/api/v28/auth/login';
-    const d = await api(path, { method: 'POST', body: { email, password } });
-    S.token = d.token; localStorage.setItem('148ai_token', d.token);
+    await api(path, { method: 'POST', body: { email, password } });
     $('password').value = '';
     await enterWorkspace();
   } catch (e) { msg.textContent = explain(e); }
@@ -208,7 +208,7 @@ async function logout() {
 
 /* ---------- views ---------- */
 function showView() {
-  const signedIn = Boolean(S.token && S.me);
+  const signedIn = Boolean(S.signedIn && S.me);
   $('welcomeView').hidden = signedIn;
   $('workspaceView').hidden = !signedIn;
   $('projectbar').hidden = !signedIn;
@@ -231,6 +231,7 @@ async function loadStatus() {
 }
 async function enterWorkspace() {
   S.me = await api('/api/v28/me');
+  S.signedIn = true;
   await loadStatus();
   showView();
   await loadProjects();
@@ -624,9 +625,8 @@ function wire() {
 
 async function boot() {
   wire(); applyLang();
-  if (S.token) {
-    try { await enterWorkspace(); return; } catch { signOutLocal(); }
-  }
+  localStorage.removeItem('148ai_token'); // tokens from older versions are never kept in page storage
+  try { await enterWorkspace(); return; } catch { /* no valid session cookie */ }
   showView();
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

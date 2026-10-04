@@ -807,6 +807,27 @@
         "docs/evidence/M5_UX01_CREATOR_WORKSPACE_EVIDENCE_2026-10-04.md"
       ],
       "verification_note": "10 unit tests pass; signed-out, register, project, plan+quote, publish state, language and mobile verified in headless Chromium against real route functions in memory mode. Build/preview/modify/download paths need the durable backend and were not exercised."
+    },
+    {
+      "requirement_id": "GOV-SEC-BROWSER-SESSION",
+      "milestone": "M5",
+      "title": "Production browser session uses HttpOnly Secure SameSite cookie",
+      "status": "PARTIAL",
+      "source_specs": [
+        "PRODUCT_MISSION_AND_ACCEPTANCE.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/browser_session.py",
+        "omni_prod/investor_app.py",
+        "omni_prod/assets/app.js"
+      ],
+      "test_ids": [
+        "tests/test_m5_browser_session.py"
+      ],
+      "evidence_refs": [
+        "docs/evidence/M5_REMEDIATION_BROWSER_SESSION_EVIDENCE_2026-10-04.md"
+      ],
+      "verification_note": "Cookie transport + CSRF same-origin guard verified locally in Chromium. Deployed HTTPS origin not verified (Task 12)."
     }
   ]
 }

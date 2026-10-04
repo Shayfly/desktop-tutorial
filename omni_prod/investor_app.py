@@ -60,6 +60,7 @@ from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
 from .creator_plan import build_plan_preview
+from .browser_session import SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
 from .providers.managed_web_saas import managed_web_saas_readiness
 from .providers.image_provider import build_image_quote_resolver, image_provider_readiness
 from .providers.managed_web_saas import build_managed_web_saas_provisioner
@@ -84,7 +85,8 @@ from .brand_native_clients import android_client, ios_client
 app = FastAPI(title='148AI', version='28.0.0')
 _metrics=MetricsRegistry()
 configure_observability(app,_metrics)
-configure_web_security(app,raw_origins=os.getenv('OMNI_ALLOWED_ORIGINS','http://127.0.0.1:8000,http://localhost:8000'),production=os.getenv('OMNI_ENV','development')=='production')
+_PRODUCTION = os.getenv('OMNI_ENV','development')=='production'
+_ALLOWED_ORIGINS = tuple(configure_web_security(app,raw_origins=os.getenv('OMNI_ALLOWED_ORIGINS','http://127.0.0.1:8000,http://localhost:8000'),production=_PRODUCTION) or ())
 
 _PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics')
 @app.middleware('http')
@@ -283,6 +285,7 @@ def _m5_status_payload() -> dict:
         'production_ready': False,
         'blockers': blockers,
         'generated_app_infrastructure': managed_web_saas_readiness(),
+        'browser_session': browser_session_readiness(production=_PRODUCTION),
         'image_provider': image_provider_readiness(),
         'truth_note': 'M5 remains partial until all M5 gates and required external staging proofs pass.',
     }
@@ -636,9 +639,21 @@ def live_build(req:PromptRequest)->dict:
 
 
 def _v26_bearer(request:Request)->str:
-    raw=request.headers.get('authorization','')
-    if not raw.startswith('Bearer '): raise HTTPException(401,'authentication required')
-    return raw[7:]
+    # Bearer header (API clients) or the HttpOnly browser session cookie, with a
+    # same-origin requirement for cookie-authenticated writes (CSRF guard).
+    try:
+        token, _transport = extract_session_token(request, allowed_origins=_ALLOWED_ORIGINS)
+    except SessionTokenError as exc:
+        raise HTTPException(exc.status_code, exc.detail) from exc
+    return token
+
+def _set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(value=token, **cookie_settings(production=_PRODUCTION))
+
+def _clear_session_cookie(response: Response) -> None:
+    settings = cookie_settings(production=_PRODUCTION)
+    response.delete_cookie(settings['key'], path=settings['path'], secure=settings['secure'],
+                           httponly=True, samesite=settings['samesite'])
 
 @app.post('/api/v26/auth/register')
 def v26_register(req:V26AuthRequest)->dict:
@@ -1160,28 +1175,39 @@ async def v28_stripe_webhook(request: Request) -> dict:
         raise HTTPException(400, str(exc)) from exc
 
 @app.post('/api/v28/auth/register')
-def v28_register(req: V26AuthRequest) -> dict:
+def v28_register(req: V26AuthRequest, response: Response) -> dict:
     try:
-        return _v28.register(email=req.email, password=req.password)
+        payload = _v28.register(email=req.email, password=req.password)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    _set_session_cookie(response, payload['token'])
+    return payload
 
 @app.post('/api/v28/auth/login')
-def v28_login(req: V26AuthRequest) -> dict:
+def v28_login(req: V26AuthRequest, response: Response) -> dict:
     try:
         payload = _v28.login(email=req.email, password=req.password)
         payload['subscription'] = _v28.subscription(token=payload['token'])
-        return payload
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    _set_session_cookie(response, payload['token'])
+    return payload
 
 @app.post('/api/v28/auth/logout')
-def v28_logout(request: Request) -> dict:
+def v28_logout(request: Request, response: Response) -> dict:
+    # The browser cookie is always cleared, even if server-side revocation is
+    # unavailable (memory mode) or the session already expired.
+    # Raising would discard the Set-Cookie header, so failures are reported in
+    # the body: the browser is signed out either way, and the response says
+    # truthfully whether the server-side session was revoked.
+    _clear_session_cookie(response)
     try:
         _m5_identity_service().logout(_v28_bearer(request))
-        return {'logged_out': True}
+        return {'logged_out': True, 'server_session_revoked': True}
+    except HTTPException as exc:
+        return {'logged_out': True, 'server_session_revoked': False, 'reason': str(exc.detail)}
     except PermissionError as exc:
-        raise HTTPException(401, str(exc)) from exc
+        return {'logged_out': True, 'server_session_revoked': False, 'reason': str(exc)}
 
 @app.get('/api/v28/auth/sessions')
 def v28_sessions(request: Request) -> dict:
