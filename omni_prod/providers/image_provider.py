@@ -186,7 +186,7 @@ class MemorySubmissionJournal:
 
 
 class PostgresSubmissionJournal:
-    """Durable journal (migration 022)."""
+    """Durable journal (migration 026)."""
 
     durable = True
 

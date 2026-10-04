@@ -1,4 +1,4 @@
--- M5 Task 9: durable submission journal for paid external media providers.
+-- M5 Task 9 (migration 026; 022-025 are reserved by the M5 plan for Tasks 12-15): durable submission journal for paid external media providers.
 -- An INTENT row is written before a paid submit; the provider task id is
 -- recorded right after. A crash between the two leaves an INTENT row, which
 -- makes the adapter fail closed (or rely on provider-side idempotency) instead

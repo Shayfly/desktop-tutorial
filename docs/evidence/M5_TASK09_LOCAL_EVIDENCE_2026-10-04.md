@@ -12,7 +12,7 @@ Scope: LOCAL ONLY. No real image provider credentials or outbound network were a
 - commercial-use must be declared; a non-commercial provider is never routed for a commercial build
 - end-to-end through the real CapabilityExecutor + MemoryCapabilityRepository: requirement VERIFIED, PNG stored, png-signature + sha256 checks, estimated cost recorded, actual cost NULL; authorization ceiling blocks before any submit
 
-## Migration 022 on local PostgreSQL 16.15
+## migration 026 on local PostgreSQL 16.15
 ```
 INSERT ... ON CONFLICT DO NOTHING RETURNING  -> cap_1|img|INTENT|      (new intent)
 second INSERT same key                       -> INSERT 0 0             (preexisting)

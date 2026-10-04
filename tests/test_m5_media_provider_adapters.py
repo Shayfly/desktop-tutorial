@@ -338,8 +338,8 @@ class ConfigurationTruthTests(unittest.TestCase):
 
 
 class JournalMigrationTests(unittest.TestCase):
-    def test_migration_022_defines_durable_submission_journal(self):
-        sql = (Path(__file__).resolve().parents[1] / "infra/postgres/022_media_provider_submissions.sql").read_text().lower()
+    def test_migration_026_defines_durable_submission_journal(self):
+        sql = (Path(__file__).resolve().parents[1] / "infra/postgres/026_media_provider_submissions.sql").read_text().lower()
         self.assertIn("create table if not exists media_provider_submissions", sql)
         self.assertIn("idempotency_key text primary key", sql)
         self.assertIn("state in ('intent','submitted')", sql)

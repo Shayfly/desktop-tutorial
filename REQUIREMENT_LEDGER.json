@@ -566,7 +566,7 @@
       ],
       "implementation_paths": [
         "omni_prod/providers/image_provider.py",
-        "infra/postgres/022_media_provider_submissions.sql",
+        "infra/postgres/026_media_provider_submissions.sql",
         "omni_prod/capability_verification.py",
         "omni_prod/worker_tasks.py",
         "omni_prod/investor_app.py"
@@ -578,7 +578,7 @@
       "evidence_refs": [
         "docs/evidence/M5_TASK09_LOCAL_EVIDENCE_2026-10-04.md"
       ],
-      "verification_note": "21 unit/contract tests pass locally, including an end-to-end run through the real CapabilityExecutor; migration 022 journal SQL executed on local PostgreSQL 16.15. Live image test SKIPs: no OMNI_IMAGE_PROVIDER_* credentials / network. Optional audio/voice/3D adapters intentionally not built (NOT_CONFIGURED). Not LIVE."
+      "verification_note": "21 unit/contract tests pass locally, including an end-to-end run through the real CapabilityExecutor; migration 026 journal SQL executed on local PostgreSQL 16.15. Live image test SKIPs: no OMNI_IMAGE_PROVIDER_* credentials / network. Optional audio/voice/3D adapters intentionally not built (NOT_CONFIGURED). Not LIVE."
     },
     {
       "requirement_id": "M5-T10",
