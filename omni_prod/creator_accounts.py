@@ -6,6 +6,7 @@ from .account_tenant import Account, ProjectRecord, _hash_password, _EMAIL_RE, A
 from .auth import issue_token, verify_token, AuthError
 from .db import DatabasePool
 from .identity_lifecycle import IdentityService, PostgresIdentityRepository
+from .project_lifecycle import ProjectLifecycleService, PostgresProjectLifecycleRepository
 
 
 class PostgresAccountService:
@@ -23,6 +24,7 @@ class PostgresAccountService:
             token_secret=token_secret,
             repository=PostgresIdentityRepository(pool),
         )
+        self.project_lifecycle = ProjectLifecycleService(PostgresProjectLifecycleRepository(pool))
 
     def register(self, *, email: str, password: str) -> tuple[Account, str]:
         return self.identity.register(email=email, password=password)
@@ -34,39 +36,30 @@ class PostgresAccountService:
         return self.identity.authenticate(token)
 
     def create_project(self, *, owner_id: str, title: str) -> ProjectRecord:
-        title = ' '.join(title.split()).strip()
-        if not title:
-            raise ValueError('title required')
-        pid = 'prj_' + secrets.token_urlsafe(10)
-        now = datetime.now(timezone.utc).isoformat()
-        rec = ProjectRecord(pid, owner_id, title[:120], now, now)
-        with self._pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO creator_projects(id,owner_id,title,created_at,updated_at) VALUES(%s,%s,%s,%s,%s)",
-                        (rec.id, rec.owner_id, rec.title, rec.created_at, rec.updated_at),
-                    )
-        return rec
-
-    @staticmethod
-    def _row_to_project(row) -> ProjectRecord:
-        return ProjectRecord(str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]))
+        return self.project_lifecycle.create_project(owner_id=owner_id, title=title)
 
     def require_project(self, *, owner_id: str, project_id: str) -> ProjectRecord:
-        with self._pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT id,owner_id,title,created_at,updated_at FROM creator_projects WHERE id=%s AND owner_id=%s", (project_id, owner_id))
-                row = cur.fetchone()
-        if not row:
-            raise PermissionError('project not found or access denied')
-        return self._row_to_project(row)
+        return self.project_lifecycle.require_project(owner_id=owner_id, project_id=project_id)
 
     def list_projects(self, *, owner_id: str) -> tuple[ProjectRecord, ...]:
-        with self._pool.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT id,owner_id,title,created_at,updated_at FROM creator_projects WHERE owner_id=%s ORDER BY updated_at DESC", (owner_id,))
-                rows = cur.fetchall()
-        return tuple(self._row_to_project(row) for row in rows)
+        return self.project_lifecycle.list_projects(owner_id=owner_id)
+
+    def rename_project(self, *, owner_id: str, project_id: str, title: str) -> ProjectRecord:
+        return self.project_lifecycle.rename_project(owner_id=owner_id, project_id=project_id, title=title)
+
+    def search_projects(self, *, owner_id: str, query: str, include_archived: bool = False) -> tuple[ProjectRecord, ...]:
+        return self.project_lifecycle.search_projects(owner_id=owner_id, query=query, include_archived=include_archived)
+
+    def archive_project(self, *, owner_id: str, project_id: str):
+        return self.project_lifecycle.archive_project(owner_id=owner_id, project_id=project_id)
+
+    def unarchive_project(self, *, owner_id: str, project_id: str):
+        return self.project_lifecycle.unarchive_project(owner_id=owner_id, project_id=project_id)
+
+    def delete_project(self, *, owner_id: str, project_id: str, reason: str = 'user_request'):
+        return self.project_lifecycle.delete_project(owner_id=owner_id, project_id=project_id, reason=reason)
+
+    def project_state(self, *, owner_id: str, project_id: str):
+        return self.project_lifecycle.project_state(owner_id=owner_id, project_id=project_id)
 
     internal_project_key = staticmethod(AccountService.internal_project_key)

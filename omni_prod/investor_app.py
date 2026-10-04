@@ -388,6 +388,12 @@ class V28ConsentRequest(BaseModel):
     consent_type: str = Field(min_length=1,max_length=120)
     version: str = Field(min_length=1,max_length=120)
 
+class V28ProjectRenameRequest(BaseModel):
+    title: str = Field(min_length=1,max_length=120)
+
+class V28ProjectDeleteRequest(BaseModel):
+    reason: str = Field(default='user_request',max_length=200)
+
 
 def _repo_summary(repo: dict[str,str]) -> dict:
     return {'file_count':len(repo),'total_chars':sum(len(v) for v in repo.values()),
@@ -1249,6 +1255,84 @@ def v28_projects(request: Request) -> dict:
         return {'projects': _v28.list_projects(token=_v28_bearer(request))}
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+
+@app.get('/api/v28/projects/search')
+def v28_search_projects(request: Request, q: str = '', include_archived: bool = False) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return {'projects': [p.__dict__ for p in lifecycle.search_projects(owner_id=account.id, query=q, include_archived=include_archived)]}
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+@app.patch('/api/v28/projects/{project_id}')
+def v28_rename_project(project_id: str, req: V28ProjectRenameRequest, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return lifecycle.rename_project(owner_id=account.id, project_id=project_id, title=req.title).__dict__
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+@app.post('/api/v28/projects/{project_id}/archive')
+def v28_archive_project(project_id: str, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return lifecycle.archive_project(owner_id=account.id, project_id=project_id).to_dict()
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+@app.post('/api/v28/projects/{project_id}/unarchive')
+def v28_unarchive_project(project_id: str, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return lifecycle.unarchive_project(owner_id=account.id, project_id=project_id).to_dict()
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+@app.delete('/api/v28/projects/{project_id}', status_code=202)
+def v28_delete_project(project_id: str, request: Request, reason: str = 'user_request') -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return lifecycle.delete_project(owner_id=account.id, project_id=project_id, reason=reason).to_dict()
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+@app.get('/api/v28/projects/{project_id}/state')
+def v28_project_state(project_id: str, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        lifecycle = getattr(_v28.accounts, 'project_lifecycle', None)
+        if lifecycle is None:
+            raise HTTPException(503, 'durable project lifecycle requires PostgreSQL creator persistence')
+        return lifecycle.project_state(owner_id=account.id, project_id=project_id).to_dict()
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
 
 @app.post('/api/v28/projects/{project_id}/build')
 def v28_build(project_id: str, req: V27BuildRequest, request: Request) -> dict:
