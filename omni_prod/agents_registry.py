@@ -163,8 +163,8 @@ def build_canonical_agents_registry(
             "skill.internal.requirements.clarify", "skill.internal.capability.plan", _s("software.plan"), _s("software.architecture"),
         )),
         _agent("agent.clarification", "Clarification Agent", ("ask only material product questions",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.requirements.clarify",)),
-        _agent("agent.capability_planner", "Capability Planner", ("produce deterministic capability dependency plans",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.capability.plan",)),
-        _agent("agent.cost_planner", "Cost Planner", ("construct conservative execution cost envelopes",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.cost.plan", "skill.internal.cost_audit")),
+        _agent("agent.capability_planner", "Capability Planner", ("produce deterministic capability dependency plans",), CapabilityStatus.PARTIAL, ("skill.internal.capability.plan",)),
+        _agent("agent.cost_planner", "Cost Planner", ("construct conservative execution cost envelopes",), CapabilityStatus.PARTIAL, ("skill.internal.cost.plan", "skill.internal.cost_audit")),
         _agent("agent.design_director", "Design Director", ("govern coherent visual and interaction design",), CapabilityStatus.NOT_IMPLEMENTED, (
             "skill.internal.design.direct", _s("media.image.generate"), _s("media.vector.generate"), _s("media.texture.generate"),
         )),
@@ -201,7 +201,7 @@ def build_canonical_agents_registry(
         _agent("agent.compliance", "Compliance Agent", ("apply domain, rights and regulatory gates",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.compliance_review",)),
         _agent("agent.repair", "Repair Agent", ("repair verified product failures without hiding them",), CapabilityStatus.PARTIAL, (_s("software.repair"), _s("software.code.modify"), _s("software.test"))),
         _agent("agent.deployment", "Deployment Agent", ("publish verified releases and support rollback",), CapabilityStatus.PARTIAL, (_s("software.deploy.web"),) + publish_skills),
-        _agent("agent.cost_auditor", "Cost Auditor", ("reconcile provider/platform cost and gross contribution",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.cost_audit",)),
+        _agent("agent.cost_auditor", "Cost Auditor", ("reconcile provider/platform cost and gross contribution",), CapabilityStatus.PARTIAL, ("skill.internal.cost_audit",)),
     )
     return MasterAgentsRegistry(agents, skills)
 

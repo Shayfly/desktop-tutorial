@@ -1,0 +1,4104 @@
+{
+  "agent_count": 26,
+  "agents": [
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan",
+        "skill.internal.cost.plan",
+        "skill.internal.release.gate",
+        "skill.software.plan",
+        "skill.software.architecture",
+        "skill.software.code.generate",
+        "skill.software.build",
+        "skill.software.test",
+        "skill.software.repair",
+        "skill.software.preview",
+        "skill.software.export"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.chief_orchestrator",
+      "outputs": [],
+      "responsibilities": [
+        "coordinate product-production agents and release evidence"
+      ],
+      "role": "Chief Orchestrator",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify",
+        "skill.internal.capability.plan",
+        "skill.software.plan",
+        "skill.software.architecture"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.product_architect",
+      "outputs": [],
+      "responsibilities": [
+        "compile product intent into architecture and acceptance plan"
+      ],
+      "role": "Product Architect",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.clarification",
+      "outputs": [],
+      "responsibilities": [
+        "ask only material product questions"
+      ],
+      "role": "Clarification Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.capability_planner",
+      "outputs": [],
+      "responsibilities": [
+        "produce deterministic capability dependency plans"
+      ],
+      "role": "Capability Planner",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost.plan",
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.cost_planner",
+      "outputs": [],
+      "responsibilities": [
+        "construct conservative execution cost envelopes"
+      ],
+      "role": "Cost Planner",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.design.direct",
+        "skill.media.image.generate",
+        "skill.media.vector.generate",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.design_director",
+      "outputs": [],
+      "responsibilities": [
+        "govern coherent visual and interaction design"
+      ],
+      "role": "Design Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.code.generate",
+        "skill.software.code.modify",
+        "skill.software.dependencies.install",
+        "skill.software.build",
+        "skill.software.test"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.code",
+      "outputs": [],
+      "responsibilities": [
+        "generate and modify production code"
+      ],
+      "role": "Code Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.target.backend",
+        "skill.target.database",
+        "skill.software.code.generate",
+        "skill.integration.database",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.backend",
+      "outputs": [],
+      "responsibilities": [
+        "produce backend, database and API product layers"
+      ],
+      "role": "Backend Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.infrastructure.plan",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.email",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.infrastructure",
+      "outputs": [],
+      "responsibilities": [
+        "plan and provision generated-product infrastructure"
+      ],
+      "role": "Infrastructure Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.integration.bind",
+        "skill.integration.payment",
+        "skill.integration.email",
+        "skill.integration.sms",
+        "skill.integration.messaging",
+        "skill.integration.maps",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.source_control",
+        "skill.integration.oauth",
+        "skill.integration.analytics",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.integration",
+      "outputs": [],
+      "responsibilities": [
+        "bind, validate and monitor external integrations"
+      ],
+      "role": "Integration Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.asset.orchestrate",
+        "skill.media.image.generate",
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.3d.mesh.generate",
+        "skill.media.video.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.asset_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate multimodal asset production and reuse"
+      ],
+      "role": "Asset Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.mesh.generate",
+        "skill.media.3d.texture",
+        "skill.media.3d.multiview",
+        "skill.media.3d.retopology",
+        "skill.media.3d.optimize",
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget",
+        "skill.media.3d.export",
+        "skill.media.3d.scene.compose"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.three_d",
+      "outputs": [],
+      "responsibilities": [
+        "produce and validate 3D assets"
+      ],
+      "role": "3D Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.game.design",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.game_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate gameplay systems and game-production acceptance"
+      ],
+      "role": "Game Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.world.build",
+        "skill.media.3d.scene.compose",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.world_builder",
+      "outputs": [],
+      "responsibilities": [
+        "plan and construct worlds and levels"
+      ],
+      "role": "World Builder",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.mission.design"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.mission_designer",
+      "outputs": [],
+      "responsibilities": [
+        "design mission and quest graphs with acceptance rules"
+      ],
+      "role": "Mission Designer",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.animation",
+      "outputs": [],
+      "responsibilities": [
+        "rig, animate and retarget 3D assets"
+      ],
+      "role": "Animation Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.audio.tts",
+        "skill.media.audio.stt",
+        "skill.media.audio.realtime_voice",
+        "skill.media.audio.dubbing",
+        "skill.media.audio.cleanup"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.audio_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate voice, music and sound production"
+      ],
+      "role": "Audio Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.test",
+        "skill.internal.release.gate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.qa",
+      "outputs": [],
+      "responsibilities": [
+        "run functional verification and aggregate release evidence"
+      ],
+      "role": "QA Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.playtest",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.playtester",
+      "outputs": [],
+      "responsibilities": [
+        "execute gameplay flows and report objective failures"
+      ],
+      "role": "Playtester Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.visual_qa"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.visual_qa",
+      "outputs": [],
+      "responsibilities": [
+        "verify visual, responsive and presentation quality"
+      ],
+      "role": "Visual QA Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.performance_qa"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.performance",
+      "outputs": [],
+      "responsibilities": [
+        "measure latency, FPS, memory and resource budgets"
+      ],
+      "role": "Performance Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.security_review"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.security",
+      "outputs": [],
+      "responsibilities": [
+        "apply security checks and release gates"
+      ],
+      "role": "Security Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.compliance_review"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.compliance",
+      "outputs": [],
+      "responsibilities": [
+        "apply domain, rights and regulatory gates"
+      ],
+      "role": "Compliance Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.repair",
+        "skill.software.code.modify",
+        "skill.software.test"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.repair",
+      "outputs": [],
+      "responsibilities": [
+        "repair verified product failures without hiding them"
+      ],
+      "role": "Repair Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.deploy.web",
+        "skill.publish.web",
+        "skill.publish.android",
+        "skill.publish.ios",
+        "skill.publish.asset"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.deployment",
+      "outputs": [],
+      "responsibilities": [
+        "publish verified releases and support rollback"
+      ],
+      "role": "Deployment Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.cost_auditor",
+      "outputs": [],
+      "responsibilities": [
+        "reconcile provider/platform cost and gross contribution"
+      ],
+      "role": "Cost Auditor",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    }
+  ],
+  "capabilities": [
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "software plan",
+      "family": "software",
+      "key": "software.plan",
+      "provider_backed": true,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.plan"
+      ],
+      "description": "software architecture",
+      "family": "software",
+      "key": "software.architecture",
+      "provider_backed": true,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.architecture"
+      ],
+      "description": "software code generate",
+      "family": "software",
+      "key": "software.code.generate",
+      "provider_backed": true,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "software code modify",
+      "family": "software",
+      "key": "software.code.modify",
+      "provider_backed": true,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.code.generate"
+      ],
+      "description": "software dependencies install",
+      "family": "software",
+      "key": "software.dependencies.install",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.dependencies.install"
+      ],
+      "description": "software build",
+      "family": "software",
+      "key": "software.build",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.build"
+      ],
+      "description": "software test",
+      "family": "software",
+      "key": "software.test",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.test"
+      ],
+      "description": "software repair",
+      "family": "software",
+      "key": "software.repair",
+      "provider_backed": true,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.build"
+      ],
+      "description": "software preview",
+      "family": "software",
+      "key": "software.preview",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.test"
+      ],
+      "description": "software export",
+      "family": "software",
+      "key": "software.export",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "software.export"
+      ],
+      "description": "software deploy web",
+      "family": "software",
+      "key": "software.deploy.web",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target web",
+      "family": "target",
+      "key": "target.web",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target saas",
+      "family": "target",
+      "key": "target.saas",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target backend",
+      "family": "target",
+      "key": "target.backend",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target database",
+      "family": "target",
+      "key": "target.database",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target android source",
+      "family": "target",
+      "key": "target.android.source",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target android build",
+      "family": "target",
+      "key": "target.android.build",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target ios source",
+      "family": "target",
+      "key": "target.ios.source",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target ios build",
+      "family": "target",
+      "key": "target.ios.build",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target desktop source",
+      "family": "target",
+      "key": "target.desktop.source",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target agent",
+      "family": "target",
+      "key": "target.agent",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target automation",
+      "family": "target",
+      "key": "target.automation",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target game 2d",
+      "family": "target",
+      "key": "target.game.2d",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "target game 3d",
+      "family": "target",
+      "key": "target.game.3d",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media image generate",
+      "family": "media.2d",
+      "key": "media.image.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media image edit",
+      "family": "media.2d",
+      "key": "media.image.edit",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media image remove_background",
+      "family": "media.2d",
+      "key": "media.image.remove_background",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media image upscale",
+      "family": "media.2d",
+      "key": "media.image.upscale",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media vector generate",
+      "family": "media.2d",
+      "key": "media.vector.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media texture generate",
+      "family": "media.2d",
+      "key": "media.texture.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media sprite generate",
+      "family": "media.2d",
+      "key": "media.sprite.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media 3d mesh generate",
+      "family": "media.3d",
+      "key": "media.3d.mesh.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d texture",
+      "family": "media.3d",
+      "key": "media.3d.texture",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d multiview",
+      "family": "media.3d",
+      "key": "media.3d.multiview",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d retopology",
+      "family": "media.3d",
+      "key": "media.3d.retopology",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d optimize",
+      "family": "media.3d",
+      "key": "media.3d.optimize",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d rig",
+      "family": "media.3d",
+      "key": "media.3d.rig",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.rig"
+      ],
+      "description": "media 3d animate",
+      "family": "media.3d",
+      "key": "media.3d.animate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.rig"
+      ],
+      "description": "media 3d retarget",
+      "family": "media.3d",
+      "key": "media.3d.retarget",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "description": "media 3d export",
+      "family": "media.3d",
+      "key": "media.3d.export",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "media.3d.mesh.generate",
+        "media.3d.texture"
+      ],
+      "description": "media 3d scene compose",
+      "family": "media.3d",
+      "key": "media.3d.scene.compose",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio sfx",
+      "family": "media.audio",
+      "key": "media.audio.sfx",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio music",
+      "family": "media.audio",
+      "key": "media.audio.music",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio tts",
+      "family": "media.audio",
+      "key": "media.audio.tts",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio stt",
+      "family": "media.audio",
+      "key": "media.audio.stt",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio realtime_voice",
+      "family": "media.audio",
+      "key": "media.audio.realtime_voice",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio dubbing",
+      "family": "media.audio",
+      "key": "media.audio.dubbing",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media audio cleanup",
+      "family": "media.audio",
+      "key": "media.audio.cleanup",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media video generate",
+      "family": "media.video",
+      "key": "media.video.generate",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media video edit",
+      "family": "media.video",
+      "key": "media.video.edit",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media video lipsync",
+      "family": "media.video",
+      "key": "media.video.lipsync",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media video captions",
+      "family": "media.video",
+      "key": "media.video.captions",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media video upscale",
+      "family": "media.video",
+      "key": "media.video.upscale",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media film storyboard",
+      "family": "media.video",
+      "key": "media.film.storyboard",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media film shot_plan",
+      "family": "media.video",
+      "key": "media.film.shot_plan",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "media film render",
+      "family": "media.video",
+      "key": "media.film.render",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ai embedding",
+      "family": "ai",
+      "key": "ai.embedding",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ai rag ingest",
+      "family": "ai",
+      "key": "ai.rag.ingest",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "ai.rag.ingest"
+      ],
+      "description": "ai rag retrieve",
+      "family": "ai",
+      "key": "ai.rag.retrieve",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ai agent tools",
+      "family": "ai",
+      "key": "ai.agent.tools",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ai agent memory",
+      "family": "ai",
+      "key": "ai.agent.memory",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ai agent eval",
+      "family": "ai",
+      "key": "ai.agent.eval",
+      "provider_backed": true,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration payment",
+      "family": "integration",
+      "key": "integration.payment",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration email",
+      "family": "integration",
+      "key": "integration.email",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration sms",
+      "family": "integration",
+      "key": "integration.sms",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration messaging",
+      "family": "integration",
+      "key": "integration.messaging",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration maps",
+      "family": "integration",
+      "key": "integration.maps",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration storage",
+      "family": "integration",
+      "key": "integration.storage",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration database",
+      "family": "integration",
+      "key": "integration.database",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration source_control",
+      "family": "integration",
+      "key": "integration.source_control",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration oauth",
+      "family": "integration",
+      "key": "integration.oauth",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration analytics",
+      "family": "integration",
+      "key": "integration.analytics",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "integration webhook",
+      "family": "integration",
+      "key": "integration.webhook",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "publish web",
+      "family": "publish",
+      "key": "publish.web",
+      "provider_backed": false,
+      "status": "PARTIAL"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "publish android",
+      "family": "publish",
+      "key": "publish.android",
+      "provider_backed": false,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "publish ios",
+      "family": "publish",
+      "key": "publish.ios",
+      "provider_backed": false,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "publish asset",
+      "family": "publish",
+      "key": "publish.asset",
+      "provider_backed": false,
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem discover",
+      "family": "ecosystem",
+      "key": "ecosystem.discover",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem creator_profile",
+      "family": "ecosystem",
+      "key": "ecosystem.creator_profile",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem like",
+      "family": "ecosystem",
+      "key": "ecosystem.like",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem comment",
+      "family": "ecosystem",
+      "key": "ecosystem.comment",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem follow",
+      "family": "ecosystem",
+      "key": "ecosystem.follow",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem remix",
+      "family": "ecosystem",
+      "key": "ecosystem.remix",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem marketplace",
+      "family": "ecosystem",
+      "key": "ecosystem.marketplace",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "ecosystem revenue_share",
+      "family": "ecosystem",
+      "key": "ecosystem.revenue_share",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [],
+      "description": "game multiplayer",
+      "family": "game",
+      "key": "game.multiplayer",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "artifact_kinds": [],
+      "commercial_use_required": true,
+      "default_required": true,
+      "dependency_keys": [
+        "game.multiplayer"
+      ],
+      "description": "game matchmaking",
+      "family": "game",
+      "key": "game.matchmaking",
+      "provider_backed": false,
+      "status": "NOT_IMPLEMENTED"
+    }
+  ],
+  "capability_count": 87,
+  "milestone": "M4.95",
+  "registry_report": {
+    "uncovered_capabilities": [],
+    "unknown_agent_skills": []
+  },
+  "registry_version": "m4.95-v2",
+  "schema_version": 1,
+  "sha256": "c89f2dda9f4255613d6f865d6eebc3836083d0bae85609c742b6711ae1d93517",
+  "skill_count": 104,
+  "skills": [
+    {
+      "capability_keys": [
+        "software.plan"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability software.plan",
+      "key": "skill.software.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.architecture"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.plan"
+      ],
+      "description": "Execute capability software.architecture",
+      "key": "skill.software.architecture",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.code.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.architecture"
+      ],
+      "description": "Execute capability software.code.generate",
+      "key": "skill.software.code.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.code.modify"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability software.code.modify",
+      "key": "skill.software.code.modify",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.dependencies.install"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.code.generate"
+      ],
+      "description": "Execute capability software.dependencies.install",
+      "key": "skill.software.dependencies.install",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.dependencies.install"
+      ],
+      "description": "Execute capability software.build",
+      "key": "skill.software.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.test"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.build"
+      ],
+      "description": "Execute capability software.test",
+      "key": "skill.software.test",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.repair"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.test"
+      ],
+      "description": "Execute capability software.repair",
+      "key": "skill.software.repair",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.preview"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.build"
+      ],
+      "description": "Execute capability software.preview",
+      "key": "skill.software.preview",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.export"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.test"
+      ],
+      "description": "Execute capability software.export",
+      "key": "skill.software.export",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.deploy.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.export"
+      ],
+      "description": "Execute capability software.deploy.web",
+      "key": "skill.software.deploy.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.web",
+      "key": "skill.target.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.saas"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.saas",
+      "key": "skill.target.saas",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.backend"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.backend",
+      "key": "skill.target.backend",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.database"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.database",
+      "key": "skill.target.database",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.android.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.android.source",
+      "key": "skill.target.android.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.android.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.android.build",
+      "key": "skill.target.android.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.ios.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.ios.source",
+      "key": "skill.target.ios.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.ios.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.ios.build",
+      "key": "skill.target.ios.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.desktop.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.desktop.source",
+      "key": "skill.target.desktop.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.agent"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.agent",
+      "key": "skill.target.agent",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.automation"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.automation",
+      "key": "skill.target.automation",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.game.2d"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.game.2d",
+      "key": "skill.target.game.2d",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.game.3d"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.game.3d",
+      "key": "skill.target.game.3d",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.generate",
+      "key": "skill.media.image.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.edit"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.edit",
+      "key": "skill.media.image.edit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.remove_background"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.remove_background",
+      "key": "skill.media.image.remove_background",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.upscale"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.upscale",
+      "key": "skill.media.image.upscale",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.vector.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.vector.generate",
+      "key": "skill.media.vector.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.texture.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.texture.generate",
+      "key": "skill.media.texture.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.sprite.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.sprite.generate",
+      "key": "skill.media.sprite.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.3d.mesh.generate",
+      "key": "skill.media.3d.mesh.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.texture"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.texture",
+      "key": "skill.media.3d.texture",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.multiview"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.multiview",
+      "key": "skill.media.3d.multiview",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.retopology"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.retopology",
+      "key": "skill.media.3d.retopology",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.optimize"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.optimize",
+      "key": "skill.media.3d.optimize",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.rig"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.rig",
+      "key": "skill.media.3d.rig",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.animate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.rig"
+      ],
+      "description": "Execute capability media.3d.animate",
+      "key": "skill.media.3d.animate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.retarget"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.rig"
+      ],
+      "description": "Execute capability media.3d.retarget",
+      "key": "skill.media.3d.retarget",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.export"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.export",
+      "key": "skill.media.3d.export",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.scene.compose"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate",
+        "skill.media.3d.texture"
+      ],
+      "description": "Execute capability media.3d.scene.compose",
+      "key": "skill.media.3d.scene.compose",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.sfx"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.sfx",
+      "key": "skill.media.audio.sfx",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.music"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.music",
+      "key": "skill.media.audio.music",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.tts"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.tts",
+      "key": "skill.media.audio.tts",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.stt"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.stt",
+      "key": "skill.media.audio.stt",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.realtime_voice"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.realtime_voice",
+      "key": "skill.media.audio.realtime_voice",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.dubbing"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.dubbing",
+      "key": "skill.media.audio.dubbing",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.cleanup"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.cleanup",
+      "key": "skill.media.audio.cleanup",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.generate",
+      "key": "skill.media.video.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.edit"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.edit",
+      "key": "skill.media.video.edit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.lipsync"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.lipsync",
+      "key": "skill.media.video.lipsync",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.captions"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.captions",
+      "key": "skill.media.video.captions",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.upscale"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.upscale",
+      "key": "skill.media.video.upscale",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.storyboard"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.storyboard",
+      "key": "skill.media.film.storyboard",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.shot_plan"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.shot_plan",
+      "key": "skill.media.film.shot_plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.render"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.render",
+      "key": "skill.media.film.render",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.embedding"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.embedding",
+      "key": "skill.ai.embedding",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.rag.ingest"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.rag.ingest",
+      "key": "skill.ai.rag.ingest",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.rag.retrieve"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.ai.rag.ingest"
+      ],
+      "description": "Execute capability ai.rag.retrieve",
+      "key": "skill.ai.rag.retrieve",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.tools"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.tools",
+      "key": "skill.ai.agent.tools",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.memory"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.memory",
+      "key": "skill.ai.agent.memory",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.eval"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.eval",
+      "key": "skill.ai.agent.eval",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.payment"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.payment",
+      "key": "skill.integration.payment",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.email"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.email",
+      "key": "skill.integration.email",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.sms"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.sms",
+      "key": "skill.integration.sms",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.messaging"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.messaging",
+      "key": "skill.integration.messaging",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.maps"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.maps",
+      "key": "skill.integration.maps",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.storage"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.storage",
+      "key": "skill.integration.storage",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.database"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.database",
+      "key": "skill.integration.database",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.source_control"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.source_control",
+      "key": "skill.integration.source_control",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.oauth"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.oauth",
+      "key": "skill.integration.oauth",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.analytics"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.analytics",
+      "key": "skill.integration.analytics",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.webhook"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.webhook",
+      "key": "skill.integration.webhook",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.web",
+      "key": "skill.publish.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.android"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.android",
+      "key": "skill.publish.android",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.ios"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.ios",
+      "key": "skill.publish.ios",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.asset"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.asset",
+      "key": "skill.publish.asset",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.discover"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.discover",
+      "key": "skill.ecosystem.discover",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.creator_profile"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.creator_profile",
+      "key": "skill.ecosystem.creator_profile",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.like"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.like",
+      "key": "skill.ecosystem.like",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.comment"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.comment",
+      "key": "skill.ecosystem.comment",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.follow"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.follow",
+      "key": "skill.ecosystem.follow",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.remix"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.remix",
+      "key": "skill.ecosystem.remix",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.marketplace"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.marketplace",
+      "key": "skill.ecosystem.marketplace",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.revenue_share"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.revenue_share",
+      "key": "skill.ecosystem.revenue_share",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "game.multiplayer"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability game.multiplayer",
+      "key": "skill.game.multiplayer",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "game"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "game.matchmaking"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [
+        "skill.game.multiplayer"
+      ],
+      "description": "Execute capability game.matchmaking",
+      "key": "skill.game.matchmaking",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "game"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Clarify only material product uncertainties",
+      "key": "skill.internal.requirements.clarify",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Compile intent into a capability dependency DAG",
+      "key": "skill.internal.capability.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Construct conservative pre-execution cost envelope",
+      "key": "skill.internal.cost.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Choose and govern a coherent product visual system",
+      "key": "skill.internal.design.direct",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan durable generated-product infrastructure",
+      "key": "skill.internal.infrastructure.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Bind and validate customer/platform integrations",
+      "key": "skill.internal.integration.bind",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Orchestrate asset DAG generation, reuse and regeneration",
+      "key": "skill.internal.asset.orchestrate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Create game production and mechanics plan",
+      "key": "skill.internal.game.design",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan/build large game worlds and levels",
+      "key": "skill.internal.world.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan mission/quest graphs and acceptance rules",
+      "key": "skill.internal.mission.design",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute gameplay flows and collect pass/fail evidence",
+      "key": "skill.internal.playtest",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Perform visual and responsive quality review",
+      "key": "skill.internal.visual_qa",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Measure runtime performance and resource budgets",
+      "key": "skill.internal.performance_qa",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Perform security review and release gating",
+      "key": "skill.internal.security_review",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Apply domain/legal/compliance release gates",
+      "key": "skill.internal.compliance_review",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Reconcile provider usage, platform cost and margin",
+      "key": "skill.internal.cost_audit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Aggregate release evidence and block false readiness",
+      "key": "skill.internal.release.gate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    }
+  ],
+  "status_vocabulary": [
+    "LIVE",
+    "PARTIAL",
+    "NOT_CONFIGURED",
+    "NOT_IMPLEMENTED",
+    "BLOCKED"
+  ],
+  "truth_rules": {
+    "estimate_is_not_actual": true,
+    "real_execution_or_explicit_failure": true,
+    "source_presence_is_not_live": true,
+    "unknown_cost_is_not_zero": true
+  }
+}

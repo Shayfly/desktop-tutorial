@@ -39,3 +39,10 @@ Maintain `STATUS.md` and `COST_MODEL.md` with observed provider usage and test s
 ## Final report format
 
 Provide: current public preview URL; commit/revision; exact setup and test commands; evidence per acceptance criterion; costs measured for the test workloads; remaining blockers by owner; and a candid conclusion: local demo, working staging product, or verified public production service. If an acceptance criterion fails, it must appear as incomplete with the failing evidence and next concrete fix.
+
+
+## M4.95 universal creation scope truth
+
+148AI's long-term Creation OS scope includes Web/SaaS, Backend/API, Database, Android, iOS, Desktop, generated AI Agent products, Automation products, 2D/3D games, Multiplayer, images, textures, 3D meshes/scenes, rigging/animation, audio/SFX, Voice/TTS/STT, Music, Video/Film and integration-driven products. These are canonical scope families, not launch claims.
+
+Current status must use only `LIVE`, `PARTIAL`, `NOT_CONFIGURED`, `NOT_IMPLEMENTED`, or `BLOCKED`. M4.95 is primarily a capability/provider/cost/evidence foundation. Web/SaaS has the strongest existing implementation but remains `PARTIAL` until a public production vertical slice is independently verified. Commercial media/3D providers are `NOT_CONFIGURED`; multiplayer, complete generated Agent/Automation targets, and several ecosystem capabilities remain `NOT_IMPLEMENTED`. Source presence, an enum, a plan, or an API key alone is never sufficient to mark a capability `LIVE`.

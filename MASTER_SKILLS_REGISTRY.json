@@ -1,0 +1,2304 @@
+{
+  "registry_version": "m4.95-v2",
+  "schema_version": 1,
+  "skills": [
+    {
+      "capability_keys": [
+        "software.plan"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability software.plan",
+      "key": "skill.software.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.architecture"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.plan"
+      ],
+      "description": "Execute capability software.architecture",
+      "key": "skill.software.architecture",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.code.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.architecture"
+      ],
+      "description": "Execute capability software.code.generate",
+      "key": "skill.software.code.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.code.modify"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability software.code.modify",
+      "key": "skill.software.code.modify",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.dependencies.install"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.code.generate"
+      ],
+      "description": "Execute capability software.dependencies.install",
+      "key": "skill.software.dependencies.install",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.dependencies.install"
+      ],
+      "description": "Execute capability software.build",
+      "key": "skill.software.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.test"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.build"
+      ],
+      "description": "Execute capability software.test",
+      "key": "skill.software.test",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.repair"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.software.test"
+      ],
+      "description": "Execute capability software.repair",
+      "key": "skill.software.repair",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.preview"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.build"
+      ],
+      "description": "Execute capability software.preview",
+      "key": "skill.software.preview",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.export"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.test"
+      ],
+      "description": "Execute capability software.export",
+      "key": "skill.software.export",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "software.deploy.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [
+        "skill.software.export"
+      ],
+      "description": "Execute capability software.deploy.web",
+      "key": "skill.software.deploy.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "software"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.web",
+      "key": "skill.target.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.saas"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.saas",
+      "key": "skill.target.saas",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.backend"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.backend",
+      "key": "skill.target.backend",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.database"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.database",
+      "key": "skill.target.database",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.android.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.android.source",
+      "key": "skill.target.android.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.android.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.android.build",
+      "key": "skill.target.android.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.ios.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.ios.source",
+      "key": "skill.target.ios.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.ios.build"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.ios.build",
+      "key": "skill.target.ios.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.desktop.source"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.desktop.source",
+      "key": "skill.target.desktop.source",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.agent"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.agent",
+      "key": "skill.target.agent",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.automation"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.automation",
+      "key": "skill.target.automation",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.game.2d"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.game.2d",
+      "key": "skill.target.game.2d",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "target.game.3d"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability target.game.3d",
+      "key": "skill.target.game.3d",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "target"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.generate",
+      "key": "skill.media.image.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.edit"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.edit",
+      "key": "skill.media.image.edit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.remove_background"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.remove_background",
+      "key": "skill.media.image.remove_background",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.image.upscale"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.image.upscale",
+      "key": "skill.media.image.upscale",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.vector.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.vector.generate",
+      "key": "skill.media.vector.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.texture.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.texture.generate",
+      "key": "skill.media.texture.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.sprite.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.sprite.generate",
+      "key": "skill.media.sprite.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.2d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.mesh.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.3d.mesh.generate",
+      "key": "skill.media.3d.mesh.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.texture"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.texture",
+      "key": "skill.media.3d.texture",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.multiview"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.multiview",
+      "key": "skill.media.3d.multiview",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.retopology"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.retopology",
+      "key": "skill.media.3d.retopology",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.optimize"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.optimize",
+      "key": "skill.media.3d.optimize",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.rig"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.rig",
+      "key": "skill.media.3d.rig",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.animate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.rig"
+      ],
+      "description": "Execute capability media.3d.animate",
+      "key": "skill.media.3d.animate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.retarget"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.rig"
+      ],
+      "description": "Execute capability media.3d.retarget",
+      "key": "skill.media.3d.retarget",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.export"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate"
+      ],
+      "description": "Execute capability media.3d.export",
+      "key": "skill.media.3d.export",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.3d.scene.compose"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.media.3d.mesh.generate",
+        "skill.media.3d.texture"
+      ],
+      "description": "Execute capability media.3d.scene.compose",
+      "key": "skill.media.3d.scene.compose",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.3d"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.sfx"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.sfx",
+      "key": "skill.media.audio.sfx",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.music"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.music",
+      "key": "skill.media.audio.music",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.tts"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.tts",
+      "key": "skill.media.audio.tts",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.stt"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.stt",
+      "key": "skill.media.audio.stt",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.realtime_voice"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.realtime_voice",
+      "key": "skill.media.audio.realtime_voice",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.dubbing"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.dubbing",
+      "key": "skill.media.audio.dubbing",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.audio.cleanup"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.audio.cleanup",
+      "key": "skill.media.audio.cleanup",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.audio"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.generate"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.generate",
+      "key": "skill.media.video.generate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.edit"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.edit",
+      "key": "skill.media.video.edit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.lipsync"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.lipsync",
+      "key": "skill.media.video.lipsync",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.captions"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.captions",
+      "key": "skill.media.video.captions",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.video.upscale"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.video.upscale",
+      "key": "skill.media.video.upscale",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.storyboard"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.storyboard",
+      "key": "skill.media.film.storyboard",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.shot_plan"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.shot_plan",
+      "key": "skill.media.film.shot_plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "media.film.render"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability media.film.render",
+      "key": "skill.media.film.render",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "media.video"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.embedding"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.embedding",
+      "key": "skill.ai.embedding",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.rag.ingest"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.rag.ingest",
+      "key": "skill.ai.rag.ingest",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.rag.retrieve"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [
+        "skill.ai.rag.ingest"
+      ],
+      "description": "Execute capability ai.rag.retrieve",
+      "key": "skill.ai.rag.retrieve",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.tools"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.tools",
+      "key": "skill.ai.agent.tools",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.memory"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.memory",
+      "key": "skill.ai.agent.memory",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ai.agent.eval"
+      ],
+      "cost_model": "PROVIDER_METERED",
+      "dependency_keys": [],
+      "description": "Execute capability ai.agent.eval",
+      "key": "skill.ai.agent.eval",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ai"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.payment"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.payment",
+      "key": "skill.integration.payment",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.email"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.email",
+      "key": "skill.integration.email",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.sms"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.sms",
+      "key": "skill.integration.sms",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.messaging"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.messaging",
+      "key": "skill.integration.messaging",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.maps"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.maps",
+      "key": "skill.integration.maps",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.storage"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.storage",
+      "key": "skill.integration.storage",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.database"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.database",
+      "key": "skill.integration.database",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.source_control"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.source_control",
+      "key": "skill.integration.source_control",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.oauth"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.oauth",
+      "key": "skill.integration.oauth",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.analytics"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.analytics",
+      "key": "skill.integration.analytics",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "integration.webhook"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability integration.webhook",
+      "key": "skill.integration.webhook",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "integration"
+      ],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.web"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.web",
+      "key": "skill.publish.web",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.android"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.android",
+      "key": "skill.publish.android",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.ios"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.ios",
+      "key": "skill.publish.ios",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "publish.asset"
+      ],
+      "cost_model": "PLATFORM_COMPUTE",
+      "dependency_keys": [],
+      "description": "Execute capability publish.asset",
+      "key": "skill.publish.asset",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "publish"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.discover"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.discover",
+      "key": "skill.ecosystem.discover",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.creator_profile"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.creator_profile",
+      "key": "skill.ecosystem.creator_profile",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.like"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.like",
+      "key": "skill.ecosystem.like",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.comment"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.comment",
+      "key": "skill.ecosystem.comment",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.follow"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.follow",
+      "key": "skill.ecosystem.follow",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.remix"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.remix",
+      "key": "skill.ecosystem.remix",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.marketplace"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.marketplace",
+      "key": "skill.ecosystem.marketplace",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "ecosystem.revenue_share"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability ecosystem.revenue_share",
+      "key": "skill.ecosystem.revenue_share",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "ecosystem"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "game.multiplayer"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute capability game.multiplayer",
+      "key": "skill.game.multiplayer",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "game"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [
+        "game.matchmaking"
+      ],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [
+        "skill.game.multiplayer"
+      ],
+      "description": "Execute capability game.matchmaking",
+      "key": "skill.game.matchmaking",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [
+        "commercial_use_rights"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "game"
+      ],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Clarify only material product uncertainties",
+      "key": "skill.internal.requirements.clarify",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Compile intent into a capability dependency DAG",
+      "key": "skill.internal.capability.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Construct conservative pre-execution cost envelope",
+      "key": "skill.internal.cost.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Choose and govern a coherent product visual system",
+      "key": "skill.internal.design.direct",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan durable generated-product infrastructure",
+      "key": "skill.internal.infrastructure.plan",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Bind and validate customer/platform integrations",
+      "key": "skill.internal.integration.bind",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Orchestrate asset DAG generation, reuse and regeneration",
+      "key": "skill.internal.asset.orchestrate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Create game production and mechanics plan",
+      "key": "skill.internal.game.design",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan/build large game worlds and levels",
+      "key": "skill.internal.world.build",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Plan mission/quest graphs and acceptance rules",
+      "key": "skill.internal.mission.design",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Execute gameplay flows and collect pass/fail evidence",
+      "key": "skill.internal.playtest",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Perform visual and responsive quality review",
+      "key": "skill.internal.visual_qa",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Measure runtime performance and resource budgets",
+      "key": "skill.internal.performance_qa",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Perform security review and release gating",
+      "key": "skill.internal.security_review",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Apply domain/legal/compliance release gates",
+      "key": "skill.internal.compliance_review",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "NOT_IMPLEMENTED",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Reconcile provider usage, platform cost and margin",
+      "key": "skill.internal.cost_audit",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    },
+    {
+      "capability_keys": [],
+      "cost_model": "UNKNOWN",
+      "dependency_keys": [],
+      "description": "Aggregate release evidence and block false readiness",
+      "key": "skill.internal.release.gate",
+      "last_verified_date": null,
+      "last_verified_version": null,
+      "legal_constraints": [],
+      "permissions": [],
+      "product_families": [],
+      "provider_keys": [],
+      "status": "PARTIAL",
+      "verification_tests": []
+    }
+  ],
+  "truth_sha256": "c89f2dda9f4255613d6f865d6eebc3836083d0bae85609c742b6711ae1d93517"
+}

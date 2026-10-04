@@ -1,0 +1,783 @@
+{
+  "agents": [
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan",
+        "skill.internal.cost.plan",
+        "skill.internal.release.gate",
+        "skill.software.plan",
+        "skill.software.architecture",
+        "skill.software.code.generate",
+        "skill.software.build",
+        "skill.software.test",
+        "skill.software.repair",
+        "skill.software.preview",
+        "skill.software.export"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.chief_orchestrator",
+      "outputs": [],
+      "responsibilities": [
+        "coordinate product-production agents and release evidence"
+      ],
+      "role": "Chief Orchestrator",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify",
+        "skill.internal.capability.plan",
+        "skill.software.plan",
+        "skill.software.architecture"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.product_architect",
+      "outputs": [],
+      "responsibilities": [
+        "compile product intent into architecture and acceptance plan"
+      ],
+      "role": "Product Architect",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.clarification",
+      "outputs": [],
+      "responsibilities": [
+        "ask only material product questions"
+      ],
+      "role": "Clarification Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.capability_planner",
+      "outputs": [],
+      "responsibilities": [
+        "produce deterministic capability dependency plans"
+      ],
+      "role": "Capability Planner",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost.plan",
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.cost_planner",
+      "outputs": [],
+      "responsibilities": [
+        "construct conservative execution cost envelopes"
+      ],
+      "role": "Cost Planner",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.design.direct",
+        "skill.media.image.generate",
+        "skill.media.vector.generate",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.design_director",
+      "outputs": [],
+      "responsibilities": [
+        "govern coherent visual and interaction design"
+      ],
+      "role": "Design Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.code.generate",
+        "skill.software.code.modify",
+        "skill.software.dependencies.install",
+        "skill.software.build",
+        "skill.software.test"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.code",
+      "outputs": [],
+      "responsibilities": [
+        "generate and modify production code"
+      ],
+      "role": "Code Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.target.backend",
+        "skill.target.database",
+        "skill.software.code.generate",
+        "skill.integration.database",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.backend",
+      "outputs": [],
+      "responsibilities": [
+        "produce backend, database and API product layers"
+      ],
+      "role": "Backend Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.infrastructure.plan",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.email",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.infrastructure",
+      "outputs": [],
+      "responsibilities": [
+        "plan and provision generated-product infrastructure"
+      ],
+      "role": "Infrastructure Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.integration.bind",
+        "skill.integration.payment",
+        "skill.integration.email",
+        "skill.integration.sms",
+        "skill.integration.messaging",
+        "skill.integration.maps",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.source_control",
+        "skill.integration.oauth",
+        "skill.integration.analytics",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.integration",
+      "outputs": [],
+      "responsibilities": [
+        "bind, validate and monitor external integrations"
+      ],
+      "role": "Integration Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.asset.orchestrate",
+        "skill.media.image.generate",
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.3d.mesh.generate",
+        "skill.media.video.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.asset_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate multimodal asset production and reuse"
+      ],
+      "role": "Asset Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.mesh.generate",
+        "skill.media.3d.texture",
+        "skill.media.3d.multiview",
+        "skill.media.3d.retopology",
+        "skill.media.3d.optimize",
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget",
+        "skill.media.3d.export",
+        "skill.media.3d.scene.compose"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.three_d",
+      "outputs": [],
+      "responsibilities": [
+        "produce and validate 3D assets"
+      ],
+      "role": "3D Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.game.design",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.game_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate gameplay systems and game-production acceptance"
+      ],
+      "role": "Game Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.world.build",
+        "skill.media.3d.scene.compose",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.world_builder",
+      "outputs": [],
+      "responsibilities": [
+        "plan and construct worlds and levels"
+      ],
+      "role": "World Builder",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.mission.design"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.mission_designer",
+      "outputs": [],
+      "responsibilities": [
+        "design mission and quest graphs with acceptance rules"
+      ],
+      "role": "Mission Designer",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.animation",
+      "outputs": [],
+      "responsibilities": [
+        "rig, animate and retarget 3D assets"
+      ],
+      "role": "Animation Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.audio.tts",
+        "skill.media.audio.stt",
+        "skill.media.audio.realtime_voice",
+        "skill.media.audio.dubbing",
+        "skill.media.audio.cleanup"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.audio_director",
+      "outputs": [],
+      "responsibilities": [
+        "orchestrate voice, music and sound production"
+      ],
+      "role": "Audio Director",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.test",
+        "skill.internal.release.gate"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.qa",
+      "outputs": [],
+      "responsibilities": [
+        "run functional verification and aggregate release evidence"
+      ],
+      "role": "QA Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.playtest",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.playtester",
+      "outputs": [],
+      "responsibilities": [
+        "execute gameplay flows and report objective failures"
+      ],
+      "role": "Playtester Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.visual_qa"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.visual_qa",
+      "outputs": [],
+      "responsibilities": [
+        "verify visual, responsive and presentation quality"
+      ],
+      "role": "Visual QA Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.performance_qa"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.performance",
+      "outputs": [],
+      "responsibilities": [
+        "measure latency, FPS, memory and resource budgets"
+      ],
+      "role": "Performance Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.security_review"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.security",
+      "outputs": [],
+      "responsibilities": [
+        "apply security checks and release gates"
+      ],
+      "role": "Security Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.compliance_review"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.compliance",
+      "outputs": [],
+      "responsibilities": [
+        "apply domain, rights and regulatory gates"
+      ],
+      "role": "Compliance Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.repair",
+        "skill.software.code.modify",
+        "skill.software.test"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.repair",
+      "outputs": [],
+      "responsibilities": [
+        "repair verified product failures without hiding them"
+      ],
+      "role": "Repair Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.software.deploy.web",
+        "skill.publish.web",
+        "skill.publish.android",
+        "skill.publish.ios",
+        "skill.publish.asset"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.deployment",
+      "outputs": [],
+      "responsibilities": [
+        "publish verified releases and support rollback"
+      ],
+      "role": "Deployment Agent",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {},
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_skills": [],
+      "inputs": [],
+      "key": "agent.cost_auditor",
+      "outputs": [],
+      "responsibilities": [
+        "reconcile provider/platform cost and gross contribution"
+      ],
+      "role": "Cost Auditor",
+      "state_requirements": [
+        "project-scoped durable context"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [],
+      "verification_tests": []
+    }
+  ],
+  "schema_version": 1,
+  "truth_sha256": "c89f2dda9f4255613d6f865d6eebc3836083d0bae85609c742b6711ae1d93517"
+}

@@ -148,8 +148,8 @@ def _cost_model_for(capability_key: str) -> str:
 
 _INTERNAL_SKILLS: tuple[SkillDefinition, ...] = (
     SkillDefinition("skill.internal.requirements.clarify", "Clarify only material product uncertainties", CapabilityStatus.NOT_IMPLEMENTED),
-    SkillDefinition("skill.internal.capability.plan", "Compile intent into a capability dependency DAG", CapabilityStatus.NOT_IMPLEMENTED),
-    SkillDefinition("skill.internal.cost.plan", "Construct conservative pre-execution cost envelope", CapabilityStatus.NOT_IMPLEMENTED),
+    SkillDefinition("skill.internal.capability.plan", "Compile intent into a capability dependency DAG", CapabilityStatus.PARTIAL),
+    SkillDefinition("skill.internal.cost.plan", "Construct conservative pre-execution cost envelope", CapabilityStatus.PARTIAL),
     SkillDefinition("skill.internal.design.direct", "Choose and govern a coherent product visual system", CapabilityStatus.NOT_IMPLEMENTED),
     SkillDefinition("skill.internal.infrastructure.plan", "Plan durable generated-product infrastructure", CapabilityStatus.NOT_IMPLEMENTED),
     SkillDefinition("skill.internal.integration.bind", "Bind and validate customer/platform integrations", CapabilityStatus.NOT_IMPLEMENTED),
@@ -162,7 +162,7 @@ _INTERNAL_SKILLS: tuple[SkillDefinition, ...] = (
     SkillDefinition("skill.internal.performance_qa", "Measure runtime performance and resource budgets", CapabilityStatus.NOT_IMPLEMENTED),
     SkillDefinition("skill.internal.security_review", "Perform security review and release gating", CapabilityStatus.PARTIAL),
     SkillDefinition("skill.internal.compliance_review", "Apply domain/legal/compliance release gates", CapabilityStatus.NOT_IMPLEMENTED),
-    SkillDefinition("skill.internal.cost_audit", "Reconcile provider usage, platform cost and margin", CapabilityStatus.NOT_IMPLEMENTED),
+    SkillDefinition("skill.internal.cost_audit", "Reconcile provider usage, platform cost and margin", CapabilityStatus.PARTIAL),
     SkillDefinition("skill.internal.release.gate", "Aggregate release evidence and block false readiness", CapabilityStatus.PARTIAL),
 )
 
