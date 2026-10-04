@@ -48,9 +48,12 @@ class DurableCapabilityBuildStage:
                     'selected_provider': r.get('selected_provider'),
                     'pricing_version': r.get('pricing_version'),
                     'artifact_key': r.get('artifact_key'),
+                    'verification': dict(r.get('verification') or {}),
                 }
                 for r in rows
             ],
+            'usage': (self.repository.usage_for_build(build_id=build_id)
+                      if hasattr(self.repository, 'usage_for_build') else []),
         }
 
     def prepare(

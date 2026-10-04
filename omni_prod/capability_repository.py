@@ -420,6 +420,67 @@ class PostgresCapabilityRepository:
                             ),
                         )
 
+    def requirements(self, *, build_id: str) -> list[dict[str, Any]]:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT requirement_id, capability_key, purpose, required, quantity,
+                           constraints_json, dependency_ids_json, status, selected_provider,
+                           pricing_version, estimated_cost_usd, maximum_cost_usd,
+                           actual_cost_usd, artifact_key, verification_json, evidence_json
+                    FROM build_capability_requirements
+                    WHERE build_id=%s ORDER BY requirement_id
+                    """,
+                    (build_id,),
+                )
+                rows = cur.fetchall()
+        result = []
+        for row in rows:
+            constraints = json.loads(row[5]) if isinstance(row[5], str) else (row[5] or {})
+            dependencies = json.loads(row[6]) if isinstance(row[6], str) else (row[6] or [])
+            verification = json.loads(row[14]) if isinstance(row[14], str) else (row[14] or {})
+            evidence = json.loads(row[15]) if isinstance(row[15], str) else (row[15] or {})
+            result.append({
+                'build_id': build_id, 'requirement_id': row[0], 'capability_key': row[1],
+                'purpose': row[2], 'required': row[3], 'quantity': row[4],
+                'constraints': constraints, 'dependency_ids': tuple(dependencies),
+                'status': row[7], 'selected_provider': row[8], 'pricing_version': row[9],
+                'estimated_cost_usd': (None if row[10] is None else Decimal(str(row[10]))),
+                'maximum_cost_usd': (None if row[11] is None else Decimal(str(row[11]))),
+                'actual_cost_usd': (None if row[12] is None else Decimal(str(row[12]))),
+                'artifact_key': row[13], 'verification': verification, 'evidence': evidence,
+            })
+        return result
+
+    def usage_for_build(self, *, build_id: str) -> list[dict[str, Any]]:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT event_key, requirement_id, provider, pricing_version,
+                           estimated_cost_usd, maximum_cost_usd, actual_cost_usd,
+                           usage_json, evidence_json
+                    FROM provider_usage_events
+                    WHERE build_id=%s ORDER BY id
+                    """,
+                    (build_id,),
+                )
+                rows = cur.fetchall() or []
+        result = []
+        for row in rows:
+            usage = json.loads(row[7]) if isinstance(row[7], str) else (row[7] or {})
+            evidence = json.loads(row[8]) if isinstance(row[8], str) else (row[8] or {})
+            result.append({
+                'event_key': row[0], 'build_id': build_id, 'requirement_id': row[1],
+                'provider': row[2], 'pricing_version': row[3],
+                'estimated_cost_usd': Decimal(str(row[4])),
+                'maximum_cost_usd': Decimal(str(row[5])),
+                'actual_cost_usd': (None if row[6] is None else Decimal(str(row[6]))),
+                'usage': usage, 'evidence': evidence,
+            })
+        return result
+
     def list_requirements(self, build_id: str) -> list[CapabilityRequirementRecord]:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:

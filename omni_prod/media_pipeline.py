@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass,asdict
 from enum import Enum
+from decimal import Decimal
 import json, re
 
 class AssetKind(str,Enum):
@@ -44,9 +45,65 @@ class CreativeDirector:
         return CreativePlan(tuple(req),{'alt_text_required':True,'captions_for_video':True,'transcripts_for_voice':True},
             {'original_or_licensed_only':True,'trademark_review':True,'music_rights_review':True,'real_person_consent_required':True})
 
-    def repository_files(self,plan:CreativePlan)->dict[str,str]:
+    @staticmethod
+    def _export_safe(value):
+        sensitive=('secret','token','api_key','apikey','authorization','password','credential')
+        if isinstance(value,dict):
+            return {str(k): ('[REDACTED]' if any(x in str(k).lower() for x in sensitive)
+                             else CreativeDirector._export_safe(v)) for k,v in value.items()}
+        if isinstance(value,(list,tuple)):
+            return [CreativeDirector._export_safe(v) for v in value]
+        if isinstance(value,Decimal):
+            return str(value)
+        return value
+
+    def repository_files(
+        self, plan:CreativePlan, *, capability_evidence:dict|None=None,
+        materialized_evidence:list[dict]|tuple[dict,...]|None=None,
+    )->dict[str,str]:
         data=plan.to_dict()
-        manifest=json.dumps(data,ensure_ascii=False,indent=2)
+        data['schema_version']=2
+        materialized=[]
+        if materialized_evidence is not None:
+            source_rows=list(materialized_evidence)
+        elif capability_evidence is not None:
+            usage_by_req={str(u.get('requirement_id')):u for u in capability_evidence.get('usage',())}
+            source_rows=[]
+            for row in capability_evidence.get('requirements',()):
+                if row.get('status')!='VERIFIED' or not row.get('artifact_key'):
+                    continue
+                item=dict(row)
+                usage=usage_by_req.get(str(row.get('requirement_id')), {})
+                for key in ('estimated_cost_usd','maximum_cost_usd','actual_cost_usd'):
+                    if key in usage:
+                        item[key]=usage.get(key)
+                if usage.get('pricing_version') and not item.get('pricing_version'):
+                    item['pricing_version']=usage['pricing_version']
+                usage_evidence=dict(usage.get('evidence') or {})
+                if usage_evidence and not item.get('provenance'):
+                    item['provenance']=dict(usage_evidence.get('provenance') or usage_evidence)
+                verification=dict(item.get('verification') or {})
+                # Normalize the most useful integrity fields to the row while
+                # preserving the full verification evidence as an additive field.
+                for key in ('sha256','size_bytes'):
+                    if key not in item and key in verification:
+                        item[key]=verification[key]
+                if 'provider' not in item and item.get('selected_provider'):
+                    item['provider']=item.get('selected_provider')
+                source_rows.append(item)
+        else:
+            source_rows=[]
+
+        for raw in source_rows:
+            item=dict(raw)
+            actual=item.get('actual_cost_usd')
+            item['cost_truth']='ACTUAL' if actual is not None else 'ESTIMATE_ONLY'
+            materialized.append(self._export_safe(item))
+        data['materialized']=materialized
+        if capability_evidence is not None:
+            data['capability_materializations']=materialized
+            data['materialization_truth']='VERIFIED_ONLY'
+        manifest=json.dumps(self._export_safe(data),ensure_ascii=False,indent=2)
         return {
             'assets/148ai-asset-manifest.json':manifest,
             'assets/omni-asset-manifest.json':manifest, # compatibility alias

@@ -206,6 +206,29 @@ class PostgresCapabilityRepositoryContractTests(unittest.TestCase):
         self.assertIn("SUBMITTING", params)
         self.assertIn("price-2026-10", params)
 
+
+    def test_truth_read_helpers_expose_requirement_costs_and_usage_without_guessing_actual(self):
+        req_rows = [[
+            'r-media','media.3d.mesh.generate','mesh',True,1,{},[],
+            'VERIFIED','fake-3d','price-v1','0.40','0.60',None,
+            'projects/p/builds/b/mesh.glb',{'verified':True,'sha256':'a'*64},{'source':'provider'}
+        ]]
+        usage_rows = [[
+            'evt-1','r-media','fake-3d','price-v1','0.40','0.60',None,
+            {'credits':20},{'provider_task_id':'task-1'}
+        ]]
+        cur = ScriptedCursor(fetch=[req_rows, usage_rows])
+        repo = PostgresCapabilityRepository(FakePool(cur))
+        requirements = repo.requirements(build_id='b1')
+        usage = repo.usage_for_build(build_id='b1')
+        self.assertEqual(requirements[0]['pricing_version'], 'price-v1')
+        self.assertEqual(str(requirements[0]['estimated_cost_usd']), '0.40')
+        self.assertEqual(str(requirements[0]['maximum_cost_usd']), '0.60')
+        self.assertIsNone(requirements[0]['actual_cost_usd'])
+        self.assertEqual(requirements[0]['verification']['sha256'], 'a'*64)
+        self.assertEqual(usage[0]['event_key'], 'evt-1')
+        self.assertIsNone(usage[0]['actual_cost_usd'])
+
     def test_transition_attempt_requires_current_lease_owner(self):
         cur = ScriptedCursor(rowcounts=[1])
         repo = PostgresCapabilityRepository(FakePool(cur))

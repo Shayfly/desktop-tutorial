@@ -113,6 +113,8 @@ class WorkerCapabilityGateTests(unittest.TestCase):
         self.assertEqual(order, ['engine','quality','security'])
         self.assertEqual(jobs.transitions[-1]['target'], BuildStatus.READY)
         self.assertTrue(jobs.transitions[-1]['evidence_json']['capabilities']['required_ready'])
+        manifest_call = platform.brain.creative.repository_files.call_args
+        self.assertEqual(manifest_call.kwargs['capability_evidence']['status'], 'VERIFIED')
 
 
 class DurableCapabilityStageTests(unittest.TestCase):

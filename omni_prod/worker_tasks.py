@@ -153,8 +153,24 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         quality = quality_fn(spec=result.spec, repository=result.repository, minimum_score=min_quality)
         security = security_fn(result.repository)
 
+        core_ready, error_code, error_message = evaluate_release_gates(
+            result=result, quality=quality, security=security, rights=rights)
+        if capability_stage is not None:
+            capability_evidence = capability_stage.finalize_native(
+                build_id=build_id, plan=brain.capabilities, core_ready=core_ready,
+                evidence={'verification': bool(result.report.passed and result.status == 'ready'),
+                          'quality': bool(quality.passed), 'security': bool(security.passed),
+                          'rights': bool(rights.publish_allowed)},
+            )
+        capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
+        ready = core_ready and capability_ready
+        if core_ready and not capability_ready:
+            error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
+
         repo = dict(result.repository)
-        repo.update(platform.brain.creative.repository_files(brain.creative))
+        repo.update(platform.brain.creative.repository_files(
+            brain.creative, capability_evidence=capability_evidence
+        ))
         repo.update(platform.rights.repository_files(rights, original_prompt=prompt))
         plan = subscriptions.plan_for(request['user_id'])
         repo = platform.branding.decorate_repository(
@@ -171,19 +187,6 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         version_id = version.id
         artifact_key = getattr(version, 'artifact_key', None)
 
-        core_ready, error_code, error_message = evaluate_release_gates(
-            result=result, quality=quality, security=security, rights=rights)
-        if capability_stage is not None:
-            capability_evidence = capability_stage.finalize_native(
-                build_id=build_id, plan=brain.capabilities, core_ready=core_ready,
-                evidence={'verification': bool(result.report.passed and result.status == 'ready'),
-                          'quality': bool(quality.passed), 'security': bool(security.passed),
-                          'rights': bool(rights.publish_allowed)},
-            )
-        capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
-        ready = core_ready and capability_ready
-        if core_ready and not capability_ready:
-            error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
         spent, calls = spend_snapshot(gateway)
         evidence = {
             'gates': {
