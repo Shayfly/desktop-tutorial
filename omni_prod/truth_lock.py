@@ -13,6 +13,7 @@ from .capability_registry import CapabilityRegistry
 from .integration_center import IntegrationCenter
 from .integrations import catalog as integration_catalog
 from .provider_pricing import PriceStatus
+from .requirement_ledger import run_check as run_requirement_check
 from .skills_registry import build_canonical_skills_registry
 
 
@@ -279,6 +280,16 @@ def check_truth_files(root: Path = Path(".")) -> None:
         marker = f"M4.95 machine truth SHA-256: `{fingerprint}`"
         if marker not in status_path.read_text(encoding="utf-8"):
             drift.append("STATUS.md#M4.95-machine-truth")
+    requirement_plan = root / "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md"
+    requirement_ledger = root / "REQUIREMENT_LEDGER.json"
+    # Temporary truth-render fixtures used by older tests intentionally contain only
+    # generated truth documents. A real checkout with the M5 plan must also contain
+    # and validate the requirement ledger.
+    if requirement_plan.exists() or requirement_ledger.exists():
+        try:
+            run_requirement_check(root)
+        except (ValueError, OSError, json.JSONDecodeError) as exc:
+            raise TruthDriftError(f"requirement-ledger drift: {exc}") from exc
     if drift:
         raise TruthDriftError("truth-lock drift: " + ", ".join(drift))
 

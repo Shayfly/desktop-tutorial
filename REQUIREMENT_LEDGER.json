@@ -1,0 +1,635 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-04",
+  "truth_rule": "No requirement is complete without code, named tests, evidence, commit and verification timestamp.",
+  "requirements": [
+    {
+      "requirement_id": "M4.95-T01",
+      "milestone": "M4.95",
+      "title": "Baseline Evidence",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "M4_95_VALIDATION.md"
+      ],
+      "test_ids": [
+        "tests/test_m495_golden_acceptance.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T02",
+      "milestone": "M4.95",
+      "title": "Capability Registry",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/capability_registry.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_capability_registry.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T03",
+      "milestone": "M4.95",
+      "title": "Master Skills + Master Agents Registries",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/skills_registry.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_skills_agents_registry.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T04",
+      "milestone": "M4.95",
+      "title": "Capability Planner + Dependency Closure",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/capability_planner.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_capability_planner.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T05",
+      "milestone": "M4.95",
+      "title": "Universal Provider Contracts + Durable Execution Identity",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/provider_contracts.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_provider_contracts.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T06",
+      "milestone": "M4.95",
+      "title": "Provider Registry/Router + Quota Semantics",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/provider_router.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_provider_router.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T07",
+      "milestone": "M4.95",
+      "title": "Artifact Verification + Large Artifact Strategy",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/capability_verification.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_capability_verification.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T08",
+      "milestone": "M4.95",
+      "title": "Durable Capability Repository + Execution Attempts",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/capability_repository.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_capability_repository.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T09",
+      "milestone": "M4.95",
+      "title": "Provider Adapters + Credential Binding",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/providers/llm_provider.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_provider_adapters_credentials.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": [
+        "live commercial providers / live infrastructure remain explicitly gated"
+      ]
+    },
+    {
+      "requirement_id": "M4.95-T10",
+      "milestone": "M4.95",
+      "title": "Capability Executor + Crash/Retry/Resume",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/capability_executor.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_capability_executor.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T11",
+      "milestone": "M4.95",
+      "title": "Price Catalog + Quote/Reserve/Actual/Settlement",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/provider_pricing.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_provider_pricing_economics.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": [
+        "live commercial providers / live infrastructure remain explicitly gated"
+      ]
+    },
+    {
+      "requirement_id": "M4.95-T12",
+      "milestone": "M4.95",
+      "title": "Worker Integration",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/worker_tasks.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_worker_capabilities.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T13",
+      "milestone": "M4.95",
+      "title": "Truth/Readiness APIs + Tenant Security",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/investor_app.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_truth_readiness_api.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T14",
+      "milestone": "M4.95",
+      "title": "Artifact Evidence/Export + Backward Compatibility",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/media_pipeline.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_asset_evidence.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T15",
+      "milestone": "M4.95",
+      "title": "Machine Truth Lock + CI Drift Checks",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/truth_lock.py"
+      ],
+      "test_ids": [
+        "tests/test_m495_truth_lock.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": []
+    },
+    {
+      "requirement_id": "M4.95-T16",
+      "milestone": "M4.95",
+      "title": "Golden E2E + Full Regression",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md"
+      ],
+      "implementation_paths": [
+        "M4_95_VALIDATION.md"
+      ],
+      "test_ids": [
+        "tests/test_m495_golden_acceptance.py"
+      ],
+      "evidence_refs": [
+        "M4_95_VALIDATION.md"
+      ],
+      "commit_sha": "0638634b3da08e51519b8e2a9e3669a412814db2",
+      "last_verified_at": "2026-10-04T00:00:00Z",
+      "external_gates": [
+        "live commercial providers / live infrastructure remain explicitly gated"
+      ]
+    },
+    {
+      "requirement_id": "M5-T01",
+      "milestone": "M5",
+      "title": "Freeze M5 Baseline and Canonical Production Modes",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ],
+      "implementation_paths": [
+        "M5_VALIDATION.md",
+        "omni_prod/investor_app.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_public_path_truth.py"
+      ],
+      "evidence_refs": [
+        "M5_VALIDATION.md"
+      ],
+      "commit_sha": "7ac87aa",
+      "last_verified_at": "2026-10-04T00:00:00Z"
+    },
+    {
+      "requirement_id": "M5-T02",
+      "milestone": "M5",
+      "title": "Canonical Creator Identity and Durable Session Lifecycle",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T03",
+      "milestone": "M5",
+      "title": "Project Lifecycle Hardening",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T04",
+      "milestone": "M5",
+      "title": "Versioned Build Contract and Product Architect",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T05",
+      "milestone": "M5",
+      "title": "Bind Durable Build Requests to Build Contracts",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T06",
+      "milestone": "M5",
+      "title": "Generated-App Infrastructure Provisioner Contract",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T07",
+      "milestone": "M5",
+      "title": "First Managed Web/SaaS Infrastructure Profile",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T08",
+      "milestone": "M5",
+      "title": "Real LLM Provider Usage Adapter and Code Generation Evidence",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T09",
+      "milestone": "M5",
+      "title": "Real Image Provider and Optional Media Adapter",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T10",
+      "milestone": "M5",
+      "title": "Pre-Execution Quote, Reservation, Actual Settlement and Margin Gate",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/provider_pricing.py",
+        "omni_prod/subscription_store.py",
+        "omni_prod/worker_tasks.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_build_economics.py",
+        "tests/integration/test_m5_build_economics_postgres.py"
+      ],
+      "evidence_refs": [
+        "M5_VALIDATION.md"
+      ],
+      "commit_sha": "1561be42f2ec54819f38ed7bec805f66418fdbaf",
+      "last_verified_at": "2026-10-04T15:12:00Z",
+      "external_gates": [
+        "live PostgreSQL concurrency proof"
+      ]
+    },
+    {
+      "requirement_id": "M5-T11",
+      "milestone": "M5",
+      "title": "Functional Web/SaaS Acceptance and Preview Evidence",
+      "status": "VERIFIED_LOCAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/web_saas_acceptance.py",
+        "omni_prod/preview_runtime.py",
+        "omni_prod/preview_repository.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_web_saas_acceptance.py"
+      ],
+      "evidence_refs": [
+        "M5_VALIDATION.md"
+      ],
+      "commit_sha": "8cb2e3ccb799e20c80c0c3b285cbb2a4cdb6a276",
+      "last_verified_at": "2026-10-04T15:37:00Z",
+      "external_gates": [
+        "M5_LIVE_PREVIEW_BASE_URL"
+      ]
+    },
+    {
+      "requirement_id": "M5-T12",
+      "milestone": "M5",
+      "title": "Durable Production Deployment Contract and Vercel Adapter",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T13",
+      "milestone": "M5",
+      "title": "Durable Stripe Billing Lifecycle",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T14",
+      "milestone": "M5",
+      "title": "End-to-End Correlation and Durable Operational Events",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T15",
+      "milestone": "M5",
+      "title": "Backup and Restore Proof Orchestration",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T16",
+      "milestone": "M5",
+      "title": "Security, Secret and Tenant Boundary Regression Gate",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T17",
+      "milestone": "M5",
+      "title": "Golden SaaS Fixture and Functional Acceptance Corpus",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T18",
+      "milestone": "M5",
+      "title": "M5 Golden E2E and Failure-Recovery Matrix",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T19",
+      "milestone": "M5",
+      "title": "M5 Readiness Truth Surface and External Proof Gate",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "M5-T20",
+      "milestone": "M5",
+      "title": "Final Whole-Branch Verification and M5 Release Candidate",
+      "status": "NOT_IMPLEMENTED",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
+      ]
+    },
+    {
+      "requirement_id": "GOV-REQ-LEDGER",
+      "milestone": "GOVERNANCE",
+      "title": "Machine-readable requirement/evidence ledger and anti-omission gate",
+      "status": "PARTIAL",
+      "source_specs": [
+        "docs/product/148AI_MEDIA_CREATOR_DOMAIN_REQUIREMENTS_2026-10-04.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/requirement_ledger.py",
+        "REQUIREMENT_LEDGER.json"
+      ],
+      "test_ids": [
+        "tests/test_requirement_ledger.py"
+      ]
+    },
+    {
+      "requirement_id": "GOV-REGISTRY-METADATA",
+      "milestone": "GOVERNANCE",
+      "title": "Populate mandatory governance metadata for every skill and agent",
+      "status": "PARTIAL",
+      "source_specs": [
+        "docs/product/148AI_MEDIA_CREATOR_DOMAIN_REQUIREMENTS_2026-10-04.md"
+      ],
+      "dependencies": [
+        "GOV-REQ-LEDGER"
+      ]
+    },
+    {
+      "requirement_id": "MEDIA-CREATOR-STUDIO",
+      "milestone": "M6",
+      "title": "Media Company / Creator Studio in a Box capability family",
+      "status": "PARTIAL",
+      "source_specs": [
+        "docs/product/148AI_MEDIA_CREATOR_DOMAIN_REQUIREMENTS_2026-10-04.md"
+      ],
+      "dependencies": [
+        "GOV-REQ-LEDGER",
+        "GOV-REGISTRY-METADATA"
+      ]
+    }
+  ]
+}
