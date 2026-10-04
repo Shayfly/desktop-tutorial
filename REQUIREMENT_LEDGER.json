@@ -457,11 +457,28 @@
       "requirement_id": "M5-T05",
       "milestone": "M5",
       "title": "Bind Durable Build Requests to Build Contracts",
-      "status": "NOT_IMPLEMENTED",
+      "status": "VERIFIED_LOCAL",
       "source_specs": [
         "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
         "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
-      ]
+      ],
+      "implementation_paths": [
+        "infra/postgres/020_m5_build_contracts.sql",
+        "omni_prod/job_repository.py",
+        "omni_prod/investor_app.py",
+        "omni_prod/worker_tasks.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_build_contract_binding.py"
+      ],
+      "evidence_refs": [
+        "docs/evidence/M5_TASK05_BUILD_CONTRACT_BINDING_EVIDENCE_2026-10-04.md"
+      ],
+      "external_gates": [
+        "migrated live PostgreSQL runtime for FK/project-trigger and concurrent durable binding proof"
+      ],
+      "commit_sha": "0ab87acb4e1d60da98a9cf093e0ccb0311b973a0",
+      "last_verified_at": "2026-10-04T17:48:09Z"
     },
     {
       "requirement_id": "M5-T06",
