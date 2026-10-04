@@ -610,13 +610,28 @@
       "requirement_id": "GOV-REGISTRY-METADATA",
       "milestone": "GOVERNANCE",
       "title": "Populate mandatory governance metadata for every skill and agent",
-      "status": "PARTIAL",
+      "status": "VERIFIED_LOCAL",
       "source_specs": [
-        "docs/product/148AI_MEDIA_CREATOR_DOMAIN_REQUIREMENTS_2026-10-04.md"
+        "docs/governance/148AI_ANTI_OMISSION_GOVERNANCE_SPEC_2026-10-04.md"
       ],
       "dependencies": [
         "GOV-REQ-LEDGER"
-      ]
+      ],
+      "implementation_paths": [
+        "omni_prod/skills_registry.py",
+        "omni_prod/agents_registry.py",
+        "omni_prod/truth_lock.py",
+        "MASTER_SKILLS_REGISTRY.json",
+        "MASTER_AGENTS_REGISTRY.json"
+      ],
+      "test_ids": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests"
+      ],
+      "evidence_refs": [
+        "docs/governance/REGISTRY_GOVERNANCE_EVIDENCE_2026-10-04.md"
+      ],
+      "commit_sha": "27d9812fddc62587a4786eaea04ac3418cbda39b",
+      "last_verified_at": "2026-10-04T19:05:00+03:00"
     },
     {
       "requirement_id": "MEDIA-CREATOR-STUDIO",
