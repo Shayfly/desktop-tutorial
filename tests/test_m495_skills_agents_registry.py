@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from omni_prod.capability_registry import CapabilityRegistry
 from omni_prod.capabilities import CapabilityStatus
@@ -133,6 +134,57 @@ class MasterAgentsRegistryTests(unittest.TestCase):
     def test_no_canonical_agent_is_claimed_live_in_m495_foundation(self):
         agents = build_canonical_agents_registry(self.skills)
         self.assertNotIn(CapabilityStatus.LIVE, {agent.status for agent in agents.all()})
+
+
+class RegistryGovernanceMetadataTests(unittest.TestCase):
+    def test_canonical_skill_governance_metadata_is_complete(self):
+        capabilities = CapabilityRegistry()
+        skills = build_canonical_skills_registry(capabilities)
+        for skill in skills.all():
+            self.assertTrue(skill.product_families, skill.key)
+            self.assertTrue(skill.supported_targets, skill.key)
+            self.assertTrue(skill.provider_keys, skill.key)
+            self.assertTrue(skill.cost_model, skill.key)
+            self.assertTrue(skill.permissions, skill.key)
+            self.assertTrue(skill.security_constraints, skill.key)
+            self.assertTrue(skill.legal_constraints, skill.key)
+            self.assertTrue(skill.implementation_location, skill.key)
+            self.assertTrue(skill.verification_tests, skill.key)
+            self.assertTrue(skill.quality_metrics, skill.key)
+            self.assertTrue(skill.last_verified_version, skill.key)
+            self.assertTrue(skill.last_verified_date, skill.key)
+            if skill.status in {CapabilityStatus.PARTIAL, CapabilityStatus.LIVE}:
+                self.assertTrue(
+                    (Path(__file__).resolve().parents[1] / skill.implementation_location).exists(),
+                    f"{skill.key}: missing implementation location {skill.implementation_location}",
+                )
+
+    def test_canonical_agent_governance_metadata_is_complete(self):
+        capabilities = CapabilityRegistry()
+        skills = build_canonical_skills_registry(capabilities)
+        agents = build_canonical_agents_registry(skills)
+        for agent in agents.all():
+            self.assertTrue(agent.trigger_conditions, agent.key)
+            self.assertTrue(agent.inputs, agent.key)
+            self.assertTrue(agent.outputs, agent.key)
+            self.assertTrue(agent.allowed_skills, agent.key)
+            self.assertTrue(agent.forbidden_actions, agent.key)
+            self.assertTrue(agent.escalation_rules, agent.key)
+            self.assertTrue(agent.budget_limits, agent.key)
+            self.assertTrue(agent.state_requirements, agent.key)
+            self.assertTrue(agent.success_criteria, agent.key)
+            self.assertTrue(agent.verification_tests, agent.key)
+            self.assertTrue(agent.observability, agent.key)
+            if agent.key != "agent.chief_orchestrator":
+                self.assertTrue(agent.dependency_agents, agent.key)
+
+    def test_cross_registry_report_has_no_governance_metadata_gaps(self):
+        capabilities = CapabilityRegistry()
+        skills = build_canonical_skills_registry(capabilities)
+        agents = build_canonical_agents_registry(skills)
+        report = validate_master_registries(capabilities, skills, agents)
+        self.assertEqual(report["skill_governance_issues"], ())
+        self.assertEqual(report["agent_governance_issues"], ())
 
 
 if __name__ == "__main__":

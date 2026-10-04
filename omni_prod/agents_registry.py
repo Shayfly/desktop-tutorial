@@ -19,12 +19,14 @@ class AgentDefinition:
     outputs: tuple[str, ...] = ()
     allowed_skills: tuple[str, ...] = ()
     forbidden_skills: tuple[str, ...] = ()
+    forbidden_actions: tuple[str, ...] = ()
     dependency_agents: tuple[str, ...] = ()
     escalation_rules: tuple[str, ...] = ()
     budget_limits: Mapping[str, Any] = field(default_factory=dict)
     state_requirements: tuple[str, ...] = ()
     success_criteria: tuple[str, ...] = ()
     verification_tests: tuple[str, ...] = ()
+    observability: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.key.strip():
@@ -121,17 +123,33 @@ def _agent(
     dependencies: tuple[str, ...] = (),
     forbidden: tuple[str, ...] = (),
 ) -> AgentDefinition:
+    resolved_dependencies = dependencies
+    if not resolved_dependencies and key != "agent.chief_orchestrator":
+        resolved_dependencies = ("agent.chief_orchestrator",)
     return AgentDefinition(
         key=key,
         role=role,
         responsibilities=responsibilities,
         status=status,
+        trigger_conditions=("build contract or capability plan requires one of the allowed skills",),
+        inputs=("build_contract", "project_context", "capability_plan", "correlation_id"),
+        outputs=("structured_result", "evidence_or_explicit_failure"),
         allowed_skills=allowed,
         forbidden_skills=forbidden,
-        dependency_agents=dependencies,
+        forbidden_actions=(
+            "invent_success_without_evidence",
+            "exceed_authorized_budget",
+            "expose_secret_values",
+            "cross_tenant_boundary",
+            "silently_drop_required_capability",
+        ),
+        dependency_agents=resolved_dependencies,
         escalation_rules=("escalate material ambiguity, blocked capability, policy or budget violation",),
-        state_requirements=("project-scoped durable context",),
+        budget_limits={"policy": "inherit_build_contract", "hard_ceiling_required": True},
+        state_requirements=("project-scoped durable context", "immutable build-contract revision",),
         success_criteria=("produce machine-verifiable evidence or explicit failure",),
+        verification_tests=("tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete",),
+        observability=("correlation_id", "structured_events", "cost_usage_evidence", "customer_safe_error_reference"),
     )
 
 
@@ -222,10 +240,50 @@ def validate_master_registries(
         for skill in (*agent.allowed_skills, *agent.forbidden_skills)
         if not skills.contains(skill)
     )
+    skill_governance_issues = tuple(
+        (skill.key, field_name)
+        for skill in skills.all()
+        for field_name, present in (
+            ("product_families", bool(skill.product_families)),
+            ("supported_targets", bool(skill.supported_targets)),
+            ("provider_keys", bool(skill.provider_keys)),
+            ("cost_model", bool(skill.cost_model)),
+            ("permissions", bool(skill.permissions)),
+            ("security_constraints", bool(skill.security_constraints)),
+            ("legal_constraints", bool(skill.legal_constraints)),
+            ("implementation_location", bool(skill.implementation_location)),
+            ("verification_tests", bool(skill.verification_tests)),
+            ("quality_metrics", bool(skill.quality_metrics)),
+            ("last_verified_version", bool(skill.last_verified_version)),
+            ("last_verified_date", bool(skill.last_verified_date)),
+        )
+        if not present
+    )
+    agent_governance_issues = tuple(
+        (agent.key, field_name)
+        for agent in agents.all()
+        for field_name, present in (
+            ("trigger_conditions", bool(agent.trigger_conditions)),
+            ("inputs", bool(agent.inputs)),
+            ("outputs", bool(agent.outputs)),
+            ("allowed_skills", bool(agent.allowed_skills)),
+            ("forbidden_actions", bool(agent.forbidden_actions)),
+            ("escalation_rules", bool(agent.escalation_rules)),
+            ("budget_limits", bool(agent.budget_limits)),
+            ("state_requirements", bool(agent.state_requirements)),
+            ("success_criteria", bool(agent.success_criteria)),
+            ("verification_tests", bool(agent.verification_tests)),
+            ("observability", bool(agent.observability)),
+            ("dependency_agents", bool(agent.dependency_agents) or agent.key == "agent.chief_orchestrator"),
+        )
+        if not present
+    )
     return {
         "capability_count": len(capabilities.all()),
         "skill_count": len(skills.all()),
         "agent_count": len(agents.all()),
         "uncovered_capabilities": uncovered,
         "unknown_agent_skills": unknown_agent_skills,
+        "skill_governance_issues": skill_governance_issues,
+        "agent_governance_issues": agent_governance_issues,
     }

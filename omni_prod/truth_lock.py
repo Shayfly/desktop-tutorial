@@ -82,6 +82,8 @@ def canonical_truth_snapshot() -> dict[str, Any]:
         "registry_report": {
             "uncovered_capabilities": list(report["uncovered_capabilities"]),
             "unknown_agent_skills": [list(item) for item in report["unknown_agent_skills"]],
+            "skill_governance_issues": [list(item) for item in report["skill_governance_issues"]],
+            "agent_governance_issues": [list(item) for item in report["agent_governance_issues"]],
         },
         "capabilities": capability_rows,
         "skills": skill_rows,
@@ -105,6 +107,8 @@ def truth_lock_snapshot() -> dict[str, Any]:
         "agent_count": snapshot["agent_count"],
         "uncovered_capabilities": snapshot["registry_report"]["uncovered_capabilities"],
         "unknown_agent_skills": snapshot["registry_report"]["unknown_agent_skills"],
+        "skill_governance_issues": snapshot["registry_report"]["skill_governance_issues"],
+        "agent_governance_issues": snapshot["registry_report"]["agent_governance_issues"],
         "sha256": snapshot["sha256"],
     }
 
@@ -269,6 +273,13 @@ def write_truth_documents(root: Path = Path(".")) -> None:
 
 
 def check_truth_files(root: Path = Path(".")) -> None:
+    snapshot = canonical_truth_snapshot()
+    governance_issues = (
+        snapshot["registry_report"]["skill_governance_issues"]
+        + snapshot["registry_report"]["agent_governance_issues"]
+    )
+    if governance_issues:
+        raise TruthDriftError(f"registry-governance drift: {governance_issues}")
     drift = []
     for relative, content in render_truth_files().items():
         path = root / relative

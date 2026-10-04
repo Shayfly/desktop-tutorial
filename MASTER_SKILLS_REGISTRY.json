@@ -9,11 +9,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability software.plan",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.plan",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -21,9 +23,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -34,11 +62,13 @@
         "skill.software.plan"
       ],
       "description": "Execute capability software.architecture",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.architecture",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -46,9 +76,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -59,11 +115,13 @@
         "skill.software.architecture"
       ],
       "description": "Execute capability software.code.generate",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.code.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -71,9 +129,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -82,11 +166,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability software.code.modify",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.code.modify",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -94,9 +180,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -107,11 +219,13 @@
         "skill.software.code.generate"
       ],
       "description": "Execute capability software.dependencies.install",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.dependencies.install",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -119,9 +233,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -132,11 +272,13 @@
         "skill.software.dependencies.install"
       ],
       "description": "Execute capability software.build",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.build",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -144,9 +286,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -157,11 +325,13 @@
         "skill.software.build"
       ],
       "description": "Execute capability software.test",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.test",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -169,9 +339,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -182,11 +378,13 @@
         "skill.software.test"
       ],
       "description": "Execute capability software.repair",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.repair",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -194,9 +392,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -207,11 +431,13 @@
         "skill.software.build"
       ],
       "description": "Execute capability software.preview",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.preview",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -219,9 +445,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -232,11 +484,13 @@
         "skill.software.test"
       ],
       "description": "Execute capability software.export",
+      "implementation_location": "omni_prod/worker_tasks.py",
       "key": "skill.software.export",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -244,9 +498,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -257,11 +537,13 @@
         "skill.software.export"
       ],
       "description": "Execute capability software.deploy.web",
+      "implementation_location": "omni_prod/deployment.py",
       "key": "skill.software.deploy.web",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -269,9 +551,35 @@
       "product_families": [
         "software"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "build_test_evidence"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -280,11 +588,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.web",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.web",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -292,9 +602,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -303,11 +630,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.saas",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.saas",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -315,9 +644,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "saas"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -326,11 +672,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.backend",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.backend",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -338,9 +686,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "backend"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -349,11 +714,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.database",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.database",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -361,9 +728,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "database"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -372,11 +756,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.android.source",
+      "implementation_location": "omni_prod/mobile_pipeline.py",
       "key": "skill.target.android.source",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -384,9 +770,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "mobile"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -395,11 +798,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.android.build",
+      "implementation_location": "omni_prod/mobile_pipeline.py",
       "key": "skill.target.android.build",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -407,9 +812,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "mobile"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -418,11 +840,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.ios.source",
+      "implementation_location": "omni_prod/mobile_pipeline.py",
       "key": "skill.target.ios.source",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -430,9 +854,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "mobile"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -441,11 +882,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.ios.build",
+      "implementation_location": "omni_prod/mobile_pipeline.py",
       "key": "skill.target.ios.build",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -453,9 +896,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "mobile"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -464,11 +924,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.desktop.source",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.desktop.source",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -476,9 +938,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "desktop"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -487,11 +966,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.agent",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.agent",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -499,9 +980,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "agent"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -510,11 +1008,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.automation",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.target.automation",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -522,9 +1022,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -533,11 +1050,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.game.2d",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.target.game.2d",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -545,9 +1064,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -556,11 +1092,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability target.game.3d",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.target.game.3d",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -568,9 +1106,26 @@
       "product_families": [
         "target"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -579,11 +1134,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.image.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.image.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -591,9 +1148,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -602,11 +1183,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.image.edit",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.image.edit",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -614,9 +1197,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -625,11 +1232,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.image.remove_background",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.image.remove_background",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -637,9 +1246,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -648,11 +1281,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.image.upscale",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.image.upscale",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -660,9 +1295,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -671,11 +1330,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.vector.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.vector.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -683,9 +1344,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -694,11 +1379,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.texture.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.texture.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -706,9 +1393,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -717,11 +1428,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.sprite.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.sprite.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -729,9 +1442,33 @@
       "product_families": [
         "media.2d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -740,11 +1477,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.3d.mesh.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.mesh.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -752,9 +1491,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -765,11 +1528,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.texture",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.texture",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -777,9 +1542,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -790,11 +1579,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.multiview",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.multiview",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -802,9 +1593,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -815,11 +1630,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.retopology",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.retopology",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -827,9 +1644,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -840,11 +1681,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.optimize",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.optimize",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -852,9 +1695,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -865,11 +1732,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.rig",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.rig",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -877,9 +1746,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -890,11 +1783,13 @@
         "skill.media.3d.rig"
       ],
       "description": "Execute capability media.3d.animate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.animate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -902,9 +1797,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -915,11 +1834,13 @@
         "skill.media.3d.rig"
       ],
       "description": "Execute capability media.3d.retarget",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.retarget",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -927,9 +1848,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -940,11 +1885,13 @@
         "skill.media.3d.mesh.generate"
       ],
       "description": "Execute capability media.3d.export",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.export",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -952,9 +1899,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -966,11 +1937,13 @@
         "skill.media.3d.texture"
       ],
       "description": "Execute capability media.3d.scene.compose",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.3d.scene.compose",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -978,9 +1951,33 @@
       "product_families": [
         "media.3d"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -989,11 +1986,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.sfx",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.sfx",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1001,9 +2000,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1012,11 +2035,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.music",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.music",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1024,9 +2049,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1035,11 +2084,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.tts",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.tts",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1047,9 +2098,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1058,11 +2133,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.stt",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.stt",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1070,9 +2147,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1081,11 +2182,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.realtime_voice",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.realtime_voice",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1093,9 +2196,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1104,11 +2231,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.dubbing",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.dubbing",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1116,9 +2245,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1127,11 +2280,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.audio.cleanup",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.audio.cleanup",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1139,9 +2294,33 @@
       "product_families": [
         "media.audio"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1150,11 +2329,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.video.generate",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.video.generate",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1162,9 +2343,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1173,11 +2378,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.video.edit",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.video.edit",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1185,9 +2392,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1196,11 +2427,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.video.lipsync",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.video.lipsync",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1208,9 +2441,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1219,11 +2476,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.video.captions",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.video.captions",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1231,9 +2490,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1242,11 +2525,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.video.upscale",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.video.upscale",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1254,9 +2539,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1265,11 +2574,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.film.storyboard",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.film.storyboard",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1277,9 +2588,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1288,11 +2623,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.film.shot_plan",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.film.shot_plan",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1300,9 +2637,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1311,11 +2672,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability media.film.render",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.media.film.render",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1323,9 +2686,33 @@
       "product_families": [
         "media.video"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "artifact_integrity",
+        "format_validation"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1334,11 +2721,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability ai.embedding",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.embedding",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1346,9 +2735,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1357,11 +2771,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability ai.rag.ingest",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.rag.ingest",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1369,9 +2785,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1382,11 +2823,13 @@
         "skill.ai.rag.ingest"
       ],
       "description": "Execute capability ai.rag.retrieve",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.rag.retrieve",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1394,9 +2837,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1405,11 +2873,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability ai.agent.tools",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.agent.tools",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1417,9 +2887,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1428,11 +2923,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability ai.agent.memory",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.agent.memory",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1440,9 +2937,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1451,11 +2973,13 @@
       "cost_model": "PROVIDER_METERED",
       "dependency_keys": [],
       "description": "Execute capability ai.agent.eval",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ai.agent.eval",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1463,9 +2987,34 @@
       "product_families": [
         "ai"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.provider_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "backend",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation",
+        "game",
+        "media"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1474,11 +3023,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.payment",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.payment",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1486,9 +3037,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1497,11 +3072,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.email",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.email",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1509,9 +3086,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1520,11 +3121,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.sms",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.sms",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1532,9 +3135,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1543,11 +3170,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.messaging",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.messaging",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1555,9 +3184,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1566,11 +3219,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.maps",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.maps",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1578,9 +3233,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1589,11 +3268,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.storage",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.storage",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1601,9 +3282,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1612,11 +3317,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.database",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.database",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1624,9 +3331,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1635,11 +3366,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.source_control",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.source_control",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1647,9 +3380,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1658,11 +3415,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.oauth",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.oauth",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1670,9 +3429,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1681,11 +3464,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.analytics",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.analytics",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1693,9 +3478,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1704,11 +3513,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability integration.webhook",
+      "implementation_location": "omni_prod/integrations.py",
       "key": "skill.integration.webhook",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1716,9 +3527,33 @@
       "product_families": [
         "integration"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "runtime.integration_registry"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure",
+        "secret_safety",
+        "idempotency"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "mobile",
+        "desktop",
+        "agent",
+        "automation"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1727,11 +3562,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.web",
+      "implementation_location": "omni_prod/deployment.py",
       "key": "skill.publish.web",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1739,9 +3576,28 @@
       "product_families": [
         "publish"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "mobile",
+        "asset"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1750,11 +3606,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.android",
+      "implementation_location": "omni_prod/deployment.py",
       "key": "skill.publish.android",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1762,9 +3620,28 @@
       "product_families": [
         "publish"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "mobile",
+        "asset"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1773,11 +3650,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.ios",
+      "implementation_location": "omni_prod/deployment.py",
       "key": "skill.publish.ios",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1785,9 +3664,28 @@
       "product_families": [
         "publish"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "mobile",
+        "asset"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1796,11 +3694,13 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.asset",
+      "implementation_location": "omni_prod/deployment.py",
       "key": "skill.publish.asset",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1808,9 +3708,28 @@
       "product_families": [
         "publish"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "mobile",
+        "asset"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1819,11 +3738,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.discover",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.discover",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1831,9 +3752,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1842,11 +3782,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.creator_profile",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.creator_profile",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1854,9 +3796,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1865,11 +3826,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.like",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.like",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1877,9 +3840,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1888,11 +3870,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.comment",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.comment",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1900,9 +3884,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1911,11 +3914,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.follow",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.follow",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1923,9 +3928,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1934,11 +3958,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.remix",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.remix",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1946,9 +3972,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1957,11 +4002,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.marketplace",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.marketplace",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1969,9 +4016,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -1980,11 +4046,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability ecosystem.revenue_share",
+      "implementation_location": "omni_prod/capability_executor.py",
       "key": "skill.ecosystem.revenue_share",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -1992,9 +4060,28 @@
       "product_families": [
         "ecosystem"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -2003,11 +4090,13 @@
       "cost_model": "UNKNOWN",
       "dependency_keys": [],
       "description": "Execute capability game.multiplayer",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.game.multiplayer",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -2015,9 +4104,28 @@
       "product_families": [
         "game"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [
@@ -2028,11 +4136,13 @@
         "skill.game.multiplayer"
       ],
       "description": "Execute capability game.matchmaking",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.game.matchmaking",
-      "last_verified_date": null,
-      "last_verified_version": null,
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
       "legal_constraints": [
-        "commercial_use_rights"
+        "commercial_use_rights",
+        "provider_terms_and_ip_policy"
       ],
       "permissions": [
         "tenant_project_scope"
@@ -2040,265 +4150,692 @@
       "product_families": [
         "game"
       ],
-      "provider_keys": [],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "explicit_failure",
+        "dependency_closure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "web",
+        "saas",
+        "game"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Clarify only material product uncertainties",
+      "implementation_location": "omni_prod/product_architect.py",
       "key": "skill.internal.requirements.clarify",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Compile intent into a capability dependency DAG",
+      "implementation_location": "omni_prod/capability_planner.py",
       "key": "skill.internal.capability.plan",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Construct conservative pre-execution cost envelope",
+      "implementation_location": "omni_prod/provider_pricing.py",
       "key": "skill.internal.cost.plan",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Choose and govern a coherent product visual system",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.internal.design.direct",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Plan durable generated-product infrastructure",
+      "implementation_location": "omni_prod/capability_planner.py",
       "key": "skill.internal.infrastructure.plan",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Bind and validate customer/platform integrations",
+      "implementation_location": "omni_prod/integration_center.py",
       "key": "skill.internal.integration.bind",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Orchestrate asset DAG generation, reuse and regeneration",
+      "implementation_location": "omni_prod/media_pipeline.py",
       "key": "skill.internal.asset.orchestrate",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Create game production and mechanics plan",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.internal.game.design",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Plan/build large game worlds and levels",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.internal.world.build",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Plan mission/quest graphs and acceptance rules",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.internal.mission.design",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute gameplay flows and collect pass/fail evidence",
+      "implementation_location": "omni_prod/game_pipeline.py",
       "key": "skill.internal.playtest",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Perform visual and responsive quality review",
+      "implementation_location": "omni_prod/acceptance.py",
       "key": "skill.internal.visual_qa",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Measure runtime performance and resource budgets",
+      "implementation_location": "omni_prod/observability.py",
       "key": "skill.internal.performance_qa",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Perform security review and release gating",
+      "implementation_location": "omni_prod/security_testing.py",
       "key": "skill.internal.security_review",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Apply domain/legal/compliance release gates",
+      "implementation_location": "omni_prod/rights_engine.py",
       "key": "skill.internal.compliance_review",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "NOT_IMPLEMENTED",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Reconcile provider usage, platform cost and margin",
+      "implementation_location": "omni_prod/provider_pricing.py",
       "key": "skill.internal.cost_audit",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     },
     {
       "capability_keys": [],
-      "cost_model": "UNKNOWN",
+      "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Aggregate release evidence and block false readiness",
+      "implementation_location": "omni_prod/release_gate.py",
       "key": "skill.internal.release.gate",
-      "last_verified_date": null,
-      "last_verified_version": null,
-      "legal_constraints": [],
-      "permissions": [],
-      "product_families": [],
-      "provider_keys": [],
+      "last_verified_date": "2026-10-04",
+      "last_verified_version": "registry-governance-v1",
+      "legal_constraints": [
+        "inherit_product_rights_policy"
+      ],
+      "permissions": [
+        "tenant_project_scope"
+      ],
+      "product_families": [
+        "platform"
+      ],
+      "provider_keys": [
+        "platform.internal"
+      ],
+      "quality_metrics": [
+        "truthful_status",
+        "machine_verifiable_evidence",
+        "explicit_failure"
+      ],
+      "security_constraints": [
+        "tenant_isolation",
+        "no_secret_exposure",
+        "evidence_required_before_success"
+      ],
       "status": "PARTIAL",
-      "verification_tests": []
+      "supported_targets": [
+        "all"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_skill_governance_metadata_is_complete"
+      ]
     }
   ],
-  "truth_sha256": "31c06ae684685475f6dcf031f7412fb35b22afef5076e787ad6fafe9e8a2c424"
+  "truth_sha256": "318691c9c510c3ddd06cbe434d0924477b66504b63ea662e2c7b3405292265d9"
 }
