@@ -46,6 +46,7 @@ import time
 from decimal import Decimal
 
 from .models import BuildStatus
+from .capability_worker import CapabilityStageBlocked
 from .modification_engine import CandidateModificationEngine
 from .spec_repository import SpecNotFound
 
@@ -112,7 +113,8 @@ def _rights_evidence_from_dicts(items) -> tuple:
 
 
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
-                        quality_fn, security_fn, min_quality: int = 80, preflight=None) -> str | None:
+                        quality_fn, security_fn, min_quality: int = 80, preflight=None,
+                        capability_stage=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
     done (unknown build id / already claimed by another delivery)."""
     try:
@@ -129,11 +131,18 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     gateway = None
     version_id = None
     artifact_key = None
+    capability_evidence = None
 
     try:
         if preflight is not None:
             preflight()
         brain = platform.brain.decide(prompt, target_markets=markets)
+        if capability_stage is not None:
+            capability_evidence = capability_stage.prepare(
+                build_id=build_id, project_id=internal_project_id, plan=brain.capabilities,
+                authorized_maximum_usd=Decimal(str(request.get('authorized_provider_cost_usd', '0.25'))),
+                now=time.time(),
+            )
         rights = platform.rights.assess(
             prompt, target_markets=markets,
             evidence=_rights_evidence_from_dicts(request.get('rights_evidence')),
@@ -162,8 +171,19 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         version_id = version.id
         artifact_key = getattr(version, 'artifact_key', None)
 
-        ready, error_code, error_message = evaluate_release_gates(
+        core_ready, error_code, error_message = evaluate_release_gates(
             result=result, quality=quality, security=security, rights=rights)
+        if capability_stage is not None:
+            capability_evidence = capability_stage.finalize_native(
+                build_id=build_id, plan=brain.capabilities, core_ready=core_ready,
+                evidence={'verification': bool(result.report.passed and result.status == 'ready'),
+                          'quality': bool(quality.passed), 'security': bool(security.passed),
+                          'rights': bool(rights.publish_allowed)},
+            )
+        capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
+        ready = core_ready and capability_ready
+        if core_ready and not capability_ready:
+            error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
         spent, calls = spend_snapshot(gateway)
         evidence = {
             'gates': {
@@ -175,11 +195,25 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'rights': rights.to_dict(),
             },
             'release_ready': ready,
+            'capabilities': capability_evidence,
             'repair_rounds': result.repair_rounds,
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
         }
+    except CapabilityStageBlocked as exc:
+        spent, calls = spend_snapshot(gateway)
+        billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+        jobs.transition(
+            build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
+            error_code='capability_not_configured', error_message=str(exc)[:2000],
+            result_version_id=version_id, artifact_key=artifact_key,
+            evidence_json={'billing': billing, 'capabilities': exc.evidence,
+                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_basis': SPEND_BASIS},
+            actual_provider_cost_usd=spent,
+        )
+        raise
     except Exception as exc:
         spent, calls = spend_snapshot(gateway)
         billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
@@ -212,6 +246,8 @@ def execute_live_build_job(build_id: str) -> None:
     from .preview_runtime import ensure_durable_workspace
     from .quality_gate import assess_repository
     from .security_testing import hostile_repository_scan
+    from .capability_repository import PostgresCapabilityRepository
+    from .capability_worker import DurableCapabilityBuildStage
 
     if _v28_pool is None:
         raise RuntimeError(
@@ -228,6 +264,9 @@ def execute_live_build_job(build_id: str) -> None:
         quality_fn=assess_repository,
         security_fn=hostile_repository_scan,
         min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
+        capability_stage=DurableCapabilityBuildStage(
+            repository=PostgresCapabilityRepository(_v28_pool),
+        ),
         # Checked after the job is claimed, so a misconfigured worker fails
         # the build (and releases its credits) instead of leaving it QUEUED
         # with credits reserved forever.
