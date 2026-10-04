@@ -1,37 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
 from email.utils import parsedate_to_datetime
-from typing import Mapping
+import time
+from typing import Mapping, Sequence
 
 from .capabilities import CapabilityRequirement
 from .provider_contracts import ProviderQuote
 from .redis_circuit_breaker import RedisCircuitBreaker, RedisCircuitPolicy
-
-
-@dataclass(frozen=True)
-class CapabilityRoutingPolicy:
-    minimum_quality: int = 70
-    maximum_cost_usd: Decimal | None = None
-    maximum_latency_ms: int | None = None
-    required_formats: tuple[str, ...] = ()
-    require_commercial_use: bool = True
-    allowed_providers: tuple[str, ...] = ()
-    denied_providers: tuple[str, ...] = ()
-    allow_fallback: bool = True
-
-    def __post_init__(self) -> None:
-        if not 0 <= self.minimum_quality <= 100:
-            raise ValueError("minimum_quality must be between 0 and 100")
-        if self.maximum_cost_usd is not None and self.maximum_cost_usd < 0:
-            raise ValueError("maximum_cost_usd must be >= 0")
-        if self.maximum_latency_ms is not None and self.maximum_latency_ms < 0:
-            raise ValueError("maximum_latency_ms must be >= 0")
-        overlap = set(self.allowed_providers) & set(self.denied_providers)
-        if overlap:
-            raise ValueError(f"providers cannot be both allowed and denied: {sorted(overlap)}")
 
 
 @dataclass(frozen=True)
@@ -41,65 +19,101 @@ class ProviderCandidate:
     latency_ms: int
     quote: ProviderQuote
     health: str
-    formats: tuple[str, ...]
+    output_formats: tuple[str, ...]
     commercial_use: bool
 
     def __post_init__(self) -> None:
         if not self.provider.strip():
-            raise ValueError("candidate provider must not be empty")
+            raise ValueError("provider must not be empty")
         if not 0 <= self.quality <= 100:
-            raise ValueError("candidate quality must be between 0 and 100")
+            raise ValueError("quality must be between 0 and 100")
         if self.latency_ms < 0:
-            raise ValueError("candidate latency_ms must be >= 0")
+            raise ValueError("latency_ms must be >= 0")
+
+
+@dataclass(frozen=True)
+class CapabilityRoutingPolicy:
+    minimum_quality: int = 0
+    maximum_cost_usd: Decimal | None = None
+    maximum_latency_ms: int | None = None
+    required_formats: tuple[str, ...] = ()
+    require_commercial_use: bool = True
+    allowed_providers: tuple[str, ...] = ()
+    denied_providers: tuple[str, ...] = ()
+    healthy_states: tuple[str, ...] = ("HEALTHY", "DEGRADED")
 
 
 @dataclass(frozen=True)
 class ProviderSelection:
     candidate: ProviderCandidate
-    reason: str
-    rejected: tuple[dict, ...]
+    rejected: tuple[Mapping[str, str], ...] = field(default_factory=tuple)
 
 
 class CapabilityProviderRouter:
-    """Pure deterministic selector. It never performs provider I/O."""
+    """Deterministic hard-policy router for already-priced candidates.
 
-    _BLOCKED_HEALTH = frozenset(
-        {"FAILED", "OPEN", "RATE_LIMITED", "QUOTA_EXHAUSTED", "BLOCKED", "UNAVAILABLE"}
-    )
-    _ELIGIBLE_HEALTH = frozenset({"HEALTHY", "DEGRADED", "OK"})
+    It deliberately does not call provider.quote(). Quotes are supplied by the
+    local price-catalog / authorized quote stage so routing itself cannot cause
+    unreserved paid network work.
+    """
 
     def select(
         self,
         *,
         requirement: CapabilityRequirement,
-        candidates: tuple[ProviderCandidate, ...],
+        candidates: Sequence[ProviderCandidate],
         policy: CapabilityRoutingPolicy,
     ) -> ProviderSelection:
+        rejected: list[dict[str, str]] = []
         eligible: list[ProviderCandidate] = []
-        rejected: list[dict] = []
+        allowed = set(policy.allowed_providers)
+        denied = set(policy.denied_providers)
+        required_formats = set(policy.required_formats)
 
         for candidate in candidates:
             if candidate.quote.provider != candidate.provider:
                 raise ValueError(
-                    f"quote provider {candidate.quote.provider} does not match candidate {candidate.provider}"
+                    f"quote provider mismatch for {candidate.provider}: {candidate.quote.provider}"
                 )
             if candidate.quote.capability_key != requirement.key:
                 raise ValueError(
-                    f"quote capability {candidate.quote.capability_key} does not match requirement {requirement.key}"
+                    f"quote capability mismatch: expected {requirement.key}, "
+                    f"got {candidate.quote.capability_key}"
                 )
 
-            reason = self._rejection_reason(candidate, policy)
-            if reason is None:
-                eligible.append(candidate)
-            else:
+            reason: str | None = None
+            if allowed and candidate.provider not in allowed:
+                reason = "provider not in allowed list"
+            elif candidate.provider in denied:
+                reason = "provider denied by policy"
+            elif candidate.health not in policy.healthy_states:
+                reason = f"health state {candidate.health} is not eligible"
+            elif candidate.quality < policy.minimum_quality:
+                reason = "quality below minimum"
+            elif (
+                policy.maximum_cost_usd is not None
+                and candidate.quote.maximum_cost_usd > policy.maximum_cost_usd
+            ):
+                reason = "cost exceeds maximum"
+            elif (
+                policy.maximum_latency_ms is not None
+                and candidate.latency_ms > policy.maximum_latency_ms
+            ):
+                reason = "latency exceeds maximum"
+            elif required_formats and not required_formats.issubset(set(candidate.output_formats)):
+                reason = "required format unavailable"
+            elif policy.require_commercial_use and not candidate.commercial_use:
+                reason = "commercial use not permitted"
+
+            if reason is not None:
                 rejected.append({"provider": candidate.provider, "reason": reason})
+                continue
+            eligible.append(candidate)
 
         if not eligible:
-            raise LookupError(
-                f"no eligible provider for {requirement.key}; rejected={rejected}"
-            )
+            raise LookupError("no eligible provider for required capability")
 
-        selected = min(
+        winner = min(
             eligible,
             key=lambda item: (
                 item.quote.maximum_cost_usd,
@@ -108,105 +122,86 @@ class CapabilityProviderRouter:
                 item.provider,
             ),
         )
-        return ProviderSelection(
-            candidate=selected,
-            reason="eligible provider with lowest conservative maximum cost, then quality, latency and stable name",
-            rejected=tuple(rejected),
-        )
-
-    def _rejection_reason(
-        self,
-        candidate: ProviderCandidate,
-        policy: CapabilityRoutingPolicy,
-    ) -> str | None:
-        if policy.allowed_providers and candidate.provider not in policy.allowed_providers:
-            return "provider not in allowed list"
-        if candidate.provider in policy.denied_providers:
-            return "provider denied by policy"
-
-        health = candidate.health.strip().upper()
-        if health in self._BLOCKED_HEALTH:
-            return f"health state {health} blocks routing"
-        if health not in self._ELIGIBLE_HEALTH:
-            return f"health state {health or 'EMPTY'} is unknown and fails closed"
-
-        if (
-            policy.maximum_cost_usd is not None
-            and candidate.quote.maximum_cost_usd > policy.maximum_cost_usd
-        ):
-            return "conservative maximum cost exceeds policy ceiling"
-        if candidate.quality < policy.minimum_quality:
-            return "quality below policy minimum"
-        if (
-            policy.maximum_latency_ms is not None
-            and candidate.latency_ms > policy.maximum_latency_ms
-        ):
-            return "latency exceeds policy maximum"
-        if policy.required_formats and not set(policy.required_formats).issubset(candidate.formats):
-            return "required output format unavailable"
-        if policy.require_commercial_use and not candidate.commercial_use:
-            return "commercial-use rights unavailable"
-        return None
+        return ProviderSelection(candidate=winner, rejected=tuple(rejected))
 
 
-def parse_retry_after_seconds(value: str | None, *, now: datetime | None = None) -> int | None:
+def parse_retry_after_seconds(value: str | None, *, now: float | None = None) -> int | None:
+    """Parse Retry-After seconds or HTTP-date, returning a non-negative delay."""
     if value is None:
         return None
-    text = str(value).strip()
-    if not text:
+    raw = str(value).strip()
+    if not raw:
         return None
     try:
-        seconds = int(text)
-        return seconds if seconds >= 0 else None
+        seconds = int(raw)
     except ValueError:
-        pass
-    try:
-        target = parsedate_to_datetime(text)
-        if target.tzinfo is None:
-            target = target.replace(tzinfo=timezone.utc)
-        current = now or datetime.now(timezone.utc)
-        return max(0, int((target - current).total_seconds()))
-    except (TypeError, ValueError, OverflowError):
-        return None
+        try:
+            dt = parsedate_to_datetime(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            reference = time.time() if now is None else now
+            seconds = int(max(0, dt.timestamp() - reference))
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return seconds if seconds >= 0 else None
 
 
 class ProviderQuotaCircuitManager:
-    """Provider+capability-scoped distributed quota and failure gate.
+    """Distributed provider+capability cooldown and failure-circuit state.
 
-    RedisCircuitBreaker already owns cross-instance failure state. This layer
-    gives it provider-aware 429/quota semantics and dynamic cooldowns.
+    429/quota blocks are tracked independently from transport/server-error
+    circuits. This prevents one exhausted capability from becoming a global
+    provider outage while still sharing state across worker instances via Redis.
     """
-
-    _QUOTA_CODES = frozenset(
-        {"quota_exhausted", "insufficient_quota", "credits_exhausted", "billing_hard_limit"}
-    )
 
     def __init__(
         self,
         redis,
         *,
         circuit_policy: RedisCircuitPolicy | None = None,
-        default_rate_limit_seconds: int = 60,
+        default_rate_limit_seconds: int = 30,
         default_quota_seconds: int = 3600,
     ) -> None:
         if default_rate_limit_seconds < 1 or default_quota_seconds < 1:
-            raise ValueError("provider cooldown defaults must be >= 1 second")
+            raise ValueError("cooldown seconds must be >= 1")
         self.redis = redis
         self.circuit_policy = circuit_policy or RedisCircuitPolicy()
         self.default_rate_limit_seconds = default_rate_limit_seconds
         self.default_quota_seconds = default_quota_seconds
 
+    @staticmethod
+    def _slug(value: str) -> str:
+        return value.replace(" ", "_")
+
+    def _quota_key(self, provider: str, capability_key: str) -> str:
+        return f"omni:provider-quota:{self._slug(provider)}:{self._slug(capability_key)}"
+
     def _breaker(self, provider: str, capability_key: str) -> RedisCircuitBreaker:
-        if not provider.strip() or not capability_key.strip():
-            raise ValueError("provider and capability_key are required")
         return RedisCircuitBreaker(
             self.redis,
-            name=f"provider:{provider}:{capability_key}",
+            name=f"provider:{self._slug(provider)}:{self._slug(capability_key)}",
             policy=self.circuit_policy,
         )
 
+    def _blocked_until(self, provider: str, capability_key: str) -> float:
+        raw = self.redis.hgetall(self._quota_key(provider, capability_key)) or {}
+        value = raw.get(b"blocked_until", raw.get("blocked_until", 0))
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     def allow(self, provider: str, capability_key: str, *, now: float | None = None) -> bool:
-        return self._breaker(provider, capability_key).allow(now=now)
+        reference = time.time() if now is None else now
+        if reference < self._blocked_until(provider, capability_key):
+            return False
+        return self._breaker(provider, capability_key).allow(now=reference)
+
+    def _block(self, provider: str, capability_key: str, *, until: float, reason: str) -> None:
+        self.redis.hset(
+            self._quota_key(provider, capability_key),
+            mapping={"blocked_until": until, "reason": reason},
+        )
 
     def record_http_result(
         self,
@@ -218,29 +213,37 @@ class ProviderQuotaCircuitManager:
         error_code: str | None,
         now: float | None = None,
     ) -> None:
-        breaker = self._breaker(provider, capability_key)
-        normalized_code = (error_code or "").strip().lower()
+        reference = time.time() if now is None else now
+        normalized_error = (error_code or "").lower()
+
         if 200 <= status_code < 400:
-            breaker.success()
+            self._block(provider, capability_key, until=0, reason="")
+            self._breaker(provider, capability_key).success()
             return
 
-        retry_after_value = next(
-            (value for key, value in headers.items() if key.lower() == "retry-after"),
-            None,
-        )
-        retry_after = parse_retry_after_seconds(retry_after_value)
+        if status_code == 429 or normalized_error in {"rate_limit", "rate_limited"}:
+            retry_after = parse_retry_after_seconds(headers.get("Retry-After"), now=reference)
+            delay = retry_after if retry_after is not None else self.default_rate_limit_seconds
+            self._block(
+                provider,
+                capability_key,
+                until=reference + delay,
+                reason="rate_limit",
+            )
+            return
 
-        if normalized_code in self._QUOTA_CODES or status_code == 402:
-            breaker.force_open(
-                now=now,
-                recovery_seconds=max(retry_after or 0, self.default_quota_seconds),
+        if normalized_error in {"quota_exhausted", "insufficient_quota", "quota"}:
+            self._block(
+                provider,
+                capability_key,
+                until=reference + self.default_quota_seconds,
+                reason="quota_exhausted",
             )
             return
-        if status_code == 429:
-            breaker.force_open(
-                now=now,
-                recovery_seconds=retry_after or self.default_rate_limit_seconds,
-            )
-            return
-        if status_code >= 500 or status_code in {408, 409, 425}:
-            breaker.failure(now=now)
+
+        if status_code >= 500 or normalized_error in {
+            "server_error",
+            "timeout",
+            "transport_error",
+        }:
+            self._breaker(provider, capability_key).failure(now=reference)
