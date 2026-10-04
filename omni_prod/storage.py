@@ -62,7 +62,46 @@ class S3ArtifactStore:
         )
         return StoredObject(key=key, sha256=digest, size=len(payload))
 
+    def iter_bytes(
+        self,
+        key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+        verify: bool = True,
+        max_size_bytes: int | None = None,
+    ):
+        if chunk_size < 1:
+            raise ValueError("chunk_size must be >= 1")
+        if max_size_bytes is not None and max_size_bytes < 1:
+            raise ValueError("max_size_bytes must be >= 1 or None")
+        response = self.client.get_object(Bucket=self.bucket, Key=key)
+        body = response["Body"]
+        expected = (response.get("Metadata") or {}).get("sha256")
+        digest = hashlib.sha256()
+        size = 0
+        try:
+            while True:
+                chunk = body.read(chunk_size)
+                if not chunk:
+                    break
+                payload = bytes(chunk)
+                size += len(payload)
+                if max_size_bytes is not None and size > max_size_bytes:
+                    raise ArtifactIntegrityError(
+                        f"artifact exceeds maximum size for {key}"
+                    )
+                if verify:
+                    digest.update(payload)
+                yield payload
+            if verify and expected and digest.hexdigest() != expected:
+                raise ArtifactIntegrityError(f"checksum mismatch for {key}")
+        finally:
+            close = getattr(body, "close", None)
+            if callable(close):
+                close()
+
     def get_bytes(self, key: str, *, verify: bool = True) -> bytes:
+        """Small-object compatibility path; use iter_bytes/download_file for large artifacts."""
         response = self.client.get_object(Bucket=self.bucket, Key=key)
         data = response["Body"].read()
         if verify:
@@ -71,9 +110,35 @@ class S3ArtifactStore:
                 raise ArtifactIntegrityError(f"checksum mismatch for {key}")
         return data
 
-    def put_file(self, path: str | Path, key: str) -> StoredObject:
+    def put_file(
+        self,
+        path: str | Path,
+        key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+    ) -> StoredObject:
+        if chunk_size < 1:
+            raise ValueError("chunk_size must be >= 1")
         p = Path(path)
-        return self.put_bytes(key, p.read_bytes())
+        digest = hashlib.sha256()
+        size = 0
+        with p.open("rb") as source:
+            while True:
+                chunk = source.read(chunk_size)
+                if not chunk:
+                    break
+                digest.update(chunk)
+                size += len(chunk)
+        hexdigest = digest.hexdigest()
+        with p.open("rb") as source:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=source,
+                ContentLength=size,
+                Metadata={"sha256": hexdigest},
+            )
+        return StoredObject(key=key, sha256=hexdigest, size=size)
 
     def download_file(
         self,
@@ -81,9 +146,23 @@ class S3ArtifactStore:
         destination: str | Path,
         *,
         verify: bool = True,
+        chunk_size: int = 1024 * 1024,
+        max_size_bytes: int | None = None,
     ) -> Path:
-        data = self.get_bytes(key, verify=verify)
         dest = Path(destination)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
-        return dest
+        partial = dest.with_name(dest.name + ".part")
+        try:
+            with partial.open("wb") as target:
+                for chunk in self.iter_bytes(
+                    key,
+                    chunk_size=chunk_size,
+                    verify=verify,
+                    max_size_bytes=max_size_bytes,
+                ):
+                    target.write(chunk)
+            partial.replace(dest)
+            return dest
+        except Exception:
+            partial.unlink(missing_ok=True)
+            raise
