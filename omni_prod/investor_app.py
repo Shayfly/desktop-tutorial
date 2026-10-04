@@ -55,6 +55,9 @@ from .db import DatabasePool
 from .queueing import enqueue_build, preview_host_queue
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
+from .capability_repository import PostgresCapabilityRepository
+from .capability_registry import CapabilityRegistry
+from .capabilities import CapabilityStatus
 from .preview_repository import PostgresPreviewRepository
 from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
                               external_preview_url, parse_preview_contract)
@@ -170,6 +173,38 @@ def _require_durable_backend(purpose:str)->None:
     except PreviewBackendUnavailable as exc:
         raise HTTPException(503,str(exc)) from exc
 _integrations_v28=IntegrationCenter()
+
+_SENSITIVE_RESPONSE_KEYS = ('secret', 'token', 'api_key', 'apikey', 'authorization', 'password', 'credential')
+
+def _redact_truth_payload(value):
+    if isinstance(value, dict):
+        result = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if any(marker in lowered for marker in _SENSITIVE_RESPONSE_KEYS):
+                result[key] = '[REDACTED]'
+            else:
+                result[key] = _redact_truth_payload(item)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_redact_truth_payload(item) for item in value]
+    return value
+
+def _capability_truth_rows() -> list[dict]:
+    registry = CapabilityRegistry()
+    rows = []
+    for definition in registry.all():
+        rows.append({
+            'key': definition.key,
+            'family': definition.family,
+            'description': definition.description,
+            'provider_backed': definition.provider_backed,
+            'dependencies': list(definition.dependency_keys),
+            'artifact_kinds': list(definition.artifact_kinds),
+            'status': _integrations_v28.capability_status(definition).value,
+        })
+    return rows
+
 _stripe_webhooks_v28=StripeSubscriptionWebhookProcessor(_v28.subscriptions)
 
 class PromptRequest(BaseModel):
@@ -1506,6 +1541,66 @@ def v28_rollback(project_id: str, req: V28RollbackRequest, request: Request) -> 
         )
     except KeyError:
         raise HTTPException(404, 'target version not found')
+
+
+@app.get('/api/v28/capabilities')
+def v28_capability_truth(request: Request) -> dict:
+    try:
+        _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    return {
+        'truth_model': 'REAL_EXECUTION_OR_EXPLICIT_FAILURE',
+        'status_vocabulary': [status.value for status in CapabilityStatus],
+        'capabilities': _capability_truth_rows(),
+    }
+
+@app.get('/api/v28/providers/status')
+def v28_provider_status(request: Request) -> dict:
+    try:
+        _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    return {
+        'providers': _integrations_v28.catalog(),
+        'public_launch_blockers': _integrations_v28.blockers(),
+        'note': 'configured does not imply live_verified',
+    }
+
+@app.get('/api/v28/projects/{project_id}/builds/{build_id}/capabilities')
+def v28_build_capability_truth(project_id: str, build_id: str, request: Request) -> dict:
+    token = _v28_bearer(request)
+    try:
+        _, internal_key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    if _v28_pool is None:
+        raise HTTPException(503, 'Capability build truth requires OMNI_CREATOR_PERSISTENCE=postgres')
+    try:
+        PostgresBuildRepository(_v28_pool).get_details(build_id, internal_project_id=internal_key)
+    except KeyError:
+        raise HTTPException(404, 'Build not found or access denied')
+    records = PostgresCapabilityRepository(_v28_pool).list_requirements(build_id)
+    return {
+        'project_id': project_id,
+        'build_id': build_id,
+        'requirements': [
+            _redact_truth_payload({
+                'requirement_id': row.requirement_id,
+                'capability_key': row.capability_key,
+                'purpose': row.purpose,
+                'required': row.required,
+                'quantity': row.quantity,
+                'constraints': dict(row.constraints),
+                'dependency_ids': list(row.dependency_ids),
+                'status': row.status,
+                'selected_provider': row.selected_provider,
+                'artifact_key': row.artifact_key,
+                'verification': dict(row.verification or {}),
+            })
+            for row in records
+        ],
+    }
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
