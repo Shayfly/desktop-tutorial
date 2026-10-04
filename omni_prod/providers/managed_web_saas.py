@@ -38,6 +38,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from datetime import datetime, timezone
+import json
 import logging
 import os
 import secrets as _secrets
@@ -80,6 +82,9 @@ class ManagedWebSaaSConfig:
     s3_region: str = "auto"
     s3_access_key_ref: str = ""
     s3_secret_key_ref: str = ""
+    s3_role_arn: str = ""
+    s3_sts_endpoint: str = ""
+    s3_credential_ttl_seconds: int = 3600
     scheduler_url: str = ""
     scheduler_health_url: str = ""
     scheduler_token_ref: str = ""
@@ -104,6 +109,9 @@ class ManagedWebSaaSConfig:
             s3_region=_clean(env, "OMNI_GENAPP_S3_REGION") or "auto",
             s3_access_key_ref=_clean(env, "OMNI_GENAPP_S3_ACCESS_KEY_REF"),
             s3_secret_key_ref=_clean(env, "OMNI_GENAPP_S3_SECRET_KEY_REF"),
+            s3_role_arn=_clean(env, "OMNI_GENAPP_S3_ROLE_ARN"),
+            s3_sts_endpoint=_clean(env, "OMNI_GENAPP_S3_STS_ENDPOINT"),
+            s3_credential_ttl_seconds=int(_clean(env, "OMNI_GENAPP_S3_CREDENTIAL_TTL_SECONDS") or 3600),
             scheduler_url=scheduler_url,
             scheduler_health_url=_clean(env, "OMNI_GENAPP_SCHEDULER_HEALTH_URL") or scheduler_url,
             scheduler_token_ref=_clean(env, "OMNI_GENAPP_SCHEDULER_TOKEN_REF"),
@@ -138,6 +146,9 @@ class ManagedWebSaaSConfig:
                                       ("OMNI_GENAPP_S3_SECRET_KEY_REF", self.s3_secret_key_ref)) if not v]
             if missing:
                 return _STATUS_NOT_CONFIGURED, "missing " + ", ".join(missing)
+            if not self.s3_role_arn:
+                return _STATUS_NOT_CONFIGURED, ("object storage isolation requires scoped per-app/environment credentials: "
+                                                "set OMNI_GENAPP_S3_ROLE_ARN (STS AssumeRole with a prefix-scoped session policy)")
             if not (_valid_ref(self.s3_access_key_ref) and _valid_ref(self.s3_secret_key_ref)):
                 return _STATUS_BLOCKED, "generated-app object credential settings must be env:/vault: references"
             if self.s3_bucket == _clean(control_env, "OMNI_S3_BUCKET"):
@@ -235,20 +246,91 @@ class PostgresAdminBackend:
             cur.execute(sql.SQL("ALTER ROLE {} NOLOGIN").format(sql.Identifier(role)))
 
 
-class S3ProbeBackend:
-    """Real S3-compatible verification: put + delete one probe object under the app prefix."""
+_OBJECT_ACTIONS = ("s3:GetObject", "s3:PutObject", "s3:DeleteObject")
 
-    def verify(self, *, endpoint, bucket, prefix, region, access_key, secret_key) -> dict:
+
+def scoped_object_policy(bucket: str, prefix: str) -> str:
+    """Least-privilege session policy: object CRUD and listing under one prefix only."""
+    return json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {"Sid": "AppObjects", "Effect": "Allow", "Action": list(_OBJECT_ACTIONS),
+             "Resource": [f"arn:aws:s3:::{bucket}/{prefix}*"]},
+            {"Sid": "AppListing", "Effect": "Allow", "Action": ["s3:ListBucket"],
+             "Resource": [f"arn:aws:s3:::{bucket}"], "Condition": {"StringLike": {"s3:prefix": [f"{prefix}*"]}}},
+        ],
+    }, sort_keys=True, separators=(",", ":"))
+
+
+def scoped_policy_allows(policy, *, action: str, bucket: str, key: str) -> bool:
+    """Evaluate the subset of IAM semantics scoped_object_policy uses (Allow + prefix wildcard)."""
+    doc = json.loads(policy) if isinstance(policy, str) else dict(policy)
+    target = f"arn:aws:s3:::{bucket}/{key}"
+    for statement in doc.get("Statement", ()):
+        if statement.get("Effect") != "Allow":
+            continue
+        actions = statement.get("Action")
+        actions = actions if isinstance(actions, list) else [actions]
+        if action not in actions or action == "s3:ListBucket":
+            continue
+        for resource in statement.get("Resource", ()):
+            if resource.endswith("*") and target.startswith(resource[:-1]):
+                return True
+            if resource == target:
+                return True
+    return False
+
+
+class StsCredentialIssuer:
+    """Short-lived, prefix-scoped credentials via STS AssumeRole (AWS S3, MinIO and
+    other S3-compatible stores that implement AssumeRole with session policies)."""
+
+    def __init__(self, *, endpoint: str = "", region: str = "auto") -> None:
+        self.endpoint = endpoint
+        self.region = region
+
+    def issue(self, *, operator_access_key, operator_secret_key, role_arn, policy, session_name, ttl_seconds) -> dict:
+        import boto3
+        client = boto3.client("sts", endpoint_url=self.endpoint or None,
+                              region_name=None if self.region == "auto" else self.region,
+                              aws_access_key_id=operator_access_key, aws_secret_access_key=operator_secret_key)
+        out = client.assume_role(RoleArn=role_arn, RoleSessionName=session_name[:64], Policy=policy,
+                                 DurationSeconds=int(ttl_seconds))["Credentials"]
+        expires = out["Expiration"]
+        return {"access_key_id": out["AccessKeyId"], "secret_access_key": out["SecretAccessKey"],
+                "session_token": out["SessionToken"],
+                "expires_at": expires.isoformat().replace("+00:00", "Z") if hasattr(expires, "isoformat") else str(expires)}
+
+
+class S3ProbeBackend:
+    """Real S3-compatible verification with the app's scoped credentials."""
+
+    @staticmethod
+    def _client(endpoint, region, access_key, secret_key, session_token):
+        import boto3
+        return boto3.client("s3", endpoint_url=endpoint, region_name=None if region == "auto" else region,
+                            aws_access_key_id=access_key, aws_secret_access_key=secret_key,
+                            aws_session_token=session_token)
+
+    def verify(self, *, endpoint, bucket, prefix, region, access_key, secret_key, session_token=None) -> dict:
         key = prefix + ".148ai-probe"
         try:
-            import boto3
-            client = boto3.client("s3", endpoint_url=endpoint, region_name=None if region == "auto" else region,
-                                  aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+            client = self._client(endpoint, region, access_key, secret_key, session_token)
             client.put_object(Bucket=bucket, Key=key, Body=b"148ai")
             client.delete_object(Bucket=bucket, Key=key)
         except Exception as exc:
             return {"probe_object": key, "ok": False, "error": type(exc).__name__}
         return {"probe_object": key, "ok": True}
+
+    def verify_denied(self, *, endpoint, bucket, key, region, access_key, secret_key, session_token=None) -> bool:
+        """True only if the store refuses access (403). A 404 means access was allowed."""
+        try:
+            self._client(endpoint, region, access_key, secret_key, session_token).get_object(Bucket=bucket, Key=key)
+        except Exception as exc:
+            code = str(getattr(exc, "response", {}).get("Error", {}).get("Code", ""))
+            status = getattr(exc, "response", {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+            return code in {"AccessDenied", "403", "Forbidden"} or status == 403
+        return False
 
 
 class ManagedWebSaaSProvisioner:
@@ -258,12 +340,14 @@ class ManagedWebSaaSProvisioner:
 
     def __init__(self, *, config: ManagedWebSaaSConfig, secret_store, resolve_reference: Callable[[str], str],
                  database_backend=None, storage_backend=None, http_probe: Callable[..., int] | None = None,
-                 control_plane_env: Mapping[str, str] | None = None) -> None:
+                 control_plane_env: Mapping[str, str] | None = None, credential_issuer=None) -> None:
         self.config = config
         self.secret_store = secret_store
         self.resolve_reference = resolve_reference
         self.database_backend = database_backend or PostgresAdminBackend()
         self.storage_backend = storage_backend or S3ProbeBackend()
+        self.credential_issuer = credential_issuer or StsCredentialIssuer(
+            endpoint=config.s3_sts_endpoint or config.s3_endpoint, region=config.s3_region)
         self.http_probe = http_probe or (lambda url, *, token: _probe_url(url, token=token))
         self.control_plane_env = os.environ if control_plane_env is None else control_plane_env
 
@@ -391,6 +475,8 @@ class ManagedWebSaaSProvisioner:
                              evidence={"secret_read_back_verified": True}, **common)
 
     def _provision_object_storage(self, requirement, *, tenant_id, project_id, environment, idempotency_key):
+        """Per app/environment scoped credentials; LIVE only after the store itself
+        allows the app prefix and DENIES the sibling environment's prefix."""
         common = dict(tenant_id=tenant_id, project_id=project_id, environment=environment, idempotency_key=idempotency_key)
         access = self._resolve(self.config.s3_access_key_ref)
         secret = self._resolve(self.config.s3_secret_key_ref)
@@ -400,22 +486,45 @@ class ManagedWebSaaSProvisioner:
         if access == _clean(self.control_plane_env, "OMNI_S3_ACCESS_KEY"):
             return self._binding(requirement, status=BindingStatus.BLOCKED,
                                  reason="generated apps must not reuse control-plane object credentials", **common)
-        app = deterministic_resource_name(project_id=project_id, environment=environment,
-                                          kind=InfrastructureKind.OBJECT_STORAGE).split("_")[1]
+        name = deterministic_resource_name(project_id=project_id, environment=environment,
+                                           kind=InfrastructureKind.OBJECT_STORAGE)
+        app = name.split("_")[1]
         prefix = f"generated-apps/{app}/{environment.value}/"
+        sibling_env = (InfrastructureEnvironment.PRODUCTION if environment == InfrastructureEnvironment.PREVIEW
+                       else InfrastructureEnvironment.PREVIEW)
+        sibling_key = f"generated-apps/{app}/{sibling_env.value}/.148ai-isolation-sentinel"
+        policy = scoped_object_policy(self.config.s3_bucket, prefix)
+        # The operator credentials only mint scoped credentials; they never reach the app.
+        creds = self.credential_issuer.issue(
+            operator_access_key=access, operator_secret_key=secret, role_arn=self.config.s3_role_arn,
+            policy=policy, session_name=name, ttl_seconds=self.config.s3_credential_ttl_seconds)
+        refs = {}
+        for field in ("access_key_id", "secret_access_key", "session_token"):
+            ref = self._generated_ref(project_id, environment, InfrastructureKind.OBJECT_STORAGE, field)
+            if not self._store_generated(ref, str(creds[field])):
+                return self._binding(requirement, status=BindingStatus.BLOCKED,
+                                     reason="secret store read-back failed", **common)
+            refs[field] = ref
         public = {"endpoint": self.config.s3_endpoint, "bucket": self.config.s3_bucket, "region": self.config.s3_region,
-                  "prefix": prefix, "environment_isolation": "prefix",
-                  "isolation_policy": "generated-app object credentials are shared across environments; isolation is by prefix"}
-        refs = {"access_key_id": self.config.s3_access_key_ref, "secret_access_key": self.config.s3_secret_key_ref}
-        probe = self.storage_backend.verify(endpoint=self.config.s3_endpoint, bucket=self.config.s3_bucket,
-                                            prefix=prefix, region=self.config.s3_region,
-                                            access_key=access, secret_key=secret)
+                  "prefix": prefix, "environment_isolation": "SCOPED_CREDENTIALS",
+                  "access_policy": json.loads(policy), "scoped_access_expires_at": creds.get("expires_at")}
+        scoped = dict(endpoint=self.config.s3_endpoint, bucket=self.config.s3_bucket, region=self.config.s3_region,
+                      access_key=creds["access_key_id"], secret_key=creds["secret_access_key"],
+                      session_token=creds.get("session_token"))
+        probe = self.storage_backend.verify(prefix=prefix, **scoped)
         if not probe.get("ok"):
             return self._binding(requirement, status=BindingStatus.BLOCKED, refs=refs, public=public,
                                  evidence={"probe": {k: v for k, v in probe.items() if k != "ok"}},
-                                 reason="object storage probe failed", **common)
+                                 reason="object storage probe with scoped credentials failed", **common)
+        denied = bool(self.storage_backend.verify_denied(key=sibling_key, **scoped))
+        if not denied:
+            return self._binding(requirement, status=BindingStatus.BLOCKED, refs=refs, public=public,
+                                 evidence={"cross_environment_denied": False},
+                                 reason="storage isolation not enforced: scoped credentials could access the "
+                                        f"{sibling_env.value} prefix", **common)
         return self._binding(requirement, status=BindingStatus.LIVE, refs=refs, public=public,
-                             evidence={"probe_object": probe.get("probe_object"), "write_delete_verified": True}, **common)
+                             evidence={"probe_object": probe.get("probe_object"), "write_delete_verified": True,
+                                       "cross_environment_denied": True, "isolation": "SCOPED_CREDENTIALS"}, **common)
 
     def _provision_scheduled_http(self, requirement, *, tenant_id, project_id, environment, idempotency_key):
         common = dict(tenant_id=tenant_id, project_id=project_id, environment=environment, idempotency_key=idempotency_key)
@@ -465,9 +574,14 @@ class ManagedWebSaaSProvisioner:
                                        # No harmless send exists; email delivery is NOT claimed verified.
                                        "email_live_verified": False}, **common)
 
-    def status(self, binding: InfrastructureBinding) -> InfrastructureBinding:
+    def status(self, binding: InfrastructureBinding, *, now: str | None = None) -> InfrastructureBinding:
         if binding.status != BindingStatus.LIVE:
             return binding
+        expires = binding.public_config.get("scoped_access_expires_at")
+        current = now or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        if expires and str(expires) <= current:
+            return replace(binding, status=BindingStatus.BLOCKED,
+                           status_reason="scoped credentials expired; re-provision to issue new ones")
         try:
             if binding.kind == InfrastructureKind.DATABASE:
                 dsn = self.secret_store.resolve(binding.secret_references["database_url"])
@@ -476,8 +590,9 @@ class ManagedWebSaaSProvisioner:
                 probe = self.storage_backend.verify(
                     endpoint=binding.public_config["endpoint"], bucket=binding.public_config["bucket"],
                     prefix=binding.public_config["prefix"], region=binding.public_config.get("region", "auto"),
-                    access_key=self._resolve(binding.secret_references["access_key_id"]),
-                    secret_key=self._resolve(binding.secret_references["secret_access_key"]))
+                    access_key=self.secret_store.resolve(binding.secret_references["access_key_id"]),
+                    secret_key=self.secret_store.resolve(binding.secret_references["secret_access_key"]),
+                    session_token=self.secret_store.resolve(binding.secret_references["session_token"]))
                 ok = bool(probe.get("ok"))
             else:
                 ok = all(self.secret_store.resolve(ref) for ref in binding.secret_references.values()

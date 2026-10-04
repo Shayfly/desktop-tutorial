@@ -8,7 +8,8 @@ Required for the provisioning test (M5_GENAPP_LIVE=1 plus):
   OMNI_GENAPP_SECRET_STORE_URL, the Vault token env (default OMNI_GENAPP_VAULT_TOKEN),
   OMNI_GENAPP_DATABASE_ADMIN_DSN_REF, OMNI_GENAPP_S3_ENDPOINT, OMNI_GENAPP_S3_BUCKET,
   OMNI_GENAPP_S3_ACCESS_KEY_REF, OMNI_GENAPP_S3_SECRET_KEY_REF,
-  OMNI_GENAPP_SCHEDULER_URL, OMNI_GENAPP_SCHEDULER_TOKEN_REF
+  OMNI_GENAPP_SCHEDULER_URL, OMNI_GENAPP_SCHEDULER_TOKEN_REF, OMNI_GENAPP_S3_ROLE_ARN
+  (STS AssumeRole with session policies; optional OMNI_GENAPP_S3_STS_ENDPOINT)
 Required for the migration test: M5_DATABASE_URL pointing at a disposable database.
 """
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 REQUIRED = (
     "OMNI_GENAPP_SECRET_STORE_URL", "OMNI_GENAPP_DATABASE_ADMIN_DSN_REF", "OMNI_GENAPP_S3_ENDPOINT",
     "OMNI_GENAPP_S3_BUCKET", "OMNI_GENAPP_S3_ACCESS_KEY_REF", "OMNI_GENAPP_S3_SECRET_KEY_REF",
-    "OMNI_GENAPP_SCHEDULER_URL", "OMNI_GENAPP_SCHEDULER_TOKEN_REF",
+    "OMNI_GENAPP_SCHEDULER_URL", "OMNI_GENAPP_SCHEDULER_TOKEN_REF", "OMNI_GENAPP_S3_ROLE_ARN",
 )
 
 
@@ -83,6 +84,10 @@ class ManagedWebSaaSLiveProvisioningTests(unittest.TestCase):
 
         for binding in first.values():
             self.assertEqual(provisioner.status(binding).status, BindingStatus.LIVE, binding.kind)
+        # provider-level IAM proof: scoped credentials were refused on the production prefix
+        storage = first[InfrastructureKind.OBJECT_STORAGE]
+        self.assertEqual(storage.public_config["environment_isolation"], "SCOPED_CREDENTIALS")
+        self.assertTrue(storage.evidence["cross_environment_denied"])
 
         revoked = service.revoke_all(project_id=project_id, environment="preview")
         self.assertEqual({b.status for b in revoked}, {BindingStatus.REVOKED})

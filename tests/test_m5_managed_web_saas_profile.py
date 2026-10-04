@@ -47,6 +47,7 @@ FULL_ENV = {
     "OMNI_GENAPP_S3_BUCKET": "genapp-objects",
     "OMNI_GENAPP_S3_ACCESS_KEY_REF": "env:GENAPP_S3_ACCESS",
     "OMNI_GENAPP_S3_SECRET_KEY_REF": "env:GENAPP_S3_SECRET",
+    "OMNI_GENAPP_S3_ROLE_ARN": "arn:aws:iam::000000000000:role/genapp-objects",
     "GENAPP_S3_ACCESS": "genapp-access",
     "GENAPP_S3_SECRET": "genapp-secret",
     "OMNI_S3_BUCKET": "control-artifacts",
@@ -97,14 +98,28 @@ class FakeDatabaseBackend:
 
 
 class FakeStorageBackend:
-    def __init__(self, ok=True):
-        self.ok = ok
-        self.probes = []
+    """Issues scoped credentials and answers probes; denies the sibling prefix."""
 
-    def verify(self, *, endpoint, bucket, prefix, region, access_key, secret_key):
+    def __init__(self, ok=True, isolates=True):
+        self.ok = ok
+        self.isolates = isolates
+        self.probes = []
+        self.issued = []
+
+    def issue(self, *, operator_access_key, operator_secret_key, role_arn, policy, session_name, ttl_seconds):
+        assert operator_access_key == "genapp-access" and operator_secret_key == "genapp-secret"
+        self.issued.append(session_name)
+        n = len(self.issued)
+        return {"access_key_id": f"ASIA-{n}-{session_name}", "secret_access_key": f"scoped-secret-{n}",
+                "session_token": f"scoped-token-{n}", "expires_at": "2099-01-01T00:00:00Z"}
+
+    def verify(self, *, endpoint, bucket, prefix, region, access_key, secret_key, session_token=None):
         self.probes.append((bucket, prefix, access_key))
-        assert access_key == "genapp-access" and secret_key == "genapp-secret"
+        assert access_key.startswith("ASIA-")  # only scoped credentials are ever used by the app path
         return {"probe_object": prefix + ".148ai-probe", "ok": self.ok}
+
+    def verify_denied(self, *, endpoint, bucket, key, region, access_key, secret_key, session_token=None):
+        return self.isolates
 
 
 class FakeHttpProbe:
@@ -129,12 +144,13 @@ def _resolver(env):
 def _provisioner(env=None, **backends):
     env = dict(FULL_ENV if env is None else env)
     secret_store = backends.pop("secret_store", FakeSecretStore())
+    storage = backends.pop("storage_backend", FakeStorageBackend())
     return ManagedWebSaaSProvisioner(
         config=ManagedWebSaaSConfig.from_env(env),
         secret_store=secret_store,
         resolve_reference=_resolver(env),
         database_backend=backends.pop("database_backend", FakeDatabaseBackend()),
-        storage_backend=backends.pop("storage_backend", FakeStorageBackend()),
+        storage_backend=storage, credential_issuer=storage,
         http_probe=backends.pop("http_probe", FakeHttpProbe()),
         control_plane_env=env,
     ), secret_store
@@ -229,14 +245,16 @@ class ManagedWebSaaSProvisionerTests(unittest.TestCase):
         self.assertNotEqual(p_store, r_store)
         self.assertTrue(p_store.endswith("/preview/") and r_store.endswith("/production/"))
 
-    def test_shared_object_storage_credentials_require_explicit_policy(self):
-        prov, _ = _provisioner()
+    def test_object_storage_uses_scoped_credentials_not_shared_prefix_only(self):
+        prov, store = _provisioner()
         binding = prov.provision(
             self.contract.infrastructure[2], tenant_id="usr_1", project_id="prj_crm",
             environment="production", idempotency_key="k" * 64)
-        self.assertEqual(binding.public_config["environment_isolation"], "prefix")
-        self.assertEqual(binding.public_config["isolation_policy"],
-                         "generated-app object credentials are shared across environments; isolation is by prefix")
+        self.assertEqual(binding.status, BindingStatus.LIVE)
+        self.assertEqual(binding.public_config["environment_isolation"], "SCOPED_CREDENTIALS")
+        self.assertNotIn("isolation_policy", binding.public_config)
+        self.assertTrue(binding.evidence["cross_environment_denied"])
+        self.assertNotIn("env:GENAPP_S3_ACCESS", json.dumps(binding.to_record()))
 
     def test_missing_secret_store_is_not_configured_everywhere(self):
         env = {k: v for k, v in FULL_ENV.items() if k != "OMNI_GENAPP_SECRET_STORE_URL"}
