@@ -778,6 +778,35 @@
         "GOV-REQ-LEDGER",
         "GOV-REGISTRY-METADATA"
       ]
+    },
+    {
+      "requirement_id": "M5-UX01",
+      "milestone": "M5",
+      "title": "Real Creator Golden-Path Workspace",
+      "status": "PARTIAL",
+      "source_specs": [
+        "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
+        "PRODUCT_MISSION_AND_ACCEPTANCE.md"
+      ],
+      "implementation_paths": [
+        "omni_prod/assets/index.html",
+        "omni_prod/assets/app.js",
+        "omni_prod/assets/app.css",
+        "omni_prod/assets/sw.js",
+        "omni_prod/creator_plan.py",
+        "omni_prod/investor_app.py",
+        "omni_prod/worker_tasks.py",
+        "omni_prod/preview_runtime.py",
+        "omni_prod/web_security.py",
+        "omni_prod/ui_translations.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_creator_workspace.py"
+      ],
+      "evidence_refs": [
+        "docs/evidence/M5_UX01_CREATOR_WORKSPACE_EVIDENCE_2026-10-04.md"
+      ],
+      "verification_note": "10 unit tests pass; signed-out, register, project, plan+quote, publish state, language and mobile verified in headless Chromium against real route functions in memory mode. Build/preview/modify/download paths need the durable backend and were not exercised."
     }
   ]
 }

@@ -60,6 +60,17 @@ SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state
                'an authorization estimate, not a cost -- provider-reported usage is in provider_usage')
 
 
+def _report_phase(jobs, build_id: str, phase: str, message: str = '') -> None:
+    """M5-UX01: best-effort progress for the creator timeline; never fails a build."""
+    update = getattr(jobs, 'update_phase', None)
+    if update is None:
+        return
+    try:
+        update(build_id, phase, message)
+    except Exception:
+        pass
+
+
 def provider_usage_evidence(gateway) -> dict:
     """M5 Task 8: provider-reported usage summary for build evidence."""
     spent, calls = spend_snapshot(gateway)
@@ -233,10 +244,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     try:
         if preflight is not None:
             preflight()
+        _report_phase(jobs, build_id, 'PLANNING', 'validating the build contract and product plan')
         # M5 Task 6: a contract-bound product cannot become READY without its
         # required generated-app infrastructure. Checked before any paid model
         # generation so a missing binding never burns provider budget.
         if infrastructure_stage is not None and build_contract is not None:
+            _report_phase(jobs, build_id, 'INFRASTRUCTURE', 'provisioning and verifying app infrastructure')
             infrastructure_evidence = infrastructure_stage.require_ready(
                 build_contract, tenant_id=str(request['user_id']),
                 project_id=build_contract.project_id, environment=infrastructure_environment,
@@ -244,6 +257,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         brain = platform.brain.decide(prompt, target_markets=markets)
         capability_plan = build_contract.capability_plan if build_contract is not None else getattr(brain, 'capabilities', None)
         if capability_stage is not None:
+            _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
             if capability_plan is None:
                 raise RuntimeError('capability stage requires a bound or planned capability plan')
             capability_evidence = capability_stage.prepare(
@@ -257,7 +271,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             synthetic_person_media=bool(brain.rights.required_disclosures),
         )
         engine, gateway = components_factory()
+        _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         result = engine.build(prompt)
+        _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
         quality = quality_fn(spec=result.spec, repository=result.repository, minimum_score=min_quality)
         security = security_fn(result.repository)
 

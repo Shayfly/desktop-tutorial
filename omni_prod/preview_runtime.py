@@ -270,6 +270,18 @@ def external_preview_url(preview_id: str, template: str | None) -> str:
     return url
 
 
+def preview_frame_source(template: str | None) -> str | None:
+    """CSP frame-src value for embedding previews: only the wildcard preview
+    host derived from PREVIEW_DOMAIN_TEMPLATE (https://{preview_id}.<domain>)."""
+    if not template or not template.startswith('https://{preview_id}.'):
+        return None
+    rest = template[len('https://{preview_id}.'):]
+    host = rest.split('/', 1)[0].split(':', 1)[0].lower()
+    if not host or '{' in host or host in _LOCAL_HOSTS or host.endswith('localhost') or '.' not in host:
+        return None
+    return f'https://*.{host}'
+
+
 def ensure_durable_workspace(workspace, *, purpose: str = 'Real running preview') -> None:
     """Previews and async builds run in a worker process, possibly on a
     different host from the API. With MemoryProjectWorkspace, a version

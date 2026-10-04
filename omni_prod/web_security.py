@@ -1,6 +1,8 @@
 from __future__ import annotations
 from fastapi.middleware.cors import CORSMiddleware
+import os
 from .cors_policy import parse_and_validate_origins
+from .preview_runtime import preview_frame_source
 
 def configure_web_security(app,*,raw_origins:str,production:bool)->list[str]:
     origins=parse_and_validate_origins(raw_origins,production=production)
@@ -15,7 +17,13 @@ def configure_web_security(app,*,raw_origins:str,production:bool)->list[str]:
         response.headers.setdefault('X-Frame-Options','DENY')
         response.headers.setdefault('Referrer-Policy','no-referrer')
         response.headers.setdefault('Permissions-Policy','camera=(), microphone=(), geolocation=()')
-        response.headers.setdefault('Content-Security-Policy',"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
+        # M5-UX01: the creator workspace embeds running previews; only the
+        # configured preview wildcard host may be framed.
+        frame = preview_frame_source(os.getenv('PREVIEW_DOMAIN_TEMPLATE'))
+        csp = "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        if frame:
+            csp += f"; frame-src 'self' {frame}"
+        response.headers.setdefault('Content-Security-Policy', csp)
         response.headers.setdefault('Cross-Origin-Opener-Policy','same-origin')
         response.headers.setdefault('Cross-Origin-Resource-Policy','same-origin')
         if production:

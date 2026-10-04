@@ -58,7 +58,8 @@ from .queueing import enqueue_build, preview_host_queue
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
-from .build_contract_repository import PostgresBuildContractRepository
+from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
+from .creator_plan import build_plan_preview
 from .providers.managed_web_saas import managed_web_saas_readiness
 from .providers.image_provider import image_provider_readiness
 from .product_architect import ProductArchitect
@@ -1479,6 +1480,34 @@ def v28_promote(project_id: str, request: Request, version_id: str | None = None
 # unavailable at enqueue time the build is still durably accepted; the
 # outbox relay (python -m omni_prod.build_outbox_relay) dispatches it later.
 
+_M5_BUILD_CREDITS = 60
+# Reviewer/memory mode only: plan previews still compile real contracts, but a
+# durable build always re-reads them from PostgreSQL.
+_memory_build_contracts = MemoryBuildContractRepository()
+
+class V28PlanRequest(BaseModel):
+    prompt: str = Field(min_length=3, max_length=12000)
+
+@app.post('/api/v28/projects/{project_id}/build-contracts')
+def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
+    """M5-UX01 plan + quote step: compiles and saves the next Build Contract
+    revision and reports capabilities, infrastructure readiness, the
+    conservative cost authorization and blockers. No credits are reserved and
+    no provider is called; POST .../builds with build_contract_id starts work."""
+    token = _v28_bearer(request)
+    try:
+        account, _ = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
+    plan = _v28.subscriptions.plan_for(account.id)
+    return build_plan_preview(
+        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=req.prompt,
+        economics=lambda: _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS),
+        durable_backend=_async_build_mode(),
+        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
+    )
+
 @app.post('/api/v28/projects/{project_id}/builds')
 def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> dict:
     """Async durable build pipeline (M1 Revision 2, P0-1)."""
@@ -1502,7 +1531,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "contract_version": exc.contract.contract_version,
                 "unresolved_questions": [q.to_dict() for q in exc.contract.unresolved_questions],
             }) from exc
-        cost_class, credits = CostClass.STANDARD, 60
+        cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
         try:
             economics_quote = _m5_build_economics_quote(plan, credits=credits)

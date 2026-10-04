@@ -1,15 +1,149 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>148AI — Build Anything.</title><meta name="theme-color" content="#07101f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="148AI"><meta name="legacy-product" content="Omni Creator"><meta name="description" content="148AI is a universal AI product creation platform for web, mobile, software, games and media.">
-<link rel="icon" type="image/png" href="/brand/148ai-favicon-64.png"><link rel="apple-touch-icon" href="/brand/148ai-app-icon-512.png"><link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/assets/app.css"><script defer src="/assets/app.js"></script></head>
-<body><div class="wrap">
-<nav class="nav"><a class="brandLockup" href="/" aria-label="148AI home"><img src="/brand/148ai-logo-128.png" alt="148AI"><span><b>148AI</b><small>BUILD ANYTHING.</small></span></a><div class="navRight"><select id="lang" aria-label="Language"></select><div class="tag">V28 · LAUNCH CANDIDATE</div></div></nav>
-<header class="hero"><div class="eyebrow">UNIVERSAL PRODUCT CREATION SYSTEM</div><h1 id="hero">Build anything.</h1><p class="lead" id="lead">Describe an idea. 148AI plans it, builds it, tests it, versions it, protects it and prepares it to ship.</p><div class="heroBadges"><span>Web</span><span>Mobile</span><span>AI</span><span>Games & 3D</span><span>Media</span><span>Business Systems</span></div></header>
-<div class="metrics"><div class="metric"><b id="cases">—</b><span>benchmark prompts</span></div><div class="metric"><b id="implemented">—</b><span>capability gates</span></div><div class="metric"><b id="verified">—</b><span>live-verified gates</span></div><div class="metric"><b id="release">V28</b><span>source of truth</span></div></div>
-<section class="pricingSection"><div class="sectionHead"><div><div class="label">PLANS</div><h2>Start free. Scale only when compute costs money.</h2></div><div class="pill" id="pricingStatus">prelaunch pricing</div></div><div id="pricingGrid" class="pricingGrid"><div class="card">Loading plans…</div></div></section>
-<div class="grid accountGrid"><section class="card"><div class="label" id="accountLabel">148AI ACCOUNT</div><label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label><label>Password<input id="password" type="password" autocomplete="current-password" placeholder="10+ characters"></label><button id="registerBtn">Create free account</button> <button class="secondary" id="loginBtn">Sign in</button><div id="accountState" class="state" role="status"></div><div id="planState" class="planState"></div></section>
-<section class="card"><div class="label" id="projectLabel">MY PRIVATE PROJECTS</div><label>Project name<input id="projectTitle" placeholder="My next product"></label><button id="createProjectBtn">New project</button><select id="projectSelect" class="projectSelect" aria-label="Projects"><option value="">Sign in first</option></select><div id="projectState" class="state" role="status"></div></section></div>
-<section class="composer"><div class="label" id="requestLabel">WHAT DO YOU WANT TO BUILD?</div><textarea id="prompt">Build a multilingual field-service platform with technician roles, customer portal, payments, Android and iOS apps, original brand graphics, voice guidance and an accessible dashboard.</textarea><label class="marketLabel"><span id="marketsLabel">TARGET MARKETS</span><input id="targetMarkets" value="US,EU,IL" aria-label="Target markets"></label><div class="actions"><button id="buildBtn">Build with 148AI</button><button class="secondary" id="historyBtn">Versions</button><button class="secondary" id="rightsBtn">Rights & IP</button><button class="secondary" id="originalBtn">Original alternative</button><button class="secondary" id="integrationBtn">Integrations</button><button class="secondary" id="companyBtn">Company OS</button><button class="secondary" id="refreshBtn">Readiness</button></div><div class="rightsRow">Rights gate: <b id="rightsBadge" class="rightsBadge warn">NOT ASSESSED</b></div><div id="state" class="state" role="status"></div></section>
-<div class="grid"><section class="card"><div class="label" id="readyLabel">GLOBAL READINESS</div><div id="readiness">Loading…</div></section><section class="card"><div class="label" id="outputLabel">BUILD / RIGHTS / VERSION OUTPUT</div><pre id="output">Sign in, create a project and build.</pre></section></div>
-<footer><img src="/brand/148ai-logo-64.png" alt=""><span>148AI · Build Anything. · 148ailabs.com</span><span class="muted">Launch candidate — public billing and live infrastructure remain gated until configured and verified.</span></footer>
-</div></body></html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>148AI · סביבת יצירה</title>
+<meta name="theme-color" content="#0E1A2B">
+<meta name="description" content="תארו את אפליקציית הווב שלכם. 148AI מתכננת, בונה, בודקת ומציגה אותה.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="148AI">
+<link rel="icon" type="image/png" href="/brand/148ai-favicon-64.png">
+<link rel="apple-touch-icon" href="/brand/148ai-app-icon-512.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/assets/app.css">
+<script defer src="/assets/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">דילוג לתוכן</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="28" height="28"><b>148AI</b></a>
+  <div class="projectbar" id="projectbar" hidden>
+    <label class="sr" for="projectSelect" data-i18n="projects">פרויקטים</label>
+    <select id="projectSelect"></select>
+    <button class="ghost" id="projectMenuBtn" aria-haspopup="true" aria-expanded="false" data-i18n="manage">ניהול</button>
+  </div>
+  <div class="topright">
+    <button class="ghost" id="langBtn" lang="en">English</button>
+    <div class="account" id="accountBox" hidden>
+      <span id="accountEmail" class="email"></span>
+      <button class="ghost" id="logoutBtn" data-i18n="logout">התנתקות</button>
+    </div>
+  </div>
+</header>
+
+<div class="banner" id="backendBanner" role="status" hidden></div>
+
+<main id="main">
+  <!-- signed out -->
+  <section class="welcome" id="welcomeView" hidden>
+    <div class="welcomeCopy">
+      <h1 id="heroTitle" data-i18n="hero">תארו את אפליקציית הווב שלכם.</h1>
+      <p id="heroLead" data-i18n="lead">148AI מתכננת, בונה, בודקת ומציגה אותה.</p>
+      <ol class="howto">
+        <li data-i18n="how1">כותבים מה האפליקציה צריכה לעשות ולמי.</li>
+        <li data-i18n="how2">מקבלים תוכנית ועלות מקסימלית, ומאשרים.</li>
+        <li data-i18n="how3">צופים בבנייה, בודקים בתצוגה מקדימה, משנים ומורידים את הקוד.</li>
+      </ol>
+      <p class="scope" data-i18n="scope">כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.</p>
+    </div>
+    <form class="auth" id="authForm" novalidate>
+      <h2 id="authTitle" data-i18n="signinTitle">כניסה לחשבון</h2>
+      <label><span data-i18n="email">אימייל</span><input id="email" type="email" autocomplete="email" required></label>
+      <label><span data-i18n="password">סיסמה</span><input id="password" type="password" autocomplete="current-password" minlength="10" required></label>
+      <p class="hint" data-i18n="passwordHint">לפחות 10 תווים.</p>
+      <div class="row">
+        <button type="submit" id="loginBtn" data-i18n="login">כניסה</button>
+        <button type="button" class="secondary" id="registerBtn" data-i18n="register">יצירת חשבון חינם</button>
+      </div>
+      <p class="msg" id="authMsg" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- signed in -->
+  <div class="workspace" id="workspaceView" hidden>
+    <section class="flow" aria-label="Build">
+      <div class="panel" id="emptyProjects" hidden>
+        <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
+        <form class="inline" id="firstProjectForm">
+          <label class="grow"><span data-i18n="projectName">שם הפרויקט</span><input id="firstProjectName" maxlength="120" required></label>
+          <button type="submit" data-i18n="createProject">יצירת פרויקט</button>
+        </form>
+      </div>
+
+      <div class="panel composer" id="composer">
+        <label for="prompt" class="composerLabel" data-i18n="request">מה תרצו לבנות?</label>
+        <textarea id="prompt" rows="6" maxlength="12000"></textarea>
+        <div class="row">
+          <button id="planBtn" data-i18n="build">בנה עם 148AI</button>
+          <span class="hint" data-i18n="planHint">קודם תוצג תוכנית ועלות. שום חיוב לא מתבצע לפני אישור.</span>
+        </div>
+        <p class="msg" id="composerMsg" role="alert"></p>
+      </div>
+
+      <div class="panel plan" id="planPanel" hidden aria-live="polite"></div>
+
+      <div class="panel" id="progressPanel" hidden>
+        <h2 data-i18n="progress">התקדמות הבנייה</h2>
+        <ol class="track" id="track"></ol>
+        <p class="msg" id="buildMsg" role="alert"></p>
+      </div>
+
+      <div class="panel" id="modifyPanel" hidden>
+        <h2><label for="followup" data-i18n="modifyTitle">מה תרצו לשנות?</label></h2>
+        <textarea id="followup" rows="3" maxlength="12000"></textarea>
+        <div class="row"><button id="modifyBtn" data-i18n="modifySend">שליחת שינוי</button></div>
+        <div id="modifyState" aria-live="polite"></div>
+      </div>
+
+      <div class="panel" id="versionsPanel" hidden>
+        <h2 data-i18n="versions">גרסאות</h2>
+        <ul class="versions" id="versionsList"></ul>
+      </div>
+
+      <details class="panel evidence" id="evidencePanel" hidden>
+        <summary data-i18n="evidence">פרטים טכניים ועדויות</summary>
+        <div id="evidenceBody"></div>
+      </details>
+    </section>
+
+    <section class="stage" aria-label="Preview">
+      <div class="browser">
+        <div class="chrome">
+          <span class="url" id="previewUrl" dir="ltr">—</span>
+          <div class="chromeActions">
+            <button class="ghost" id="refreshPreviewBtn" disabled data-i18n="refresh">רענון</button>
+            <a class="ghost button" id="openPreviewLink" target="_blank" rel="noopener" aria-disabled="true" data-i18n="openTab">פתיחה בלשונית חדשה</a>
+          </div>
+        </div>
+        <div class="viewport" id="viewport">
+          <div class="empty" id="previewEmpty"><p id="previewEmptyText" data-i18n="noPreview">כאן תופיע האפליקציה אחרי שהבנייה תסתיים.</p></div>
+          <iframe id="previewFrame" title="Preview" sandbox="allow-scripts allow-forms allow-same-origin allow-popups" referrerpolicy="no-referrer" hidden></iframe>
+        </div>
+      </div>
+      <div class="stageActions">
+        <button class="secondary" id="downloadBtn" disabled data-i18n="download">הורדת קוד המקור (ZIP)</button>
+        <button class="secondary" id="publishBtn" aria-describedby="publishNote" data-i18n="publish">פרסום</button>
+        <p class="hint" id="publishNote"></p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<dialog id="projectDialog">
+  <form method="dialog" id="projectDialogForm">
+    <h2 data-i18n="manageProject">ניהול פרויקט</h2>
+    <label><span data-i18n="rename">שינוי שם</span><input id="renameInput" maxlength="120"></label>
+    <div class="row">
+      <button type="button" id="renameBtn" data-i18n="saveName">שמירת השם</button>
+      <button type="button" class="secondary" id="archiveBtn" data-i18n="archive">העברה לארכיון</button>
+    </div>
+    <hr>
+    <label><span data-i18n="newProject">פרויקט חדש</span><input id="newProjectInput" maxlength="120"></label>
+    <div class="row"><button type="button" id="newProjectBtn" data-i18n="createProject">יצירת פרויקט</button></div>
+    <p class="msg" id="projectMsg" role="alert"></p>
+    <div class="row end"><button class="ghost" value="close" data-i18n="close">סגירה</button></div>
+  </form>
+</dialog>
+</body>
+</html>
