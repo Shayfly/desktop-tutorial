@@ -420,7 +420,7 @@ def execute_live_build_job(build_id: str) -> None:
     from .quality_gate import assess_repository
     from .security_testing import hostile_repository_scan
     from .capability_repository import PostgresCapabilityRepository
-    from .capability_worker import DurableCapabilityBuildStage
+    from .providers.image_provider import PostgresSubmissionJournal, build_image_capability_stage
     from .infrastructure_provisioner import (
         InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
     from .providers.managed_web_saas import build_managed_web_saas_provisioner
@@ -440,8 +440,14 @@ def execute_live_build_job(build_id: str) -> None:
         quality_fn=assess_repository,
         security_fn=hostile_repository_scan,
         min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
-        capability_stage=DurableCapabilityBuildStage(
-            repository=PostgresCapabilityRepository(_v28_pool),
+        # M5 Task 9: when an image provider is configured, media.image.generate
+        # (product icon / brand visual) is routed, executed, stored and verified;
+        # otherwise the requirement stays explicitly NOT_CONFIGURED.
+        capability_stage=build_image_capability_stage(
+            env=os.environ, repository=PostgresCapabilityRepository(_v28_pool),
+            artifact_store=getattr(workspace, 'storage', None),
+            journal=PostgresSubmissionJournal(_v28_pool),
+            worker_id=f'{socket.gethostname()}:{os.getpid()}',
         ),
         # M5 Task 6/7: contract-bound builds need their generated-app
         # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an

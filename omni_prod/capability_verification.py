@@ -53,6 +53,10 @@ def _validate_magic(mime_type: str, prefix: bytes, total_size: int) -> tuple[str
         if not prefix.startswith(b"\xff\xd8\xff"):
             raise ArtifactVerificationError("JPEG magic header is invalid")
         checks.append("jpeg-signature")
+    elif normalized == "image/webp":
+        if len(prefix) < 12 or prefix[:4] != b"RIFF" or prefix[8:12] != b"WEBP":
+            raise ArtifactVerificationError("WebP container header is invalid")
+        checks.append("webp-header")
     elif normalized in {"audio/wav", "audio/x-wav", "audio/wave"}:
         if len(prefix) < 12 or prefix[:4] != b"RIFF" or prefix[8:12] != b"WAVE":
             raise ArtifactVerificationError("WAV container header is invalid")
