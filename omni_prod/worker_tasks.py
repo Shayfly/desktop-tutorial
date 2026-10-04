@@ -558,7 +558,8 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
                         runtime_host: str, url_template: str | None, probe_host: str,
                         probe_timeout: float = 30.0, probe_interval: float = 1.0,
                         http_get=None, sleep=time.sleep, clock=time.monotonic,
-                        preflight=None) -> str:
+                        preflight=None, acceptance_runner=None, acceptance_contract=None,
+                        acceptance_personas=None) -> str:
     """Returns the final status this task observed/wrote. RUNNING is written
     in exactly one place -- after wait_until_healthy() succeeds -- and only
     if the preview is still STARTING (not stopped by the user meanwhile)."""
@@ -617,6 +618,52 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
         if not repo.mark_running(preview_id, url=url):
             _teardown(provider, repo, preview_id, started)  # stopped during the probe
             return 'STOPPED'
+
+        # M5 Task 11: process health and release readiness are deliberately
+        # separate. A RUNNING preview may remain inspectable even when
+        # behavioral acceptance fails; only a PASS report is release-eligible.
+        if acceptance_runner is not None:
+            from dataclasses import replace
+            from .web_saas_acceptance import AcceptanceReport
+            try:
+                report = acceptance_runner.verify(
+                    {'id': preview_id, 'project_id': project_id, 'version_id': version_id,
+                     'status': 'RUNNING', 'preview_url': url},
+                    acceptance_contract, acceptance_personas or (),
+                )
+            except Exception as exc:
+                report = AcceptanceReport(
+                    status='ERROR', release_eligible=False,
+                    summary=f'acceptance runner error: {type(exc).__name__}: {exc}', checks=(),
+                    covered_acceptance_ids=(), missing_acceptance_ids=(),
+                    covered_kinds=(), missing_kinds=(), runtime_logs=None,
+                )
+
+            try:
+                alive, exit_code = provider.is_running(started.container_id)
+            except Exception:
+                alive, exit_code = True, None  # do not invent a crash if Docker status is unavailable
+            if not alive:
+                try:
+                    tail = provider.logs(started.container_id, tail=100)
+                except Exception as exc:
+                    tail = f'(logs unavailable: {exc})'
+                report = replace(
+                    report, status='FAIL', release_eligible=False,
+                    summary=report.summary + f'; preview crashed during acceptance (exit code {exit_code})',
+                ).with_runtime_logs(tail)
+                try:
+                    repo.record_acceptance(preview_id, project_id, version_id, report)
+                finally:
+                    crash_message = (f'preview crashed during behavioral acceptance (exit code {exit_code})'
+                                     f'\n--- container logs (tail) ---\n{tail[-2500:]}')
+                    repo.mark_crashed(preview_id, crash_message)
+                    _teardown(provider, repo, preview_id, started)
+                return 'FAILED'
+
+            # Persist after checking liveness so a PASS can never be recorded
+            # for a process that died while the behavioral probes were running.
+            repo.record_acceptance(preview_id, project_id, version_id, report)
         return 'RUNNING'
     except Exception as exc:
         errors = _teardown(provider, repo, preview_id, started)
@@ -628,7 +675,10 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 def execute_preview_launch(preview_id: str, project_id: str, version_id: str) -> None:
     from .investor_app import _v28, _v28_pool
     from .preview_repository import PostgresPreviewRepository
-    from .preview_runtime import DockerPreviewProvider, ensure_durable_workspace
+    from .preview_runtime import (DockerPreviewProvider, NotPreviewable, ensure_durable_workspace,
+                                  parse_web_saas_acceptance_plan)
+    from .spec_repository import PostgresSpecRepository, SpecNotFound
+    from .web_saas_acceptance import WebSaaSAcceptanceRunner
 
     if _v28_pool is None:
         raise RuntimeError(
@@ -637,6 +687,25 @@ def execute_preview_launch(preview_id: str, project_id: str, version_id: str) ->
         )
     workspace = _v28.engine.workspace
     provider = DockerPreviewProvider(workspace=workspace)
+
+    acceptance_runner = acceptance_contract = acceptance_personas = None
+    try:
+        version = workspace.get(project_id=project_id, version_id=version_id)
+        plan = parse_web_saas_acceptance_plan(version.repository())
+        if plan is not None:
+            acceptance_contract = PostgresSpecRepository(_v28_pool).get(version_id, project_id)
+            acceptance_personas = plan.personas
+            acceptance_runner = WebSaaSAcceptanceRunner(required_kinds=plan.required_kinds)
+    except NotPreviewable as exc:
+        PostgresPreviewRepository(_v28_pool).mark_failed(
+            preview_id, error=f'invalid behavioral acceptance plan: {exc}', status='NOT_PREVIEWABLE'
+        )
+        return
+    except (KeyError, SpecNotFound):
+        # Legacy/non-M4B versions can still be previewed, but cannot produce a
+        # false M5 acceptance PASS because no runner is configured.
+        acceptance_runner = acceptance_contract = acceptance_personas = None
+
     _run_preview_launch(
         preview_id, project_id, version_id,
         repo=PostgresPreviewRepository(_v28_pool),
@@ -646,6 +715,8 @@ def execute_preview_launch(preview_id: str, project_id: str, version_id: str) ->
         probe_host=preview_probe_host(provider.bind_address),
         probe_timeout=float(os.getenv('OMNI_PREVIEW_HEALTH_TIMEOUT_SECONDS', '30')),
         preflight=lambda: ensure_durable_workspace(workspace),
+        acceptance_runner=acceptance_runner, acceptance_contract=acceptance_contract,
+        acceptance_personas=acceptance_personas,
     )
 
 

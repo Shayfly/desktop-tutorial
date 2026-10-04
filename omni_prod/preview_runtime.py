@@ -105,6 +105,13 @@ class HealthResult:
     attempts: int
 
 
+@dataclass(frozen=True)
+class WebSaaSAcceptancePlan:
+    product_family: str
+    required_kinds: tuple[str, ...]
+    personas: tuple[dict, ...]
+
+
 def allowed_runtimes() -> tuple[str, ...]:
     raw = os.getenv('OMNI_PREVIEW_ALLOWED_RUNTIMES', '').strip()
     if not raw:
@@ -155,6 +162,43 @@ def parse_preview_contract(repository: dict[str, str], *,
         raise NotPreviewable(f'health_path must be an absolute URL path, got {health_path!r}')
 
     return PreviewContract(runtime=runtime, start=tuple(start), port=port, health_path=health_path)
+
+
+def parse_web_saas_acceptance_plan(repository: dict[str, str]) -> WebSaaSAcceptancePlan | None:
+    """Read the generated, domain-neutral behavioral test plan.
+
+    Absence is allowed for legacy/non-SaaS artifacts, but such a preview can
+    never become release-eligible through M5 Task 11.  Malformed plans fail
+    closed because they would otherwise create false behavioral evidence.
+    """
+    raw = repository.get('.omni/project.json')
+    if raw is None:
+        return None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise NotPreviewable('invalid .omni/project.json') from exc
+    block = data.get('web_saas_acceptance') if isinstance(data, dict) else None
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise NotPreviewable('web_saas_acceptance must be an object')
+    family = str(block.get('product_family') or '').strip()
+    if not family:
+        raise NotPreviewable('web_saas_acceptance.product_family is required')
+    if family != 'managed_web_saas_v1':
+        raise NotPreviewable(f'unsupported web_saas_acceptance.product_family {family!r}')
+    kinds = block.get('required_kinds')
+    if not isinstance(kinds, list) or not kinds or not all(isinstance(x, str) and x.strip() for x in kinds):
+        raise NotPreviewable('web_saas_acceptance.required_kinds must be a non-empty string array')
+    personas = block.get('personas')
+    if not isinstance(personas, list) or not personas or not all(isinstance(x, dict) for x in personas):
+        raise NotPreviewable('web_saas_acceptance.personas must be a non-empty object array')
+    return WebSaaSAcceptancePlan(
+        product_family=family,
+        required_kinds=tuple(dict.fromkeys(x.strip() for x in kinds)),
+        personas=tuple(dict(x) for x in personas),
+    )
 
 
 def container_name(preview_id: str) -> str:

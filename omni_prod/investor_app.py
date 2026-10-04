@@ -62,7 +62,7 @@ from .capability_registry import CapabilityRegistry
 from .capabilities import CapabilityStatus
 from .preview_repository import PostgresPreviewRepository
 from .preview_runtime import (NotPreviewable, PreviewBackendUnavailable, ensure_durable_workspace,
-                              external_preview_url, parse_preview_contract)
+                              external_preview_url, parse_preview_contract, parse_web_saas_acceptance_plan)
 from .rights_ip import JURISDICTIONS
 from .universal_brain import OmniUniversalBrain
 from .brand_clearance import brand_readiness
@@ -1357,7 +1357,7 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
 
 _PREVIEW_TTL_SECONDS = int(os.getenv('OMNI_PREVIEW_TTL_SECONDS', '3600'))
 
-def _preview_public_view(preview: dict, public_project_id: str) -> dict:
+def _preview_public_view(preview: dict, public_project_id: str, acceptance: dict | None = None) -> dict:
     # Internal routing/runtime fields (container id, worker host/port, host
     # workdir, internal tenant key) stay server-side.
     return {
@@ -1365,6 +1365,11 @@ def _preview_public_view(preview: dict, public_project_id: str) -> dict:
         'status': preview['status'], 'preview_url': preview['preview_url'],
         'error_message': preview['error_message'], 'created_at': preview['created_at'],
         'expires_at': preview['expires_at'], 'stopped_at': preview.get('stopped_at'),
+        'acceptance_status': acceptance.get('status') if acceptance else 'NOT_CONFIGURED',
+        'release_eligible': bool(preview['status'] == 'RUNNING' and acceptance
+                                 and acceptance.get('status') == 'PASS'
+                                 and acceptance.get('release_eligible') is True),
+        'acceptance_summary': acceptance.get('summary') if acceptance else None,
         'logs': None, 'logs_available': False,
         'logs_note': ('Live log streaming needs a distributed logging pipeline (worker -> log store) and is not '
                       'implemented; the API does not reach into worker Docker daemons. Startup/health-probe '
@@ -1393,7 +1398,9 @@ def v28_preview_launch(project_id: str, version_id: str, request: Request) -> di
     except KeyError:
         raise HTTPException(404, 'version not found')
     try:
-        parse_preview_contract(version.repository())
+        repository = version.repository()
+        parse_preview_contract(repository)
+        parse_web_saas_acceptance_plan(repository)
     except NotPreviewable as exc:
         # Deterministic property of an immutable version: answer now instead
         # of creating a row and spending a worker slot to learn the same thing.
@@ -1417,11 +1424,13 @@ def v28_preview_launch(project_id: str, version_id: str, request: Request) -> di
 def v28_preview_status(project_id: str, preview_id: str, request: Request) -> dict:
     _require_durable_backend('Real running preview')
     key = _preview_key(project_id, request)
+    preview_repo = PostgresPreviewRepository(_v28_pool)
     try:
-        preview = PostgresPreviewRepository(_v28_pool).get(preview_id, key)
+        preview = preview_repo.get(preview_id, key)
     except KeyError:
         raise HTTPException(404, "Preview not found or access denied")
-    return _preview_public_view(preview, project_id)
+    acceptance = preview_repo.get_acceptance(key, preview['version_id'], preview_id)
+    return _preview_public_view(preview, project_id, acceptance)
 
 @app.delete('/api/v28/projects/{project_id}/previews/{preview_id}')
 def v28_preview_stop(project_id: str, preview_id: str, request: Request):

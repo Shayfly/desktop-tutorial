@@ -178,6 +178,105 @@ class PostgresPreviewRepository:
                 with conn.cursor() as cur:
                     cur.execute("UPDATE project_previews SET cleaned_at = now() WHERE id = %s", (preview_id,))
 
+    def mark_crashed(self, preview_id: str, error: str) -> bool:
+        """A preview can pass startup health and then die during behavioral
+        acceptance. Keep preview runtime state independent from acceptance
+        readiness, but reflect an actually-dead RUNNING container truthfully.
+        """
+        return self._conditional_update(
+            """
+            UPDATE project_previews
+            SET status = 'FAILED', error_message = %s
+            WHERE id = %s AND status = 'RUNNING'
+            """,
+            (str(error)[:4000], preview_id),
+        )
+
+    def _build_for_version(self, cur, project_id: str, version_id: str, *, for_update: bool = False):
+        lock = ' FOR UPDATE' if for_update else ''
+        cur.execute(
+            """
+            SELECT id, evidence_json
+            FROM build_jobs
+            WHERE project_id = %s AND (result_version_id = %s OR version_id = %s)
+            ORDER BY CASE WHEN result_version_id = %s THEN 0 ELSE 1 END,
+                     finished_at DESC NULLS LAST, created_at DESC
+            LIMIT 1
+            """ + lock,
+            (project_id, version_id, version_id, version_id),
+        )
+        return cur.fetchone()
+
+    def record_acceptance(self, preview_id: str, project_id: str, version_id: str, report) -> str | None:
+        """Persist acceptance evidence in the owning build's durable JSON.
+
+        This avoids a parallel evidence store and keeps Task 11 compatible
+        with the current schema: build/version/preview identifiers are all
+        embedded in the evidence object and the owning build row is locked
+        while jsonb_set writes the report. Legacy versions with no build row
+        return None and therefore remain release-ineligible.
+        """
+        import json
+        payload = report.to_dict() if hasattr(report, 'to_dict') else dict(report)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    row = self._build_for_version(cur, project_id, version_id, for_update=True)
+                    if not row:
+                        return None
+                    build_id = row[0]
+                    payload = dict(payload)
+                    payload.update({
+                        'build_id': build_id, 'preview_id': preview_id,
+                        'project_id': project_id, 'version_id': version_id,
+                    })
+                    cur.execute(
+                        """
+                        UPDATE build_jobs
+                        SET evidence_json = jsonb_set(
+                            jsonb_set(
+                                COALESCE(evidence_json, '{}'::jsonb),
+                                '{web_saas_acceptance_reports}',
+                                COALESCE(evidence_json->'web_saas_acceptance_reports', '{}'::jsonb)
+                                    || jsonb_build_object(%s, %s::jsonb),
+                                true
+                            ),
+                            '{web_saas_acceptance_latest_preview_id}',
+                            to_jsonb(%s::text),
+                            true
+                        )
+                        WHERE id = %s
+                        """,
+                        (preview_id, json.dumps(payload), preview_id, build_id),
+                    )
+                    return build_id
+
+    def get_acceptance(self, project_id: str, version_id: str, preview_id: str | None = None) -> dict | None:
+        import json
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                row = self._build_for_version(cur, project_id, version_id)
+        if not row:
+            return None
+        evidence = row[1] or {}
+        if isinstance(evidence, str):
+            evidence = json.loads(evidence)
+        if not isinstance(evidence, dict):
+            return None
+        reports = evidence.get('web_saas_acceptance_reports') or {}
+        if not isinstance(reports, dict):
+            return None
+        wanted = preview_id or evidence.get('web_saas_acceptance_latest_preview_id')
+        result = reports.get(wanted) if wanted else None
+        return dict(result) if isinstance(result, dict) else None
+
+    def release_eligible(self, preview_id: str, project_id: str) -> bool:
+        preview = self.get(preview_id, project_id)
+        if preview['status'] != 'RUNNING':
+            return False
+        acceptance = self.get_acceptance(project_id, preview['version_id'], preview_id)
+        return bool(acceptance and acceptance.get('status') == 'PASS' and acceptance.get('release_eligible') is True)
+
     def get_route(self, preview_id: str) -> tuple[str, int] | None:
         """For the external routing layer that serves PREVIEW_DOMAIN_TEMPLATE:
         maps a preview id to its upstream (runtime_host, host_port), only
