@@ -40,11 +40,12 @@ class ProviderExecutionAttempt:
     build_id: str
     requirement_id: str
     provider: str
+    pricing_version: str
     idempotency_key: str
     provider_task_id: str | None
     status: str
-    lease_owner: str
-    lease_expires_at: float
+    lease_owner: str | None
+    lease_expires_at: float | None
     last_error_code: str | None = None
     last_error_message: str | None = None
 
@@ -64,7 +65,7 @@ class ProviderUsageEvent:
 
 
 _ATTEMPT_TRANSITIONS: dict[str, frozenset[str]] = {
-    "LEASED": frozenset({"SUBMITTED", "FAILED", "CANCELLED"}),
+    "SUBMITTING": frozenset({"SUBMITTED", "FAILED", "CANCELLED"}),
     "SUBMITTED": frozenset({"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}),
     "RUNNING": frozenset({"SUCCEEDED", "FAILED", "CANCELLED"}),
     "SUCCEEDED": frozenset(),
@@ -232,10 +233,12 @@ class MemoryCapabilityRepository:
         row["lease_expires_at"] = now + lease_seconds
         return True
 
-    def record_provider_handle(self, idempotency_key: str, *, provider_task_id: str) -> bool:
+    def record_provider_handle(self, idempotency_key: str, *, provider_task_id: str, worker_id: str | None = None) -> bool:
         row = self._attempts.get(idempotency_key)
         if row is None:
             raise KeyError("provider execution attempt not found")
+        if worker_id is not None and row.get("lease_owner") != worker_id:
+            raise AttemptLeaseConflict("worker no longer owns provider execution lease")
         current = row.get("provider_task_id")
         if current is not None and current != provider_task_id:
             raise ValueError("provider task identity conflict")
@@ -250,10 +253,12 @@ class MemoryCapabilityRepository:
             raise KeyError("provider execution attempt not found")
         return dict(row)
 
-    def transition_execution_attempt(self, idempotency_key: str, *, expected: str, target: str) -> bool:
+    def transition_execution_attempt(self, idempotency_key: str, *, expected: str, target: str, worker_id: str | None = None) -> bool:
         row = self._attempts.get(idempotency_key)
         if row is None:
             raise KeyError("provider execution attempt not found")
+        if worker_id is not None and row.get("lease_owner") != worker_id:
+            return False
         if row["status"] != expected:
             return False
         row["status"] = target
@@ -265,9 +270,10 @@ class MemoryCapabilityRepository:
         return {
             row["attempt_id"]: ProviderExecutionAttempt(
                 id=row["attempt_id"], build_id=row["build_id"], requirement_id=row["requirement_id"],
-                provider=row["provider"], idempotency_key=row["idempotency_key"],
-                provider_task_id=row["provider_task_id"], status=row["status"],
-                lease_owner=row.get("lease_owner") or "", lease_expires_at=float(row.get("lease_expires_at") or 0),
+                provider=row["provider"], pricing_version=row["pricing_version"],
+                idempotency_key=row["idempotency_key"], provider_task_id=row["provider_task_id"],
+                status=row["status"], lease_owner=row.get("lease_owner"),
+                lease_expires_at=(None if row.get("lease_expires_at") is None else float(row["lease_expires_at"])),
             )
             for row in self._attempts.values()
         }
@@ -293,6 +299,62 @@ class PostgresCapabilityRepository:
 
     def __init__(self, pool) -> None:
         self.pool = pool
+
+    def ensure_execution_attempt(
+        self, *, attempt_id: str, build_id: str, requirement_id: str,
+        provider: str, pricing_version: str, idempotency_key: str,
+    ) -> dict[str, Any]:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id, build_id, requirement_id, provider, pricing_version, "
+                        "idempotency_key, provider_task_id, status, lease_owner, lease_expires_at "
+                        "FROM provider_execution_attempts WHERE idempotency_key=%s FOR UPDATE",
+                        (idempotency_key,),
+                    )
+                    row = cur.fetchone()
+                    if row is not None:
+                        if (row[1], row[2], row[3], row[4]) != (build_id, requirement_id, provider, pricing_version):
+                            raise ValueError("execution idempotency key identity conflict")
+                        return {
+                            "attempt_id": row[0], "build_id": row[1], "requirement_id": row[2],
+                            "provider": row[3], "pricing_version": row[4], "idempotency_key": row[5],
+                            "provider_task_id": row[6], "status": row[7], "lease_owner": row[8],
+                            "lease_expires_at": row[9],
+                        }
+                    cur.execute(
+                        "INSERT INTO provider_execution_attempts("
+                        "id, build_id, requirement_id, provider, pricing_version, idempotency_key, status"
+                        ") VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                        (attempt_id, build_id, requirement_id, provider, pricing_version, idempotency_key, "SUBMITTING"),
+                    )
+                    return {
+                        "attempt_id": attempt_id, "build_id": build_id, "requirement_id": requirement_id,
+                        "provider": provider, "pricing_version": pricing_version,
+                        "idempotency_key": idempotency_key, "provider_task_id": None,
+                        "status": "SUBMITTING", "lease_owner": None, "lease_expires_at": None,
+                    }
+
+    def transition_execution_attempt(
+        self, idempotency_key: str, *, expected: str, target: str, worker_id: str | None = None
+    ) -> bool:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    if worker_id is None:
+                        cur.execute(
+                            "UPDATE provider_execution_attempts SET status=%s, updated_at=now() "
+                            "WHERE idempotency_key=%s AND status=%s",
+                            (target, idempotency_key, expected),
+                        )
+                    else:
+                        cur.execute(
+                            "UPDATE provider_execution_attempts SET status=%s, updated_at=now() "
+                            "WHERE idempotency_key=%s AND status=%s AND lease_owner=%s",
+                            (target, idempotency_key, expected, worker_id),
+                        )
+                    return cur.rowcount == 1
 
     def save_plan(self, build_id: str, plan: CapabilityPlan) -> None:
         with self.pool.connection() as conn:
@@ -344,21 +406,75 @@ class PostgresCapabilityRepository:
 
     @staticmethod
     def _row_to_attempt(row) -> ProviderExecutionAttempt:
-        expires = row[8]
+        expires = row[9]
         if hasattr(expires, "timestamp"):
             expires = expires.timestamp()
         return ProviderExecutionAttempt(
             id=row[0], build_id=row[1], requirement_id=row[2], provider=row[3],
-            idempotency_key=row[4], provider_task_id=row[5], status=row[6],
-            lease_owner=row[7], lease_expires_at=float(expires),
-            last_error_code=row[9], last_error_message=row[10],
+            pricing_version=row[4], idempotency_key=row[5], provider_task_id=row[6],
+            status=row[7], lease_owner=row[8],
+            lease_expires_at=(None if expires is None else float(expires)),
+            last_error_code=row[10], last_error_message=row[11],
         )
 
-    def acquire_attempt(
-        self, *, build_id: str, requirement_id: str, provider: str,
-        idempotency_key: str, lease_owner: str, now: float,
-        lease_seconds: int,
-    ) -> ProviderExecutionAttempt:
+    @staticmethod
+    def _attempt_to_dict(attempt: ProviderExecutionAttempt) -> dict[str, Any]:
+        return {
+            "attempt_id": attempt.id, "build_id": attempt.build_id,
+            "requirement_id": attempt.requirement_id, "provider": attempt.provider,
+            "pricing_version": attempt.pricing_version,
+            "idempotency_key": attempt.idempotency_key,
+            "provider_task_id": attempt.provider_task_id, "status": attempt.status,
+            "lease_owner": attempt.lease_owner, "lease_expires_at": attempt.lease_expires_at,
+            "last_error_code": attempt.last_error_code,
+            "last_error_message": attempt.last_error_message,
+        }
+
+    def ensure_execution_attempt(
+        self, *, attempt_id: str, build_id: str, requirement_id: str, provider: str,
+        pricing_version: str, idempotency_key: str,
+    ) -> dict[str, Any]:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT id, build_id, requirement_id, provider, pricing_version,
+                               idempotency_key, provider_task_id, status, lease_owner,
+                               lease_expires_at, last_error_code, last_error_message
+                        FROM provider_execution_attempts
+                        WHERE idempotency_key=%s FOR UPDATE
+                        """,
+                        (idempotency_key,),
+                    )
+                    row = cur.fetchone()
+                    if row is not None:
+                        attempt = self._row_to_attempt(row)
+                        identity = (attempt.build_id, attempt.requirement_id, attempt.provider, attempt.pricing_version)
+                        requested = (build_id, requirement_id, provider, pricing_version)
+                        if identity != requested:
+                            raise ValueError("execution idempotency key identity conflict")
+                        return self._attempt_to_dict(attempt)
+                    cur.execute(
+                        """
+                        INSERT INTO provider_execution_attempts(
+                            id, build_id, requirement_id, provider, pricing_version,
+                            idempotency_key, status, lease_owner, lease_expires_at
+                        ) VALUES (%s,%s,%s,%s,%s,%s,%s,NULL,NULL)
+                        """,
+                        (attempt_id, build_id, requirement_id, provider, pricing_version, idempotency_key, "SUBMITTING"),
+                    )
+                    return {
+                        "attempt_id": attempt_id, "build_id": build_id,
+                        "requirement_id": requirement_id, "provider": provider,
+                        "pricing_version": pricing_version, "idempotency_key": idempotency_key,
+                        "provider_task_id": None, "status": "SUBMITTING",
+                        "lease_owner": None, "lease_expires_at": None,
+                    }
+
+    def claim_execution_attempt(
+        self, idempotency_key: str, *, worker_id: str, now: float, lease_seconds: int
+    ) -> bool:
         if lease_seconds < 1:
             raise ValueError("lease_seconds must be >= 1")
         now_dt = datetime.fromtimestamp(now, timezone.utc)
@@ -368,75 +484,129 @@ class PostgresCapabilityRepository:
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        SELECT id, build_id, requirement_id, provider, idempotency_key,
-                               provider_task_id, status, lease_owner, lease_expires_at,
-                               last_error_code, last_error_message
-                        FROM provider_execution_attempts
-                        WHERE idempotency_key=%s FOR UPDATE
+                        UPDATE provider_execution_attempts
+                        SET lease_owner=%s, lease_expires_at=%s, updated_at=now()
+                        WHERE idempotency_key=%s
+                          AND status NOT IN ('SUCCEEDED','FAILED','CANCELLED')
+                          AND (lease_owner IS NULL OR lease_owner=%s OR lease_expires_at <= %s)
                         """,
-                        (idempotency_key,),
+                        (worker_id, expires, idempotency_key, worker_id, now_dt),
                     )
-                    row = cur.fetchone()
-                    if row is None:
-                        attempt_id = f"pex_{uuid.uuid4().hex}"
-                        cur.execute(
-                            """
-                            INSERT INTO provider_execution_attempts(
-                                id, build_id, requirement_id, provider, idempotency_key,
-                                status, lease_owner, lease_expires_at
-                            ) VALUES (%s,%s,%s,%s,%s,'LEASED',%s,%s)
-                            """,
-                            (attempt_id, build_id, requirement_id, provider, idempotency_key, lease_owner, expires),
-                        )
-                        return ProviderExecutionAttempt(
-                            attempt_id, build_id, requirement_id, provider, idempotency_key,
-                            None, "LEASED", lease_owner, expires.timestamp(),
-                        )
-                    attempt = self._row_to_attempt(row)
-                    if (attempt.build_id, attempt.requirement_id, attempt.provider) != (build_id, requirement_id, provider):
-                        raise ValueError("idempotency key already belongs to a different execution")
-                    if attempt.lease_owner != lease_owner and now < attempt.lease_expires_at:
-                        raise AttemptLeaseConflict("provider execution attempt has an active lease")
-                    cur.execute(
-                        "UPDATE provider_execution_attempts SET lease_owner=%s, lease_expires_at=%s, updated_at=now() WHERE id=%s",
-                        (lease_owner, expires, attempt.id),
-                    )
-                    return replace(attempt, lease_owner=lease_owner, lease_expires_at=expires.timestamp())
+                    return cur.rowcount == 1
 
-    def record_provider_task_id(self, attempt_id: str, provider_task_id: str, *, lease_owner: str) -> None:
+    def record_provider_handle(
+        self, idempotency_key: str, *, provider_task_id: str, worker_id: str
+    ) -> bool:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute(
-                        "SELECT provider_task_id, lease_owner FROM provider_execution_attempts WHERE id=%s FOR UPDATE",
-                        (attempt_id,),
+                        """SELECT provider_task_id, status, lease_owner
+                           FROM provider_execution_attempts
+                           WHERE idempotency_key=%s FOR UPDATE""",
+                        (idempotency_key,),
                     )
                     row = cur.fetchone()
-                    if not row:
+                    if row is None:
                         raise KeyError("provider execution attempt not found")
-                    if row[1] != lease_owner:
+                    if row[2] != worker_id:
                         raise AttemptLeaseConflict("lease owner mismatch")
                     if row[0] is not None and row[0] != provider_task_id:
-                        raise ValueError("provider_task_id is immutable once recorded")
+                        raise ValueError("provider task identity conflict")
                     cur.execute(
-                        "UPDATE provider_execution_attempts SET provider_task_id=%s, updated_at=now() WHERE id=%s",
-                        (provider_task_id, attempt_id),
+                        """
+                        UPDATE provider_execution_attempts
+                        SET provider_task_id=%s,
+                            status=CASE WHEN status='SUBMITTING' THEN 'SUBMITTED' ELSE status END,
+                            updated_at=now()
+                        WHERE idempotency_key=%s AND lease_owner=%s
+                        """,
+                        (provider_task_id, idempotency_key, worker_id),
                     )
+                    return cur.rowcount == 1
 
-    def transition_attempt(self, attempt_id: str, *, expected: str, target: str, lease_owner: str) -> None:
+    def execution_attempt(self, idempotency_key: str) -> dict[str, Any]:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, build_id, requirement_id, provider, pricing_version,
+                           idempotency_key, provider_task_id, status, lease_owner,
+                           lease_expires_at, last_error_code, last_error_message
+                    FROM provider_execution_attempts WHERE idempotency_key=%s
+                    """,
+                    (idempotency_key,),
+                )
+                row = cur.fetchone()
+        if row is None:
+            raise KeyError("provider execution attempt not found")
+        return self._attempt_to_dict(self._row_to_attempt(row))
+
+    def transition_execution_attempt(
+        self, idempotency_key: str, *, expected: str, target: str, worker_id: str
+    ) -> bool:
         _assert_transition(expected, target)
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        UPDATE provider_execution_attempts SET status=%s, updated_at=now()
-                        WHERE id=%s AND status=%s AND lease_owner=%s
+                        UPDATE provider_execution_attempts
+                        SET status=%s, updated_at=now()
+                        WHERE idempotency_key=%s AND status=%s AND lease_owner=%s
                         """,
-                        (target, attempt_id, expected, lease_owner),
+                        (target, idempotency_key, expected, worker_id),
                     )
-                    if cur.rowcount != 1:
-                        raise InvalidAttemptTransition("provider attempt compare-and-swap failed")
+                    return cur.rowcount == 1
+
+    def acquire_attempt(
+        self, *, build_id: str, requirement_id: str, provider: str,
+        idempotency_key: str, lease_owner: str, now: float,
+        lease_seconds: int, pricing_version: str = "legacy-unknown",
+    ) -> ProviderExecutionAttempt:
+        attempt_id = f"pex_{uuid.uuid4().hex}"
+        row = self.ensure_execution_attempt(
+            attempt_id=attempt_id, build_id=build_id, requirement_id=requirement_id,
+            provider=provider, pricing_version=pricing_version, idempotency_key=idempotency_key,
+        )
+        if not self.claim_execution_attempt(
+            idempotency_key, worker_id=lease_owner, now=now, lease_seconds=lease_seconds
+        ):
+            existing = self.execution_attempt(idempotency_key)
+            if existing.get("lease_owner") != lease_owner:
+                raise AttemptLeaseConflict("provider execution attempt has an active lease")
+        current = self.execution_attempt(idempotency_key)
+        return ProviderExecutionAttempt(
+            id=current["attempt_id"], build_id=current["build_id"],
+            requirement_id=current["requirement_id"], provider=current["provider"],
+            pricing_version=current["pricing_version"], idempotency_key=current["idempotency_key"],
+            provider_task_id=current["provider_task_id"], status=current["status"],
+            lease_owner=current["lease_owner"], lease_expires_at=current["lease_expires_at"],
+            last_error_code=current.get("last_error_code"),
+            last_error_message=current.get("last_error_message"),
+        )
+
+    def record_provider_task_id(self, attempt_id: str, provider_task_id: str, *, lease_owner: str) -> None:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT idempotency_key FROM provider_execution_attempts WHERE id=%s", (attempt_id,))
+                row = cur.fetchone()
+        if row is None:
+            raise KeyError("provider execution attempt not found")
+        if not self.record_provider_handle(row[0], provider_task_id=provider_task_id, worker_id=lease_owner):
+            raise AttemptLeaseConflict("provider execution handle update lost lease")
+
+    def transition_attempt(self, attempt_id: str, *, expected: str, target: str, lease_owner: str) -> None:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT idempotency_key FROM provider_execution_attempts WHERE id=%s", (attempt_id,))
+                row = cur.fetchone()
+        if row is None:
+            raise KeyError("provider execution attempt not found")
+        if not self.transition_execution_attempt(
+            row[0], expected=expected, target=target, worker_id=lease_owner
+        ):
+            raise InvalidAttemptTransition("provider attempt compare-and-swap failed")
 
     def record_usage_event(
         self, *, event_key: str, build_id: str, requirement_id: str, provider: str,

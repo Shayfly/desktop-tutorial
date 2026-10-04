@@ -10,32 +10,48 @@ CREATE TABLE IF NOT EXISTS build_capability_requirements (
     quantity INTEGER NOT NULL CHECK (quantity >= 1),
     constraints_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     dependency_ids_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (
-        status IN ('PENDING','RUNNING','VERIFIED','FAILED','SKIPPED','BLOCKED')
+    status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (
+        status IN ('PLANNED','QUOTED','RESERVED','QUEUED','RUNNING','GENERATED',
+                   'VERIFIED','FAILED','CANCELLED','NOT_CONFIGURED','BLOCKED')
     ),
     selected_provider TEXT,
+    pricing_version TEXT,
+    estimated_cost_usd NUMERIC(18,8),
+    maximum_cost_usd NUMERIC(18,8),
+    actual_cost_usd NUMERIC(18,8),
     artifact_key TEXT,
     verification_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (estimated_cost_usd IS NULL OR estimated_cost_usd >= 0),
+    CHECK (maximum_cost_usd IS NULL OR maximum_cost_usd >= COALESCE(estimated_cost_usd, 0)),
+    CHECK (actual_cost_usd IS NULL OR actual_cost_usd >= 0),
     PRIMARY KEY (build_id, requirement_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_status
     ON build_capability_requirements(build_id, status);
+CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_key
+    ON build_capability_requirements(capability_key, created_at DESC);
 
+-- Execution state and lease ownership are deliberately separate. The row is
+-- durably created in SUBMITTING before any external paid submit; lease fields
+-- are nullable until a worker claims it. A restarted worker reuses the same
+-- idempotency_key/provider_task_id instead of creating a second paid job.
 CREATE TABLE IF NOT EXISTS provider_execution_attempts (
     id TEXT PRIMARY KEY,
     build_id TEXT NOT NULL,
     requirement_id TEXT NOT NULL,
     provider TEXT NOT NULL,
+    pricing_version TEXT NOT NULL,
     idempotency_key TEXT NOT NULL UNIQUE,
     provider_task_id TEXT,
-    status TEXT NOT NULL CHECK (
-        status IN ('LEASED','SUBMITTED','RUNNING','SUCCEEDED','FAILED','CANCELLED')
+    status TEXT NOT NULL DEFAULT 'SUBMITTING' CHECK (
+        status IN ('SUBMITTING','SUBMITTED','RUNNING','SUCCEEDED','FAILED','CANCELLED')
     ),
-    lease_owner TEXT NOT NULL,
-    lease_expires_at TIMESTAMPTZ NOT NULL,
+    lease_owner TEXT,
+    lease_expires_at TIMESTAMPTZ,
     last_error_code TEXT,
     last_error_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
