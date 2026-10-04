@@ -50,13 +50,30 @@ from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
 from .infrastructure_provisioner import InfrastructureStageBlocked
 from .modification_engine import CandidateModificationEngine
+from .provider_usage import ProviderUsageLedger
 from .spec_repository import SpecNotFound
 
 # Order matters: the first failing gate is the one reported as error_code.
 GATE_ORDER = ('verification', 'quality', 'security', 'rights')
 
 SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state.external_spend_usd); '
-               'provider-reported token usage is not captured by OpenAICompatibleGateway')
+               'an authorization estimate, not a cost -- provider-reported usage is in provider_usage')
+
+
+def provider_usage_evidence(gateway) -> dict:
+    """M5 Task 8: provider-reported usage summary for build evidence."""
+    spent, calls = spend_snapshot(gateway)
+    ledger = getattr(gateway, 'usage', None) if gateway is not None else None
+    if isinstance(ledger, ProviderUsageLedger):
+        return ledger.summary(authorized_external_calls=calls, authorized_estimate_usd=spent)
+    return {
+        'usage_events': [], 'request_ids': [], 'input_tokens': None, 'output_tokens': None,
+        'cached_tokens': None, 'authorized_external_calls': calls, 'external_usage_records': 0,
+        'actual_cost_usd': None if calls else '0',
+        'actual_cost_basis': 'NOT_CAPTURED_BY_GATEWAY' if calls else 'NO_EXTERNAL_CALLS',
+        'authorized_estimate_usd': str(spent),
+        'truth_note': 'this gateway exposes no provider usage ledger; actual cost is unknown when external calls occurred.',
+    }
 
 
 # --------------------------------------------------------------------------
@@ -113,7 +130,16 @@ def resolve_m5_billing(
         subscriptions.release(build_id=build_id)
         return 'released', {'action': 'released'}, None
 
-    actual = None if external_calls > 0 else capability_actual
+    # M5 Task 8: model spend is actual only when every authorized external call
+    # left a provider-reported cost. Otherwise it stays unknown (NULL); the
+    # authorized estimate is never relabelled as actual.
+    if external_calls == 0:
+        llm_actual = Decimal('0')
+    else:
+        ledger = getattr(gateway, 'usage', None)
+        llm_actual = (ledger.actual_external_cost_usd(authorized_external_calls=external_calls)
+                      if isinstance(ledger, ProviderUsageLedger) else None)
+    actual = None if llm_actual is None or capability_actual is None else llm_actual + capability_actual
     quote = dict(economics_quote or {})
     revenue_raw = quote.get('revenue_usd')
     infra_max = Decimal(str(quote.get('infrastructure_maximum_usd', '0') or '0'))
@@ -286,6 +312,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'repair_rounds': result.repair_rounds,
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+            'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
         }
     except InfrastructureStageBlocked as exc:
@@ -306,6 +333,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'infrastructure': exc.evidence,
+                           'provider_usage': provider_usage_evidence(gateway),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -328,6 +357,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': exc.evidence,
+                           'provider_usage': provider_usage_evidence(gateway),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -350,6 +381,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'provider_usage': provider_usage_evidence(gateway),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -526,12 +559,14 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             modification_id, project_id=project_id, status='FAILED',
             error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
             evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
+                           'provider_usage': provider_usage_evidence(gateway),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
         )
         raise
 
     spent, calls = spend_snapshot(gateway)
     evidence = outcome.to_evidence_dict()
+    evidence['provider_usage'] = provider_usage_evidence(gateway)
     evidence['billing'] = resolve_modification_billing(
         subscriptions, modification_id=modification_id, billable=outcome.billable, spent=spent, external_calls=calls)
     evidence['provider_spend_usd'] = str(spent)

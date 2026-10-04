@@ -51,14 +51,20 @@ class LLMCapabilityProvider:
         prompt = str(requirement.constraints.get("prompt") or requirement.purpose)
         system = str(requirement.constraints.get("system") or "Return the requested production artifact.")
         text = self.gateway.complete(system=system, user=prompt)
+        # M5 Task 8: attach provider-reported usage. actual_cost_usd is the
+        # provider's own figure or None -- never the quote estimate.
+        usage = getattr(self.gateway, "last_usage", None)
+        usage_dict = usage.to_dict() if usage is not None else {"usage_reported": False}
         payload = ProviderArtifactPayload(
             mime_type="text/plain", data=str(text).encode("utf-8"),
             filename=f"{requirement.id}.txt",
-            provenance={"provider": self.name, "idempotency_key": idempotency_key},
+            provenance={"provider": self.name, "idempotency_key": idempotency_key,
+                        "provider_request_id": getattr(usage, "request_id", None)},
         )
         self._results[task_id] = ProviderExecutionResult(
-            artifacts=(), actual_cost_usd=None, usage={},
-            evidence={"adapter": "LLMCapabilityProvider"}, payloads=(payload,),
+            artifacts=(), actual_cost_usd=getattr(usage, "provider_reported_cost_usd", None), usage=usage_dict,
+            evidence={"adapter": "LLMCapabilityProvider",
+                      "provider_request_id": getattr(usage, "request_id", None)}, payloads=(payload,),
         )
         return ProviderTaskHandle(self.name, task_id, requirement.id, idempotency_key)
 

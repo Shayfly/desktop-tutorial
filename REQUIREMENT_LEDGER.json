@@ -534,11 +534,26 @@
       "requirement_id": "M5-T08",
       "milestone": "M5",
       "title": "Real LLM Provider Usage Adapter and Code Generation Evidence",
-      "status": "NOT_IMPLEMENTED",
+      "status": "PARTIAL",
       "source_specs": [
         "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
         "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
-      ]
+      ],
+      "implementation_paths": [
+        "omni_prod/provider_usage.py",
+        "omni_prod/model_gateway.py",
+        "omni_prod/routed_gateway.py",
+        "omni_prod/providers/llm_provider.py",
+        "omni_prod/worker_tasks.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_llm_usage_evidence.py",
+        "tests/integration/test_m5_live_llm_usage.py"
+      ],
+      "evidence_refs": [
+        "tests/test_m5_llm_usage_evidence.py"
+      ],
+      "verification_note": "14 unit tests pass locally; existing tests/test_m5_build_economics.py also passes when run with a local fastapi import shim. Live provider test SKIPs: no M5_LIVE_LLM_* credentials and no outbound network in implementer sandbox. Not LIVE."
     },
     {
       "requirement_id": "M5-T09",

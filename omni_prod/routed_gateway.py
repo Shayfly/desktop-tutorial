@@ -6,6 +6,7 @@ import time
 
 from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
+from .provider_usage import ProviderUsageLedger
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class RouteEvent:
     ok: bool
     elapsed_ms: int
     error: str = ''
+    request_id: str | None = None
 
 
 class RoutedModelGateway:
@@ -54,6 +56,12 @@ class RoutedModelGateway:
         self.gateway_factory = gateway_factory
         self.on_event = on_event
         self.events: list[RouteEvent] = []
+        # M5 Task 8: provider-reported usage for every attempt that got a response.
+        self.usage = ProviderUsageLedger()
+
+    @property
+    def last_usage(self):
+        return self.usage.last
 
     def _record(self, event: RouteEvent) -> None:
         self.events.append(event)
@@ -68,17 +76,24 @@ class RoutedModelGateway:
             estimated_cost_usd=route.max_estimated_cost_usd,
         )
         started = time.monotonic()
+        gateway = None
         try:
             gateway = self.gateway_factory(route.endpoint)
             value = getattr(gateway, method)(**kwargs)
         except Exception as exc:
             elapsed = int((time.monotonic() - started) * 1000)
-            self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300]))
+            usage = getattr(gateway, 'last_usage', None) if gateway is not None else None
+            self.usage.record(usage)
+            self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
+                                    request_id=getattr(usage, 'request_id', None)))
             if isinstance(exc, ModelGatewayError):
                 raise
             raise ModelGatewayError(f'{route.endpoint.name} failed: {exc}') from exc
         elapsed = int((time.monotonic() - started) * 1000)
-        self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed))
+        usage = getattr(gateway, 'last_usage', None)
+        self.usage.record(usage)
+        self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
+                                request_id=getattr(usage, 'request_id', None)))
         return value
 
     def _route(self, method: str, kwargs: dict):
