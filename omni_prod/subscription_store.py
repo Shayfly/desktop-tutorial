@@ -184,14 +184,25 @@ class PostgresSubscriptionService:
 
                     if status != 'RESERVED': return
 
-                    actual = actual_provider_cost_usd if actual_provider_cost_usd is not None else estimated_cost
-                    settled = actual
+                    # Preserve truth: an estimate/reservation is never promoted to
+                    # provider-reported actual cost.  When actual usage is not yet
+                    # known we conservatively keep the reserved amount as the
+                    # settlement basis while leaving actual_provider_cost_usd NULL.
+                    reported_actual = (
+                        None if actual_provider_cost_usd is None
+                        else Decimal(str(actual_provider_cost_usd))
+                    )
+                    if reported_actual is not None and reported_actual < 0:
+                        raise ValueError('actual provider cost must be >= 0')
 
-                    if actual < estimated_cost:
-                        refund = estimated_cost - actual
+                    settlement_basis = estimated_cost if reported_actual is None else reported_actual
+                    settled = settlement_basis
+
+                    if settlement_basis < estimated_cost:
+                        refund = estimated_cost - settlement_basis
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (refund, user_id))
-                    elif actual > estimated_cost:
-                        shortfall = actual - estimated_cost
+                    elif settlement_basis > estimated_cost:
+                        shortfall = settlement_basis - estimated_cost
                         cur.execute("SELECT plan_code, provider_spend_usd FROM creator_subscriptions WHERE user_id=%s", (user_id,))
                         sub_row = cur.fetchone()
                         plan = PLAN_CATALOG[PlanCode(sub_row[0])]
@@ -206,7 +217,7 @@ class PostgresSubscriptionService:
 
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = provider_spend_usd + %s WHERE user_id=%s", (charge, user_id))
 
-                    cur.execute("UPDATE credit_reservations SET status='SETTLED', resolved_at=now(), actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s", (actual, settled, build_id))
+                    cur.execute("UPDATE credit_reservations SET status='SETTLED', resolved_at=now(), actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s", (reported_actual, settled, build_id))
 
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:
