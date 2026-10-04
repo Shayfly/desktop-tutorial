@@ -14,6 +14,7 @@ from typing import Iterable
 
 from .auth import issue_token, verify_token, AuthError
 from .demo_project import demo_spec, create_demo_repository
+from .intent_terms import has_term, mobile_intent
 from .native_source import android_project, game_project
 from .repository_patch import FilePatch, apply_patch, parse_patch
 from .workspace import ProjectWorkspace, ProjectVersion
@@ -23,7 +24,9 @@ BASE_CAPABILITIES = {'analytics', 'auth', 'export', 'roles', 'search'}
 
 
 def _contains(text: str, *needles: str) -> bool:
-    return any(n.lower() in text.lower() for n in needles)
+    # Token-aware (was a raw substring check that turned "appointments" into
+    # a mobile app and "community" into a Unity game).
+    return has_term(text, *needles)
 
 
 @dataclass(frozen=True)
@@ -85,7 +88,7 @@ class UnifiedPromptPlanner:
             caps.add('messaging')
 
         targets = ['web']
-        if _contains(clean, 'app', 'mobile', 'android', 'ios', 'אפליקציה'):
+        if mobile_intent(clean):
             targets.append('android')
         if _contains(clean, 'ios', 'iphone', 'אייפון'):
             targets.append('ios')

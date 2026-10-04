@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from .capabilities import CapabilityPlan, CapabilityRequirement
 from .capability_registry import CapabilityRegistry
+from .intent_terms import ai_agent_intent, has_term
 from .media_pipeline import AssetKind
 
 
@@ -69,7 +70,7 @@ class CapabilityPlanner:
             add("target.database", "database target")
         if self._has_any(low, "desktop", "windows app", "mac app", "electron", "תוכנת מחשב"):
             add("target.desktop.source", "desktop product target")
-        if self._has_any(low, "ai agent", "agent", "assistant", "סוכן ai", "עוזר ai"):
+        if ai_agent_intent(low):
             add("target.agent", "AI agent product target")
             add("ai.agent.tools", "agent tool execution")
             if self._has_any(low, "memory", "persistent context", "long-term memory", "זיכרון"):
@@ -168,7 +169,8 @@ class CapabilityPlanner:
 
     @staticmethod
     def _has_any(text: str, *terms: str) -> bool:
-        return any(term in text for term in terms)
+        # Token-aware: "api" must not match "rapid", "db" must not match "feedback".
+        return has_term(text, *terms)
 
     @staticmethod
     def _requirement_id(key: str) -> str:
