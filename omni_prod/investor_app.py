@@ -374,6 +374,20 @@ class V28RollbackRequest(BaseModel):
 class V28CheckoutRequest(BaseModel):
     plan: str = Field(min_length=1,max_length=40)
 
+class V28VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=16,max_length=512)
+
+class V28PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3,max_length=320)
+
+class V28PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(min_length=16,max_length=512)
+    new_password: str = Field(min_length=10,max_length=512)
+
+class V28ConsentRequest(BaseModel):
+    consent_type: str = Field(min_length=1,max_length=120)
+    version: str = Field(min_length=1,max_length=120)
+
 
 def _repo_summary(repo: dict[str,str]) -> dict:
     return {'file_count':len(repo),'total_chars':sum(len(v) for v in repo.values()),
@@ -1043,6 +1057,12 @@ def v28_ui_translations() -> dict:
 def _v28_bearer(request: Request) -> str:
     return _v26_bearer(request)
 
+def _m5_identity_service():
+    identity = getattr(getattr(_v28, 'accounts', None), 'identity', None)
+    if identity is None:
+        raise HTTPException(503, 'durable identity lifecycle requires PostgreSQL creator persistence')
+    return identity
+
 @app.get('/api/v28/pricing')
 def v28_pricing() -> dict:
     return _v28.pricing()
@@ -1087,12 +1107,108 @@ def v28_login(req: V26AuthRequest) -> dict:
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
 
+@app.post('/api/v28/auth/logout')
+def v28_logout(request: Request) -> dict:
+    try:
+        _m5_identity_service().logout(_v28_bearer(request))
+        return {'logged_out': True}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+@app.get('/api/v28/auth/sessions')
+def v28_sessions(request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        return {'sessions': [x.to_dict() for x in _m5_identity_service().list_sessions(account.id)]}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+@app.post('/api/v28/auth/sessions/{session_id}/revoke')
+def v28_revoke_session(session_id: str, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        _m5_identity_service().revoke_session(account.id, session_id)
+        return {'revoked': True, 'session_id': session_id}
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+@app.post('/api/v28/auth/email-verification/request', status_code=202)
+def v28_request_email_verification(request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        _m5_identity_service().request_email_verification(account.id)
+        return {'accepted': True}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+@app.post('/api/v28/auth/verify-email')
+def v28_verify_email(req: V28VerifyEmailRequest) -> dict:
+    try:
+        state = _m5_identity_service().verify_email(req.token)
+        return {'verified': True, 'user_id': state.id}
+    except Exception as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+@app.post('/api/v28/auth/password-reset/request', status_code=202)
+def v28_request_password_reset(req: V28PasswordResetRequest) -> dict:
+    # Enumeration-safe and secret-safe: raw reset token is intentionally discarded
+    # here. A configured outbound email adapter may consume it internally later.
+    _m5_identity_service().request_password_reset(req.email)
+    return {'accepted': True}
+
+@app.post('/api/v28/auth/password-reset/confirm')
+def v28_confirm_password_reset(req: V28PasswordResetConfirmRequest) -> dict:
+    try:
+        _m5_identity_service().reset_password(req.token, req.new_password)
+        return {'reset': True}
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+@app.post('/api/v28/auth/consents')
+def v28_record_consent(req: V28ConsentRequest, request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        record = _m5_identity_service().record_consent(account.id, consent_type=req.consent_type, version=req.version)
+        return {'consent_type': record.consent_type, 'version': record.version, 'accepted_at': record.accepted_at}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+@app.post('/api/v28/auth/data-export', status_code=202)
+def v28_request_data_export(request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        record = _m5_identity_service().request_data_export(account.id)
+        return {'request_id': record.request_id, 'status': record.status}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+@app.post('/api/v28/auth/account-deletion', status_code=202)
+def v28_request_account_deletion(request: Request) -> dict:
+    try:
+        token = _v28_bearer(request)
+        account = _v28.account(token)
+        record = _m5_identity_service().request_account_deletion(account.id)
+        return {'request_id': record.request_id, 'status': record.status}
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
 @app.get('/api/v28/me')
 def v28_me(request: Request) -> dict:
     try:
         token = _v28_bearer(request)
         a = _v28.account(token)
-        return {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token)}
+        payload = {'id': a.id, 'email': a.email, 'created_at': a.created_at, 'subscription': _v28.subscription(token=token)}
+        identity = getattr(getattr(_v28, 'accounts', None), 'identity', None)
+        if identity is not None:
+            payload.update(identity.account_state(a.id))
+        return payload
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
 

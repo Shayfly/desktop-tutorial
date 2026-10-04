@@ -15,6 +15,22 @@ class V28CreatorPersistenceLiveTests(unittest.TestCase):
         acct,token=a.register(email=email,password='StrongPass123!'); p=a.create_project(owner_id=acct.id,title='Persistent')
         b=PostgresAccountService(token_secret=self.secret,pool=self.pool); logged,_=b.login(email=email,password='StrongPass123!')
         self.assertEqual(logged.id,acct.id); self.assertEqual(b.require_project(owner_id=acct.id,project_id=p.id).title,'Persistent')
+    def test_session_revocation_survives_service_instance_change(self):
+        email=f'session-{uuid.uuid4().hex}@example.com'
+        a=PostgresAccountService(token_secret=self.secret,pool=self.pool)
+        acct,token=a.register(email=email,password='StrongPass123!')
+        b=PostgresAccountService(token_secret=self.secret,pool=self.pool)
+        self.assertEqual(b.authenticate(token).id,acct.id)
+        sessions=b.identity.list_sessions(acct.id)
+        self.assertEqual(len(sessions),1)
+        b.identity.revoke_session(acct.id,sessions[0].session_id)
+        with self.assertRaises(PermissionError): a.authenticate(token)
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT token_hash FROM creator_sessions WHERE session_id=%s',(sessions[0].session_id,))
+                stored=cur.fetchone()[0]
+        self.assertNotEqual(stored,token)
+
     def test_subscription_usage_survives_service_instance_change(self):
         email=f'sub-{uuid.uuid4().hex}@example.com'; a=PostgresAccountService(token_secret=self.secret,pool=self.pool); acct,_=a.register(email=email,password='StrongPass123!')
         s1=PostgresSubscriptionService(pool=self.pool); s1.assign_plan(acct.id,'basic'); d=s1.authorize(user_id=acct.id,cost_class='standard',credits=10); s1.consume(user_id=acct.id,decision=d)
