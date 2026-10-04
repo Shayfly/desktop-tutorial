@@ -57,6 +57,9 @@ from .db import DatabasePool
 from .queueing import enqueue_build, preview_host_queue
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
+from .build_contract import BuildContractStatus
+from .build_contract_repository import PostgresBuildContractRepository
+from .product_architect import ProductArchitect
 from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
 from .capabilities import CapabilityStatus
@@ -185,6 +188,34 @@ def _m5_build_economics_quote(plan, *, credits: int):
         return quote
     return enforce_margin_floor(quote)
 
+class M5BuildContractBlocked(RuntimeError):
+    def __init__(self, contract):
+        super().__init__("build contract contains unresolved material questions")
+        self.contract = contract
+
+
+def _m5_resolve_build_contract(*, repository, architect, project_id: str, prompt: str, requested_contract_id: str | None):
+    """Return the immutable contract revision that binds a durable build.
+
+    Existing contract IDs are authoritative: the mutable request prompt is not
+    allowed to replace their intent. New intent creates a new append-only
+    revision. A non-READY contract is durable evidence but cannot reserve or
+    enqueue paid work.
+    """
+    if requested_contract_id:
+        contract = repository.get(requested_contract_id, project_id=project_id)
+    else:
+        latest = repository.latest(project_id)
+        next_version = 1 if latest is None else latest.contract_version + 1
+        contract = architect.compile(prompt, project_id=project_id, contract_version=next_version)
+        repository.save(contract)
+    if contract.status != BuildContractStatus.READY:
+        raise M5BuildContractBlocked(contract)
+    if not contract.verify_fingerprint():
+        raise ValueError("build contract fingerprint is invalid")
+    return contract
+
+
 def _async_build_mode()->bool:
     """M1 blocker resolution: True when this deployment runs the durable
     async pipeline end to end -- Postgres persistence AND a durable (S3-backed)
@@ -308,6 +339,7 @@ class V26RestoreRequest(BaseModel):
 class V27BuildRequest(BaseModel):
     prompt: str = Field(min_length=3,max_length=12000)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
+    build_contract_id: str | None = Field(default=None, min_length=1, max_length=160)
 
 class V27RightsEvidenceRequest(BaseModel):
     right_kind: str
@@ -1453,6 +1485,19 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     token = _v28_bearer(request)
     try:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        contracts = PostgresBuildContractRepository(_v28_pool)
+        try:
+            build_contract = _m5_resolve_build_contract(
+                repository=contracts, architect=ProductArchitect(), project_id=project_id,
+                prompt=req.prompt, requested_contract_id=req.build_contract_id,
+            )
+        except M5BuildContractBlocked as exc:
+            raise HTTPException(409, detail={
+                "error": "material_clarification_required",
+                "build_contract_id": exc.contract.id,
+                "contract_version": exc.contract.contract_version,
+                "unresolved_questions": [q.to_dict() for q in exc.contract.unresolved_questions],
+            }) from exc
         cost_class, credits = CostClass.STANDARD, 60
         plan = _v28.subscriptions.plan_for(account.id)
         try:
@@ -1487,13 +1532,14 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
 
                     jobs.create_request(
                         cur, build_id=build_id, user_id=account.id, internal_project_id=key,
-                        prompt=req.prompt, target_markets=tuple(req.target_markets),
+                        prompt=build_contract.prompt, target_markets=tuple(req.target_markets),
                         branding_visible=brand_visible, white_label_name=white_label,
                         rights_evidence=rights_evidence, public_project_id=project_id,
+                        build_contract_id=build_contract.id,
                     )
                     jobs.create_with_cursor(
                         cur, build_id=build_id, project_id=key, version_id="pending",
-                        evidence_json={'economics_quote': economics_quote.to_dict()},
+                        evidence_json={'economics_quote': economics_quote.to_dict(), 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
                         estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
                     )
                     jobs.create_outbox(cur, build_id=build_id)
@@ -1512,6 +1558,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
 
         return JSONResponse(status_code=202, content={
             "status": "queued", "build_id": build_id, "dispatch": dispatch,
+            "build_contract_id": build_contract.id,
+            "build_contract_fingerprint": build_contract.contract_fingerprint,
             "economics": economics_quote.to_dict(),
         })
     except PermissionError as exc:

@@ -46,6 +46,7 @@ import time
 from decimal import Decimal
 
 from .models import BuildStatus
+from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
 from .modification_engine import CandidateModificationEngine
 from .spec_repository import SpecNotFound
@@ -175,8 +176,26 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
 
     subscriptions = platform.subscriptions
     internal_project_id = request['internal_project_id']
-    prompt = request['prompt']
     markets = tuple(request.get('target_markets') or ()) or ('US', 'EU', 'IL')
+    contract_data = request.get('build_contract')
+    build_contract = None
+    contract_evidence = {
+        'id': request.get('build_contract_id'),
+        'fingerprint': request.get('build_contract_fingerprint'),
+        'binding': request.get('build_contract_binding') or 'LEGACY_UNBOUND',
+    }
+    if contract_data is not None:
+        build_contract = BuildContract.from_dict(contract_data)
+        if build_contract.status != BuildContractStatus.READY:
+            raise RuntimeError('bound build contract is not READY')
+        if not build_contract.verify_fingerprint():
+            raise RuntimeError('bound build contract fingerprint is invalid')
+        if request.get('public_project_id') and build_contract.project_id != request.get('public_project_id'):
+            raise RuntimeError('bound build contract project mismatch')
+        prompt = build_contract.prompt
+    else:
+        prompt = request['prompt']
+
     gateway = None
     version_id = None
     artifact_key = None
@@ -186,9 +205,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         if preflight is not None:
             preflight()
         brain = platform.brain.decide(prompt, target_markets=markets)
+        capability_plan = build_contract.capability_plan if build_contract is not None else getattr(brain, 'capabilities', None)
         if capability_stage is not None:
+            if capability_plan is None:
+                raise RuntimeError('capability stage requires a bound or planned capability plan')
             capability_evidence = capability_stage.prepare(
-                build_id=build_id, project_id=internal_project_id, plan=brain.capabilities,
+                build_id=build_id, project_id=internal_project_id, plan=capability_plan,
                 authorized_maximum_usd=Decimal(str(request.get('authorized_provider_cost_usd', '0.25'))),
                 now=time.time(),
             )
@@ -206,7 +228,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result=result, quality=quality, security=security, rights=rights)
         if capability_stage is not None:
             capability_evidence = capability_stage.finalize_native(
-                build_id=build_id, plan=brain.capabilities, core_ready=core_ready,
+                build_id=build_id, plan=capability_plan, core_ready=core_ready,
                 evidence={'verification': bool(result.report.passed and result.status == 'ready'),
                           'quality': bool(quality.passed), 'security': bool(security.passed),
                           'rights': bool(rights.publish_allowed)},
@@ -247,6 +269,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'rights': rights.to_dict(),
             },
             'release_ready': ready,
+            'build_contract': contract_evidence,
             'capabilities': capability_evidence,
             'repair_rounds': result.repair_rounds,
             'build_log_tail': result.report.build_log[-4000:],
@@ -269,7 +292,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             error_code='capability_not_configured', error_message=str(exc)[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
-                           'economics_settlement': settlement_evidence, 'capabilities': exc.evidence,
+                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': exc.evidence,
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -291,7 +314,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
-                           'economics_settlement': settlement_evidence,
+                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,

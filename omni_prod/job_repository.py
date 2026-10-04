@@ -119,13 +119,14 @@ class PostgresBuildRepository:
 
     def create_request(self, cur, *, build_id: str, user_id: str, internal_project_id: str, prompt: str,
                         target_markets: tuple, branding_visible: bool | None, white_label_name: str | None,
-                        rights_evidence: list, public_project_id: str | None = None) -> None:
+                        rights_evidence: list, public_project_id: str | None = None,
+                        build_contract_id: str | None = None) -> None:
         # public_project_id (migration 015): the worker's branding/provenance
         # step embeds the user-facing project id, which the internal tenant
         # key does not reveal. Optional keyword -> old call sites unaffected.
         cur.execute(
-            "INSERT INTO build_requests(build_id, user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence, public_project_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)",
-            (build_id, user_id, internal_project_id, prompt, json.dumps(list(target_markets)), branding_visible, white_label_name, json.dumps(rights_evidence), public_project_id)
+            "INSERT INTO build_requests(build_id, user_id, internal_project_id, prompt, target_markets, branding_visible, white_label_name, rights_evidence, public_project_id, build_contract_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)",
+            (build_id, user_id, internal_project_id, prompt, json.dumps(list(target_markets)), branding_visible, white_label_name, json.dumps(rights_evidence), public_project_id, build_contract_id)
         )
 
     def get_request(self, build_id: str) -> dict:
@@ -135,8 +136,10 @@ class PostgresBuildRepository:
                     """
                     SELECT br.user_id, br.internal_project_id, br.prompt, br.target_markets,
                            br.branding_visible, br.white_label_name, br.rights_evidence, br.public_project_id,
+                           br.build_contract_id, bc.contract_json, bc.contract_fingerprint,
                            cr.estimated_provider_cost_usd, bj.evidence_json
                     FROM build_requests br
+                    LEFT JOIN m5_build_contracts bc ON bc.id = br.build_contract_id
                     JOIN credit_reservations cr ON cr.build_id = br.build_id
                     JOIN build_jobs bj ON bj.id = br.build_id
                     WHERE br.build_id = %s
@@ -146,7 +149,18 @@ class PostgresBuildRepository:
                 row = cur.fetchone()
                 if not row:
                     raise KeyError("Build request not found")
-                initial_evidence = row[9] or {}
+                # New Task-5 query shape contains the immutable contract
+                # identity/json/fingerprint before economics columns. Keep the
+                # legacy 10-column decoder for reviewer/test adapters and rows
+                # produced by older compatibility shims.
+                if len(row) >= 13:
+                    build_contract_id, contract_json, contract_fingerprint = row[8], row[9], row[10]
+                    authorized_provider_cost_usd, initial_evidence = row[11], row[12] or {}
+                else:
+                    build_contract_id, contract_json, contract_fingerprint = None, None, None
+                    authorized_provider_cost_usd, initial_evidence = row[8], row[9] or {}
+                if isinstance(contract_json, str):
+                    contract_json = json.loads(contract_json)
                 if isinstance(initial_evidence, str):
                     initial_evidence = json.loads(initial_evidence)
                 return {
@@ -154,7 +168,11 @@ class PostgresBuildRepository:
                     "target_markets": tuple(row[3]), "branding_visible": row[4],
                     "white_label_name": row[5], "rights_evidence": row[6],
                     "public_project_id": row[7],
-                    "authorized_provider_cost_usd": row[8],
+                    "build_contract_id": build_contract_id,
+                    "build_contract": contract_json,
+                    "build_contract_fingerprint": contract_fingerprint,
+                    "build_contract_binding": "BOUND" if build_contract_id else "LEGACY_UNBOUND",
+                    "authorized_provider_cost_usd": authorized_provider_cost_usd,
                     "economics_quote": dict(initial_evidence.get("economics_quote") or {}),
                 }
 
