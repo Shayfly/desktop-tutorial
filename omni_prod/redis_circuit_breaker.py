@@ -26,7 +26,7 @@ class RedisCircuitBreaker:
         self.policy = policy
         self.key = f"omni:circuit:{name}"
 
-    def _state(self) -> tuple[str, int, float]:
+    def _state(self) -> tuple[str, int, float, float]:
         raw = self.redis.hgetall(self.key) or {}
         def get(name, default):
             return raw.get(name.encode(), raw.get(name, default))
@@ -35,13 +35,16 @@ class RedisCircuitBreaker:
             state = state.decode()
         failures = int(get("failures", 0))
         opened_at = float(get("opened_at", 0) or 0)
-        return str(state), failures, opened_at
+        blocked_until = float(get("blocked_until", 0) or 0)
+        return str(state), failures, opened_at, blocked_until
 
     def allow(self, now: float | None = None) -> bool:
         now = time.time() if now is None else now
-        state, _, opened_at = self._state()
+        state, _, opened_at, blocked_until = self._state()
         if state == "closed":
             return True
+        if state == "open" and now < blocked_until:
+            return False
         if state == "open" and now - opened_at >= self.policy.recovery_seconds:
             # NX probe key permits only one half-open probe across instances.
             probe = self.redis.set(
@@ -59,9 +62,28 @@ class RedisCircuitBreaker:
             "state": "closed",
             "failures": 0,
             "opened_at": 0,
+            "blocked_until": 0,
         })
         pipe.delete(f"{self.key}:probe")
         pipe.execute()
+
+    def force_open(
+        self,
+        *,
+        now: float | None = None,
+        recovery_seconds: int | float | None = None,
+    ) -> None:
+        now = time.time() if now is None else now
+        recovery = self.policy.recovery_seconds if recovery_seconds is None else float(recovery_seconds)
+        if recovery <= 0:
+            raise ValueError("recovery_seconds must be >0")
+        self.redis.hset(self.key, mapping={
+            "state": "open",
+            "failures": self.policy.failure_threshold,
+            "opened_at": now,
+            "blocked_until": now + recovery,
+        })
+        self.redis.delete(f"{self.key}:probe")
 
     def failure(self, now: float | None = None) -> None:
         now = time.time() if now is None else now
