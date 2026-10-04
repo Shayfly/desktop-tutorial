@@ -11,3 +11,7 @@ def _seg(value: str) -> str:
 def build_artifact_key(*, project_id: str, version_id: str, build_id: str, filename: str='app.zip') -> str:
     parts=[_seg(project_id),_seg(version_id),_seg(build_id),_seg(filename)]
     return f'projects/{parts[0]}/versions/{parts[1]}/builds/{parts[2]}/{parts[3]}'
+
+def build_capability_artifact_key(*, project_id: str, build_id: str, requirement_id: str, filename: str) -> str:
+    parts = [_seg(project_id), _seg(build_id), _seg(requirement_id), _seg(filename)]
+    return f'projects/{parts[0]}/builds/{parts[1]}/capabilities/{parts[2]}/{parts[3]}'
