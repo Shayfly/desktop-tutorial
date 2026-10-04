@@ -496,12 +496,14 @@
         "omni_prod/worker_tasks.py"
       ],
       "test_ids": [
-        "tests/test_m5_infrastructure_contracts.py"
+        "tests/test_m5_infrastructure_contracts.py",
+        "tests/test_m5_economics_reconciliation.py"
       ],
       "evidence_refs": [
         "tests/test_m5_infrastructure_contracts.py"
       ],
-      "verification_note": "Implemented by Claude; 26 targeted unittest tests pass locally (python -m unittest). pytest/fastapi unavailable in implementer environment. Awaiting full-suite verification before any VERIFIED status."
+      "verification_note": "Implemented by Claude; 26 targeted unittest tests pass locally (python -m unittest). pytest/fastapi unavailable in implementer environment. Awaiting full-suite verification before any VERIFIED status. Remediation: provisioning quotes + LIVE reuse pricing feed build economics (3d3b69d).",
+      "commit_sha": "3d3b69d"
     },
     {
       "requirement_id": "M5-T07",
@@ -522,13 +524,15 @@
       ],
       "test_ids": [
         "tests/test_m5_managed_web_saas_profile.py",
-        "tests/integration/test_m5_managed_web_saas_live.py"
+        "tests/integration/test_m5_managed_web_saas_live.py",
+        "tests/test_m5_generated_app_storage_isolation.py"
       ],
       "evidence_refs": [
         "docs/evidence/M5_TASK07_LOCAL_POSTGRES_EVIDENCE_2026-10-04.md",
         "tests/integration/m5_migration_021_psql_check.sql"
       ],
-      "verification_note": "18 unit tests pass locally; migration 021 and repository SQL executed against a local PostgreSQL 16.15. Live provisioning test SKIPs: no M5_GENAPP_LIVE / OMNI_GENAPP_* staging infrastructure (Vault, Postgres admin DSN, S3, scheduler). Not LIVE."
+      "verification_note": "18 unit tests pass locally; migration 021 and repository SQL executed against a local PostgreSQL 16.15. Live provisioning test SKIPs: no M5_GENAPP_LIVE / OMNI_GENAPP_* staging infrastructure (Vault, Postgres admin DSN, S3, scheduler). Not LIVE. Remediation: object storage requires STS-scoped per app/environment credentials; LIVE only after provider denies the sibling prefix (aa4ed33). Provider-level IAM proof GATED.",
+      "commit_sha": "aa4ed33"
     },
     {
       "requirement_id": "M5-T08",
@@ -548,12 +552,14 @@
       ],
       "test_ids": [
         "tests/test_m5_llm_usage_evidence.py",
-        "tests/integration/test_m5_live_llm_usage.py"
+        "tests/integration/test_m5_live_llm_usage.py",
+        "tests/test_m5_economics_reconciliation.py"
       ],
       "evidence_refs": [
         "tests/test_m5_llm_usage_evidence.py"
       ],
-      "verification_note": "14 unit tests pass locally; existing tests/test_m5_build_economics.py also passes when run with a local fastapi import shim. Live provider test SKIPs: no M5_LIVE_LLM_* credentials and no outbound network in implementer sandbox. Not LIVE."
+      "verification_note": "14 unit tests pass locally; existing tests/test_m5_build_economics.py also passes when run with a local fastapi import shim. Live provider test SKIPs: no M5_LIVE_LLM_* credentials and no outbound network in implementer sandbox. Not LIVE. Remediation: settlement keeps total actual NULL unless LLM, capability and infrastructure actuals are all known (3d3b69d).",
+      "commit_sha": "3d3b69d"
     },
     {
       "requirement_id": "M5-T09",
@@ -573,12 +579,16 @@
       ],
       "test_ids": [
         "tests/test_m5_media_provider_adapters.py",
-        "tests/integration/test_m5_live_media_provider.py"
+        "tests/integration/test_m5_live_media_provider.py",
+        "tests/test_m5_ssrf_guard.py",
+        "tests/test_m5_migration_numbering.py",
+        "tests/test_m5_economics_reconciliation.py"
       ],
       "evidence_refs": [
         "docs/evidence/M5_TASK09_LOCAL_EVIDENCE_2026-10-04.md"
       ],
-      "verification_note": "21 unit/contract tests pass locally, including an end-to-end run through the real CapabilityExecutor; migration 026 journal SQL executed on local PostgreSQL 16.15. Live image test SKIPs: no OMNI_IMAGE_PROVIDER_* credentials / network. Optional audio/voice/3D adapters intentionally not built (NOT_CONFIGURED). Not LIVE."
+      "verification_note": "21 unit/contract tests pass locally, including an end-to-end run through the real CapabilityExecutor; migration 026 journal SQL executed on local PostgreSQL 16.15. Live image test SKIPs: no OMNI_IMAGE_PROVIDER_* credentials / network. Optional audio/voice/3D adapters intentionally not built (NOT_CONFIGURED). Not LIVE. Remediation: migration renamed to 026 (04d7d15); SSRF-hardened downloads (da000f4); image quote priced into the single build reservation (3d3b69d).",
+      "commit_sha": "da000f4"
     },
     {
       "requirement_id": "M5-T10",
@@ -801,12 +811,14 @@
         "omni_prod/ui_translations.py"
       ],
       "test_ids": [
-        "tests/test_m5_creator_workspace.py"
+        "tests/test_m5_creator_workspace.py",
+        "tests/test_m5_browser_session.py"
       ],
       "evidence_refs": [
         "docs/evidence/M5_UX01_CREATOR_WORKSPACE_EVIDENCE_2026-10-04.md"
       ],
-      "verification_note": "10 unit tests pass; signed-out, register, project, plan+quote, publish state, language and mobile verified in headless Chromium against real route functions in memory mode. Build/preview/modify/download paths need the durable backend and were not exercised."
+      "verification_note": "10 unit tests pass; signed-out, register, project, plan+quote, publish state, language and mobile verified in headless Chromium against real route functions in memory mode. Build/preview/modify/download paths need the durable backend and were not exercised. Remediation: HttpOnly cookie session (4b1e653); full-cost plan quote with distinct unknown-cost blocker.",
+      "commit_sha": "4b1e653"
     },
     {
       "requirement_id": "GOV-SEC-BROWSER-SESSION",

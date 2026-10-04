@@ -120,6 +120,21 @@ class PreviewFramePolicyTests(unittest.TestCase):
         self.assertIsNone(preview_frame_source("https://{preview_id}.localhost"))
 
 
+class UnknownCostBlockerTests(unittest.TestCase):
+    def test_unknown_quote_is_reported_with_its_own_code(self):
+        from omni_prod.build_cost_plan import CostQuoteUnknown
+
+        def unknown(contract):
+            raise CostQuoteUnknown(["capability media.image.generate has no configured provider quote"])
+        repo = MemoryBuildContractRepository()
+        preview = build_plan_preview(
+            architect=ProductArchitect(), repository=repo, project_id="prj_unknown", prompt=PROMPT, economics=unknown,
+            durable_backend=True, infrastructure_readiness={"kinds": {}}, image_readiness={"status": "PARTIAL"})
+        self.assertIn("cost_quote_unknown", [b["code"] for b in preview["blockers"]])
+        self.assertFalse(preview["can_build"])
+        self.assertIsNone(preview["maximum_authorized_cost_usd"])
+
+
 class HonestCopyAndAssetTests(unittest.TestCase):
     def test_hero_no_longer_promises_anything(self):
         for locale, copy in UI_COPY.items():

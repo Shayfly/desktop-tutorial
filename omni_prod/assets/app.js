@@ -54,6 +54,7 @@ const T = {
     b_durable_backend_not_configured:'הבנייה דורשת שרת עם PostgreSQL ואחסון S3.',
     b_infrastructure:k=>`התשתית של האפליקציה לא מוכנה: ${k}`, b_image_provider:'יצירת אייקון ותמונות לא מוגדרת.',
     b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',
+    b_cost_quote_unknown:'חלק מהעלויות של הבנייה לא ידועות, ולכן אי אפשר לאשר אותה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
   },
   en: {
@@ -105,6 +106,7 @@ const T = {
     b_durable_backend_not_configured:'Building needs a server with PostgreSQL and S3 storage.',
     b_infrastructure:k=>`App infrastructure is not ready: ${k}`, b_image_provider:'Icon and image generation is not configured.',
     b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
+    b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
   },
 };

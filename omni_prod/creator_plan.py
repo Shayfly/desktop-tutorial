@@ -12,6 +12,7 @@ import inspect
 from typing import Any, Callable, Mapping
 
 from .build_contract import BuildContractStatus
+from .build_cost_plan import CostQuoteUnknown
 from .capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
 
 
@@ -50,13 +51,15 @@ def build_plan_preview(
     ]
     infrastructure = _infra_rows(contract, infrastructure_readiness)
 
-    quote, quote_error = None, None
+    quote, quote_error, quote_error_code = None, None, None
     try:
         # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
         # callable accepts the contract; zero-argument callables are legacy.
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
+    except CostQuoteUnknown as exc:
+        quote_error, quote_error_code = str(exc), "cost_quote_unknown"
     except PermissionError as exc:
-        quote_error = str(exc)
+        quote_error, quote_error_code = str(exc), "plan_cannot_authorize_cost"
 
     blockers: list[dict] = []
     if not durable_backend:
@@ -71,7 +74,7 @@ def build_plan_preview(
         blockers.append({"code": f"image_provider_{str((image_readiness or {}).get('status', 'NOT_CONFIGURED')).lower()}",
                          "message": f"Product icon generation: {(image_readiness or {}).get('reason', 'not configured')}"})
     if quote_error:
-        blockers.append({"code": "plan_cannot_authorize_cost", "message": quote_error})
+        blockers.append({"code": quote_error_code, "message": quote_error})
 
     ready = contract.status == BuildContractStatus.READY
     return {
