@@ -862,3 +862,13 @@ not block M5. **Per the directive's own item 12: M4 work stops here, and
 M5 architecture/implementation planning is now authorized to begin** —
 no M5 requirements have been given yet in this engagement, so no M5 work
 has started.
+
+## 6. M4.95 — Capability Foundation & Truth Lock V2 (2026-10-04)
+
+**Status: IMPLEMENTATION_IN_PROGRESS.** This section supersedes the sentence in the historical header that said M5 was authorized to begin. The current gate is M4.95 V2 Tasks 1–16 followed by the Golden E2E.
+
+Canonical execution plan: `docs/superpowers/plans/2026-10-04-m495-capability-foundation-v2-plan.md`.
+Design authority: `docs/superpowers/specs/2026-10-04-m495-capability-foundation-design.md`.
+World-class gap baseline: `docs/148AI_WORLD_CLASS_COMPLETENESS_AUDIT_V2_2026-10-04.md`.
+
+Fresh pre-change baseline in this execution environment: `518` tests run, `OK`, `47` skipped. M4.9 clean-room/lifecycle live-infra tests are `NOT_CONFIGURED` here because `psycopg` is not importable; this does not downgrade the recorded historical M4.9 evidence and is not re-labelled as live evidence for this run.
