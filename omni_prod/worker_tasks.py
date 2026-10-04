@@ -388,6 +388,9 @@ def execute_live_build_job(build_id: str) -> None:
     from .security_testing import hostile_repository_scan
     from .capability_repository import PostgresCapabilityRepository
     from .capability_worker import DurableCapabilityBuildStage
+    from .infrastructure_provisioner import (
+        InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
+    from .providers.managed_web_saas import build_managed_web_saas_provisioner
 
     if _v28_pool is None:
         raise RuntimeError(
@@ -407,6 +410,14 @@ def execute_live_build_job(build_id: str) -> None:
         capability_stage=DurableCapabilityBuildStage(
             repository=PostgresCapabilityRepository(_v28_pool),
         ),
+        # M5 Task 6/7: contract-bound builds need their generated-app
+        # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an
+        # explicit NOT_CONFIGURED provisioner and the build fails closed.
+        infrastructure_stage=InfrastructureProvisioningService(
+            provisioner=build_managed_web_saas_provisioner(),
+            repository=PostgresInfrastructureBindingRepository(_v28_pool),
+        ),
+        infrastructure_environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview'),
         # Checked after the job is claimed, so a misconfigured worker fails
         # the build (and releases its credits) instead of leaving it QUEUED
         # with credits reserved forever.

@@ -71,6 +71,106 @@ class MemoryInfrastructureBindingRepository:
         ))
 
 
+class PostgresInfrastructureBindingRepository:
+    """Durable binding store (migration 021). Stores references, never secret values."""
+
+    durable = True
+    _COLUMNS = ("binding_id, idempotency_key, profile_key, tenant_id, project_id, environment, kind, status, "
+                "resource_name, provisioner, secret_references, public_config, evidence, status_reason, "
+                "created_at, revoked_at")
+
+    def __init__(self, pool) -> None:
+        self._pool = pool
+
+    @staticmethod
+    def _row_to_binding(row) -> InfrastructureBinding:
+        (binding_id, idempotency_key, profile_key, tenant_id, project_id, environment, kind, status,
+         resource_name, provisioner, secret_references, public_config, evidence, status_reason,
+         created_at, revoked_at) = row
+
+        def _json(value):
+            if isinstance(value, (bytes, str)):
+                import json as _j
+                return _j.loads(value)
+            return dict(value or {})
+
+        def _iso(value):
+            if value is None:
+                return None
+            return value.isoformat().replace("+00:00", "Z") if hasattr(value, "isoformat") else str(value)
+
+        return InfrastructureBinding.from_record({
+            "binding_id": binding_id, "idempotency_key": idempotency_key, "profile_key": profile_key,
+            "tenant_id": tenant_id, "project_id": project_id, "environment": environment, "kind": kind,
+            "status": status, "resource_name": resource_name, "provisioner": provisioner,
+            "secret_references": _json(secret_references), "public_config": _json(public_config),
+            "evidence": _json(evidence), "status_reason": status_reason,
+            "created_at": _iso(created_at), "revoked_at": _iso(revoked_at),
+        })
+
+    def get_by_idempotency_key(self, idempotency_key: str) -> InfrastructureBinding | None:
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT {self._COLUMNS} FROM generated_app_bindings WHERE idempotency_key=%s",
+                            (idempotency_key,))
+                row = cur.fetchone()
+        return None if row is None else self._row_to_binding(row)
+
+    def get(self, binding_id: str) -> InfrastructureBinding:
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT {self._COLUMNS} FROM generated_app_bindings WHERE binding_id=%s", (binding_id,))
+                row = cur.fetchone()
+        if row is None:
+            raise KeyError(binding_id)
+        return self._row_to_binding(row)
+
+    def save(self, binding: InfrastructureBinding) -> InfrastructureBinding:
+        import json as _j
+        record = binding.to_record()
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT tenant_id FROM generated_app_bindings WHERE idempotency_key=%s FOR UPDATE",
+                        (binding.idempotency_key,),
+                    )
+                    row = cur.fetchone()
+                    if row is not None and row[0] != binding.tenant_id:
+                        raise PermissionError("infrastructure binding is owned by another tenant")
+                    cur.execute(
+                        "INSERT INTO generated_app_bindings(binding_id, idempotency_key, profile_key, tenant_id, "
+                        "project_id, environment, kind, status, resource_name, provisioner, secret_references, "
+                        "public_config, evidence, status_reason, revoked_at) "
+                        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s,%s) "
+                        "ON CONFLICT (idempotency_key) DO UPDATE SET status=EXCLUDED.status, "
+                        "resource_name=EXCLUDED.resource_name, provisioner=EXCLUDED.provisioner, "
+                        "secret_references=EXCLUDED.secret_references, public_config=EXCLUDED.public_config, "
+                        "evidence=EXCLUDED.evidence, status_reason=EXCLUDED.status_reason, "
+                        "revoked_at=EXCLUDED.revoked_at",
+                        (record["binding_id"], record["idempotency_key"], record["profile_key"],
+                         record["tenant_id"], record["project_id"], record["environment"], record["kind"],
+                         record["status"], record["resource_name"], record["provisioner"],
+                         _j.dumps(record["secret_references"], sort_keys=True),
+                         _j.dumps(record["public_config"], sort_keys=True, default=str),
+                         _j.dumps(record["evidence"], sort_keys=True, default=str),
+                         record["status_reason"], record["revoked_at"]),
+                    )
+        return binding
+
+    def list_for(self, *, project_id: str, environment) -> tuple[InfrastructureBinding, ...]:
+        env = environment.value if isinstance(environment, InfrastructureEnvironment) else str(environment)
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT {self._COLUMNS} FROM generated_app_bindings "
+                    "WHERE project_id=%s AND environment=%s ORDER BY kind",
+                    (project_id, env),
+                )
+                rows = cur.fetchall()
+        return tuple(self._row_to_binding(row) for row in rows)
+
+
 class UnconfiguredInfrastructureProvisioner:
     """Explicit NOT_CONFIGURED adapter used when no generated-app infrastructure exists.
 

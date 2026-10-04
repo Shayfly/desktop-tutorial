@@ -507,11 +507,28 @@
       "requirement_id": "M5-T07",
       "milestone": "M5",
       "title": "First Managed Web/SaaS Infrastructure Profile",
-      "status": "NOT_IMPLEMENTED",
+      "status": "PARTIAL",
       "source_specs": [
         "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
         "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
-      ]
+      ],
+      "implementation_paths": [
+        "omni_prod/providers/managed_web_saas.py",
+        "omni_prod/infrastructure_provisioner.py",
+        "omni_prod/secrets_manager.py",
+        "infra/postgres/021_generated_app_bindings.sql",
+        "omni_prod/worker_tasks.py",
+        "omni_prod/investor_app.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_managed_web_saas_profile.py",
+        "tests/integration/test_m5_managed_web_saas_live.py"
+      ],
+      "evidence_refs": [
+        "docs/evidence/M5_TASK07_LOCAL_POSTGRES_EVIDENCE_2026-10-04.md",
+        "tests/integration/m5_migration_021_psql_check.sql"
+      ],
+      "verification_note": "18 unit tests pass locally; migration 021 and repository SQL executed against a local PostgreSQL 16.15. Live provisioning test SKIPs: no M5_GENAPP_LIVE / OMNI_GENAPP_* staging infrastructure (Vault, Postgres admin DSN, S3, scheduler). Not LIVE."
     },
     {
       "requirement_id": "M5-T08",

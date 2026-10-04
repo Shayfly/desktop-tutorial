@@ -59,6 +59,7 @@ from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
 from .build_contract_repository import PostgresBuildContractRepository
+from .providers.managed_web_saas import managed_web_saas_readiness
 from .product_architect import ProductArchitect
 from .capability_repository import PostgresCapabilityRepository
 from .capability_registry import CapabilityRegistry
@@ -254,6 +255,7 @@ def _m5_status_payload() -> dict:
         'staging_ready': False,
         'production_ready': False,
         'blockers': blockers,
+        'generated_app_infrastructure': managed_web_saas_readiness(),
         'truth_note': 'M5 remains partial until all M5 gates and required external staging proofs pass.',
     }
 
