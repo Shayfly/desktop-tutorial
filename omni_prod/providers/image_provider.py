@@ -53,6 +53,7 @@ from ..provider_contracts import (
 )
 from ..provider_router import parse_retry_after_seconds
 from ..provider_usage import _cost
+from ..safe_fetch import SafeFetcher, UnsafeURL
 
 CAPABILITY_KEY = "media.image.generate"
 OPTIONAL_MEDIA_KEYS = ("media.audio.tts", "media.audio.sfx", "media.audio.music", "media.3d.mesh.generate")
@@ -99,6 +100,7 @@ class ImageProviderConfig:
     price_source: str = ""
     max_bytes: int = 20 * 1024 * 1024
     timeout_seconds: float = 60.0
+    output_hosts: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "ImageProviderConfig":
@@ -119,6 +121,7 @@ class ImageProviderConfig:
             maximum_usd_per_image=_decimal(_clean(env, "OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE")),
             price_source=_clean(env, "OMNI_IMAGE_PROVIDER_PRICE_SOURCE"),
             max_bytes=int(_clean(env, "OMNI_IMAGE_PROVIDER_MAX_BYTES") or 20 * 1024 * 1024),
+            output_hosts=tuple(h.strip().lower() for h in _clean(env, "OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS").split(",") if h.strip()),
         )
 
     def status(self) -> tuple[str, str]:
@@ -280,7 +283,7 @@ class PredictionImageProvider:
 
     def __init__(self, *, config: ImageProviderConfig, resolve_reference: Callable[[str], str], journal,
                  urlopen=None, sleep: Callable[[float], None] | None = None, poll_interval_seconds: float = 2.0,
-                 max_rate_limit_wait_seconds: float = 30.0) -> None:
+                 max_rate_limit_wait_seconds: float = 30.0, fetcher: SafeFetcher | None = None) -> None:
         status, reason = config.status()
         if status != "PARTIAL":
             raise ValueError(f"image provider is {status}: {reason}")
@@ -289,6 +292,12 @@ class PredictionImageProvider:
         self.resolve_reference = resolve_reference
         self.journal = journal
         self.urlopen = urlopen or request.urlopen
+        # Provider-returned output URLs are untrusted: SSRF-guarded fetch with an
+        # optional host allowlist (configured output hosts + the API host).
+        api_host = (parse.urlsplit(config.base_url).hostname or "").lower()
+        allow = tuple(config.output_hosts) + ((api_host,) if config.output_hosts and api_host else ())
+        self.fetcher = fetcher or SafeFetcher(allowed_hosts=allow, max_bytes=config.max_bytes,
+                                              timeout_seconds=config.timeout_seconds)
         self.sleep = sleep or time.sleep
         self.poll_interval_seconds = poll_interval_seconds
         self.max_rate_limit_wait_seconds = max_rate_limit_wait_seconds
@@ -403,18 +412,13 @@ class PredictionImageProvider:
 
     def _download(self, url: str) -> bytes:
         parsed = parse.urlsplit(url)
-        if parsed.scheme != "https":
-            raise ValueError("provider output URL must be https")
         headers = {}
         if parsed.netloc == parse.urlsplit(self.config.base_url).netloc:
             headers = {"Authorization": self._headers()["Authorization"]}  # never sent to other hosts
-        req = request.Request(url, headers=headers, method="GET")
-        with self.urlopen(req, timeout=self.config.timeout_seconds) as resp:
-            data = resp.read(self.config.max_bytes + 1)
-        if len(data) > self.config.max_bytes:
-            raise ValueError(f"provider output exceeds {self.config.max_bytes} bytes")
-        if not data:
-            raise ValueError("provider output is empty")
+        try:
+            data, _ = self.fetcher.get(url, headers=headers)
+        except UnsafeURL as exc:
+            raise ValueError(f"provider output URL rejected: {exc}") from None
         return data
 
     def collect(self, handle: ProviderTaskHandle) -> ProviderExecutionResult:
@@ -483,7 +487,7 @@ def image_provider_readiness(env: Mapping[str, str] | None = None) -> dict[str, 
     }
 
 
-def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlopen=None):
+def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlopen=None, fetcher=None):
     env = os.environ if env is None else env
     config = ImageProviderConfig.from_env(env)
     if config.status()[0] != "PARTIAL":
@@ -501,17 +505,18 @@ def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlop
             raise RuntimeError("vault reference used but OMNI_VAULT_ADDR is not configured")
         return VaultHttpSecretResolver(VaultHttpConfig(base_url=base)).resolve(reference)
 
-    return PredictionImageProvider(config=config, resolve_reference=resolve, journal=journal, urlopen=urlopen)
+    return PredictionImageProvider(config=config, resolve_reference=resolve, journal=journal, urlopen=urlopen,
+                                   fetcher=fetcher)
 
 
 def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, artifact_store, journal,
-                                 worker_id: str, urlopen=None):
+                                 worker_id: str, urlopen=None, fetcher=None):
     """DurableCapabilityBuildStage with the configured image provider (or none)."""
     from ..capability_executor import CapabilityExecutor
     from ..capability_worker import DurableCapabilityBuildStage
     from ..provider_registry import ProviderRegistry
 
-    provider = build_image_provider(env, journal=journal, urlopen=urlopen)
+    provider = build_image_provider(env, journal=journal, urlopen=urlopen, fetcher=fetcher)
     if provider is None:
         return DurableCapabilityBuildStage(repository=repository, assignments_resolver=lambda plan: {})
     registry = ProviderRegistry([provider])

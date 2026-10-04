@@ -17,6 +17,7 @@ from pathlib import Path
 from omni_prod.capabilities import CapabilityPlan, CapabilityRequirement
 from omni_prod.capability_verification import verify_capability_artifact
 from omni_prod.provider_contracts import CapabilityArtifact, CapabilityProvider
+from omni_prod.safe_fetch import SafeFetcher
 from omni_prod.providers.image_provider import (
     AmbiguousSubmission,
     ImageProviderConfig,
@@ -126,14 +127,24 @@ class _Resp:
         return False
 
 
+def public_resolver(host, port, proto=None):
+    """Test DNS: every name resolves to a documentation-free public address."""
+    return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+
+def _fetcher(api):
+    return SafeFetcher(resolver=public_resolver, urlopen=api)
+
+
 def _provider(api=None, env=None, journal=None, sleeps=None):
     env = dict(ENV if env is None else env)
     config = ImageProviderConfig.from_env(env)
     sleeps = sleeps if sleeps is not None else []
+    api = api or FakePredictionAPI()
     return PredictionImageProvider(
         config=config, resolve_reference=lambda ref: env[ref.split(":", 1)[1]],
-        journal=journal or MemorySubmissionJournal(), urlopen=api or FakePredictionAPI(),
-        sleep=sleeps.append, poll_interval_seconds=0.5,
+        journal=journal or MemorySubmissionJournal(), urlopen=api,
+        sleep=sleeps.append, poll_interval_seconds=0.5, fetcher=_fetcher(api),
     )
 
 
@@ -391,7 +402,8 @@ class GoldenImageEndToEndTests(unittest.TestCase):
         store = Store()
         repo = MemoryCapabilityRepository()
         stage = build_image_capability_stage(env=ENV, repository=repo, artifact_store=store,
-                                             journal=MemorySubmissionJournal(), worker_id="w1", urlopen=api)
+                                             journal=MemorySubmissionJournal(), worker_id="w1", urlopen=api,
+                                             fetcher=_fetcher(api))
         stage.executor.provider_registry.get("image-predictions").sleep = lambda s: None
         plan = CapabilityPlan(requirements=(REQ,), target_keys=())
         evidence = stage.prepare(build_id="bld_logo", project_id="prj_crm", plan=plan,
