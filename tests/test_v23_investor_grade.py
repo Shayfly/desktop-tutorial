@@ -104,7 +104,10 @@ class InvestorAppTests(unittest.TestCase):
     def test_home_renders(self):
         r = self.client.get('/')
         self.assertEqual(r.status_code, 200)
-        self.assertIn('Omni Creator', r.text)
+        # Canonical brand is 148AI (the legacy "Omni Creator" name was retired with M5-UX01).
+        self.assertIn('148AI', r.text)
+        self.assertNotIn('Omni Creator', r.text)
+        self.assertIn('/assets/app.js', r.text)
 
     def test_status_truthfully_exposes_readiness(self):
         with patch.dict(os.environ, {}, clear=True):
