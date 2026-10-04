@@ -132,12 +132,32 @@ class CapabilityArtifact:
             raise ValueError("sha256 must be a 64-character hexadecimal digest")
 
 
+
+
+@dataclass(frozen=True)
+class ProviderArtifactPayload:
+    mime_type: str
+    data: bytes
+    filename: str = "artifact.bin"
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+    provenance: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.mime_type.strip() or "/" not in self.mime_type:
+            raise ValueError("mime_type must be a valid media type")
+        if not self.data:
+            raise ValueError("provider artifact payload must not be empty")
+        if not self.filename.strip() or "/" in self.filename or "\\" in self.filename:
+            raise ValueError("filename must be a safe basename")
+
+
 @dataclass(frozen=True)
 class ProviderExecutionResult:
     artifacts: tuple[CapabilityArtifact, ...]
     actual_cost_usd: Decimal | None
     usage: Mapping[str, Any]
     evidence: Mapping[str, Any]
+    payloads: tuple[ProviderArtifactPayload, ...] = ()
 
     def __post_init__(self) -> None:
         if self.actual_cost_usd is not None and self.actual_cost_usd < 0:

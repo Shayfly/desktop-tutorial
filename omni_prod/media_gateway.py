@@ -29,8 +29,10 @@ class HTTPMediaGateway:
     selected by this class automatically; routing policy belongs above it.
     """
     def __init__(self,endpoint:MediaEndpoint): self.endpoint=endpoint
-    def generate(self,request:AssetRequest)->GeneratedAsset:
-        payload=json.dumps({'id':request.id,'kind':request.kind.value,'purpose':request.purpose,'prompt':request.prompt,'required':request.required}).encode()
+    def generate(self,request:AssetRequest,*,idempotency_key:str|None=None)->GeneratedAsset:
+        payload_body={'id':request.id,'kind':request.kind.value,'purpose':request.purpose,'prompt':request.prompt,'required':request.required}
+        if idempotency_key: payload_body['idempotency_key']=idempotency_key
+        payload=json.dumps(payload_body).encode()
         headers={'content-type':'application/json'}
         if self.endpoint.api_key: headers['authorization']='Bearer '+self.endpoint.api_key
         req=urllib.request.Request(self.endpoint.base_url.rstrip('/')+'/v1/assets/generate',data=payload,headers=headers,method='POST')
