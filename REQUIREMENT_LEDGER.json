@@ -484,11 +484,24 @@
       "requirement_id": "M5-T06",
       "milestone": "M5",
       "title": "Generated-App Infrastructure Provisioner Contract",
-      "status": "NOT_IMPLEMENTED",
+      "status": "PARTIAL",
       "source_specs": [
         "docs/superpowers/plans/2026-10-04-m5-production-vertical-slice.md",
         "docs/superpowers/specs/2026-10-04-m5-production-vertical-slice-design.md"
-      ]
+      ],
+      "implementation_paths": [
+        "omni_prod/infrastructure_contracts.py",
+        "omni_prod/infrastructure_registry.py",
+        "omni_prod/infrastructure_provisioner.py",
+        "omni_prod/worker_tasks.py"
+      ],
+      "test_ids": [
+        "tests/test_m5_infrastructure_contracts.py"
+      ],
+      "evidence_refs": [
+        "tests/test_m5_infrastructure_contracts.py"
+      ],
+      "verification_note": "Implemented by Claude; 26 targeted unittest tests pass locally (python -m unittest). pytest/fastapi unavailable in implementer environment. Awaiting full-suite verification before any VERIFIED status."
     },
     {
       "requirement_id": "M5-T07",

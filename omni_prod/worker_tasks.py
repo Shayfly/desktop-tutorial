@@ -48,6 +48,7 @@ from decimal import Decimal
 from .models import BuildStatus
 from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
+from .infrastructure_provisioner import InfrastructureStageBlocked
 from .modification_engine import CandidateModificationEngine
 from .spec_repository import SpecNotFound
 
@@ -164,7 +165,8 @@ def _rights_evidence_from_dicts(items) -> tuple:
 
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
-                        capability_stage=None) -> str | None:
+                        capability_stage=None, infrastructure_stage=None,
+                        infrastructure_environment: str = 'preview') -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
     done (unknown build id / already claimed by another delivery)."""
     try:
@@ -200,10 +202,19 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     version_id = None
     artifact_key = None
     capability_evidence = None
+    infrastructure_evidence = None
 
     try:
         if preflight is not None:
             preflight()
+        # M5 Task 6: a contract-bound product cannot become READY without its
+        # required generated-app infrastructure. Checked before any paid model
+        # generation so a missing binding never burns provider budget.
+        if infrastructure_stage is not None and build_contract is not None:
+            infrastructure_evidence = infrastructure_stage.require_ready(
+                build_contract, tenant_id=str(request['user_id']),
+                project_id=build_contract.project_id, environment=infrastructure_environment,
+            )
         brain = platform.brain.decide(prompt, target_markets=markets)
         capability_plan = build_contract.capability_plan if build_contract is not None else getattr(brain, 'capabilities', None)
         if capability_stage is not None:
@@ -271,11 +282,35 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'release_ready': ready,
             'build_contract': contract_evidence,
             'capabilities': capability_evidence,
+            'infrastructure': infrastructure_evidence,
             'repair_rounds': result.repair_rounds,
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
         }
+    except InfrastructureStageBlocked as exc:
+        spent, calls = spend_snapshot(gateway)
+        economics_quote = request.get('economics_quote') or {}
+        if economics_quote:
+            billing, settlement_evidence, actual_cost = resolve_m5_billing(
+                subscriptions, build_id=build_id, ready=False, gateway=gateway,
+                capability_evidence=capability_evidence, economics_quote=economics_quote,
+            )
+        else:
+            billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+            settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
+        jobs.transition(
+            build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
+            error_code='infrastructure_not_configured', error_message=str(exc)[:2000],
+            result_version_id=version_id, artifact_key=artifact_key,
+            evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'infrastructure': exc.evidence,
+                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_basis': SPEND_BASIS},
+            actual_provider_cost_usd=actual_cost,
+        )
+        raise
     except CapabilityStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
         economics_quote = request.get('economics_quote') or {}
