@@ -75,10 +75,17 @@ _CHANGE_SYSTEM = (
 class ArchitectAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):
         self.gateway = gateway
-    def create_spec(self, prompt: str) -> ProductSpec:
+    def create_spec(self, prompt: str, *, deterministic_floor: dict | None = None) -> ProductSpec:
         if not prompt.strip():
             raise ValueError('prompt cannot be empty')
-        data = self.gateway.complete_json(system=_ARCHITECT_SYSTEM, user=prompt, max_tokens=6000)
+        user = prompt
+        if deterministic_floor is not None:
+            user = json.dumps({
+                'user_prompt': prompt,
+                'deterministic_floor': deterministic_floor,
+                'instruction': 'Enrich the product specification without removing or weakening any deterministic minimum.',
+            }, ensure_ascii=False)
+        data = self.gateway.complete_json(system=_ARCHITECT_SYSTEM, user=user, max_tokens=6000)
         return ProductSpec.from_dict(data)
 
 class GeneratorAgent:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from hashlib import sha256
+import json
 from .unified_engine import UnifiedPromptPlanner, UnifiedPlan
 from .agent_team import plan_team
 from .media_pipeline import CreativeDirector, CreativePlan
@@ -17,6 +19,11 @@ class BrainDecision:
     principles: tuple[str, ...]
     capabilities: CapabilityPlan
 
+    @property
+    def capability_plan_fingerprint(self) -> str:
+        payload = json.dumps(self.capabilities.to_dict(), sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        return 'sha256:' + sha256(payload.encode('utf-8')).hexdigest()
+
     def to_dict(self):
         return {
             'plan': self.plan.to_dict(),
@@ -25,6 +32,7 @@ class BrainDecision:
             'rights': self.rights.to_dict(),
             'principles': list(self.principles),
             'capabilities': self.capabilities.to_dict(),
+            'capability_plan_fingerprint': self.capability_plan_fingerprint,
         }
 
 class OmniUniversalBrain:

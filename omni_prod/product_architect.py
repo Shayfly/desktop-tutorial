@@ -1,0 +1,354 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from hashlib import sha256
+import json
+import re
+from typing import Iterable
+
+from .agents_registry import MasterAgentsRegistry, build_canonical_agents_registry
+from .build_contract import (
+    BuildContract,
+    BuildContractStatus,
+    ClarificationQuestion,
+    CostEnvelopeReference,
+    InfrastructureRequirement,
+    sha256_fingerprint,
+)
+from .capability_registry import CapabilityRegistry
+from .product_spec import AcceptanceCriterion, ProductSpec, Requirement
+from .skills_registry import MasterSkillsRegistry, build_canonical_skills_registry
+from .universal_brain import OmniUniversalBrain
+
+
+class ProductArchitect:
+    """Compile product intent into the immutable M5 Web/SaaS Build Contract.
+
+    Deterministic policy owns the minimum capability/security/infrastructure
+    floor. A model-backed ArchitectAgent may enrich the product spec but cannot
+    remove that floor.
+    """
+
+    def __init__(
+        self,
+        *,
+        brain: OmniUniversalBrain | None = None,
+        architect_agent=None,
+        capability_registry: CapabilityRegistry | None = None,
+        skills_registry: MasterSkillsRegistry | None = None,
+        agents_registry: MasterAgentsRegistry | None = None,
+    ) -> None:
+        self.capabilities = capability_registry or CapabilityRegistry()
+        self.skills = skills_registry or build_canonical_skills_registry(self.capabilities)
+        self.agents = agents_registry or build_canonical_agents_registry(self.skills)
+        self.brain = brain or OmniUniversalBrain()
+        self.architect_agent = architect_agent
+
+    def compile(
+        self,
+        prompt: str,
+        *,
+        project_id: str,
+        contract_version: int,
+        pricing_catalog_version: str = "runtime-provider-price-catalog",
+        created_at: str | None = None,
+    ) -> BuildContract:
+        clean = " ".join(prompt.split()).strip()
+        if not clean:
+            raise ValueError("prompt cannot be empty")
+        if not project_id.strip():
+            raise ValueError("project_id cannot be empty")
+        if contract_version < 1:
+            raise ValueError("contract_version must be >= 1")
+
+        decision = self.brain.decide(clean)
+        capability_plan = decision.capabilities
+        capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
+        floor_spec = self._floor_spec(clean, decision)
+
+        model_spec = None
+        if self.architect_agent is not None:
+            floor_context = {
+                "product_spec_floor": floor_spec.to_dict(),
+                "capability_plan": capability_plan.to_dict(),
+                "capability_plan_fingerprint": capability_fingerprint,
+                "principles": list(decision.principles),
+                "rights": decision.rights.to_dict(),
+                "rule": "Model output may enrich but must not remove deterministic minimums.",
+            }
+            try:
+                model_spec = self.architect_agent.create_spec(clean, deterministic_floor=floor_context)
+            except TypeError:
+                # Compatibility for third-party/reviewer ArchitectAgent shims using
+                # the legacy create_spec(prompt) contract. The deterministic floor
+                # is still merged below and remains authoritative.
+                model_spec = self.architect_agent.create_spec(clean)
+        product_spec = self._merge_specs(floor_spec, model_spec)
+
+        roles, role_defaults = self._infer_roles(clean)
+        data_requirements = self._infer_data_requirements(clean, decision.plan.modules)
+        integrations = self._infer_integrations(clean, capability_plan)
+        infrastructure = self._infrastructure_requirements()
+        questions = self._material_questions(clean, data_requirements)
+        status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
+        defaults = tuple(role_defaults + ["managed_web_saas_v1", "vercel_release_target"])
+        security = (
+            "tenant_isolation",
+            "least_privilege_rbac",
+            "secret_references_only",
+            "secure_session_lifecycle",
+            "input_validation",
+            "audit_evidence",
+            "no_cross_tenant_resource_access",
+        )
+        cost = CostEnvelopeReference(pricing_catalog_version=pricing_catalog_version)
+
+        required_skills = self._required_skills(capability_plan)
+        required_agents = self._required_agents(required_skills)
+
+        timestamp = created_at or datetime.now(timezone.utc).isoformat()
+        provisional = {
+            "project_id": project_id,
+            "contract_version": contract_version,
+            "status": status.value,
+            "prompt": clean,
+            "product_family": "managed_web_saas_v1",
+            "target": "web",
+            "release_target": "vercel",
+            "product_spec": product_spec.to_dict(),
+            "user_roles": list(roles),
+            "data_requirements": list(data_requirements),
+            "required_integrations": list(integrations),
+            "infrastructure": [item.to_dict() for item in infrastructure],
+            "capability_plan": capability_plan.to_dict(),
+            "capability_plan_fingerprint": capability_fingerprint,
+            "acceptance": [a.__dict__ for a in product_spec.acceptance],
+            "security": list(security),
+            "cost_envelope": cost.to_dict(),
+            "unresolved_questions": [q.to_dict() for q in questions],
+            "defaults_applied": list(defaults),
+            "required_skill_keys": list(required_skills),
+            "required_agent_keys": list(required_agents),
+            "skills_registry_version": self.skills.version,
+            "agents_registry_version": self.agents.version,
+        }
+        contract_fingerprint = sha256_fingerprint(provisional)
+        contract_id = "bc_" + sha256(
+            f"{project_id}:{contract_version}:{contract_fingerprint}".encode("utf-8")
+        ).hexdigest()[:24]
+        return BuildContract(
+            id=contract_id,
+            project_id=project_id,
+            contract_version=contract_version,
+            status=status,
+            prompt=clean,
+            product_family="managed_web_saas_v1",
+            target="web",
+            release_target="vercel",
+            product_spec=product_spec,
+            user_roles=roles,
+            data_requirements=data_requirements,
+            required_integrations=integrations,
+            infrastructure=infrastructure,
+            capability_plan=capability_plan,
+            capability_plan_fingerprint=capability_fingerprint,
+            acceptance=product_spec.acceptance,
+            security=security,
+            cost_envelope=cost,
+            unresolved_questions=questions,
+            defaults_applied=defaults,
+            required_skill_keys=required_skills,
+            required_agent_keys=required_agents,
+            skills_registry_version=self.skills.version,
+            agents_registry_version=self.agents.version,
+            created_at=timestamp,
+            contract_fingerprint=contract_fingerprint,
+        )
+
+    @staticmethod
+    def _floor_spec(prompt: str, decision) -> ProductSpec:
+        title = decision.plan.title or prompt[:80]
+        requirements: list[Requirement] = [
+            Requirement("platform-auth", "Users authenticate through durable application sessions", "security"),
+            Requirement("platform-rbac", "At least two application roles are enforced server-side", "security"),
+            Requirement("platform-data", "Business records persist in durable relational storage", "data"),
+            Requirement("platform-responsive", "Primary workflows are usable on mobile and desktop web", "quality"),
+            Requirement("platform-api", "Backend exposes a versionable API/health surface", "functional"),
+            Requirement("platform-observability", "Runtime errors and health are observable without secret leakage", "quality"),
+            Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
+            Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
+        ]
+        existing = {r.id for r in requirements}
+        for module in decision.plan.modules:
+            rid = "module-" + re.sub(r"[^a-z0-9]+", "-", module.lower()).strip("-")
+            if rid and rid not in existing:
+                requirements.append(Requirement(rid, f"Support the {module} business workflow", "functional"))
+                existing.add(rid)
+        acceptance = tuple(
+            AcceptanceCriterion(
+                id="accept-" + req.id,
+                requirement_id=req.id,
+                text=f"Automated acceptance proves: {req.text}",
+            )
+            for req in requirements
+        )
+        return ProductSpec(
+            title=title,
+            summary=f"M5 managed Web/SaaS contract for: {prompt}",
+            stack=("Python", "FastAPI", "PostgreSQL-compatible", "Web UI"),
+            requirements=tuple(requirements),
+            acceptance=acceptance,
+        )
+
+    @staticmethod
+    def _merge_specs(floor: ProductSpec, model: ProductSpec | None) -> ProductSpec:
+        if model is None:
+            return floor
+        requirements = list(floor.requirements)
+        req_ids = {r.id for r in requirements}
+        for req in model.requirements:
+            if req.id not in req_ids:
+                requirements.append(req)
+                req_ids.add(req.id)
+        acceptance = list(floor.acceptance)
+        acc_ids = {a.id for a in acceptance}
+        for criterion in model.acceptance:
+            if criterion.requirement_id in req_ids and criterion.id not in acc_ids:
+                acceptance.append(criterion)
+                acc_ids.add(criterion.id)
+        stack = tuple(dict.fromkeys((*floor.stack, *model.stack)))
+        return ProductSpec(
+            title=model.title or floor.title,
+            summary=model.summary or floor.summary,
+            stack=stack,
+            requirements=tuple(requirements),
+            acceptance=tuple(acceptance),
+        )
+
+    @staticmethod
+    def _infer_roles(prompt: str) -> tuple[tuple[str, ...], list[str]]:
+        low = prompt.casefold()
+        role_terms = (
+            ("admin", ("admin", "administrator", "מנהל מערכת")),
+            ("travel_agent", ("travel agent", "travel-agent", "סוכן נסיעות")),
+            ("manager", ("manager", "מנהל")),
+            ("agent", (" agent", "סוכן")),
+            ("customer", ("customer", "client", "לקוח")),
+            ("driver", ("driver", "נהג")),
+            ("member", ("member", "team member", "עובד", "צוות")),
+        )
+        roles: list[str] = []
+        for role, terms in role_terms:
+            if any(term in low for term in terms):
+                roles.append(role)
+        defaults: list[str] = []
+        if "admin" not in roles:
+            roles.insert(0, "admin")
+            defaults.append("default_admin_role")
+        non_admin = [r for r in roles if r != "admin"]
+        if not non_admin:
+            roles.append("member")
+            defaults.append("default_member_role")
+        return tuple(dict.fromkeys(roles)), defaults
+
+    @staticmethod
+    def _infer_data_requirements(prompt: str, modules: Iterable[str]) -> tuple[str, ...]:
+        low = prompt.casefold()
+        result = list(modules)
+        vocabulary = (
+            ("customers", ("customer", "customers", "client", "clients", "לקוח", "לקוחות")),
+            ("bookings", ("booking", "bookings", "reservation", "reservations", "הזמנה", "הזמנות")),
+            ("leads", ("lead", "leads", "ליד", "לידים")),
+            ("orders", ("order", "orders", "הזמנות מוצר")),
+            ("products", ("product", "products", "מוצרים")),
+            ("inventory", ("inventory", "stock", "מלאי")),
+            ("drivers", ("driver", "drivers", "נהג", "נהגים")),
+            ("rides", ("ride", "rides", "trip", "trips", "נסיעה", "נסיעות")),
+            ("messages", ("message", "messages", "chat", "הודעות")),
+            ("invoices", ("invoice", "invoices", "חשבונית", "חשבוניות")),
+        )
+        for name, terms in vocabulary:
+            if any(term in low for term in terms):
+                result.append(name)
+        return tuple(dict.fromkeys(result))
+
+    @staticmethod
+    def _infer_integrations(prompt: str, capability_plan) -> tuple[str, ...]:
+        low = prompt.casefold()
+        result: list[str] = []
+        canonical_capability_integrations = {
+            "integration.payment": "payments",
+            "integration.messaging": "messaging",
+            "integration.maps": "maps",
+            "integration.email": "email",
+            "integration.webhook": "webhook",
+            "integration.oauth": "oauth",
+            "integration.analytics": "analytics",
+            "integration.storage": "storage",
+            "integration.database": "database",
+            "integration.source_control": "source_control",
+        }
+        for req in capability_plan.requirements:
+            mapped = canonical_capability_integrations.get(req.key)
+            if mapped:
+                result.append(mapped)
+        direct = (
+            ("email", ("email", "e-mail", "מייל", "דוא")),
+            ("webhook", ("webhook", "web hook")),
+            ("payments", ("payment", "payments", "checkout", "תשלום")),
+            ("maps", ("map", "maps", "gps", "מפה")),
+            ("messaging", ("message", "messaging", "whatsapp", "chat", "הודעות")),
+        )
+        for key, terms in direct:
+            if any(term in low for term in terms):
+                result.append(key)
+        return tuple(dict.fromkeys(result))
+
+    @staticmethod
+    def _infrastructure_requirements() -> tuple[InfrastructureRequirement, ...]:
+        return (
+            InfrastructureRequirement("database", "durable relational application data"),
+            InfrastructureRequirement("auth_session", "application-scoped durable authentication and sessions"),
+            InfrastructureRequirement("object_storage", "durable file/object uploads and generated assets"),
+            InfrastructureRequirement("scheduled_http", "background or scheduled application work"),
+            InfrastructureRequirement("outbound", "email/webhook outbound delivery"),
+        )
+
+    @staticmethod
+    def _material_questions(prompt: str, data_requirements: tuple[str, ...]) -> tuple[ClarificationQuestion, ...]:
+        low = prompt.casefold().strip()
+        generic = {
+            "build me an app", "build an app", "make me an app", "create an app",
+            "תבנה לי אפליקציה", "תיצור לי אפליקציה", "בנה לי אפליקציה",
+        }
+        generic_data = set(data_requirements).issubset({"users", "items", "activity"})
+        if low in generic or (len(low.split()) <= 5 and generic_data):
+            return (
+                ClarificationQuestion(
+                    id="clarify-primary-workflow",
+                    question="What is the primary business workflow and who will use it?",
+                    reason="The answer materially changes the data model and acceptance contract.",
+                    material=True,
+                ),
+            )
+        return ()
+
+    def _required_skills(self, capability_plan) -> tuple[str, ...]:
+        keys = [
+            "skill.internal.requirements.clarify",
+            "skill.internal.capability.plan",
+            "skill.internal.cost.plan",
+            "skill.internal.infrastructure.plan",
+        ]
+        for requirement in capability_plan.requirements:
+            if requirement.required:
+                keys.extend(skill.key for skill in self.skills.skills_for_capability(requirement.key))
+        return tuple(dict.fromkeys(keys))
+
+    def _required_agents(self, required_skills: tuple[str, ...]) -> tuple[str, ...]:
+        required = set(required_skills)
+        keys = ["agent.chief_orchestrator", "agent.product_architect", "agent.capability_planner", "agent.cost_planner"]
+        for agent in self.agents.all():
+            if required.intersection(agent.allowed_skills):
+                keys.append(agent.key)
+        return tuple(dict.fromkeys(keys))
