@@ -887,3 +887,38 @@ M4.95 machine truth SHA-256: `318691c9c510c3ddd06cbe434d0924477b66504b63ea662e2c
 ## M5 Production Vertical Slice — 2026-10-04
 
 Current machine-facing classification: **M5_PARTIAL**. M5 implementation has started from the verified M4.95 baseline. Durable deployments use the plural `/builds` asynchronous pipeline as the canonical arbitrary-generation path; developer memory mode is not staging or production proof. Production readiness remains prohibited until M5 acceptance, recovery/security, deployment/billing, full regression and external staging proofs are complete.
+
+
+## Infisical generated-app secret adapter — 2026-10-06
+
+### Implemented and independently verified
+- Opt-in Infisical Universal Auth/v4 SecretWriter: create/read/rotate/delete,
+  missing-delete handling, permission failures, response validation, token expiry,
+  deterministic project/environment reference separation, supplied-env wiring.
+- Vault remains the default and its writer remains supported.
+- Test-first evidence: commit fbbc04b, v24-ci run 37386465951/job 112020832639:
+  9 intended new test failures for missing Infisical support; the full-suite
+  aggregate regression test also failed because it includes those tests.
+- Implementation evidence: commit e0924b8, v24-ci run 37386690727/job 112021563213:
+  `python -m pytest -q` = 819 passed, 55 skipped, 1 warning, 95 subtests passed.
+  Compileall, hostile static suite, international gate and compose-config passed.
+  These are automated fixture/regression results, not live Infisical evidence.
+  Warning: Starlette's AnyIO BlockingPortal alias is deprecated.
+
+### Implemented but awaiting external live verification
+- The Infisical writer has not authenticated to the founder's live account from
+  the deployed Vercel server. Live create/read/rotate/delete proof is pending.
+- Configuration-level readiness stays PARTIAL; only per-binding verification
+  may mark an actual infrastructure binding LIVE.
+- See docs/INFISICAL_GENERATED_APP_SECRETS.md for configuration and rollback limits.
+
+### Blocked by a named credential/service
+- The intended Vercel Preview environment must explicitly select
+  OMNI_GENAPP_SECRET_STORE_PROVIDER=infisical and receive this tested source.
+- Generated-app-only database admin DSN, scoped object credential issuer/bucket,
+  scheduler, image provider and their cost quotes remain separate blockers.
+- No real secret values were read, logged, copied into this repository or tested.
+
+### Not implemented
+- Automatic migration of live Vault values to Infisical.
+- Infisical as the general control-plane/model-provider secret resolver.
