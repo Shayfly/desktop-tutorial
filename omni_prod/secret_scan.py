@@ -37,13 +37,12 @@ def _looks_placeholder(value: str) -> bool:
     return False
 
 def _looks_runtime_generated_expression(line: str, match: re.Match[str]) -> bool:
-    """Return True when an assignment match is the callable name of a runtime expression.
+    """Return True when an assignment match is a runtime-generated callable.
 
-    The assignment scanner intentionally accepts unquoted tokens so values such as
-    ``api_key=abcdefghijklmnop...`` are detected. That also means a call such as
-    ``password = secrets.token_urlsafe(32)`` initially matches the callable name.
-    Treat only the callable-name shape (identifier/dotted identifier immediately
-    followed by ``(``) as code, not as a hard-coded credential.
+    The assignment scanner intentionally accepts unquoted tokens so hard-coded
+    credential assignments are detected. A dotted callable followed immediately
+    by parentheses is code that generates a value at runtime, not a credential
+    literal embedded in the source file.
     """
     value = match.group(2)
     remainder = line[match.end(2):].lstrip()
