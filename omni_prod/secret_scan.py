@@ -36,6 +36,22 @@ def _looks_placeholder(value: str) -> bool:
         return True
     return False
 
+def _looks_runtime_generated_expression(line: str, match: re.Match[str]) -> bool:
+    """Return True when an assignment match is the callable name of a runtime expression.
+
+    The assignment scanner intentionally accepts unquoted tokens so values such as
+    ``api_key=abcdefghijklmnop...`` are detected. That also means a call such as
+    ``password = secrets.token_urlsafe(32)`` initially matches the callable name.
+    Treat only the callable-name shape (identifier/dotted identifier immediately
+    followed by ``(``) as code, not as a hard-coded credential.
+    """
+    value = match.group(2)
+    remainder = line[match.end(2):].lstrip()
+    return bool(
+        remainder.startswith("(")
+        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", value)
+    )
+
 def scan_text(text: str, *, path: str = "<memory>") -> list[SecretFinding]:
     findings: list[SecretFinding] = []
     lines = text.splitlines()
@@ -47,7 +63,7 @@ def scan_text(text: str, *, path: str = "<memory>") -> list[SecretFinding]:
                 if not _looks_placeholder(value):
                     findings.append(SecretFinding(kind, path, idx, line[:160]))
         m = _ASSIGNMENT.search(line)
-        if m and not _looks_placeholder(m.group(2)):
+        if m and not _looks_runtime_generated_expression(line, m) and not _looks_placeholder(m.group(2)):
             findings.append(SecretFinding("credential_assignment", path, idx, line[:160]))
     # de-duplicate same line/kind
     unique = {}
