@@ -57,6 +57,12 @@ class SecretScanTests(unittest.TestCase):
     def test_ignores_placeholders(self):
         self.assertEqual(scan_text("secret=CHANGE_ME_WITH_64_RANDOM_CHARS"), [])
 
+    def test_ignores_runtime_generated_secret_expressions(self):
+        self.assertEqual(
+            scan_text("password = _secrets.token_urlsafe(32)"),
+            [],
+        )
+
 class ManifestTests(unittest.TestCase):
     def test_manifest_detects_file_tamper(self):
         with tempfile.TemporaryDirectory() as td:
