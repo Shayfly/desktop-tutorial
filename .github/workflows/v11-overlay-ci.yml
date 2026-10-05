@@ -26,9 +26,9 @@ jobs:
       - name: Validate production compose
         run: docker compose -f docker-compose.production.yml config > /dev/null
         env:
-          POSTGRES_PASSWORD: test-postgres-password
-          OMNI_DATABASE_URL: postgresql://omni:test-postgres-password@postgres:5432/omni
-          OMNI_S3_ACCESS_KEY: test-access
-          OMNI_S3_SECRET_KEY: test-secret-password
+          POSTGRES_PASSWORD: CHANGE_ME
+          OMNI_DATABASE_URL: postgresql://omni:CHANGE_ME@postgres:5432/omni
+          OMNI_S3_ACCESS_KEY: CHANGE_ME
+          OMNI_S3_SECRET_KEY: CHANGE_ME
           OMNI_SANDBOX_RUNNER_URL: https://sandbox.invalid
           OMNI_LOCAL_MODEL_URL: https://model.invalid/v1
