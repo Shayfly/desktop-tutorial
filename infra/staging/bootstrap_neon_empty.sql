@@ -1,0 +1,1792 @@
+-- 148AI: bootstrap an EMPTY public schema only.
+-- Generated from milestone/pre-staging-2026-10-05 at 472f3ca886514388bc1adfdcb3be9e0eafe4c703.
+-- Run the ENTIRE file once in Neon SQL Editor. No credentials are included.
+-- A failure rolls back the transaction. Existing public tables cause an error.
+BEGIN;
+SET LOCAL search_path = public;
+SELECT pg_advisory_xact_lock(781234991);
+DO $bootstrap_guard$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+    ) THEN
+        RAISE EXCEPTION 'Bootstrap requires an empty public schema. No changes applied.';
+    END IF;
+END;
+$bootstrap_guard$;
+
+-- BEGIN SOURCE 001_control_plane.sql
+CREATE TABLE IF NOT EXISTS build_jobs (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL,
+    version_id      TEXT,
+    status          TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at      TIMESTAMPTZ,
+    finished_at     TIMESTAMPTZ,
+    artifact_key    TEXT,
+    error_code      TEXT,
+    error_message   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_jobs_project_created
+ON build_jobs(project_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS deployments (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL,
+    version_id      TEXT NOT NULL,
+    build_id        TEXT NOT NULL,
+    environment     TEXT NOT NULL,
+    artifact_key    TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retired_at      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployments_project_env
+ON deployments(project_id, environment, created_at DESC);
+
+-- END SOURCE 001_control_plane.sql
+
+-- BEGIN SOURCE 002_usage.sql
+CREATE TABLE IF NOT EXISTS usage_events (
+    id              BIGSERIAL PRIMARY KEY,
+    account_id      TEXT NOT NULL,
+    project_id      TEXT NOT NULL,
+    kind            TEXT NOT NULL,
+    quantity        NUMERIC(30, 6) NOT NULL CHECK (quantity >= 0),
+    provider        TEXT,
+    model           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_account_created
+ON usage_events(account_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_usage_project_created
+ON usage_events(project_id, created_at DESC);
+
+-- END SOURCE 002_usage.sql
+
+-- BEGIN SOURCE 003_resilience.sql
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    account_id          TEXT NOT NULL,
+    idempotency_key     TEXT NOT NULL,
+    request_fingerprint TEXT NOT NULL,
+    resource_id         TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at          TIMESTAMPTZ,
+    PRIMARY KEY(account_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires
+ON idempotency_keys(expires_at)
+WHERE expires_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS worker_heartbeats (
+    worker_id       TEXT PRIMARY KEY,
+    queue_name      TEXT NOT NULL,
+    seen_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata        JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS account_limits (
+    account_id      TEXT NOT NULL,
+    metric          TEXT NOT NULL,
+    maximum         NUMERIC(30, 6) NOT NULL CHECK (maximum >= 0),
+    period          TEXT NOT NULL,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY(account_id, metric, period)
+);
+
+-- END SOURCE 003_resilience.sql
+
+-- BEGIN SOURCE 004_orchestration.sql
+ALTER TABLE build_jobs
+    ADD COLUMN IF NOT EXISTS attempt INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS repair_rounds INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS ai_cost NUMERIC(18,6) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS build_seconds INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS deployment_events (
+    id              BIGSERIAL PRIMARY KEY,
+    deployment_id   TEXT NOT NULL,
+    event_type      TEXT NOT NULL,
+    traffic_percent INTEGER,
+    error_rate      NUMERIC(10,6),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployment_events_deployment_created
+ON deployment_events(deployment_id, created_at DESC);
+
+-- END SOURCE 004_orchestration.sql
+
+-- BEGIN SOURCE 005_release_engineering.sql
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version         INTEGER PRIMARY KEY,
+    name            TEXT NOT NULL,
+    sha256          TEXT NOT NULL,
+    applied_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    sequence        BIGSERIAL PRIMARY KEY,
+    event_type      TEXT NOT NULL,
+    actor_id        TEXT NOT NULL,
+    resource_id     TEXT NOT NULL,
+    payload         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    previous_hash   TEXT NOT NULL,
+    event_hash      TEXT NOT NULL UNIQUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_resource
+ON audit_events(resource_id, sequence DESC);
+
+CREATE TABLE IF NOT EXISTS release_records (
+    id              TEXT PRIMARY KEY,
+    version         TEXT NOT NULL,
+    package_sha256  TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL,
+    test_count      INTEGER NOT NULL CHECK (test_count >= 0),
+    status          TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- END SOURCE 005_release_engineering.sql
+
+-- BEGIN SOURCE 006_preflight_release.sql
+ALTER TABLE release_records
+ADD COLUMN IF NOT EXISTS preflight_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS production_checks (
+    id              BIGSERIAL PRIMARY KEY,
+    release_id      TEXT NOT NULL,
+    check_name      TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    details         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_checks_release
+ON production_checks(release_id, created_at DESC);
+
+-- END SOURCE 006_preflight_release.sql
+
+-- BEGIN SOURCE 007_supply_chain.sql
+CREATE TABLE IF NOT EXISTS release_attestations (
+    release_id TEXT PRIMARY KEY,
+    sbom_sha256 TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL,
+    attestation_json JSONB NOT NULL,
+    dependency_lock_status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- END SOURCE 007_supply_chain.sql
+
+-- BEGIN SOURCE 008_outbox_recovery.sql
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    aggregate_id TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    dedupe_key TEXT NOT NULL UNIQUE,
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
+ON outbox_events(available_at, created_at)
+WHERE published_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS dead_letter_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    error_code TEXT NOT NULL,
+    error_message TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    attempts INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dead_letter_job
+ON dead_letter_jobs(job_id, created_at DESC);
+
+-- END SOURCE 008_outbox_recovery.sql
+
+-- BEGIN SOURCE 009_observability_recovery.sql
+CREATE TABLE IF NOT EXISTS backup_records (
+    id TEXT PRIMARY KEY,
+    backup_type TEXT NOT NULL,
+    storage_key TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    verified_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS operational_events (
+    id BIGSERIAL PRIMARY KEY,
+    request_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    resource_id TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_operational_events_request
+ON operational_events(request_id, created_at);
+
+-- END SOURCE 009_observability_recovery.sql
+
+-- BEGIN SOURCE 010_international_product.sql
+CREATE TABLE IF NOT EXISTS organizations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS organization_members (
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('owner','admin','developer','designer','viewer','billing')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id,user_id)
+);
+CREATE TABLE IF NOT EXISTS project_versions (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  parent_id TEXT,
+  repository_sha256 TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_memory (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  content TEXT NOT NULL,
+  source_version TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS project_memory_project_created_idx ON project_memory(project_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id BIGSERIAL PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  project_id TEXT,
+  delta INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  idempotency_key TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS integration_bindings (
+  organization_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  secret_reference JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id,provider)
+);
+
+-- END SOURCE 010_international_product.sql
+
+-- BEGIN SOURCE 011_creator_accounts.sql
+CREATE TABLE IF NOT EXISTS creator_accounts (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    salt_b64 TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS creator_projects (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS creator_projects_owner_updated_idx ON creator_projects(owner_id, updated_at DESC);
+
+-- END SOURCE 011_creator_accounts.sql
+
+-- BEGIN SOURCE 012_creator_subscriptions.sql
+CREATE TABLE IF NOT EXISTS creator_subscriptions (
+    user_id TEXT PRIMARY KEY REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    plan_code TEXT NOT NULL DEFAULT 'free',
+    cycle TEXT NOT NULL,
+    credits_used INTEGER NOT NULL DEFAULT 0 CHECK (credits_used >= 0),
+    provider_spend_usd NUMERIC(14,6) NOT NULL DEFAULT 0 CHECK (provider_spend_usd >= 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- END SOURCE 012_creator_subscriptions.sql
+
+-- BEGIN SOURCE 013_durable_async_builds.sql
+-- 013_durable_async_builds.sql
+-- Idempotent schema additions for M1 Durable Async Builds
+-- Verified against infra/postgres/001_control_plane.sql (build_jobs),
+-- 010_international_product.sql (project_versions), 012_creator_subscriptions.sql
+-- (creator_subscriptions) before being applied. Applied verbatim from the pasted
+-- M1 Revision 2 patch -- schema-compatible with the existing tables.
+
+CREATE TABLE IF NOT EXISTS credit_reservations (
+    build_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    credits_reserved INTEGER NOT NULL CHECK (credits_reserved >= 0),
+    estimated_provider_cost_usd NUMERIC(14,6) NOT NULL DEFAULT 0,
+    actual_provider_cost_usd NUMERIC(14,6),
+    settled_provider_cost_usd NUMERIC(14,6),
+    status TEXT NOT NULL CHECK (status IN ('RESERVED', 'SETTLED', 'RELEASED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS build_requests (
+    build_id TEXT PRIMARY KEY REFERENCES credit_reservations(build_id),
+    user_id TEXT NOT NULL,
+    internal_project_id TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    target_markets JSONB NOT NULL DEFAULT '[]'::jsonb,
+    branding_visible BOOLEAN,
+    white_label_name TEXT,
+    rights_evidence JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enhance build_jobs with phase, explicit costs, and evidence
+ALTER TABLE build_jobs
+    ADD COLUMN IF NOT EXISTS phase TEXT NOT NULL DEFAULT 'QUEUED',
+    ADD COLUMN IF NOT EXISTS message TEXT,
+    ADD COLUMN IF NOT EXISTS result_version_id TEXT,
+    ADD COLUMN IF NOT EXISTS actual_provider_cost_usd NUMERIC(14,6),
+    ADD COLUMN IF NOT EXISTS estimated_provider_cost_usd NUMERIC(14,6),
+    ADD COLUMN IF NOT EXISTS repair_rounds INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- Ensure project_versions can store the artifact explicitly
+ALTER TABLE project_versions
+    ADD COLUMN IF NOT EXISTS artifact_key TEXT,
+    ADD COLUMN IF NOT EXISTS file_count INTEGER NOT NULL DEFAULT 0;
+
+-- Transactional Outbox for Redis Enqueueing
+CREATE TABLE IF NOT EXISTS build_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    build_id TEXT NOT NULL UNIQUE REFERENCES build_requests(build_id),
+    enqueued_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- END SOURCE 013_durable_async_builds.sql
+
+-- BEGIN SOURCE 014_real_running_preview.sql
+-- 014_real_running_preview.sql
+-- M3: durable metadata for the real running-preview lifecycle. Separate
+-- table from build_jobs/project_versions -- a preview is a distinct runtime
+-- lifecycle (create -> provision -> start -> health -> expose -> logs ->
+-- stop/expire -> cleanup), not a build artifact.
+
+CREATE TABLE IF NOT EXISTS project_previews (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    version_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('STARTING', 'RUNNING', 'STOPPED', 'FAILED', 'EXPIRED')),
+    preview_url TEXT,
+    internal_container_id TEXT,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_previews_project_created
+ON project_previews(project_id, created_at DESC);
+
+-- Used by mark_expired()'s sweep (status='RUNNING' AND expires_at < now()).
+CREATE INDEX IF NOT EXISTS idx_project_previews_running_expiry
+ON project_previews(expires_at)
+WHERE status = 'RUNNING';
+
+-- END SOURCE 014_real_running_preview.sql
+
+-- BEGIN SOURCE 015_preview_lifecycle_and_async_build_parity.sql
+-- 015_preview_lifecycle_and_async_build_parity.sql
+-- M3 Revision 2 + M1 blocker resolution. Forward-only and idempotent: 014 may
+-- already be applied in some environment, so it is extended here rather than
+-- edited in place.
+
+-- 1. NOT_PREVIEWABLE is a distinct terminal state (artifact cannot satisfy the
+--    preview contract) -- not a runtime FAILED. 014 declared the status CHECK
+--    inline on the column, which Postgres names project_previews_status_check.
+ALTER TABLE project_previews DROP CONSTRAINT IF EXISTS project_previews_status_check;
+ALTER TABLE project_previews ADD CONSTRAINT project_previews_status_check
+    CHECK (status IN ('STARTING', 'RUNNING', 'STOPPED', 'FAILED', 'EXPIRED', 'NOT_PREVIEWABLE'));
+
+-- 2. Distributed lifecycle: which host runs the container (stop tasks are
+--    routed to that host's queue), the Docker-allocated host port (the
+--    external router's upstream), and the bind-mounted source directory the
+--    stop task must delete.
+ALTER TABLE project_previews
+    ADD COLUMN IF NOT EXISTS runtime_host TEXT,
+    ADD COLUMN IF NOT EXISTS host_port INTEGER CHECK (host_port IS NULL OR (host_port BETWEEN 1 AND 65535)),
+    ADD COLUMN IF NOT EXISTS workdir_path TEXT,
+    ADD COLUMN IF NOT EXISTS stopped_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cleaned_at TIMESTAMPTZ;
+
+-- 3. The async build worker runs branding/provenance decoration, which embeds
+--    the user-facing project id. build_requests only stored the internal
+--    tenant key; nullable so rows written before this migration still load.
+ALTER TABLE build_requests
+    ADD COLUMN IF NOT EXISTS public_project_id TEXT;
+
+-- 4. Outbox relay: finds rows whose Redis enqueue never happened.
+CREATE INDEX IF NOT EXISTS idx_build_outbox_pending
+ON build_outbox(created_at)
+WHERE enqueued_at IS NULL;
+
+-- END SOURCE 015_preview_lifecycle_and_async_build_parity.sql
+
+-- BEGIN SOURCE 016_durable_modifications.sql
+-- 016_durable_modifications.sql
+-- M4A/M4B: durable natural-language product modification workflow.
+-- Forward-only and idempotent, following 013-015's pattern: new tables plus
+-- additive columns, nothing edited in place. Verified against
+-- 001_control_plane.sql (project_versions), 011_creator_accounts.sql
+-- (creator accounts / project keys) and 013_durable_async_builds.sql
+-- (build_outbox / credit_reservations -- reused as-is for modification
+-- billing, see the note on reservation_id below) before being written.
+
+-- M4B: one immutable ProductSpec row per ProjectVersion id. version_id is the
+-- primary key (not a surrogate id) precisely so there is exactly one spec per
+-- version and no way to accidentally load "the latest spec" for a project
+-- instead of the exact spec tied to the version being modified -- the
+-- invariant M4B's directive names explicitly. No UPDATE path is used against
+-- this table anywhere in this codebase (see spec_repository.py): a spec
+-- "changing" always means a *new* version getting its own new row.
+CREATE TABLE IF NOT EXISTS project_version_specs (
+    version_id TEXT PRIMARY KEY REFERENCES project_versions(id),
+    project_id TEXT NOT NULL,
+    spec_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_version_specs_project
+ON project_version_specs(project_id, created_at DESC);
+
+-- M4A: the durable ModificationRequest.
+--
+-- promoted_version_id is set only by accept(), and records the *new*
+-- project_versions row created when a candidate was promoted to current
+-- (see modification_repository.py's accept() -- it commits the candidate's
+-- stored repository as a brand-new version, the same append-only way every
+-- other write path produces a new version -- nothing is edited in place).
+--
+-- Deliberately NOT present here: candidate_version_id / candidate_spec_
+-- version_id as columns referencing project_versions. An unreviewed
+-- candidate is intentionally never committed into project_versions (see
+-- modification_candidates below) -- committing it early would make an
+-- unreviewed build transiently "current" and would corrupt the very
+-- concurrency scenario M4 requires (two candidates built against the same
+-- source version N must both still show N as their logical base when
+-- reviewed, which only holds if building a candidate never advances
+-- `current`). The candidate becomes a real project_versions row for the
+-- first time inside accept(), at which point its id is recorded here as
+-- promoted_version_id.
+CREATE TABLE IF NOT EXISTS modification_requests (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    source_version_id TEXT NOT NULL REFERENCES project_versions(id),
+    source_spec_version_id TEXT NOT NULL REFERENCES project_versions(id),
+    followup TEXT NOT NULL,
+    -- Captured durably at creation time (mirrors build_requests.rights_evidence
+    -- -- see job_repository.py / worker_tasks._rights_evidence_from_dicts),
+    -- not read from in-memory API-process state when the worker runs: the
+    -- worker is a separate process/host and must not depend on the API
+    -- process's own memory for a compliance-relevant gate input.
+    target_markets_json JSONB NOT NULL DEFAULT '["US", "EU", "IL"]'::jsonb,
+    rights_evidence_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL CHECK (status IN (
+        'QUEUED', 'RUNNING', 'NEEDS_CLARIFICATION', 'READY_FOR_REVIEW',
+        'ACCEPTED', 'REJECTED', 'FAILED', 'CONFLICT'
+    )),
+    classification TEXT CHECK (classification IN ('system_bug', 'missing_requirement', 'change_request', 'ambiguous')),
+    classification_reason TEXT,
+    billable BOOLEAN,
+    promoted_version_id TEXT REFERENCES project_versions(id),
+    repair_rounds INTEGER NOT NULL DEFAULT 0,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    error_code TEXT,
+    error_message TEXT,
+    -- M4G: reuses credit_reservations(build_id) as a generic reservation key
+    -- (see subscription_store.py's reserve/settle/release) -- that column is
+    -- not foreign-keyed to build_jobs, so a modification_id is a valid key
+    -- for it. reservation_id is stored here rather than assumed to equal
+    -- `id` so a future reservation scheme change doesn't have to touch this
+    -- table's primary key.
+    reservation_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    accepted_at TIMESTAMPTZ,
+    rejected_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_modification_requests_project
+ON modification_requests(project_id, created_at DESC);
+
+-- Acceptance test U (concurrency): finding every other still-open
+-- modification against the same source version once one of them is accepted.
+CREATE INDEX IF NOT EXISTS idx_modification_requests_source_version
+ON modification_requests(source_version_id, status);
+
+-- M4C/M4D: the pending candidate produced by a READY_FOR_REVIEW completion --
+-- a repository + spec pair that is NOT yet a project_versions row (see the
+-- comment on modification_requests above for why). One row per modification,
+-- written atomically with the READY_FOR_REVIEW status flip in complete();
+-- read back by accept() to promote it, or by a review UI to show it. project_id
+-- is denormalized here (rather than requiring a join back to
+-- modification_requests) the same way project_version_specs denormalizes it
+-- for project_versions in M4B above -- cheap, tenant-scoped reads.
+CREATE TABLE IF NOT EXISTS modification_candidates (
+    modification_id TEXT PRIMARY KEY REFERENCES modification_requests(id),
+    project_id TEXT NOT NULL,
+    repository_json JSONB NOT NULL,
+    spec_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- M4A: transactional outbox for Redis enqueueing, identical shape and
+-- purpose to build_outbox (013) -- a separate table because
+-- modification_requests.id has no FK relationship to build_requests, and
+-- reusing build_outbox would conflate two different queues' pending-dispatch
+-- bookkeeping.
+CREATE TABLE IF NOT EXISTS modification_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    modification_id TEXT NOT NULL UNIQUE REFERENCES modification_requests(id),
+    enqueued_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_modification_outbox_pending
+ON modification_outbox(created_at)
+WHERE enqueued_at IS NULL;
+
+-- END SOURCE 016_durable_modifications.sql
+
+-- BEGIN SOURCE 017_capability_foundation.sql
+-- 017_capability_foundation.sql
+-- Durable M4.95 capability requirements, provider executions and usage evidence.
+
+CREATE TABLE IF NOT EXISTS build_capability_requirements (
+    build_id TEXT NOT NULL REFERENCES build_jobs(id) ON DELETE CASCADE,
+    requirement_id TEXT NOT NULL,
+    capability_key TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    required BOOLEAN NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 1),
+    constraints_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    dependency_ids_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (
+        status IN ('PLANNED','QUOTED','RESERVED','QUEUED','RUNNING','GENERATED',
+                   'VERIFIED','FAILED','CANCELLED','SKIPPED','NOT_CONFIGURED','BLOCKED')
+    ),
+    selected_provider TEXT,
+    pricing_version TEXT,
+    estimated_cost_usd NUMERIC(18,8),
+    maximum_cost_usd NUMERIC(18,8),
+    actual_cost_usd NUMERIC(18,8),
+    artifact_key TEXT,
+    verification_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (estimated_cost_usd IS NULL OR estimated_cost_usd >= 0),
+    CHECK (maximum_cost_usd IS NULL OR maximum_cost_usd >= COALESCE(estimated_cost_usd, 0)),
+    CHECK (actual_cost_usd IS NULL OR actual_cost_usd >= 0),
+    PRIMARY KEY (build_id, requirement_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_status
+    ON build_capability_requirements(build_id, status);
+CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_key
+    ON build_capability_requirements(capability_key, created_at DESC);
+
+-- Execution state and lease ownership are deliberately separate. The row is
+-- durably created in SUBMITTING before any external paid submit; lease fields
+-- are nullable until a worker claims it. A restarted worker reuses the same
+-- idempotency_key/provider_task_id instead of creating a second paid job.
+CREATE TABLE IF NOT EXISTS provider_execution_attempts (
+    id TEXT PRIMARY KEY,
+    build_id TEXT NOT NULL,
+    requirement_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    pricing_version TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    provider_task_id TEXT,
+    status TEXT NOT NULL DEFAULT 'SUBMITTING' CHECK (
+        status IN ('SUBMITTING','SUBMITTED','RUNNING','SUCCEEDED','FAILED','CANCELLED')
+    ),
+    lease_owner TEXT,
+    lease_expires_at TIMESTAMPTZ,
+    last_error_code TEXT,
+    last_error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (build_id, requirement_id)
+        REFERENCES build_capability_requirements(build_id, requirement_id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_provider_execution_external_task
+    ON provider_execution_attempts(provider, provider_task_id)
+    WHERE provider_task_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_provider_execution_resume
+    ON provider_execution_attempts(status, lease_expires_at);
+
+CREATE TABLE IF NOT EXISTS provider_usage_events (
+    id BIGSERIAL PRIMARY KEY,
+    event_key TEXT NOT NULL UNIQUE,
+    build_id TEXT NOT NULL,
+    requirement_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    pricing_version TEXT NOT NULL,
+    estimated_cost_usd NUMERIC(18,8) NOT NULL CHECK (estimated_cost_usd >= 0),
+    maximum_cost_usd NUMERIC(18,8) NOT NULL CHECK (maximum_cost_usd >= estimated_cost_usd),
+    actual_cost_usd NUMERIC(18,8),
+    usage_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (actual_cost_usd IS NULL OR actual_cost_usd >= 0),
+    FOREIGN KEY (build_id, requirement_id)
+        REFERENCES build_capability_requirements(build_id, requirement_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_provider_usage_build
+    ON provider_usage_events(build_id, requirement_id, provider);
+
+-- END SOURCE 017_capability_foundation.sql
+
+-- BEGIN SOURCE 018_identity_lifecycle.sql
+-- 018_identity_lifecycle.sql
+-- M5 Task 2: durable creator identity/session lifecycle. Raw session, email
+-- verification and password-reset tokens are never persisted.
+
+ALTER TABLE creator_accounts
+    ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE creator_accounts
+    ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS creator_sessions (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    last_seen_at TIMESTAMPTZ,
+    CHECK (expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_sessions_user_active
+    ON creator_sessions(user_id, created_at DESC)
+    WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS creator_identity_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    purpose TEXT NOT NULL CHECK (purpose IN ('EMAIL_VERIFY','PASSWORD_RESET')),
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    CHECK (expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_identity_tokens_lookup
+    ON creator_identity_tokens(token_hash, purpose)
+    WHERE consumed_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS creator_consents (
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    consent_type TEXT NOT NULL,
+    version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    accepted_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY(user_id, consent_type, version)
+);
+
+CREATE TABLE IF NOT EXISTS creator_privacy_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    request_type TEXT NOT NULL CHECK (request_type IN ('DATA_EXPORT','ACCOUNT_DELETION')),
+    status TEXT NOT NULL CHECK (status IN ('REQUESTED','PROCESSING','COMPLETED','REJECTED')),
+    requested_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_creator_privacy_requests_user
+    ON creator_privacy_requests(user_id, requested_at DESC);
+
+-- END SOURCE 018_identity_lifecycle.sql
+
+-- BEGIN SOURCE 019_project_lifecycle.sql
+-- 019_project_lifecycle.sql
+-- M5 Task 3: archive/delete are metadata state transitions. Project rows and
+-- downstream versions/build/evidence are deliberately not hard-deleted here.
+
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS tombstone_reason TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_creator_projects_owner_active
+    ON creator_projects(owner_id, updated_at DESC)
+    WHERE deleted_at IS NULL AND archived_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_projects_owner_archived
+    ON creator_projects(owner_id, updated_at DESC)
+    WHERE deleted_at IS NULL AND archived_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_projects_retention
+    ON creator_projects(retention_until)
+    WHERE deleted_at IS NOT NULL;
+
+-- END SOURCE 019_project_lifecycle.sql
+
+-- BEGIN SOURCE 020_m5_build_contracts.sql
+-- M5 Task 4: immutable, versioned Build Contracts.
+-- A build contract binds one product-intent revision to deterministic capability,
+-- infrastructure, security, acceptance and cost-envelope truth.
+
+CREATE TABLE IF NOT EXISTS m5_build_contracts (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES creator_projects(id) ON DELETE RESTRICT,
+    contract_version INTEGER NOT NULL CHECK (contract_version > 0),
+    status TEXT NOT NULL CHECK (status IN ('READY','NEEDS_CLARIFICATION','BLOCKED')),
+    capability_plan_fingerprint TEXT NOT NULL,
+    contract_fingerprint TEXT NOT NULL,
+    contract_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    UNIQUE(project_id, contract_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_m5_build_contracts_project_version
+    ON m5_build_contracts(project_id, contract_version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_m5_build_contracts_project_fingerprint
+    ON m5_build_contracts(project_id, contract_fingerprint);
+
+CREATE OR REPLACE FUNCTION reject_m5_build_contract_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'm5 build contracts are immutable; create a new contract revision';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_m5_build_contracts_immutable ON m5_build_contracts;
+CREATE TRIGGER trg_m5_build_contracts_immutable
+BEFORE UPDATE OR DELETE ON m5_build_contracts
+FOR EACH ROW EXECUTE FUNCTION reject_m5_build_contract_mutation();
+
+-- M5 Task 5: every new durable build request is bound to one immutable
+-- Build Contract revision. Nullable preserves readability of pre-M5 rows.
+ALTER TABLE build_requests
+    ADD COLUMN IF NOT EXISTS build_contract_id TEXT REFERENCES m5_build_contracts(id) ON DELETE RESTRICT;
+
+CREATE INDEX IF NOT EXISTS idx_build_requests_build_contract
+    ON build_requests(build_contract_id)
+    WHERE build_contract_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION m5_build_request_contract_project()
+RETURNS TRIGGER AS $$
+DECLARE
+    contract_project TEXT;
+BEGIN
+    IF NEW.build_contract_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF NEW.public_project_id IS NULL THEN
+        RAISE EXCEPTION 'bound build request requires public_project_id';
+    END IF;
+    SELECT project_id INTO contract_project
+      FROM m5_build_contracts
+     WHERE id = NEW.build_contract_id;
+    IF contract_project IS NULL THEN
+        RAISE EXCEPTION 'build contract does not exist';
+    END IF;
+    IF contract_project IS DISTINCT FROM NEW.public_project_id THEN
+        RAISE EXCEPTION 'build contract project mismatch';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_m5_build_request_contract_project ON build_requests;
+CREATE TRIGGER trg_m5_build_request_contract_project
+BEFORE INSERT OR UPDATE OF build_contract_id, public_project_id ON build_requests
+FOR EACH ROW EXECUTE FUNCTION m5_build_request_contract_project();
+
+-- END SOURCE 020_m5_build_contracts.sql
+
+-- BEGIN SOURCE 021_generated_app_bindings.sql
+-- M5 Task 7: durable generated-app infrastructure bindings.
+-- One row per (profile, project, environment, kind). Rows hold secret
+-- REFERENCES (env:/vault:) only; the database rejects anything else.
+-- Ownership (tenant/project/environment/kind/profile) is immutable once written.
+
+CREATE TABLE IF NOT EXISTS generated_app_bindings (
+    binding_id TEXT PRIMARY KEY,
+    idempotency_key TEXT NOT NULL,
+    profile_key TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    environment TEXT NOT NULL CHECK (environment IN ('preview','production')),
+    kind TEXT NOT NULL CHECK (kind IN ('database','auth_session','object_storage','scheduled_http','outbound')),
+    status TEXT NOT NULL CHECK (status IN ('LIVE','NOT_CONFIGURED','BLOCKED','REVOKED')),
+    resource_name TEXT NOT NULL,
+    provisioner TEXT NOT NULL,
+    secret_references JSONB NOT NULL DEFAULT '{}'::jsonb,
+    public_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at TIMESTAMPTZ,
+    CONSTRAINT generated_app_bindings_idempotency UNIQUE (idempotency_key),
+    CONSTRAINT generated_app_bindings_scope UNIQUE (profile_key, project_id, environment, kind),
+    CONSTRAINT generated_app_bindings_refs_object CHECK (jsonb_typeof(secret_references) = 'object'),
+    -- every secret_references value must be an env: or vault: reference, never a value
+    CONSTRAINT generated_app_bindings_refs_only CHECK (
+        NOT jsonb_path_exists(secret_references, '$.* ? (!(@ like_regex "^(env|vault):[A-Za-z0-9_./-]+$"))')
+    ),
+    CONSTRAINT generated_app_bindings_revoked_at CHECK ((status = 'REVOKED') = (revoked_at IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_app_bindings_project_env
+    ON generated_app_bindings(project_id, environment);
+
+CREATE OR REPLACE FUNCTION reject_generated_app_binding_ownership_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+       OR NEW.project_id IS DISTINCT FROM OLD.project_id
+       OR NEW.environment IS DISTINCT FROM OLD.environment
+       OR NEW.kind IS DISTINCT FROM OLD.kind
+       OR NEW.profile_key IS DISTINCT FROM OLD.profile_key
+       OR NEW.idempotency_key IS DISTINCT FROM OLD.idempotency_key THEN
+        RAISE EXCEPTION 'cannot change binding ownership of generated app binding %', OLD.binding_id;
+    END IF;
+    NEW.updated_at := now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_generated_app_bindings_ownership ON generated_app_bindings;
+CREATE TRIGGER trg_generated_app_bindings_ownership
+BEFORE UPDATE ON generated_app_bindings
+FOR EACH ROW EXECUTE FUNCTION reject_generated_app_binding_ownership_change();
+
+-- END SOURCE 021_generated_app_bindings.sql
+
+-- BEGIN SOURCE 026_media_provider_submissions.sql
+-- M5 Task 9 (migration 026; 022-025 are reserved by the M5 plan for Tasks 12-15): durable submission journal for paid external media providers.
+-- An INTENT row is written before a paid submit; the provider task id is
+-- recorded right after. A crash between the two leaves an INTENT row, which
+-- makes the adapter fail closed (or rely on provider-side idempotency) instead
+-- of blindly paying for a duplicate job.
+
+CREATE TABLE IF NOT EXISTS media_provider_submissions (
+    idempotency_key TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('INTENT','SUBMITTED')),
+    provider_task_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT media_provider_submissions_task CHECK ((state = 'SUBMITTED') = (provider_task_id IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_provider_submissions_intent
+    ON media_provider_submissions(provider, created_at)
+    WHERE state = 'INTENT';
+
+-- END SOURCE 026_media_provider_submissions.sql
+
+-- Record exact original migration checksums for the normal migration runner.
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (1, 'control_plane', encode(sha256(convert_to($source_001$CREATE TABLE IF NOT EXISTS build_jobs (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL,
+    version_id      TEXT,
+    status          TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at      TIMESTAMPTZ,
+    finished_at     TIMESTAMPTZ,
+    artifact_key    TEXT,
+    error_code      TEXT,
+    error_message   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_jobs_project_created
+ON build_jobs(project_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS deployments (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL,
+    version_id      TEXT NOT NULL,
+    build_id        TEXT NOT NULL,
+    environment     TEXT NOT NULL,
+    artifact_key    TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retired_at      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployments_project_env
+ON deployments(project_id, environment, created_at DESC);
+$source_001$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (2, 'usage', encode(sha256(convert_to($source_002$CREATE TABLE IF NOT EXISTS usage_events (
+    id              BIGSERIAL PRIMARY KEY,
+    account_id      TEXT NOT NULL,
+    project_id      TEXT NOT NULL,
+    kind            TEXT NOT NULL,
+    quantity        NUMERIC(30, 6) NOT NULL CHECK (quantity >= 0),
+    provider        TEXT,
+    model           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_account_created
+ON usage_events(account_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_usage_project_created
+ON usage_events(project_id, created_at DESC);
+$source_002$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (3, 'resilience', encode(sha256(convert_to($source_003$CREATE TABLE IF NOT EXISTS idempotency_keys (
+    account_id          TEXT NOT NULL,
+    idempotency_key     TEXT NOT NULL,
+    request_fingerprint TEXT NOT NULL,
+    resource_id         TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at          TIMESTAMPTZ,
+    PRIMARY KEY(account_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires
+ON idempotency_keys(expires_at)
+WHERE expires_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS worker_heartbeats (
+    worker_id       TEXT PRIMARY KEY,
+    queue_name      TEXT NOT NULL,
+    seen_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata        JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS account_limits (
+    account_id      TEXT NOT NULL,
+    metric          TEXT NOT NULL,
+    maximum         NUMERIC(30, 6) NOT NULL CHECK (maximum >= 0),
+    period          TEXT NOT NULL,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY(account_id, metric, period)
+);
+$source_003$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (4, 'orchestration', encode(sha256(convert_to($source_004$ALTER TABLE build_jobs
+    ADD COLUMN IF NOT EXISTS attempt INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS repair_rounds INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS ai_cost NUMERIC(18,6) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS build_seconds INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS deployment_events (
+    id              BIGSERIAL PRIMARY KEY,
+    deployment_id   TEXT NOT NULL,
+    event_type      TEXT NOT NULL,
+    traffic_percent INTEGER,
+    error_rate      NUMERIC(10,6),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployment_events_deployment_created
+ON deployment_events(deployment_id, created_at DESC);
+$source_004$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (5, 'release_engineering', encode(sha256(convert_to($source_005$CREATE TABLE IF NOT EXISTS schema_migrations (
+    version         INTEGER PRIMARY KEY,
+    name            TEXT NOT NULL,
+    sha256          TEXT NOT NULL,
+    applied_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    sequence        BIGSERIAL PRIMARY KEY,
+    event_type      TEXT NOT NULL,
+    actor_id        TEXT NOT NULL,
+    resource_id     TEXT NOT NULL,
+    payload         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    previous_hash   TEXT NOT NULL,
+    event_hash      TEXT NOT NULL UNIQUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_resource
+ON audit_events(resource_id, sequence DESC);
+
+CREATE TABLE IF NOT EXISTS release_records (
+    id              TEXT PRIMARY KEY,
+    version         TEXT NOT NULL,
+    package_sha256  TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL,
+    test_count      INTEGER NOT NULL CHECK (test_count >= 0),
+    status          TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+$source_005$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (6, 'preflight_release', encode(sha256(convert_to($source_006$ALTER TABLE release_records
+ADD COLUMN IF NOT EXISTS preflight_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS production_checks (
+    id              BIGSERIAL PRIMARY KEY,
+    release_id      TEXT NOT NULL,
+    check_name      TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    details         JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_checks_release
+ON production_checks(release_id, created_at DESC);
+$source_006$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (7, 'supply_chain', encode(sha256(convert_to($source_007$CREATE TABLE IF NOT EXISTS release_attestations (
+    release_id TEXT PRIMARY KEY,
+    sbom_sha256 TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL,
+    attestation_json JSONB NOT NULL,
+    dependency_lock_status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+$source_007$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (8, 'outbox_recovery', encode(sha256(convert_to($source_008$CREATE TABLE IF NOT EXISTS outbox_events (
+    id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    aggregate_id TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    dedupe_key TEXT NOT NULL UNIQUE,
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
+ON outbox_events(available_at, created_at)
+WHERE published_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS dead_letter_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    error_code TEXT NOT NULL,
+    error_message TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    attempts INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dead_letter_job
+ON dead_letter_jobs(job_id, created_at DESC);
+$source_008$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (9, 'observability_recovery', encode(sha256(convert_to($source_009$CREATE TABLE IF NOT EXISTS backup_records (
+    id TEXT PRIMARY KEY,
+    backup_type TEXT NOT NULL,
+    storage_key TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    verified_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS operational_events (
+    id BIGSERIAL PRIMARY KEY,
+    request_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    resource_id TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_operational_events_request
+ON operational_events(request_id, created_at);
+$source_009$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (10, 'international_product', encode(sha256(convert_to($source_010$CREATE TABLE IF NOT EXISTS organizations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS organization_members (
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('owner','admin','developer','designer','viewer','billing')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id,user_id)
+);
+CREATE TABLE IF NOT EXISTS project_versions (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  parent_id TEXT,
+  repository_sha256 TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS project_memory (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  content TEXT NOT NULL,
+  source_version TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS project_memory_project_created_idx ON project_memory(project_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id BIGSERIAL PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  project_id TEXT,
+  delta INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  idempotency_key TEXT UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS integration_bindings (
+  organization_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  secret_reference JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id,provider)
+);
+$source_010$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (11, 'creator_accounts', encode(sha256(convert_to($source_011$CREATE TABLE IF NOT EXISTS creator_accounts (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    salt_b64 TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS creator_projects (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS creator_projects_owner_updated_idx ON creator_projects(owner_id, updated_at DESC);
+$source_011$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (12, 'creator_subscriptions', encode(sha256(convert_to($source_012$CREATE TABLE IF NOT EXISTS creator_subscriptions (
+    user_id TEXT PRIMARY KEY REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    plan_code TEXT NOT NULL DEFAULT 'free',
+    cycle TEXT NOT NULL,
+    credits_used INTEGER NOT NULL DEFAULT 0 CHECK (credits_used >= 0),
+    provider_spend_usd NUMERIC(14,6) NOT NULL DEFAULT 0 CHECK (provider_spend_usd >= 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+$source_012$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (13, 'durable_async_builds', encode(sha256(convert_to($source_013$-- 013_durable_async_builds.sql
+-- Idempotent schema additions for M1 Durable Async Builds
+-- Verified against infra/postgres/001_control_plane.sql (build_jobs),
+-- 010_international_product.sql (project_versions), 012_creator_subscriptions.sql
+-- (creator_subscriptions) before being applied. Applied verbatim from the pasted
+-- M1 Revision 2 patch -- schema-compatible with the existing tables.
+
+CREATE TABLE IF NOT EXISTS credit_reservations (
+    build_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    credits_reserved INTEGER NOT NULL CHECK (credits_reserved >= 0),
+    estimated_provider_cost_usd NUMERIC(14,6) NOT NULL DEFAULT 0,
+    actual_provider_cost_usd NUMERIC(14,6),
+    settled_provider_cost_usd NUMERIC(14,6),
+    status TEXT NOT NULL CHECK (status IN ('RESERVED', 'SETTLED', 'RELEASED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS build_requests (
+    build_id TEXT PRIMARY KEY REFERENCES credit_reservations(build_id),
+    user_id TEXT NOT NULL,
+    internal_project_id TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    target_markets JSONB NOT NULL DEFAULT '[]'::jsonb,
+    branding_visible BOOLEAN,
+    white_label_name TEXT,
+    rights_evidence JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enhance build_jobs with phase, explicit costs, and evidence
+ALTER TABLE build_jobs
+    ADD COLUMN IF NOT EXISTS phase TEXT NOT NULL DEFAULT 'QUEUED',
+    ADD COLUMN IF NOT EXISTS message TEXT,
+    ADD COLUMN IF NOT EXISTS result_version_id TEXT,
+    ADD COLUMN IF NOT EXISTS actual_provider_cost_usd NUMERIC(14,6),
+    ADD COLUMN IF NOT EXISTS estimated_provider_cost_usd NUMERIC(14,6),
+    ADD COLUMN IF NOT EXISTS repair_rounds INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- Ensure project_versions can store the artifact explicitly
+ALTER TABLE project_versions
+    ADD COLUMN IF NOT EXISTS artifact_key TEXT,
+    ADD COLUMN IF NOT EXISTS file_count INTEGER NOT NULL DEFAULT 0;
+
+-- Transactional Outbox for Redis Enqueueing
+CREATE TABLE IF NOT EXISTS build_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    build_id TEXT NOT NULL UNIQUE REFERENCES build_requests(build_id),
+    enqueued_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+$source_013$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (14, 'real_running_preview', encode(sha256(convert_to($source_014$-- 014_real_running_preview.sql
+-- M3: durable metadata for the real running-preview lifecycle. Separate
+-- table from build_jobs/project_versions -- a preview is a distinct runtime
+-- lifecycle (create -> provision -> start -> health -> expose -> logs ->
+-- stop/expire -> cleanup), not a build artifact.
+
+CREATE TABLE IF NOT EXISTS project_previews (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    version_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('STARTING', 'RUNNING', 'STOPPED', 'FAILED', 'EXPIRED')),
+    preview_url TEXT,
+    internal_container_id TEXT,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_previews_project_created
+ON project_previews(project_id, created_at DESC);
+
+-- Used by mark_expired()'s sweep (status='RUNNING' AND expires_at < now()).
+CREATE INDEX IF NOT EXISTS idx_project_previews_running_expiry
+ON project_previews(expires_at)
+WHERE status = 'RUNNING';
+$source_014$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (15, 'preview_lifecycle_and_async_build_parity', encode(sha256(convert_to($source_015$-- 015_preview_lifecycle_and_async_build_parity.sql
+-- M3 Revision 2 + M1 blocker resolution. Forward-only and idempotent: 014 may
+-- already be applied in some environment, so it is extended here rather than
+-- edited in place.
+
+-- 1. NOT_PREVIEWABLE is a distinct terminal state (artifact cannot satisfy the
+--    preview contract) -- not a runtime FAILED. 014 declared the status CHECK
+--    inline on the column, which Postgres names project_previews_status_check.
+ALTER TABLE project_previews DROP CONSTRAINT IF EXISTS project_previews_status_check;
+ALTER TABLE project_previews ADD CONSTRAINT project_previews_status_check
+    CHECK (status IN ('STARTING', 'RUNNING', 'STOPPED', 'FAILED', 'EXPIRED', 'NOT_PREVIEWABLE'));
+
+-- 2. Distributed lifecycle: which host runs the container (stop tasks are
+--    routed to that host's queue), the Docker-allocated host port (the
+--    external router's upstream), and the bind-mounted source directory the
+--    stop task must delete.
+ALTER TABLE project_previews
+    ADD COLUMN IF NOT EXISTS runtime_host TEXT,
+    ADD COLUMN IF NOT EXISTS host_port INTEGER CHECK (host_port IS NULL OR (host_port BETWEEN 1 AND 65535)),
+    ADD COLUMN IF NOT EXISTS workdir_path TEXT,
+    ADD COLUMN IF NOT EXISTS stopped_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cleaned_at TIMESTAMPTZ;
+
+-- 3. The async build worker runs branding/provenance decoration, which embeds
+--    the user-facing project id. build_requests only stored the internal
+--    tenant key; nullable so rows written before this migration still load.
+ALTER TABLE build_requests
+    ADD COLUMN IF NOT EXISTS public_project_id TEXT;
+
+-- 4. Outbox relay: finds rows whose Redis enqueue never happened.
+CREATE INDEX IF NOT EXISTS idx_build_outbox_pending
+ON build_outbox(created_at)
+WHERE enqueued_at IS NULL;
+$source_015$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (16, 'durable_modifications', encode(sha256(convert_to($source_016$-- 016_durable_modifications.sql
+-- M4A/M4B: durable natural-language product modification workflow.
+-- Forward-only and idempotent, following 013-015's pattern: new tables plus
+-- additive columns, nothing edited in place. Verified against
+-- 001_control_plane.sql (project_versions), 011_creator_accounts.sql
+-- (creator accounts / project keys) and 013_durable_async_builds.sql
+-- (build_outbox / credit_reservations -- reused as-is for modification
+-- billing, see the note on reservation_id below) before being written.
+
+-- M4B: one immutable ProductSpec row per ProjectVersion id. version_id is the
+-- primary key (not a surrogate id) precisely so there is exactly one spec per
+-- version and no way to accidentally load "the latest spec" for a project
+-- instead of the exact spec tied to the version being modified -- the
+-- invariant M4B's directive names explicitly. No UPDATE path is used against
+-- this table anywhere in this codebase (see spec_repository.py): a spec
+-- "changing" always means a *new* version getting its own new row.
+CREATE TABLE IF NOT EXISTS project_version_specs (
+    version_id TEXT PRIMARY KEY REFERENCES project_versions(id),
+    project_id TEXT NOT NULL,
+    spec_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_version_specs_project
+ON project_version_specs(project_id, created_at DESC);
+
+-- M4A: the durable ModificationRequest.
+--
+-- promoted_version_id is set only by accept(), and records the *new*
+-- project_versions row created when a candidate was promoted to current
+-- (see modification_repository.py's accept() -- it commits the candidate's
+-- stored repository as a brand-new version, the same append-only way every
+-- other write path produces a new version -- nothing is edited in place).
+--
+-- Deliberately NOT present here: candidate_version_id / candidate_spec_
+-- version_id as columns referencing project_versions. An unreviewed
+-- candidate is intentionally never committed into project_versions (see
+-- modification_candidates below) -- committing it early would make an
+-- unreviewed build transiently "current" and would corrupt the very
+-- concurrency scenario M4 requires (two candidates built against the same
+-- source version N must both still show N as their logical base when
+-- reviewed, which only holds if building a candidate never advances
+-- `current`). The candidate becomes a real project_versions row for the
+-- first time inside accept(), at which point its id is recorded here as
+-- promoted_version_id.
+CREATE TABLE IF NOT EXISTS modification_requests (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    source_version_id TEXT NOT NULL REFERENCES project_versions(id),
+    source_spec_version_id TEXT NOT NULL REFERENCES project_versions(id),
+    followup TEXT NOT NULL,
+    -- Captured durably at creation time (mirrors build_requests.rights_evidence
+    -- -- see job_repository.py / worker_tasks._rights_evidence_from_dicts),
+    -- not read from in-memory API-process state when the worker runs: the
+    -- worker is a separate process/host and must not depend on the API
+    -- process's own memory for a compliance-relevant gate input.
+    target_markets_json JSONB NOT NULL DEFAULT '["US", "EU", "IL"]'::jsonb,
+    rights_evidence_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL CHECK (status IN (
+        'QUEUED', 'RUNNING', 'NEEDS_CLARIFICATION', 'READY_FOR_REVIEW',
+        'ACCEPTED', 'REJECTED', 'FAILED', 'CONFLICT'
+    )),
+    classification TEXT CHECK (classification IN ('system_bug', 'missing_requirement', 'change_request', 'ambiguous')),
+    classification_reason TEXT,
+    billable BOOLEAN,
+    promoted_version_id TEXT REFERENCES project_versions(id),
+    repair_rounds INTEGER NOT NULL DEFAULT 0,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    error_code TEXT,
+    error_message TEXT,
+    -- M4G: reuses credit_reservations(build_id) as a generic reservation key
+    -- (see subscription_store.py's reserve/settle/release) -- that column is
+    -- not foreign-keyed to build_jobs, so a modification_id is a valid key
+    -- for it. reservation_id is stored here rather than assumed to equal
+    -- `id` so a future reservation scheme change doesn't have to touch this
+    -- table's primary key.
+    reservation_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    accepted_at TIMESTAMPTZ,
+    rejected_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_modification_requests_project
+ON modification_requests(project_id, created_at DESC);
+
+-- Acceptance test U (concurrency): finding every other still-open
+-- modification against the same source version once one of them is accepted.
+CREATE INDEX IF NOT EXISTS idx_modification_requests_source_version
+ON modification_requests(source_version_id, status);
+
+-- M4C/M4D: the pending candidate produced by a READY_FOR_REVIEW completion --
+-- a repository + spec pair that is NOT yet a project_versions row (see the
+-- comment on modification_requests above for why). One row per modification,
+-- written atomically with the READY_FOR_REVIEW status flip in complete();
+-- read back by accept() to promote it, or by a review UI to show it. project_id
+-- is denormalized here (rather than requiring a join back to
+-- modification_requests) the same way project_version_specs denormalizes it
+-- for project_versions in M4B above -- cheap, tenant-scoped reads.
+CREATE TABLE IF NOT EXISTS modification_candidates (
+    modification_id TEXT PRIMARY KEY REFERENCES modification_requests(id),
+    project_id TEXT NOT NULL,
+    repository_json JSONB NOT NULL,
+    spec_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- M4A: transactional outbox for Redis enqueueing, identical shape and
+-- purpose to build_outbox (013) -- a separate table because
+-- modification_requests.id has no FK relationship to build_requests, and
+-- reusing build_outbox would conflate two different queues' pending-dispatch
+-- bookkeeping.
+CREATE TABLE IF NOT EXISTS modification_outbox (
+    id BIGSERIAL PRIMARY KEY,
+    modification_id TEXT NOT NULL UNIQUE REFERENCES modification_requests(id),
+    enqueued_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_modification_outbox_pending
+ON modification_outbox(created_at)
+WHERE enqueued_at IS NULL;
+$source_016$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (17, 'capability_foundation', encode(sha256(convert_to($source_017$-- 017_capability_foundation.sql
+-- Durable M4.95 capability requirements, provider executions and usage evidence.
+
+CREATE TABLE IF NOT EXISTS build_capability_requirements (
+    build_id TEXT NOT NULL REFERENCES build_jobs(id) ON DELETE CASCADE,
+    requirement_id TEXT NOT NULL,
+    capability_key TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    required BOOLEAN NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 1),
+    constraints_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    dependency_ids_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (
+        status IN ('PLANNED','QUOTED','RESERVED','QUEUED','RUNNING','GENERATED',
+                   'VERIFIED','FAILED','CANCELLED','SKIPPED','NOT_CONFIGURED','BLOCKED')
+    ),
+    selected_provider TEXT,
+    pricing_version TEXT,
+    estimated_cost_usd NUMERIC(18,8),
+    maximum_cost_usd NUMERIC(18,8),
+    actual_cost_usd NUMERIC(18,8),
+    artifact_key TEXT,
+    verification_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (estimated_cost_usd IS NULL OR estimated_cost_usd >= 0),
+    CHECK (maximum_cost_usd IS NULL OR maximum_cost_usd >= COALESCE(estimated_cost_usd, 0)),
+    CHECK (actual_cost_usd IS NULL OR actual_cost_usd >= 0),
+    PRIMARY KEY (build_id, requirement_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_status
+    ON build_capability_requirements(build_id, status);
+CREATE INDEX IF NOT EXISTS idx_build_capability_requirements_key
+    ON build_capability_requirements(capability_key, created_at DESC);
+
+-- Execution state and lease ownership are deliberately separate. The row is
+-- durably created in SUBMITTING before any external paid submit; lease fields
+-- are nullable until a worker claims it. A restarted worker reuses the same
+-- idempotency_key/provider_task_id instead of creating a second paid job.
+CREATE TABLE IF NOT EXISTS provider_execution_attempts (
+    id TEXT PRIMARY KEY,
+    build_id TEXT NOT NULL,
+    requirement_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    pricing_version TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    provider_task_id TEXT,
+    status TEXT NOT NULL DEFAULT 'SUBMITTING' CHECK (
+        status IN ('SUBMITTING','SUBMITTED','RUNNING','SUCCEEDED','FAILED','CANCELLED')
+    ),
+    lease_owner TEXT,
+    lease_expires_at TIMESTAMPTZ,
+    last_error_code TEXT,
+    last_error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (build_id, requirement_id)
+        REFERENCES build_capability_requirements(build_id, requirement_id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_provider_execution_external_task
+    ON provider_execution_attempts(provider, provider_task_id)
+    WHERE provider_task_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_provider_execution_resume
+    ON provider_execution_attempts(status, lease_expires_at);
+
+CREATE TABLE IF NOT EXISTS provider_usage_events (
+    id BIGSERIAL PRIMARY KEY,
+    event_key TEXT NOT NULL UNIQUE,
+    build_id TEXT NOT NULL,
+    requirement_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    pricing_version TEXT NOT NULL,
+    estimated_cost_usd NUMERIC(18,8) NOT NULL CHECK (estimated_cost_usd >= 0),
+    maximum_cost_usd NUMERIC(18,8) NOT NULL CHECK (maximum_cost_usd >= estimated_cost_usd),
+    actual_cost_usd NUMERIC(18,8),
+    usage_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (actual_cost_usd IS NULL OR actual_cost_usd >= 0),
+    FOREIGN KEY (build_id, requirement_id)
+        REFERENCES build_capability_requirements(build_id, requirement_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_provider_usage_build
+    ON provider_usage_events(build_id, requirement_id, provider);
+$source_017$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (18, 'identity_lifecycle', encode(sha256(convert_to($source_018$-- 018_identity_lifecycle.sql
+-- M5 Task 2: durable creator identity/session lifecycle. Raw session, email
+-- verification and password-reset tokens are never persisted.
+
+ALTER TABLE creator_accounts
+    ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE creator_accounts
+    ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS creator_sessions (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    last_seen_at TIMESTAMPTZ,
+    CHECK (expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_sessions_user_active
+    ON creator_sessions(user_id, created_at DESC)
+    WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS creator_identity_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    purpose TEXT NOT NULL CHECK (purpose IN ('EMAIL_VERIFY','PASSWORD_RESET')),
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    CHECK (expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS idx_creator_identity_tokens_lookup
+    ON creator_identity_tokens(token_hash, purpose)
+    WHERE consumed_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS creator_consents (
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    consent_type TEXT NOT NULL,
+    version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    accepted_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY(user_id, consent_type, version)
+);
+
+CREATE TABLE IF NOT EXISTS creator_privacy_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    request_type TEXT NOT NULL CHECK (request_type IN ('DATA_EXPORT','ACCOUNT_DELETION')),
+    status TEXT NOT NULL CHECK (status IN ('REQUESTED','PROCESSING','COMPLETED','REJECTED')),
+    requested_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_creator_privacy_requests_user
+    ON creator_privacy_requests(user_id, requested_at DESC);
+$source_018$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (19, 'project_lifecycle', encode(sha256(convert_to($source_019$-- 019_project_lifecycle.sql
+-- M5 Task 3: archive/delete are metadata state transitions. Project rows and
+-- downstream versions/build/evidence are deliberately not hard-deleted here.
+
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ;
+ALTER TABLE creator_projects ADD COLUMN IF NOT EXISTS tombstone_reason TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_creator_projects_owner_active
+    ON creator_projects(owner_id, updated_at DESC)
+    WHERE deleted_at IS NULL AND archived_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_projects_owner_archived
+    ON creator_projects(owner_id, updated_at DESC)
+    WHERE deleted_at IS NULL AND archived_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_creator_projects_retention
+    ON creator_projects(retention_until)
+    WHERE deleted_at IS NOT NULL;
+$source_019$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (20, 'm5_build_contracts', encode(sha256(convert_to($source_020$-- M5 Task 4: immutable, versioned Build Contracts.
+-- A build contract binds one product-intent revision to deterministic capability,
+-- infrastructure, security, acceptance and cost-envelope truth.
+
+CREATE TABLE IF NOT EXISTS m5_build_contracts (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES creator_projects(id) ON DELETE RESTRICT,
+    contract_version INTEGER NOT NULL CHECK (contract_version > 0),
+    status TEXT NOT NULL CHECK (status IN ('READY','NEEDS_CLARIFICATION','BLOCKED')),
+    capability_plan_fingerprint TEXT NOT NULL,
+    contract_fingerprint TEXT NOT NULL,
+    contract_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    UNIQUE(project_id, contract_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_m5_build_contracts_project_version
+    ON m5_build_contracts(project_id, contract_version DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_m5_build_contracts_project_fingerprint
+    ON m5_build_contracts(project_id, contract_fingerprint);
+
+CREATE OR REPLACE FUNCTION reject_m5_build_contract_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'm5 build contracts are immutable; create a new contract revision';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_m5_build_contracts_immutable ON m5_build_contracts;
+CREATE TRIGGER trg_m5_build_contracts_immutable
+BEFORE UPDATE OR DELETE ON m5_build_contracts
+FOR EACH ROW EXECUTE FUNCTION reject_m5_build_contract_mutation();
+
+-- M5 Task 5: every new durable build request is bound to one immutable
+-- Build Contract revision. Nullable preserves readability of pre-M5 rows.
+ALTER TABLE build_requests
+    ADD COLUMN IF NOT EXISTS build_contract_id TEXT REFERENCES m5_build_contracts(id) ON DELETE RESTRICT;
+
+CREATE INDEX IF NOT EXISTS idx_build_requests_build_contract
+    ON build_requests(build_contract_id)
+    WHERE build_contract_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION m5_build_request_contract_project()
+RETURNS TRIGGER AS $$
+DECLARE
+    contract_project TEXT;
+BEGIN
+    IF NEW.build_contract_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF NEW.public_project_id IS NULL THEN
+        RAISE EXCEPTION 'bound build request requires public_project_id';
+    END IF;
+    SELECT project_id INTO contract_project
+      FROM m5_build_contracts
+     WHERE id = NEW.build_contract_id;
+    IF contract_project IS NULL THEN
+        RAISE EXCEPTION 'build contract does not exist';
+    END IF;
+    IF contract_project IS DISTINCT FROM NEW.public_project_id THEN
+        RAISE EXCEPTION 'build contract project mismatch';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_m5_build_request_contract_project ON build_requests;
+CREATE TRIGGER trg_m5_build_request_contract_project
+BEFORE INSERT OR UPDATE OF build_contract_id, public_project_id ON build_requests
+FOR EACH ROW EXECUTE FUNCTION m5_build_request_contract_project();
+$source_020$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (21, 'generated_app_bindings', encode(sha256(convert_to($source_021$-- M5 Task 7: durable generated-app infrastructure bindings.
+-- One row per (profile, project, environment, kind). Rows hold secret
+-- REFERENCES (env:/vault:) only; the database rejects anything else.
+-- Ownership (tenant/project/environment/kind/profile) is immutable once written.
+
+CREATE TABLE IF NOT EXISTS generated_app_bindings (
+    binding_id TEXT PRIMARY KEY,
+    idempotency_key TEXT NOT NULL,
+    profile_key TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    environment TEXT NOT NULL CHECK (environment IN ('preview','production')),
+    kind TEXT NOT NULL CHECK (kind IN ('database','auth_session','object_storage','scheduled_http','outbound')),
+    status TEXT NOT NULL CHECK (status IN ('LIVE','NOT_CONFIGURED','BLOCKED','REVOKED')),
+    resource_name TEXT NOT NULL,
+    provisioner TEXT NOT NULL,
+    secret_references JSONB NOT NULL DEFAULT '{}'::jsonb,
+    public_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at TIMESTAMPTZ,
+    CONSTRAINT generated_app_bindings_idempotency UNIQUE (idempotency_key),
+    CONSTRAINT generated_app_bindings_scope UNIQUE (profile_key, project_id, environment, kind),
+    CONSTRAINT generated_app_bindings_refs_object CHECK (jsonb_typeof(secret_references) = 'object'),
+    -- every secret_references value must be an env: or vault: reference, never a value
+    CONSTRAINT generated_app_bindings_refs_only CHECK (
+        NOT jsonb_path_exists(secret_references, '$.* ? (!(@ like_regex "^(env|vault):[A-Za-z0-9_./-]+$"))')
+    ),
+    CONSTRAINT generated_app_bindings_revoked_at CHECK ((status = 'REVOKED') = (revoked_at IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_app_bindings_project_env
+    ON generated_app_bindings(project_id, environment);
+
+CREATE OR REPLACE FUNCTION reject_generated_app_binding_ownership_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+       OR NEW.project_id IS DISTINCT FROM OLD.project_id
+       OR NEW.environment IS DISTINCT FROM OLD.environment
+       OR NEW.kind IS DISTINCT FROM OLD.kind
+       OR NEW.profile_key IS DISTINCT FROM OLD.profile_key
+       OR NEW.idempotency_key IS DISTINCT FROM OLD.idempotency_key THEN
+        RAISE EXCEPTION 'cannot change binding ownership of generated app binding %', OLD.binding_id;
+    END IF;
+    NEW.updated_at := now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_generated_app_bindings_ownership ON generated_app_bindings;
+CREATE TRIGGER trg_generated_app_bindings_ownership
+BEFORE UPDATE ON generated_app_bindings
+FOR EACH ROW EXECUTE FUNCTION reject_generated_app_binding_ownership_change();
+$source_021$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (26, 'media_provider_submissions', encode(sha256(convert_to($source_026$-- M5 Task 9 (migration 026; 022-025 are reserved by the M5 plan for Tasks 12-15): durable submission journal for paid external media providers.
+-- An INTENT row is written before a paid submit; the provider task id is
+-- recorded right after. A crash between the two leaves an INTENT row, which
+-- makes the adapter fail closed (or rely on provider-side idempotency) instead
+-- of blindly paying for a duplicate job.
+
+CREATE TABLE IF NOT EXISTS media_provider_submissions (
+    idempotency_key TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('INTENT','SUBMITTED')),
+    provider_task_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT media_provider_submissions_task CHECK ((state = 'SUBMITTED') = (provider_task_id IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_provider_submissions_intent
+    ON media_provider_submissions(provider, created_at)
+    WHERE state = 'INTENT';
+$source_026$, 'UTF8')), 'hex'));
+
+COMMIT;
+
+SELECT count(*) AS applied_migrations FROM schema_migrations;
+SELECT version, name FROM schema_migrations ORDER BY version;
