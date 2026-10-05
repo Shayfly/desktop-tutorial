@@ -23,6 +23,10 @@ credentials or a failed verification is ``BLOCKED``.
 
 Environment variables (all optional; absence yields NOT_CONFIGURED):
 
+  OMNI_GENAPP_SECRET_STORE_PROVIDER  vault (default) or infisical (explicit opt-in)
+  OMNI_INFISICAL_BASE_URL            HTTPS origin (EU: https://eu.infisical.com)
+  OMNI_INFISICAL_PROJECT_ID / _CLIENT_ID / _CLIENT_SECRET
+  OMNI_INFISICAL_ENVIRONMENT         Infisical environment slug (default dev)
   OMNI_GENAPP_SECRET_STORE_URL       Vault base URL for generated-app secrets
   OMNI_GENAPP_SECRET_STORE_TOKEN_ENV name of the env var holding the Vault token
                                      (default OMNI_GENAPP_VAULT_TOKEN)
@@ -92,6 +96,12 @@ class ManagedWebSaaSConfig:
     email_from_domain: str = ""
     provisioning_estimated_usd: Decimal | None = None
     provisioning_maximum_usd: Decimal | None = None
+    secret_store_provider: str = "vault"
+    infisical_base_url: str = ""
+    infisical_project_id: str = ""
+    infisical_environment: str = "dev"
+    infisical_client_id: str = ""
+    infisical_client_secret_present: bool = False
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "ManagedWebSaaSConfig":
@@ -99,6 +109,12 @@ class ManagedWebSaaSConfig:
         token_env = _clean(env, "OMNI_GENAPP_SECRET_STORE_TOKEN_ENV") or "OMNI_GENAPP_VAULT_TOKEN"
         scheduler_url = _clean(env, "OMNI_GENAPP_SCHEDULER_URL")
         return cls(
+            secret_store_provider=_clean(env, "OMNI_GENAPP_SECRET_STORE_PROVIDER") or "vault",
+            infisical_base_url=_clean(env, "OMNI_INFISICAL_BASE_URL"),
+            infisical_project_id=_clean(env, "OMNI_INFISICAL_PROJECT_ID"),
+            infisical_environment=_clean(env, "OMNI_INFISICAL_ENVIRONMENT") or "dev",
+            infisical_client_id=_clean(env, "OMNI_INFISICAL_CLIENT_ID"),
+            infisical_client_secret_present=bool(_clean(env, "OMNI_INFISICAL_CLIENT_SECRET")),
             secret_store_url=_clean(env, "OMNI_GENAPP_SECRET_STORE_URL"),
             secret_store_token_env=token_env,
             secret_store_token_present=bool(_clean(env, token_env)),
@@ -123,14 +139,32 @@ class ManagedWebSaaSConfig:
 
     @property
     def secret_store_configured(self) -> bool:
-        return bool(self.secret_store_url and self.secret_store_token_present)
+        if self.secret_store_provider == "infisical":
+            url = parse.urlsplit(self.infisical_base_url)
+            valid_origin = (url.scheme == "https" and bool(url.hostname) and not url.username
+                            and not url.password and not url.query and not url.fragment
+                            and url.path in ("", "/"))
+            return bool(valid_origin and self.infisical_project_id and self.infisical_environment
+                        and self.infisical_client_id and self.infisical_client_secret_present)
+        return bool(self.secret_store_provider == "vault" and self.secret_store_url
+                    and self.secret_store_token_present)
+
+    @property
+    def secret_store_configuration_reason(self) -> str:
+        if self.secret_store_provider == "infisical":
+            return ("generated-app Infisical secret store is not configured: HTTPS "
+                    "OMNI_INFISICAL_BASE_URL, OMNI_INFISICAL_PROJECT_ID, "
+                    "OMNI_INFISICAL_CLIENT_ID and OMNI_INFISICAL_CLIENT_SECRET are required")
+        if self.secret_store_provider != "vault":
+            return "OMNI_GENAPP_SECRET_STORE_PROVIDER must be vault or infisical"
+        return "generated-app secret store (OMNI_GENAPP_SECRET_STORE_URL + token) is not configured"
 
     # -- configuration-level readiness (no network) -------------------------
     def config_status(self, kind: InfrastructureKind, control_env: Mapping[str, str]) -> tuple[str, str]:
         """Static readiness. Never LIVE: live truth comes only from a verified binding."""
         if not self.secret_store_configured:
             if kind != InfrastructureKind.OBJECT_STORAGE:
-                return _STATUS_NOT_CONFIGURED, "generated-app secret store (OMNI_GENAPP_SECRET_STORE_URL + token) is not configured"
+                return _STATUS_NOT_CONFIGURED, self.secret_store_configuration_reason
         if kind == InfrastructureKind.DATABASE:
             if not self.database_admin_dsn_ref:
                 return _STATUS_NOT_CONFIGURED, "OMNI_GENAPP_DATABASE_ADMIN_DSN_REF is not configured"
@@ -639,14 +673,20 @@ def managed_web_saas_readiness(env: Mapping[str, str] | None = None) -> dict[str
 def build_managed_web_saas_provisioner(env: Mapping[str, str] | None = None):
     """Production wiring. Returns an explicit NOT_CONFIGURED provisioner when nothing is set up."""
     from ..infrastructure_provisioner import UnconfiguredInfrastructureProvisioner
-    from ..secrets_manager import VaultHttpSecretWriter
+    from ..secrets_manager import InfisicalHttpSecretWriter, VaultHttpSecretWriter
 
     env = os.environ if env is None else env
     config = ManagedWebSaaSConfig.from_env(env)
     if not config.secret_store_configured:
         return UnconfiguredInfrastructureProvisioner(
-            reason="generated-app infrastructure is not configured (OMNI_GENAPP_SECRET_STORE_URL and token required)")
-    store = VaultHttpSecretWriter(base_url=config.secret_store_url, token_env=config.secret_store_token_env)
+            reason=config.secret_store_configuration_reason)
+    if config.secret_store_provider == "infisical":
+        store = InfisicalHttpSecretWriter(
+            base_url=config.infisical_base_url, project_id=config.infisical_project_id,
+            environment=config.infisical_environment, client_id=config.infisical_client_id,
+            client_secret=_clean(env, "OMNI_INFISICAL_CLIENT_SECRET"))
+    else:
+        store = VaultHttpSecretWriter(base_url=config.secret_store_url, token_env=config.secret_store_token_env)
 
     def resolve(reference: str) -> str:
         if reference.startswith("env:"):
