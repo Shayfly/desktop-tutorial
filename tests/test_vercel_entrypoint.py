@@ -23,9 +23,21 @@ class VercelEntrypointTests(unittest.TestCase):
         for forbidden in ('secret_key', 'api_key', 'password', 'token'):
             self.assertNotIn(forbidden, serialized)
 
-    def test_vercel_requirements_delegate_to_production_requirements(self):
-        requirements = Path('requirements.txt').read_text(encoding='utf-8').strip()
-        self.assertEqual(requirements, '-r requirements-production.txt')
+    def test_vercel_requirements_match_direct_production_pins(self):
+        def dependency_lines(path):
+            return [
+                line.split('#', 1)[0].strip()
+                for line in Path(path).read_text(encoding='utf-8').splitlines()
+                if line.split('#', 1)[0].strip()
+            ]
+
+        requirements = dependency_lines('requirements.txt')
+        production = dependency_lines('requirements-production.txt')
+        self.assertTrue(requirements, 'Vercel dependencies must not be empty')
+        self.assertEqual(requirements, production)
+        for requirement in requirements:
+            self.assertFalse(requirement.startswith('-'), 'Vercel requires direct dependency pins')
+            self.assertIn('==', requirement, 'Production dependencies must be pinned')
 
 
 if __name__ == '__main__':
