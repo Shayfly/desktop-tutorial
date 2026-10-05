@@ -174,7 +174,7 @@ class InfisicalConfigTests(unittest.TestCase):
 
     def test_factory_uses_supplied_environment_without_network_at_startup(self):
         api = Api()
-        with patch("omni_prod.secrets_manager.request.urlopen", api):
+        with patch("omni_prod.secrets_manager.request.OpenerDirector.open", side_effect=api):
             provisioner = build_managed_web_saas_provisioner(ENV)
             self.assertTrue(hasattr(provisioner, "secret_store"))
             provisioner.secret_store.write(REF, "value-test")
