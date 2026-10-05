@@ -28,7 +28,12 @@ ok &= check('security_gate',sec.passed,json.dumps(sec.to_dict()))
 ok &= check('native_android',len(android_project())>=6)
 ok &= check('native_ios',len(ios_project())>=3)
 ok &= check('games',all(len(game_project(e))>=2 for e in ('godot','unity','unreal')))
-findings=scan_tree(ROOT); ok &= check('secret_scan',not findings,f'{len(findings)} findings')
+findings=scan_tree(ROOT)
+secret_detail=json.dumps({
+    'count': len(findings),
+    'locations': [{'kind': f.kind, 'path': f.path, 'line': f.line} for f in findings],
+}, separators=(',', ':'))
+ok &= check('secret_scan',not findings,secret_detail)
 payload={'ok':bool(ok),'checks':checks,'live_claims':{'gpu_model_verified':False,'docker_sandbox_verified':False,'postgres_redis_s3_verified':False,'signed_mobile_binaries_verified':False}}
 print(json.dumps(payload,indent=2))
 raise SystemExit(0 if ok else 1)
