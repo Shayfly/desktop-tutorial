@@ -220,6 +220,8 @@ class ManagedWebSaaSConfig:
                     return _STATUS_BLOCKED, "invalid supported QStash HTTPS API origin"
                 if not self.qstash_signing_keys_present:
                     return _STATUS_NOT_CONFIGURED, "QSTASH_CURRENT_SIGNING_KEY / QSTASH_NEXT_SIGNING_KEY not configured"
+                if self.scheduler_token_ref.startswith("env:") and not _offline_resolve(self.scheduler_token_ref, control_env):
+                    return _STATUS_NOT_CONFIGURED, "QStash scheduler token env reference is not populated"
             if not self.scheduler_url or not self.scheduler_token_ref:
                 return _STATUS_NOT_CONFIGURED, "OMNI_GENAPP_SCHEDULER_URL / OMNI_GENAPP_SCHEDULER_TOKEN_REF not configured"
             if not _valid_ref(self.scheduler_token_ref):
