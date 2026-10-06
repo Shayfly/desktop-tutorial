@@ -81,3 +81,9 @@
     * כל שדה Unit Economics פנימי (provider budget, expected/hard cost, margins, subsidy, QA budget, markup, credit valuation) לא מופיע בו.
     * Admin/Finance יקבל בעתיד endpoint נפרד עם הרשאות.
     * Test קבוע מוודא זאת.
+
+### יישום (2026-10-07)
+* #27 יושם כפרופיל `self_contained_web_v1` שנקשר לחוזה. הפרופיל נבחר ב־`OMNI_BUILD_INFRA_PROFILE` (Policy Parameter), שהוגדר ב־Vercel Preview בלבד.
+* #28 יושם: בקשת תמונה רק בכוונה מפורשת (לוגו/מיתוג/hero/איור), ומשחקים לפי דרישותיהם. אחרת, ב־evidence מופיע `NOT_REQUIRED`.
+* #29 יושם עם test קבוע.
+* **ממצא פתוח להחלטה:** סטטוס הבנייה (`evidence`) ותצוגת התוכנית (`economics`) עדיין מחזירים ללקוח נתוני Economics פנימיים.

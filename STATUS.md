@@ -10,7 +10,7 @@ admission fails earlier, at Plan → Quote.
 |---|---|---|
 | User → Login → Project | NOT VERIFIED (from this environment) | Preview host not reachable from the audit shell |
 | Project → Prompt → Product Plan | PASS (deterministic, offline) | `python3 tools/golden_e2e_quote_probe.py`: contract `READY` for a task-tracker prompt |
-| Product Plan → Quote | **FAIL — first failing transition** | Every contract requires 5 `PLATFORM_MANAGED` kinds (database, auth_session, object_storage, scheduled_http, outbound). The configured provisioner prices each kind only from `OMNI_GENAPP_PROVISIONING_MAXIMUM_USD`, which is ABSENT from Vercel Preview (env names listed via Vercel API, values never read). Probe with every Preview variable present in its most favourable valid form: all 5 kinds `provisioning cost not configured; unknown, not zero` → `CostQuoteUnknown` → HTTP 402 `cost_quote_unknown` |
+| Product Plan → Quote | **FAIL on the Preview build before the fix; fixed in code (see the update below)** | Every contract requires 5 `PLATFORM_MANAGED` kinds (database, auth_session, object_storage, scheduled_http, outbound). The configured provisioner prices each kind only from `OMNI_GENAPP_PROVISIONING_MAXIMUM_USD`, which is ABSENT from Vercel Preview (env names listed via Vercel API, values never read). Probe with every Preview variable present in its most favourable valid form: all 5 kinds `provisioning cost not configured; unknown, not zero` → `CostQuoteUnknown` → HTTP 402 `cost_quote_unknown` |
 | Quote → Budget Reservation | BLOCKED | Founder account is on the free plan (refused for paid builds by design). Internal QA path implemented; needs migrations 027–029 applied, `OMNI_ENV=staging` + QA caps on Preview, and an INTERNAL_QA grant |
 | Queue → Worker | FAIL | No RQ consumer anywhere. Worker host implemented (`infra/worker-host/`); BLOCKED on founder: server, runner token, `WORKER_ENV` |
 | Worker → generated-app infrastructure | UNKNOWN | Worker requires all 5 kinds LIVE before any model call. Preview has Infisical, a GENAPP Neon database, GENAPP S3 and QStash variables; none was ever provisioned or verified live; no outbound email config |
@@ -24,6 +24,54 @@ admission fails earlier, at Plan → Quote.
   decision #25 makes generated application code standard-library only (it
   cannot use a provisioned Postgres or S3 without drivers). Options and
   recommendation in `docs/DECISIONS_2026-10-07_HE.md` (open question).
+
+## Plan → Quote fix — 2026-10-07 03:40 Asia/Jerusalem (decisions #27–#29)
+
+- Expected: a Golden E2E #1 prompt yields a priced quote. Observed: 402
+  `cost_quote_unknown` (5 unpriceable managed kinds). Root cause: every
+  contract required managed infrastructure that the stdlib-only app could
+  not even use. Minimal fix (founder decision #27): versioned profile
+  `self_contained_web_v1`, bound into the immutable contract.
+- Implemented and verified:
+  * Contract: `database` and `auth_session` with connection mode
+    `SELF_CONTAINED`; spec stack "Python standard library / SQLite (sqlite3) /
+    Web UI served by the app"; `platform-data` requires embedded SQLite data
+    that later requests and a fresh app instance read back. Managed contracts
+    are byte-identical (same fingerprints) when the profile is not selected.
+  * Quote: self-contained kinds are not quoted (nothing is provisioned).
+    `OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1 python3
+    tools/golden_e2e_quote_probe.py` → `quote: PRICED`, `unknown: []`, using
+    the same arguments as admission (capability quotes required).
+  * Worker infrastructure stage: nothing provisioned; evidence lists embedded
+    kinds as "not provisioned; verified only by the app's tests and preview
+    acceptance" and object storage / scheduled work / outbound as
+    `NOT_VERIFIED`. Nothing is reported LIVE.
+  * Preview acceptance: the floor comes from the contract (version lineage
+    through promoted modifications, scoped to the project), never from
+    generated files. Self-contained: `integration` steps are never executed
+    or counted and are listed as `not_verified_steps`; an acceptance ID
+    covered only by such a step stays missing (FAIL). Unknown profile or a
+    failed lookup → strict managed floor. The lineage SQL was executed against
+    a real Postgres 16 with all migrations applied: direct build, a
+    two-modification chain, a version-id collision across projects, unknown
+    version and foreign project all resolved correctly.
+  * Image generation (#28): requested only on explicit logo/branding or
+    hero/illustration intent (games keep their assets); build evidence
+    `asset_capabilities` reports `NOT_REQUIRED` otherwise. Replicate/image
+    stays NOT_VERIFIED in the registry.
+  * Public pricing (#29): the catalog and every customer subscription view
+    carry only customer-facing fields; regression test with a closed field
+    list and a forbidden-term scan, mutation-checked against the old payload.
+- Configuration: `OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1` set on
+  Vercel **Preview** only (plain, non-secret). Production is unchanged.
+- Open finding for the founder (not changed, outside the approved scope):
+  customer-facing build status (`GET .../builds/{id}` → `evidence`) and the
+  plan preview (`economics`) still return internal economics (reservation,
+  revenue basis, margin, per-call cost estimates).
+- New first failing transition on Preview: Quote → Budget Reservation
+  (free plan refused; the internal QA path needs migrations 027–029 applied by
+  the first worker deploy, `OMNI_ENV=staging` + QA caps on Preview, and the
+  INTERNAL_QA grant). Then Queue → Worker (no worker host).
 
 ## Founder decisions implemented — 2026-10-07
 

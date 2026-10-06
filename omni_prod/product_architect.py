@@ -18,7 +18,18 @@ from .build_contract import (
 from .capability_registry import CapabilityRegistry
 from .product_spec import AcceptanceCriterion, ProductSpec, Requirement
 from .skills_registry import MasterSkillsRegistry, build_canonical_skills_registry
+from .infrastructure_registry import DEFAULT_INFRASTRUCTURE_PROFILES, SELF_CONTAINED_WEB_V1, selected_profile
 from .universal_brain import OmniUniversalBrain
+
+# Self-contained profile floor (decision 2026-10-07 #27, consistent with the
+# stdlib-only dependency policy #25): real embedded persistence, verified by
+# tests, never presented as managed infrastructure.
+_SELF_CONTAINED_DATA = (
+    "Business records persist in an embedded SQLite database file (directory from the DATA_DIR "
+    "environment variable, otherwise a writable temporary directory) and are read back by later "
+    "requests and by a fresh application instance"
+)
+_SELF_CONTAINED_STACK = ("Python standard library", "SQLite (sqlite3)", "Web UI served by the app")
 
 
 class ProductArchitect:
@@ -37,12 +48,17 @@ class ProductArchitect:
         capability_registry: CapabilityRegistry | None = None,
         skills_registry: MasterSkillsRegistry | None = None,
         agents_registry: MasterAgentsRegistry | None = None,
+        infrastructure_profile: str | None = None,
     ) -> None:
         self.capabilities = capability_registry or CapabilityRegistry()
         self.skills = skills_registry or build_canonical_skills_registry(self.capabilities)
         self.agents = agents_registry or build_canonical_agents_registry(self.skills)
         self.brain = brain or OmniUniversalBrain()
         self.architect_agent = architect_agent
+        # Policy parameter OMNI_BUILD_INFRA_PROFILE (decision 2026-10-07 #27);
+        # the chosen profile is bound into the immutable contract.
+        self.infrastructure_profile = (DEFAULT_INFRASTRUCTURE_PROFILES.get(infrastructure_profile)
+                                       if infrastructure_profile else selected_profile())
 
     def compile(
         self,
@@ -64,7 +80,8 @@ class ProductArchitect:
         decision = self.brain.decide(clean)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
-        floor_spec = self._floor_spec(clean, decision)
+        profile = self.infrastructure_profile
+        floor_spec = self._floor_spec(clean, decision, self_contained=profile.key == SELF_CONTAINED_WEB_V1.key)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -88,10 +105,10 @@ class ProductArchitect:
         roles, role_defaults = self._infer_roles(clean)
         data_requirements = self._infer_data_requirements(clean, decision.plan.modules)
         integrations = self._infer_integrations(clean, capability_plan)
-        infrastructure = self._infrastructure_requirements()
+        infrastructure = tuple(profile.requirements)
         questions = self._material_questions(clean, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
-        defaults = tuple(role_defaults + ["managed_web_saas_v1", "vercel_release_target"])
+        defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])
         security = (
             "tenant_isolation",
             "least_privilege_rbac",
@@ -112,7 +129,7 @@ class ProductArchitect:
             "contract_version": contract_version,
             "status": status.value,
             "prompt": clean,
-            "product_family": "managed_web_saas_v1",
+            "product_family": profile.key,
             "target": "web",
             "release_target": "vercel",
             "product_spec": product_spec.to_dict(),
@@ -142,7 +159,7 @@ class ProductArchitect:
             contract_version=contract_version,
             status=status,
             prompt=clean,
-            product_family="managed_web_saas_v1",
+            product_family=profile.key,
             target="web",
             release_target="vercel",
             product_spec=product_spec,
@@ -166,12 +183,13 @@ class ProductArchitect:
         )
 
     @staticmethod
-    def _floor_spec(prompt: str, decision) -> ProductSpec:
+    def _floor_spec(prompt: str, decision, *, self_contained: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
         requirements: list[Requirement] = [
             Requirement("platform-auth", "Users authenticate through durable application sessions", "security"),
             Requirement("platform-rbac", "At least two application roles are enforced server-side", "security"),
-            Requirement("platform-data", "Business records persist in durable relational storage", "data"),
+            Requirement("platform-data", _SELF_CONTAINED_DATA if self_contained
+                        else "Business records persist in durable relational storage", "data"),
             Requirement("platform-responsive", "Primary workflows are usable on mobile and desktop web", "quality"),
             Requirement("platform-api", "Backend exposes a versionable API/health surface", "functional"),
             Requirement("platform-observability", "Runtime errors and health are observable without secret leakage", "quality"),
@@ -192,6 +210,14 @@ class ProductArchitect:
             )
             for req in requirements
         )
+        if self_contained:
+            return ProductSpec(
+                title=title,
+                summary=f"Self-contained Web app contract for: {prompt}",
+                stack=_SELF_CONTAINED_STACK,
+                requirements=tuple(requirements),
+                acceptance=acceptance,
+            )
         return ProductSpec(
             title=title,
             summary=f"M5 managed Web/SaaS contract for: {prompt}",
@@ -303,16 +329,6 @@ class ProductArchitect:
             if any(term in low for term in terms):
                 result.append(key)
         return tuple(dict.fromkeys(result))
-
-    @staticmethod
-    def _infrastructure_requirements() -> tuple[InfrastructureRequirement, ...]:
-        return (
-            InfrastructureRequirement("database", "durable relational application data"),
-            InfrastructureRequirement("auth_session", "application-scoped durable authentication and sessions"),
-            InfrastructureRequirement("object_storage", "durable file/object uploads and generated assets"),
-            InfrastructureRequirement("scheduled_http", "background or scheduled application work"),
-            InfrastructureRequirement("outbound", "email/webhook outbound delivery"),
-        )
 
     @staticmethod
     def _material_questions(prompt: str, data_requirements: tuple[str, ...]) -> tuple[ClarificationQuestion, ...]:

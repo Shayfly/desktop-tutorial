@@ -23,6 +23,21 @@ WEB_SAAS_REQUIRED_KINDS: tuple[str, ...] = (
     'auth', 'role', 'data_create', 'data_read', 'data_update', 'data_delete',
     'integration', 'responsive', 'api_smoke',
 )
+# Acceptance scope per infrastructure profile, taken from the immutable build
+# contract, never from generated metadata. self_contained_web_v1 (decision
+# 2026-10-07 #27) has no external integration or background infrastructure, so
+# `integration` steps are out of scope: not executed, never counted as covered,
+# reported NOT_VERIFIED. Unknown or missing profile -> the strict managed floor.
+ACCEPTANCE_SCOPE_BY_PROFILE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    'managed_web_saas_v1': (WEB_SAAS_REQUIRED_KINDS, ()),
+    'self_contained_web_v1': (tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k != 'integration'), ('integration',)),
+}
+
+
+def acceptance_scope(profile_key: str | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    return ACCEPTANCE_SCOPE_BY_PROFILE.get(str(profile_key or ''), ACCEPTANCE_SCOPE_BY_PROFILE['managed_web_saas_v1'])
+
+
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
 _VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -103,6 +118,8 @@ class AcceptanceReport:
     covered_kinds: tuple[str, ...]
     missing_kinds: tuple[str, ...]
     runtime_logs: str | None = None
+    out_of_scope_kinds: tuple[str, ...] = ()
+    not_verified_steps: tuple[str, ...] = ()
 
     def with_runtime_logs(self, logs: str | None) -> 'AcceptanceReport':
         if logs is None:
@@ -116,6 +133,8 @@ class AcceptanceReport:
             'covered_acceptance_ids': list(self.covered_acceptance_ids),
             'missing_acceptance_ids': list(self.missing_acceptance_ids),
             'covered_kinds': list(self.covered_kinds), 'missing_kinds': list(self.missing_kinds),
+            'out_of_scope_kinds': list(self.out_of_scope_kinds),
+            'not_verified_steps': list(self.not_verified_steps),
             'runtime_logs': self.runtime_logs,
         }
 
@@ -123,12 +142,15 @@ class AcceptanceReport:
 class WebSaaSAcceptanceRunner:
     def __init__(self, *, transport: HttpTransport | None = None,
                  required_kinds: Sequence[str] = WEB_SAAS_REQUIRED_KINDS,
-                 timeout_seconds: float = 10.0):
+                 timeout_seconds: float = 10.0, profile_key: str | None = None):
         self.transport = transport or UrllibSessionTransport()
         requested = tuple(str(x).strip() for x in required_kinds if str(x).strip())
+        floor, out_of_scope = acceptance_scope(profile_key)
+        self.profile_key = profile_key
+        self.out_of_scope_kinds = tuple(out_of_scope)
         # Generated metadata may ask for *more* checks, never fewer. This
         # deterministic floor prevents model output from weakening M5 acceptance.
-        self.required_kinds = tuple(dict.fromkeys((*WEB_SAAS_REQUIRED_KINDS, *requested)))
+        self.required_kinds = tuple(k for k in dict.fromkeys((*floor, *requested)) if k not in out_of_scope)
         self.timeout_seconds = float(timeout_seconds)
 
     def verify(self, preview: Mapping[str, Any], contract: Any,
@@ -148,6 +170,7 @@ class WebSaaSAcceptanceRunner:
         passed_ids: set[str] = set()
         passed_kinds: set[str] = set()
         variables: dict[str, Any] = {}
+        not_verified: list[str] = []
 
         for persona in personas:
             persona_id = str(persona.get('id') or '').strip()
@@ -156,6 +179,10 @@ class WebSaaSAcceptanceRunner:
                 step_id = str(step['id'])
                 kind = str(step['kind'])
                 acceptance_ids = tuple(str(x) for x in step.get('acceptance_ids', ()))
+                if kind in self.out_of_scope_kinds:
+                    # Never executed, never counted as covered: NOT_VERIFIED.
+                    not_verified.append(f'{persona_id}:{step_id}')
+                    continue
                 try:
                     method = str(step.get('method', 'GET')).upper()
                     path = _resolve(step.get('path', '/'), variables)
@@ -201,7 +228,8 @@ class WebSaaSAcceptanceRunner:
             status='PASS' if passed else 'FAIL', release_eligible=passed, summary=summary,
             checks=tuple(checks), covered_acceptance_ids=tuple(sorted(passed_ids)),
             missing_acceptance_ids=missing_ids, covered_kinds=tuple(sorted(passed_kinds)),
-            missing_kinds=missing_kinds,
+            missing_kinds=missing_kinds, out_of_scope_kinds=self.out_of_scope_kinds,
+            not_verified_steps=tuple(not_verified),
         )
 
     def _invalid(self, summary: str, *, missing_ids: set[str] | None = None) -> AcceptanceReport:

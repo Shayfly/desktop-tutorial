@@ -101,6 +101,10 @@ def collect_build_cost_inputs(
         infra.append((kind, maximum if estimate is None else estimate, maximum, quote.basis))
     if require_infrastructure_quotes:
         for requirement in contract.infrastructure:
+            # SELF_CONTAINED kinds are embedded in the generated app: nothing is
+            # provisioned, so there is no provisioning cost to quote (#27).
+            if getattr(requirement, "connection_mode", "PLATFORM_MANAGED") == "SELF_CONTAINED":
+                continue
             if requirement.required and requirement.kind not in quoted_kinds:
                 unknown.append(f"infrastructure {requirement.kind} has no quote")
     if unknown:

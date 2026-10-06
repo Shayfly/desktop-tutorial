@@ -900,6 +900,43 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
         raise
 
 
+# The build contract that produced a version (directly, or through a chain of
+# promoted modifications) names its infrastructure profile. Read from the
+# immutable contract, never from generated files (decision 2026-10-07 #27).
+_PROFILE_FOR_VERSION_SQL = """
+WITH RECURSIVE lineage(version_id, depth) AS (
+    SELECT %s::text, 0
+    UNION ALL
+    SELECT m.source_version_id, l.depth + 1
+    FROM modification_requests m
+    JOIN lineage l ON m.promoted_version_id = l.version_id
+    WHERE l.depth < 64
+)
+SELECT c.contract_json->>'product_family'
+FROM lineage l
+JOIN build_jobs j ON j.result_version_id = l.version_id
+JOIN build_requests r ON r.build_id = j.id
+JOIN m5_build_contracts c ON c.id = r.build_contract_id
+WHERE r.public_project_id = %s OR r.internal_project_id = %s
+ORDER BY l.depth
+LIMIT 1
+"""
+
+
+def infrastructure_profile_for_version(pool, *, project_id: str, version_id: str) -> str | None:
+    """Profile key of the contract behind a version, or None (strict managed
+    acceptance floor applies). A lookup failure never weakens acceptance."""
+    try:
+        with pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_PROFILE_FOR_VERSION_SQL, (version_id, project_id, project_id))
+                row = cur.fetchone()
+        return row[0] if row and row[0] else None
+    except Exception:
+        logging.getLogger(__name__).exception('infrastructure profile lookup failed; strict acceptance floor applies')
+        return None
+
+
 def execute_preview_launch(preview_id: str, project_id: str, version_id: str) -> None:
     from .investor_app import _v28, _v28_pool
     from .preview_repository import PostgresPreviewRepository
@@ -923,7 +960,9 @@ def execute_preview_launch(preview_id: str, project_id: str, version_id: str) ->
         if plan is not None:
             acceptance_contract = PostgresSpecRepository(_v28_pool).get(version_id, project_id)
             acceptance_personas = plan.personas
-            acceptance_runner = WebSaaSAcceptanceRunner(required_kinds=plan.required_kinds)
+            acceptance_runner = WebSaaSAcceptanceRunner(
+                required_kinds=plan.required_kinds,
+                profile_key=infrastructure_profile_for_version(_v28_pool, project_id=project_id, version_id=version_id))
     except NotPreviewable as exc:
         PostgresPreviewRepository(_v28_pool).mark_failed(
             preview_id, error=f'invalid behavioral acceptance plan: {exc}', status='NOT_PREVIEWABLE'

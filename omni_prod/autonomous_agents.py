@@ -31,6 +31,9 @@ _GENERATOR_SYSTEM = (
     'then reports the version as NOT_PREVIEWABLE instead of faking a preview. '
     'For a Web/SaaS product, the same .omni/project.json must also include a data-driven "web_saas_acceptance" object. '
     'It must contain "product_family":"managed_web_saas_v1", "required_kinds" covering auth, role, data_create, data_read, data_update, data_delete, integration, responsive, api_smoke, and non-empty "personas". '
+    # Decision 2026-10-07 #27: a self-contained app has no external integration
+    # or background infrastructure; such steps would be NOT_VERIFIED, not passed.
+    'When the approved spec stack is self-contained (embedded SQLite), omit the integration kind and any external-integration or background-job steps: they are out of scope and are reported as not verified. '
     'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
     + GENERATION_CONSTRAINTS

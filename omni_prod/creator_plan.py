@@ -20,12 +20,29 @@ def _infra_rows(contract, readiness: Mapping[str, Any]) -> list[dict]:
     kinds = dict((readiness or {}).get("kinds") or {})
     rows = []
     for requirement in contract.infrastructure:
+        if getattr(requirement, "connection_mode", "") == "SELF_CONTAINED":
+            # Embedded in the generated app (decision 2026-10-07 #27): nothing to
+            # provision; verified only by the app's tests and preview acceptance.
+            rows.append({
+                "kind": requirement.kind, "purpose": requirement.purpose, "required": requirement.required,
+                "readiness": "SELF_CONTAINED",
+                "reason": "embedded in the generated app; verified only by its tests and preview acceptance",
+            })
+            continue
         state = kinds.get(requirement.kind) or {"status": "NOT_CONFIGURED", "reason": "no readiness reported"}
         rows.append({
             "kind": requirement.kind, "purpose": requirement.purpose, "required": requirement.required,
             "readiness": state.get("status"), "reason": state.get("reason"),
         })
     return rows
+
+
+def _out_of_scope(contract) -> list[dict]:
+    from .infrastructure_registry import SELF_CONTAINED_OUT_OF_SCOPE, SELF_CONTAINED_WEB_V1
+    if contract.product_family != SELF_CONTAINED_WEB_V1.key:
+        return []
+    return [{"kind": k, "status": "NOT_VERIFIED", "reason": "outside the self-contained profile; not part of this build"}
+            for k in SELF_CONTAINED_OUT_OF_SCOPE]
 
 
 def build_plan_preview(
@@ -66,7 +83,7 @@ def build_plan_preview(
         blockers.append({"code": "durable_backend_not_configured",
                          "message": "Building needs the durable backend (PostgreSQL + S3 workspace) on this server."})
     for row in infrastructure:
-        if row["required"] and row["readiness"] not in {"LIVE", "PARTIAL"}:
+        if row["required"] and row["readiness"] not in {"LIVE", "PARTIAL", "SELF_CONTAINED"}:
             blockers.append({"code": f"infrastructure_{row['kind']}_{str(row['readiness']).lower()}",
                              "message": f"{row['kind']}: {row['reason']}"})
     needs_image = any(c["key"] == "media.image.generate" and c["required"] for c in capabilities)
@@ -90,6 +107,7 @@ def build_plan_preview(
         },
         "capabilities": capabilities,
         "infrastructure": infrastructure,
+        "infrastructure_out_of_scope": _out_of_scope(contract),
         "clarification_questions": [q.to_dict() for q in contract.unresolved_questions],
         "economics": None if quote is None else quote.to_dict(),
         "economics_error": quote_error,

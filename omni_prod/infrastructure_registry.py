@@ -43,12 +43,37 @@ MANAGED_WEB_SAAS_V1 = InfrastructureProfile(
     },
 )
 
+# Golden E2E #1 profile (founder decision 2026-10-07 #27). Self-contained is
+# not fake: the generated app embeds a standard-library SQLite database and
+# in-app sessions in its own runtime. Nothing is provisioned, so nothing here
+# is ever LIVE; these kinds count as verified only when the app's own tests
+# and the behavioral preview acceptance pass. Object storage, scheduled work
+# and outbound delivery are out of this profile's scope and stay NOT_VERIFIED.
+SELF_CONTAINED_WEB_V1 = InfrastructureProfile(
+    key="self_contained_web_v1",
+    version=1,
+    description=(
+        "Self-contained generated web app: embedded SQLite application data and in-app "
+        "authentication/sessions inside the app runtime. No platform-provisioned resources. "
+        "Object storage, scheduled work and outbound delivery are out of scope (NOT_VERIFIED)."
+    ),
+    requirements=(
+        InfrastructureRequirement("database", "embedded SQLite application data inside the generated app",
+                                  connection_mode="SELF_CONTAINED"),
+        InfrastructureRequirement("auth_session", "in-app authentication and sessions stored in the embedded database",
+                                  connection_mode="SELF_CONTAINED"),
+    ),
+    kind_dependencies={InfrastructureKind.AUTH_SESSION: (InfrastructureKind.DATABASE,)},
+)
+SELF_CONTAINED_OUT_OF_SCOPE: tuple[str, ...] = ("object_storage", "scheduled_http", "outbound")
+PROFILE_ENV = "OMNI_BUILD_INFRA_PROFILE"
+
 _WEB_TARGETS = frozenset({"web", "saas"})
 
 
 class InfrastructureProfileRegistry:
     def __init__(self, profiles: Iterable[InfrastructureProfile] | None = None) -> None:
-        source = tuple(profiles) if profiles is not None else (MANAGED_WEB_SAAS_V1,)
+        source = tuple(profiles) if profiles is not None else (MANAGED_WEB_SAAS_V1, SELF_CONTAINED_WEB_V1)
         self._profiles: dict[str, InfrastructureProfile] = {}
         for profile in source:
             self.validate_canonical_key(profile.key)
@@ -76,6 +101,20 @@ class InfrastructureProfileRegistry:
 
 
 DEFAULT_INFRASTRUCTURE_PROFILES = InfrastructureProfileRegistry()
+
+
+def selected_profile(env=None, registry: InfrastructureProfileRegistry | None = None) -> InfrastructureProfile:
+    """Profile new Web/SaaS contracts are compiled with (policy parameter
+    OMNI_BUILD_INFRA_PROFILE; default managed_web_saas_v1). An unknown key is
+    an error, never a silent fallback."""
+    import os
+    env = os.environ if env is None else env
+    key = str(env.get(PROFILE_ENV, "") or "").strip() or MANAGED_WEB_SAAS_V1.key
+    return (registry or DEFAULT_INFRASTRUCTURE_PROFILES).get(key)
+
+
+def is_self_contained(requirement) -> bool:
+    return getattr(requirement, "connection_mode", "PLATFORM_MANAGED") == "SELF_CONTAINED"
 
 
 def profile_for_contract(contract, registry: InfrastructureProfileRegistry | None = None) -> InfrastructureProfile:

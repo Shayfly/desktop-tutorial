@@ -8,6 +8,7 @@ list means POST /api/v28/projects/{id}/builds answers 402 cost_quote_unknown
 (Plan -> Quote fails) before any reservation or queue step.
 
     python3 tools/golden_e2e_quote_probe.py
+    OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1 python3 tools/golden_e2e_quote_probe.py
 """
 from __future__ import annotations
 
@@ -30,24 +31,27 @@ PROMPT = ("Build a team task tracker web app: users sign up and log in, create p
 
 def probe(env=None, prompt: str = PROMPT) -> dict:
     env = dict(os.environ if env is None else env)
-    contract = ProductArchitect().compile(prompt, project_id='proj_probe', contract_version=1)
+    profile = str(env.get('OMNI_BUILD_INFRA_PROFILE', '') or '').strip() or None
+    contract = ProductArchitect(infrastructure_profile=profile).compile(prompt, project_id='proj_probe', contract_version=1)
     service = InfrastructureProvisioningService(provisioner=build_managed_web_saas_provisioner(env=env),
                                                 repository=MemoryInfrastructureBindingRepository())
     out = {
+        'infrastructure_profile': contract.product_family,
         'contract_status': getattr(contract.status, 'value', str(contract.status)),
         'required_infrastructure': [r.kind for r in contract.infrastructure if r.required],
         'required_capabilities': [r.key for r in contract.capability_plan.requirements if r.required],
     }
     try:
-        collect_build_cost_inputs(
-            contract, capability_assignments={},
+        from omni_prod.providers.image_provider import build_image_quote_resolver
+        collect_build_cost_inputs(   # same arguments as admission (_m5_cost_inputs)
+            contract, capability_assignments=build_image_quote_resolver(env)(contract.capability_plan),
             infrastructure_quotes=service.cost_quotes(contract, tenant_id='probe', project_id='proj_probe',
                                                       environment=env.get('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview')),
-            require_capability_quotes=False, require_infrastructure_quotes=True)
-        out['infrastructure_quote'] = 'PRICED'
+            require_capability_quotes=True, require_infrastructure_quotes=True)
+        out['quote'] = 'PRICED'
         out['unknown'] = []
     except CostQuoteUnknown as exc:
-        out['infrastructure_quote'] = 'UNKNOWN'
+        out['quote'] = 'UNKNOWN'
         out['unknown'] = list(exc.unknown)
     return out
 

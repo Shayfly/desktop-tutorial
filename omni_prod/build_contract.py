@@ -68,7 +68,9 @@ class InfrastructureRequirement:
     def __post_init__(self) -> None:
         if not self.kind.strip() or not self.purpose.strip():
             raise ValueError("infrastructure kind/purpose are required")
-        if self.connection_mode not in {"PLATFORM_MANAGED", "CUSTOMER_CONNECTED", "BYOK"}:
+        # SELF_CONTAINED (decision 2026-10-07 #27): embedded in the generated app,
+        # never provisioned; verified only by the app's tests and preview acceptance.
+        if self.connection_mode not in {"PLATFORM_MANAGED", "CUSTOMER_CONNECTED", "BYOK", "SELF_CONTAINED"}:
             raise ValueError(f"unsupported infrastructure connection mode: {self.connection_mode}")
 
     def to_dict(self) -> dict[str, Any]:

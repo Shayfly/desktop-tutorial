@@ -223,6 +223,9 @@ class InfrastructureProvisioningService:
 
     # -- planning ---------------------------------------------------------
     def requirements_for(self, contract) -> tuple[str, tuple[InfrastructureRequirement, ...]]:
+        """Requirements a provisioner must make LIVE. SELF_CONTAINED kinds
+        (decision 2026-10-07 #27) are embedded in the generated app and are
+        never provisioned, quoted or reported LIVE; see self_contained_evidence()."""
         profile = profile_for_contract(contract, self.registry)
         by_kind = {r.kind: r for r in contract.infrastructure}
         closure = profile.dependency_closure(tuple(by_kind))
@@ -234,7 +237,22 @@ class InfrastructureProvisioningService:
                 # A dependency pulled in by the profile DAG inherits requiredness
                 # from the profile, never silently becomes optional.
                 merged.append(profile.requirement_for(kind))
-        return profile.key, tuple(merged)
+        return profile.key, tuple(r for r in merged if getattr(r, "connection_mode", "") != "SELF_CONTAINED")
+
+    def self_contained_evidence(self, contract) -> dict[str, Any] | None:
+        """Truthful status of embedded and out-of-scope kinds, or None for a
+        fully managed contract."""
+        from .infrastructure_registry import SELF_CONTAINED_OUT_OF_SCOPE, SELF_CONTAINED_WEB_V1
+        embedded = [r.kind for r in contract.infrastructure
+                    if getattr(r, "connection_mode", "") == "SELF_CONTAINED"]
+        if not embedded:
+            return None
+        return {
+            "embedded": {k: "SELF_CONTAINED: not provisioned; verified only by the app's tests and preview acceptance"
+                         for k in embedded},
+            "out_of_scope": ({k: "NOT_VERIFIED" for k in SELF_CONTAINED_OUT_OF_SCOPE}
+                             if getattr(contract, "product_family", "") == SELF_CONTAINED_WEB_V1.key else {}),
+        }
 
     def quote(self, contract, *, project_id: str, environment) -> list[dict[str, Any]]:
         _, requirements = self.requirements_for(contract)
@@ -299,6 +317,9 @@ class InfrastructureProvisioningService:
     def require_ready(self, contract, *, tenant_id: str, project_id: str, environment) -> dict[str, Any]:
         result = self.ensure(contract, tenant_id=tenant_id, project_id=project_id, environment=environment)
         evidence = result.to_dict()
+        self_contained = self.self_contained_evidence(contract)
+        if self_contained is not None:
+            evidence["self_contained"] = self_contained
         if not result.ready:
             parts = []
             if result.missing_kinds:
