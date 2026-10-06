@@ -2027,12 +2027,15 @@ def _replicate_image_test_context(request):
         journal=PostgresSubmissionJournal(_v28_pool), store=store)
 
 
-@app.get('/api/v28/diagnostics/r2-config')
+@app.get('/r2-diagnostics', response_class=HTMLResponse)
 def v28_r2_config_diagnostic(request: Request):
     _, service = _replicate_image_test_context(request)
     from .providers.replicate_image_test import r2_config_diagnostic
-    from fastapi.responses import JSONResponse
-    return JSONResponse(r2_config_diagnostic(os.environ, service.store),
+    import html
+    import json
+    payload = html.escape(json.dumps(r2_config_diagnostic(os.environ, service.store), indent=2))
+    return HTMLResponse('<!doctype html><meta charset="utf-8"><title>148AI R2 diagnostic</title>'
+        '<h1>148AI Preview: R2 configuration fingerprints</h1><pre>' + payload + '</pre>',
         headers={'Cache-Control': 'private, no-store'})
 
 
