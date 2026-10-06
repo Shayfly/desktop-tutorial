@@ -2036,8 +2036,10 @@ def v28_replicate_image_test_start(req: ReplicateImageTestRequest, request: Requ
     if not req.confirmed:
         raise HTTPException(400, 'Confirm the $0.003 maximum first')
     try:
-        if not service.store.ping():
-            raise HTTPException(503, 'Artifact storage is unavailable; no image was submitted')
+        storage_check = service.check_storage(account_id)
+        if not storage_check['verified']:
+            raise HTTPException(503, 'בדיקת אחסון נכשלה (' + storage_check['operation'] + ': '
+                + storage_check['category'] + '). לא נשלחה בקשה ליצירת תמונה ולא התחיל חיוב.')
         return service.start(account_id, confirmed=True)
     except HTTPException:
         raise
