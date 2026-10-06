@@ -1,5 +1,6 @@
 """Server-only Replicate configuration and non-billable authentication check."""
 import json
+import re
 from urllib import request, error
 
 DEFAULT_MODEL = 'black-forest-labs/flux-schnell'
@@ -54,6 +55,7 @@ def check_replicate_connection(env, *, urlopen=None):
     token = str(env.get('REPLICATE_API_TOKEN', '')).strip()
     if not token:
         return {**result, 'status': 'NOT_CONFIGURED', 'reason': 'REPLICATE_API_TOKEN is missing'}
+    result['token_format_valid'] = bool(re.fullmatch(r'r8_[A-Za-z0-9]{37}', token))
     req = request.Request('https://api.replicate.com/v1/account',
                           headers={'Authorization': 'Bearer ' + token}, method='GET')
     try:
@@ -62,9 +64,34 @@ def check_replicate_connection(env, *, urlopen=None):
         if not isinstance(body, dict) or not body.get('username'):
             return {**result, 'status': 'BLOCKED', 'reason': 'Invalid account response'}
     except error.HTTPError as exc:
-        return {**result, 'status': 'BLOCKED', 'http_status': exc.code,
+        diagnostics = _rejection_diagnostics(exc)
+        return {**result, 'status': 'BLOCKED', 'http_status': exc.code, **diagnostics,
                 'reason': 'Replicate rejected the connection check'}
     except Exception:
         return {**result, 'status': 'BLOCKED', 'reason': 'Replicate connection check failed'}
     return {**result, 'status': 'PARTIAL', 'connection_verified': True,
             'reason': 'Token accepted; image generation has not been live verified'}
+
+
+def _rejection_diagnostics(exc):
+    """Return only fixed categories, never upstream text, headers or secrets."""
+    headers = {str(k).lower(): str(v).lower() for k, v in (exc.headers or {}).items()}
+    content_type = headers.get('content-type', '')
+    kind = 'json' if 'json' in content_type else ('html' if 'html' in content_type else 'other')
+    category = 'unknown'
+    try:
+        body = exc.read(65536)
+        if kind == 'json':
+            payload = json.loads(body)
+            detail = str(payload.get('detail', '')).lower() if isinstance(payload, dict) else ''
+            if any(word in detail for word in ('billing', 'credit', 'payment')):
+                category = 'billing'
+            elif any(word in detail for word in ('invalid token', 'invalid api', 'authentication', 'unauthorized')):
+                category = 'authentication'
+        elif headers.get('cf-mitigated') == 'challenge':
+            category = 'edge_challenge'
+        elif kind == 'html':
+            category = 'html_rejection'
+    except Exception:
+        pass
+    return {'upstream_response_kind': kind, 'rejection_category': category}
