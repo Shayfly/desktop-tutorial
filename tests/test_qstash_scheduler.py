@@ -212,6 +212,9 @@ class WiringTests(unittest.TestCase):
         self.assertEqual(cfg.config_status(InfrastructureKind.SCHEDULED_HTTP,env)[0], "PARTIAL")
         self.assertEqual(replace(cfg, qstash_signing_keys_present=False).config_status(
             InfrastructureKind.SCHEDULED_HTTP,env)[0], "NOT_CONFIGURED")
+        missing_token = dict(env, QSTASH_TOKEN="")
+        self.assertEqual(ManagedWebSaaSConfig.from_env(missing_token).config_status(
+            InfrastructureKind.SCHEDULED_HTTP, missing_token)[0], "NOT_CONFIGURED")
 
     def test_api_success_cannot_create_a_live_binding_or_expose_parent_keys(self):
         env = self.env()
