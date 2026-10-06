@@ -13,6 +13,40 @@ PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise,
 PREFIX = 'replicate-smoke-v1-'
 
 
+def r2_config_diagnostic(env, store):
+    """Read-only fingerprints; callers must enforce authenticated Preview access."""
+    from importlib.metadata import version
+    from urllib.parse import urlsplit
+
+    def fingerprint(value):
+        value = value or ''
+        return {'length': len(value), 'sha256_prefix':
+            hashlib.sha256(value.encode()).hexdigest()[:12] if value else None}
+
+    creds = store.client._request_signer._credentials.get_frozen_credentials()
+    loaded = {'access_key': fingerprint(creds.access_key),
+              'secret_key': fingerprint(creds.secret_key)}
+    configured = {'access_key': fingerprint(env.get('OMNI_S3_ACCESS_KEY', '').strip()),
+                  'secret_key': fingerprint(env.get('OMNI_S3_SECRET_KEY', '').strip())}
+    meta = store.client.meta
+    endpoint = urlsplit(meta.endpoint_url)
+    return {
+        'environment': configured, 'client': loaded,
+        'environment_matches_client': configured == loaded,
+        'configuration': {'endpoint_host': endpoint.hostname,
+            'endpoint_has_path': endpoint.path not in ('', '/'),
+            'region': meta.region_name, 'signature_version': meta.config.signature_version,
+            'addressing_style': (meta.config.s3 or {}).get('addressing_style'),
+            'request_checksum_calculation': meta.config.request_checksum_calculation,
+            'session_token_present': bool(creds.token)},
+        'versions': {'boto3': version('boto3'), 'botocore': version('botocore')},
+        'ambient_variable_names': sorted(k for k in env if k.startswith('AWS_')
+            or k.upper() in {'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'}),
+        'deployment': {k: env.get(k, '') for k in
+            ('VERCEL_ENV', 'VERCEL_URL', 'VERCEL_GIT_COMMIT_SHA', 'VERCEL_GIT_COMMIT_REF')},
+    }
+
+
 class ReplicateImageTest:
     def __init__(self, *, env, journal, store, urlopen=None, fetcher=None):
         # This test always uses the publicly priced default model, irrespective
