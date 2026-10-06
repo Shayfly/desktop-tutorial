@@ -959,7 +959,13 @@ live result.
 
 1. **Implemented and independently verified:** baseline 23d48ff passed v24-ci
    https://github.com/Shayfly/desktop-tutorial/actions/runs/37458399389 .
-   New connector verification is pending current-branch CI.
+   Source ed9af69d529f4796e3cf2135c55fdb347dd53bae passed v24-ci
+   https://github.com/Shayfly/desktop-tutorial/actions/runs/37460855718
+   and V11 Overlay CI
+   https://github.com/Shayfly/desktop-tutorial/actions/runs/37460855680 .
+   compileall, pytest (846 passed, 58 skipped, 1 warning, 158 subtests passed),
+   hostile static suite, international gate and compose-config all passed.
+   These are unit/CI proofs; live QStash administrative and delivery tests did not run.
 2. **Implemented, awaiting live verification:** QStash schedule create/get/cancel,
    publish with deduplication, safe transport, signature verifier requiring a durable
    replay claim, saved-variable readiness and API-access check. A QStash binding is
