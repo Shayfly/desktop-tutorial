@@ -1,5 +1,38 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Golden E2E #1 truth audit — 2026-10-06 23:15 Asia/Jerusalem
+
+- Repository truth: working line is `milestone/pre-staging-2026-10-05`
+  (HEAD `7b59c3a`; PR #4 `f9174fc` plus 28 later commits). `main` is still
+  `e8f2949` (two weeks old). Vercel Production runs `main@e8f2949`
+  (dpl_9izMa4N2Ca1oMkwLcTM8JqXNgm4f); Preview runs `7b59c3a`
+  (dpl_J5g95XX2uuY4SoWudynPzFxa938C).
+- Implemented and independently verified: CI on `7b59c3a` passes —
+  GitHub Actions `v24-ci` run 37514462833 (full `pytest -q`, hostile static
+  suite, international gate) and `V11 Overlay CI` run 37514462750.
+  Live Preview `GET /api/status` returns 200 and reports `live_ready=false`
+  (docker gate false, live build switch off).
+- Infrastructure matrix (Preview, names only, from Vercel project env):
+  Postgres `OMNI_DATABASE_URL` configured; Redis `OMNI_REDIS_URL` configured;
+  R2 `OMNI_S3_*` configured (signature failure under investigation, see below);
+  QStash `QSTASH_*` configured; Replicate token configured.
+  NOT CONFIGURED: `OMNI_ENV`, `OMNI_PUBLIC_BASE_URL`, `OMNI_ALLOWED_ORIGINS`,
+  `OMNI_ENABLE_LIVE_BUILD`, any reachable model endpoint (primary defaults to
+  `http://127.0.0.1:8001/v1`; `OMNI_EXTERNAL_MODELS_JSON` absent; zero-cost
+  mode blocks external spend), `OMNI_SANDBOX_RUNNER_URL`/shared secret,
+  `PREVIEW_DOMAIN_TEMPLATE`, preview runtime host.
+- First failing transition (by code inspection, reproducible): `POST
+  /api/v28/projects/{id}/builds` enqueues `execute_live_build_job` into RQ on
+  Redis and returns 202. No RQ consumer (`python -m omni_prod.worker`) runs
+  anywhere, and Vercel Functions cannot host it. QStash is used only as a
+  generated-app scheduler capability (`managed_web_saas.py`); it is NOT the
+  build dispatcher, so "QStash delivery" is not on the build path.
+  Status: Queue → Worker = FAIL (no executor). Worker → model = NOT CONFIGURED.
+  Worker → isolated sandbox = NOT CONFIGURED.
+- Not verified from this audit environment (PyPI and the Preview host are not
+  reachable from it): auth E2E over HTTPS, live DB/Redis round trips, R2 write
+  with the secret updated 2026-10-06 22:17.
+
 ## R2 runtime diagnosis — 2026-10-06 21:49 Asia/Jerusalem
 
 - Implemented and independently verified: authenticated Preview-only read-only
