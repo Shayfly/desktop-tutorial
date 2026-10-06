@@ -89,6 +89,7 @@ class ManagedWebSaaSConfig:
     s3_role_arn: str = ""
     s3_sts_endpoint: str = ""
     s3_credential_ttl_seconds: int = 3600
+    s3_provider: str = "aws_sts"
     scheduler_url: str = ""
     scheduler_health_url: str = ""
     scheduler_token_ref: str = ""
@@ -120,6 +121,7 @@ class ManagedWebSaaSConfig:
             secret_store_token_present=bool(_clean(env, token_env)),
             secret_mount=_clean(env, "OMNI_GENAPP_SECRET_MOUNT") or "secret",
             database_admin_dsn_ref=_clean(env, "OMNI_GENAPP_DATABASE_ADMIN_DSN_REF"),
+            s3_provider=_clean(env, "OMNI_GENAPP_S3_PROVIDER") or "aws_sts",
             s3_endpoint=_clean(env, "OMNI_GENAPP_S3_ENDPOINT"),
             s3_bucket=_clean(env, "OMNI_GENAPP_S3_BUCKET"),
             s3_region=_clean(env, "OMNI_GENAPP_S3_REGION") or "auto",
@@ -180,7 +182,17 @@ class ManagedWebSaaSConfig:
                                       ("OMNI_GENAPP_S3_SECRET_KEY_REF", self.s3_secret_key_ref)) if not v]
             if missing:
                 return _STATUS_NOT_CONFIGURED, "missing " + ", ".join(missing)
-            if not self.s3_role_arn:
+            if self.s3_provider not in {"aws_sts", "cloudflare_r2"}:
+                return _STATUS_BLOCKED, "OMNI_GENAPP_S3_PROVIDER must be aws_sts or cloudflare_r2"
+            if self.s3_provider == "cloudflare_r2":
+                from .r2_credentials import r2_account_id
+                try:
+                    r2_account_id(self.s3_endpoint)
+                except ValueError:
+                    return _STATUS_BLOCKED, "invalid standard R2 HTTPS account endpoint"
+                if type(self.s3_credential_ttl_seconds) is not int or not 1 <= self.s3_credential_ttl_seconds <= 3600:
+                    return _STATUS_BLOCKED, "R2 credential TTL must be 1..3600 seconds"
+            if self.s3_provider == "aws_sts" and not self.s3_role_arn:
                 return _STATUS_NOT_CONFIGURED, ("object storage isolation requires scoped per-app/environment credentials: "
                                                 "set OMNI_GENAPP_S3_ROLE_ARN (STS AssumeRole with a prefix-scoped session policy)")
             if not (_valid_ref(self.s3_access_key_ref) and _valid_ref(self.s3_secret_key_ref)):
@@ -380,8 +392,14 @@ class ManagedWebSaaSProvisioner:
         self.resolve_reference = resolve_reference
         self.database_backend = database_backend or PostgresAdminBackend()
         self.storage_backend = storage_backend or S3ProbeBackend()
-        self.credential_issuer = credential_issuer or StsCredentialIssuer(
-            endpoint=config.s3_sts_endpoint or config.s3_endpoint, region=config.s3_region)
+        if credential_issuer is not None:
+            self.credential_issuer = credential_issuer
+        elif config.s3_provider == "cloudflare_r2":
+            # Invalid configuration is reported by config_status before construction.
+            self.credential_issuer = None
+        else:
+            self.credential_issuer = StsCredentialIssuer(
+                endpoint=config.s3_sts_endpoint or config.s3_endpoint, region=config.s3_region)
         self.http_probe = http_probe or (lambda url, *, token: _probe_url(url, token=token))
         self.control_plane_env = os.environ if control_plane_env is None else control_plane_env
 
@@ -529,7 +547,11 @@ class ManagedWebSaaSProvisioner:
         sibling_key = f"generated-apps/{app}/{sibling_env.value}/.148ai-isolation-sentinel"
         policy = scoped_object_policy(self.config.s3_bucket, prefix)
         # The operator credentials only mint scoped credentials; they never reach the app.
-        creds = self.credential_issuer.issue(
+        issuer = self.credential_issuer
+        if issuer is None:
+            from .r2_credentials import R2CredentialIssuer
+            issuer = R2CredentialIssuer(endpoint=self.config.s3_endpoint)
+        creds = issuer.issue(
             operator_access_key=access, operator_secret_key=secret, role_arn=self.config.s3_role_arn,
             policy=policy, session_name=name, ttl_seconds=self.config.s3_credential_ttl_seconds)
         refs = {}
