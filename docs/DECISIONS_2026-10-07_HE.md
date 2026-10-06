@@ -47,3 +47,19 @@
 * **חסר (לשלב התמחור, לא עכשיו)**: credit balance / add-on packs (יש רק credits חודשיים); multipliers לפי capability (כרגע 60 credits קבועים לכל build); Margin Policy versioned לפי Product Family עם שני התנאים (כרגע פרמטר גלובלי אחד `OMNI_MIN_BUILD_VARIABLE_MARGIN` על ה־Maximum); Expected/P95/P99; תהליך reconciliation.
 * **סתירה שנמצאה — ממתינה להחלטה**: ה־endpoint הציבורי (ללא התחברות) `/api/v28/pricing` מחזיר לכל תוכנית `paid_provider_budget_usd` ו־`variable_margin_floor` לצד `included_credits` (למשל Pro: 4000 credits מול ‎$10 עלות ספק) — בדיוק היחס הפומבי credit→עלות וה־Margin שלנו. גם ה־snapshot של החשבון מחזיר ללקוח `provider_spend_usd` / `provider_budget_remaining_usd`. ה־UI לא משתמש בשדות האלה.
 * ברירות המחדל בקוד הן Pro ‎$39 / Business ‎$99; מחירי הבדיקה ניתנים להגדרה ב־env (`OMNI_PRICE_PRO_USD`, `OMNI_PRICE_BUSINESS_USD`) בלי שינוי קוד.
+
+## שאלה פתוחה לרמת ארכיטקטורה (סעיף 22) — תשתית מנוהלת מול Golden E2E #1
+
+**הבעיה.** כל Build Contract של Web/SaaS דורש היום, בלי תלות בפרומפט, 5 סוגי תשתית `PLATFORM_MANAGED` לכל מוצר: database, auth_session, object_storage, scheduled_http, outbound (`ProductArchitect._infrastructure_requirements`). ה־worker מסרב להתחיל ייצור קוד עד שכל ה־5 LIVE.
+
+**למה זו בעיה.**
+1. ‏Plan → Quote נכשל כבר עכשיו ב־Preview: `OMNI_GENAPP_PROVISIONING_MAXIMUM_USD` חסר, ולכן אף סוג תשתית אינו מתומחר → 402 `cost_quote_unknown`. הוכח עם `tools/golden_e2e_quote_probe.py`.
+2. גם אם נתמחר, ההחלטה #25 קובעת שקוד האפליקציה משתמש בספריה הסטנדרטית בלבד. אין לו driver ל־Postgres או ל־S3, כך שהתשתית שתוקצה לא תשמש את המוצר. זו תשתית "על הנייר".
+3. אף אחד מחמשת ה־provisioners לא אומת אי־פעם live. זה מוסיף 5 מעברים לא מאומתים לפני Real AI Provider, ואינם ברשימת המעברים של Golden E2E.
+
+**חלופות.**
+* **א. Self-contained profile ל־Golden E2E #1 (המלצת CTO).** פרופיל תשתית versioned `self_contained_v1`: SQLite מוטמע, sessions בתוך האפליקציה, קבצים מקומיים; scheduled/outbound לא נדרשים ומדווחים NOT VERIFIED. ה־Quote כולל מודל + תמונה (אם נשארת) + retry. לא נדרשים חשבונות חיצוניים חדשים. מוכיח את כל השרשרת Login→…→ZIP עם AI, build, tests, preview וגרסאות אמיתיים. התשתית המנוהלת הופכת ל־Golden E2E #2 עם allowlist של drivers בשני ה־images.
+* **ב. רק להגדיר `OMNI_GENAPP_PROVISIONING_MAXIMUM_USD`.** תיקון קונפיגורציה של דקות. הכשל זז ל־worker (5 provisioners לא מאומתים), ומוקצית תשתית שהאפליקציה לא יכולה להשתמש בה. לא מומלץ לבד.
+* **ג. מסלול מנוהל מלא עכשיו.** מוסיפים drivers (`psycopg`, `boto3`) ל־allowlist, image preview מותאם עם אותם pins ורשת ל־Neon, ואימות live של 5 ה־provisioners. נאמנות מלאה לחוזה, אבל הכי יקר ואיטי, ומרחיב scope לפני Golden E2E ראשון.
+
+**השפעה.** א' מקצרת את הדרך ל־VERIFIED ושומרת על הבטחת "אין Fake". ג' מוסיפה ימים ותלות חיצונית. ב' מזיזה את הבעיה.

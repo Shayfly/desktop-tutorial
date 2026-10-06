@@ -1,5 +1,63 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Golden E2E #1 transition truth — 2026-10-07 02:45 Asia/Jerusalem (corrects the 2026-10-06 audit)
+
+The 2026-10-06 audit named Queue → Worker as the first failing transition by
+code inspection, assuming admission succeeds. Reproduced evidence shows
+admission fails earlier, at Plan → Quote.
+
+| Transition | Status | Evidence |
+|---|---|---|
+| User → Login → Project | NOT VERIFIED (from this environment) | Preview host not reachable from the audit shell |
+| Project → Prompt → Product Plan | PASS (deterministic, offline) | `python3 tools/golden_e2e_quote_probe.py`: contract `READY` for a task-tracker prompt |
+| Product Plan → Quote | **FAIL — first failing transition** | Every contract requires 5 `PLATFORM_MANAGED` kinds (database, auth_session, object_storage, scheduled_http, outbound). The configured provisioner prices each kind only from `OMNI_GENAPP_PROVISIONING_MAXIMUM_USD`, which is ABSENT from Vercel Preview (env names listed via Vercel API, values never read). Probe with every Preview variable present in its most favourable valid form: all 5 kinds `provisioning cost not configured; unknown, not zero` → `CostQuoteUnknown` → HTTP 402 `cost_quote_unknown` |
+| Quote → Budget Reservation | BLOCKED | Founder account is on the free plan (refused for paid builds by design). Internal QA path implemented; needs migrations 027–029 applied, `OMNI_ENV=staging` + QA caps on Preview, and an INTERNAL_QA grant |
+| Queue → Worker | FAIL | No RQ consumer anywhere. Worker host implemented (`infra/worker-host/`); BLOCKED on founder: server, runner token, `WORKER_ENV` |
+| Worker → generated-app infrastructure | UNKNOWN | Worker requires all 5 kinds LIVE before any model call. Preview has Infisical, a GENAPP Neon database, GENAPP S3 and QStash variables; none was ever provisioned or verified live; no outbound email config |
+| Worker → Real AI Provider | NOT CONFIGURED | No provider key on the worker (Gemini key pending) |
+| Build → Tests → Verification → Repair | NOT CONFIGURED | Sandbox runs on the worker host |
+| Durable Artifact (R2) | NOT VERIFIED | Preview secret replaced 2026-10-06 22:17; `/r2-diagnostics` check pending (needs the founder's session) |
+| Preview → Modification → New Version → ZIP | NOT CONFIGURED | Preview runtime host / `PREVIEW_DOMAIN_TEMPLATE` absent |
+
+- Architecture conflict raised to the founder (Operating Contract, decision
+  22): the contract floor requires managed per-product infrastructure, while
+  decision #25 makes generated application code standard-library only (it
+  cannot use a provisioned Postgres or S3 without drivers). Options and
+  recommendation in `docs/DECISIONS_2026-10-07_HE.md` (open question).
+
+## Founder decisions implemented — 2026-10-07
+
+- **Explicit INTERNAL_QA entitlement** (decision #24) — migration 029
+  `internal_entitlements` (account id + `staging` scope, audited grant and
+  revocation), `python -m omni_prod.entitlements`, manual GitHub workflow
+  `Internal entitlement` on the worker host. Email allow-list removed. QA
+  enabled only with `OMNI_ENV=staging`, never in production.
+- **QA budget separate from the customer plan** — `credit_reservations.
+  funding_source`. Found and fixed while implementing: `settle()` and
+  `release()` moved customer plan counters for QA reservations (a refund or a
+  release subtracted spend that was never added; a shortfall was charged to
+  the customer plan). QA caps (decision #23: $0.50 per build, $10 total) count
+  only `internal_qa` reservations.
+- **Dependency allowlist** (decision #25) — `omni_prod/dependency_policy.py`,
+  `DependencyGateExecutor` around the sandbox executor (builds and
+  modifications): stdlib-only application code, `pytest==8.3.5` for tests,
+  no install steps, no Node toolchain; violations return
+  `UNSUPPORTED_DEPENDENCY` without starting the sandbox and end a build with
+  `error_code=unsupported_dependency`. Drift test ties the image pins to the
+  policy. Prompts carry the policy (prompt version changes accordingly).
+- **Attempt counters** (section 9) — migration 028: retry / repair /
+  regenerate / escalation / fallback counts on every attempt row.
+- Evidence: `226d6f7` — `v24-ci` 37544737507 PASS (full `pytest -q`),
+  `Neon bootstrap CI` 37544740584 PASS (migrations 001–029 on a fresh
+  Postgres), `V11 Overlay CI` PASS. Tests: `test_qa_budget` (18),
+  `test_entitlements` (7), `test_dependency_policy` (17),
+  `test_attempt_ledger` (13); stdlib failure set identical to baseline.
+- Not configured yet (deliberately): Vercel Preview `OMNI_ENV=staging` and QA
+  caps. Enabling QA before migration 029 is applied would turn every Preview
+  build request into an explicit 503 `qa_entitlement_store_unavailable`; the
+  per-build sizing also depends on the open infrastructure decision
+  (reservation = model budget + image + infrastructure + retry ≤ $0.50).
+
 ## Instrumentation for Golden E2E — 2026-10-07 (founder decisions: `docs/DECISIONS_2026-10-07_HE.md`)
 
 - CI on `ca548a1`: `v24-ci` (full `pytest -q`) and `V11 Overlay CI` PASS.
@@ -47,14 +105,8 @@
     a ledger write failure is logged and never changes the build outcome.
   * **Migrations on deploy** — `python -m omni_prod.migrate` (checksum-verified
     runner) runs in the worker deploy workflow before the worker starts.
-  * **Internal QA budget** — `omni_prod/qa_budget.py`: QA accounts
-    (`OMNI_QA_ACCOUNT_EMAILS`) are funded by `OMNI_QA_BUILD_MAX_USD` /
-    `OMNI_QA_BUDGET_TOTAL_USD` hard caps checked under an advisory lock in the
-    reservation transaction; disabled in production; recorded as
-    `funding_source=internal_qa`; no plan credits consumed; customer free plan
-    behavior unchanged (still refused for paid builds).
-  * Tests: `tests/test_attempt_ledger.py` (12), `tests/test_qa_budget.py` (10);
-    stdlib suite failure set identical to baseline.
+  * **Internal QA budget** — `omni_prod/qa_budget.py` (superseded the same
+    day by the explicit entitlement model, see above).
 - Not implemented yet: modification-job ledger persistence, stop-loss in the
   modification repair loop, reconciliation process, expected-cost estimator.
 
