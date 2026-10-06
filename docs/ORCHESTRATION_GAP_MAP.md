@@ -68,3 +68,32 @@ optimizer, per-operation reservations with protected future budget, learned
 success probabilities, error budgets and alerting) build on these records.
 None of them requires replacing `RoutedModelGateway`, the build pipeline or the
 reservation model; they wrap and extend them.
+
+## Additions from `PRODUCTION_OS_VISION_HE.md` (2026-10-07)
+
+Founder priority after Golden E2E #1: (1) Universal Product IR, (2) Whole-DAG
+Optimizer, (3) Profit Governor; then Creative Director, Product Memory/DNA,
+Provider Intelligence, Universal Verification, Reuse/Cache, Quality Tiers,
+Learning Flywheel.
+
+| Component | Status | Existing foundation |
+|---|---|---|
+| Universal Product IR | PARTIAL | `ProductSpec` (software) + Build Contract capability plan (`build_contract`, `capabilities`) — one family; no multi-family product tree (Application/Brand/Media/Agent). |
+| Whole-DAG Optimizer / marginal quality gain per dollar | MISSING | Needs per-task outcome data (Phase 1 item 3). |
+| Profit Governor (runtime margin rule) | PARTIAL | `_m5_build_economics_quote` + `enforce_margin_floor`: a build is refused when revenue basis × plan credits cannot cover the maximum authorized variable cost at `OMNI_MIN_BUILD_VARIABLE_MARGIN` (default 20%); zero-revenue plans cannot authorize any paid variable cost. Missing: payment fees and risk reserve as explicit lines, tier-specific floors, "offer cheaper DAG / lower tier" alternatives. |
+| Quality Tiers | PARTIAL | Plans Free/Basic/Pro/Business/Enterprise with hard provider caps; tiers do not yet change the DAG, models or verification depth. |
+| Stop-Loss | PARTIAL | Hard build budget, per-call authorization, `OMNI_MAX_REPAIR_ROUNDS`; no ROI-based stop. |
+| Creative Director / Taste Engine | MISSING | Brand system (`BRAND_SYSTEM_V28.md`, branding engine) covers 148AI's own brand, not generated products. |
+| Product Memory / Creative DNA, Asset Identity | PARTIAL | Project memory (`_memory`), durable `ProductSpec` per version (M4); no DNA schema or asset identities. |
+| Provider Intelligence / Cost of Failure | MISSING | Raw route events + usage persisted; no profiles. |
+| Universal Verification Engine | PARTIAL | Code verifiers (sandbox tests, quality, security, rights); image capability verification; no video/music/agent verifiers. |
+| Reuse / Artifact cache / context caching | MISSING | — |
+| Candidate Search, Independent Critics | MISSING | — |
+| Policy Engine (versioned) | MISSING | Env-configured policy only. |
+| Executive multi-agent hierarchy | PARTIAL | `MASTER_AGENTS_REGISTRY` + agent team; flat, not activated per need. |
+
+**Golden E2E impact found during this audit:** because of the margin rule, an
+account on a zero-revenue (Free) plan is refused with 402 as soon as any paid
+model budget is configured. The Golden E2E test account needs a paid-plan
+entitlement (or an explicit, recorded test grant) — this is correct
+behavior, not a bug.
