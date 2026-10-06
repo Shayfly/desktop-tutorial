@@ -22,6 +22,7 @@ REGISTRY = {
         IntegrationDefinition('oidc','auth',('OIDC_ISSUER','OIDC_CLIENT_ID','OIDC_CLIENT_SECRET')),
         IntegrationDefinition('cloudflare-r2','storage',('S3_ENDPOINT_URL','S3_BUCKET','S3_ACCESS_KEY_ID','S3_SECRET_ACCESS_KEY')),
         IntegrationDefinition('runpod','gpu',('RUNPOD_API_KEY',)),
+        IntegrationDefinition('replicate','media',('REPLICATE_API_TOKEN',)),
         IntegrationDefinition('local-openai-compatible-model','ai',('OMNI_LOCAL_MODEL_BASE_URL','OMNI_LOCAL_MODEL_NAME')),
         IntegrationDefinition('media-gateway','media',('OMNI_MEDIA_BASE_URL',)),
         IntegrationDefinition('apple-developer','mobile-signing',('APPLE_TEAM_ID','APPLE_SIGNING_IDENTITY')),

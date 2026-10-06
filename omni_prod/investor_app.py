@@ -1996,6 +1996,17 @@ def v28_provider_status(request: Request) -> dict:
         'note': 'configured does not imply live_verified',
     }
 
+
+@app.post('/api/v28/providers/replicate/check')
+@app.get('/api/v28/providers/replicate/check')
+def v28_replicate_check(request: Request) -> dict:
+    try:
+        _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    from .providers.replicate_connection import check_replicate_connection
+    return check_replicate_connection(os.environ)
+
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}/capabilities')
 def v28_build_capability_truth(project_id: str, build_id: str, request: Request) -> dict:
     token = _v28_bearer(request)
