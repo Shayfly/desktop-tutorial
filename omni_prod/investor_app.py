@@ -573,7 +573,7 @@ def _model_gateway_and_executor():
     # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
     if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
     cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
-    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary),fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),policy=cfg.policy)
+    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy)
     remote_url=os.getenv('OMNI_SANDBOX_RUNNER_URL','').strip()
     if remote_url:
         secret=os.getenv('OMNI_SANDBOX_SHARED_SECRET','')

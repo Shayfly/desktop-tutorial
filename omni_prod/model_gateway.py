@@ -50,7 +50,9 @@ class OpenAICompatibleGateway:
             'temperature': temperature,
             'max_tokens': max_tokens,
         }
-        headers = {'Content-Type': 'application/json'}
+        # Some providers sit behind bot filters that reject the default
+        # Python-urllib agent; identify the platform explicitly.
+        headers = {'Content-Type': 'application/json', 'User-Agent': '148AI-model-gateway/1.0'}
         if self.endpoint.api_key:
             headers['Authorization'] = f'Bearer {self.endpoint.api_key}'
         req = request.Request(

@@ -5,16 +5,28 @@ import json
 import os
 from .model_gateway import ModelEndpoint
 from .model_policy import ModelUsePolicy
+from .model_catalog import CatalogModel, load_model_catalog
+from .model_router import RoutingPolicy
 
 @dataclass(frozen=True)
 class ModelRuntimeConfig:
-    primary: ModelEndpoint
+    primary: ModelEndpoint | None
     fallback: tuple[ModelEndpoint, ...]
     policy: ModelUsePolicy
+    catalog: tuple[CatalogModel, ...] = ()
+    routing: RoutingPolicy = RoutingPolicy()
 
     @classmethod
     def from_env(cls) -> 'ModelRuntimeConfig':
-        primary = ModelEndpoint(
+        catalog = load_model_catalog()
+        routing = RoutingPolicy(
+            minimum_quality=int(os.getenv('OMNI_MODEL_MIN_QUALITY', '70')),
+            prefer_cost=os.getenv('OMNI_MODEL_ROUTING', 'cost') != 'quality',
+        )
+        # With a priced catalog and no explicitly configured self-hosted model,
+        # there is no local primary: the catalog router chooses every call.
+        use_local = bool(os.getenv('OMNI_LOCAL_MODEL_URL', '').strip()) or not catalog
+        primary = None if not use_local else ModelEndpoint(
             name=os.getenv('OMNI_LOCAL_MODEL_NAME', 'omni-local'),
             base_url=os.getenv('OMNI_LOCAL_MODEL_URL', 'http://127.0.0.1:8001/v1'),
             model=os.getenv('OMNI_LOCAL_MODEL_ID', 'local-coder'),
@@ -47,4 +59,4 @@ class ModelRuntimeConfig:
                     timeout_seconds=float(item.get('timeout_seconds', 120)),
                     external=True,
                 ))
-        return cls(primary, tuple(fallback), policy)
+        return cls(primary, tuple(fallback), policy, catalog, routing)

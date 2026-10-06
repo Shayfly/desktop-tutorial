@@ -7,6 +7,7 @@ import time
 from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
+from .model_router import RoutingPolicy, estimated_cost
 
 
 @dataclass(frozen=True)
@@ -40,15 +41,23 @@ class RoutedModelGateway:
     def __init__(
         self,
         *,
-        primary: ProviderRoute,
+        primary: ProviderRoute | None = None,
         fallback: tuple[ProviderRoute, ...] = (),
+        ranked: tuple = (),
+        routing_policy: RoutingPolicy | None = None,
         policy: ModelUsePolicy | None = None,
         state: ModelUseState | None = None,
         gateway_factory: Callable[[ModelEndpoint], Any] = OpenAICompatibleGateway,
         on_event: Callable[[RouteEvent], None] | None = None,
     ):
-        if primary.endpoint.external:
+        if primary is not None and primary.endpoint.external:
             raise ValueError('primary route must be local/self-hosted')
+        # ranked: CatalogModel entries (omni_prod.model_catalog). Only configured
+        # entries are routable; order is chosen per call by price and quality.
+        self.ranked = tuple(m for m in ranked if getattr(m, 'endpoint', None) is not None)
+        self.routing_policy = routing_policy or RoutingPolicy()
+        if primary is None and not self.ranked and not fallback:
+            raise ValueError('no model route is configured')
         self.primary = primary
         self.fallback = fallback
         self.policy = policy or ModelUsePolicy()
@@ -96,12 +105,45 @@ class RoutedModelGateway:
                                 request_id=getattr(usage, 'request_id', None)))
         return value
 
+    def ranked_routes(self, kwargs: dict) -> list[tuple[ProviderRoute, dict]]:
+        """Cheapest eligible catalog model first, with a conservative per-call cap.
+
+        Input tokens are bounded by the UTF-8 byte length of the prompt (a token
+        is never shorter than one byte), output by the requested max_tokens
+        clamped to the model limit, so the authorized maximum is never below the
+        real billable amount of a successful call.
+        """
+        text = f"{kwargs.get('system', '')}{kwargs.get('user', '')}"
+        input_tokens = len(text.encode('utf-8')) + 64
+        requested = int(kwargs.get('max_tokens', 4096))
+        policy = self.routing_policy
+        candidates = []
+        for model in self.ranked:
+            option = model.option
+            if not option.enabled or option.quality < policy.minimum_quality:
+                continue
+            if policy.maximum_latency_ms is not None and option.latency_ms > policy.maximum_latency_ms:
+                continue
+            out_tokens = min(requested, model.max_output_tokens)
+            cost = estimated_cost(option, input_tokens=input_tokens, output_tokens=out_tokens)
+            order = ((cost, -option.quality, option.latency_ms, model.endpoint.name)
+                     if policy.prefer_cost else (-option.quality, cost, option.latency_ms, model.endpoint.name))
+            candidates.append((order, ProviderRoute(model.endpoint, cost), {**kwargs, 'max_tokens': out_tokens}))
+        candidates.sort(key=lambda c: c[0])
+        return [(route, kw) for _, route, kw in candidates]
+
     def _route(self, method: str, kwargs: dict):
         last_error: Exception | None = None
-        routes = (self.primary, *self.fallback)
-        for route in routes:
+        routes = []
+        if self.primary is not None:
+            routes.append((self.primary, kwargs))
+        routes.extend(self.ranked_routes(kwargs))
+        routes.extend((route, kwargs) for route in self.fallback)
+        if not routes:
+            raise ModelGatewayError('no eligible model route for this request')
+        for route, call_kwargs in routes:
             try:
-                return self._attempt(route, method, kwargs)
+                return self._attempt(route, method, call_kwargs)
             except Exception as exc:
                 last_error = exc
                 # Policy errors intentionally stop the route rather than silently
