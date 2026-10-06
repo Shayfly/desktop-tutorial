@@ -37,7 +37,7 @@ class R2LiveTests(unittest.TestCase):
         access = os.environ[cfg.s3_access_key_ref[4:]]
         secret = os.environ[cfg.s3_secret_key_ref[4:]]
         self.assertNotEqual(cfg.s3_bucket, os.environ.get("OMNI_S3_BUCKET"))
-        self.assertNotEqual(access, os.environ.get("OMNI_S3_ACCESS_KEY"))
+        self.assertTrue(access != os.environ.get("OMNI_S3_ACCESS_KEY"), "generated-app access must differ from control plane")
         app = uuid.uuid4().hex
         prefix = f"generated-apps/{app}/preview/"
         keys = [prefix + "probe", f"generated-apps/{app}/production/sentinel",
