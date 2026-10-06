@@ -32,6 +32,7 @@ def test_replicate_official_model_submit_uses_input_only_and_resumes():
 
     def transport(req, timeout):
         calls.append(req)
+        assert req.get_header('User-agent') == '148AI/1.0'
         assert req.full_url == 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions'
         assert json.loads(req.data) == {'input': {'prompt': 'Original blue bird icon', 'output_format': 'png', 'num_outputs': 1}}
         return io.BytesIO(b'{"id":"prediction-123","status":"starting"}')
@@ -51,6 +52,8 @@ def test_check_authenticates_without_generation_and_hides_account_data():
     from omni_prod.providers.replicate_connection import check_replicate_connection
 
     def transport(req, timeout):
+        assert req.get_header('User-agent') == '148AI/1.0'
+        assert req.get_header('Accept') == 'application/json'
         assert req.get_method() == 'GET'
         assert req.full_url == 'https://api.replicate.com/v1/account'
         assert req.get_header('Authorization') == 'Bearer test-only-token'
