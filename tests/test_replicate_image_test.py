@@ -97,3 +97,24 @@ def test_verified_image_is_saved_and_retrievable_without_provider_after_restart(
     assert restored.status('account-one')['generation_verified'] is True
     assert restored.image('account-one') == (png, 'image/png')
     with pytest.raises(KeyError): restored.image('other-account')
+
+
+def test_storage_probe_uses_required_object_access_not_bucket_admin():
+    class Store:
+        def ping(self): raise AssertionError('bucket permission is not required')
+        def put_bytes(self, key, data): self.key, self.data = key, data
+        def get_bytes(self, key):
+            assert key == self.key
+            return self.data
+    obj = service(lambda *args: None, store=Store())
+    assert obj.check_storage('account-one') == {'verified': True}
+
+
+def test_storage_probe_returns_only_safe_failure_category():
+    from botocore.exceptions import ClientError
+    class Store:
+        def put_bytes(self, key, data):
+            raise ClientError({'Error': {'Code': 'AccessDenied', 'Message': 'private credentials'}}, 'PutObject')
+    result = service(lambda *args: None, store=Store()).check_storage('account-one')
+    assert result == {'verified': False, 'operation': 'write', 'category': 'AccessDenied'}
+    assert 'private' not in json.dumps(result)
