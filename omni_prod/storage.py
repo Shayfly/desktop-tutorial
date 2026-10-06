@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import hashlib
 import io
+from urllib.parse import urlsplit
 
 @dataclass(frozen=True)
 class StoredObject:
@@ -27,6 +28,18 @@ class S3ArtifactStore:
         from botocore.config import Config
 
         self.bucket = bucket
+        host = (urlsplit(endpoint).hostname or '').lower()
+        r2_options = {}
+        if host.endswith('.r2.cloudflarestorage.com'):
+            # Recent boto3 defaults add optional streaming checksum trailers.
+            # R2 does not support x-amz-sdk-checksum-algorithm on PutObject.
+            # Keep SigV4 and our independently verified SHA256 object metadata.
+            # https://developers.cloudflare.com/r2/api/s3/api/
+            region = 'auto'
+            r2_options = {'signature_version': 's3v4',
+                          's3': {'addressing_style': 'path'},
+                          'request_checksum_calculation': 'when_required',
+                          'response_checksum_validation': 'when_required'}
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint,
@@ -34,6 +47,7 @@ class S3ArtifactStore:
             aws_secret_access_key=secret_key,
             region_name=region,
             config=Config(
+                **r2_options,
                 connect_timeout=5,
                 read_timeout=30,
                 retries={"max_attempts": 4, "mode": "standard"},
