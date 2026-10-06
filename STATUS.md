@@ -926,8 +926,15 @@ Current machine-facing classification: **M5_PARTIAL**. M5 implementation has sta
 
 ## 2026-10-06 — Opt-in generated-app Cloudflare R2 adapter
 
-1. **Implemented and independently verified:** no new claim yet; current-branch
-   CI evidence must be recorded after the exact source revision passes.
+1. **Implemented and independently verified (unit/CI, not live R2):**
+   source revision e5ce74c281e6e82ad355aaa9b0556709f6afbb1e passed v24-ci
+   (https://github.com/Shayfly/desktop-tutorial/actions/runs/37456953208)
+   and V11 Overlay CI
+   (https://github.com/Shayfly/desktop-tutorial/actions/runs/37456953187).
+   compileall, pytest (828 passed, 56 skipped, 1 warning, 119 subtests passed),
+   hostile static suite, international gate and compose-config passed.
+   The test-first revision 83eba3b5d8ae2b9cb703aec6ddafc56d24128ef2 failed
+   collection because the R2 issuer did not yet exist, as intended.
 2. **Implemented but awaiting verification:** local HS256 temporary credential
    issuer; strict managed CRUD/list policy translation; R2/static readiness and
    wiring; protocol tests; independently gated R2 CRUD/isolation integration test.
