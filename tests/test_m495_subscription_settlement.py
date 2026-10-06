@@ -13,7 +13,7 @@ class Ctx:
 class Cursor:
     def __init__(self):
         self.calls=[]
-        self._fetch=[('u1','RESERVED',Decimal('2.00'))]
+        self._fetch=[('u1','RESERVED',Decimal('2.00'),'customer_plan')]
     def execute(self, sql, params=None):
         self.calls.append((' '.join(sql.split()), params))
         self.rowcount=1

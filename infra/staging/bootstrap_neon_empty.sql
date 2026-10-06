@@ -975,6 +975,68 @@ CREATE INDEX IF NOT EXISTS idx_task_attempts_tenant ON task_attempts(tenant_id, 
 
 -- END SOURCE 027_task_attempts.sql
 
+-- BEGIN SOURCE 028_task_attempt_counters.sql
+-- Attempt Ledger counters (migration 028; founder decision 2026-10-07, section 9).
+-- Per-attempt snapshot of the build's counters at the moment the attempt was
+-- recorded, so every row is self-describing without re-aggregating the build:
+--   retry_count       prior attempts of the same logical call (0 = first try)
+--   repair_count      repair calls made in this build so far (incl. this one)
+--   regenerate_count  code generations beyond the first in this build so far
+--   escalation_count  escalated attempts in this build so far
+--   fallback_count    attempts served by a non-first candidate so far
+-- NULL means "not recorded" (rows written before this migration).
+
+ALTER TABLE task_attempts
+    ADD COLUMN IF NOT EXISTS retry_count      INTEGER CHECK (retry_count IS NULL OR retry_count >= 0),
+    ADD COLUMN IF NOT EXISTS repair_count     INTEGER CHECK (repair_count IS NULL OR repair_count >= 0),
+    ADD COLUMN IF NOT EXISTS regenerate_count INTEGER CHECK (regenerate_count IS NULL OR regenerate_count >= 0),
+    ADD COLUMN IF NOT EXISTS escalation_count INTEGER CHECK (escalation_count IS NULL OR escalation_count >= 0),
+    ADD COLUMN IF NOT EXISTS fallback_count   INTEGER CHECK (fallback_count IS NULL OR fallback_count >= 0);
+
+-- END SOURCE 028_task_attempt_counters.sql
+
+-- BEGIN SOURCE 029_internal_entitlements.sql
+-- Internal entitlements and reservation funding source (migration 029).
+-- Founder decision 2026-10-07 (#24): internal QA funding is an explicit,
+-- audited entitlement bound to an account id and an environment scope, never
+-- an implicit email match, and its budget is separate from the customer plan.
+--
+-- Only INTERNAL_QA in the staging scope exists. Adding another entitlement or
+-- scope (for example production) is a deliberate schema change, not a row.
+-- Revocation keeps the row (audit trail); at most one active grant per
+-- (account, entitlement, environment).
+
+CREATE TABLE IF NOT EXISTS internal_entitlements (
+    id              TEXT PRIMARY KEY,
+    account_id      TEXT NOT NULL REFERENCES creator_accounts(id),
+    entitlement     TEXT NOT NULL CHECK (entitlement IN ('INTERNAL_QA')),
+    environment     TEXT NOT NULL CHECK (environment IN ('staging')),
+    reason          TEXT NOT NULL CHECK (length(trim(reason)) > 0),
+    granted_by      TEXT NOT NULL CHECK (length(trim(granted_by)) > 0),
+    granted_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at      TIMESTAMPTZ,
+    revoked_by      TEXT,
+    revoke_reason   TEXT,
+    CONSTRAINT internal_entitlements_revocation CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_internal_entitlements_active
+    ON internal_entitlements(account_id, entitlement, environment)
+    WHERE revoked_at IS NULL;
+
+-- Which budget funded a reservation. Customer-plan reservations move the
+-- account's plan counters; internal QA reservations never do, and only they
+-- count against the internal QA caps.
+ALTER TABLE credit_reservations
+    ADD COLUMN IF NOT EXISTS funding_source TEXT NOT NULL DEFAULT 'customer_plan'
+        CHECK (funding_source IN ('customer_plan', 'internal_qa'));
+
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_internal_qa
+    ON credit_reservations(created_at)
+    WHERE funding_source = 'internal_qa';
+
+-- END SOURCE 029_internal_entitlements.sql
+
 -- Record exact original migration checksums for the normal migration runner.
 INSERT INTO schema_migrations(version, name, sha256)
 VALUES (1, 'control_plane', encode(sha256(convert_to($source_001$CREATE TABLE IF NOT EXISTS build_jobs (
@@ -1910,6 +1972,66 @@ CREATE INDEX IF NOT EXISTS idx_task_attempts_build ON task_attempts(build_id, at
 CREATE INDEX IF NOT EXISTS idx_task_attempts_model_task ON task_attempts(model, task_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_task_attempts_tenant ON task_attempts(tenant_id, created_at);
 $source_027$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (28, 'task_attempt_counters', encode(sha256(convert_to($source_028$-- Attempt Ledger counters (migration 028; founder decision 2026-10-07, section 9).
+-- Per-attempt snapshot of the build's counters at the moment the attempt was
+-- recorded, so every row is self-describing without re-aggregating the build:
+--   retry_count       prior attempts of the same logical call (0 = first try)
+--   repair_count      repair calls made in this build so far (incl. this one)
+--   regenerate_count  code generations beyond the first in this build so far
+--   escalation_count  escalated attempts in this build so far
+--   fallback_count    attempts served by a non-first candidate so far
+-- NULL means "not recorded" (rows written before this migration).
+
+ALTER TABLE task_attempts
+    ADD COLUMN IF NOT EXISTS retry_count      INTEGER CHECK (retry_count IS NULL OR retry_count >= 0),
+    ADD COLUMN IF NOT EXISTS repair_count     INTEGER CHECK (repair_count IS NULL OR repair_count >= 0),
+    ADD COLUMN IF NOT EXISTS regenerate_count INTEGER CHECK (regenerate_count IS NULL OR regenerate_count >= 0),
+    ADD COLUMN IF NOT EXISTS escalation_count INTEGER CHECK (escalation_count IS NULL OR escalation_count >= 0),
+    ADD COLUMN IF NOT EXISTS fallback_count   INTEGER CHECK (fallback_count IS NULL OR fallback_count >= 0);
+$source_028$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (29, 'internal_entitlements', encode(sha256(convert_to($source_029$-- Internal entitlements and reservation funding source (migration 029).
+-- Founder decision 2026-10-07 (#24): internal QA funding is an explicit,
+-- audited entitlement bound to an account id and an environment scope, never
+-- an implicit email match, and its budget is separate from the customer plan.
+--
+-- Only INTERNAL_QA in the staging scope exists. Adding another entitlement or
+-- scope (for example production) is a deliberate schema change, not a row.
+-- Revocation keeps the row (audit trail); at most one active grant per
+-- (account, entitlement, environment).
+
+CREATE TABLE IF NOT EXISTS internal_entitlements (
+    id              TEXT PRIMARY KEY,
+    account_id      TEXT NOT NULL REFERENCES creator_accounts(id),
+    entitlement     TEXT NOT NULL CHECK (entitlement IN ('INTERNAL_QA')),
+    environment     TEXT NOT NULL CHECK (environment IN ('staging')),
+    reason          TEXT NOT NULL CHECK (length(trim(reason)) > 0),
+    granted_by      TEXT NOT NULL CHECK (length(trim(granted_by)) > 0),
+    granted_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at      TIMESTAMPTZ,
+    revoked_by      TEXT,
+    revoke_reason   TEXT,
+    CONSTRAINT internal_entitlements_revocation CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_internal_entitlements_active
+    ON internal_entitlements(account_id, entitlement, environment)
+    WHERE revoked_at IS NULL;
+
+-- Which budget funded a reservation. Customer-plan reservations move the
+-- account's plan counters; internal QA reservations never do, and only they
+-- count against the internal QA caps.
+ALTER TABLE credit_reservations
+    ADD COLUMN IF NOT EXISTS funding_source TEXT NOT NULL DEFAULT 'customer_plan'
+        CHECK (funding_source IN ('customer_plan', 'internal_qa'));
+
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_internal_qa
+    ON credit_reservations(created_at)
+    WHERE funding_source = 'internal_qa';
+$source_029$, 'UTF8')), 'hex'));
 
 COMMIT;
 

@@ -74,6 +74,16 @@ class AttemptRecord:
     latency_ms: int | None = None
     verification_class: str | None = None
     failure_reason: str | None = None
+    # Build counters at the time of this attempt (migration 028), set by
+    # AttemptRecorder.add(); see that method for exact definitions.
+    retry_count: int | None = None
+    repair_count: int | None = None
+    regenerate_count: int | None = None
+    escalation_count: int | None = None
+    fallback_count: int | None = None
+    # Not persisted: marks an attempt made by an escalation step. The current
+    # pipeline has no escalation path, so this is never True yet.
+    escalated: bool = False
     attempt_id: str = field(default_factory=lambda: f'att_{uuid.uuid4().hex}')
 
     def __post_init__(self) -> None:
@@ -103,19 +113,41 @@ class AttemptRecorder:
         return len(self.records)
 
     def add(self, record: AttemptRecord) -> AttemptRecord:
+        """Append a record and stamp the build counters (including this record).
+
+        * retry_count: prior attempts of the same logical call. The routed
+          gateway retries a call only by falling back to the next candidate,
+          so this equals the record's fallback rank; verification runs are
+          never retried automatically, so it is 0 for them.
+        * repair_count: first attempts of `repair` calls so far.
+        * regenerate_count: first attempts of `codegen` calls beyond the first.
+        * escalation_count: attempts marked `escalated` so far.
+        * fallback_count: attempts with fallback rank > 0 so far.
+        """
         record.trace_id = record.trace_id or self.trace_id
         self.records.append(record)
+        calls = [r for r in self.records if r.kind == 'provider_call']
+        first = [r for r in calls if (r.fallback_rank or 0) == 0]
+        record.retry_count = (record.fallback_rank or 0) if record.kind == 'provider_call' else 0
+        record.repair_count = sum(1 for r in first if r.task_type == 'repair')
+        record.regenerate_count = max(0, sum(1 for r in first if r.task_type == 'codegen') - 1)
+        record.escalation_count = sum(1 for r in self.records if r.escalated)
+        record.fallback_count = sum(1 for r in calls if (r.fallback_rank or 0) > 0)
         return record
 
     def summary(self) -> dict:
         by_task: dict[str, int] = {}
         for r in self.records:
             by_task[r.task_type] = by_task.get(r.task_type, 0) + 1
+        last = self.records[-1] if self.records else None
         return {
             'attempts': len(self.records),
             'by_task_type': by_task,
             'fallbacks': sum(1 for r in self.records if (r.fallback_rank or 0) > 0),
             'unknown_outcomes': sum(1 for r in self.records if r.outcome == 'unknown'),
+            'repairs': last.repair_count if last else 0,
+            'regenerations': last.regenerate_count if last else 0,
+            'escalations': last.escalation_count if last else 0,
         }
 
 
@@ -195,7 +227,8 @@ _COLUMNS = ('attempt_id', 'build_id', 'tenant_id', 'project_id', 'task_id', 'tas
             'selected_candidate', 'candidate_set', 'fallback_rank', 'reservation_id', 'authorized_cost_usd',
             'expected_cost_usd', 'metered_cost_usd', 'provider_reported_cost_usd', 'input_tokens',
             'output_tokens', 'cached_tokens', 'latency_ms', 'outcome', 'verification_class',
-            'failure_reason', 'final_outcome')
+            'failure_reason', 'final_outcome', 'retry_count', 'repair_count', 'regenerate_count',
+            'escalation_count', 'fallback_count')
 
 
 def ledger_rows(records: Iterable[AttemptRecord], *, build_id: str, tenant_id: str | None,

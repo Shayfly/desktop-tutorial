@@ -234,7 +234,7 @@ class Pool:
 
 class SettlementServiceTests(unittest.TestCase):
     def test_settlement_returns_truthful_conservative_economics_when_actual_unknown(self):
-        cur=ScriptedCursor([('u1', 'RESERVED', Decimal('0.50'))])
+        cur=ScriptedCursor([('u1', 'RESERVED', Decimal('0.50'), 'customer_plan')])
         service=PostgresSubscriptionService(pool=Pool(cur))
         result=service.settle(
             build_id='b1', actual_provider_cost_usd=None, revenue_usd=Decimal('2.00'),
@@ -248,7 +248,7 @@ class SettlementServiceTests(unittest.TestCase):
         self.assertIsNone(update[1][0])
 
     def test_settlement_actual_cost_uses_actual_truth(self):
-        cur=ScriptedCursor([('u1', 'RESERVED', Decimal('0.50'))])
+        cur=ScriptedCursor([('u1', 'RESERVED', Decimal('0.50'), 'customer_plan')])
         service=PostgresSubscriptionService(pool=Pool(cur))
         result=service.settle(
             build_id='b1', actual_provider_cost_usd=Decimal('0.40'), revenue_usd=Decimal('2.00'),

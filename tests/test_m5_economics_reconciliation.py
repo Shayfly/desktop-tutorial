@@ -222,7 +222,7 @@ class SettlementTests(_Fixture):
 
     def test_7_actual_lower_than_reserved_releases_unused_reservation(self):
         class Cur:
-            def __init__(self): self.calls = []; self.rows = [("u1", "RESERVED", D("0.61"))]
+            def __init__(self): self.calls = []; self.rows = [("u1", "RESERVED", D("0.61"), "customer_plan")]
             def execute(self, sql, params=None): self.calls.append((" ".join(sql.split()), params))
             def fetchone(self): return self.rows.pop(0) if self.rows else None
             def __enter__(self): return self

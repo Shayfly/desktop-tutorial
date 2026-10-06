@@ -1,5 +1,6 @@
 from __future__ import annotations
 from decimal import Decimal
+import logging
 import os
 import shutil
 import hmac
@@ -1602,9 +1603,19 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             }) from exc
         cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
-        from .qa_budget import QABudgetPolicy, QABudgetDenied, authorize_qa_build
+        from .qa_budget import QABudgetPolicy, QABudgetDenied, active_entitlement, authorize_qa_build
         qa_policy = QABudgetPolicy.from_env()
-        internal_qa = qa_policy.applies_to(getattr(account, 'email', None))
+        internal_qa = False
+        if qa_policy.enabled:
+            # Explicit INTERNAL_QA entitlement bound to the account id (migration
+            # 029); re-verified under lock inside the reservation transaction.
+            try:
+                with _v28_pool.connection() as conn:
+                    with conn.cursor() as cur:
+                        internal_qa = active_entitlement(cur, qa_policy, account.id) is not None
+            except Exception as exc:
+                logging.getLogger(__name__).exception('internal entitlement lookup failed')
+                raise HTTPException(503, detail={'error': 'qa_entitlement_store_unavailable'}) from exc
         try:
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
@@ -1639,7 +1650,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                     if internal_qa:
                         try:
                             economics_evidence['funding'] = authorize_qa_build(
-                                cur, qa_policy, max_cost_usd=provider_reservation_usd)
+                                cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
                         except QABudgetDenied as exc:
                             raise HTTPException(402, detail={'error': 'qa_budget_denied', 'reason': str(exc)}) from exc
                     else:

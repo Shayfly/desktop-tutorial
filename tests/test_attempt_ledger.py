@@ -109,6 +109,37 @@ class GatewayAttemptTests(unittest.TestCase):
         self.assertEqual(TaskTaggedGateway(Plain(), "codegen").complete(system="s", user="u"), "x")
 
 
+class CounterTests(unittest.TestCase):
+    def test_build_counters_per_attempt(self):
+        gw = _gw()
+        TaskTaggedGateway(gw, "architecture").complete(system="s", user="u")
+        TaskTaggedGateway(gw, "codegen").complete(system="s", user="u")
+        _Fake.behaviour = {"cheap": "timeout"}           # repair #1 falls back to the second candidate
+        TaskTaggedGateway(gw, "repair").complete(system="s", user="u")
+        _Fake.behaviour = {}
+        TaskTaggedGateway(gw, "repair").complete(system="s", user="u")
+        TaskTaggedGateway(gw, "codegen").complete(system="s", user="u")   # a regeneration
+        rows = [(r.task_type, r.retry_count, r.repair_count, r.regenerate_count, r.fallback_count, r.escalation_count)
+                for r in gw.recorder.records]
+        self.assertEqual(rows, [
+            ("architecture", 0, 0, 0, 0, 0),
+            ("codegen", 0, 0, 0, 0, 0),
+            ("repair", 0, 1, 0, 0, 0),      # first try timed out
+            ("repair", 1, 1, 0, 1, 0),      # same logical call, retried on fallback
+            ("repair", 0, 2, 0, 1, 0),
+            ("codegen", 0, 2, 1, 1, 0),
+        ])
+        summary = gw.recorder.summary()
+        self.assertEqual((summary["repairs"], summary["regenerations"], summary["escalations"]), (2, 1, 0))
+
+    def test_verification_attempts_carry_counters(self):
+        rec = AttemptRecorder()
+        rec.add(AttemptRecord(task_type="repair", attempt_seq=0, kind="provider_call", outcome="ok", fallback_rank=0))
+        v = rec.add(AttemptRecord(task_type="verification", attempt_seq=1, kind="verification", outcome="ok",
+                                  verification_class="PASS"))
+        self.assertEqual((v.retry_count, v.repair_count, v.escalation_count), (0, 1, 0))
+
+
 class VerificationRecordingTests(unittest.TestCase):
     def test_classes(self):
         class Rep:
@@ -152,8 +183,9 @@ class VerificationRecordingTests(unittest.TestCase):
 class PersistenceTests(unittest.TestCase):
     def test_rows_match_migration_columns(self):
         sql = (ROOT / "infra/postgres/027_task_attempts.sql").read_text()
+        sql += (ROOT / "infra/postgres/028_task_attempt_counters.sql").read_text()
         for column in _COLUMNS:
-            self.assertRegex(sql, rf"\n    {column}\s", column)
+            self.assertRegex(sql, rf"(\n    |ADD COLUMN IF NOT EXISTS ){column}\s", column)
 
     def test_rows_and_insert(self):
         gw = _gw()

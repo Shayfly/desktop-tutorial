@@ -1,0 +1,61 @@
+name: Internal entitlement
+
+# Grants, revokes or lists the INTERNAL_QA / staging entitlement (founder
+# decision 2026-10-07 #24). Runs manually on the worker host, which already
+# holds the database credentials; GitHub keeps who ran it, when and with what
+# inputs. The command prints entitlement and account ids only.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: grant, revoke or list
+        type: choice
+        options: [grant, revoke, list]
+        required: true
+      email:
+        description: 148AI account email (not needed for list)
+        required: false
+      reason:
+        description: Why (required for grant and revoke)
+        required: false
+
+concurrency:
+  group: internal-entitlement
+  cancel-in-progress: false
+
+jobs:
+  entitlement:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write environment file
+        working-directory: infra/worker-host
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "${WORKER_ENV}" ]; then echo "::error::GitHub secret WORKER_ENV is not set"; exit 1; fi
+          printf '%s\n' "$WORKER_ENV" > .env
+
+      - name: Apply database migrations
+        working-directory: infra/worker-host
+        run: docker compose run --rm --no-deps worker python -m omni_prod.migrate
+
+      - name: Run
+        working-directory: infra/worker-host
+        env:
+          ACTION: ${{ inputs.action }}
+          EMAIL: ${{ inputs.email }}
+          REASON: ${{ inputs.reason }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ "$ACTION" = "list" ]; then
+            docker compose run --rm --no-deps worker python -m omni_prod.entitlements list
+          else
+            docker compose run --rm --no-deps worker python -m omni_prod.entitlements "$ACTION" \
+              --email "$EMAIL" --reason "$REASON" --by "github:$ACTOR"
+          fi

@@ -127,12 +127,24 @@ class PostgresSubscriptionService:
         """Atomically reserves credits and enforces limits within a transaction.
 
         internal_qa=True: the caller already authorized this build against the
-        internal QA budget (omni_prod.qa_budget) in the same transaction. Plan
-        credits and plan provider budget are not consumed; the reservation row
-        still records the maximum authorized cost for settlement and QA caps.
+        internal QA budget (omni_prod.qa_budget) in the same transaction. The
+        customer plan is not read or changed at all; the reservation row is
+        marked funding_source='internal_qa' and records the maximum authorized
+        cost for settlement and the QA caps (migration 029).
         """
         cc = cost_class if isinstance(cost_class, CostClass) else CostClass(cost_class)
         if credits < 0: raise ValueError('credits must be non-negative')
+
+        if internal_qa:
+            estimate = Decimal(str(estimated_provider_cost_usd if estimated_provider_cost_usd is not None else Decimal('0.25')))
+            if estimate < 0:
+                raise ValueError('estimated provider cost must be non-negative')
+            cur.execute(
+                "INSERT INTO credit_reservations(build_id, account_id, project_id, credits_reserved, estimated_provider_cost_usd, status, funding_source) VALUES (%s, %s, %s, %s, %s, 'RESERVED', %s) ON CONFLICT (build_id) DO NOTHING",
+                (build_id, user_id, project_id, 0, estimate, 'internal_qa'),
+            )
+            return UsageDecision(True, 'internal_qa', cc.value, str(estimate.quantize(Decimal('0.0001'))), 0, 0, None,
+                                 'internal QA budget', False)
 
         # Load user sub strictly for update
         cur.execute('SELECT plan_code,cycle,credits_used,provider_spend_usd FROM creator_subscriptions WHERE user_id=%s FOR UPDATE', (user_id,))
@@ -158,9 +170,7 @@ class PostgresSubscriptionService:
         charge = credits if user_billable else 0
 
         allowed, reason = True, 'authorized'
-        if internal_qa:
-            charge, reason = 0, 'internal QA budget'
-        elif cc not in plan.allowed_cost_classes:
+        if cc not in plan.allowed_cost_classes:
             allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
@@ -180,7 +190,7 @@ class PostgresSubscriptionService:
                 (build_id, user_id, project_id, charge, estimate)
             )
             # Only update if the insert wasn't ignored due to conflict (idempotency)
-            if cur.rowcount == 1 and not internal_qa:
+            if cur.rowcount == 1:
                 cur.execute('UPDATE creator_subscriptions SET credits_used=%s, provider_spend_usd=%s WHERE user_id=%s', (used + charge, spend + estimate, user_id))
 
         return decision
@@ -200,11 +210,13 @@ class PostgresSubscriptionService:
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
-                    cur.execute("SELECT account_id, status, estimated_provider_cost_usd FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    cur.execute("SELECT account_id, status, estimated_provider_cost_usd, funding_source FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
                     if not row:
                         return None
                     user_id, status, estimated_cost = row[0], row[1], Decimal(str(row[2]))
+                    # Internal QA reservations never move customer plan counters.
+                    customer_plan = row[3] != 'internal_qa'
 
                     if status != 'RESERVED':
                         return None
@@ -219,7 +231,9 @@ class PostgresSubscriptionService:
                     settlement_basis = estimated_cost if reported_actual is None else reported_actual
                     settled = settlement_basis
 
-                    if settlement_basis < estimated_cost:
+                    if not customer_plan:
+                        pass
+                    elif settlement_basis < estimated_cost:
                         refund = estimated_cost - settlement_basis
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (refund, user_id))
                     elif settlement_basis > estimated_cost:
@@ -268,7 +282,7 @@ class PostgresSubscriptionService:
         with self._pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
-                    cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd, funding_source FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
                     row = cur.fetchone()
                     if not row: return
                     user_id, status, credits_reserved, estimated_cost = row[0], row[1], row[2], Decimal(str(row[3]))
@@ -276,4 +290,6 @@ class PostgresSubscriptionService:
                     if status != 'RESERVED': return
 
                     cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now() WHERE build_id=%s", (build_id,))
+                    if row[4] == 'internal_qa':
+                        return  # internal QA never touched the customer plan counters
                     cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (credits_reserved, estimated_cost, user_id))
