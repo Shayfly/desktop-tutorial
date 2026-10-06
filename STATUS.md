@@ -1,5 +1,25 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## R2 runtime diagnosis — 2026-10-06 21:49 Asia/Jerusalem
+
+- Implemented and independently verified: authenticated Preview-only read-only
+  `/r2-diagnostics` reports credential lengths and 12-character SHA-256 prefixes,
+  actual S3 client settings, SDK versions and deployment revision. It never
+  returns credentials or performs storage/provider requests. 22 targeted tests
+  passed: `python -m pytest tests/test_r2_config_diagnostic.py
+  tests/test_r2_storage_signing.py tests/test_replicate_image_test.py
+  tests/test_replicate_connection.py -q -p no:cacheprovider`.
+- Live evidence: deployment be421cd loaded access prefix `99a6d983e8e3` and
+  secret prefix `cba61814b378` in both environment and the actual boto3 client.
+  The independently successful local PUT used secret prefix `6abc7f5dbebd`.
+  Endpoint has no bucket path; region auto, signature s3v4, addressing path,
+  request checksums when_required; boto3 1.43.94 and botocore 1.43.108.
+- Blocked: Preview secret value is the old value. Founder must replace only
+  OMNI_S3_SECRET_KEY with the locally verified secret; credentials remain
+  write-only and are never requested in chat. Image generation is unverified.
+- Not implemented in this diagnostic: automatic credential replacement or
+  new paid image submission. Production configuration is unchanged.
+
 ## Replicate connection — 2026-10-06
 
 - Implemented and independently verified: saved `REPLICATE_API_TOKEN` selects
