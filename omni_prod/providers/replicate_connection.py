@@ -57,7 +57,8 @@ def check_replicate_connection(env, *, urlopen=None):
         return {**result, 'status': 'NOT_CONFIGURED', 'reason': 'REPLICATE_API_TOKEN is missing'}
     result['token_format_valid'] = bool(re.fullmatch(r'r8_[A-Za-z0-9]{37}', token))
     req = request.Request('https://api.replicate.com/v1/account',
-                          headers={'Authorization': 'Bearer ' + token}, method='GET')
+                          headers={'Authorization': 'Bearer ' + token,
+                                   'User-Agent': '148AI/1.0', 'Accept': 'application/json'}, method='GET')
     try:
         with (urlopen or request.urlopen)(req, timeout=10) as response:
             body = json.loads(response.read(65537))

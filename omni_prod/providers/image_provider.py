@@ -340,6 +340,9 @@ class PredictionImageProvider:
     def _headers(self, *, idempotency_key: str | None = None) -> dict[str, str]:
         headers = {"Authorization": f"Bearer {self.resolve_reference(self.config.api_key_ref)}",
                    "Content-Type": "application/json"}
+        if self.config.base_url.rstrip("/") == "https://api.replicate.com/v1":
+            headers["User-Agent"] = "148AI/1.0"
+            headers["Accept"] = "application/json"
         if idempotency_key and self.config.idempotency_header:
             headers[self.config.idempotency_header] = idempotency_key
         return headers
