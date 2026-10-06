@@ -169,6 +169,10 @@ class MemorySubmissionJournal:
     def __init__(self) -> None:
         self._rows: dict[str, dict] = {}
 
+    def find(self, key):
+        row = self._rows.get(key)
+        return None if row is None else SubmissionRecord(key, row['provider'], row['state'], row['provider_task_id'], True)
+
     def begin(self, idempotency_key: str, *, provider: str) -> SubmissionRecord:
         row = self._rows.get(idempotency_key)
         if row is None:
@@ -197,6 +201,13 @@ class PostgresSubmissionJournal:
 
     def __init__(self, pool) -> None:
         self._pool = pool
+
+    def find(self, key):
+        with self._pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT idempotency_key, provider, state, provider_task_id FROM media_provider_submissions WHERE idempotency_key=%s', (key,))
+                row = cur.fetchone()
+        return None if row is None else SubmissionRecord(*row, True)
 
     def begin(self, idempotency_key: str, *, provider: str) -> SubmissionRecord:
         with self._pool.connection() as conn:
