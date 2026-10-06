@@ -25,6 +25,27 @@ class ReplicateImageTest:
     def key(self, account_id):
         return PREFIX + hashlib.sha256(str(account_id).encode()).hexdigest()
 
+    def check_storage(self, account_id):
+        # Verify precisely the object permissions needed for the result.
+        # HeadBucket can fail on scoped credentials and hides the real error.
+        operation = 'write'
+        try:
+            key = self.key(account_id) + '/storage-probe'
+            payload = b'148AI image-test storage probe v1'
+            self.store.put_bytes(key, payload)
+            operation = 'read'
+            if self.store.get_bytes(key) != payload:
+                return {'verified': False, 'operation': operation, 'category': 'IntegrityMismatch'}
+            return {'verified': True}
+        except Exception as exc:
+            code = getattr(exc, 'response', {}).get('Error', {}).get('Code')
+            allowed = {'AccessDenied', 'InvalidAccessKeyId', 'SignatureDoesNotMatch',
+                       'NoSuchBucket', 'NoSuchKey', 'ExpiredToken', '403', '404'}
+            category = code if code in allowed else type(exc).__name__
+            if category not in allowed | {'EndpointConnectionError', 'ConnectTimeoutError', 'ReadTimeoutError', 'NoCredentialsError'}:
+                category = 'StorageError'
+            return {'verified': False, 'operation': operation, 'category': category}
+
     def start(self, account_id, *, confirmed):
         if confirmed is not True:
             raise ValueError('Confirm one image at a maximum provider price of $0.003')
