@@ -105,6 +105,8 @@ class ImageProviderConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "ImageProviderConfig":
         env = os.environ if env is None else env
+        from .replicate_connection import image_environment
+        env = image_environment(env)
         fmt = (_clean(env, "OMNI_IMAGE_PROVIDER_OUTPUT_FORMAT") or "png").lower()
         return cls(
             name=_clean(env, "OMNI_IMAGE_PROVIDER_NAME") or "image-provider",
@@ -364,7 +366,11 @@ class PredictionImageProvider:
         if self.config.version:
             body["version"] = self.config.version
         else:
-            body["model"] = self.config.model
+            # Replicate official model identity lives in the request path.
+            # Other prediction APIs retain their existing model field.
+            if not (self.config.base_url == "https://api.replicate.com/v1"
+                    and self.config.submit_path.startswith("/models/")):
+                body["model"] = self.config.model
         try:
             prediction = self._json("POST", self.config.base_url + self.config.submit_path, body=body,
                                     idempotency_key=idempotency_key)
