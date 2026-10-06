@@ -64,6 +64,14 @@ admission fails earlier, at Plan → Quote.
     list and a forbidden-term scan, mutation-checked against the old payload.
 - Configuration: `OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1` set on
   Vercel **Preview** only (plain, non-secret). Production is unchanged.
+- **Not deployed yet (BLOCKED by Vercel):** every push since `ca548a1` got
+  GitHub status "Deployment rate limited — retry in 24 hours" (Hobby build
+  rate limit). Preview still runs `6877d43` (dpl_AHQ4is6m68oFbeRa52n9nJFfY2Mk),
+  so none of today's fixes — QA entitlement, dependency gate, budget binding,
+  pricing fix, self-contained profile — are live on Preview. Contributing
+  cause: a second Vercel project `148ai` is connected to the same repository
+  and builds (and fails) on every push, doubling deployment usage. Pushes are
+  now batched; the first push after the window resets deploys the branch head.
 - Open finding for the founder (not changed, outside the approved scope):
   customer-facing build status (`GET .../builds/{id}` → `evidence`) and the
   plan preview (`economics`) still return internal economics (reservation,
