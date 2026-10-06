@@ -922,3 +922,27 @@ Current machine-facing classification: **M5_PARTIAL**. M5 implementation has sta
 ### Not implemented
 - Automatic migration of live Vault values to Infisical.
 - Infisical as the general control-plane/model-provider secret resolver.
+
+
+## 2026-10-06 — Opt-in generated-app Cloudflare R2 adapter
+
+1. **Implemented and independently verified:** no new claim yet; current-branch
+   CI evidence must be recorded after the exact source revision passes.
+2. **Implemented but awaiting verification:** local HS256 temporary credential
+   issuer; strict managed CRUD/list policy translation; R2/static readiness and
+   wiring; protocol tests; independently gated R2 CRUD/isolation integration test.
+   The default AWS STS path is preserved. See docs/R2_GENERATED_APP_CREDENTIALS.md.
+3. **Blocked by a named service/access:** live Cloudflare R2 verification needs a
+   trusted test runner with the founder's Preview settings injected. No keys
+   were read in chat or committed. Screenshots establish bucket/config presence,
+   not provider verification. CI deliberately skips the live test without opt-in.
+4. **Not implemented in this change:** automatic credential refresh and expiry-safe
+   existing-binding reuse; immediate per-session revocation; full runtime
+   cross-app verification. The saved system audit still applies.
+
+Validation commands: `python -m compileall -q omni_prod tests`,
+`python -m pytest -q`, `python scripts/run_hostile_static_suite.py`,
+`python scripts/run_international_gate.py`.
+Real test: `M5_R2_LIVE=1 python -m pytest -q tests/integration/test_r2_generated_storage_live.py`
+with securely injected staging variables. This is a command to run, not a passed
+live result.
