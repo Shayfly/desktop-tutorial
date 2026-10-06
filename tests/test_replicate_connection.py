@@ -111,3 +111,24 @@ def test_authenticated_route_returns_only_connection_result(monkeypatch):
     assert result.json()['generation_verified'] is False
     assert client.get('/api/v28/providers/replicate/check',
         headers={'Authorization': 'Bearer ' + signup.json()['token']}).json()['status'] == 'NOT_CONFIGURED'
+
+
+def test_403_diagnostics_distinguish_edge_challenge_without_returning_body():
+    from omni_prod.providers.replicate_connection import check_replicate_connection
+    def transport(req, timeout):
+        raise HTTPError(req.full_url, 403, 'Forbidden', {'Content-Type': 'text/html', 'cf-mitigated': 'challenge'}, io.BytesIO(b'<html>secret-test-token challenge private-owner</html>'))
+    result = check_replicate_connection({'REPLICATE_API_TOKEN': 'secret-test-token'}, urlopen=transport)
+    assert result['rejection_category'] == 'edge_challenge'
+    assert result['token_format_valid'] is False
+    assert 'secret-test-token' not in json.dumps(result)
+    assert 'private-owner' not in json.dumps(result)
+
+
+def test_403_diagnostics_identify_billing_json_without_returning_private_fields():
+    from omni_prod.providers.replicate_connection import check_replicate_connection
+    def transport(req, timeout):
+        raise HTTPError(req.full_url, 403, 'Forbidden', {'Content-Type': 'application/json'}, io.BytesIO(b'{"detail":"Billing required for private-owner"}'))
+    result = check_replicate_connection({'REPLICATE_API_TOKEN': 'test-only-token'}, urlopen=transport)
+    assert result['rejection_category'] == 'billing'
+    assert result['upstream_response_kind'] == 'json'
+    assert 'private-owner' not in json.dumps(result)
