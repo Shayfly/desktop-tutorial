@@ -2007,6 +2007,74 @@ def v28_replicate_check(request: Request) -> dict:
     from .providers.replicate_connection import check_replicate_connection
     return check_replicate_connection(os.environ)
 
+class ReplicateImageTestRequest(BaseModel):
+    confirmed: bool = False
+
+
+def _replicate_image_test_context(request):
+    try:
+        account = _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, 'Sign in to 148AI first') from exc
+    if os.getenv('VERCEL_ENV') != 'preview':
+        raise HTTPException(403, 'Image test is available only in Preview')
+    store = getattr(_v28.engine.workspace, 'storage', None)
+    if _v28_pool is None or store is None:
+        raise HTTPException(503, 'Durable database and artifact storage are required')
+    from .providers.image_provider import PostgresSubmissionJournal
+    from .providers.replicate_image_test import ReplicateImageTest
+    return account.id, ReplicateImageTest(env=os.environ,
+        journal=PostgresSubmissionJournal(_v28_pool), store=store)
+
+
+@app.post('/api/v28/providers/replicate/image-test')
+def v28_replicate_image_test_start(req: ReplicateImageTestRequest, request: Request):
+    account_id, service = _replicate_image_test_context(request)
+    # Cookies alone cannot authorize a cross-origin paid POST.
+    if request.headers.get('origin') != str(request.base_url).rstrip('/'):
+        raise HTTPException(403, 'Same-origin confirmation required')
+    if not req.confirmed:
+        raise HTTPException(400, 'Confirm the $0.003 maximum first')
+    try:
+        if not service.store.ping():
+            raise HTTPException(503, 'Artifact storage is unavailable; no image was submitted')
+        return service.start(account_id, confirmed=True)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, 'Image submission failed or is uncertain. Do not create another token; refresh test status.') from None
+
+
+@app.get('/api/v28/providers/replicate/image-test')
+def v28_replicate_image_test_status(request: Request):
+    account_id, service = _replicate_image_test_context(request)
+    try:
+        return service.status(account_id)
+    except Exception:
+        raise HTTPException(503, 'Cannot retrieve the image test result; no new paid request was sent') from None
+
+
+@app.get('/api/v28/providers/replicate/image-test/image')
+def v28_replicate_image_test_image(request: Request):
+    account_id, service = _replicate_image_test_context(request)
+    try:
+        data, mime = service.image(account_id)
+        return Response(data, media_type=mime, headers={'Cache-Control': 'private, no-store'})
+    except Exception:
+        raise HTTPException(404, 'Verified image is not stored yet') from None
+
+
+@app.get('/replicate-test', response_class=HTMLResponse)
+def replicate_image_test_page():
+    return HTMLResponse((_ASSET_DIR / 'replicate-test.html').read_text(encoding='utf-8'),
+        headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/assets/replicate-test.js')
+def replicate_image_test_js():
+    return Response((_ASSET_DIR / 'replicate-test.js').read_text(encoding='utf-8'), media_type='application/javascript')
+
+
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}/capabilities')
 def v28_build_capability_truth(project_id: str, build_id: str, request: Request) -> dict:
     token = _v28_bearer(request)
