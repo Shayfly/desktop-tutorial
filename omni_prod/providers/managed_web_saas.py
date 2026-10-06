@@ -93,6 +93,8 @@ class ManagedWebSaaSConfig:
     scheduler_url: str = ""
     scheduler_health_url: str = ""
     scheduler_token_ref: str = ""
+    scheduler_provider: str = "generic_http"
+    qstash_signing_keys_present: bool = False
     email_api_key_ref: str = ""
     email_from_domain: str = ""
     provisioning_estimated_usd: Decimal | None = None
@@ -108,7 +110,9 @@ class ManagedWebSaaSConfig:
     def from_env(cls, env: Mapping[str, str] | None = None) -> "ManagedWebSaaSConfig":
         env = os.environ if env is None else env
         token_env = _clean(env, "OMNI_GENAPP_SECRET_STORE_TOKEN_ENV") or "OMNI_GENAPP_VAULT_TOKEN"
-        scheduler_url = _clean(env, "OMNI_GENAPP_SCHEDULER_URL")
+        qstash_url = _clean(env, "QSTASH_URL")
+        provider = _clean(env, "OMNI_GENAPP_SCHEDULER_PROVIDER") or ("qstash" if qstash_url else "generic_http")
+        scheduler_url = _clean(env, "OMNI_GENAPP_SCHEDULER_URL") or (qstash_url if provider == "qstash" else "")
         return cls(
             secret_store_provider=_clean(env, "OMNI_GENAPP_SECRET_STORE_PROVIDER") or "vault",
             infisical_base_url=_clean(env, "OMNI_INFISICAL_BASE_URL"),
@@ -130,9 +134,12 @@ class ManagedWebSaaSConfig:
             s3_role_arn=_clean(env, "OMNI_GENAPP_S3_ROLE_ARN"),
             s3_sts_endpoint=_clean(env, "OMNI_GENAPP_S3_STS_ENDPOINT"),
             s3_credential_ttl_seconds=int(_clean(env, "OMNI_GENAPP_S3_CREDENTIAL_TTL_SECONDS") or 3600),
+            scheduler_provider=provider,
+            qstash_signing_keys_present=bool(_clean(env, "QSTASH_CURRENT_SIGNING_KEY")
+                                            and _clean(env, "QSTASH_NEXT_SIGNING_KEY")),
             scheduler_url=scheduler_url,
             scheduler_health_url=_clean(env, "OMNI_GENAPP_SCHEDULER_HEALTH_URL") or scheduler_url,
-            scheduler_token_ref=_clean(env, "OMNI_GENAPP_SCHEDULER_TOKEN_REF"),
+            scheduler_token_ref=_clean(env, "OMNI_GENAPP_SCHEDULER_TOKEN_REF") or ("env:QSTASH_TOKEN" if provider == "qstash" else ""),
             email_api_key_ref=_clean(env, "OMNI_GENAPP_EMAIL_API_KEY_REF"),
             email_from_domain=_clean(env, "OMNI_GENAPP_EMAIL_FROM_DOMAIN"),
             provisioning_estimated_usd=_money(_clean(env, "OMNI_GENAPP_PROVISIONING_ESTIMATED_USD")),
@@ -203,6 +210,16 @@ class ManagedWebSaaSConfig:
             if access and access == _clean(control_env, "OMNI_S3_ACCESS_KEY"):
                 return _STATUS_BLOCKED, "generated apps must not reuse control-plane object credentials"
         elif kind == InfrastructureKind.SCHEDULED_HTTP:
+            if self.scheduler_provider not in {"generic_http", "qstash"}:
+                return _STATUS_BLOCKED, "OMNI_GENAPP_SCHEDULER_PROVIDER must be generic_http or qstash"
+            if self.scheduler_provider == "qstash":
+                from .qstash_scheduler import validate_qstash_origin
+                try:
+                    validate_qstash_origin(self.scheduler_url)
+                except ValueError:
+                    return _STATUS_BLOCKED, "invalid supported QStash HTTPS API origin"
+                if not self.qstash_signing_keys_present:
+                    return _STATUS_NOT_CONFIGURED, "QSTASH_CURRENT_SIGNING_KEY / QSTASH_NEXT_SIGNING_KEY not configured"
             if not self.scheduler_url or not self.scheduler_token_ref:
                 return _STATUS_NOT_CONFIGURED, "OMNI_GENAPP_SCHEDULER_URL / OMNI_GENAPP_SCHEDULER_TOKEN_REF not configured"
             if not _valid_ref(self.scheduler_token_ref):
@@ -588,6 +605,15 @@ class ManagedWebSaaSProvisioner:
         if not token:
             return self._binding(requirement, status=BindingStatus.NOT_CONFIGURED,
                                  reason="scheduler token reference does not resolve", **common)
+        if self.config.scheduler_provider == "qstash":
+            from .qstash_scheduler import QStashClient
+            accessible = QStashClient(base_url=self.config.scheduler_url, token=token).check_access()
+            # Provider API access cannot prove authenticated delivery or app ownership.
+            return self._binding(requirement, status=BindingStatus.BLOCKED,
+                                 public={"scheduler_endpoint": self.config.scheduler_url, "provider": "qstash"},
+                                 evidence={"api_access_verified": accessible, "delivery_verified": False},
+                                 reason=("QStash API access verified; per-app authenticated delivery proof is still required"
+                                         if accessible else "QStash API access verification failed"), **common)
         status_code = int(self.http_probe(self.config.scheduler_health_url, token=token))
         public = {"scheduler_endpoint": self.config.scheduler_url, "callback_verification": "HMAC-SHA256"}
         if not 200 <= status_code < 300:
