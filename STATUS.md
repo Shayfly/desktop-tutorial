@@ -29,6 +29,20 @@
   build dispatcher, so "QStash delivery" is not on the build path.
   Status: Queue → Worker = FAIL (no executor). Worker → model = NOT CONFIGURED.
   Worker → isolated sandbox = NOT CONFIGURED.
+- Implemented, verified locally (stdlib tests) and awaiting CI: priced
+  multi-provider model catalog (`omni_prod/model_catalog.py`,
+  `OMNI_MODEL_CATALOG_JSON`) routed by cost/quality per call inside the
+  existing `RoutedModelGateway`; 16 new tests in
+  `tests/test_model_catalog_routing.py`; stdlib `unittest discover` failure set
+  identical before/after (22 environment import errors, no new failures).
+- Implemented, awaiting external live verification: worker host
+  (`infra/worker-host/`: compose with RQ worker + Docker sandbox runner,
+  `bootstrap.sh`, `.github/workflows/deploy-worker.yml` on a self-hosted runner).
+  Blocked by: founder-created Hetzner server, runner registration token and
+  `WORKER_ENV` GitHub secret; at least one model provider key.
+- Known limitation (not fixed): the sandbox image is Python 3.12 + pytest with
+  `--network none`; generated apps can only use the standard library at test
+  time. Node/FastAPI generated stacks need a richer pinned image.
 - Not verified from this audit environment (PyPI and the Preview host are not
   reachable from it): auth E2E over HTTPS, live DB/Redis round trips, R2 write
   with the secret updated 2026-10-06 22:17.

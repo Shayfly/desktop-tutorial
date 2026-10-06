@@ -1,0 +1,62 @@
+# 148AI build worker host (one small VPS).
+#
+# Runs the RQ build worker and the isolated sandbox runner next to Docker.
+# Durable state stays in the managed services (Neon Postgres, Upstash Redis,
+# Cloudflare R2); nothing on this host is the source of truth.
+#
+# The sandbox runner talks to the host Docker daemon (docker-out-of-docker).
+# Bind-mount source paths are host paths, so its temp directory is a host
+# directory mounted at the identical path. The runner is reachable only on the
+# private compose network; no port is published.
+name: omni-worker
+
+services:
+  sandbox-image:
+    # Builds the generated-code execution image used by the runner.
+    build:
+      context: ../sandbox
+    image: omni-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
+  sandbox-runner:
+    build:
+      context: ../..
+      dockerfile: infra/sandbox-runner/Dockerfile
+    restart: unless-stopped
+    environment:
+      OMNI_SANDBOX_SHARED_SECRET: ${OMNI_SANDBOX_SHARED_SECRET:?required}
+      TMPDIR: /var/lib/omni-sandbox/tmp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/omni-sandbox:/var/lib/omni-sandbox
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8010/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ../..
+    restart: unless-stopped
+    command: ["python", "-m", "omni_prod.worker"]
+    env_file: .env
+    environment:
+      OMNI_SANDBOX_RUNNER_URL: http://sandbox-runner:8010
+      OMNI_CREATOR_PERSISTENCE: postgres
+      OMNI_ENABLE_LIVE_BUILD: "1"
+    depends_on:
+      sandbox-runner:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      disable: true
+
+networks:
+  internal:
+    driver: bridge

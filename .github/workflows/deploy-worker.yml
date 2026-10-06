@@ -1,0 +1,65 @@
+name: Deploy build worker
+
+# Runs ON the worker host (self-hosted runner, label omni-worker), so no SSH
+# keys or inbound ports are needed. Secrets never appear in logs: the env file
+# is written with mode 600 and only variable NAMES are printed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths:
+      - omni_prod/**
+      - infra/worker-host/**
+      - infra/sandbox/**
+      - infra/sandbox-runner/**
+      - requirements-production.txt
+      - Dockerfile
+      - .github/workflows/deploy-worker.yml
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write environment file
+        working-directory: infra/worker-host
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "${WORKER_ENV}" ]; then echo "::error::GitHub secret WORKER_ENV is not set"; exit 1; fi
+          printf '%s\n' "$WORKER_ENV" > .env
+          grep -q '^OMNI_SANDBOX_SHARED_SECRET=.' .env || echo "OMNI_SANDBOX_SHARED_SECRET=$(cat /etc/omni/sandbox_secret)" >> .env
+          if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
+            sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env
+            echo "OMNI_MODEL_CATALOG_JSON=$(python3 -c 'import json;print(json.dumps(json.load(open("model-catalog.json")),separators=(",",":")))')" >> .env
+          fi
+          echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
+
+      - name: Build and start
+        working-directory: infra/worker-host
+        run: docker compose up -d --build --remove-orphans
+
+      - name: Verify worker is consuming the build queue
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if docker compose logs worker 2>&1 | grep -q "Listening on"; then
+              docker compose ps
+              docker compose logs --tail 20 worker
+              exit 0
+            fi
+            sleep 4
+          done
+          docker compose ps
+          docker compose logs --tail 80 worker
+          echo "::error::worker did not start listening on its queue"
+          exit 1

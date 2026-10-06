@@ -1,0 +1,26 @@
+[
+  {
+    "name": "gemini-3-1-flash-lite",
+    "provider": "gemini",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "model": "gemini-3.1-flash-lite",
+    "api_key_env": "GEMINI_API_KEY",
+    "quality": 70,
+    "input_per_million": "0.25",
+    "output_per_million": "1.50",
+    "max_output_tokens": 8192,
+    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)"
+  },
+  {
+    "name": "gemini-3-8-flash",
+    "provider": "gemini",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "model": "gemini-3.8-flash",
+    "api_key_env": "GEMINI_API_KEY",
+    "quality": 85,
+    "input_per_million": "0.75",
+    "output_per_million": "3.75",
+    "max_output_tokens": 16384,
+    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)"
+  }
+]
