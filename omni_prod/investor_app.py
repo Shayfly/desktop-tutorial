@@ -587,6 +587,10 @@ def _model_gateway_and_executor():
     else:
         if not shutil.which('docker'): raise RuntimeError('docker or OMNI_SANDBOX_RUNNER_URL is required for live generated-code execution')
         executor=SandboxRepositoryExecutor(limits=SandboxLimits())
+    # Decision 2026-10-07 #25: only the image's pinned allowlist; anything else
+    # fails as UNSUPPORTED_DEPENDENCY before the sandbox starts.
+    from .dependency_policy import DependencyGateExecutor
+    executor=DependencyGateExecutor(executor)
     return gateway,executor
 
 def _live_components():

@@ -206,6 +206,11 @@ def resolve_m5_billing(
 
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
+        from .dependency_policy import UNSUPPORTED_DEPENDENCY
+        unsupported = [f for f in getattr(result.report, 'failures', ()) or ()
+                       if getattr(f, 'acceptance_id', None) == UNSUPPORTED_DEPENDENCY]
+        if unsupported:
+            return False, 'unsupported_dependency', unsupported[0].message[:2000]
         return False, 'verification_failed', 'build did not pass sandbox verification'
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
