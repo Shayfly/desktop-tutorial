@@ -1,5 +1,27 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Replicate connection — 2026-10-06
+
+- Implemented and independently verified: saved `REPLICATE_API_TOKEN` selects
+  the existing prediction-image pipeline; official-model submit uses the
+  Replicate model endpoint and input-only body. Existing configured providers
+  are preserved. Submission journal, spend authorization and artifact checks
+  remain in the existing pipeline. 51 targeted tests pass via
+  `python -m pytest tests/test_replicate_connection.py tests/test_m5_media_provider_adapters.py tests/test_v28_148ai_launch.py -q -p no:cacheprovider`.
+- Implemented but awaiting external live verification: authenticated
+  `GET/POST /api/v28/providers/replicate/check` calls `GET /v1/account`, returns no
+  token/account data, and starts no billable prediction. Token verification is
+  distinct from generation verification. Preview deployment verification pending.
+- Blocked: real image generation still requires the configured durable build
+  worker, submission journal and artifact storage; a key alone is not LIVE.
+  Full Windows baseline: 818 passed, 28 failed, 58 skipped; failures include
+  temporary-directory permission errors and the nested acceptance run. These
+  failures predate this change and are not claimed fixed.
+  Post-change full run (`python -m pytest tests -q -p no:cacheprovider --tb=short`):
+  826 passed, the same 28 failed, 58 skipped; all 8 new tests pass.
+- Not implemented: standalone image-generation UI, audio/video/3D through
+  Replicate. This change wires images into the existing build capability flow.
+
 Required by `AGENTS.md`. Covers the M1–M3 work, the superseded modifier-engine
 stub, and the M4 natural-language product-modification system built on top of
 it (see §5 below — M4 uses the vocabulary required by its own directive;
