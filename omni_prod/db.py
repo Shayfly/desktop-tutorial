@@ -30,6 +30,8 @@ class DatabasePool:
             max_size=self.max_size,
             timeout=self.timeout_seconds,
             kwargs={"connect_timeout": self.connect_timeout_seconds},
+            # Reject connections closed while the serverless process was idle.
+            check=ConnectionPool.check_connection,
             open=True,
         )
         return self
@@ -97,3 +99,4 @@ def ping(database: str | DatabasePool) -> bool:
                 return bool(row and row[0] == 1)
     except Exception:
         return False
+
