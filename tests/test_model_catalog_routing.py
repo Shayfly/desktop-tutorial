@@ -133,6 +133,20 @@ class CostAwareRoutingTests(unittest.TestCase):
             RoutedModelGateway(ranked=parse_model_catalog(json.dumps(CATALOG), {}), policy=OPEN_POLICY)
 
 
+class RoutingEvidenceTests(unittest.TestCase):
+    def test_events_record_model_reason_and_cap(self):
+        gw = _gateway()
+        _FakeGateway.failing = {"groq-mid"}
+        gw.complete(system="s", user="u", max_tokens=100)
+        first, second = gw.events
+        self.assertEqual((first.provider, first.ok, first.model, first.call), ("groq-mid", False, "g-model", "complete"))
+        self.assertIn("cheapest", first.reason)
+        self.assertIn("escalation #1", second.reason)
+        self.assertTrue(second.ok)
+        self.assertGreater(Decimal(second.max_estimated_cost_usd), 0)
+        json.dumps([e.__dict__ for e in gw.events])  # build evidence stays JSON-safe
+
+
 class RuntimeConfigTests(unittest.TestCase):
     def test_catalog_without_local_url_has_no_local_primary(self):
         env = {"OMNI_MODEL_CATALOG_JSON": json.dumps(CATALOG), **KEYS}

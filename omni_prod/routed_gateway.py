@@ -28,6 +28,11 @@ class RouteEvent:
     elapsed_ms: int
     error: str = ''
     request_id: str | None = None
+    # Routing-decision evidence (strings so build evidence stays JSON-safe).
+    model: str = ''
+    call: str = ''
+    max_estimated_cost_usd: str = ''
+    reason: str = ''
 
 
 class RoutedModelGateway:
@@ -77,7 +82,7 @@ class RoutedModelGateway:
         if self.on_event:
             self.on_event(event)
 
-    def _attempt(self, route: ProviderRoute, method: str, kwargs: dict):
+    def _attempt(self, route: ProviderRoute, method: str, kwargs: dict, reason: str = ''):
         authorize_model_call(
             endpoint=route.endpoint,
             policy=self.policy,
@@ -94,7 +99,7 @@ class RoutedModelGateway:
             usage = getattr(gateway, 'last_usage', None) if gateway is not None else None
             self.usage.record(usage)
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
-                                    request_id=getattr(usage, 'request_id', None)))
+                                    request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):
                 raise
             raise ModelGatewayError(f'{route.endpoint.name} failed: {exc}') from exc
@@ -102,8 +107,13 @@ class RoutedModelGateway:
         usage = getattr(gateway, 'last_usage', None)
         self.usage.record(usage)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
-                                request_id=getattr(usage, 'request_id', None)))
+                                request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
         return value
+
+    @staticmethod
+    def _decision(route: ProviderRoute, method: str, reason: str) -> dict:
+        return {'model': route.endpoint.model, 'call': method,
+                'max_estimated_cost_usd': str(route.max_estimated_cost_usd), 'reason': reason}
 
     def ranked_routes(self, kwargs: dict) -> list[tuple[ProviderRoute, dict]]:
         """Cheapest eligible catalog model first, with a conservative per-call cap.
@@ -136,14 +146,18 @@ class RoutedModelGateway:
         last_error: Exception | None = None
         routes = []
         if self.primary is not None:
-            routes.append((self.primary, kwargs))
-        routes.extend(self.ranked_routes(kwargs))
-        routes.extend((route, kwargs) for route in self.fallback)
+            routes.append((self.primary, kwargs, 'local primary'))
+        basis = 'cheapest' if self.routing_policy.prefer_cost else 'highest quality'
+        for rank, (route, call_kwargs) in enumerate(self.ranked_routes(kwargs)):
+            why = (f'{basis} eligible catalog model (quality>={self.routing_policy.minimum_quality})' if rank == 0
+                   else f'catalog escalation #{rank} after earlier route failed')
+            routes.append((route, call_kwargs, why))
+        routes.extend((route, kwargs, 'configured fallback') for route in self.fallback)
         if not routes:
             raise ModelGatewayError('no eligible model route for this request')
-        for route, call_kwargs in routes:
+        for route, call_kwargs, why in routes:
             try:
-                return self._attempt(route, method, call_kwargs)
+                return self._attempt(route, method, call_kwargs, why)
             except Exception as exc:
                 last_error = exc
                 # Policy errors intentionally stop the route rather than silently
