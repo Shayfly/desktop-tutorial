@@ -346,6 +346,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'capabilities': capability_evidence,
             'infrastructure': infrastructure_evidence,
             'repair_rounds': result.repair_rounds,
+            'repair_stop_reason': getattr(result, 'stop_reason', None) or None,
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
             'provider_usage': provider_usage_evidence(gateway),

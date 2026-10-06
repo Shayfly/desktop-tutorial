@@ -2,7 +2,22 @@
 
 ## Instrumentation for Golden E2E — 2026-10-07 (founder decisions: `docs/DECISIONS_2026-10-07_HE.md`)
 
-- Implemented, verified locally with stdlib tests, awaiting CI and live run:
+- CI on `ca548a1`: `v24-ci` (full `pytest -q`) and `V11 Overlay CI` PASS.
+  `Neon bootstrap CI` FAILED — root cause: migration 027 was not added to
+  `infra/staging/bootstrap_neon_empty.sql` (the verifier requires every
+  migration verbatim). Fix: `tools/generate_neon_bootstrap.py` (proven to
+  reproduce the previous bootstrap byte-for-byte for 001–026, only the
+  provenance line differs) regenerated the file; `--check` detects drift.
+  Awaiting the CI re-run as evidence.
+- Implemented, verified locally with stdlib tests, awaiting live run:
+  * **Basic stop-loss** — `AutonomousProductEngine.build`: the sandbox is
+    deterministic, so a repair that leaves the repository unchanged or
+    returns it to an already-verified state stops the loop
+    (`no_progress_repository_unchanged` / `no_progress_repository_cycle`)
+    instead of paying for identical rounds. `stop_reason` is recorded in the
+    build evidence as `repair_stop_reason`. Modification-job repair loop is
+    unchanged (out of scope for Golden E2E transition order).
+    Tests: `tests/test_repair_stop_loss.py` (5).
   * **Attempt Ledger** — `infra/postgres/027_task_attempts.sql`, `omni_prod/attempt_ledger.py`.
     One row per provider call and per verification run: task type, provider,
     model, served model version, provider request id, trace id, policy /
@@ -28,9 +43,8 @@
     behavior unchanged (still refused for paid builds).
   * Tests: `tests/test_attempt_ledger.py` (12), `tests/test_qa_budget.py` (10);
     stdlib suite failure set identical to baseline.
-- Not implemented yet: basic stop-loss (no-progress rule in the repair loop),
-  modification-job ledger persistence, reconciliation process, expected-cost
-  estimator.
+- Not implemented yet: modification-job ledger persistence, stop-loss in the
+  modification repair loop, reconciliation process, expected-cost estimator.
 
 ## Golden E2E #1 truth audit — 2026-10-06 23:15 Asia/Jerusalem
 
