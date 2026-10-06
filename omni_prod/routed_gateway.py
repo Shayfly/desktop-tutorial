@@ -1,4 +1,5 @@
 from __future__ import annotations
+import dataclasses
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Callable, Any
@@ -90,6 +91,23 @@ class RoutedModelGateway:
                                                        rp.prefer_cost, self.price_catalog_version,
                                                        None if primary is None else primary.endpoint.name,
                                                        [r.endpoint.name for r in fallback]))
+
+    def bind_budget(self, ceiling_usd: Decimal) -> dict:
+        """Lower (never raise) the whole-build external budget to what was
+        reserved for this build at admission. The worker's own environment can
+        never authorize more model spend than the durable reservation covers."""
+        ceiling = Decimal(str(ceiling_usd))
+        if ceiling < 0:
+            raise ValueError('budget ceiling cannot be negative')
+        before = self.policy.external_budget_usd
+        effective = min(before, ceiling)
+        if effective != before:
+            self.policy = dataclasses.replace(self.policy, external_budget_usd=effective)
+            p = self.policy
+            self.policy_version = content_version('model-use', p.zero_cost_mode, p.allow_external_fallback,
+                                                  str(p.external_budget_usd), p.max_external_calls_per_build)
+        return {'worker_env_budget_usd': str(before), 'reserved_llm_usd': str(ceiling),
+                'effective_budget_usd': str(effective), 'policy_version': self.policy_version}
 
     @property
     def last_usage(self):

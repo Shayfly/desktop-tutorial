@@ -124,6 +124,22 @@ def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
     return total, True
 
 
+def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
+    """Admission reserved `components.llm_maximum_usd` for model calls; the
+    worker's gateway may not spend more than that, whatever its own
+    environment says (the API and worker are configured separately).
+
+    Requests without a component breakdown predate the M5 quote and are left
+    unchanged, recorded as `legacy_unbound`.
+    """
+    components = (request.get('economics_quote') or {}).get('components') or {}
+    if 'llm_maximum_usd' not in components:
+        return {'binding': 'legacy_unbound'}
+    if not hasattr(gateway, 'bind_budget'):
+        return {'binding': 'not_applicable'}
+    return {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
+
+
 def capability_authorization_ceiling(request: dict) -> Decimal:
     """Ceiling for the external capability stage.
 
@@ -260,6 +276,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     artifact_key = None
     capability_evidence = None
     infrastructure_evidence = None
+    model_budget_binding = None
 
     try:
         if preflight is not None:
@@ -291,6 +308,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             synthetic_person_media=bool(brain.rights.required_disclosures),
         )
         engine, gateway = components_factory()
+        model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         result = engine.build(prompt)
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
@@ -351,6 +369,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+            'model_budget_binding': model_budget_binding,
         }
     except InfrastructureStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
@@ -421,7 +440,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'provider_usage': provider_usage_evidence(gateway),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
                            'provider_spend_usd': str(spent),
-                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
+                           'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
         )
         raise

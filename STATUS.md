@@ -8,7 +8,19 @@
   migration verbatim). Fix: `tools/generate_neon_bootstrap.py` (proven to
   reproduce the previous bootstrap byte-for-byte for 001–026, only the
   provenance line differs) regenerated the file; `--check` detects drift.
-  Awaiting the CI re-run as evidence.
+  Evidence: on `257805f` `Neon bootstrap CI` run 37542833694 PASS (bootstrap
+  applied to a fresh Postgres, all 23 migration checksums match, rerun
+  refused), `v24-ci` run 37542833739 PASS, `V11 Overlay CI` PASS.
+- **Worker budget bound to the reservation** (Budget Reservation → Worker
+  invariant, found while preparing staging config): the worker built its
+  model budget from its own env, so a VPS budget larger than the Vercel
+  admission budget could spend money that was never reserved. Fix:
+  `bind_model_budget_to_reservation` lowers (never raises) the gateway's
+  whole-build budget to the durable quote's `components.llm_maximum_usd`;
+  a $0 reservation blocks every paid call. Recorded as
+  `model_budget_binding` in build evidence. Requests without a component
+  breakdown (pre-M5) are recorded as `legacy_unbound`.
+  Tests: `tests/test_worker_budget_binding.py` (5).
 - Implemented, verified locally with stdlib tests, awaiting live run:
   * **Basic stop-loss** — `AutonomousProductEngine.build`: the sandbox is
     deterministic, so a repair that leaves the repository unchanged or

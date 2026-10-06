@@ -12,6 +12,7 @@ on:
       - infra/worker-host/**
       - infra/sandbox/**
       - infra/sandbox-runner/**
+      - infra/postgres/**
       - requirements-production.txt
       - Dockerfile
       - .github/workflows/deploy-worker.yml
