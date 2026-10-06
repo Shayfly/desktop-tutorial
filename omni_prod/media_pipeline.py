@@ -20,6 +20,18 @@ class CreativePlan:
     rights_policy:dict
     def to_dict(self): return {'requests':[r.to_dict() for r in self.requests],'accessibility':self.accessibility,'rights_policy':self.rights_policy}
 
+# Founder decision 2026-10-07 #28: generated visual assets are requested only
+# when the product asks for them. A plain SaaS/internal tool gets no image
+# request at all (build evidence reports NOT_REQUIRED); bare "image"/"photo"
+# are not triggers because they usually mean user uploads, not generation.
+_ICON_TERMS = ('logo', 'app icon', 'favicon', 'brand identity', 'branding', 'mascot',
+               'לוגו', 'סמליל', 'אייקון', 'מיתוג')
+_HERO_TERMS = ('hero image', 'hero visual', 'hero banner', 'hero section image', 'illustration', 'banner',
+               'poster', 'artwork', 'key art', 'cover image', 'cover art', 'generated image', 'ai image',
+               'ai-generated image', 'imagery', 'איור', 'באנר', 'פוסטר', 'תמונה ראשית', 'תמונת הירו')
+_GAME_TERMS = ('game', '3d', 'unreal', 'unity', 'godot', 'משחק', 'תלת')
+
+
 class CreativeDirector:
     """Plans multimodal assets without pretending generation occurred.
 
@@ -31,9 +43,14 @@ class CreativeDirector:
         low=text.lower(); req=[]
         def add(kind,purpose,suffix,required=True):
             req.append(AssetRequest(f'asset-{len(req)+1:03d}',kind,purpose,f'{text}. {suffix}',required))
-        add(AssetKind.ICON,'product icon','Create a distinctive accessible app icon; no third-party trademarks.')
-        add(AssetKind.IMAGE,'hero/brand visual','Create a premium original hero visual with no copyrighted logos or characters.',False)
-        if any(t in low for t in ('game','3d','unreal','unity','godot','משחק','תלת')) or 'game3d' in targets:
+        game = any(t in low for t in _GAME_TERMS) or 'game3d' in targets
+        wants_icon = any(t in low for t in _ICON_TERMS)
+        wants_hero = any(t in low for t in _HERO_TERMS)
+        if wants_icon or game:
+            add(AssetKind.ICON,'product icon','Create a distinctive accessible app icon; no third-party trademarks.')
+        if wants_hero or game:
+            add(AssetKind.IMAGE,'hero/brand visual','Create a premium original hero visual with no copyrighted logos or characters.',wants_hero)
+        if game:
             add(AssetKind.MODEL3D,'primary 3D environment','Create an original optimized 3D environment with LOD-ready topology.')
             add(AssetKind.TEXTURE,'PBR material set','Create original PBR texture specifications suitable for realtime rendering.')
             add(AssetKind.AUDIO,'gameplay SFX','Create original gameplay sound effects with clear licensing metadata.')

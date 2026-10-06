@@ -8,6 +8,34 @@ from .intent_terms import ai_agent_intent, has_term
 from .media_pipeline import AssetKind
 
 
+# Asset-generation capabilities: activated only when the creative plan requests
+# them (decision 2026-10-07 #28).
+ASSET_CAPABILITY_KEYS = {
+    AssetKind.ICON: "media.image.generate",
+    AssetKind.IMAGE: "media.image.generate",
+    AssetKind.AUDIO: "media.audio.sfx",
+    AssetKind.MUSIC: "media.audio.music",
+    AssetKind.VOICE: "media.audio.tts",
+    AssetKind.VIDEO: "media.video.generate",
+    AssetKind.MODEL3D: "media.3d.mesh.generate",
+    AssetKind.TEXTURE: "media.3d.texture",
+}
+
+
+def asset_capability_status(plan) -> dict[str, str]:
+    """Build-level status per asset capability: REQUIRED, OPTIONAL or
+    NOT_REQUIRED. NOT_REQUIRED is neither a failure nor a pass; it means the
+    product did not ask for that asset and no provider is called for it."""
+    in_plan = {r.key: r.required for r in getattr(plan, "requirements", ())}
+    out = {}
+    for key in sorted(set(ASSET_CAPABILITY_KEYS.values())):
+        if key not in in_plan:
+            out[key] = "NOT_REQUIRED"
+        else:
+            out[key] = "REQUIRED" if in_plan[key] else "OPTIONAL"
+    return out
+
+
 class CapabilityPlanner:
     """Compile deterministic product intent into a capability DAG.
 
@@ -79,16 +107,7 @@ class CapabilityPlanner:
         if self._has_any(low, "automation", "workflow", "zapier", "אוטומציה", "תהליך אוטומטי"):
             add("target.automation", "automation product target")
 
-        asset_map = {
-            AssetKind.ICON: "media.image.generate",
-            AssetKind.IMAGE: "media.image.generate",
-            AssetKind.AUDIO: "media.audio.sfx",
-            AssetKind.MUSIC: "media.audio.music",
-            AssetKind.VOICE: "media.audio.tts",
-            AssetKind.VIDEO: "media.video.generate",
-            AssetKind.MODEL3D: "media.3d.mesh.generate",
-            AssetKind.TEXTURE: "media.3d.texture",
-        }
+        asset_map = ASSET_CAPABILITY_KEYS
         for asset in creative_plan.requests:
             capability_key = asset_map.get(asset.kind)
             if capability_key:

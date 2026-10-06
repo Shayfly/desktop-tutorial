@@ -74,9 +74,17 @@ class PlanPreviewTests(unittest.TestCase):
         joined = " ".join(b["code"] for b in preview["blockers"])
         self.assertIn("durable_backend_not_configured", joined)
         self.assertIn("infrastructure_database_not_configured", joined)
-        self.assertIn("image_provider_not_configured", joined)
+        # Decision 2026-10-07 #28: this CRM asks for no generated visuals, so the
+        # image capability is NOT_REQUIRED and an unconfigured provider is no blocker.
+        self.assertNotIn("image_provider_not_configured", joined)
         db = next(i for i in preview["infrastructure"] if i["kind"] == "database")
         self.assertEqual(db["readiness"], "NOT_CONFIGURED")
+
+    def test_requested_image_with_unconfigured_provider_is_a_named_blocker(self):
+        _, preview = self._preview(prompt=PROMPT + " Include a generated logo and hero image.",
+                                   image={"status": "NOT_CONFIGURED", "reason": "no key"})
+        self.assertFalse(preview["can_build"])
+        self.assertIn("image_provider_not_configured", " ".join(b["code"] for b in preview["blockers"]))
 
     def test_unaffordable_quote_is_reported_not_hidden(self):
         def deny():

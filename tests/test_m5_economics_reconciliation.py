@@ -35,7 +35,9 @@ from omni_prod.subscription_store import PostgresSubscriptionService
 
 PROMPT = ("Build a barbershop booking SaaS for admin, barber and customer users. Customers book appointments, "
           "barbers manage their calendar, data in Postgres, require login, file uploads, scheduled reminders "
-          "and outbound email notifications.")
+          "and outbound email notifications, with a generated logo and hero image.")
+# The product explicitly asks for generated visuals: image generation is a
+# requirement only when the product asks for it (decision 2026-10-07 #28).
 
 D = Decimal
 

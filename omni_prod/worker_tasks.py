@@ -124,6 +124,14 @@ def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
     return total, True
 
 
+def asset_capability_status(plan) -> dict | None:
+    """REQUIRED / OPTIONAL / NOT_REQUIRED per asset capability (decision #28)."""
+    if plan is None:
+        return None
+    from .capability_planner import asset_capability_status as _status
+    return _status(plan)
+
+
 def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
     """Admission reserved `components.llm_maximum_usd` for model calls; the
     worker's gateway may not spend more than that, whatever its own
@@ -375,6 +383,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'asset_capabilities': asset_capability_status(capability_plan),
         }
     except InfrastructureStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
