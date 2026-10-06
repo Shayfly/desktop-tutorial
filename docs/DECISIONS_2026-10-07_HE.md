@@ -63,3 +63,21 @@
 * **ג. מסלול מנוהל מלא עכשיו.** מוסיפים drivers (`psycopg`, `boto3`) ל־allowlist, image preview מותאם עם אותם pins ורשת ל־Neon, ואימות live של 5 ה־provisioners. נאמנות מלאה לחוזה, אבל הכי יקר ואיטי, ומרחיב scope לפני Golden E2E ראשון.
 
 **השפעה.** א' מקצרת את הדרך ל־VERIFIED ושומרת על הבטחת "אין Fake". ג' מוסיפה ימים ותלות חיצונית. ב' מזיזה את הבעיה.
+
+### החלטות המייסד על השאלה הפתוחה — 2026-10-07
+
+27. **Golden E2E #1 = פרופיל `self_contained_v1`.** Self-contained אינו Fake:
+    * SQLite / persistence מקומית ו־Sessions מותרים **רק** אם הם אמיתיים, עובדים ונבדקים. רק אז הם נחשבים VERIFIED.
+    * Email / Scheduler מחוץ ל־acceptance scope של #1 ונשארים NOT_VERIFIED / NOT_CONFIGURED. אסור להציג אותם כחלק מ־#1 שעבר.
+    * אין Fake Provider Success ואין Fake Infrastructure Success. לא בונים עכשיו את 5 ה־managed provisioners.
+    * Golden E2E #2 יסגור את פרופיל ה־Managed Infrastructure האמיתי.
+28. **Image Generation אינה חובה גלובלית.**
+    * היא Capability שמופעלת רק כש־Product IR / Build Contract דורש אותה.
+    * כשאינה נדרשת, ברמת ה־Build היא `NOT_REQUIRED` — לא FAIL ולא Fake PASS.
+    * ב־Capability Registry, Replicate/Image נשארים NOT_VERIFIED / PARTIAL עד E2E נפרד (Image task → budget → real Replicate → image → R2 → artifact → verification → preview). אין placeholder כתמונה שנוצרה.
+    * Golden E2E #1 משתמש במוצר בדיקה שאינו דורש תמונה.
+    * היכולת נשארת בארכיטקטורה.
+29. **`/api/v28/pricing` הציבורי מחזיר רק מידע Customer-Facing**: שם תוכנית, מחיר, credits/allowance, features, seats, limits, add-ons, usage.
+    * כל שדה Unit Economics פנימי (provider budget, expected/hard cost, margins, subsidy, QA budget, markup, credit valuation) לא מופיע בו.
+    * Admin/Finance יקבל בעתיד endpoint נפרד עם הרשאות.
+    * Test קבוע מוודא זאת.

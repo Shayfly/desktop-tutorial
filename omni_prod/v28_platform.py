@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from .v27_platform import V27UniversalPlatform
-from .pricing import SubscriptionService, PlanCode, CostClass, catalog_payload
+from .pricing import SubscriptionService, PlanCode, CostClass, catalog_payload, customer_usage_view
 from .branding import BrandingEngine
 from .repository_patch import FilePatch, apply_patch
 
@@ -25,12 +25,12 @@ class V28Platform(V27UniversalPlatform):
     def register(self, *, email: str, password: str) -> dict:
         payload = super().register(email=email, password=password)
         self.subscriptions.assign_plan(payload['user']['id'], PlanCode.FREE)
-        payload['subscription'] = self.subscriptions.snapshot(payload['user']['id'])
+        payload['subscription'] = customer_usage_view(self.subscriptions.snapshot(payload['user']['id']))
         return payload
 
     def subscription(self, *, token: str) -> dict:
         account = self.account(token)
-        return self.subscriptions.snapshot(account.id)
+        return customer_usage_view(self.subscriptions.snapshot(account.id))
 
     def assign_plan_admin(self, *, user_id: str, plan: str) -> dict:
         self.subscriptions.assign_plan(user_id, plan)
@@ -87,7 +87,7 @@ class V28Platform(V27UniversalPlatform):
         result.update({
             'version_id': final.id, 'checksum': final.checksum, 'file_count': len(repo),
             'brand': {'name':'148AI','domain':'148ailabs.com','tagline':'Build Anything.','policy':self.branding.policy_for(plan.code).to_dict()},
-            'subscription': usage,
+            'subscription': customer_usage_view(usage),
         })
         return result
 
@@ -99,4 +99,4 @@ class V28Platform(V27UniversalPlatform):
     def consume_live_usage(self, *, token: str, project_id: str, decision, actual_cost_usd: str | None = None) -> dict:
         account, _ = self._key(token=token, project_id=project_id)
         actual = Decimal(actual_cost_usd) if actual_cost_usd is not None else None
-        return self.subscriptions.consume(user_id=account.id, decision=decision, actual_provider_cost_usd=actual)
+        return customer_usage_view(self.subscriptions.consume(user_id=account.id, decision=decision, actual_provider_cost_usd=actual))

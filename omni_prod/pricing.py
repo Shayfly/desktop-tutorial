@@ -58,7 +58,15 @@ class PlanDefinition:
             return None
         return ((self.monthly_price_usd - self.paid_provider_budget_usd) / self.monthly_price_usd).quantize(Decimal('0.001'))
 
+    def public_dict(self) -> dict:
+        """Customer-facing plan view (decision 2026-10-07 #29). Internal unit
+        economics (provider budget, margin floor) are never included; the
+        closed field list is enforced by tests/test_public_pricing_economics.py."""
+        full = self.to_dict()
+        return {k: full[k] for k in PUBLIC_PLAN_FIELDS}
+
     def to_dict(self) -> dict:
+        """Internal view, including unit economics. Never return it to customers."""
         d = asdict(self)
         d['code'] = self.code.value
         d['monthly_price_usd'] = None if self.monthly_price_usd is None else str(self.monthly_price_usd)
@@ -68,6 +76,24 @@ class PlanDefinition:
         margin = self.variable_margin_floor()
         d['variable_margin_floor'] = None if margin is None else str(margin)
         return d
+
+PUBLIC_PLAN_FIELDS = ('code', 'name', 'monthly_price_usd', 'annual_price_usd', 'included_credits', 'max_projects',
+                      'seats', 'allowed_cost_classes', 'branding', 'removable_branding', 'white_label', 'priority',
+                      'features', 'status')
+
+
+def customer_usage_view(snapshot: dict) -> dict:
+    """Customer-facing subscription view: plan, credits used/remaining, cycle.
+    Provider spend and provider budget stay internal (decision 2026-10-07 #29)."""
+    plan = snapshot['plan']
+    code = plan.code if isinstance(plan, PlanDefinition) else PlanCode(plan['code'])
+    return {
+        'plan': PLAN_CATALOG[code].public_dict(),
+        'credits_used': snapshot.get('credits_used'),
+        'credits_remaining': snapshot.get('credits_remaining'),
+        'cycle': snapshot.get('cycle'),
+    }
+
 
 def _env_decimal(name: str, default: str) -> Decimal:
     raw=os.getenv(name,'').strip()
@@ -259,7 +285,7 @@ def catalog_payload() -> dict:
     return {
         'currency': 'USD',
         'pricing_status': 'prelaunch-proposed-configurable',
-        'plans': [PLAN_CATALOG[x].to_dict() for x in (PlanCode.FREE, PlanCode.BASIC, PlanCode.PRO, PlanCode.BUSINESS, PlanCode.ENTERPRISE)],
+        'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.BASIC, PlanCode.PRO, PlanCode.BUSINESS, PlanCode.ENTERPRISE)],
         'principles': [
             'Free uses zero-paid-provider paths only.',
             'System bugs and missed original requirements do not consume customer credits.',
