@@ -953,3 +953,28 @@ Validation commands: `python -m compileall -q omni_prod tests`,
 Real test: `M5_R2_LIVE=1 python -m pytest -q tests/integration/test_r2_generated_storage_live.py`
 with securely injected staging variables. This is a command to run, not a passed
 live result.
+
+
+## 2026-10-06 — QStash scheduler connector
+
+1. **Implemented and independently verified:** baseline 23d48ff passed v24-ci
+   https://github.com/Shayfly/desktop-tutorial/actions/runs/37458399389 .
+   New connector verification is pending current-branch CI.
+2. **Implemented, awaiting live verification:** QStash schedule create/get/cancel,
+   publish with deduplication, safe transport, signature verifier requiring a durable
+   replay claim, saved-variable readiness and API-access check. A QStash binding is
+   BLOCKED until per-app authenticated delivery is proven, even if API access passes.
+3. **Blocked by a named service/access:** real administrative tests require a trusted
+   runner with QSTASH_URL/QSTASH_TOKEN; optional schedule lifecycle test also requires
+   an operator-owned harmless QSTASH_TEST_DESTINATION. No founder keys were read.
+4. **Not implemented here:** tenant-scoped durable schedule API, production delivery
+   gateway/inbox, retry/crash recovery and generated-app callback wiring. Provider
+   JWT replay rejection alone is not exactly-once business execution.
+
+See docs/QSTASH_SCHEDULER_CONNECTOR.md. Commands:
+`python -m compileall -q omni_prod tests`; `python -m pytest -q`;
+`python scripts/run_hostile_static_suite.py`;
+`python scripts/run_international_gate.py`.
+Live administrative test:
+`M5_QSTASH_LIVE=1 python -m pytest -q tests/integration/test_qstash_scheduler_live.py`.
+These live commands are instructions, not passed evidence.
