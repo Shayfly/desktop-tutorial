@@ -40,6 +40,7 @@ M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
   a real replacement for that path rather than a weaker shadow of it.
 """
 
+import logging
 import os
 import socket
 import time
@@ -466,12 +467,59 @@ def execute_live_build_job(build_id: str) -> None:
             "in the worker process (this process was not started with it)."
         )
     workspace = _v28.engine.workspace
+    jobs = PostgresBuildRepository(_v28_pool)
+    # Attempt Ledger: capture the gateway this build uses so its attempt
+    # records are persisted whatever terminal path the build takes.
+    captured = {}
+
+    def components_factory():
+        engine, gateway = _live_components()
+        captured['gateway'] = gateway
+        return engine, gateway
+
+    try:
+        _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
+                                            components_factory=components_factory)
+    finally:
+        _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
+
+
+def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
+    """Best effort: telemetry must never change a build's outcome, but a
+    failure to write it is logged loudly (telemetry completeness is a KPI)."""
+    recorder = getattr(gateway, 'recorder', None)
+    if recorder is None or not recorder.records:
+        return
+    try:
+        from .attempt_ledger import persist_attempts
+        status = jobs.get_status(build_id)
+        try:
+            request = jobs.get_request(build_id)
+        except Exception:
+            request = {}
+        persist_attempts(pool, recorder.records, build_id=build_id,
+                         tenant_id=request.get('user_id'), project_id=request.get('internal_project_id'),
+                         reservation_id=build_id, final_outcome=getattr(status, 'value', None))
+    except Exception:
+        logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
+
+
+def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, components_factory) -> None:
+    from .investor_app import _v28, _v28_pool
+    from .quality_gate import assess_repository
+    from .security_testing import hostile_repository_scan
+    from .preview_runtime import ensure_durable_workspace
+    from .capability_repository import PostgresCapabilityRepository
+    from .providers.image_provider import PostgresSubmissionJournal, build_image_capability_stage
+    from .infrastructure_provisioner import (
+        InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
+    from .providers.managed_web_saas import build_managed_web_saas_provisioner
     _run_live_build_job(
         build_id,
-        jobs=PostgresBuildRepository(_v28_pool),
+        jobs=jobs,
         platform=_v28,
         workspace=workspace,
-        components_factory=_live_components,
+        components_factory=components_factory,
         quality_fn=assess_repository,
         security_fn=hostile_repository_scan,
         min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),

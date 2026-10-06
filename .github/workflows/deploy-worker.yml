@@ -43,9 +43,17 @@ jobs:
           fi
           echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
 
-      - name: Build and start
+      - name: Build images
         working-directory: infra/worker-host
-        run: docker compose up -d --build --remove-orphans
+        run: docker compose build
+
+      - name: Apply database migrations
+        working-directory: infra/worker-host
+        run: docker compose run --rm --no-deps worker python -m omni_prod.migrate
+
+      - name: Start
+        working-directory: infra/worker-host
+        run: docker compose up -d --remove-orphans
 
       - name: Verify worker is consuming the build queue
         working-directory: infra/worker-host

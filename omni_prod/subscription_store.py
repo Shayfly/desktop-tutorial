@@ -123,8 +123,14 @@ class PostgresSubscriptionService:
     # the caller. Everything else in reserve/settle/release is unchanged from
     # the pasted patch.
 
-    def reserve(self, cur, *, build_id: str, user_id: str, project_id: str, cost_class: str | CostClass, credits: int, category: str='new_build', estimated_provider_cost_usd: Decimal | None=None) -> UsageDecision:
-        """Atomically reserves credits and enforces limits within a transaction."""
+    def reserve(self, cur, *, build_id: str, user_id: str, project_id: str, cost_class: str | CostClass, credits: int, category: str='new_build', estimated_provider_cost_usd: Decimal | None=None, internal_qa: bool=False) -> UsageDecision:
+        """Atomically reserves credits and enforces limits within a transaction.
+
+        internal_qa=True: the caller already authorized this build against the
+        internal QA budget (omni_prod.qa_budget) in the same transaction. Plan
+        credits and plan provider budget are not consumed; the reservation row
+        still records the maximum authorized cost for settlement and QA caps.
+        """
         cc = cost_class if isinstance(cost_class, CostClass) else CostClass(cost_class)
         if credits < 0: raise ValueError('credits must be non-negative')
 
@@ -152,7 +158,9 @@ class PostgresSubscriptionService:
         charge = credits if user_billable else 0
 
         allowed, reason = True, 'authorized'
-        if cc not in plan.allowed_cost_classes:
+        if internal_qa:
+            charge, reason = 0, 'internal QA budget'
+        elif cc not in plan.allowed_cost_classes:
             allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
@@ -172,7 +180,7 @@ class PostgresSubscriptionService:
                 (build_id, user_id, project_id, charge, estimate)
             )
             # Only update if the insert wasn't ignored due to conflict (idempotency)
-            if cur.rowcount == 1:
+            if cur.rowcount == 1 and not internal_qa:
                 cur.execute('UPDATE creator_subscriptions SET credits_used=%s, provider_spend_usd=%s WHERE user_id=%s', (used + charge, spend + estimate, user_id))
 
         return decision

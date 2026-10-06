@@ -157,7 +157,7 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
-def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False):
+def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
@@ -193,7 +193,12 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
         platform_infrastructure_estimated_usd=infra_est, platform_infrastructure_maximum_usd=infra_max,
         retry_reserve_usd=retry_reserve, revenue_usd=revenue_basis, minimum_margin=minimum_margin,
     )
-    if revenue_basis is None:
+    if funding == 'internal_qa':
+        # Internal QA builds have no customer revenue by definition; they are
+        # authorized against the internal QA caps (omni_prod.qa_budget) instead
+        # of the margin floor. The caller must run authorize_qa_build().
+        pass
+    elif revenue_basis is None:
         if quote.total_authorized_variable_usd > 0:
             raise PermissionError('zero/unknown revenue plan cannot authorize paid variable build cost')
     else:
@@ -585,7 +590,12 @@ def _model_gateway_and_executor():
 
 def _live_components():
     gateway,executor=_model_gateway_and_executor()
-    engine=AutonomousProductEngine(architect=ArchitectAgent(gateway),generator=GeneratorAgent(gateway),repairer=RepairAgent(gateway),
+    # Attempt Ledger: each agent's calls carry its task type; each sandbox run is
+    # recorded as a verification attempt on the same recorder as the gateway.
+    from .attempt_ledger import RecordingExecutor, TaskTaggedGateway
+    recorder=getattr(gateway,'recorder',None)
+    if recorder is not None: executor=RecordingExecutor(executor,recorder)
+    engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
         executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','5')))
     return engine,gateway
 
@@ -601,9 +611,12 @@ def _modification_components():
     # Returns (classifier, repairer, evolver, executor, gateway), matching
     # worker_tasks._run_modification_job()'s unpacking order.
     gateway,executor=_model_gateway_and_executor()
-    classifier=ChangeClassifierAgent(gateway)
-    repairer=RepairAgent(gateway)
-    evolver=ProductEvolutionAgent(gateway)
+    from .attempt_ledger import RecordingExecutor, TaskTaggedGateway
+    recorder=getattr(gateway,'recorder',None)
+    if recorder is not None: executor=RecordingExecutor(executor,recorder)
+    classifier=ChangeClassifierAgent(TaskTaggedGateway(gateway,'classification'))
+    repairer=RepairAgent(TaskTaggedGateway(gateway,'repair'))
+    evolver=ProductEvolutionAgent(TaskTaggedGateway(gateway,'modification'))
     return classifier,repairer,evolver,executor,gateway
 
 @app.post('/api/live/build')
@@ -1589,10 +1602,14 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             }) from exc
         cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
+        from .qa_budget import QABudgetPolicy, QABudgetDenied, authorize_qa_build
+        qa_policy = QABudgetPolicy.from_env()
+        internal_qa = qa_policy.applies_to(getattr(account, 'email', None))
         try:
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
-                plan, credits=credits, cost_inputs=cost_inputs, with_components=True)
+                plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
+                funding='internal_qa' if internal_qa else None)
         except CostQuoteUnknown as exc:
             raise HTTPException(402, detail={'error': 'cost_quote_unknown', 'unknown': list(exc.unknown)}) from exc
         except PermissionError as exc:
@@ -1619,10 +1636,19 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                     # DEVIATION: reserve() now takes project_id=key (see
                     # subscription_store.py) so credit_reservations.project_id
                     # is never the literal placeholder 'UNKNOWN'.
+                    if internal_qa:
+                        try:
+                            economics_evidence['funding'] = authorize_qa_build(
+                                cur, qa_policy, max_cost_usd=provider_reservation_usd)
+                        except QABudgetDenied as exc:
+                            raise HTTPException(402, detail={'error': 'qa_budget_denied', 'reason': str(exc)}) from exc
+                    else:
+                        economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
                     decision = _v28.subscriptions.reserve(
                         cur, build_id=build_id, user_id=account.id, project_id=key,
                         cost_class=cost_class.value, credits=credits,
                         estimated_provider_cost_usd=provider_reservation_usd,
+                        **({'internal_qa': True} if internal_qa else {}),
                     )
                     if not decision.allowed:
                         raise HTTPException(402, decision.reason)

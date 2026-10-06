@@ -1,5 +1,37 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Instrumentation for Golden E2E — 2026-10-07 (founder decisions: `docs/DECISIONS_2026-10-07_HE.md`)
+
+- Implemented, verified locally with stdlib tests, awaiting CI and live run:
+  * **Attempt Ledger** — `infra/postgres/027_task_attempts.sql`, `omni_prod/attempt_ledger.py`.
+    One row per provider call and per verification run: task type, provider,
+    model, served model version, provider request id, trace id, policy /
+    routing-policy / prompt / price-catalog versions (content-addressed),
+    selection reason, selected candidate, candidate set, fallback rank,
+    authorized / expected (NULL until an estimator exists) / metered /
+    provider-reported / reconciled (NULL until reconciliation) cost, tokens,
+    latency, outcome ok|error|unknown (timeouts are `unknown` and still count
+    their full authorized cost), verification class, failure reason,
+    final outcome, data-governance fields (training_eligible=false).
+  * **Task tagging** — architecture / codegen / repair / classification /
+    modification via `TaskTaggedGateway`; sandbox runs recorded as
+    `verification` attempts with PASS / REPAIRABLE_FAIL / RETRYABLE_FAIL.
+  * Persisted by the worker on every terminal path (`_persist_build_attempts`);
+    a ledger write failure is logged and never changes the build outcome.
+  * **Migrations on deploy** — `python -m omni_prod.migrate` (checksum-verified
+    runner) runs in the worker deploy workflow before the worker starts.
+  * **Internal QA budget** — `omni_prod/qa_budget.py`: QA accounts
+    (`OMNI_QA_ACCOUNT_EMAILS`) are funded by `OMNI_QA_BUILD_MAX_USD` /
+    `OMNI_QA_BUDGET_TOTAL_USD` hard caps checked under an advisory lock in the
+    reservation transaction; disabled in production; recorded as
+    `funding_source=internal_qa`; no plan credits consumed; customer free plan
+    behavior unchanged (still refused for paid builds).
+  * Tests: `tests/test_attempt_ledger.py` (12), `tests/test_qa_budget.py` (10);
+    stdlib suite failure set identical to baseline.
+- Not implemented yet: basic stop-loss (no-progress rule in the repair loop),
+  modification-job ledger persistence, reconciliation process, expected-cost
+  estimator.
+
 ## Golden E2E #1 truth audit — 2026-10-06 23:15 Asia/Jerusalem
 
 - Repository truth: working line is `milestone/pre-staging-2026-10-05`

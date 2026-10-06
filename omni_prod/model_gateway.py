@@ -34,6 +34,8 @@ class OpenAICompatibleGateway:
         # response body is received). Captured before content validation, because
         # a call that returns an unusable body is still a billed call.
         self.last_usage = None
+        # Exact model/version string the provider says it served, if reported.
+        self.last_response_model = None
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1,
                  max_tokens: int = 4096) -> str:
@@ -68,6 +70,8 @@ class OpenAICompatibleGateway:
                 payload = json.loads(resp.read().decode('utf-8'))
         except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise ModelGatewayError(f'model request failed: {exc}') from exc
+        served = payload.get('model') if isinstance(payload, dict) else None
+        self.last_response_model = served.strip()[:200] if isinstance(served, str) and served.strip() else None
         self.last_usage = parse_openai_compatible_usage(
             payload, response_headers, provider=self.endpoint.name, model=self.endpoint.model,
             external=self.endpoint.external,
