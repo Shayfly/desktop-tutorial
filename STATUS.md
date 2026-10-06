@@ -1006,3 +1006,29 @@ See docs/QSTASH_SCHEDULER_CONNECTOR.md. Commands:
 Live administrative test:
 `M5_QSTASH_LIVE=1 python -m pytest -q tests/integration/test_qstash_scheduler_live.py`.
 These live commands are instructions, not passed evidence.
+
+## Replicate live connection investigation — 2026-10-06
+
+The authenticated Preview account check returned upstream 403 even after the
+user configured billing, rotated the token and redeployed. The safe diagnostic
+reported token_format_valid=true, response_kind=other and category=unknown.
+No billable generation was started; connection and generation remain unverified.
+
+A separate HTTP 500 was traced in Vercel runtime logs to stale PostgreSQL SSL
+connections during session authentication. DatabasePool now uses the official
+ConnectionPool.check_connection callback before checkout. Regression tests also
+confirm arbitrary writes are not replayed. Both GitHub workflows passed for
+9025f7316916ee9bd1943d3ab355cc5a56be135a.
+
+The 403 hypothesis is the Python-urllib client identification: Ultralytics documents
+Replicate CDN rejecting that default from datacenter IPs, while Replicate's own
+Python client supplies a named User-Agent. Requests now identify as 148AI/1.0,
+with Accept: application/json, for the Replicate API only. No browser impersonation,
+challenge solving, access-control changes or token disclosure are involved.
+Sources:
+- https://github.com/ultralytics/replicate/blob/main/replicate_metadata.py
+- https://github.com/replicate/replicate-python/blob/main/replicate/client.py
+
+12 targeted tests passed for authentication safety, request headers, rejection
+categories and database checkout behavior. Live verification of the named-client
+request is still pending; neither connection nor media generation is marked LIVE.
