@@ -29,6 +29,7 @@ const T = {
     confirm:'אשרו והתחילו בנייה', editRequest:'עריכת הבקשה', costUnknown:'לא ניתן לחשב',
     byPipeline:'בתוך הבנייה', byProvider:'ספק חיצוני', required:'נדרש', optional:'רשות',
     st_LIVE:'פעיל', st_PARTIAL:'מוגדר, לא נבדק', st_NOT_CONFIGURED:'לא מוגדר', st_BLOCKED:'חסום',
+    st_SELF_CONTAINED:'מובנה באפליקציה', st_PRICED:'מאושר', st_UNKNOWN:'לא ניתן לתמחר', st_NOT_AUTHORIZED:'לא מאושר',
     stepPlanning:'תכנון', stepContract:'חוזה בנייה', stepInfra:'תשתית', stepAssets:'נכסים (אייקון ותמונות)',
     stepGenerate:'יצירת קוד, בנייה, בדיקות ותיקונים', stepGates:'בדיקות איכות, אבטחה וזכויות', stepPreview:'תצוגה מקדימה',
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
@@ -82,6 +83,7 @@ const T = {
     confirm:'Approve and start build', editRequest:'Edit request', costUnknown:'Cannot be calculated',
     byPipeline:'in the build', byProvider:'external provider', required:'required', optional:'optional',
     st_LIVE:'Live', st_PARTIAL:'Configured, not verified', st_NOT_CONFIGURED:'Not configured', st_BLOCKED:'Blocked',
+    st_SELF_CONTAINED:'Built into the app', st_PRICED:'Authorized', st_UNKNOWN:'Cannot be priced', st_NOT_AUTHORIZED:'Not authorized',
     stepPlanning:'Planning', stepContract:'Build contract', stepInfra:'Infrastructure', stepAssets:'Assets (icon and images)',
     stepGenerate:'Generating code, building, testing and repairing', stepGates:'Quality, security and rights gates', stepPreview:'Preview',
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
@@ -285,7 +287,7 @@ async function requestPlan() {
   finally { $('planBtn').disabled = false; }
 }
 function pill(status) {
-  const cls = { LIVE: 'ok', PARTIAL: 'warn', NOT_CONFIGURED: 'bad', BLOCKED: 'bad' }[status] || 'muted';
+  const cls = { LIVE: 'ok', SELF_CONTAINED: 'ok', PRICED: 'ok', PARTIAL: 'warn', UNKNOWN: 'warn', NOT_CONFIGURED: 'bad', BLOCKED: 'bad', NOT_AUTHORIZED: 'bad' }[status] || 'muted';
   return h('span', { class: `pill ${cls}` }, t(`st_${status}`) || status || '—');
 }
 const money = v => (v === null || v === undefined) ? t('costUnknown') : `$${Number(v).toFixed(2)}`;

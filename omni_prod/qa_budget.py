@@ -85,6 +85,34 @@ def active_entitlement(cur, policy: QABudgetPolicy, account_id: str) -> dict | N
     return None if row is None else {'entitlement_id': row[0], 'granted_at': str(row[1])}
 
 
+def entitled_account(pool, policy: QABudgetPolicy, account_id: str) -> bool:
+    """The single QA-funding decision used by the plan view AND build admission.
+
+    Live evidence 2026-10-07 (STATUS.md): the plan view priced builds as the
+    customer plan while admission funded them from internal QA, so a QA build
+    showed NOT_AUTHORIZED and could not be started. Both now ask this. Raises
+    whatever the store raises; the caller maps it to an explicit error.
+    """
+    if not policy.enabled or pool is None or not account_id:
+        return False
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            return active_entitlement(cur, policy, account_id) is not None
+
+
+def preauthorize_qa_build(pool, policy: QABudgetPolicy, *, account_id: str, max_cost_usd: Decimal) -> dict:
+    """Plan-view twin of authorize_qa_build: the same checks, read-only.
+
+    Runs inside its own transaction; nothing is written (the advisory lock is
+    transaction-scoped and released at the end). Raises QABudgetDenied exactly
+    when admission would.
+    """
+    with pool.connection() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                return authorize_qa_build(cur, policy, account_id=account_id, max_cost_usd=max_cost_usd)
+
+
 def authorize_qa_build(cur, policy: QABudgetPolicy, *, account_id: str, max_cost_usd: Decimal) -> dict:
     """Check entitlement and both caps inside the build's reservation transaction.
 

@@ -1553,6 +1553,17 @@ _M5_BUILD_CREDITS = 60
 # durable build always re-reads them from PostgreSQL.
 _memory_build_contracts = MemoryBuildContractRepository()
 
+def _internal_qa_funding(account_id: str):
+    """(policy, entitled): one QA-funding decision for plan view and admission."""
+    from .qa_budget import QABudgetPolicy, entitled_account
+    policy = QABudgetPolicy.from_env()
+    try:
+        return policy, entitled_account(_v28_pool, policy, account_id)
+    except Exception as exc:
+        logging.getLogger(__name__).exception('internal entitlement lookup failed')
+        raise HTTPException(503, detail={'error': 'qa_entitlement_store_unavailable'}) from exc
+
+
 class V28PlanRequest(BaseModel):
     prompt: str = Field(min_length=3, max_length=12000)
 
@@ -1569,10 +1580,23 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         raise HTTPException(403, str(exc)) from exc
     repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
     plan = _v28.subscriptions.plan_for(account.id)
+    qa_policy, internal_qa = _internal_qa_funding(account.id)
 
     def economics(contract):
+        # Admission parity: the same funding decision and, for internal QA,
+        # the same caps as POST .../builds (checked read-only here).
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
-        return _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs)
+        quote = _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None)
+        if internal_qa:
+            from .qa_budget import QABudgetDenied, preauthorize_qa_build
+            try:
+                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account.id,
+                                      max_cost_usd=quote.total_authorized_variable_usd)
+            except QABudgetDenied as exc:
+                logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
+                raise PermissionError('internal QA funding would refuse this build') from exc
+        return quote
 
     preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=req.prompt,
@@ -1610,19 +1634,11 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             }) from exc
         cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
-        from .qa_budget import QABudgetPolicy, QABudgetDenied, active_entitlement, authorize_qa_build
-        qa_policy = QABudgetPolicy.from_env()
-        internal_qa = False
-        if qa_policy.enabled:
-            # Explicit INTERNAL_QA entitlement bound to the account id (migration
-            # 029); re-verified under lock inside the reservation transaction.
-            try:
-                with _v28_pool.connection() as conn:
-                    with conn.cursor() as cur:
-                        internal_qa = active_entitlement(cur, qa_policy, account.id) is not None
-            except Exception as exc:
-                logging.getLogger(__name__).exception('internal entitlement lookup failed')
-                raise HTTPException(503, detail={'error': 'qa_entitlement_store_unavailable'}) from exc
+        from .qa_budget import QABudgetDenied, authorize_qa_build
+        # Explicit INTERNAL_QA entitlement bound to the account id (migration
+        # 029), decided exactly as in the plan view; re-verified under lock
+        # inside the reservation transaction.
+        qa_policy, internal_qa = _internal_qa_funding(account.id)
         try:
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(

@@ -117,6 +117,40 @@
   `build_authorization=PRICED` and the build start must create a QA-funded
   reservation.
 
+### 17:20 — Golden E2E #1 on Preview (founder in the browser)
+
+- "Internal entitlement" workflow: GitHub answered 404 to the first dispatch
+  (a workflow is dispatchable only after it ran once or is on the default
+  branch); it now registers itself with one read-only `list` run on push.
+  Two more defects fixed before it worked: GitHub runs steps with `bash -e`,
+  so a refusal ended the step before its reason was published, and the
+  one-line reason came out empty because docker compose can end stderr with
+  blank lines. Run 37633588436 `list` → `[]` (table from migration 029
+  exists). Grant for the address in the founder's decision →
+  `refused: account not found`; the founder confirmed his 148AI account
+  address, grant run 37634623482 → `granted ent_96e09ec0… account
+  usr_vrMiNf0RiWiSO_1N INTERNAL_QA staging`. The worker host found the account
+  the founder logs into on Preview, so worker and web app share one database.
+- **User → Login → Project: PASS** on Preview `a17f52f`
+  (`148aiv28-gf5t3gzw8…`): existing account, existing project. Creating a
+  second project was refused with `Free project limit reached` (free-plan
+  rule, by design).
+- **Project → Prompt → Product Plan: PASS** on Preview: roles admin/member,
+  data users/items/activity, infrastructure database and sessions
+  `SELF_CONTAINED` (demand-driven, no managed services).
+- **Product Plan → Quote: FAIL** on Preview: `build_authorization=
+  NOT_AUTHORIZED`, blocker "not available on your current plan", approve
+  button disabled. Cause: the plan view priced the build as the free customer
+  plan while build admission funds an INTERNAL_QA account from the QA budget
+  (with the model budget now 0.50 the customer path refuses paid variable
+  cost). Fix: one shared decision `_internal_qa_funding()` for the plan view
+  and admission; the plan view quotes with the same funding and runs the same
+  QA cap checks read-only (`qa_budget.preauthorize_qa_build`, own transaction,
+  no writes). Tests: `tests/test_qa_plan_parity.py` (11). The plan view also
+  showed raw keys (`st_NOT_AUTHORIZED`, `st_SELF_CONTAINED`); translations
+  added, static cache bumped to `148ai-v28-static-4`. Re-verification on
+  Preview pending.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
