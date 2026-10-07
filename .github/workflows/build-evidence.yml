@@ -74,4 +74,21 @@ jobs:
                   "\n".join(f"- {d.get('name')}: {d.get('score')} (w{d.get('weight')}) {d.get('notes')}" for d in q.get("dimensions") or []))
           publish("repair", f"rounds={ev.get('repair_rounds')} stop={ev.get('repair_stop_reason')} release_ready={ev.get('release_ready')}")
           publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)))
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              m = conn.execute(
+                  "SELECT id, status, classification, classification_reason, repair_rounds, error_code, error_message, "
+                  "source_version_id, promoted_version_id, evidence_json, created_at, completed_at, accepted_at "
+                  "FROM modification_requests ORDER BY created_at DESC LIMIT 1").fetchone()
+              if m:
+                  mev = m[9] if isinstance(m[9], dict) else json.loads(m[9] or "{}")
+                  publish("modification", f"{m[0]} status={m[1]} class={m[2]} repair_rounds={m[4]} error={m[5]} {m[6] or ''}\n"
+                          f"reason={m[3]}\nsource={m[7]} promoted={m[8]} created={m[10]} completed={m[11]} accepted={m[12]}\n"
+                          f"evidence keys: {', '.join(sorted(mev))}\nbilling={mev.get('billing')} spend={mev.get('provider_spend_usd')} calls={mev.get('external_model_calls')}")
+                  if m[8]:
+                      spec = conn.execute("SELECT spec_json FROM project_version_specs WHERE version_id = %s", (m[8],)).fetchone()
+                      if spec:
+                          sj = spec[0] if isinstance(spec[0], dict) else json.loads(spec[0])
+                          publish("promoted spec acceptance", "\n".join(f"{a.get('id')}: {a.get('text')}" for a in sj.get("acceptance", [])))
+                      v = conn.execute("SELECT file_count, message, created_at FROM project_versions WHERE id = %s", (m[8],)).fetchone()
+                      publish("promoted version", f"{m[8]} files={v and v[0]} message={v and v[1]} created={v and v[2]}")
           PY
