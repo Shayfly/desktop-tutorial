@@ -525,7 +525,7 @@ async function pollMod() {
   try {
     const d = await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}`);
     S.mod = { ...S.mod, ...d }; renderMod();
-    if (['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED'].includes(d.status)) return;
+    if (['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(d.status)) return;
   } catch (e) { S.mod = { ...S.mod, status: 'ERROR', error_message: explain(e) }; renderMod(); return; }
   S.timers.mod = setTimeout(pollMod, 3000);
 }
@@ -550,7 +550,7 @@ function renderMod() {
         h('button', { class: 'secondary', onclick: () => decideMod(false) }, t('reject'))));
   } else if (m.status === 'ACCEPTED') kids.push(h('p', { class: 'msg ok' }, t('modAccepted')));
   else if (m.status === 'REJECTED') kids.push(h('p', { class: 'hint' }, t('modRejected')));
-  else if (['FAILED', 'ERROR', 'CLARIFICATION_REQUIRED'].includes(m.status)) kids.push(h('p', { class: 'msg' }, t('modFailed') + (m.error_message || m.classification_reason || m.status)));
+  else if (['FAILED', 'ERROR', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(m.status)) kids.push(h('p', { class: 'msg' }, t('modFailed') + (m.error_message || m.classification_reason || m.status)));
   else kids.push(h('p', { class: 'hint' }, t('modQueued')));
   box.replaceChildren(...kids);
 }

@@ -314,6 +314,57 @@
   one value can be corrected without re-pasting the whole secret. Founder
   action: new R2 token for the worker, two lines in `WORKER_ENV_OVERRIDES`.
 
+### 21:00–22:55 — first READY build; modification path hardened
+
+Transition status after this window (Preview `148aiv28`, branch alias
+`148aiv28-git-milestone-pre-staging-2026-10-05-shayflys-projects.vercel.app`):
+
+| Transition | Status | Evidence |
+|---|---|---|
+| Build → Tests → Verification | PASS | `bld_534476042257416091da55cb4c03ae0e`: verification passed, 1 repair round, quality 86/80 (traceability 100%) — read through `build-evidence.yml` |
+| Durable Artifact (R2) | PASS | deploy `storage-probe` write/read-back/delete PASS (worker); build status `ready` with artifact key; web tier lists versions and the founder downloaded the ZIP after the Preview S3 vars were corrected |
+| ZIP | PASS | founder downloaded and opened the archive (`app`, `tests`, `README`, `.omni`, …) |
+| Modification | NOT VERIFIED | first attempt: `predates spec tracking (M4B)`; second: `cost class not included in plan`; both fixed below, rerun pending |
+| New Version | NOT VERIFIED | depends on Modification |
+| Preview | BLOCKED | `PREVIEW_DOMAIN_TEMPLATE` + router need a hostname decision (founder) |
+
+Defects found by real runs and fixed (each with a test):
+- R2 credentials: worker key was 34 chars, then SignatureDoesNotMatch, then a
+  63-char secret. The founder's browser paste in Chrome returned a stale value;
+  values were typed. Deploy now runs a real **storage probe** (write, read-back,
+  delete through `S3ArtifactStore`); the 32/64 length check is a warning only.
+  `WORKER_ENV_OVERRIDES` reports applied names.
+- Sandbox: `compileall` failed on the read-only source mount (`./__pycache__`).
+  Bytecode/pytest caches go to tmpfs (`PYTHONPYCACHEPREFIX`); the deploy
+  sandbox probe now compiles in the read-only workspace.
+- Uncovered acceptance criteria now fail verification (repairable) instead of
+  passing and then failing the quality gate with no repair round.
+- Planner: the word "משחק" (a football *match*) classified the product as a
+  3D game and added unpriced game assets — workaround in the prompt; **not
+  fixed** (keyword list in `media_pipeline._GAME_TERMS`).
+- Web version list downloaded every archive (`len(v.files)`); uses the durable
+  `file_count`.
+- Live build never stored its ProductSpec → versions could not be modified.
+  Version and spec are now committed in one transaction.
+- Modification admission ignored the INTERNAL_QA entitlement →
+  `modification_admission.admit_modification` funds entitled accounts from the
+  QA budget (same caps/lock as builds).
+- Modification/repair agents saw only `{path, chars}`; source files now carry
+  their content (bounded 16k/file, 64k total); the evolution prompt requires a
+  test and a `verify` entry for every new acceptance id.
+- UI kept polling forever on `NEEDS_CLARIFICATION`/`CONFLICT`.
+
+Verification commands: `python -m unittest discover -s tests` (925+ tests, the
+same 18 environment-only failures as the baseline, no new ones); real Postgres
+16 with migrations 001–029: `tests/test_m4d2_live_postgres.py` (14) and
+`tests/test_golden_mod_path_live_postgres.py` (2) — build→spec persisted,
+QA modification admitted with `funding_source='internal_qa'`, settled.
+
+Open: failed builds also commit restorable versions; the build row
+`bld_2f248e2339cb4ad9848a7ebb5c0c4ed6` is still RUNNING; no reaper; raw
+exception text shown to customers; revoke R2 tokens `148ai-worker`,
+`148ai-worker-2`.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run

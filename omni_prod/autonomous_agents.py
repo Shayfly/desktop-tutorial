@@ -53,6 +53,8 @@ _REPAIR_SYSTEM = (
     'You are Omni Repair Agent. Return only JSON: '
     '{"files":[{"path":"...","content":"... or null"}]}. '
     'Make the smallest safe patch that fixes supplied acceptance failures. '
+    'Repository entries that include "content" are the full current file: edit from that content and '
+    'return each changed file in full. '
     + MANIFEST_SHAPE +
     'Do not remove unrelated working behavior. '
     'You must write actual tests. If you fail to use pytest/jest, the build '
@@ -82,6 +84,7 @@ def _filter_repo_summary(repo_summary: dict) -> dict:
         'total_chars': repo_summary.get('total_chars'),
         'files': kept,
         'files_omitted_from_prompt': max(0, len(files) - len(kept)),
+        **({'content_note': repo_summary['content_note']} if 'content_note' in repo_summary else {}),
     }
 _CHANGE_SYSTEM = (
     "Classify a user's follow-up against the approved spec. Return only JSON "

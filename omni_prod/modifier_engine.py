@@ -127,15 +127,45 @@ class ModifierEngine:
         return ModifierResult(status, assessment, repo, rounds, report, assessment.billable)
 
 
+# Golden E2E #1 (2026-10-07): a modification ("add deleting a team") must
+# change existing code, but the evolution and repair agents only ever saw
+# {path, chars} -- they would have had to rewrite app.py without reading it.
+# Source files now carry their content within a bounded budget; anything over
+# the budget (or noise such as lockfiles/vendor) stays a {path, chars} entry.
+_CONTENT_SUFFIXES = ('.py', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.html', '.css', '.json', '.md', '.toml',
+                     '.txt', '.cfg', '.ini', '.yml', '.yaml', '.sql', '.svelte', '.vue')
+_CONTENT_SKIP_PREFIXES = ('node_modules/', 'vendor/', 'dist/', 'build/', '.git/', '.148ai/', 'rights/', 'docs/')
+_CONTENT_SKIP_NAMES = ('package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'poetry.lock')
+_MAX_FILE_CONTENT_CHARS = 16_000
+_MAX_TOTAL_CONTENT_CHARS = 64_000
+
+
+def _content_eligible(path: str, content: str) -> bool:
+    low = path.lower()
+    return (low.endswith(_CONTENT_SUFFIXES) and not low.startswith(_CONTENT_SKIP_PREFIXES)
+            and low.rsplit('/', 1)[-1] not in _CONTENT_SKIP_NAMES and len(content) <= _MAX_FILE_CONTENT_CHARS)
+
+
 def repo_summary(repo: dict[str, str]) -> dict:
-    # Identical shape to AutonomousProductEngine._summary: a {path, chars}
-    # listing, never file content. autonomous_agents._filter_repo_summary
-    # (already applied inside RepairAgent.repair) strips vendor/build noise
-    # and caps it before it reaches the model.
+    files, budget = [], _MAX_TOTAL_CONTENT_CHARS
+    # .omni/project.json and smaller files first, so the manifest and core
+    # sources fit before large ones exhaust the budget.
+    order = sorted(repo, key=lambda p: (p != '.omni/project.json', len(repo[p]), p))
+    included = set()
+    for path in order:
+        content = repo[path]
+        if _content_eligible(path, content) and len(content) <= budget:
+            included.add(path); budget -= len(content)
+    for path, content in sorted(repo.items()):
+        entry = {'path': path, 'chars': len(content)}
+        if path in included:
+            entry['content'] = content
+        files.append(entry)
     return {
-        'files': [{'path': p, 'chars': len(c)} for p, c in sorted(repo.items())],
+        'files': files,
         'file_count': len(repo),
         'total_chars': sum(len(c) for c in repo.values()),
+        'content_note': 'entries with "content" hold the full current file; patch files by returning full new content',
     }
 
 

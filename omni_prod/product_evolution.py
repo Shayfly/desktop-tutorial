@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 from .model_gateway import OpenAICompatibleGateway
 from .product_spec import ProductSpec
+from .project_manifest import MANIFEST_SHAPE
 from .repository_patch import parse_patch
 
 # M4C: "change_request: DO NOT force it into RepairAgent... Implement a
@@ -33,9 +34,13 @@ _EVOLUTION_SYSTEM = (
     'every other patch in this system (null content deletes a file); list '
     'only files that change, not the whole repository. Preserve the existing '
     'architecture, naming conventions, and file layout instead of '
-    'restructuring the product for one new capability. Only touch '
-    '.omni/project.json build/verify/preview keys if the new capability '
-    'actually requires it.'
+    'restructuring the product for one new capability. Repository entries '
+    'that include "content" are the full current file: edit from that content '
+    'and return each changed file in full. Every new acceptance criterion '
+    'needs an automated test, and its id must appear in the acceptance_ids of '
+    'a verify entry in .omni/project.json -- return the full updated '
+    '.omni/project.json whenever you add acceptance ids. '
+    + MANIFEST_SHAPE
 )
 
 

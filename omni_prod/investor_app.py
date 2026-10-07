@@ -1925,16 +1925,22 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
     mods = PostgresModificationRepository(_v28_pool)
     rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
 
+    from .modification_admission import admit_modification
+    from .qa_budget import QABudgetDenied
+    qa_policy, internal_qa = _internal_qa_funding(account.id)
     with _v28_pool.connection() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
-                decision = _v28.subscriptions.reserve(
-                    cur, build_id=modification_id, user_id=account.id, project_id=key,
-                    cost_class=CostClass.STANDARD.value, credits=_MODIFICATION_CREDITS,
-                    category='product_modification',
-                )
-                if not decision.allowed:
-                    raise HTTPException(402, decision.reason)
+                try:
+                    admission = admit_modification(
+                        cur, subscriptions=_v28.subscriptions, modification_id=modification_id,
+                        account_id=account.id, project_id=key, cost_class=CostClass.STANDARD.value,
+                        credits=_MODIFICATION_CREDITS, internal_qa=internal_qa, qa_policy=qa_policy)
+                except QABudgetDenied as exc:
+                    logging.getLogger(__name__).warning('internal QA modification refused: %s', exc)
+                    raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
+                if not admission.allowed:
+                    raise HTTPException(402, admission.reason)
                 mods.create(
                     cur, modification_id=modification_id, project_id=key, user_id=account.id,
                     source_version_id=version_id, followup=req.followup,
