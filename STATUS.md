@@ -353,6 +353,12 @@ Defects found by real runs and fixed (each with a test):
   their content (bounded 16k/file, 64k total); the evolution prompt requires a
   test and a `verify` entry for every new acceptance id.
 - UI kept polling forever on `NEEDS_CLARIFICATION`/`CONFLICT`.
+- Build `bld_8029266bf1164a71995667f89309e832` (founder's second product):
+  verification passed, quality 78/80 with zero repair rounds — a root-level
+  `test_app.py` was not counted as tests, and quality was never sent to
+  repair. Test detection fixed (that build would score ≥ 80); the executor now
+  turns a quality shortfall into repairable failures (`QualityAwareExecutor`),
+  and a quality-only final failure is reported as `quality_gate_failed`.
 
 Verification commands: `python -m unittest discover -s tests` (925+ tests, the
 same 18 environment-only failures as the baseline, no new ones); real Postgres

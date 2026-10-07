@@ -592,6 +592,10 @@ def _model_gateway_and_executor():
     # fails as UNSUPPORTED_DEPENDENCY before the sandbox starts.
     from .dependency_policy import DependencyGateExecutor
     executor=DependencyGateExecutor(executor)
+    # Quality shortfalls are repairable like failed checks (release gate uses
+    # the same assess_repository and minimum).
+    from .quality_gate import QualityAwareExecutor
+    executor=QualityAwareExecutor(executor,minimum_score=int(os.getenv('OMNI_MIN_QUALITY_SCORE','80')))
     return gateway,executor
 
 def _live_components():

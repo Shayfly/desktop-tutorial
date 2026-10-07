@@ -60,7 +60,12 @@ def assess_repository(*, spec: ProductSpec, repository: dict[str, str], minimum_
     body = '\n'.join(repository.values())
 
     # Automated tests / maintainability.
-    test_files = [p for p in paths if p.startswith('tests/') or p.endswith(('.test.js', '.spec.js', '_test.py'))]
+    def _is_test(p: str) -> bool:
+        name = p.rsplit('/', 1)[-1]
+        return (p.startswith(('tests/', 'test/')) or '/tests/' in p or '/__tests__/' in p or p.startswith('__tests__/')
+                or (name.startswith('test_') and name.endswith('.py'))
+                or name.endswith(('_test.py', '.test.js', '.spec.js', '.test.ts', '.spec.ts', '.test.tsx', '.spec.tsx')))
+    test_files = [p for p in paths if _is_test(p)]
     readme = any(p.lower().startswith('readme') for p in paths)
     config = any(p in paths for p in ('package.json','pyproject.toml','requirements.txt','Cargo.toml','go.mod'))
     maint = 40 + (25 if test_files else 0) + (15 if readme else 0) + (20 if config else 0)
@@ -110,3 +115,64 @@ def assess_repository(*, spec: ProductSpec, repository: dict[str, str], minimum_
     score = int(round(weighted / total_weight)) if total_weight else 0
     passed = score >= minimum_score and not blockers
     return QualityAssessment(score, passed, minimum_score, tuple(dimensions), tuple(blockers))
+
+
+QUALITY_FAILURE_ID = 'QUALITY'
+
+# What each dimension rewards, phrased as a concrete instruction for the
+# repair agent (the scoring above is the source of truth).
+_DIMENSION_GUIDANCE = {
+    'functional_traceability': 'list every acceptance id of the spec in the acceptance_ids of a verify entry in .omni/project.json',
+    'maintainability': 'add automated tests under tests/, a README.md with setup and usage, and a dependency manifest '
+                       '(requirements.txt, may be empty for standard-library-only Python, or package.json)',
+    'security_hygiene': 'remove hard-coded secrets and eval/exec',
+    'ux_accessibility': 'use <label>/aria-* on controls, a viewport meta tag or responsive CSS, and a lang attribute',
+    'internationalization': 'add a locales/ (or i18n/) directory with en and he message files and RTL support (dir="rtl")',
+    'delivery_readiness': 'add a Dockerfile and a CI workflow under .github/workflows/',
+}
+
+
+def quality_failures(assessment: QualityAssessment) -> tuple:
+    """Failed quality as repairable failures (one per weak dimension).
+
+    Golden E2E #1 (2026-10-07): a build passed every acceptance check and was
+    then rejected at quality 78/80 (no README, no dependency manifest, tests
+    not recognised) with zero repair rounds, because only verification
+    failures were ever sent to repair."""
+    from .autonomous_core import AcceptanceFailure
+    out = []
+    for blocker in assessment.blockers:
+        out.append(AcceptanceFailure(QUALITY_FAILURE_ID, f'quality blocker: {blocker}',
+                                     f'Quality score {assessment.score} must reach {assessment.minimum_score}.'))
+    for d in assessment.dimensions:
+        if d.score >= 80:
+            continue
+        missing = '; '.join(d.notes) if d.notes else 'below target'
+        out.append(AcceptanceFailure(
+            QUALITY_FAILURE_ID, f'quality {d.name} {d.score}/100: {missing}',
+            f'Overall quality {assessment.score} must reach {assessment.minimum_score}. To raise {d.name}: '
+            f'{_DIMENSION_GUIDANCE.get(d.name, "improve this dimension")}. Keep every acceptance check passing.'))
+    return tuple(out)
+
+
+class QualityAwareExecutor:
+    """A verification pass that also meets the quality bar the release gate
+    applies, so quality shortfalls go through the same repair loop."""
+
+    def __init__(self, inner, *, quality_fn=None, minimum_score: int = 80):
+        self._inner = inner
+        self._quality_fn = quality_fn or assess_repository
+        self._minimum = minimum_score
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def execute(self, *, repository, spec):
+        report = self._inner.execute(repository=repository, spec=spec)
+        if not report.passed:
+            return report
+        assessment = self._quality_fn(spec=spec, repository=repository, minimum_score=self._minimum)
+        if assessment.passed:
+            return report
+        from .autonomous_core import ExecutionReport
+        return ExecutionReport(False, quality_failures(assessment), report.build_log)

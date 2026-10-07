@@ -216,6 +216,14 @@ def resolve_m5_billing(
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
+        from .quality_gate import QUALITY_FAILURE_ID
+        report_failures = tuple(getattr(result.report, 'failures', ()) or ())
+        if report_failures and all(getattr(f, 'acceptance_id', None) == QUALITY_FAILURE_ID for f in report_failures):
+            # Every acceptance check passed; only the quality bar was missed
+            # after the repair rounds.
+            return False, 'quality_gate_failed', (
+                f'quality score {quality.score} below minimum {quality.minimum_score} after repair: '
+                + '; '.join(f.message for f in report_failures))[:2000]
         unsupported = [f for f in getattr(result.report, 'failures', ()) or ()
                        if getattr(f, 'acceptance_id', None) == UNSUPPORTED_DEPENDENCY]
         if unsupported:
