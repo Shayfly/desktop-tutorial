@@ -92,22 +92,33 @@ jobs:
                           publish("promoted spec acceptance", "\n".join(f"{a.get('id')}: {a.get('text')}" for a in sj.get("acceptance", [])))
                       v = conn.execute("SELECT file_count, message, created_at FROM project_versions WHERE id = %s", (m[8],)).fetchone()
                       publish("promoted version", f"{m[8]} files={v and v[0]} message={v and v[1]} created={v and v[2]}")
-                      # Read-only look at the promoted version's own code (manifest + entry file).
-                      try:
-                          import io, zipfile
-                          from omni_prod.storage import S3ArtifactStore
-                          key = conn.execute("SELECT artifact_key FROM project_versions WHERE id = %s", (m[8],)).fetchone()[0]
-                          store = S3ArtifactStore(endpoint=os.environ["OMNI_S3_ENDPOINT"], bucket=os.environ["OMNI_S3_BUCKET"],
-                                                  access_key=os.environ["OMNI_S3_ACCESS_KEY"], secret_key=os.environ["OMNI_S3_SECRET_KEY"])
-                          z = zipfile.ZipFile(io.BytesIO(store.get_bytes(key, verify=False)))
-                          names = sorted(z.namelist())
-                          publish("promoted files", "\n".join(f"{n} ({z.getinfo(n).file_size})" for n in names))
-                          manifest = z.read(".omni/project.json").decode("utf-8", "replace") if ".omni/project.json" in names else ""
-                          publish("promoted manifest", manifest)
-                          start = (json.loads(manifest).get("start") or []) if manifest else []
-                          entry = next((a for a in start if a.endswith(".py") and a in names), None)
-                          if entry:
-                              publish("promoted entry " + entry.replace("/", "_"), z.read(entry).decode("utf-8", "replace")[:3400], limit=3400)
-                      except Exception as exc:
-                          publish("promoted files", f"could not read artifact: {type(exc).__name__}")
+          PY
+
+      - name: Publish the latest promoted version's code (read-only)
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import io, json, os, re, zipfile
+          import psycopg
+          from omni_prod.storage import S3ArtifactStore
+
+          def publish(title, body, limit=3400):
+              body = re.sub(r"(?i)(key|token|secret|password)([\"' :=]+)[^\s\"',]+", r"\1\2[redacted]", str(body))[:limit] or "<empty>"
+              print(f"::notice title={title}::" + body.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              row = conn.execute("SELECT v.id, v.artifact_key FROM modification_requests m JOIN project_versions v "
+                                 "ON v.id = m.promoted_version_id ORDER BY m.created_at DESC LIMIT 1").fetchone()
+          if not row:
+              publish("code", "no promoted version"); raise SystemExit(0)
+          store = S3ArtifactStore(endpoint=os.environ["OMNI_S3_ENDPOINT"], bucket=os.environ["OMNI_S3_BUCKET"],
+                                  access_key=os.environ["OMNI_S3_ACCESS_KEY"], secret_key=os.environ["OMNI_S3_SECRET_KEY"])
+          z = zipfile.ZipFile(io.BytesIO(store.get_bytes(row[1], verify=False)))
+          names = set(z.namelist())
+          manifest = z.read(".omni/project.json").decode("utf-8", "replace") if ".omni/project.json" in names else ""
+          publish("manifest " + row[0], manifest)
+          start = (json.loads(manifest).get("start") or []) if manifest else []
+          for f in [a for a in start if a in names][:1] + (["tests/test_league.py"] if "tests/test_league.py" in names else []):
+              publish("file " + f.replace("/", "_"), z.read(f).decode("utf-8", "replace"))
           PY
