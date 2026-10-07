@@ -24,7 +24,9 @@ PREVIEW_SHAPE = (
     '"runtime": "python:3.11-slim", "start": ["python", "app.py"] (an argv array run from the repository root), '
     '"port": 8000, "health_path": "/". The server must read the PORT environment variable, listen on 0.0.0.0, '
     'use only the Python standard library (no install step runs), write only under /tmp (the rest is '
-    'read-only), and answer HTTP 200 on health_path within a few seconds of starting.'
+    'read-only), and answer HTTP 200 on health_path within a few seconds of starting. GET / must return the '
+    'product\'s full user interface as an HTML page (Content-Type text/html) with real controls (forms, '
+    'buttons, tables) wired to the app\'s JSON endpoints -- never a placeholder or a health string.'
 )
 
 # Runs inside the sandbox. Starts the declared server, polls its health path.
@@ -48,6 +50,19 @@ while time.time() < deadline:
         break
     except Exception:
         time.sleep(0.5)
+if verdict == "OK":
+    # The product is a website: "/" must serve its real user interface, not a
+    # health string (Golden E2E #1: "/" answered "OK" and the UI did not exist).
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%%d/" %% port, timeout=3) as r:
+            ctype, page = r.headers.get("Content-Type", ""), r.read(200000).decode("utf-8", "replace")
+        low = page.lower()
+        if "text/html" not in ctype.lower() or ("<html" not in low and "<!doctype" not in low):
+            verdict = "GET / did not return an HTML page (Content-Type %%r, starts %%r)" %% (ctype, page[:60])
+        elif len(page.strip()) < 400 or not any(t in low for t in ("<form", "<input", "<button", "<table", "<select")):
+            verdict = "GET / returned a placeholder page, not the product's user interface (%%d chars)" %% len(page.strip())
+    except Exception as e:
+        verdict = "GET / failed: %%s" %% e
 if p.poll() is None:
     p.terminate()
 try:

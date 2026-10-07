@@ -17,14 +17,23 @@ from omni_prod.preview_smoke import PREVIEW_FAILURE_ID, PreviewReadyExecutor
 
 CONTRACT = {'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
             'port': 0, 'health_path': '/', 'build': [], 'verify': [{'name': 't', 'argv': ['true'], 'acceptance_ids': ['A1']}]}
-GOOD_APP = '''import os
+PAGE = ("<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><title>ליגה</title></head><body>"
+        "<h1>טבלת ליגה</h1><form id='add'><input name='team' placeholder='שם קבוצה'><button>הוספה</button></form>"
+        "<table id='standings'><thead><tr><th>קבוצה</th><th>נקודות</th><th>הפרש</th></tr></thead><tbody></tbody></table>"
+        "<script>fetch('/api/standings').then(r=>r.json()).then(console.log)</script></body></html>")
+APP_TEMPLATE = '''import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
+BODY = %r
+CTYPE = %r
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200); self.end_headers(); self.wfile.write(b"league")
+        data = BODY.encode()
+        self.send_response(200); self.send_header("Content-Type", CTYPE); self.end_headers(); self.wfile.write(data)
     def log_message(self, *a): pass
 HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever()
 '''
+GOOD_APP = APP_TEMPLATE % (PAGE, "text/html; charset=utf-8")
+HEALTH_ONLY_APP = APP_TEMPLATE % ("OK", "text/plain")
 CRASHING_APP = 'import sqlite3\nsqlite3.connect("league.db").execute("create table t(x)")\nraise SystemExit("cannot write")\n'
 
 
@@ -58,6 +67,13 @@ class PreviewSmokeTests(unittest.TestCase):
 
     def test_app_that_starts_and_answers_passes(self):
         self.assertTrue(self.ex.execute(repository=_repo(GOOD_APP), spec=None).passed)
+
+    def test_health_string_instead_of_a_user_interface_fails(self):
+        # The exact Golden E2E #1 product: "/" answered "OK".
+        report = self.ex.execute(repository=_repo(HEALTH_ONLY_APP), spec=None)
+        self.assertFalse(report.passed)
+        self.assertIn('did not return an HTML page', report.failures[0].message)
+        self.assertIn('user interface', report.failures[0].evidence)
 
     def test_missing_contract_is_a_repairable_failure_with_the_shape(self):
         repo = {'.omni/project.json': json.dumps({'build': [], 'verify': CONTRACT['verify']}), 'app.py': GOOD_APP}
