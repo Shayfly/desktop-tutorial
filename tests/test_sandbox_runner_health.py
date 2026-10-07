@@ -30,6 +30,17 @@ class ImageAndDeployTests(unittest.TestCase):
         for needle in ("RemoteSandboxRepositoryExecutor", "network-blocked", "sys.exit(1)"):
             self.assertIn(needle, run)
 
+    def test_deploy_writes_and_reads_back_an_artifact_before_accepting_builds(self):
+        text = (ROOT / ".github/workflows/deploy-worker.yml").read_text()
+        step = text.index("- name: Prove artifact storage accepts writes")
+        queue = text.index("- name: Prove the worker executes a job from the build queue")
+        self.assertLess(step, queue)
+        run = text[step:queue]
+        for needle in ("S3ArtifactStore", "put_bytes", "get_bytes", "delete_object", "sys.exit(1)"):
+            self.assertIn(needle, run)
+        self.assertNotIn("print(sk", run)
+        self.assertNotIn("print(ak", run)
+
     def test_mount_roots_are_usable_by_the_unprivileged_sandbox_user(self):
         # First deploy probe after the client fix: python exited 2 inside the
         # sandbox because the 0700 temp directory was not traversable by uid
