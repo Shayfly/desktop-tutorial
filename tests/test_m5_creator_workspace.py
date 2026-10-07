@@ -55,8 +55,11 @@ class PlanPreviewTests(unittest.TestCase):
         self.assertTrue(any(c["key"] == "software.code.generate" for c in preview["capabilities"]))
         self.assertEqual({i["kind"] for i in preview["infrastructure"]},
                          {"database", "auth_session", "object_storage", "scheduled_http", "outbound"})
-        self.assertEqual(preview["estimated_cost_usd"], "0.40")
-        self.assertEqual(preview["maximum_authorized_cost_usd"], "1.25")
+        # Decision 2026-10-07 #29: the plan view states whether the build is
+        # priced; provider cost numbers stay internal.
+        self.assertEqual(preview["build_authorization"], "PRICED")
+        self.assertNotIn("estimated_cost_usd", preview)
+        self.assertNotIn("maximum_authorized_cost_usd", preview)
         self.assertTrue(preview["can_build"])
         self.assertEqual(preview["blockers"], [])
         self.assertFalse(preview["paid_work_started"])
@@ -90,10 +93,10 @@ class PlanPreviewTests(unittest.TestCase):
         def deny():
             raise PermissionError("zero/unknown revenue plan cannot authorize paid variable build cost")
         _, preview = self._preview(quote=deny)
-        self.assertIsNone(preview["economics"])
-        self.assertIn("cannot authorize", preview["economics_error"])
-        self.assertIsNone(preview["maximum_authorized_cost_usd"])
-        self.assertIn("plan_cannot_authorize_cost", [b["code"] for b in preview["blockers"]])
+        self.assertEqual(preview["build_authorization"], "NOT_AUTHORIZED")
+        self.assertNotIn("economics", preview)
+        blocker = next(b for b in preview["blockers"] if b["code"] == "plan_cannot_authorize_cost")
+        self.assertNotIn("revenue", blocker["message"])           # the customer gets the outcome, not our economics
 
 
 class WorkerPhaseTests(unittest.TestCase):
@@ -138,9 +141,10 @@ class UnknownCostBlockerTests(unittest.TestCase):
         preview = build_plan_preview(
             architect=ProductArchitect(), repository=repo, project_id="prj_unknown", prompt=PROMPT, economics=unknown,
             durable_backend=True, infrastructure_readiness={"kinds": {}}, image_readiness={"status": "PARTIAL"})
-        self.assertIn("cost_quote_unknown", [b["code"] for b in preview["blockers"]])
+        blocker = next(b for b in preview["blockers"] if b["code"] == "cost_quote_unknown")
+        self.assertIn("media.image.generate", blocker["message"])   # names what is missing, nothing internal
         self.assertFalse(preview["can_build"])
-        self.assertIsNone(preview["maximum_authorized_cost_usd"])
+        self.assertEqual(preview["build_authorization"], "UNKNOWN")
 
 
 class HonestCopyAndAssetTests(unittest.TestCase):

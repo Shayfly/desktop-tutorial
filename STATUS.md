@@ -1,5 +1,48 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Golden E2E #1 — current truth, 2026-10-07 04:15 Asia/Jerusalem (supersedes earlier sections of today)
+
+Vercel projects (verified via the Vercel API; names, domains and states only):
+- `canonical_vercel_project`: **148aiv28** (`prj_I1ur58ZVxYXQpu1c6W6p5rVZ3q0G`, framework FastAPI, every `OMNI_*` setting lives here).
+- `canonical_preview_project`: **148aiv28** — Preview deployments of `milestone/pre-staging-2026-10-05`; last READY `6877d43` (`dpl_AHQ4is6m68oFbeRa52n9nJFfY2Mk`).
+- `canonical_production_project`: **148aiv28** — Production `main@e8f2949` (`dpl_9izMa4N2Ca1oMkwLcTM8JqXNgm4f`), domain `148aiv28.vercel.app`.
+- **Preview and Production are the same project (148aiv28).**
+- Duplicate: **148ai** (`prj_q7vvMotR8xV1VCQjcSEU3A9JFzbX`), domain `148ai.vercel.app`, no environment variables, no framework, every production deployment in ERROR since 2026-09-23, latest deployment ERROR. It is connected to the same repository, so every push costs two deployments. **Git disconnect is pending a dashboard action** (148ai → Settings → Git → Disconnect): the Vercel API available to this session has no disconnect operation and the CLI is not authenticated here; no undocumented workaround was applied. Do not delete the project.
+
+| Transition | Status | Evidence |
+|---|---|---|
+| User → Login → Project | NOT VERIFIED (from this environment) | Preview host not reachable from the audit shell |
+| Project → Prompt → Product Plan | PASS (offline, deterministic) | `python3 tools/golden_e2e_quote_probe.py`: contract READY |
+| Product Plan → Quote | **IMPLEMENTED_NOT_VERIFIED_IN_PREVIEW** | Expected: priced quote for the Golden E2E #1 product. Observed (offline, admission-identical arguments, real production provisioner wiring with nothing configured): `infrastructure_profile=self_contained_web_v1`, `required_infrastructure=[database:SELF_CONTAINED, auth_session:SELF_CONTAINED]`, `quote=PRICED`, `unknown=[]`. Preview still runs `6877d43` because every push since `ca548a1` was answered "Deployment rate limited — retry in 24 hours". Not PASS until the deployed Preview proves it |
+| Everything after Quote | NOT VERIFIED | The next first failing transition will be determined only after the Preview check, not assumed |
+
+After the Vercel window resets: (1) one consolidated deployment of the branch head, (2) re-run the probe, (3) verify Plan → Quote on Preview (plan view `build_authorization=PRICED`), (4) only then determine the next first failing transition.
+
+Implemented today (CI evidence per commit in the sections below and in git history):
+- **Capabilities are demand-driven** (founder principle, replaces the earlier
+  `OMNI_BUILD_INFRA_PROFILE` switch, which no code reads any more; the Preview
+  variable of that name is unused and may be deleted in the dashboard). The
+  contract includes only infrastructure the product asks for: persistence and
+  sessions are embedded SQLite (`SELF_CONTAINED`) unless a managed database is
+  required; uploads → object storage, reminders/cron → scheduled work,
+  email/SMS/webhooks → outbound, each `PLATFORM_MANAGED` with a real quote.
+  148AI's own artifact storage (R2) never adds product storage. Contracts that
+  ask for all five managed kinds are byte-identical to before (fingerprints
+  compared old vs new code). Acceptance requires `integration` only when the
+  contract needs outbound, scheduled work or an external integration; the
+  lineage SQL feeding this was executed on a real Postgres 16 with every
+  migration. Tests: `tests/test_demand_driven_infrastructure.py` (founder
+  cases 1–4, storage separation, acceptance scope, lookup, plan view).
+- **No internal economics in customer views** (decision #29 extended): build
+  status and modification status evidence pass through
+  `strip_internal_economics`; the plan view reports `build_authorization`
+  (PRICED / UNKNOWN / NOT_AUTHORIZED), `credits_required` and the customer
+  allowance instead of provider USD; admission 402 details name unpriced
+  capabilities without internal pricing bases, margins or QA budget numbers;
+  the build-start response returns credits, not economics; legacy live-build
+  responses no longer include routing cost events; the UI shows credits and
+  verification only. Tests: `tests/test_customer_economics_views.py`.
+
 ## Golden E2E #1 transition truth — 2026-10-07 02:45 Asia/Jerusalem (corrects the 2026-10-06 audit)
 
 The 2026-10-06 audit named Queue → Worker as the first failing transition by
@@ -62,8 +105,9 @@ admission fails earlier, at Plan → Quote.
   * Public pricing (#29): the catalog and every customer subscription view
     carry only customer-facing fields; regression test with a closed field
     list and a forbidden-term scan, mutation-checked against the old payload.
-- Configuration: `OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1` set on
-  Vercel **Preview** only (plain, non-secret). Production is unchanged.
+- Configuration (superseded the same day by demand-driven derivation):
+  `OMNI_BUILD_INFRA_PROFILE=self_contained_web_v1` was set on Vercel Preview
+  only; no code reads it any more.
 - **Not deployed yet (BLOCKED by Vercel):** every push since `ca548a1` got
   GitHub status "Deployment rate limited — retry in 24 hours" (Hobby build
   rate limit). Preview still runs `6877d43` (dpl_AHQ4is6m68oFbeRa52n9nJFfY2Mk),

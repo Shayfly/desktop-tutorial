@@ -43,8 +43,9 @@ MANAGED_WEB_SAAS_V1 = InfrastructureProfile(
     },
 )
 
-# Golden E2E #1 profile (founder decision 2026-10-07 #27). Self-contained is
-# not fake: the generated app embeds a standard-library SQLite database and
+# Profile of a contract whose infrastructure is entirely embedded (Golden E2E
+# #1, founder decisions 2026-10-07 #27 and "capabilities are demand-driven").
+# Self-contained is not fake: the generated app embeds a standard-library SQLite database and
 # in-app sessions in its own runtime. Nothing is provisioned, so nothing here
 # is ever LIVE; these kinds count as verified only when the app's own tests
 # and the behavioral preview acceptance pass. Object storage, scheduled work
@@ -65,8 +66,9 @@ SELF_CONTAINED_WEB_V1 = InfrastructureProfile(
     ),
     kind_dependencies={InfrastructureKind.AUTH_SESSION: (InfrastructureKind.DATABASE,)},
 )
-SELF_CONTAINED_OUT_OF_SCOPE: tuple[str, ...] = ("object_storage", "scheduled_http", "outbound")
-PROFILE_ENV = "OMNI_BUILD_INFRA_PROFILE"
+# Every generated-app infrastructure kind the platform knows. A kind absent
+# from a contract is NOT_REQUIRED for that build (demand-driven).
+INFRASTRUCTURE_KINDS: tuple[str, ...] = tuple(r.kind for r in MANAGED_WEB_SAAS_V1.requirements)
 
 _WEB_TARGETS = frozenset({"web", "saas"})
 
@@ -101,16 +103,6 @@ class InfrastructureProfileRegistry:
 
 
 DEFAULT_INFRASTRUCTURE_PROFILES = InfrastructureProfileRegistry()
-
-
-def selected_profile(env=None, registry: InfrastructureProfileRegistry | None = None) -> InfrastructureProfile:
-    """Profile new Web/SaaS contracts are compiled with (policy parameter
-    OMNI_BUILD_INFRA_PROFILE; default managed_web_saas_v1). An unknown key is
-    an error, never a silent fallback."""
-    import os
-    env = os.environ if env is None else env
-    key = str(env.get(PROFILE_ENV, "") or "").strip() or MANAGED_WEB_SAAS_V1.key
-    return (registry or DEFAULT_INFRASTRUCTURE_PROFILES).get(key)
 
 
 def is_self_contained(requirement) -> bool:

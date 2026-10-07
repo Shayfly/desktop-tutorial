@@ -18,7 +18,7 @@ from .build_contract import (
 from .capability_registry import CapabilityRegistry
 from .product_spec import AcceptanceCriterion, ProductSpec, Requirement
 from .skills_registry import MasterSkillsRegistry, build_canonical_skills_registry
-from .infrastructure_registry import DEFAULT_INFRASTRUCTURE_PROFILES, SELF_CONTAINED_WEB_V1, selected_profile
+from .infrastructure_registry import MANAGED_WEB_SAAS_V1, SELF_CONTAINED_WEB_V1
 from .universal_brain import OmniUniversalBrain
 
 # Self-contained profile floor (decision 2026-10-07 #27, consistent with the
@@ -30,6 +30,50 @@ _SELF_CONTAINED_DATA = (
     "requests and by a fresh application instance"
 )
 _SELF_CONTAINED_STACK = ("Python standard library", "SQLite (sqlite3)", "Web UI served by the app")
+
+# Founder principle 2026-10-07: capabilities are demand-driven, not
+# product-family defaults. A generated product gets platform-managed
+# infrastructure only for what the product itself asks for. This is generated
+# *product* infrastructure; 148AI's own artifact storage (R2) is a platform
+# requirement and never adds object storage to the product.
+_MANAGED_DB_TERMS = ("postgres", "postgresql", "mysql", "mariadb", "sql server", "managed database",
+                     "production database", "פוסטגרס", "מסד נתונים מנוהל")
+_UPLOAD_TERMS = ("upload", "attachment", "file storage", "store files", "documents storage", "העלאת קבצים",
+                 "העלאת", "צרופה", "צרופות", "אחסון קבצים")
+_SCHEDULE_TERMS = ("schedule", "reminder", "cron", "recurring", "every day", "every week", "daily digest",
+                   "weekly digest", "background job", "follow-up", "follow-ups", "תזכורת", "מתוזמן", "כל יום")
+_OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push notification",
+                   "מייל", "אימייל", 'דוא"ל', "דואל")
+
+
+def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
+    """Infrastructure the product needs, in the canonical managed-profile order.
+
+    Persistence and sessions are always needed (every contract has data and the
+    platform-auth floor); they are embedded (SELF_CONTAINED) unless a managed
+    database is required, in which case both are platform-managed. Object
+    storage, scheduled work and outbound delivery appear only on demand."""
+    low = prompt.casefold()
+    wants = lambda terms: any(t in low for t in terms)  # noqa: E731
+    integration_keys = set(integrations or ())
+    managed_db = wants(_MANAGED_DB_TERMS)
+    needed = {
+        "database": True,
+        "auth_session": True,
+        "object_storage": wants(_UPLOAD_TERMS) or "storage" in integration_keys,
+        "scheduled_http": wants(_SCHEDULE_TERMS),
+        "outbound": wants(_OUTBOUND_TERMS) or bool({"email", "webhook"} & integration_keys),
+    }
+    embedded = {r.kind: r for r in SELF_CONTAINED_WEB_V1.requirements}
+    out = []
+    for managed in MANAGED_WEB_SAAS_V1.requirements:
+        if not needed[managed.kind]:
+            continue
+        if managed.kind in embedded and not managed_db:
+            out.append(embedded[managed.kind])
+        else:
+            out.append(managed)
+    return tuple(out)
 
 
 class ProductArchitect:
@@ -48,17 +92,12 @@ class ProductArchitect:
         capability_registry: CapabilityRegistry | None = None,
         skills_registry: MasterSkillsRegistry | None = None,
         agents_registry: MasterAgentsRegistry | None = None,
-        infrastructure_profile: str | None = None,
     ) -> None:
         self.capabilities = capability_registry or CapabilityRegistry()
         self.skills = skills_registry or build_canonical_skills_registry(self.capabilities)
         self.agents = agents_registry or build_canonical_agents_registry(self.skills)
         self.brain = brain or OmniUniversalBrain()
         self.architect_agent = architect_agent
-        # Policy parameter OMNI_BUILD_INFRA_PROFILE (decision 2026-10-07 #27);
-        # the chosen profile is bound into the immutable contract.
-        self.infrastructure_profile = (DEFAULT_INFRASTRUCTURE_PROFILES.get(infrastructure_profile)
-                                       if infrastructure_profile else selected_profile())
 
     def compile(
         self,
@@ -80,8 +119,12 @@ class ProductArchitect:
         decision = self.brain.decide(clean)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
-        profile = self.infrastructure_profile
-        floor_spec = self._floor_spec(clean, decision, self_contained=profile.key == SELF_CONTAINED_WEB_V1.key)
+        # Demand-driven infrastructure, bound into the immutable contract.
+        infrastructure = _infer_infrastructure(clean, self._infer_integrations(clean, capability_plan))
+        embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
+        profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
+                   else MANAGED_WEB_SAAS_V1)
+        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -105,7 +148,6 @@ class ProductArchitect:
         roles, role_defaults = self._infer_roles(clean)
         data_requirements = self._infer_data_requirements(clean, decision.plan.modules)
         integrations = self._infer_integrations(clean, capability_plan)
-        infrastructure = tuple(profile.requirements)
         questions = self._material_questions(clean, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])

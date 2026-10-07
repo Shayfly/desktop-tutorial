@@ -25,6 +25,7 @@ const T = {
     planTitle:'התוכנית', understood:'מה הבנו', roles:'משתמשים', data:'נתונים', integrations:'חיבורים',
     capabilities:'יכולות שהבנייה צריכה', infrastructure:'תשתית לאפליקציה', cost:'עלות',
     estimated:'הערכה', maximum:'מקסימום מאושר', questions:'שאלות לפני שמתחילים', blockersTitle:'מה חוסם כרגע',
+    creditsRequired:'קרדיטים לבנייה', creditsRemaining:'קרדיטים שנותרו', quoteStatus:'תמחור',
     confirm:'אשרו והתחילו בנייה', editRequest:'עריכת הבקשה', costUnknown:'לא ניתן לחשב',
     byPipeline:'בתוך הבנייה', byProvider:'ספק חיצוני', required:'נדרש', optional:'רשות',
     st_LIVE:'פעיל', st_PARTIAL:'מוגדר, לא נבדק', st_NOT_CONFIGURED:'לא מוגדר', st_BLOCKED:'חסום',
@@ -77,6 +78,7 @@ const T = {
     planTitle:'The plan', understood:'What we understood', roles:'Users', data:'Data', integrations:'Integrations',
     capabilities:'Capabilities the build needs', infrastructure:'App infrastructure', cost:'Cost',
     estimated:'Estimate', maximum:'Approved maximum', questions:'Questions before we start', blockersTitle:'What is blocking right now',
+    creditsRequired:'Credits for this build', creditsRemaining:'Credits remaining', quoteStatus:'Pricing',
     confirm:'Approve and start build', editRequest:'Edit request', costUnknown:'Cannot be calculated',
     byPipeline:'in the build', byProvider:'external provider', required:'required', optional:'optional',
     st_LIVE:'Live', st_PARTIAL:'Configured, not verified', st_NOT_CONFIGURED:'Not configured', st_BLOCKED:'Blocked',
@@ -311,8 +313,10 @@ function renderPlan() {
     h('h3', {}, t('infrastructure')), h('ul', { class: 'checklist' }, infra),
     h('h3', {}, t('cost')),
     h('div', { class: 'cost' },
-      h('div', {}, h('span', {}, t('estimated')), h('b', {}, money(p.estimated_cost_usd))),
-      h('div', {}, h('span', {}, t('maximum')), h('b', {}, money(p.maximum_authorized_cost_usd)))),
+      h('div', {}, h('span', {}, t('creditsRequired')), h('b', {}, p.credits_required ?? t('costUnknown'))),
+      h('div', {}, h('span', {}, t('creditsRemaining')),
+        h('b', {}, (p.allowance && p.allowance.credits_remaining != null) ? p.allowance.credits_remaining : '—')),
+      h('div', {}, h('span', {}, t('quoteStatus')), pill(p.build_authorization || 'UNKNOWN'))),
   ];
   if (p.clarification_questions.length) {
     kids.push(h('h3', {}, t('questions')), h('ul', { class: 'checklist' }, p.clarification_questions.map(q => h('li', {}, q.question))));
@@ -345,7 +349,7 @@ async function startBuild() {
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
       body: { prompt: $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id } });
-    S.build = { id: d.build_id, status: 'queued', phase: 'QUEUED', evidence: { economics_quote: d.economics } };
+    S.build = { id: d.build_id, status: 'queued', phase: 'QUEUED', evidence: {} };
     renderPlan(); renderTrack(); pollBuild();
   } catch (e) {
     $('progressPanel').hidden = false; $('buildMsg').textContent = explain(e);
@@ -548,24 +552,16 @@ function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
   panel.hidden = false;
-  const u = ev.provider_usage || {};
   const gates = ev.gates || {};
   const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${v && v.passed === false ? '✗' : '✓'}`).join(', ') || t('none');
-  const settlement = ev.economics_settlement || {};
   const warnings = [];
-  if (u.actual_cost_basis && u.actual_cost_basis !== 'PROVIDER_REPORTED' && u.actual_cost_basis !== 'NO_EXTERNAL_CALLS') warnings.push(u.actual_cost_basis);
   if (ev.capabilities && ev.capabilities.status && ev.capabilities.status !== 'VERIFIED') warnings.push(`capabilities: ${ev.capabilities.status}`);
   const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
   $('evidenceBody').replaceChildren(
     h('dl', {},
       row(t('gates'), gateText),
       row(t('repairs')(S.build.repair_rounds ?? '—'), ''),
-      row(t('tokens'), `${u.input_tokens ?? '—'} / ${u.output_tokens ?? '—'}`),
-      row(t('requestIds'), (u.request_ids || []).join(', ') || t('none')),
-      row(t('costActual'), u.actual_cost_usd != null ? `$${u.actual_cost_usd}` : t('costUnknown')),
-      row(t('costBasis'), u.actual_cost_basis || '—'),
-      row(t('maximum'), ev.economics_quote ? money(ev.economics_quote.total_authorized_variable_usd) : '—'),
-      row('settlement', settlement.action || ev.billing || '—'),
+      row('billing', ev.billing || '—'),
       row(t('warnings'), warnings.join(', ') || t('none'))),
     h('pre', {}, JSON.stringify({ build_contract: ev.build_contract, infrastructure: ev.infrastructure, capabilities: ev.capabilities }, null, 2)));
 }

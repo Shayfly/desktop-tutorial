@@ -240,18 +240,19 @@ class InfrastructureProvisioningService:
         return profile.key, tuple(r for r in merged if getattr(r, "connection_mode", "") != "SELF_CONTAINED")
 
     def self_contained_evidence(self, contract) -> dict[str, Any] | None:
-        """Truthful status of embedded and out-of-scope kinds, or None for a
-        fully managed contract."""
-        from .infrastructure_registry import SELF_CONTAINED_OUT_OF_SCOPE, SELF_CONTAINED_WEB_V1
+        """Truthful status of embedded and not-required kinds, or None when the
+        contract requires every kind as platform-managed."""
+        from .infrastructure_registry import INFRASTRUCTURE_KINDS
         embedded = [r.kind for r in contract.infrastructure
                     if getattr(r, "connection_mode", "") == "SELF_CONTAINED"]
-        if not embedded:
+        present = {r.kind for r in contract.infrastructure}
+        not_required = [k for k in INFRASTRUCTURE_KINDS if k not in present]
+        if not embedded and not not_required:
             return None
         return {
             "embedded": {k: "SELF_CONTAINED: not provisioned; verified only by the app's tests and preview acceptance"
                          for k in embedded},
-            "out_of_scope": ({k: "NOT_VERIFIED" for k in SELF_CONTAINED_OUT_OF_SCOPE}
-                             if getattr(contract, "product_family", "") == SELF_CONTAINED_WEB_V1.key else {}),
+            "not_required": {k: "NOT_REQUIRED" for k in not_required},
         }
 
     def quote(self, contract, *, project_id: str, environment) -> list[dict[str, Any]]:

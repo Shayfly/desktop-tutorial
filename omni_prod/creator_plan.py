@@ -12,6 +12,7 @@ import inspect
 from typing import Any, Callable, Mapping
 
 from .build_contract import BuildContractStatus
+from .customer_views import unpriced_capabilities
 from .build_cost_plan import CostQuoteUnknown
 from .capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
 
@@ -37,12 +38,12 @@ def _infra_rows(contract, readiness: Mapping[str, Any]) -> list[dict]:
     return rows
 
 
-def _out_of_scope(contract) -> list[dict]:
-    from .infrastructure_registry import SELF_CONTAINED_OUT_OF_SCOPE, SELF_CONTAINED_WEB_V1
-    if contract.product_family != SELF_CONTAINED_WEB_V1.key:
-        return []
-    return [{"kind": k, "status": "NOT_VERIFIED", "reason": "outside the self-contained profile; not part of this build"}
-            for k in SELF_CONTAINED_OUT_OF_SCOPE]
+def _not_required(contract) -> list[dict]:
+    """Infrastructure kinds this product did not ask for (demand-driven)."""
+    from .infrastructure_registry import INFRASTRUCTURE_KINDS
+    present = {r.kind for r in contract.infrastructure}
+    return [{"kind": k, "status": "NOT_REQUIRED", "reason": "the product does not require it; not part of this build"}
+            for k in INFRASTRUCTURE_KINDS if k not in present]
 
 
 def build_plan_preview(
@@ -68,15 +69,21 @@ def build_plan_preview(
     ]
     infrastructure = _infra_rows(contract, infrastructure_readiness)
 
+    # The quote is computed for admission parity, but its numbers are internal
+    # unit economics and never returned (decision 2026-10-07 #29): the customer
+    # sees only whether the build can be priced/authorized and why not.
     quote, quote_error, quote_error_code = None, None, None
     try:
         # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
         # callable accepts the contract; zero-argument callables are legacy.
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
     except CostQuoteUnknown as exc:
-        quote_error, quote_error_code = str(exc), "cost_quote_unknown"
-    except PermissionError as exc:
-        quote_error, quote_error_code = str(exc), "plan_cannot_authorize_cost"
+        names = unpriced_capabilities(exc.unknown)
+        quote_error = ("A required capability is not available yet: " + ", ".join(names)) if names else \
+            "A required capability is not available yet."
+        quote_error_code = "cost_quote_unknown"
+    except PermissionError:
+        quote_error, quote_error_code = "This build is not available on your current plan.", "plan_cannot_authorize_cost"
 
     blockers: list[dict] = []
     if not durable_backend:
@@ -107,12 +114,10 @@ def build_plan_preview(
         },
         "capabilities": capabilities,
         "infrastructure": infrastructure,
-        "infrastructure_out_of_scope": _out_of_scope(contract),
+        "infrastructure_not_required": _not_required(contract),
         "clarification_questions": [q.to_dict() for q in contract.unresolved_questions],
-        "economics": None if quote is None else quote.to_dict(),
-        "economics_error": quote_error,
-        "estimated_cost_usd": None if quote is None else str(quote.total_estimated_variable_usd),
-        "maximum_authorized_cost_usd": None if quote is None else str(quote.total_authorized_variable_usd),
+        "build_authorization": ("PRICED" if quote is not None else
+                         "UNKNOWN" if quote_error_code == "cost_quote_unknown" else "NOT_AUTHORIZED"),
         "blockers": blockers,
         "can_build": ready and not blockers,
         "paid_work_started": False,

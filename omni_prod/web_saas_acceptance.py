@@ -23,19 +23,24 @@ WEB_SAAS_REQUIRED_KINDS: tuple[str, ...] = (
     'auth', 'role', 'data_create', 'data_read', 'data_update', 'data_delete',
     'integration', 'responsive', 'api_smoke',
 )
-# Acceptance scope per infrastructure profile, taken from the immutable build
-# contract, never from generated metadata. self_contained_web_v1 (decision
-# 2026-10-07 #27) has no external integration or background infrastructure, so
-# `integration` steps are out of scope: not executed, never counted as covered,
-# reported NOT_VERIFIED. Unknown or missing profile -> the strict managed floor.
-ACCEPTANCE_SCOPE_BY_PROFILE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    'managed_web_saas_v1': (WEB_SAAS_REQUIRED_KINDS, ()),
-    'self_contained_web_v1': (tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k != 'integration'), ('integration',)),
-}
+# Demand-driven acceptance scope (founder principle 2026-10-07), taken from the
+# immutable build contract, never from generated metadata. The `integration`
+# behavior kind is required only when the contract needs outbound delivery,
+# scheduled work or an external integration; otherwise it is NOT_REQUIRED for
+# that build: such steps are never executed or counted as covered and are
+# listed as not verified. No contract (lookup failed) -> the strict full floor.
+_NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 
 
-def acceptance_scope(profile_key: str | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    return ACCEPTANCE_SCOPE_BY_PROFILE.get(str(profile_key or ''), ACCEPTANCE_SCOPE_BY_PROFILE['managed_web_saas_v1'])
+def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    if not build_contract:
+        return WEB_SAAS_REQUIRED_KINDS, ()
+    kinds = {str(i.get('kind')) for i in (build_contract.get('infrastructure') or ())
+             if isinstance(i, Mapping) and i.get('required', True)}
+    external = set(map(str, build_contract.get('required_integrations') or ())) - _NON_EXTERNAL_INTEGRATIONS
+    if kinds & {'scheduled_http', 'outbound'} or external:
+        return WEB_SAAS_REQUIRED_KINDS, ()
+    return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k != 'integration'), ('integration',)
 
 
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
@@ -118,7 +123,7 @@ class AcceptanceReport:
     covered_kinds: tuple[str, ...]
     missing_kinds: tuple[str, ...]
     runtime_logs: str | None = None
-    out_of_scope_kinds: tuple[str, ...] = ()
+    not_required_kinds: tuple[str, ...] = ()
     not_verified_steps: tuple[str, ...] = ()
 
     def with_runtime_logs(self, logs: str | None) -> 'AcceptanceReport':
@@ -133,7 +138,7 @@ class AcceptanceReport:
             'covered_acceptance_ids': list(self.covered_acceptance_ids),
             'missing_acceptance_ids': list(self.missing_acceptance_ids),
             'covered_kinds': list(self.covered_kinds), 'missing_kinds': list(self.missing_kinds),
-            'out_of_scope_kinds': list(self.out_of_scope_kinds),
+            'not_required_kinds': list(self.not_required_kinds),
             'not_verified_steps': list(self.not_verified_steps),
             'runtime_logs': self.runtime_logs,
         }
@@ -142,15 +147,14 @@ class AcceptanceReport:
 class WebSaaSAcceptanceRunner:
     def __init__(self, *, transport: HttpTransport | None = None,
                  required_kinds: Sequence[str] = WEB_SAAS_REQUIRED_KINDS,
-                 timeout_seconds: float = 10.0, profile_key: str | None = None):
+                 timeout_seconds: float = 10.0, build_contract: Mapping[str, Any] | None = None):
         self.transport = transport or UrllibSessionTransport()
         requested = tuple(str(x).strip() for x in required_kinds if str(x).strip())
-        floor, out_of_scope = acceptance_scope(profile_key)
-        self.profile_key = profile_key
-        self.out_of_scope_kinds = tuple(out_of_scope)
+        floor, not_required = acceptance_scope(build_contract)
+        self.not_required_kinds = tuple(not_required)
         # Generated metadata may ask for *more* checks, never fewer. This
         # deterministic floor prevents model output from weakening M5 acceptance.
-        self.required_kinds = tuple(k for k in dict.fromkeys((*floor, *requested)) if k not in out_of_scope)
+        self.required_kinds = tuple(k for k in dict.fromkeys((*floor, *requested)) if k not in not_required)
         self.timeout_seconds = float(timeout_seconds)
 
     def verify(self, preview: Mapping[str, Any], contract: Any,
@@ -179,8 +183,8 @@ class WebSaaSAcceptanceRunner:
                 step_id = str(step['id'])
                 kind = str(step['kind'])
                 acceptance_ids = tuple(str(x) for x in step.get('acceptance_ids', ()))
-                if kind in self.out_of_scope_kinds:
-                    # Never executed, never counted as covered: NOT_VERIFIED.
+                if kind in self.not_required_kinds:
+                    # NOT_REQUIRED for this build: never executed, never counted.
                     not_verified.append(f'{persona_id}:{step_id}')
                     continue
                 try:
@@ -228,7 +232,7 @@ class WebSaaSAcceptanceRunner:
             status='PASS' if passed else 'FAIL', release_eligible=passed, summary=summary,
             checks=tuple(checks), covered_acceptance_ids=tuple(sorted(passed_ids)),
             missing_acceptance_ids=missing_ids, covered_kinds=tuple(sorted(passed_kinds)),
-            missing_kinds=missing_kinds, out_of_scope_kinds=self.out_of_scope_kinds,
+            missing_kinds=missing_kinds, not_required_kinds=self.not_required_kinds,
             not_verified_steps=tuple(not_verified),
         )
 

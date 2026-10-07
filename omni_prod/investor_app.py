@@ -52,6 +52,7 @@ from .v27_platform import V27UniversalPlatform
 from .v28_platform import V28Platform
 from .integration_center import IntegrationCenter
 from .pricing import CostClass, catalog_payload
+from .customer_views import strip_internal_economics, unpriced_capabilities
 from .creator_accounts import PostgresAccountService
 from .subscription_store import PostgresSubscriptionService
 from .db import DatabasePool
@@ -650,7 +651,6 @@ def live_build(req:PromptRequest)->dict:
         'repair_rounds':result.repair_rounds,'spec':result.spec.to_dict(),'repository':_repo_summary(result.repository),
         'verification':{'passed':result.report.passed,'failures':[f.__dict__ for f in result.report.failures],'log':result.report.build_log[-4000:]},
         'quality':quality.to_dict(),'security':security.to_dict(),'specialist_reviews':[x.__dict__ for x in reviews],
-        'model_route_events':[x.__dict__ for x in gateway.events],
         'version':{'id':version.id,'checksum':version.checksum}}
 
 
@@ -761,7 +761,6 @@ def v26_live_build(project_id:str,req:V26BuildRequest,request:Request)->dict:
     return {'mode':'v26-live-autonomous','status':result.status,'release_ready':result.status=='ready' and quality.passed and security.passed,
             'project_id':project_id,'owner_id':account.id,'version_id':version.id,'checksum':version.checksum,'file_count':len(repo),
             'repair_rounds':result.repair_rounds,'brain':decision.to_dict(),'quality':quality.to_dict(),'security':security.to_dict(),
-            'model_route_events':[x.__dict__ for x in gateway.events],
             'truth':'This route uses a configured local/self-hosted model and sandbox. If those services are absent it fails closed with 503.'}
 
 @app.get('/api/v26/capabilities')
@@ -1085,7 +1084,7 @@ def v27_live_build(project_id:str,req:V27BuildRequest,request:Request)->dict:
             'release_ready':result.status=='ready' and quality.passed and security.passed and assessment.publish_allowed,
             'project_id':project_id,'owner_id':account.id,'version_id':version.id,'checksum':version.checksum,'file_count':len(repo),
             'repair_rounds':result.repair_rounds,'brain':decision.to_dict(),'rights':assessment.to_dict(),
-            'quality':quality.to_dict(),'security':security.to_dict(),'model_route_events':[x.__dict__ for x in gateway.events],
+            'quality':quality.to_dict(),'security':security.to_dict(),
             'truth':'Live generation requires configured local/self-hosted model + sandbox and fails closed when absent. Rights gate remains independent of model output.'}
 
 @app.get('/hosted/v27/{deployment_id}',response_class=HTMLResponse)
@@ -1575,12 +1574,16 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         return _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs)
 
-    return build_plan_preview(
+    preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=req.prompt,
         economics=economics,
         durable_backend=_async_build_mode(),
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
+    # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
+    preview['credits_required'] = _M5_BUILD_CREDITS
+    preview['allowance'] = _v28.subscription(token=token)
+    return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')
 def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> dict:
@@ -1626,9 +1629,13 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
                 funding='internal_qa' if internal_qa else None)
         except CostQuoteUnknown as exc:
-            raise HTTPException(402, detail={'error': 'cost_quote_unknown', 'unknown': list(exc.unknown)}) from exc
+            logging.getLogger(__name__).info('build %s: cost quote unknown: %s', project_id, list(exc.unknown))
+            raise HTTPException(402, detail={'error': 'cost_quote_unknown',
+                                             'unpriced': unpriced_capabilities(exc.unknown)}) from exc
         except PermissionError as exc:
-            raise HTTPException(402, str(exc)) from exc
+            logging.getLogger(__name__).info('build %s: not authorized by plan economics: %s', project_id, exc)
+            raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build',
+                                             'message': 'This build is not available on your current plan.'}) from exc
         # M5 remediation: one durable reservation of the FULL conservative total
         # (LLM + required capabilities + generated-app infra + platform infra +
         # retry) before anything is enqueued. No later separate reservation.
@@ -1656,7 +1663,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             economics_evidence['funding'] = authorize_qa_build(
                                 cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
                         except QABudgetDenied as exc:
-                            raise HTTPException(402, detail={'error': 'qa_budget_denied', 'reason': str(exc)}) from exc
+                            logging.getLogger(__name__).warning('internal QA build refused: %s', exc)
+                            raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
                     else:
                         economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
                     decision = _v28.subscriptions.reserve(
@@ -1698,7 +1706,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             "status": "queued", "build_id": build_id, "dispatch": dispatch,
             "build_contract_id": build_contract.id,
             "build_contract_fingerprint": build_contract.contract_fingerprint,
-            "economics": economics_evidence,
+            "credits": decision.credits,
         })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
@@ -1728,7 +1736,7 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
             "result_version_id": details.result_version_id,
             "artifact_key": details.artifact_key,
             "error_code": details.error_code,
-            "evidence": details.evidence,
+            "evidence": strip_internal_economics(details.evidence),
         }
     except KeyError:
         raise HTTPException(404, "Build not found or access denied")
@@ -1944,7 +1952,7 @@ def v28_modification_status(project_id: str, modification_id: str, request: Requ
         'classification': d.classification, 'classification_reason': d.classification_reason,
         'billable': d.billable, 'source_version_id': d.source_version_id,
         'promoted_version_id': d.promoted_version_id, 'repair_rounds': d.repair_rounds,
-        'evidence': d.evidence, 'error_code': d.error_code, 'error_message': d.error_message,
+        'evidence': strip_internal_economics(d.evidence), 'error_code': d.error_code, 'error_message': d.error_message,
         'created_at': d.created_at, 'started_at': d.started_at, 'completed_at': d.completed_at,
         'accepted_at': d.accepted_at, 'rejected_at': d.rejected_at,
     }
@@ -2236,7 +2244,7 @@ def v28_live_build(project_id: str, req: V27BuildRequest, request: Request) -> d
         'release_ready': result.status == 'ready' and quality.passed and security.passed and rights.publish_allowed,
         'project_id': project_id, 'owner_id': account.id, 'version_id': version.id, 'checksum': version.checksum, 'file_count': len(repo),
         'repair_rounds': result.repair_rounds, 'brain': brain.to_dict(), 'rights': rights.to_dict(), 'quality': quality.to_dict(),
-        'security': security.to_dict(), 'usage': usage, 'model_route_events': [x.__dict__ for x in gateway.events],
+        'security': security.to_dict(), 'usage': usage,
         'truth': 'Requires configured model + sandbox and fails closed if absent. Provider usage is pre-authorized by plan budget.'
     }
 

@@ -272,7 +272,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
                               'operator-config:p', 'image', Decimal('1'))
         inputs = BuildCostInputs((('cap-img', 'media.image.generate', image),), (),
                                  (('database', Decimal('0.02'), Decimal('0.05'), 'test'),))
-        reserve = MagicMock(return_value=SimpleNamespace(allowed=reserve_allowed, reason='paid-provider budget exhausted'))
+        reserve = MagicMock(return_value=SimpleNamespace(allowed=reserve_allowed, reason='paid-provider budget exhausted', credits=60))
         v28 = MagicMock()
         v28.resolve_project_key.return_value = (SimpleNamespace(id='usr_1'), 'tenant_key')
         v28.subscriptions.plan_for.return_value = PLAN_CATALOG[PlanCode.BASIC]

@@ -87,3 +87,21 @@
 * #28 יושם: בקשת תמונה רק בכוונה מפורשת (לוגו/מיתוג/hero/איור), ומשחקים לפי דרישותיהם. אחרת, ב־evidence מופיע `NOT_REQUIRED`.
 * #29 יושם עם test קבוע.
 * **ממצא פתוח להחלטה:** סטטוס הבנייה (`evidence`) ותצוגת התוכנית (`economics`) עדיין מחזירים ללקוח נתוני Economics פנימיים.
+
+## החלטות המייסד — 2026-10-07 02:52
+
+30. **עיקרון קבוע: Capabilities are demand-driven, not product-family defaults.**
+    * דרישות תשתית נגזרות מה־Product IR / Build Contract. הן לא נגזרות מסוג המוצר.
+    * `cost_quote_unknown` חוסם רק capability שנדרשת, כרוכה בעלות ואין דרך אמינה לתמחר אותה.
+    * Storage של הפלטפורמה (R2 ל־artifacts) נפרד מ־storage של המוצר שנוצר.
+    * לא מגדירים מחיר מלאכותי. לא בונים את 5 ה־provisioners.
+    * **יישום:** החליף את מתג ה־env `OMNI_BUILD_INFRA_PROFILE`, שכבר לא נקרא.
+31. **Vercel:**
+    * הפרויקט הקנוני הוא `148aiv28`, ל־Preview ול־Production יחד.
+    * `148ai` מתנתק מ־Git בלבד, בלי מחיקה.
+    * ממתין לפעולה בדשבורד: ל־session הזה אין API לניתוק.
+32. **אין Economics פנימיים ב־API או ב־UI ללקוח**: לא ב־Build Status, לא ב־Plan View ולא ב־Modification Status.
+    * יושם עם regression tests.
+33. **Plan → Quote = `IMPLEMENTED_NOT_VERIFIED_IN_PREVIEW`** עד שהגרסה נפרסת ל־Preview ועוברת שם עם Evidence.
+    * אחרי איפוס החלון: פריסה מאוחדת אחת, הרצת ה־probe, אימות ב־Preview.
+    * רק אחר כך נקבע מהו ה־First Failing Transition הבא.

@@ -40,6 +40,7 @@ M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
   a real replacement for that path rather than a weaker shadow of it.
 """
 
+import json
 import logging
 import os
 import socket
@@ -901,9 +902,9 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 
 
 # The build contract that produced a version (directly, or through a chain of
-# promoted modifications) names its infrastructure profile. Read from the
-# immutable contract, never from generated files (decision 2026-10-07 #27).
-_PROFILE_FOR_VERSION_SQL = """
+# promoted modifications) decides the demand-driven acceptance scope. Read from
+# the immutable contract, never from generated files.
+_CONTRACT_SCOPE_FOR_VERSION_SQL = """
 WITH RECURSIVE lineage(version_id, depth) AS (
     SELECT %s::text, 0
     UNION ALL
@@ -912,7 +913,7 @@ WITH RECURSIVE lineage(version_id, depth) AS (
     JOIN lineage l ON m.promoted_version_id = l.version_id
     WHERE l.depth < 64
 )
-SELECT c.contract_json->>'product_family'
+SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations'
 FROM lineage l
 JOIN build_jobs j ON j.result_version_id = l.version_id
 JOIN build_requests r ON r.build_id = j.id
@@ -923,17 +924,25 @@ LIMIT 1
 """
 
 
-def infrastructure_profile_for_version(pool, *, project_id: str, version_id: str) -> str | None:
-    """Profile key of the contract behind a version, or None (strict managed
-    acceptance floor applies). A lookup failure never weakens acceptance."""
+def contract_scope_for_version(pool, *, project_id: str, version_id: str) -> dict | None:
+    """Infrastructure and integrations of the contract behind a version, or
+    None (the strict full acceptance floor applies). A lookup failure never
+    weakens acceptance."""
     try:
         with pool.connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(_PROFILE_FOR_VERSION_SQL, (version_id, project_id, project_id))
+                cur.execute(_CONTRACT_SCOPE_FOR_VERSION_SQL, (version_id, project_id, project_id))
                 row = cur.fetchone()
-        return row[0] if row and row[0] else None
+        if not row or row[0] is None:
+            return None
+        infrastructure, integrations = row[0], row[1]
+        if isinstance(infrastructure, str):
+            infrastructure = json.loads(infrastructure)
+        if isinstance(integrations, str):
+            integrations = json.loads(integrations)
+        return {'infrastructure': infrastructure or [], 'required_integrations': integrations or []}
     except Exception:
-        logging.getLogger(__name__).exception('infrastructure profile lookup failed; strict acceptance floor applies')
+        logging.getLogger(__name__).exception('contract scope lookup failed; strict acceptance floor applies')
         return None
 
 
@@ -962,7 +971,7 @@ def execute_preview_launch(preview_id: str, project_id: str, version_id: str) ->
             acceptance_personas = plan.personas
             acceptance_runner = WebSaaSAcceptanceRunner(
                 required_kinds=plan.required_kinds,
-                profile_key=infrastructure_profile_for_version(_v28_pool, project_id=project_id, version_id=version_id))
+                build_contract=contract_scope_for_version(_v28_pool, project_id=project_id, version_id=version_id))
     except NotPreviewable as exc:
         PostgresPreviewRepository(_v28_pool).mark_failed(
             preview_id, error=f'invalid behavioral acceptance plan: {exc}', status='NOT_PREVIEWABLE'
