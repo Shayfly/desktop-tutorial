@@ -69,7 +69,9 @@ class FakeCursor:
     def execute(self, sql, params=None):
         self.executed.append((sql, params))
         normalized = " ".join(sql.split()).lower()
-        if normalized.startswith("select version, sha256"):
+        if normalized.startswith("select to_regclass('schema_migrations')"):
+            self.rows = [(True,)]   # this fake database already has the bookkeeping table
+        elif normalized.startswith("select version, sha256"):
             self.rows = sorted(self.applied.items())
         elif normalized.startswith("insert into schema_migrations"):
             version, name, sha = params
@@ -77,6 +79,9 @@ class FakeCursor:
 
     def fetchall(self):
         return list(self.rows)
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
 
 class FakeTransaction:
     def __enter__(self):

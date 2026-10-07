@@ -343,7 +343,15 @@ class PostgresCapabilityRepository:
     def __init__(self, pool) -> None:
         self.pool = pool
 
-    def save_plan(self, build_id: str, plan: CapabilityPlan) -> None:
+    # The worker's capability stage calls create_plan() and transition(), the
+    # same interface as MemoryCapabilityRepository. This class only had
+    # save_plan(), so the first real build on Preview failed with
+    # "'PostgresCapabilityRepository' object has no attribute 'create_plan'"
+    # (Golden E2E #1, 2026-10-07): every worker test used the memory twin.
+
+    def create_plan(self, *, build_id: str, plan: CapabilityPlan) -> None:
+        """Idempotent for the same plan (a retried job); a different plan for
+        the same build is plan drift and raises, like the memory twin."""
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
@@ -363,6 +371,67 @@ class PostgresCapabilityRepository:
                                 json.dumps(list(requirement.dependency_ids)),
                             ),
                         )
+                    cur.execute(
+                        """
+                        SELECT requirement_id, capability_key, purpose, required, quantity,
+                               constraints_json, dependency_ids_json
+                        FROM build_capability_requirements WHERE build_id=%s
+                        """,
+                        (build_id,),
+                    )
+                    stored = {}
+                    for row in cur.fetchall() or []:
+                        constraints = json.loads(row[5]) if isinstance(row[5], str) else (row[5] or {})
+                        dependencies = json.loads(row[6]) if isinstance(row[6], str) else (row[6] or [])
+                        stored[row[0]] = (row[1], row[2], bool(row[3]), int(row[4]), constraints, list(dependencies))
+                    expected = {
+                        r.id: (r.key, r.purpose, bool(r.required), int(r.quantity),
+                               dict(r.constraints), list(r.dependency_ids))
+                        for r in plan.requirements
+                    }
+                    if stored != expected:
+                        raise ValueError(f"plan drift for build {build_id}")
+
+    def save_plan(self, build_id: str, plan: CapabilityPlan) -> None:
+        self.create_plan(build_id=build_id, plan=plan)
+
+    def transition(
+        self, *, build_id: str, requirement_id: str, expected: str, target: str,
+        selected_provider: str | None = None, pricing_version: str | None = None,
+        artifact_key: str | None = None, verification: Mapping[str, Any] | None = None,
+    ) -> bool:
+        """Compare-and-set on status. False when the row is not in `expected`;
+        KeyError when the requirement does not exist (memory-twin semantics)."""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE build_capability_requirements
+                        SET status=%s,
+                            selected_provider=COALESCE(%s, selected_provider),
+                            pricing_version=COALESCE(%s, pricing_version),
+                            artifact_key=COALESCE(%s, artifact_key),
+                            verification_json=COALESCE(%s::jsonb, verification_json),
+                            updated_at=now()
+                        WHERE build_id=%s AND requirement_id=%s AND status=%s
+                        RETURNING requirement_id
+                        """,
+                        (
+                            target, selected_provider, pricing_version, artifact_key,
+                            None if verification is None else json.dumps(dict(verification)),
+                            build_id, requirement_id, expected,
+                        ),
+                    )
+                    if cur.fetchone() is not None:
+                        return True
+                    cur.execute(
+                        "SELECT 1 FROM build_capability_requirements WHERE build_id=%s AND requirement_id=%s",
+                        (build_id, requirement_id),
+                    )
+                    if cur.fetchone() is None:
+                        raise KeyError("capability requirement not found")
+                    return False
 
     def requirements(self, *, build_id: str) -> list[dict[str, Any]]:
         with self.pool.connection() as conn:

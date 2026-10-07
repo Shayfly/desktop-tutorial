@@ -151,6 +151,42 @@
   added, static cache bumped to `148ai-v28-static-4`. Re-verification on
   Preview pending.
 
+### 17:45 — first real build on Preview
+
+- **Product Plan → Quote: PASS** on Preview `24e992a`
+  (`148aiv28-8yff44gmw…`): pricing "Authorized" (PRICED), infrastructure
+  "built into the app" (SELF_CONTAINED), no blockers, approve enabled.
+- Founder approved. **Quote → Budget Reservation: PASS** (the build was
+  accepted and reached the worker, which happens only after the QA-funded
+  reservation commits in the admission transaction). **Queue → Worker: PASS
+  with a real build job**: the worker ran planning, contract, infrastructure
+  (self-contained) and assets, then failed explicitly before any model call:
+  `AttributeError: 'PostgresCapabilityRepository' object has no attribute
+  'create_plan'`. **Worker → Real AI Provider: NOT VERIFIED** (not reached).
+- Cause: the worker's capability stage calls `create_plan()` and
+  `transition()`; the Postgres repository only had `save_plan()`; all worker
+  tests used the memory twin. Fix: both methods on the Postgres repository
+  with the memory twin's semantics (idempotent plan, plan drift raises,
+  compare-and-set transition, KeyError for a missing requirement).
+  **Checked on a real PostgreSQL 16** (all migrations, psycopg from source in
+  pure-Python mode) with the Golden E2E #1 contract: prepare →
+  READY_FOR_BUILD (10 native requirements PLANNED), prepare again idempotent,
+  finalize_native → all VERIFIED, stale compare-and-set False, missing
+  requirement KeyError, different plan → drift error.
+- Found on the way: `python -m omni_prod.migrate` failed on an empty
+  database (`schema_migrations` is created by migration 005, after 001–004
+  need it). The runner now creates the bookkeeping table first (same DDL);
+  applied all 25 migrations to an empty PostgreSQL 16, second run "none".
+- The progress view showed "quality, security and rights gates" as passed for
+  this failed build although they never ran (unknown phase was treated as
+  "done"). Steps after the failing step are now shown as skipped; static
+  cache `148ai-v28-static-5`.
+- Tests: `tests/test_worker_repository_parity.py` (10; they fail on the old
+  code). Local full run: the same 18 environment-only failures as the clean
+  baseline (FastAPI/psycopg not installable here; CI has them).
+- Still open: the failure message shows the raw exception text to the
+  customer (fine for staging diagnostics, not for launch).
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run

@@ -384,6 +384,12 @@ function renderTrack() {
   const phase = b ? String(b.phase || '').toUpperCase() : null;
   const reached = PHASE_ORDER.indexOf(phase);
   const failedCode = status === 'failed' ? (b.error_code || '') : '';
+  // Step at which a failed build stopped. Steps after it never ran: they are
+  // shown as skipped, never as done (a failed build once showed the quality
+  // gates as passed although generation had failed before them).
+  const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
+    worker_exception: 3, verification_failed: 3, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+  const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
   const push = (name, state, note) => steps.push(h('li', { class: `step ${state}` }, h('span', { class: 'dot', 'aria-hidden': 'true' }),
@@ -396,7 +402,7 @@ function renderTrack() {
     if (!b) return push(t(key), 'pending', note);
     if (failCodes.includes(failedCode)) return push(t(key), 'failed', b.error_message || '');
     if (status === 'ready') return push(t(key), 'done', note);
-    if (status === 'failed') return push(t(key), reached > idx || reached === -1 ? 'done' : 'skipped', note);
+    if (status === 'failed') return push(t(key), (failedIdx >= 0 ? idx < failedIdx : reached > idx) ? 'done' : 'skipped', note);
     if (status === 'queued') return push(t(key), 'pending', idx === 0 ? t('queued') : note);
     return push(t(key), reached === idx ? 'active' : reached > idx ? 'done' : 'pending', note);
   };
