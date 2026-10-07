@@ -12,6 +12,23 @@ cd "$(dirname "$0")"
 umask 077
 if [ -z "${WORKER_ENV:-}" ]; then echo "::error::GitHub secret WORKER_ENV is not set"; exit 1; fi
 printf '%s\n' "$WORKER_ENV" | tr -d '\r' > .env
+# Optional second secret WORKER_ENV_OVERRIDES: KEY=VALUE lines that replace the
+# same keys from WORKER_ENV, so one value can be corrected without re-pasting
+# the whole secret (GitHub secrets cannot be read back).
+if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
+  overridden=""
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue;; esac
+    name=${line%%=*}
+    if ! [[ "$name" =~ ^[A-Z][A-Z0-9_]*$ ]] || [ "$name" = "$line" ]; then
+      echo "::error title=WORKER_ENV_OVERRIDES::every line must be NAME=value with an upper-case NAME"; exit 1
+    fi
+    sed -i "/^${name}=/d" .env
+    printf '%s\n' "$line" >> .env
+    overridden="$overridden $name"
+  done < <(printf '%s\n' "$WORKER_ENV_OVERRIDES" | tr -d '\r')
+  echo "Overridden from WORKER_ENV_OVERRIDES:$overridden"
+fi
 grep -q '^OMNI_SANDBOX_SHARED_SECRET=.' .env || echo "OMNI_SANDBOX_SHARED_SECRET=$(cat /etc/omni/sandbox_secret)" >> .env
 if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
   sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env

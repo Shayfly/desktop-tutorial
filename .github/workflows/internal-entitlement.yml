@@ -40,6 +40,7 @@ jobs:
       - name: Write environment file
         env:
           WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
         run: bash infra/worker-host/write-env.sh
 
       - name: Apply database migrations

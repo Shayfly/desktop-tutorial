@@ -307,8 +307,12 @@
   seen; the founder pasted it today).
 - Guard: `write-env.sh` now checks every `WORKER_ENV` line for surrounding
   spaces or quotes and the R2 key lengths (32 / 64), reporting variable names
-  and lengths only, and fails the deploy before anything starts. Founder
-  action: correct the line in the secret.
+  and lengths only, and fails the deploy before anything starts. Deploy runs
+  after the guard report: `OMNI_S3_ACCESS_KEY has 34 characters` (no spaces,
+  quotes or non-ASCII characters — the pasted value itself differs). Optional
+  secret `WORKER_ENV_OVERRIDES` (NAME=value lines replacing the same keys) so
+  one value can be corrected without re-pasting the whole secret. Founder
+  action: new R2 token for the worker, two lines in `WORKER_ENV_OVERRIDES`.
 
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
