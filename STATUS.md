@@ -40,6 +40,49 @@
 - Vercel: `2464394` READY on 148aiv28 (`dpl_8PdrfGMYy6CRYxRXvTCLQJFriApT`);
   148ai still connected to Git and failing every push.
 
+### 16:50 — probe result, diagnosis, fix
+
+- Deploy run 37625977649 (`8365b33`): steps 1–7 PASS, the new probe step
+  FAILED: `job ee96cb33… status=queued executed_on=None
+  expected=175a9b4f3ac1` (annotation). The probe did its job: the worker
+  logged `Listening on` but did not execute the job.
+- Diagnosis on the host (founder ran read-only scripts over SSH, outputs in
+  screenshots): worker container up, no restarts, log ends at `cleaning
+  registries`; queue 0, intermediate 1 (the probe id had been moved out of the
+  queue but never executed); Upstash reports `redis_version 8.4.0`. Upstash
+  wakes blocked BLMOVE/BLPOP clients correctly: after 6–91 s of blocking,
+  plain/MULTI/non-transactional pushes, 60 s and 405 s timeouts all woke in
+  ~5 s. Three fresh RQ 2.12 workers (default, with scheduler, ttl 60) on
+  temporary queues each executed a job in 0.7–1.5 s.
+- **Queue → Worker: PASS on the running worker.** The unchanged probe run
+  against the live worker (container `175a9b4f3ac1`, up ~30 min): `status=
+  finished executed_on=175a9b4f3ac1 expected=175a9b4f3ac1
+  enqueued_from=3d8677914941` (a different container). Registries before the
+  probe: started 0, finished 0, failed 0, so the first worker run executed no
+  earlier queued jobs (no unintended provider calls).
+- Cause of the deploy-time failure (reproduced locally on real Redis, not
+  proven on Upstash): a consumer blocked in BLMOVE that never reads its reply
+  takes the next pushed job. With a frozen blocked consumer and a plain RQ
+  worker as deployed, the probe ends exactly as on the host (`status=queued`,
+  queue 0, intermediate 1). The likely source on the host is the previous
+  container's BLMOVE still registered after `docker compose up` replaced it.
+  RQ's intermediate-queue cleanup would later mark such a job FAILED ("stuck in
+  intermediate queue"), so a real build enqueued in that window would fail.
+- Second finding: the RQ scheduler (enabled, but nothing uses scheduled jobs)
+  polls Redis every second, ~4 commands/s ≈ 10M/month, against Upstash's free
+  500K/month.
+- Fix (`omni_prod/worker.py`): scheduler disabled; dequeue wait bounded to
+  120 s (`OMNI_WORKER_TTL_SECONDS`, default 135; ~86K idle commands/month);
+  before consuming, the worker pushes a decoy id (no job behind it) to the
+  front of the queue and reports whether a stale consumer took it (bounded to
+  3 rounds; untaken decoys are removed; RQ skips and cleans ids without a
+  job). Real-Redis check: with a frozen consumer the old worker loses the
+  probe, the fixed worker logs `stale consumers absorbed before start: 1` and
+  executes it; without one it logs `0`, leaves no decoy and no scheduler keys.
+  Tests: `tests/test_worker_entrypoint.py` (8, stdlib). The deploy run now
+  also publishes the worker's start-up lines as annotations. Pending: the
+  deploy run of this commit (worker replacement + probe on the host).
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run

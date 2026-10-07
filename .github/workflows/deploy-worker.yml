@@ -85,6 +85,8 @@ jobs:
           set -euo pipefail
           expected=$(docker compose ps -q worker | cut -c1-12)
           if [ -z "$expected" ]; then echo "::error::worker container is not running"; exit 1; fi
+          docker compose logs --no-color worker 2>&1 | grep -E "stale consumers absorbed|dequeue wait" | tail -2 \
+            | sed 's/^[^|]*| //' | while read -r line; do echo "::notice title=worker-startup::$line"; done
           docker compose run --rm --no-deps -T -e EXPECTED_WORKER_HOST="$expected" worker python - <<'PY'
           import os, socket, sys, time
           from redis import Redis
