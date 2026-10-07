@@ -1,0 +1,73 @@
+name: Build evidence
+
+# Read-only. Publishes one build's terminal status, error, verification
+# failures and build-log tail as annotations, so a failed build can be
+# diagnosed through the GitHub API without database access from chat. One
+# SELECT; nothing is written. Known secret shapes are redacted.
+#
+# The push trigger runs it once when this file changes (GitHub only
+# dispatches workflows that have run before or are on the default branch);
+# without a build id it reports the most recent build.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Build id (bld_...); empty = most recent build
+        required: false
+        default: ""
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/build-evidence.yml]
+
+concurrency:
+  group: build-evidence
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Publish build evidence
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -uo pipefail
+          case "${BUILD_ID:-}" in ''|bld_[0-9a-f]*) ;; *) echo "::error::build_id must look like bld_<hex>"; exit 1;; esac
+          docker compose run --rm --no-deps -T -e BUILD_ID="${BUILD_ID:-}" worker python - <<'PY'
+          import json, os, re
+          import psycopg
+
+          def redact(text):
+              text = re.sub(r"AIza[0-9A-Za-z_-]{20,}", "[redacted-google-key]", text)
+              text = re.sub(r"(rediss?|postgres(?:ql)?)://\S+", r"\1://[redacted]", text)
+              text = re.sub(r"(?i)(key|token|secret|password|authorization)([\"' :=]+)[^\s\"',]+", r"\1\2[redacted]", text)
+              return re.sub(r"[A-Za-z0-9+/_-]{48,}", "[redacted-long-value]", text)
+
+          def publish(title, body, limit=3500):
+              body = redact(str(body))[-limit:] or "<empty>"
+              body = body.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::notice title={title}::{body}")
+
+          bid = os.environ.get("BUILD_ID") or None
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              row = conn.execute(
+                  "SELECT id, status, phase, error_code, error_message, evidence_json, created_at, finished_at "
+                  "FROM build_jobs WHERE (%s::text IS NULL OR id = %s) ORDER BY created_at DESC LIMIT 1",
+                  (bid, bid)).fetchone()
+          if not row:
+              print("::error::build not found"); raise SystemExit(1)
+          bid, status, phase, code, message, ev, created, finished = row
+          ev = ev if isinstance(ev, dict) else json.loads(ev or "{}")
+          publish("build", f"{bid} status={status} phase={phase} error_code={code} created={created} finished={finished}\n{message or ''}")
+          gates = ev.get("gates") or {}
+          ver = gates.get("verification") or ev.get("verification") or {}
+          failures = ver.get("failures") or []
+          lines = [f"passed={ver.get('passed')} failures={len(failures)}"]
+          for f in failures[:8]:
+              lines.append(f"- [{f.get('acceptance_id')}] {f.get('message')}\n  evidence: {json.dumps(f.get('evidence'), ensure_ascii=False, default=str)[:600]}")
+          publish("verification", "\n".join(lines))
+          publish("build log tail", ev.get("build_log_tail") or "")
+          publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)))
+          PY
