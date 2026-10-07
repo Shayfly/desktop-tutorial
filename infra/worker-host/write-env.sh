@@ -27,7 +27,9 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
     printf '%s\n' "$line" >> .env
     overridden="$overridden $name"
   done < <(printf '%s\n' "$WORKER_ENV_OVERRIDES" | tr -d '\r')
-  echo "Overridden from WORKER_ENV_OVERRIDES:$overridden"
+  echo "::notice title=WORKER_ENV_OVERRIDES::applied names:${overridden:- none}"
+else
+  echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
 grep -q '^OMNI_SANDBOX_SHARED_SECRET=.' .env || echo "OMNI_SANDBOX_SHARED_SECRET=$(cat /etc/omni/sandbox_secret)" >> .env
 if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
