@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
+
+from .evidence_json import dumps_evidence
 import uuid
 from typing import Any, Mapping
 
@@ -419,7 +421,7 @@ class PostgresCapabilityRepository:
                         """,
                         (
                             target, selected_provider, pricing_version, artifact_key,
-                            None if verification is None else json.dumps(dict(verification)),
+                            None if verification is None else dumps_evidence(dict(verification)),
                             build_id, requirement_id, expected,
                         ),
                     )

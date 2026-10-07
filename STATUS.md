@@ -187,6 +187,41 @@
 - Still open: the failure message shows the raw exception text to the
   customer (fine for staging diagnostics, not for launch).
 
+### 18:10 — second real build: first real provider call, stuck status
+
+- Build `bld_2f248e2339cb4ad9848a7ebb5c0c4ed6` (Preview `f39d637`): the
+  capability fix held (assets step passed). **Worker → Real AI Provider:
+  reached, FAIL**: worker log `ModelGatewayError: all model routes failed:
+  model request failed: HTTP Error 503: Service Unavailable` at the
+  architect's first `complete_json`. A direct call from the worker host with
+  the same key and headers (founder over SSH): `gemini-3.1-flash-lite HTTP
+  503 "This model is currently experiencing high demand. Spikes in demand are
+  usually temporary." status UNAVAILABLE`. Model codes and prices in the
+  catalog were re-checked against Google's models and pricing pages today
+  (both exist, prices match).
+- **Defect: the failed build stayed "running" in the UI for 20+ minutes.**
+  The worker's failure handler crashed with `TypeError: Object of type
+  Decimal is not JSON serializable` while writing the FAILED status, so no
+  terminal status was ever written. Fix: `omni_prod/evidence_json.py`
+  (Decimal → exact string, datetime, enum, set, path; unknown objects are
+  never stringified because a repr can carry credentials); terminal
+  transitions never fail on evidence encoding (a marker with the reason and
+  the evidence keys is stored instead). Used by build and modification
+  status writes, capability transitions and preview acceptance. The stuck
+  row `bld_2f248e…` remains RUNNING in the database (evidence of the bug; the
+  billing resolution ran before the crash).
+- Provider overload handling: HTTP errors now carry the provider's own
+  message, status and Retry-After; a 429/5xx answer is retried on the same
+  route (2 retries, 2 s / 6 s, Retry-After capped at 20 s) before
+  escalating; every retry is a separate attempt, budget-checked and recorded
+  in the Attempt Ledger; non-transient errors escalate at once; the final
+  error lists each route's reason. Catalog: `gemini-3.5-flash-lite`
+  ($0.30 / $2.50 per 1M, free tier, official pricing page 2026-10-07) added
+  as a second Flash-Lite capacity pool.
+- Tests: `tests/test_evidence_json.py` (5), `tests/test_model_transient_retry.py`
+  (8). Known open item: no reaper yet for builds whose worker dies mid-run
+  (e.g. a worker redeploy during a build) — they would stay RUNNING.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run

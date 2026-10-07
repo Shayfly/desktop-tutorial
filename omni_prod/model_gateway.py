@@ -9,6 +9,52 @@ from .provider_usage import parse_openai_compatible_usage
 class ModelGatewayError(RuntimeError):
     pass
 
+
+# Provider answers that mean "temporarily unable, nothing was done": the
+# request may be retried. Golden E2E #1 on Preview (2026-10-07) failed on
+# Gemini HTTP 503 "This model is currently experiencing high demand".
+TRANSIENT_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+
+class ModelHTTPError(ModelGatewayError):
+    """HTTP error from the provider, with the status and Retry-After hint."""
+
+    def __init__(self, message: str, *, status: int, retry_after_seconds: float | None = None):
+        super().__init__(message)
+        self.status = status
+        self.retry_after_seconds = retry_after_seconds
+
+    @property
+    def transient(self) -> bool:
+        return self.status in TRANSIENT_HTTP_STATUSES
+
+
+def _http_error_detail(exc) -> str:
+    """Provider's own error message, short. Never echoes request headers."""
+    try:
+        raw = exc.read()[:2000].decode('utf-8', errors='replace')
+    except Exception:
+        return str(getattr(exc, 'reason', '') or '')[:200]
+    try:
+        body = json.loads(raw)
+        item = body[0] if isinstance(body, list) and body else body
+        err = item.get('error', item) if isinstance(item, dict) else {}
+        message = err.get('message') if isinstance(err, dict) else None
+        if isinstance(message, str) and message.strip():
+            return ' '.join(message.split())[:300]
+    except (ValueError, AttributeError, TypeError):
+        pass
+    return ' '.join(raw.split())[:200]
+
+
+def _retry_after(exc) -> float | None:
+    headers = getattr(exc, 'headers', None)
+    value = headers.get('Retry-After') if headers is not None else None
+    try:
+        return max(0.0, float(value)) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
 @dataclass(frozen=True)
 class ModelEndpoint:
     name: str
@@ -68,6 +114,9 @@ class OpenAICompatibleGateway:
             with self._urlopen(req, timeout=self.endpoint.timeout_seconds) as resp:
                 response_headers = getattr(resp, 'headers', None)
                 payload = json.loads(resp.read().decode('utf-8'))
+        except error.HTTPError as exc:
+            raise ModelHTTPError(f'model request failed: HTTP {exc.code}: {_http_error_detail(exc)}',
+                                 status=exc.code, retry_after_seconds=_retry_after(exc)) from exc
         except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise ModelGatewayError(f'model request failed: {exc}') from exc
         served = payload.get('model') if isinstance(payload, dict) else None

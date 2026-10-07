@@ -216,7 +216,7 @@ class PostgresPreviewRepository:
         while jsonb_set writes the report. Legacy versions with no build row
         return None and therefore remain release-ineligible.
         """
-        import json
+        from .evidence_json import dumps_evidence
         payload = report.to_dict() if hasattr(report, 'to_dict') else dict(report)
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -247,7 +247,7 @@ class PostgresPreviewRepository:
                         )
                         WHERE id = %s
                         """,
-                        (preview_id, json.dumps(payload), preview_id, build_id),
+                        (preview_id, dumps_evidence(payload), preview_id, build_id),
                     )
                     return build_id
 

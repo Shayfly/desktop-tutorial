@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Callable, Any
 import time
 
-from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError
+from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError, ModelHTTPError
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
 from .model_router import RoutingPolicy, estimated_cost
@@ -61,6 +61,8 @@ class RoutedModelGateway:
         gateway_factory: Callable[[ModelEndpoint], Any] = OpenAICompatibleGateway,
         on_event: Callable[[RouteEvent], None] | None = None,
         recorder: AttemptRecorder | None = None,
+        transient_retries: int | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ):
         if primary is not None and primary.endpoint.external:
             raise ValueError('primary route must be local/self-hosted')
@@ -76,6 +78,16 @@ class RoutedModelGateway:
         self.state = state or ModelUseState()
         self.gateway_factory = gateway_factory
         self.on_event = on_event
+        # Bounded retries of the SAME route on provider overload (HTTP 429/5xx)
+        # before escalating to the next route: each retry is a separate,
+        # recorded and budget-checked attempt.
+        self.transient_retries = (int(os.getenv('OMNI_MODEL_TRANSIENT_RETRIES', '2'))
+                                  if transient_retries is None else int(transient_retries))
+        if self.transient_retries < 0:
+            raise ValueError('transient_retries cannot be negative')
+        self.retry_delays = (2.0, 6.0, 12.0)
+        self.max_retry_delay = 20.0
+        self.sleep = sleep
         self.events: list[RouteEvent] = []
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
@@ -235,19 +247,30 @@ class RoutedModelGateway:
             raise ModelGatewayError('no eligible model route for this request')
         candidate_set = [{'name': r.endpoint.name, 'model': r.endpoint.model,
                           'max_cost_usd': str(r.max_estimated_cost_usd)} for r, _, _, _ in routes]
+        from .model_policy import ModelPolicyViolation
+        failures = []
         for rank, (route, call_kwargs, why, option) in enumerate(routes):
-            try:
-                return self._attempt(route, method, call_kwargs, why, task=task, option=option,
-                                     rank=rank, candidate_set=candidate_set)
-            except Exception as exc:
-                last_error = exc
-                # Policy errors intentionally stop the route rather than silently
-                # bypassing budget/zero-cost controls.
-                from .model_policy import ModelPolicyViolation
-                if isinstance(exc, ModelPolicyViolation):
-                    raise
-                continue
-        raise ModelGatewayError(f'all model routes failed: {last_error}')
+            for retry in range(self.transient_retries + 1):
+                try:
+                    return self._attempt(route, method, call_kwargs,
+                                         why if retry == 0 else f'{why}; transient retry #{retry}',
+                                         task=task, option=option, rank=rank, candidate_set=candidate_set)
+                except Exception as exc:
+                    last_error = exc
+                    # Policy errors intentionally stop the route rather than silently
+                    # bypassing budget/zero-cost controls.
+                    if isinstance(exc, ModelPolicyViolation):
+                        raise
+                    transient = isinstance(exc, ModelHTTPError) and exc.transient
+                    if not transient or retry == self.transient_retries:
+                        failures.append(f'{route.endpoint.model}: {exc}')
+                        break
+                    # Every retry is its own recorded, budget-checked attempt.
+                    hint = exc.retry_after_seconds
+                    delay = self.retry_delays[min(retry, len(self.retry_delays) - 1)]
+                    self.sleep(min(self.max_retry_delay, hint if hint is not None else delay))
+        detail = '; '.join(failures[-4:]) if failures else str(last_error)
+        raise ModelGatewayError(f'all model routes failed: {detail}')
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1, max_tokens: int = 4096,
                  task: str = 'general') -> str:

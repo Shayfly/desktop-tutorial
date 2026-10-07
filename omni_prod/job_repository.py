@@ -1,5 +1,7 @@
 from __future__ import annotations
 import json
+
+from .evidence_json import dumps_evidence, dumps_evidence_for_terminal_state
 from dataclasses import asdict, dataclass
 from .models import BuildStatus
 
@@ -97,7 +99,7 @@ class PostgresBuildRepository:
                 cur.execute(sql, (
                     target.value, phase, artifact_key, error_code, error_message,
                     result_version_id, repair_rounds,
-                    json.dumps(evidence_json) if evidence_json is not None else None,
+                    dumps_evidence_for_terminal_state(evidence_json) if evidence_json is not None else None,
                     estimated_provider_cost_usd, actual_provider_cost_usd,
                     build_id, expected.value
                 ))
@@ -194,7 +196,7 @@ class PostgresBuildRepository:
             """,
             (
                 build_id, project_id, version_id, BuildStatus.QUEUED.value, 'QUEUED',
-                json.dumps(evidence_json) if evidence_json is not None else None,
+                dumps_evidence(evidence_json) if evidence_json is not None else None,
                 estimated_provider_cost_usd,
             ),
         )

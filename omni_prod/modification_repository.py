@@ -1,5 +1,7 @@
 from __future__ import annotations
 import json
+
+from .evidence_json import dumps_evidence_for_terminal_state
 from dataclasses import dataclass
 from .product_spec import ProductSpec
 from .spec_repository import SpecNotFound
@@ -238,7 +240,7 @@ class PostgresModificationRepository:
                         WHERE id = %s AND status = 'RUNNING'
                         """,
                         (status, classification, classification_reason, billable,
-                         repair_rounds, json.dumps(evidence_json or {}),
+                         repair_rounds, dumps_evidence_for_terminal_state(evidence_json or {}),
                          error_code, error_message, modification_id),
                     )
                     applied = cur.rowcount == 1
