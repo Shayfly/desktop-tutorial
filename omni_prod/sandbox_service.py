@@ -50,5 +50,11 @@ async def run(req: Request):
             p=Path(rel)
             if p.is_absolute() or '..' in p.parts: raise HTTPException(400,'unsafe repository path')
             dest=root/p; dest.parent.mkdir(parents=True,exist_ok=True); dest.write_text(content,encoding='utf-8')
+        # The sandbox container runs as an unprivileged uid (SandboxLimits.user),
+        # but TemporaryDirectory creates 0700 directories owned by this process,
+        # so the sandbox could not even open /workspace/probe.py ("python exited
+        # 2" in the first deploy sandbox probe, 2026-10-07). Same fix as
+        # SandboxRepositoryExecutor (M4.9): readable source, writable output.
+        os.chmod(root,0o755); os.chmod(out,0o777)
         r=run_sandbox(source_dir=root,build_id=payload.build_id,limits=SandboxLimits(),command=payload.argv,output_dir=out)
         return {'returncode':r.returncode,'stdout':r.stdout[-100000:],'stderr':r.stderr[-100000:]}

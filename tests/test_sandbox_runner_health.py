@@ -30,6 +30,14 @@ class ImageAndDeployTests(unittest.TestCase):
         for needle in ("RemoteSandboxRepositoryExecutor", "network-blocked", "sys.exit(1)"):
             self.assertIn(needle, run)
 
+    def test_mount_roots_are_usable_by_the_unprivileged_sandbox_user(self):
+        # First deploy probe after the client fix: python exited 2 inside the
+        # sandbox because the 0700 temp directory was not traversable by uid
+        # 10001. The runner now opens the source (0755) and output (0777) roots.
+        source = (ROOT / "omni_prod/sandbox_service.py").read_text()
+        self.assertIn("os.chmod(root,0o755); os.chmod(out,0o777)", source)
+        self.assertLess(source.index("os.chmod(root,0o755)"), source.index("r=run_sandbox("))
+
 
 @unittest.skipUnless(importlib.util.find_spec("fastapi"), "FastAPI not installed")
 class HealthEndpointTests(unittest.TestCase):

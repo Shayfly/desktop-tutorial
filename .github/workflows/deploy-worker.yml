@@ -89,7 +89,8 @@ jobs:
           out = result["stdout"]
           print(f"returncode={result['returncode']} stdout={out.strip()!r} stderr={result['stderr'][-300:]!r}")
           if int(result["returncode"]) != 0 or "sandbox-ok" not in out or "network-blocked" not in out:
-              print(f"::error title=sandbox-probe::returncode={result['returncode']} stdout={out.strip()[:200]!r}")
+              err = " ".join(result["stderr"].split())[-300:]
+              print(f"::error title=sandbox-probe::returncode={result['returncode']} stdout={out.strip()[:200]!r} stderr={err!r}")
               sys.exit(1)
           print(f"::notice title=sandbox-probe::PASS code ran in the isolated sandbox ({out.split()[1:3]}), network blocked")
           PY

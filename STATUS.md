@@ -283,6 +283,13 @@
   the worker deploy runs a real snippet through the same signed sandbox path
   and fails unless it ran and the sandbox has no network. Tests:
   `tests/test_sandbox_runner_health.py` (5; the HTTP ones run in CI).
+- Deploy of `89e26df`: images built with the client, but the new sandbox
+  probe failed: `returncode=2 stdout=''` — the run now reaches Docker, and
+  python inside the sandbox could not open the script. Cause (same as the
+  M4.9 fix in the local executor, missing in the remote runner): the runner's
+  temp directories are 0700 and owned by root, the sandbox runs as uid 10001.
+  The runner now makes the source root 0755 and the output root 0777 before
+  the run; the probe's failure annotation now includes stderr.
 
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
