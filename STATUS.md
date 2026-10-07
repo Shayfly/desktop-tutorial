@@ -324,7 +324,9 @@ Transition status after this window (Preview `148aiv28`, branch alias
 | Build → Tests → Verification | PASS | `bld_534476042257416091da55cb4c03ae0e`: verification passed, 1 repair round, quality 86/80 (traceability 100%) — read through `build-evidence.yml` |
 | Durable Artifact (R2) | PASS | deploy `storage-probe` write/read-back/delete PASS (worker); build status `ready` with artifact key; web tier lists versions and the founder downloaded the ZIP after the Preview S3 vars were corrected |
 | ZIP | PASS | founder downloaded and opened the archive (`app`, `tests`, `README`, `.omni`, …) |
-| Modification | PASS (mechanics) / FAIL (base) | `mod_090791ebff9f41f58ae1284f9eeec642`: classified `change_request`, evolved spec, verified, READY_FOR_REVIEW, accepted by the founder 20:12:45Z, billing settled $0.0182 (2 calls). It ran against the wrong base: the failed second product had been committed as the newest version. Fixed: failed builds are no longer versions. Rerun on the football version pending |
+| Modification (rerun on the football version) | PASS | `mod_6ddd35a851a045929528e4bd6acc7768`: source `v_8a6a2c68eab74054` (football, restored with its spec via `/rollback`), `change_request`, 0 repair rounds, verification + gates passed, accepted 20:44:46Z, billing settled $0.0180 (2 calls). New spec adds A8 "removing a team deletes it from the standings and updates the table" |
+| New Version (rerun) | PASS | `v_c7fca05db84a4ef3`, 14 files, spec stored with it |
+| Modification (first attempt) | PASS (mechanics) / FAIL (base) | `mod_090791ebff9f41f58ae1284f9eeec642`: classified `change_request`, evolved spec, verified, READY_FOR_REVIEW, accepted by the founder 20:12:45Z, billing settled $0.0182 (2 calls). It ran against the wrong base: the failed second product had been committed as the newest version. Fixed: failed builds are no longer versions. Rerun on the football version pending |
 | New Version | PASS (mechanics) | `v_38b3f001967c4211`, 13 files, spec stored with it (A7 = the added delete capability) |
 | Preview | BLOCKED | `PREVIEW_DOMAIN_TEMPLATE` + router need a hostname decision (founder) |
 
@@ -358,6 +360,9 @@ Defects found by real runs and fixed (each with a test):
   previous behaviour made the failed product "current" and the next
   modification targeted it. `/restore` now copies the ProductSpec
   (`/rollback`, used by the UI, already did); real-Postgres test added.
+- Spec language: the architect and evolution prompts now write title,
+  summary, requirements and acceptance in the request's language (a Hebrew
+  request produced an English "what was built" panel).
 - Workspace UX (founder feedback): once a project has a version the page leads
   with "what was built" (title, summary, features from the stored spec via
   `/history`), then "what would you like to change"; "new build from scratch"

@@ -11,6 +11,10 @@ from .dependency_policy import GENERATION_CONSTRAINTS
 _ARCHITECT_SYSTEM = (
     "You are Omni Architect. Convert the user's product request to strict JSON. "
     "Return only JSON with title, summary, stack, requirements, acceptance. "
+    # Founder feedback 2026-10-07: a Hebrew request produced an English
+    # title/summary/requirements, shown to the customer as "what was built".
+    "Write title, summary, every requirement text and every acceptance text in the same language as the "
+    "user's request (Hebrew request -> Hebrew text); keep ids, keys, kinds and stack names as specified. "
     # Golden E2E #1 on Preview (2026-10-07): without the exact shape the model
     # invented its own keys and the spec was rejected ("requirement id/text
     # required"). These are the keys ProductSpec.from_dict reads.
