@@ -133,6 +133,10 @@ jobs:
             docker compose logs --tail 40 caddy; echo "::error title=preview-edge::caddy on :80 answered $code (expected a redirect to https)"; exit 1
           fi
           echo "::notice title=preview-edge::PASS router healthy, caddy redirects :80 -> https; hostnames *.${suffix}"
+          for i in $(seq 1 20); do docker compose logs --no-color janitor 2>&1 | grep -q "maintenance started" && break; sleep 3; done
+          line=$(docker compose logs --no-color janitor 2>&1 | grep -E "maintenance started|expired=" | tail -2 | sed 's/^[^|]*| //' | tr '\n' ' ')
+          if [ -z "$line" ]; then docker compose logs --tail 30 janitor; echo "::error title=janitor::maintenance loop did not start"; exit 1; fi
+          echo "::notice title=janitor::$line"
 
       # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
       # then SignatureDoesNotMatch) after minutes of paid generation. This writes,

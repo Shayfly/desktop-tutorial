@@ -35,7 +35,17 @@ const T = {
     stepGenerate:'יצירת קוד, בנייה, בדיקות ותיקונים', stepGates:'בדיקות איכות, אבטחה וזכויות', stepPreview:'תצוגה מקדימה',
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
     repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
-    buildFailed:'הבנייה נכשלה', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
+    buildFailed:'הבנייה נכשלה',
+    errCodes:{verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
+      quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
+      preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
+      security_gate_failed:'נמצאה בעיית אבטחה בקוד שנוצר, ולכן הוא לא אושר.',
+      rights_gate_not_clear:'הגרסה נשמרה, אבל חסר אישור זכויות לפני פרסום.',
+      unsupported_dependency:'הקוד ביקש ספרייה חיצונית שעדיין לא נתמכת בפלטפורמה.',
+      worker_lost:'הבנייה הפסיקה להגיב ושוחררה. לא חויבו קרדיטים. אפשר לנסות שוב.',
+      worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
+      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.'},
+    techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
     previewFailed:'התצוגה המקדימה נכשלה: ', previewExpired:'התצוגה המקדימה פגה. אפשר להפעיל אותה מחדש.',
     startPreview:'הפעלת תצוגה מקדימה',
@@ -90,7 +100,17 @@ const T = {
     stepGenerate:'Generating code, building, testing and repairing', stepGates:'Quality, security and rights gates', stepPreview:'Preview',
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
     repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
-    buildFailed:'Build failed', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
+    buildFailed:'Build failed',
+    errCodes:{verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
+      quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
+      preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
+      security_gate_failed:'A security problem was found in the generated code, so it was not accepted.',
+      rights_gate_not_clear:'The version was saved but needs rights clearance before publishing.',
+      unsupported_dependency:'The code asked for an external library the platform does not support yet.',
+      worker_lost:'The build stopped responding and was released. No credits were charged. You can try again.',
+      worker_exception:'An internal error occurred during the build. The details were recorded.',
+      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.'},
+    techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
     previewFailed:'Preview failed: ', previewExpired:'The preview expired. You can start it again.',
     startPreview:'Start preview',
@@ -404,7 +424,7 @@ function renderTrack() {
     S.plan && S.plan.status !== 'READY' ? t('err409') : null);
   const backendStep = (key, idx, failCodes, note) => {
     if (!b) return push(t(key), 'pending', note);
-    if (failCodes.includes(failedCode)) return push(t(key), 'failed', b.error_message || '');
+    if (failCodes.includes(failedCode)) return push(t(key), 'failed', friendlyError(b));
     if (status === 'ready') return push(t(key), 'done', note);
     if (status === 'failed') return push(t(key), (failedIdx >= 0 ? idx < failedIdx : reached > idx) ? 'done' : 'skipped', note);
     if (status === 'queued') return push(t(key), 'pending', idx === 0 ? t('queued') : note);
@@ -428,7 +448,11 @@ function renderTrack() {
   $('track').replaceChildren(...steps);
   const msg = $('buildMsg'); msg.className = 'msg';
   if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); }
-  else if (status === 'failed') msg.textContent = `${t('buildFailed')}: ${b.error_message || b.error_code || ''}`;
+  else if (status === 'failed') {
+    // Customer-facing reason; the raw technical message stays one click away.
+    msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
+    if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
+  }
   else msg.textContent = '';
 }
 
@@ -482,6 +506,11 @@ function renderPreview() {
   const canRetry = currentVersionId() && (!p || ['EXPIRED', 'STOPPED', 'FAILED', 'UNAVAILABLE'].includes(p.status));
   const existing = empty.querySelector('button'); if (existing) existing.remove();
   if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
+}
+
+function friendlyError(b) {
+  const known = (t('errCodes') || {})[b.error_code];
+  return known || b.error_message || b.error_code || '';
 }
 
 /* ---------- versions ---------- */

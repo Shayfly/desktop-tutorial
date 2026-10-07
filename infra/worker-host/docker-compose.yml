@@ -96,6 +96,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # Expires previews and removes their containers; releases builds whose
+  # worker died (omni_prod.maintenance). Same host/socket/workdir as the
+  # preview worker, because it stops the containers that worker started.
+  janitor:
+    image: omni-preview-worker:latest
+    restart: unless-stopped
+    command: ["python", "-m", "omni_prod.maintenance"]
+    env_file: .env
+    environment:
+      OMNI_CREATOR_PERSISTENCE: postgres
+      TMPDIR: /var/lib/omni-preview/tmp
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/omni-preview:/var/lib/omni-preview
+    depends_on: [preview-worker]
+    healthcheck:
+      disable: true
+
   caddy:
     image: caddy:2
     restart: unless-stopped

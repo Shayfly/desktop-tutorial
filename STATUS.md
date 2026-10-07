@@ -382,7 +382,14 @@ same 18 environment-only failures as the baseline, no new ones); real Postgres
 `tests/test_golden_mod_path_live_postgres.py` (2) — build→spec persisted,
 QA modification admitted with `funding_source='internal_qa'`, settled.
 
-Open: failed builds also commit restorable versions; the build row
+Added 2026-10-08 01:30: `omni_prod.maintenance` (janitor service) expires
+previews and removes their containers, and fails builds RUNNING > 45 min as
+`worker_lost` with the reservation released (real-Postgres tests); INTERNAL_QA
+accounts get a staging project cap (`OMNI_QA_MAX_PROJECTS`, default 20) and
+archived projects no longer count; build failures show a customer-facing
+Hebrew/English reason with the raw message under "technical details".
+
+Open (superseded items struck): ~~failed builds also commit restorable versions~~; the build row
 `bld_2f248e2339cb4ad9848a7ebb5c0c4ed6` is still RUNNING; no reaper; raw
 exception text shown to customers; revoke R2 tokens `148ai-worker`,
 `148ai-worker-2`.
