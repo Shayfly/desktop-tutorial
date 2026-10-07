@@ -10,7 +10,20 @@
   economics; the internal-key filter now exempts exactly
   `pricing.PUBLIC_PLAN_FIELDS`, with stdlib tests that reproduce it. `v24-ci`
   now publishes failing test names as annotations so future failures are
-  readable without logs. Awaiting CI on the fix commit.
+  readable without logs. Evidence: `6076a5a` — `v24-ci` run 37610280545 PASS
+  (full `pytest -q`), `V11 Overlay CI` run 37610279936 PASS.
+- Consolidated Preview deployment: `6076a5a` on 148aiv28 READY
+  (`dpl_2EghHZo7Wfx887nmq296BUjVd8Ew`); 148ai built and failed again
+  (`dpl_7ozoDtVogXEbggoRLiXEiN2M2sta`) — Git disconnect still pending.
+- Probe re-run on the deployed code: `self_contained_web_v1`, contract READY,
+  `[database:SELF_CONTAINED, auth_session:SELF_CONTAINED]`, quote PRICED,
+  unknown `[]`. Plan → Quote stays IMPLEMENTED_NOT_VERIFIED_IN_PREVIEW: the
+  Preview is behind Vercel authentication, the shell cannot reach it and the
+  Vercel connector is disconnected, so the on-Preview check needs the founder
+  (or a reconnected connector). Note: Preview has no model budget configured
+  yet, so its quote covers infrastructure and capabilities with a $0 model
+  budget; the model/QA budget configuration belongs to Quote → Budget
+  Reservation and needs migrations 027–029 applied by the first worker deploy.
 - Preview: `92ba0bc` deployed READY on 148aiv28 (the Hobby rate limit lifted
   for that push); `089f5bd` was rate limited again. The fix push is the
   consolidated deployment of everything since.
