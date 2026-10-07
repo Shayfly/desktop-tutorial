@@ -477,7 +477,9 @@ function renderPreview() {
     else message = t('previewStarting');
   }
   text.textContent = message;
-  const canRetry = p && ['EXPIRED', 'STOPPED', 'FAILED'].includes(p.status) && currentVersionId();
+  // A project opened later (or a preview that was unavailable) can start one
+  // for its current version too, not only right after a build or a change.
+  const canRetry = currentVersionId() && (!p || ['EXPIRED', 'STOPPED', 'FAILED', 'UNAVAILABLE'].includes(p.status));
   const existing = empty.querySelector('button'); if (existing) existing.remove();
   if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
 }
@@ -489,7 +491,7 @@ async function loadVersions() {
     const d = await api(`/api/v28/projects/${pid()}/history`);
     S.versions = (d.versions || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   } catch { S.versions = []; }
-  renderVersions(); renderMod(); renderBuilt();
+  renderVersions(); renderMod(); renderBuilt(); renderPreview();
   $('downloadBtn').disabled = !currentVersionId();
 }
 /* Once a project has a product, lead with what it is and how to change it;
