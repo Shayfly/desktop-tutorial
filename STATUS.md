@@ -80,8 +80,17 @@
   probe, the fixed worker logs `stale consumers absorbed before start: 1` and
   executes it; without one it logs `0`, leaves no decoy and no scheduler keys.
   Tests: `tests/test_worker_entrypoint.py` (8, stdlib). The deploy run now
-  also publishes the worker's start-up lines as annotations. Pending: the
-  deploy run of this commit (worker replacement + probe on the host).
+  also publishes the worker's start-up lines as annotations.
+- **Result, deploy run 37631079254 (`5cd8412`): every step PASS, including
+  the probe right after the worker container was replaced** — `PASS job
+  2b778f2e… executed by worker b186ba0f… in container 72f63493b9ae on this
+  host`; start-up: `worker ttl 135s, dequeue wait 120s, scheduler disabled`,
+  `stale consumers absorbed before start: 0`. CI on `5cd8412`: `v24-ci` and
+  `V11 Overlay CI` PASS. Honest reading: no stale consumer appeared on this
+  replacement, so the earlier deploy-time loss is explained by reproduction,
+  not observed twice on Upstash; the absorber stays as a guard and reports
+  on every start. **Queue → Worker: PASS** (running worker and right after a
+  deploy).
 
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
