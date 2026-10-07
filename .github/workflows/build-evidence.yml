@@ -74,7 +74,13 @@ jobs:
           publish("quality", f"score={q.get('score')} min={q.get('minimum_score')} blockers={q.get('blockers')}\n" +
                   "\n".join(f"- {d.get('name')}: {d.get('score')} (w{d.get('weight')}) {d.get('notes')}" for d in q.get("dimensions") or []))
           publish("repair", f"rounds={ev.get('repair_rounds')} stop={ev.get('repair_stop_reason')} release_ready={ev.get('release_ready')}")
-          publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)))
+          # Non-secret spend figures (amounts and counts only), so a budget stop can be explained.
+          events = ev.get("model_route_events") or []
+          publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)) +
+                  f"\nbudget_binding={ev.get('model_budget_binding')} calls={ev.get('external_model_calls')} "
+                  f"spend={ev.get('provider_spend_usd')} basis={ev.get('provider_spend_basis')} route_events={len(events)}\n" +
+                  "\n".join(f"- {e.get('task')} {e.get('model') or e.get('model_id')} {e.get('outcome')} {e.get('reason') or ''}"[:200]
+                            for e in events[-12:] if isinstance(e, dict)))
           with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
               m = conn.execute(
                   "SELECT id, status, classification, classification_reason, repair_rounds, error_code, error_message, "
