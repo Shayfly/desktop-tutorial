@@ -4,6 +4,10 @@ name: Internal entitlement
 # decision 2026-10-07 #24). Runs manually on the worker host, which already
 # holds the database credentials; GitHub keeps who ran it, when and with what
 # inputs. The command prints entitlement and account ids only.
+#
+# GitHub only offers "Run workflow" (and the dispatch API) for a workflow that
+# is on the default branch or has run at least once. The push trigger below
+# runs it once, read-only (`list`), when this file changes on the build branch.
 on:
   workflow_dispatch:
     inputs:
@@ -18,6 +22,9 @@ on:
       reason:
         description: Why (required for grant and revoke)
         required: false
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/internal-entitlement.yml]
 
 concurrency:
   group: internal-entitlement
@@ -42,7 +49,7 @@ jobs:
       - name: Run
         working-directory: infra/worker-host
         env:
-          ACTION: ${{ inputs.action }}
+          ACTION: ${{ inputs.action || 'list' }}
           EMAIL: ${{ inputs.email }}
           REASON: ${{ inputs.reason }}
           ACTOR: ${{ github.actor }}
