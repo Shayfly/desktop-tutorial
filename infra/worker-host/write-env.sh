@@ -33,6 +33,9 @@ while IFS= read -r line; do
   if [[ "$value" =~ ^[\"\'] || "$value" =~ [\"\']$ ]]; then
     echo "::error title=WORKER_ENV::${name} is wrapped in quotes; paste the value without quotes"; problems=1
   fi
+  if printf '%s' "$value" | LC_ALL=C grep -q '[^ -~]'; then
+    echo "::error title=WORKER_ENV::${name} contains invisible or non-ASCII characters (often copied from a web page); type or re-copy the value"; problems=1
+  fi
 done < .env
 if grep -q '^OMNI_S3_ENDPOINT=.*r2\.cloudflarestorage\.com' .env; then
   ak=$(sed -n 's/^OMNI_S3_ACCESS_KEY=//p' .env | head -n 1); sk=$(sed -n 's/^OMNI_S3_SECRET_KEY=//p' .env | head -n 1)
