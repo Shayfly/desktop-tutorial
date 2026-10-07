@@ -72,6 +72,7 @@ class AutonomousProductEngine:
         rounds = 0
         seen = {self._fingerprint(repo)}
         stop_reason = 'passed' if report.passed else 'max_repair_rounds'
+        self.trace = []  # per round: what failed and what the repair changed (diagnostics only)
         while not report.passed and rounds < self.max_repair_rounds:
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
@@ -81,6 +82,13 @@ class AutonomousProductEngine:
                 failures=failures,
             )
             candidate = apply_patch(repo, patch)
+            self.trace.append({
+                'round': rounds,
+                'failing': sorted({f['acceptance_id'] for f in failures}),
+                'first_failure': (failures[0].get('message', '') + ' | ' + (failures[0].get('evidence') or '')[-300:])
+                                 if failures else '',
+                'changed': sorted(p for p in set(candidate) | set(repo) if candidate.get(p) != repo.get(p))[:12],
+            })
             fingerprint = self._fingerprint(candidate)
             if fingerprint in seen:
                 # `repo` and `report` stay paired: the rejected candidate is not adopted.

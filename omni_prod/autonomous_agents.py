@@ -20,6 +20,10 @@ _ARCHITECT_SYSTEM = (
     "Python standard library, no browser and no network: phrase it through the app's HTTP responses (status codes, "
     "JSON, or text/elements present in the served HTML). Do not write criteria about Lighthouse or performance "
     "scores, test-coverage percentages, load tests, browser storage, visual appearance or JavaScript dialogs. "
+    # Rehearsal 2026-10-08: "an SQL-injection attempt returns 400/500" contradicted
+    # correct behaviour (parameterised queries store the text and answer 200).
+    "Security criteria describe safe handling, not an error code: e.g. a name containing quotes or SQL is "
+    "stored and shown as plain text and no other data changes. "
     "Use 3 to 6 acceptance criteria for a small product. "
     "Write title, summary, every requirement text and every acceptance text in the same language as the "
     "user's request (Hebrew request -> Hebrew text); keep ids, keys, kinds and stack names as specified. "

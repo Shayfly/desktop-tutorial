@@ -43,6 +43,7 @@ def run(prompt: str) -> dict:
             failures=[{'id': f.acceptance_id, 'message': f.message[:300], 'evidence': (f.evidence or '')[-900:]}
                       for f in result.report.failures][:6],
             quality={'score': quality.score, 'passed': quality.passed, 'blockers': list(quality.blockers)},
+            trace=getattr(engine, 'trace', [])[:8],
         )
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
@@ -61,7 +62,11 @@ def annotations(report: dict) -> list[str]:
                              f"seconds={report.get('seconds')} {report.get('error', '')}"),
              note('acceptance', '\n'.join(report.get('acceptance') or [])),
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
-    for i, f in enumerate((report.get('failures') or [])[:6]):
+    if report.get('trace'):
+        lines.append(note('repair rounds', '\n'.join(
+            f"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}"
+            for t in report['trace'])))
+    for i, f in enumerate((report.get('failures') or [])[:5]):
         lines.append(note(f"failure {i + 1} {f['id']}", f['message'] + '\n' + f['evidence']))
     return lines
 
