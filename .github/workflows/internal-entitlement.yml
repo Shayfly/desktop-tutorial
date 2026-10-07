@@ -53,11 +53,19 @@ jobs:
           EMAIL: ${{ inputs.email }}
           REASON: ${{ inputs.reason }}
           ACTOR: ${{ github.actor }}
+        # The outcome (ids and refusal reasons only, never emails or secrets)
+        # is also published as an annotation, readable without the job log.
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ "$ACTION" = "list" ]; then
-            docker compose run --rm --no-deps worker python -m omni_prod.entitlements list
+            docker compose run --rm --no-deps -T worker python -m omni_prod.entitlements list > out.txt 2> err.txt
           else
-            docker compose run --rm --no-deps worker python -m omni_prod.entitlements "$ACTION" \
-              --email "$EMAIL" --reason "$REASON" --by "github:$ACTOR"
+            docker compose run --rm --no-deps -T worker python -m omni_prod.entitlements "$ACTION" \
+              --email "$EMAIL" --reason "$REASON" --by "github:$ACTOR" > out.txt 2> err.txt
           fi
+          rc=$?
+          cat out.txt; cat err.txt >&2
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=entitlement $ACTION::$(tail -n 1 err.txt | tr -d '\r')"; exit "$rc"
+          fi
+          echo "::notice title=entitlement $ACTION::$(tr '\n' ' ' < out.txt | cut -c1-900)"
