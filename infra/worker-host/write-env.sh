@@ -51,6 +51,11 @@ grep -q '^OMNI_PREVIEW_RUNTIME_HOST=.' .env || echo "OMNI_PREVIEW_RUNTIME_HOST=$
 if [ -n "$suffix" ] && ! grep -q '^PREVIEW_DOMAIN_TEMPLATE=.' .env; then
   echo "PREVIEW_DOMAIN_TEMPLATE=https://{preview_id}.${suffix}" >> .env
 fi
+# Non-secret build knobs, published with their values so a limit lower than a
+# real build needs is visible in the deploy (rehearsal 2026-10-08 used 17 calls).
+grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=40" >> .env
+knobs=$(grep -E '^(OMNI_EXTERNAL_CALLS_PER_BUILD|OMNI_EXTERNAL_BUDGET_USD|OMNI_MAX_REPAIR_ROUNDS|OMNI_MODEL_ROUTING|OMNI_MODEL_MIN_QUALITY|OMNI_MODEL_TASK_MIN_QUALITY|OMNI_ZERO_COST_MODE|OMNI_ALLOW_EXTERNAL_FALLBACK)=' .env | tr '\n' ' ')
+echo "::notice title=build-knobs::${knobs:-none set}"
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
 
 # Shape checks, reported by variable NAME and length only (never values).
