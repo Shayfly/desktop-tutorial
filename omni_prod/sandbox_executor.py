@@ -101,7 +101,7 @@ class SandboxRepositoryExecutor:
                     return ExecutionReport(
                         False,
                         tuple(
-                            AcceptanceFailure(a.id, 'build command failed', result.stderr[-2000:])
+                            AcceptanceFailure(a.id, 'build command failed', ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:])
                             for a in spec.acceptance
                         ),
                         '\n'.join(logs)[-10000:],
@@ -143,7 +143,7 @@ class SandboxRepositoryExecutor:
                             AcceptanceFailure(
                                 aid,
                                 f'verification failed: {check.name}',
-                                result.stderr[-2000:],
+                                ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:],
                             )
                         )
         failures.extend(uncovered_acceptance_failures(manifest, spec))

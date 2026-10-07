@@ -34,7 +34,7 @@ _SMOKE = r'''
 import json, os, subprocess, sys, time, urllib.request, urllib.error
 c = json.load(open(".omni/project.json"))
 port, path = int(c["port"]), c.get("health_path", "/")
-env = dict(os.environ, PORT=str(port), HOME="/tmp", PYTHONDONTWRITEBYTECODE="1")
+env = dict(os.environ, PORT=str(port), HOME="/tmp", DATA_DIR="/tmp", PYTHONDONTWRITEBYTECODE="1")
 p = subprocess.Popen(c["start"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 deadline, verdict = time.time() + %(seconds)d, "no answer within %(seconds)ds"
 while time.time() < deadline:

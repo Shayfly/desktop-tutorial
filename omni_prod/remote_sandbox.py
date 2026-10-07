@@ -23,6 +23,14 @@ class RemoteSandboxConfig:
 def sign_body(secret: str, body: bytes) -> str:
     return hmac.new(secret.encode(),body,hashlib.sha256).hexdigest()
 
+def _output_tail(result: dict, limit: int = 3000) -> str:
+    """What the failing command printed, for the repair agent. Golden E2E #1
+    build bld_760c823b822643ebb0512f05d43693aa: pytest reports on stdout, but
+    only stderr (empty) was passed on, so five repair rounds saw no reason."""
+    out = (str(result.get('stdout') or '') + '\n' + str(result.get('stderr') or '')).strip()
+    return out[-limit:]
+
+
 class RemoteSandboxRepositoryExecutor:
     def __init__(self, config: RemoteSandboxConfig, *, urlopen=None):
         self.config=config; self._urlopen=urlopen or request.urlopen
@@ -45,10 +53,10 @@ class RemoteSandboxRepositoryExecutor:
         for command in manifest.build:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',r['stderr'][-2000:]) for a in spec.acceptance),'\n'.join(logs)[-10000:])
+                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_output_tail(r)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
         for check in manifest.verify:
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',r['stderr'][-2000:]) for aid in check.acceptance_ids)
+                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',_output_tail(r)) for aid in check.acceptance_ids)
         failures.extend(uncovered_acceptance_failures(manifest, spec))
         return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:])

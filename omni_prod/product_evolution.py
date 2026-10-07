@@ -3,6 +3,7 @@ import json
 from .model_gateway import OpenAICompatibleGateway
 from .product_spec import ProductSpec
 from .project_manifest import MANIFEST_SHAPE
+from .dependency_policy import GENERATION_CONSTRAINTS
 from .repository_patch import parse_patch
 
 # M4C: "change_request: DO NOT force it into RepairAgent... Implement a
@@ -42,6 +43,7 @@ _EVOLUTION_SYSTEM = (
     'a verify entry in .omni/project.json -- return the full updated '
     '.omni/project.json whenever you add acceptance ids. '
     + MANIFEST_SHAPE
+    + GENERATION_CONSTRAINTS
 )
 
 

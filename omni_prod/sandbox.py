@@ -63,6 +63,7 @@ def build_docker_command(
         # because /workspace is mounted read-only. Bytecode caches go to the
         # writable tmpfs instead; pytest's cache plugin is disabled for the
         # same reason. The source mount stays read-only.
+        "--env", "DATA_DIR=/tmp",
         "--env", "PYTHONPYCACHEPREFIX=/tmp/pycache",
         "--env", "PYTHONDONTWRITEBYTECODE=1",
         "--env", "PYTEST_ADDOPTS=-p no:cacheprovider",

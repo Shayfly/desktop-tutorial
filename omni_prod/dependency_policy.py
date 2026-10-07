@@ -52,7 +52,18 @@ GENERATION_CONSTRAINTS = (
     'Dependency policy (enforced before verification): the repository is verified in an offline Python sandbox with '
     'no network and no package installation. Write the product in Python; application code may import only the '
     f'Python standard library; tests may additionally use {", ".join(sorted(TEST_ONLY_PACKAGES))}. Do not add install '
-    'steps, third-party packages or a Node toolchain; anything else fails the build as UNSUPPORTED_DEPENDENCY.'
+    'steps, third-party packages or a Node toolchain; anything else fails the build as UNSUPPORTED_DEPENDENCY. '
+    # Golden E2E #1 build bld_760c823b822643ebb0512f05d43693aa: the app created
+    # its SQLite file next to the code and every test failed with "unable to
+    # open database file" -- the repository is read-only in the sandbox and in
+    # the running preview, and nothing told the model so.
+    'Runtime environment (same rules in tests and in the running preview): the repository is mounted READ-ONLY; '
+    'write files only under os.environ.get("DATA_DIR", "/tmp") (for example a SQLite database at '
+    'os.path.join(os.environ.get("DATA_DIR", "/tmp"), "app.db")), never next to the code, and create that path at '
+    'startup. Tests must not write into the repository either (use pytest tmp_path and set DATA_DIR for the app). '
+    'Tests run from the repository root with "python -m pytest -q" on Python 3.12; the preview runs Python 3.11, so '
+    'use only syntax and standard-library features available in 3.11. There is no network except loopback: a test '
+    'that needs the HTTP server starts it in a thread on a free port (bind port 0) and stops it afterwards.'
 )
 
 _STDLIB = frozenset(sys.stdlib_module_names) | {'__future__'}
