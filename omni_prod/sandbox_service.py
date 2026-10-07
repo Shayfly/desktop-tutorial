@@ -16,8 +16,24 @@ class RunRequest(BaseModel):
     argv: list[str]=Field(min_length=1,max_length=64)
     build_id: str=Field(min_length=1,max_length=120)
 
+def _runner_ready() -> tuple[bool, str]:
+    """Health reflects whether a run can work at all: the Docker client on
+    run_sandbox's PATH and the host daemon socket. A runner without them used to
+    report healthy and fail every build with HTTP 500."""
+    import shutil
+    if shutil.which('docker', path='/usr/bin:/bin') is None:
+        return False, 'docker client not installed'
+    host = os.getenv('DOCKER_HOST', '')
+    if not host and not Path('/var/run/docker.sock').exists():
+        return False, 'docker daemon socket not mounted'
+    return True, 'ready'
+
 @app.get('/health')
-def health(): return {'ok':True,'runner':'docker-isolated'}
+def health():
+    ready, reason = _runner_ready()
+    if not ready:
+        raise HTTPException(503, reason)
+    return {'ok':True,'runner':'docker-isolated'}
 
 @app.post('/run')
 async def run(req: Request):

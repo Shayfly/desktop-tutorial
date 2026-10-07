@@ -263,6 +263,27 @@
   updated to the new contract (rejected as failed verification, sandbox not
   called).
 
+### 19:30 — fifth real build: sandbox runner had no docker client
+
+- Build on Preview `e2cc4c7`: spec and generated repository accepted (both
+  shape fixes hold; the manifest now parses), then the first sandbox command
+  failed: `RemoteSandboxError: HTTP Error 500`. New read-only workflow
+  `worker-diagnostics.yml` (container state, sandbox image architecture,
+  recent worker and sandbox-runner logs as annotations, secret shapes
+  redacted; no checkout/compose/restart) — runs 37650560125 and a dispatched
+  short-tail run — showed the runner's traceback: `FileNotFoundError: [Errno
+  2] No such file or directory: 'docker'` in `sandbox.run_sandbox`. The
+  runner image installed `docker.io` with `--no-install-recommends` and ended
+  up without a docker binary, while its `/health` still answered 200, so the
+  deploy looked green. Sandbox image `omni-sandbox:latest` is arm64; both
+  containers running, 0 restarts.
+- Fix: the runner image installs `docker-cli` (fallback `docker.io`) and the
+  image build fails without `docker --version`; `/health` returns 503 without
+  the client or the daemon socket (compose then never starts the worker);
+  the worker deploy runs a real snippet through the same signed sandbox path
+  and fails unless it ran and the sandbox has no network. Tests:
+  `tests/test_sandbox_runner_health.py` (5; the HTTP ones run in CI).
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
