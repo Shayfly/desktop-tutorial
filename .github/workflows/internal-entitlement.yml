@@ -31,14 +31,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Write environment file
-        working-directory: infra/worker-host
         env:
           WORKER_ENV: ${{ secrets.WORKER_ENV }}
-        run: |
-          set -euo pipefail
-          umask 077
-          if [ -z "${WORKER_ENV}" ]; then echo "::error::GitHub secret WORKER_ENV is not set"; exit 1; fi
-          printf '%s\n' "$WORKER_ENV" > .env
+        run: bash infra/worker-host/write-env.sh
 
       - name: Apply database migrations
         working-directory: infra/worker-host

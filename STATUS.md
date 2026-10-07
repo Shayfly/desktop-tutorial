@@ -95,6 +95,28 @@
   on every start. **Queue → Worker: PASS** (running worker and right after a
   deploy).
 
+### 17:00 — preparing Quote → Budget Reservation
+
+- Vercel Preview (148aiv28, target `preview` only, type plain, non-secret,
+  set through the Vercel API): `OMNI_ENV=staging`, `OMNI_QA_BUILD_MAX_USD=0.50`,
+  `OMNI_QA_BUDGET_TOTAL_USD=10` (founder caps), `OMNI_EXTERNAL_BUDGET_USD=0.50`,
+  `OMNI_EXTERNAL_CALLS_PER_BUILD=40`, `OMNI_ZERO_COST_MODE=0`,
+  `OMNI_ALLOW_EXTERNAL_FALLBACK=1` (same model policy as the worker's
+  `WORKER_ENV`). `OMNI_ENV=staging` changes nothing else in the app (every
+  other check compares with `production`). Takes effect with the next Preview
+  deployment.
+- Bug found before first use: the "Internal entitlement" workflow wrote `.env`
+  from `WORKER_ENV` only, without the host sandbox secret, so `docker compose`
+  would refuse to run (`OMNI_SANDBOX_SHARED_SECRET:?required`). Both
+  workflows now call one script, `infra/worker-host/write-env.sh` (also strips
+  CR from pasted secrets). Checked locally: missing secret → explicit error;
+  CRLF input → clean `.env`, mode 600, names only printed.
+- Next: Preview deployment with the new settings; INTERNAL_QA grant for the
+  founder's 148AI account; founder runs the product flow on Preview (login →
+  project → prompt → plan → build) — the plan view must show
+  `build_authorization=PRICED` and the build start must create a QA-funded
+  reservation.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
