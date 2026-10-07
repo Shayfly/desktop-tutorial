@@ -58,8 +58,10 @@ from .spec_repository import SpecNotFound
 # Order matters: the first failing gate is the one reported as error_code.
 GATE_ORDER = ('verification', 'quality', 'security', 'rights')
 
-SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state.external_spend_usd); '
-               'an authorization estimate, not a cost -- provider-reported usage is in provider_usage')
+SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state.external_spend_usd): each call '
+               'reserves its worst case and is settled down to reported tokens x catalog price when the provider '
+               'reports usage; calls without reported usage stay at their worst case. Provider-reported usage is in '
+               'provider_usage')
 
 
 def _report_phase(jobs, build_id: str, phase: str, message: str = '') -> None:

@@ -169,6 +169,7 @@ class RoutedModelGateway:
             usage = getattr(gateway, 'last_usage', None) if gateway is not None else None
             self.usage.record(usage)
             self._fill(record, gateway, usage, option, elapsed)
+            self._settle(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
             record.failure_reason = f'{type(exc).__name__}: {exc}'[:500]
             self.recorder.add(record)
@@ -181,11 +182,28 @@ class RoutedModelGateway:
         usage = getattr(gateway, 'last_usage', None)
         self.usage.record(usage)
         self._fill(record, gateway, usage, option, elapsed)
+        self._settle(route, record)
         record.outcome = 'ok'
         self.recorder.add(record)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
                                 request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
         return value
+
+    def _settle(self, route: ProviderRoute, record: AttemptRecord) -> None:
+        """Lower this call's reservation to its metered cost.
+
+        Rehearsal 2026-10-08: each call reserved its worst case (max_tokens
+        output) and never gave the difference back, so a build that preferred
+        the stronger model hit 'external model budget exceeded' after 13 calls.
+        When the provider reported tokens, the authorization becomes usage x
+        catalog price; without reported usage the worst case stays reserved.
+        """
+        metered = record.metered_cost_usd
+        if not route.endpoint.external or metered is None:
+            return
+        release = route.max_estimated_cost_usd - metered
+        if release > 0:
+            self.state.external_spend_usd -= release
 
     @staticmethod
     def _fill(record: AttemptRecord, gateway, usage, option, elapsed: int) -> None:
