@@ -1,5 +1,28 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-08 02:50 Asia/Jerusalem — root cause of bld_ccd38bd0; status review
+
+Full review (Hebrew): `docs/STATUS_REVIEW_2026-10-08_HE.md`. No operation running.
+
+- `bld_ccd38bd00a2f430ab2d92b2962c91544` (founder, 02:36) FAILED `worker_exception` /
+  `ModelPolicyViolation: external model budget exceeded`. Earlier hypothesis (worker env
+  budget below the reservation) is **wrong**: build-evidence run 37704279388 shows
+  `worker_env_budget_usd=0.50, reserved_llm_usd=0.50, effective_budget_usd=0.50`.
+- Verified cause: `gemini-3.8-flash` answered `HTTP 429 You exceeded your current quota`
+  10 times (~250 ms each, free tier); every rejected call stayed in the ledger at its
+  worst case ($0.045–0.050), so 14 calls "spent" $0.4739 while the provider charged $0.
+  The gateway also retried the same model twice after a quota 429.
+- Status: model routing PASS (events); quota handling **FAIL**; cost reconciliation
+  **FAIL** for rejected calls (recorded spend ≠ provider cost). Not fixed yet (review
+  action 1). Gemini daily quotas reset at midnight Pacific (ai.google.dev rate-limits).
+- `build-evidence.yml` now publishes budget binding, call count, spend and the last 12
+  route events (model, ok, latency, cap, error) — amounts only, no secrets.
+- Environments checked: branch/Vercel Preview `bd6ea0d` (READY, dpl_95PZjXrvHrWM6UBJQee9bD5XqFg3);
+  worker `4712ab7` (same product code); Vercel Production 148aiv28 = `main@e8f2949`,
+  148ai = `main@0f7acea`; neither is connected to the worker.
+- Superseded below: §3 "Preview router blocked — needs domain control" (the sslip.io edge
+  runs since 2026-10-08 00:49).
+
 ## Update 2026-10-07 16:10 Asia/Jerusalem — worker host (Queue → Worker)
 
 - Oracle access: SSH timed out because the security-list ingress rule allowed
