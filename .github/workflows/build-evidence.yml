@@ -53,14 +53,14 @@ jobs:
           bid = os.environ.get("BUILD_ID") or None
           with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
               row = conn.execute(
-                  "SELECT id, status, phase, error_code, error_message, evidence_json, created_at, finished_at "
+                  "SELECT id, status, phase, error_code, error_message, evidence_json, created_at, finished_at, version_id, artifact_key "
                   "FROM build_jobs WHERE (%s::text IS NULL OR id = %s) ORDER BY created_at DESC LIMIT 1",
                   (bid, bid)).fetchone()
           if not row:
               print("::error::build not found"); raise SystemExit(1)
-          bid, status, phase, code, message, ev, created, finished = row
+          bid, status, phase, code, message, ev, created, finished, version_id, artifact_key = row
           ev = ev if isinstance(ev, dict) else json.loads(ev or "{}")
-          publish("build", f"{bid} status={status} phase={phase} error_code={code} created={created} finished={finished}\n{message or ''}")
+          publish("build", f"{bid} status={status} phase={phase} error_code={code} created={created} finished={finished} version={version_id} artifact={artifact_key}\n{message or ''}")
           gates = ev.get("gates") or {}
           ver = gates.get("verification") or ev.get("verification") or {}
           failures = ver.get("failures") or []
