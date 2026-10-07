@@ -69,5 +69,9 @@ jobs:
               lines.append(f"- [{f.get('acceptance_id')}] {f.get('message')}\n  evidence: {json.dumps(f.get('evidence'), ensure_ascii=False, default=str)[:600]}")
           publish("verification", "\n".join(lines))
           publish("build log tail", ev.get("build_log_tail") or "")
+          q = gates.get("quality") or {}
+          publish("quality", f"score={q.get('score')} min={q.get('minimum_score')} blockers={q.get('blockers')}\n" +
+                  "\n".join(f"- {d.get('name')}: {d.get('score')} (w{d.get('weight')}) {d.get('notes')}" for d in q.get("dimensions") or []))
+          publish("repair", f"rounds={ev.get('repair_rounds')} stop={ev.get('repair_stop_reason')} release_ready={ev.get('release_ready')}")
           publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)))
           PY
