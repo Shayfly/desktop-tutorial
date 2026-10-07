@@ -57,13 +57,15 @@ jobs:
         # is also published as an annotation, readable without the job log.
         run: |
           set -uo pipefail
+          # GitHub runs this with `bash -e`: capture the exit code instead of
+          # letting errexit end the step before the reason is published.
+          rc=0
           if [ "$ACTION" = "list" ]; then
-            docker compose run --rm --no-deps -T worker python -m omni_prod.entitlements list > out.txt 2> err.txt
+            docker compose run --rm --no-deps -T worker python -m omni_prod.entitlements list > out.txt 2> err.txt || rc=$?
           else
             docker compose run --rm --no-deps -T worker python -m omni_prod.entitlements "$ACTION" \
-              --email "$EMAIL" --reason "$REASON" --by "github:$ACTOR" > out.txt 2> err.txt
+              --email "$EMAIL" --reason "$REASON" --by "github:$ACTOR" > out.txt 2> err.txt || rc=$?
           fi
-          rc=$?
           cat out.txt; cat err.txt >&2
           if [ "$rc" -ne 0 ]; then
             echo "::error title=entitlement $ACTION::$(tail -n 1 err.txt | tr -d '\r')"; exit "$rc"
