@@ -37,8 +37,11 @@
   GitHub): PASS when the worker runs; FAIL when the executing host is not the
   expected container; FAIL (status `queued`) when no worker runs. Status:
   IMPLEMENTED, result pending the deploy run of this commit.
-- Vercel: `2464394` READY on 148aiv28 (`dpl_8PdrfGMYy6CRYxRXvTCLQJFriApT`);
-  148ai still connected to Git and failing every push.
+- Vercel: `2464394` READY on 148aiv28 (`dpl_8PdrfGMYy6CRYxRXvTCLQJFriApT`).
+- Duplicate Vercel project **148ai disconnected from Git** by the founder
+  (16:54, 148ai → Settings → Git → Remove Connection; project kept, not
+  deleted). Verification: the push of this STATUS change must create a
+  deployment on 148aiv28 only, none on 148ai.
 
 ### 16:50 — probe result, diagnosis, fix
 
