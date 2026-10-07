@@ -79,7 +79,7 @@ jobs:
           publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)) +
                   f"\nbudget_binding={ev.get('model_budget_binding')} calls={ev.get('external_model_calls')} "
                   f"spend={ev.get('provider_spend_usd')} basis={ev.get('provider_spend_basis')} route_events={len(events)}\n" +
-                  "\n".join(f"- {e.get('task')} {e.get('model') or e.get('model_id')} {e.get('outcome')} {e.get('reason') or ''}"[:200]
+                  "\n".join(f"- {e.get('model')} ok={e.get('ok')} {e.get('elapsed_ms')}ms max=${e.get('max_estimated_cost_usd')} err={(e.get('error') or '')[:90]}"
                             for e in events[-12:] if isinstance(e, dict)))
           with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
               m = conn.execute(
