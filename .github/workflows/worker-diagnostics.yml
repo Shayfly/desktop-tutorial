@@ -1,0 +1,54 @@
+name: Worker diagnostics
+
+# Read-only. Publishes the recent worker and sandbox-runner logs and container
+# state as annotations, so they can be read through the GitHub API without SSH
+# and without the job log. Changes nothing on the host: no checkout, no
+# compose, no restart. Known secret shapes are redacted before publishing.
+#
+# The push trigger runs it once when this file changes (GitHub only
+# dispatches workflows that have run before or are on the default branch).
+on:
+  workflow_dispatch:
+    inputs:
+      lines:
+        description: Log lines per container (max 200)
+        required: false
+        default: "120"
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/worker-diagnostics.yml]
+
+concurrency:
+  group: worker-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  diagnostics:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Publish container state and recent logs
+        env:
+          LINES_INPUT: ${{ inputs.lines }}
+        run: |
+          set -uo pipefail
+          n="${LINES_INPUT:-120}"; case "$n" in ''|*[!0-9]*) n=120;; esac; [ "$n" -gt 200 ] && n=200
+          redact() {
+            sed -E \
+              -e 's/AIza[0-9A-Za-z_-]{20,}/[redacted-google-key]/g' \
+              -e 's#(rediss?|postgres(ql)?)://[^ "]+#\1://[redacted]#g' \
+              -e 's/(key|token|secret|password|authorization)([" :=]+)[^ ",]+/\1\2[redacted]/Ig' \
+              -e 's/[A-Za-z0-9+\/_-]{48,}/[redacted-long-value]/g'
+          }
+          publish() {  # title, then the command whose output to publish
+            local title="$1"; shift
+            local body
+            body=$("$@" 2>&1 | tail -n "$n" | redact | cut -c1-400)
+            body=${body//'%'/'%25'}; body=${body//$'\r'/}; body=${body//$'\n'/'%0A'}
+            echo "::notice title=${title}::${body:-<empty>}"
+          }
+          publish "containers" docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}'
+          publish "restarts" docker inspect -f '{{.Name}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' omni-worker-worker-1 omni-worker-sandbox-runner-1
+          publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
+          publish "worker log" docker logs --tail "$n" omni-worker-worker-1
+          publish "sandbox-runner log" docker logs --tail "$n" omni-worker-sandbox-runner-1
