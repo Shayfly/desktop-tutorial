@@ -68,6 +68,9 @@ jobs:
           fi
           cat out.txt; cat err.txt >&2
           if [ "$rc" -ne 0 ]; then
-            echo "::error title=entitlement $ACTION::$(tail -n 1 err.txt | tr -d '\r')"; exit "$rc"
+            # Last few non-empty lines (docker compose may add its own lines).
+            tr -d '\r' < err.txt | grep -v '^[[:space:]]*$' | tail -n 4 \
+              | while IFS= read -r line; do echo "::error title=entitlement $ACTION::$line"; done
+            exit "$rc"
           fi
           echo "::notice title=entitlement $ACTION::$(tr '\n' ' ' < out.txt | cut -c1-900)"
