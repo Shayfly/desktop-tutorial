@@ -13,6 +13,14 @@ _ARCHITECT_SYSTEM = (
     "Return only JSON with title, summary, stack, requirements, acceptance. "
     # Founder feedback 2026-10-07: a Hebrew request produced an English
     # title/summary/requirements, shown to the customer as "what was built".
+    # Golden E2E #1 build bld_85cc573b473341e9b3f10d248d743ff1 failed after five
+    # repair rounds on criteria no sandbox test can check (Lighthouse score,
+    # coverage percentage, browser localStorage, a JavaScript confirm dialog).
+    "Every acceptance criterion must be checkable by an automated pytest test that runs in a sandbox with only the "
+    "Python standard library, no browser and no network: phrase it through the app's HTTP responses (status codes, "
+    "JSON, or text/elements present in the served HTML). Do not write criteria about Lighthouse or performance "
+    "scores, test-coverage percentages, load tests, browser storage, visual appearance or JavaScript dialogs. "
+    "Use 3 to 6 acceptance criteria for a small product. "
     "Write title, summary, every requirement text and every acceptance text in the same language as the "
     "user's request (Hebrew request -> Hebrew text); keep ids, keys, kinds and stack names as specified. "
     # Golden E2E #1 on Preview (2026-10-07): without the exact shape the model

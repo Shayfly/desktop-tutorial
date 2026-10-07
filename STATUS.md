@@ -389,6 +389,20 @@ accounts get a staging project cap (`OMNI_QA_MAX_PROJECTS`, default 20) and
 archived projects no longer count; build failures show a customer-facing
 Hebrew/English reason with the raw message under "technical details".
 
+Build `bld_85cc573b473341e9b3f10d248d743ff1` (02:29 UTC+3, Hebrew football
+prompt) FAILED after 5 repair rounds: A3–A7 never covered. Causes: the
+architect wrote criteria no sandbox test can check (Lighthouse >90, 80%
+coverage, browser localStorage, a JS confirm dialog) and the build repair
+agent saw only `{path, chars}` (never the manifest). Fixed: architect must
+write HTTP/HTML-testable criteria (3–6); build repair uses the bounded content
+summary. Not yet re-run.
+
+Workspace UX backlog (founder approved, to do after Golden E2E #1 passes):
+1. start the preview automatically when a project with a version opens;
+2. live build progress (current step, repair rounds, time estimate);
+3. mobile layout for the workspace;
+4. original request and Hebrew product description at the top of the project.
+
 Open (superseded items struck): ~~failed builds also commit restorable versions~~; the build row
 `bld_2f248e2339cb4ad9848a7ebb5c0c4ed6` is still RUNNING; no reaper; raw
 exception text shown to customers; revoke R2 tokens `148ai-worker`,

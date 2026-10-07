@@ -14,3 +14,18 @@ class SpecLanguageTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestableCriteriaTests(unittest.TestCase):
+    """bld_85cc573b473341e9b3f10d248d743ff1: untestable criteria (Lighthouse,
+    coverage %, localStorage, JS dialogs) exhausted five repair rounds."""
+
+    def test_architect_requires_sandbox_testable_criteria(self):
+        for needle in ('no browser and no network', 'Lighthouse', 'test-coverage percentages', 'browser storage'):
+            self.assertIn(needle, _ARCHITECT_SYSTEM)
+
+    def test_build_repair_sees_the_manifest_content(self):
+        from omni_prod.autonomous_core import AutonomousProductEngine
+        summary = AutonomousProductEngine._summary({'.omni/project.json': '{"verify": []}', 'app.py': 'x = 1'})
+        entries = {e['path']: e for e in summary['files']}
+        self.assertEqual(entries['.omni/project.json']['content'], '{"verify": []}')

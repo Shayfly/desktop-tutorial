@@ -44,11 +44,12 @@ class AutonomousProductEngine:
 
     @staticmethod
     def _summary(repo: dict[str, str]) -> dict:
-        return {
-            'files': [{'path': p, 'chars': len(c)} for p, c in sorted(repo.items())],
-            'file_count': len(repo),
-            'total_chars': sum(len(c) for c in repo.values()),
-        }
+        # Golden E2E #1 build bld_85cc573b473341e9b3f10d248d743ff1: five repair
+        # rounds could not list acceptance ids in .omni/project.json because the
+        # repair agent saw only {path, chars}. Same bounded content summary the
+        # modification path uses.
+        from .modifier_engine import repo_summary
+        return repo_summary(repo)
 
     @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
