@@ -42,8 +42,8 @@ _GENERATOR_SYSTEM = (
     'The preview container runs "start" from the repository root as committed: no install step runs first, '
     'the filesystem is read-only except /tmp, it runs as an unprivileged user, and it must listen on 0.0.0.0 '
     'at "port" (also provided as the PORT environment variable). Prefer a start command that needs only the '
-    'runtime standard library. If the product cannot be served that way, omit the preview keys: the platform '
-    'then reports the version as NOT_PREVIEWABLE instead of faking a preview. '
+    'runtime standard library. Every product here is a website or web app, so the preview keys are required; '
+    'the platform starts the app in the sandbox and checks health_path before accepting the build. '
     'For a Web/SaaS product, the same .omni/project.json must also include a data-driven "web_saas_acceptance" object. '
     'It must contain "product_family":"managed_web_saas_v1", "required_kinds" covering auth, role, data_create, data_read, data_update, data_delete, integration, responsive, api_smoke, and non-empty "personas". '
     # Decision 2026-10-07 #27: a self-contained app has no external integration

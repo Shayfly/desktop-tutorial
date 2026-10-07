@@ -13,6 +13,12 @@ MANIFEST_SHAPE = (
     '"build" is a list of argv arrays (it may be empty). "verify" is a non-empty list; every entry has a name, an '
     'argv array and acceptance_ids naming only acceptance ids of the approved specification; together the entries '
     'cover every acceptance id. '
+    # Golden E2E #1: without the preview keys in this shared example the model
+    # left them out and the finished product could not be previewed.
+    'The same file must also hold the preview contract as top-level keys, e.g. the complete file: '
+    '{"schema_version": 2, "runtime": "python:3.11-slim", "start": ["python", "app.py"], "port": 8000, '
+    '"health_path": "/", "build": [["python", "-m", "compileall", "-q", "."]], '
+    '"verify": [{"name": "unit tests", "argv": ["python", "-m", "pytest", "-q"], "acceptance_ids": ["A1", "A2"]}]}. '
 )
 
 @dataclass(frozen=True)

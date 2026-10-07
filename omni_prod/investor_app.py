@@ -592,6 +592,9 @@ def _model_gateway_and_executor():
     # fails as UNSUPPORTED_DEPENDENCY before the sandbox starts.
     from .dependency_policy import DependencyGateExecutor
     executor=DependencyGateExecutor(executor)
+    # The product must be startable for preview (contract + real start in the sandbox).
+    from .preview_smoke import PreviewReadyExecutor
+    executor=PreviewReadyExecutor(executor)
     # Quality shortfalls are repairable like failed checks (release gate uses
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor

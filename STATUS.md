@@ -328,7 +328,7 @@ Transition status after this window (Preview `148aiv28`, branch alias
 | New Version (rerun) | PASS | `v_c7fca05db84a4ef3`, 14 files, spec stored with it |
 | Modification (first attempt) | PASS (mechanics) / FAIL (base) | `mod_090791ebff9f41f58ae1284f9eeec642`: classified `change_request`, evolved spec, verified, READY_FOR_REVIEW, accepted by the founder 20:12:45Z, billing settled $0.0182 (2 calls). It ran against the wrong base: the failed second product had been committed as the newest version. Fixed: failed builds are no longer versions. Rerun on the football version pending |
 | New Version | PASS (mechanics) | `v_38b3f001967c4211`, 13 files, spec stored with it (A7 = the added delete capability) |
-| Preview | BLOCKED | `PREVIEW_DOMAIN_TEMPLATE` + router need a hostname decision (founder) |
+| Preview | NOT VERIFIED (edge PASS) | Founder chose a free temporary address. Deployed: preview-worker, router, Caddy on-demand TLS for `*.151-145-89-132.sslip.io`; deploy check `preview-edge: PASS`; Oracle security list 80/443 opened by the founder. First launch on `v_c7fca05db84a` → `NOT_PREVIEWABLE: preview contract requires schema_version 2, got None` (generated manifest had no preview keys). Fix: preview keys in the shared manifest example + `PreviewReadyExecutor` (contract required, app started in the sandbox and its health path polled; failure is repairable). Needs a new version produced after this fix |
 
 Defects found by real runs and fixed (each with a test):
 - R2 credentials: worker key was 34 chars, then SignatureDoesNotMatch, then a

@@ -218,6 +218,11 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
         from .quality_gate import QUALITY_FAILURE_ID
         report_failures = tuple(getattr(result.report, 'failures', ()) or ())
+        from .preview_smoke import PREVIEW_FAILURE_ID
+        if report_failures and all(getattr(f, 'acceptance_id', None) == PREVIEW_FAILURE_ID for f in report_failures):
+            # Every acceptance check passed; the product would not start for preview.
+            return False, 'preview_not_ready', ('the product passed its checks but did not start for preview '
+                                                'after repair: ' + '; '.join(f.message for f in report_failures))[:2000]
         if report_failures and all(getattr(f, 'acceptance_id', None) == QUALITY_FAILURE_ID for f in report_failures):
             # Every acceptance check passed; only the quality bar was missed
             # after the repair rounds.

@@ -153,7 +153,11 @@ class TestPreviewContract(unittest.TestCase):
 
     def test_generator_prompt_emits_the_contract(self):
         for token in ('"schema_version": 2', 'python:3.11-slim', 'node:20-slim', '"start"', '"port"',
-                      '"health_path"', '0.0.0.0', 'NOT_PREVIEWABLE'):
+                      '"health_path"', '0.0.0.0',
+                      # Decision change 2026-10-07: every product is a website, the
+                      # preview keys are required and checked by a real start in the
+                      # sandbox (preview_smoke) instead of being optional.
+                      'preview keys are required'):
             self.assertIn(token, _GENERATOR_SYSTEM)
 
 
