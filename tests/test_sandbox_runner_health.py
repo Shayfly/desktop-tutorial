@@ -41,6 +41,21 @@ class ImageAndDeployTests(unittest.TestCase):
         self.assertNotIn("print(sk", run)
         self.assertNotIn("print(ak", run)
 
+    def test_bytecode_and_pytest_caches_do_not_write_to_the_read_only_source(self):
+        # Golden E2E #1: every acceptance check failed with "Read-only file
+        # system: './__pycache__'" from `python -m compileall .`.
+        import tempfile
+        from omni_prod.sandbox import SandboxLimits, build_docker_command
+        with tempfile.TemporaryDirectory() as src:
+            argv = build_docker_command(source_dir=src, build_id="b1", limits=SandboxLimits(),
+                                        command=["python", "-m", "compileall", "."])
+        pairs = {argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--env"}
+        self.assertIn("PYTHONPYCACHEPREFIX=/tmp/pycache", pairs)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", pairs)
+        self.assertIn("PYTEST_ADDOPTS=-p no:cacheprovider", pairs)
+        self.assertIn("--read-only", argv)
+        self.assertTrue(any(a.endswith("dst=/workspace,readonly") for a in argv))
+
     def test_mount_roots_are_usable_by_the_unprivileged_sandbox_user(self):
         # First deploy probe after the client fix: python exited 2 inside the
         # sandbox because the 0700 temp directory was not traversable by uid

@@ -58,6 +58,14 @@ def build_docker_command(
         "--workdir", "/workspace",
         "--hostname", "omni-sandbox",
         "--env", "HOME=/tmp",
+        # Golden E2E #1 (2026-10-07): `python -m compileall .` failed every
+        # acceptance check with "Read-only file system: './__pycache__'"
+        # because /workspace is mounted read-only. Bytecode caches go to the
+        # writable tmpfs instead; pytest's cache plugin is disabled for the
+        # same reason. The source mount stays read-only.
+        "--env", "PYTHONPYCACHEPREFIX=/tmp/pycache",
+        "--env", "PYTHONDONTWRITEBYTECODE=1",
+        "--env", "PYTEST_ADDOPTS=-p no:cacheprovider",
         "--name", f"omni-build-{build_id}",
     ]
 
