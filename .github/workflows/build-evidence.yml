@@ -46,7 +46,8 @@ jobs:
               return re.sub(r"[A-Za-z0-9+/_-]{48,}", "[redacted-long-value]", text)
 
           def publish(title, body, limit=3500):
-              body = redact(str(body))[-limit:] or "<empty>"
+              body = redact(str(body))[:limit] if title.startswith("promoted entry") else redact(str(body))[-limit:]
+              body = body or "<empty>"
               body = body.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
               print(f"::notice title={title}::{body}")
 
@@ -91,4 +92,22 @@ jobs:
                           publish("promoted spec acceptance", "\n".join(f"{a.get('id')}: {a.get('text')}" for a in sj.get("acceptance", [])))
                       v = conn.execute("SELECT file_count, message, created_at FROM project_versions WHERE id = %s", (m[8],)).fetchone()
                       publish("promoted version", f"{m[8]} files={v and v[0]} message={v and v[1]} created={v and v[2]}")
+                      # Read-only look at the promoted version's own code (manifest + entry file).
+                      try:
+                          import io, zipfile
+                          from omni_prod.storage import S3ArtifactStore
+                          key = conn.execute("SELECT artifact_key FROM project_versions WHERE id = %s", (m[8],)).fetchone()[0]
+                          store = S3ArtifactStore(endpoint=os.environ["OMNI_S3_ENDPOINT"], bucket=os.environ["OMNI_S3_BUCKET"],
+                                                  access_key=os.environ["OMNI_S3_ACCESS_KEY"], secret_key=os.environ["OMNI_S3_SECRET_KEY"])
+                          z = zipfile.ZipFile(io.BytesIO(store.get_bytes(key, verify=False)))
+                          names = sorted(z.namelist())
+                          publish("promoted files", "\n".join(f"{n} ({z.getinfo(n).file_size})" for n in names))
+                          manifest = z.read(".omni/project.json").decode("utf-8", "replace") if ".omni/project.json" in names else ""
+                          publish("promoted manifest", manifest)
+                          start = (json.loads(manifest).get("start") or []) if manifest else []
+                          entry = next((a for a in start if a.endswith(".py") and a in names), None)
+                          if entry:
+                              publish("promoted entry " + entry.replace("/", "_"), z.read(entry).decode("utf-8", "replace")[:3400], limit=3400)
+                      except Exception as exc:
+                          publish("promoted files", f"could not read artifact: {type(exc).__name__}")
           PY
