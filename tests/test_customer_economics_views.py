@@ -90,6 +90,20 @@ class BuildStatusEvidenceTests(unittest.TestCase):
         self.assertNotIn("model_route_events", (ROOT / "omni_prod/investor_app.py").read_text())
 
 
+class CustomerFacingFieldsTests(unittest.TestCase):
+    def test_customer_plan_prices_and_limits_are_not_flagged(self):
+        from omni_prod.pricing import PLAN_CATALOG, PlanCode, customer_usage_view
+        view = customer_usage_view({"plan": PLAN_CATALOG[PlanCode.PRO].to_dict(), "credits_used": 1,
+                                    "credits_remaining": 3999, "cycle": "2026-10"})
+        self.assertEqual([p for p, k in _all_keys(view) if is_internal_key(k)], [])
+        self.assertEqual(json.dumps(strip_internal_economics(view), sort_keys=True), json.dumps(view, sort_keys=True))
+        self.assertIn("monthly_price_usd", view["plan"])         # the customer's own price is customer-facing
+
+    def test_internal_plan_economics_still_flagged(self):
+        for key in ("paid_provider_budget_usd", "variable_margin_floor", "provider_spend_usd"):
+            self.assertTrue(is_internal_key(key), key)
+
+
 class _Quote:
     total_estimated_variable_usd = Decimal("0.40")
     total_authorized_variable_usd = Decimal("1.25")

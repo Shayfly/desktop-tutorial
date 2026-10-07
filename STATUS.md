@@ -1,5 +1,25 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-07 14:10 Asia/Jerusalem
+
+- CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
+  37549999186). Job logs are not reachable from this environment (blob
+  storage blocked by the egress proxy). Root cause found by reproduction: the
+  new HTTP plan-view test flagged the customer's own plan fields
+  (`monthly_price_usd`, `annual_price_usd`, `allowed_cost_classes`) as internal
+  economics; the internal-key filter now exempts exactly
+  `pricing.PUBLIC_PLAN_FIELDS`, with stdlib tests that reproduce it. `v24-ci`
+  now publishes failing test names as annotations so future failures are
+  readable without logs. Awaiting CI on the fix commit.
+- Preview: `92ba0bc` deployed READY on 148aiv28 (the Hobby rate limit lifted
+  for that push); `089f5bd` was rate limited again. The fix push is the
+  consolidated deployment of everything since.
+- Worker host: Oracle instance `148ai-worker-01` exists (founder). The
+  self-hosted runner has NOT registered: the queued "Deploy build worker" run
+  for `089f5bd` has been pending since 00:04 UTC with no runner. SSH times out.
+  Not diagnosable from this environment (no raw outbound TCP, runner/secret
+  APIs not permitted through the proxy). Queue → Worker: BLOCKED.
+
 ## Golden E2E #1 — current truth, 2026-10-07 04:15 Asia/Jerusalem (supersedes earlier sections of today)
 
 Vercel projects (verified via the Vercel API; names, domains and states only):

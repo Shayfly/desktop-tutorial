@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from .pricing import PUBLIC_PLAN_FIELDS
+
 # Whole sections that are internal economics or provider/routing internals.
 INTERNAL_SECTIONS = frozenset({
     'economics', 'economics_quote', 'economics_settlement', 'economics_error', 'funding',
@@ -21,6 +23,10 @@ INTERNAL_SECTIONS = frozenset({
     'provider_spend_usd', 'provider_spend_basis', 'external_model_calls',
     'estimated_cost_usd', 'maximum_authorized_cost_usd',
 })
+# Customer-facing plan fields (plan price, allowance, limits) are allowed by
+# decision #29 even though some contain words like "price" or "cost"; the
+# single source of truth is pricing.PUBLIC_PLAN_FIELDS.
+CUSTOMER_FACING_KEYS = frozenset(PUBLIC_PLAN_FIELDS)
 # Any key made of these words (underscore-delimited) or ending in _usd.
 _INTERNAL_KEY = re.compile(
     r'(?:^|_)(?:cost|costs|spend|margin|margins|budget|revenue|markup|subsidy|reservation|reservations|'
@@ -30,6 +36,8 @@ _INTERNAL_KEY = re.compile(
 
 def is_internal_key(key: Any) -> bool:
     k = str(key)
+    if k in CUSTOMER_FACING_KEYS:
+        return False
     return k in INTERNAL_SECTIONS or bool(_INTERNAL_KEY.search(k))
 
 
