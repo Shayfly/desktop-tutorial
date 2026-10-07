@@ -1,0 +1,19 @@
+# Public TLS edge for previews: https://prv-<id>.<OMNI_PREVIEW_HOST_SUFFIX>.
+# Certificates are issued on demand, and only for hostnames the preview router
+# confirms belong to a RUNNING preview on this host.
+{
+	on_demand_tls {
+		ask http://127.0.0.1:8088/_caddy_ask
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:8088
+}
+
+http:// {
+	redir https://{host}{uri} permanent
+}

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 BUILD_QUEUE = "omni-builds"
+# Preview launches need a worker with Docker access (infra/worker-host:
+# preview-worker); the build worker has none, so they get their own queue.
+PREVIEW_QUEUE = "omni-previews"
 
 def redis_connection(
     redis_url: str,

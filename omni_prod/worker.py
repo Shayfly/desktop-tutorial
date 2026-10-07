@@ -74,16 +74,29 @@ def absorb_stale_consumers(conn, queue_key: str, *, wait_seconds: float = 2.0, m
     return absorbed
 
 
+def queue_names_from_env(env=None) -> list[str]:
+    """OMNI_WORKER_QUEUES: comma-separated RQ queues (default omni-builds).
+    The preview worker consumes omni-previews and its host queue."""
+    env = os.environ if env is None else env
+    raw = env.get("OMNI_WORKER_QUEUES", "").strip()
+    names = [n.strip() for n in raw.split(",") if n.strip()] if raw else [QUEUE_NAME]
+    for n in names:
+        if not all(c.isalnum() or c in "-_." for c in n):
+            raise ValueError(f"invalid queue name: {n!r}")
+    return names
+
+
 def main():
     from redis import Redis
     from rq import Queue, Worker
 
     conn = Redis.from_url(os.environ["OMNI_REDIS_URL"])
     ttl = worker_ttl_from_env()
-    queue = Queue(QUEUE_NAME, connection=conn)
-    absorbed = absorb_stale_consumers(conn, queue.key)
+    queues = [Queue(name, connection=conn) for name in queue_names_from_env()]
+    absorbed = sum(absorb_stale_consumers(conn, q.key) for q in queues)
     _say(f"stale consumers absorbed before start: {absorbed}")
-    worker = Worker([queue], connection=conn, worker_ttl=ttl)
+    _say("queues: " + ", ".join(q.name for q in queues))
+    worker = Worker(queues, connection=conn, worker_ttl=ttl)
     _say(f"worker ttl {ttl}s, dequeue wait {worker.dequeue_timeout}s, scheduler disabled")
     worker.work(with_scheduler=False)
 

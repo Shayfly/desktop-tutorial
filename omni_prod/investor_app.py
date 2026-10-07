@@ -56,7 +56,7 @@ from .customer_views import strip_internal_economics, unpriced_capabilities
 from .creator_accounts import PostgresAccountService
 from .subscription_store import PostgresSubscriptionService
 from .db import DatabasePool
-from .queueing import enqueue_build, preview_host_queue
+from .queueing import PREVIEW_QUEUE, enqueue_build, preview_host_queue
 from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
@@ -1845,7 +1845,7 @@ def v28_preview_launch(project_id: str, version_id: str, request: Request) -> di
     redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
     try:
         enqueue_build(redis_url, "omni_prod.worker_tasks.execute_preview_launch",
-                      preview_id, key, version_id, job_id=preview_id)
+                      preview_id, key, version_id, job_id=preview_id, queue_name=PREVIEW_QUEUE)
     except Exception as exc:
         preview_repo.mark_failed(preview_id, error=f'could not dispatch preview launch: {exc}'[:2000])
         raise HTTPException(503, 'preview launch could not be dispatched; try again') from exc

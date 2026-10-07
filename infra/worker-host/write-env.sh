@@ -36,6 +36,21 @@ if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
   sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env
   echo "OMNI_MODEL_CATALOG_JSON=$(python3 -c 'import json;print(json.dumps(json.load(open("model-catalog.json")),separators=(",",":")))')" >> .env
 fi
+# Preview edge defaults (non-secret). The public IP is the host's own egress
+# address; sslip.io resolves <anything>.<ip-with-dashes>.sslip.io to it.
+if ! grep -q '^OMNI_PREVIEW_HOST_SUFFIX=.' .env; then
+  ip=$(curl -fsS --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]' || true)
+  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "OMNI_PREVIEW_HOST_SUFFIX=${ip//./-}.sslip.io" >> .env
+  else
+    echo "::warning title=preview::could not determine the public IP; previews stay unconfigured"
+  fi
+fi
+suffix=$(sed -n 's/^OMNI_PREVIEW_HOST_SUFFIX=//p' .env | head -n 1)
+grep -q '^OMNI_PREVIEW_RUNTIME_HOST=.' .env || echo "OMNI_PREVIEW_RUNTIME_HOST=$(hostname | tr -c 'A-Za-z0-9-\n' '-')" >> .env
+if [ -n "$suffix" ] && ! grep -q '^PREVIEW_DOMAIN_TEMPLATE=.' .env; then
+  echo "PREVIEW_DOMAIN_TEMPLATE=https://{preview_id}.${suffix}" >> .env
+fi
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
 
 # Shape checks, reported by variable NAME and length only (never values).

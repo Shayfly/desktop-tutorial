@@ -57,6 +57,61 @@ services:
     healthcheck:
       disable: true
 
+  # Running previews (M3). Separate from the build worker so only this
+  # orchestrator holds the Docker socket. Host network: preview containers
+  # publish on 127.0.0.1 of the host, which the health probe and the router
+  # reach directly. The workdir path is identical on host and container so
+  # the host daemon can bind-mount it.
+  preview-worker:
+    build:
+      context: ../..
+      dockerfile: infra/preview-worker/Dockerfile
+    image: omni-preview-worker:latest
+    restart: unless-stopped
+    command: ["python", "-m", "omni_prod.worker"]
+    env_file: .env
+    environment:
+      OMNI_CREATOR_PERSISTENCE: postgres
+      OMNI_WORKER_QUEUES: omni-previews,omni-preview-host-${OMNI_PREVIEW_RUNTIME_HOST:?required}
+      OMNI_PREVIEW_BIND_ADDRESS: 127.0.0.1
+      OMNI_PREVIEW_PROBE_HOST: 127.0.0.1
+      TMPDIR: /var/lib/omni-preview/tmp
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/omni-preview:/var/lib/omni-preview
+    healthcheck:
+      disable: true
+
+  preview-router:
+    image: omni-preview-worker:latest
+    restart: unless-stopped
+    command: ["python", "-m", "omni_prod.preview_router"]
+    env_file: .env
+    network_mode: host
+    depends_on: [preview-worker]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8088/_health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      preview-router:
+        condition: service_healthy
+
+volumes:
+  caddy-data:
+  caddy-config:
+
 networks:
   internal:
     driver: bridge

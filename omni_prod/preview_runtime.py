@@ -251,6 +251,20 @@ def parse_docker_port_output(output: str) -> int:
     raise RuntimeError(f'could not parse host port from docker port output: {output!r}')
 
 
+def preview_host_label(preview_id: str) -> str:
+    """DNS label for a preview id. Ids are 'prv_<hex>'; '_' is not valid in
+    a hostname a public CA will certify, so the URL uses 'prv-<hex>'."""
+    return preview_id.replace('_', '-').lower()
+
+
+def preview_id_from_host_label(label: str) -> str | None:
+    """Inverse of preview_host_label for the router; None if not a preview."""
+    label = label.strip().lower()
+    if not label.startswith('prv-') or not all(c in '0123456789abcdef' for c in label[4:]) or len(label) < 12:
+        return None
+    return 'prv_' + label[4:]
+
+
 def external_preview_url(preview_id: str, template: str | None) -> str:
     """Builds the externally routable preview URL from PREVIEW_DOMAIN_TEMPLATE
     (e.g. 'https://{preview_id}.preview.148ai.com'). Never returns a
@@ -260,7 +274,7 @@ def external_preview_url(preview_id: str, template: str | None) -> str:
     if not template or '{preview_id}' not in template:
         raise PreviewBackendUnavailable(
             'PREVIEW_DOMAIN_TEMPLATE must be set and contain {preview_id}')
-    url = template.replace('{preview_id}', preview_id)
+    url = template.replace('{preview_id}', preview_host_label(preview_id))
     parts = urlsplit(url)
     if parts.scheme not in {'https', 'http'} or not parts.hostname:
         raise PreviewBackendUnavailable(f'PREVIEW_DOMAIN_TEMPLATE is not an http(s) URL: {template!r}')

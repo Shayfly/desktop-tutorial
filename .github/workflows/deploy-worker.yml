@@ -38,6 +38,26 @@ jobs:
         working-directory: infra/worker-host
         run: docker compose build
 
+      # Previews (M3): the preview worker's workdir must exist at the same
+      # path on the host; the public edge (Caddy) needs TCP 80/443 open in the
+      # host firewall (ufw from bootstrap.sh, plus the image's iptables rules).
+      # The cloud security list is opened separately in the Oracle console.
+      # Idempotent; prints the resulting INPUT rules for the record.
+      - name: Prepare preview host
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged --net=host --pid=host -v /:/host alpine:3 chroot /host /bin/sh -c '
+            set -e
+            mkdir -p /var/lib/omni-preview/tmp && chmod 755 /var/lib/omni-preview && chmod 1777 /var/lib/omni-preview/tmp
+            if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
+            for p in 80 443; do
+              iptables -C INPUT -p tcp --dport $p -j ACCEPT 2>/dev/null || iptables -I INPUT 1 -p tcp --dport $p -j ACCEPT
+            done
+            command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+            echo "INPUT rules for 80/443:"; iptables -S INPUT | grep -E "dport (80|443)" || true'
+          docker pull -q python:3.11-slim
+          docker pull -q node:20-slim
+
       - name: Apply database migrations
         working-directory: infra/worker-host
         run: docker compose run --rm --no-deps worker python -m omni_prod.migrate
@@ -96,6 +116,23 @@ jobs:
               sys.exit(1)
           print(f"::notice title=sandbox-probe::PASS code ran and compiled in the isolated read-only sandbox ({out.split()[1:3]}), network blocked")
           PY
+
+      - name: Preview edge is up
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8088/_health >/dev/null; then break; fi; sleep 3
+          done
+          curl -fsS --max-time 3 http://127.0.0.1:8088/_health >/dev/null || { docker compose logs --tail 40 preview-router; echo "::error title=preview-edge::router not answering"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H 'Host: prv-0000000000000000.example' http://127.0.0.1/ || true)
+          docker compose ps preview-worker preview-router caddy
+          docker compose logs --no-color preview-worker 2>&1 | grep -E "queues:" | tail -1 | sed 's/^[^|]*| //' | while read -r l; do echo "::notice title=preview-worker::$l"; done
+          suffix=$(sed -n 's/^OMNI_PREVIEW_HOST_SUFFIX=//p' .env | head -n 1)
+          if [ "$code" != "308" ] && [ "$code" != "301" ]; then
+            docker compose logs --tail 40 caddy; echo "::error title=preview-edge::caddy on :80 answered $code (expected a redirect to https)"; exit 1
+          fi
+          echo "::notice title=preview-edge::PASS router healthy, caddy redirects :80 -> https; hostnames *.${suffix}"
 
       # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
       # then SignatureDoesNotMatch) after minutes of paid generation. This writes,

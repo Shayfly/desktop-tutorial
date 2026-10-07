@@ -419,7 +419,7 @@ class TestHealthProbe(unittest.TestCase):
 
 class TestExternalUrl(unittest.TestCase):
     def test_template(self):
-        self.assertEqual(external_preview_url('prv_1', TEMPLATE), 'https://prv_1.preview.148ai.com')
+        self.assertEqual(external_preview_url('prv_1', TEMPLATE), 'https://prv-1.preview.148ai.com')  # DNS-safe label: '_' cannot be certified
 
     def test_never_localhost(self):
         for bad in (None, '', 'https://preview.148ai.com', 'http://localhost:8000/{preview_id}',
@@ -559,7 +559,7 @@ class TestPreviewLaunch(unittest.TestCase):
         self.assertEqual(repo.events, ['record_runtime', 'probe', 'probe', 'mark_running'])
         self.assertEqual(probes[-1], 'http://127.0.0.1:45678/healthz')
         # persisted URL is the external route, never the worker's local port
-        self.assertEqual(repo.url, 'https://prv_1.preview.148ai.com')
+        self.assertEqual(repo.url, 'https://prv-1.preview.148ai.com')  # DNS-safe label: '_' cannot be certified
         self.assertNotIn('127.0.0.1', repo.url)
         self.assertEqual(repo.runtime, {'container_id': 'cid1', 'runtime_host': 'worker-a', 'host_port': 45678,
                                         'workdir': '/tmp/omni-preview-prv_1-abc'})
