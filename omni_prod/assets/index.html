@@ -71,6 +71,25 @@
         </form>
       </div>
 
+      <div class="panel built" id="builtPanel" hidden>
+        <h2 data-i18n="builtTitle">מה נבנה עד עכשיו</h2>
+        <p class="builtName" id="builtName"></p>
+        <p id="builtSummary"></p>
+        <ul class="features" id="builtFeatures"></ul>
+        <p class="meta" id="builtMeta"></p>
+      </div>
+
+      <div class="panel" id="modifyPanel" hidden>
+        <h2><label for="followup" data-i18n="modifyTitle">מה תרצו לשנות?</label></h2>
+        <textarea id="followup" rows="3" maxlength="12000"></textarea>
+        <div class="row"><button id="modifyBtn" data-i18n="modifySend">שליחת שינוי</button></div>
+        <div id="modifyState" aria-live="polite"></div>
+      </div>
+
+      <div class="row" id="newBuildRow" hidden>
+        <button class="ghost" id="newBuildBtn" data-i18n="newBuild">בנייה חדשה מאפס</button>
+      </div>
+
       <div class="panel composer" id="composer">
         <label for="prompt" class="composerLabel" data-i18n="request">מה תרצו לבנות?</label>
         <textarea id="prompt" rows="6" maxlength="12000"></textarea>
@@ -87,13 +106,6 @@
         <h2 data-i18n="progress">התקדמות הבנייה</h2>
         <ol class="track" id="track"></ol>
         <p class="msg" id="buildMsg" role="alert"></p>
-      </div>
-
-      <div class="panel" id="modifyPanel" hidden>
-        <h2><label for="followup" data-i18n="modifyTitle">מה תרצו לשנות?</label></h2>
-        <textarea id="followup" rows="3" maxlength="12000"></textarea>
-        <div class="row"><button id="modifyBtn" data-i18n="modifySend">שליחת שינוי</button></div>
-        <div id="modifyState" aria-live="polite"></div>
       </div>
 
       <div class="panel" id="versionsPanel" hidden>

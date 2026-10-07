@@ -1456,9 +1456,22 @@ def v28_build(project_id: str, req: V27BuildRequest, request: Request) -> dict:
 @app.get('/api/v28/projects/{project_id}/history')
 def v28_history(project_id: str, request: Request) -> dict:
     try:
-        return {'project_id': project_id, 'versions': _v28.history(token=_v28_bearer(request), project_id=project_id)}
+        token = _v28_bearer(request)
+        versions = _v28.history(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+    if _v28_pool is not None and versions:
+        # What each version IS, for the workspace's "what was built" panel:
+        # title, summary and requirement texts from its stored ProductSpec.
+        try:
+            _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+            from .spec_repository import spec_summaries
+            summaries = spec_summaries(_v28_pool, project_id=key, version_ids=[v['id'] for v in versions])
+            for v in versions:
+                v.update(summaries.get(v['id'], {}))
+        except Exception:
+            logging.getLogger(__name__).exception('version spec summaries unavailable')
+    return {'project_id': project_id, 'versions': versions}
 
 @app.post('/api/v28/projects/{project_id}/patch')
 def v28_patch(project_id: str, req: V25PatchRequest, request: Request) -> dict:
@@ -1472,6 +1485,11 @@ def v28_patch(project_id: str, req: V25PatchRequest, request: Request) -> dict:
 @app.post('/api/v28/projects/{project_id}/restore')
 def v28_restore(project_id: str, req: V26RestoreRequest, request: Request) -> dict:
     try:
+        if _v28_pool is not None and getattr(_v28.engine.workspace, 'pool', None) is not None:
+            from .spec_repository import restore_version_with_spec
+            _, key = _v28.resolve_project_key(token=_v28_bearer(request), project_id=project_id)
+            v = restore_version_with_spec(_v28_pool, _v28.engine.workspace, project_id=key, version_id=req.version_id)
+            return {'project_id': project_id, 'version_id': v.id, 'parent_id': v.parent_id, 'checksum': v.checksum}
         return _v28.restore(token=_v28_bearer(request), project_id=project_id, version_id=req.version_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc

@@ -136,6 +136,19 @@ class GoldenModificationPathTests(unittest.TestCase):
                                   (mod_id,)).fetchone()[0]
         self.assertEqual(status, 'SETTLED')
 
+    def test_restore_copies_the_spec_so_the_restored_version_can_be_modified(self):
+        from omni_prod.spec_repository import PostgresSpecRepository, restore_version_with_spec
+        from omni_prod.workspace import PostgresProjectWorkspace
+        workspace = PostgresProjectWorkspace(self.pool, _MemoryStore())
+        spec_repo = PostgresSpecRepository(self.pool)
+        football = workspace.commit(project_id=self.project, repository={'app.py': 'teams'}, message='football')
+        spec_repo.save(version_id=football.id, project_id=self.project, spec=self._spec())
+        workspace.commit(project_id=self.project, repository={'app.py': 'books'}, message='other product')
+        restored = restore_version_with_spec(self.pool, workspace, project_id=self.project, version_id=football.id)
+        self.assertEqual(workspace.current(self.project).id, restored.id)
+        self.assertEqual(workspace.get(project_id=self.project, version_id=restored.id).repository(), {'app.py': 'teams'})
+        self.assertEqual(spec_repo.get(restored.id, self.project).to_dict(), self._spec().to_dict())
+
     def test_non_entitled_account_still_uses_its_plan(self):
         from omni_prod.modification_admission import admit_modification
         self.subs.plan_for(self.account.id)  # creates the default (free) subscription row

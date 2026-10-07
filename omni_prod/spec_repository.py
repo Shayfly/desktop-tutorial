@@ -60,3 +60,44 @@ class PostgresSpecRepository:
         if isinstance(data, str):
             data = json.loads(data)
         return ProductSpec.from_dict(data)
+
+
+def restore_version_with_spec(pool, workspace, *, project_id: str, version_id: str,
+                              message: str = 'user restore'):
+    """Restore = a new version with the target's content AND its ProductSpec,
+    in one transaction. Golden E2E #1 (2026-10-07): restore copied only the
+    files, so a restored version could not be modified ("predates spec
+    tracking (M4B)"). A target without a spec restores files only, as before."""
+    with pool.connection() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                version = workspace.restore(project_id=project_id, version_id=version_id, message=message, cur=cur)
+                cur.execute(
+                    "INSERT INTO project_version_specs(version_id, project_id, spec_json) "
+                    "SELECT %s, project_id, spec_json FROM project_version_specs "
+                    "WHERE version_id = %s AND project_id = %s ON CONFLICT (version_id) DO NOTHING",
+                    (version.id, version_id, project_id),
+                )
+    return version
+
+
+def spec_summaries(pool, *, project_id: str, version_ids: list[str]) -> dict[str, dict]:
+    """{version_id: {title, summary, features}} for versions that have a spec."""
+    if not version_ids:
+        return {}
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT version_id, spec_json FROM project_version_specs "
+                        "WHERE project_id = %s AND version_id = ANY(%s)", (project_id, list(version_ids)))
+            rows = cur.fetchall()
+    out = {}
+    for version_id, spec in rows:
+        if isinstance(spec, str):
+            spec = json.loads(spec)
+        out[version_id] = {
+            'title': str(spec.get('title', ''))[:200],
+            'summary': str(spec.get('summary', ''))[:600],
+            'features': [str(r.get('text', ''))[:200] for r in (spec.get('requirements') or [])
+                         if r.get('kind', 'functional') == 'functional'][:12],
+        }
+    return out

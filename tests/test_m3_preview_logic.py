@@ -985,8 +985,15 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
                 self.assertEqual(h.run(), 'failed')
                 self.assertEqual((h.final['target'], h.final['error_code']), (BuildStatus.FAILED, code))
                 self.assertFalse(h.final['evidence_json']['release_ready'])
-                # The version is still committed so the user can inspect / fix it.
-                self.assertEqual(h.final['result_version_id'], 'ver_1')
+                # Decision change 2026-10-07 (Golden E2E #1): a failed build is not a
+                # project version -- it became "current" and the next modification
+                # ran against the failed product. Only a rights-only block (code
+                # passed, evidence missing) is still committed.
+                if code == 'rights_gate_not_clear':
+                    self.assertEqual(h.final['result_version_id'], 'ver_1')
+                else:
+                    self.assertIsNone(h.final['result_version_id'])
+                    h.workspace.commit.assert_not_called()
 
     def test_failed_build_without_external_spend_releases(self):
         h = BuildHarness(quality=False, calls=0)

@@ -157,3 +157,7 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
   .workspace{padding:.75rem}
   .cost{grid-template-columns:1fr}
 }
+.built .builtName{font-weight:650;font-size:1.05rem;margin:.2rem 0 .3rem}
+.built .features{margin:.5rem 0;padding-inline-start:1.2rem}
+.built .features li{margin:.15rem 0}
+#newBuildRow{margin:-.25rem 0 1rem}

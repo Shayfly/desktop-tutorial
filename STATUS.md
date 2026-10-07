@@ -324,8 +324,8 @@ Transition status after this window (Preview `148aiv28`, branch alias
 | Build → Tests → Verification | PASS | `bld_534476042257416091da55cb4c03ae0e`: verification passed, 1 repair round, quality 86/80 (traceability 100%) — read through `build-evidence.yml` |
 | Durable Artifact (R2) | PASS | deploy `storage-probe` write/read-back/delete PASS (worker); build status `ready` with artifact key; web tier lists versions and the founder downloaded the ZIP after the Preview S3 vars were corrected |
 | ZIP | PASS | founder downloaded and opened the archive (`app`, `tests`, `README`, `.omni`, …) |
-| Modification | NOT VERIFIED | first attempt: `predates spec tracking (M4B)`; second: `cost class not included in plan`; both fixed below, rerun pending |
-| New Version | NOT VERIFIED | depends on Modification |
+| Modification | PASS (mechanics) / FAIL (base) | `mod_090791ebff9f41f58ae1284f9eeec642`: classified `change_request`, evolved spec, verified, READY_FOR_REVIEW, accepted by the founder 20:12:45Z, billing settled $0.0182 (2 calls). It ran against the wrong base: the failed second product had been committed as the newest version. Fixed: failed builds are no longer versions. Rerun on the football version pending |
+| New Version | PASS (mechanics) | `v_38b3f001967c4211`, 13 files, spec stored with it (A7 = the added delete capability) |
 | Preview | BLOCKED | `PREVIEW_DOMAIN_TEMPLATE` + router need a hostname decision (founder) |
 
 Defects found by real runs and fixed (each with a test):
@@ -353,6 +353,15 @@ Defects found by real runs and fixed (each with a test):
   their content (bounded 16k/file, 64k total); the evolution prompt requires a
   test and a `verify` entry for every new acceptance id.
 - UI kept polling forever on `NEEDS_CLARIFICATION`/`CONFLICT`.
+- **Decision change:** a build that fails verification/quality/security is not
+  committed as a project version (only a rights-only block still is). The
+  previous behaviour made the failed product "current" and the next
+  modification targeted it. `/restore` now copies the ProductSpec
+  (`/rollback`, used by the UI, already did); real-Postgres test added.
+- Workspace UX (founder feedback): once a project has a version the page leads
+  with "what was built" (title, summary, features from the stored spec via
+  `/history`), then "what would you like to change"; "new build from scratch"
+  is a secondary button. Checked in Chromium with mocked API data.
 - Build `bld_8029266bf1164a71995667f89309e832` (founder's second product):
   verification passed, quality 78/80 with zero repair rounds — a root-level
   `test_app.py` was not counted as tests, and quality was never sent to

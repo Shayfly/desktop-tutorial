@@ -15,6 +15,7 @@ const T = {
     login:'כניסה', register:'יצירת חשבון חינם',
     firstProject:'הפרויקט הראשון שלכם', projectName:'שם הפרויקט', createProject:'יצירת פרויקט',
     request:'מה תרצו לבנות?', build:'בנה עם 148AI', planHint:'קודם תוצג תוכנית ועלות. שום חיוב לא מתבצע לפני אישור.',
+    builtTitle:'מה נבנה עד עכשיו', newBuild:'בנייה חדשה מאפס', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
     evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
     noPreview:'כאן תופיע האפליקציה אחרי שהבנייה תסתיים.', download:'הורדת קוד המקור (ZIP)', publish:'פרסום',
@@ -69,6 +70,7 @@ const T = {
     login:'Sign in', register:'Create free account',
     firstProject:'Your first project', projectName:'Project name', createProject:'Create project',
     request:'What do you want to build?', build:'Build with 148AI', planHint:'You will see a plan and cost first. Nothing is charged before you approve.',
+    builtTitle:'What has been built', newBuild:'New build from scratch', builtVersion:'Current version', files:'files',
     progress:'Build progress', modifyTitle:'What would you like to change?', modifySend:'Send change', versions:'Versions',
     evidence:'Technical details and evidence', refresh:'Refresh', openTab:'Open in new tab',
     noPreview:'Your app appears here once the build finishes.', download:'Download source (ZIP)', publish:'Publish',
@@ -266,7 +268,7 @@ async function createProject(title) {
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
-  S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = [];
+  S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
   applyLang();
   if (!S.projectId) return;
@@ -352,7 +354,7 @@ async function startBuild() {
     const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
       body: { prompt: $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id } });
     S.build = { id: d.build_id, status: 'queued', phase: 'QUEUED', evidence: {} };
-    renderPlan(); renderTrack(); pollBuild();
+    renderPlan(); renderTrack(); renderBuilt(); pollBuild();
   } catch (e) {
     $('progressPanel').hidden = false; $('buildMsg').textContent = explain(e);
   }
@@ -366,9 +368,11 @@ async function pollBuild() {
     if (isTerminal(d.status)) {
       renderPlan();
       if (String(d.status).toLowerCase() === 'ready' && d.result_version_id) {
+        S.newBuildOpen = false;
         await loadVersions();
         startPreview(d.result_version_id);
       } else if (d.result_version_id) { await loadVersions(); }
+      else renderBuilt();
       return;
     }
   } catch (e) { $('buildMsg').textContent = explain(e); }
@@ -485,8 +489,25 @@ async function loadVersions() {
     const d = await api(`/api/v28/projects/${pid()}/history`);
     S.versions = (d.versions || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   } catch { S.versions = []; }
-  renderVersions(); renderMod();
+  renderVersions(); renderMod(); renderBuilt();
   $('downloadBtn').disabled = !currentVersionId();
+}
+/* Once a project has a product, lead with what it is and how to change it;
+   a new build from scratch stays one click away. */
+function renderBuilt() {
+  const v = S.versions[0];
+  const building = (!!S.plan && !S.build) || (!!S.build && !isTerminal(S.build.status));
+  $('builtPanel').hidden = !v;
+  $('newBuildRow').hidden = !v || S.newBuildOpen || building;
+  $('composer').hidden = !!v && !S.newBuildOpen && !building;
+  if (!v) return;
+  $('builtName').textContent = v.title || v.message || v.id;
+  $('builtSummary').textContent = v.summary || '';
+  $('builtFeatures').replaceChildren(...(v.features || []).map((f) => h('li', {}, f)));
+  let when = v.created_at;
+  try { when = new Intl.DateTimeFormat(S.lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v.created_at)); } catch { /* keep raw */ }
+  $('builtMeta').replaceChildren(t('builtVersion'), ': ', h('code', { dir: 'ltr' }, String(v.id).slice(0, 12)), ` · ${when}`,
+    v.file_count ? ` · ${v.file_count} ${t('files')}` : '');
 }
 function renderVersions() {
   const panel = $('versionsPanel');
@@ -497,7 +518,7 @@ function renderVersions() {
   list.replaceChildren(...S.versions.map((v, i) => {
     let when = v.created_at; try { when = fmt.format(new Date(v.created_at)); } catch { /* keep raw */ }
     return h('li', {},
-      h('div', {}, h('div', {}, v.message || v.id), h('div', { class: 'meta' }, when, ' ', h('code', { dir: 'ltr' }, String(v.id).slice(0, 12)))),
+      h('div', {}, h('div', {}, v.title || v.message || v.id), h('div', { class: 'meta' }, when, ' ', h('code', { dir: 'ltr' }, String(v.id).slice(0, 12)))),
       i === 0 ? h('span', { class: 'pill ok' }, t('current')) : h('button', { class: 'ghost', onclick: () => restoreVersion(v.id) }, t('restore')));
   }));
 }
@@ -623,6 +644,7 @@ function wire() {
     await createProject($('newProjectInput').value.trim());
   }, 'created'));
   $('planBtn').addEventListener('click', requestPlan);
+  $('newBuildBtn').addEventListener('click', () => { S.newBuildOpen = true; renderBuilt(); $('prompt').focus(); });
   $('modifyBtn').addEventListener('click', sendModification);
   $('refreshPreviewBtn').addEventListener('click', () => { const f = $('previewFrame'); if (f.src) f.src = f.src; });
   $('downloadBtn').addEventListener('click', downloadZip);

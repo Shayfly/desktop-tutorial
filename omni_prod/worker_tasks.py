@@ -370,8 +370,17 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # modified ("predates spec tracking (M4B)") because the live build
         # never stored its ProductSpec. The version and its spec are written
         # in one transaction, the same pattern modification acceptance uses.
+        # Golden E2E #1 (2026-10-07): a build that failed verification or
+        # quality was still committed as the project's newest version, so the
+        # next modification ran against the failed product. Only a build whose
+        # code passed (READY, or blocked solely by rights evidence, which the
+        # rights gate documents as committed-but-not-releasable) becomes a
+        # version.
+        commit_version = ready or error_code == 'rights_gate_not_clear'
         pool = getattr(workspace, 'pool', None)
-        if spec_repo is not None and pool is not None:
+        if not commit_version:
+            version = None
+        elif spec_repo is not None and pool is not None:
             with pool.connection() as conn:
                 with conn.transaction():
                     with conn.cursor() as cur:
@@ -382,8 +391,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         else:
             version = workspace.commit(project_id=internal_project_id, repository=repo,
                                        message=f'148AI async live build {build_id}')
-        version_id = version.id
-        artifact_key = getattr(version, 'artifact_key', None)
+        version_id = version.id if version is not None else None
+        artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
         spent, calls = spend_snapshot(gateway)
         evidence = {
