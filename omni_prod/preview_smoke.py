@@ -108,5 +108,14 @@ class PreviewReadyExecutor:
             return report
         output = (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-1800:]
         first = output.strip().splitlines()[0] if output.strip() else 'no output'
-        failed = _failure(f'the app did not start for preview: {first}', output)
+        needs = ''
+        if 'user interface' in first or 'HTML page' in first:
+            # Rehearsal 2026-10-08: three repair rounds produced 116-139 char
+            # pages. Say what the page must let the user do, from the spec.
+            texts = [r.text for r in getattr(spec, 'requirements', ())][:8]
+            if texts:
+                needs = ('GET / must render the whole product for a user: ' + '; '.join(texts) +
+                         '. Build it as one complete HTML page (inline CSS and JavaScript allowed) with the forms, '
+                         'buttons and tables these need, calling the app\'s JSON endpoints.\n')
+        failed = _failure(f'the app did not start for preview: {first}', needs + output)
         return ExecutionReport(False, failed.failures, report.build_log + '\n' + output)

@@ -25,6 +25,21 @@ POLICY = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
                         external_budget_usd=Decimal("5"), max_external_calls_per_build=50)
 
 
+
+def setUpModule():
+    # These tests check ledger counting with a cheap/strong catalog under
+    # cost-first routing. Task quality floors (codegen/repair prefer the
+    # stronger model, 2026-10-08) are covered in test_task_quality_routing.
+    import os
+    from unittest import mock
+    global _ENV_PATCH
+    _ENV_PATCH = mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"codegen": 0, "repair": 0, "modification": 0}'})
+    _ENV_PATCH.start()
+
+
+def tearDownModule():
+    _ENV_PATCH.stop()
+
 class _Fake:
     behaviour = {}
 

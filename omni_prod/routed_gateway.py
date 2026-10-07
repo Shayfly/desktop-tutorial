@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import dataclasses
 from dataclasses import dataclass
 from decimal import Decimal
@@ -203,7 +204,26 @@ class RoutedModelGateway:
         return {'model': route.endpoint.model, 'call': method,
                 'max_estimated_cost_usd': str(route.max_estimated_cost_usd), 'reason': reason}
 
-    def ranked_routes(self, kwargs: dict) -> list[tuple]:
+    def task_quality_floor(self, task: str) -> int:
+        """Minimum model quality preferred for a task type.
+
+        Rehearsal 2026-10-08: with cost-first routing every call, including
+        code generation and repair, went to the cheapest Flash-Lite model, and
+        repair rounds oscillated (Flask, then `requests`, then a 116-character
+        page). Writing and repairing code prefers the stronger model; cheaper
+        models stay available as escalation when it is unavailable.
+        OMNI_MODEL_TASK_MIN_QUALITY (JSON object) overrides the defaults.
+        """
+        floors = {'codegen': 85, 'repair': 85, 'modification': 85}
+        raw = os.getenv('OMNI_MODEL_TASK_MIN_QUALITY', '').strip()
+        if raw:
+            try:
+                floors.update({str(k): int(v) for k, v in json.loads(raw).items()})
+            except (ValueError, AttributeError, TypeError):
+                pass
+        return max(self.routing_policy.minimum_quality, floors.get(task, 0))
+
+    def ranked_routes(self, kwargs: dict, task: str = 'general') -> list[tuple]:
         """Cheapest eligible catalog model first, with a conservative per-call cap.
 
         Input tokens are bounded by the UTF-8 byte length of the prompt (a token
@@ -229,7 +249,10 @@ class RoutedModelGateway:
             order = ((cost, -option.quality, option.latency_ms, model.endpoint.name)
                      if policy.prefer_cost else (-option.quality, cost, option.latency_ms, model.endpoint.name))
             candidates.append((order, ProviderRoute(model.endpoint, cost), {**kwargs, 'max_tokens': out_tokens}, option))
-        candidates.sort(key=lambda c: c[0])
+        floor = self.task_quality_floor(task)
+        # Models meeting the task's floor first (cheapest among them), then the
+        # rest as escalation; the base minimum_quality filter above still holds.
+        candidates.sort(key=lambda c: (c[3].quality < floor, c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
     def _route(self, method: str, kwargs: dict, task: str = 'general'):
@@ -238,8 +261,9 @@ class RoutedModelGateway:
         if self.primary is not None:
             routes.append((self.primary, kwargs, 'local primary', None))
         basis = 'cheapest' if self.routing_policy.prefer_cost else 'highest quality'
-        for rank, (route, call_kwargs, option) in enumerate(self.ranked_routes(kwargs)):
-            why = (f'{basis} eligible catalog model (quality>={self.routing_policy.minimum_quality})' if rank == 0
+        floor = self.task_quality_floor(task)
+        for rank, (route, call_kwargs, option) in enumerate(self.ranked_routes(kwargs, task)):
+            why = (f'{basis} eligible catalog model for {task} (quality>={floor})' if rank == 0
                    else f'catalog escalation #{rank} after earlier route failed')
             routes.append((route, call_kwargs, why, option))
         routes.extend((route, kwargs, 'configured fallback', None) for route in self.fallback)
