@@ -60,7 +60,7 @@ class V26UniversalPlatform:
 
     def history(self,*,token:str,project_id:str)->list[dict]:
         _,key=self._key(token=token,project_id=project_id)
-        return [{'id':v.id,'parent_id':v.parent_id,'created_at':v.created_at,'message':v.message,'checksum':v.checksum,'file_count':len(v.files)} for v in self.engine.workspace.history(key)]
+        return [{'id':v.id,'parent_id':v.parent_id,'created_at':v.created_at,'message':v.message,'checksum':v.checksum,'file_count':(v.file_count or len(v.files))} for v in self.engine.workspace.history(key)]
 
     def patch(self,*,token:str,project_id:str,payload:dict,message:str='user edit')->dict:
         _,key=self._key(token=token,project_id=project_id)
