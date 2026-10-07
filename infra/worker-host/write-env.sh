@@ -69,10 +69,12 @@ out = [f"{i+1}:{c if c in string.punctuation else 'letter' if c.isalpha() else '
 print(", ".join(out) or "none (all hex)")
 PY
 )
-    echo "::error title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters; a Cloudflare R2 Access Key ID has 32. Non-hex characters at positions: ${odd}"; problems=1
+    # Warning only: the documented R2 format may change, and the deploy's
+    # storage probe (real write/read-back against R2) is the authority.
+    echo "::warning title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters (classic R2 Access Key IDs have 32). Non-hex characters at positions: ${odd}. The storage probe decides."
   fi
   if [ "${#sk}" -ne 64 ]; then
-    echo "::error title=WORKER_ENV::OMNI_S3_SECRET_KEY has ${#sk} characters; a Cloudflare R2 Secret Access Key has 64"; problems=1
+    echo "::warning title=WORKER_ENV::OMNI_S3_SECRET_KEY has ${#sk} characters (classic R2 Secret Access Keys have 64). The storage probe decides."
   fi
 fi
 if [ "$problems" -ne 0 ]; then
