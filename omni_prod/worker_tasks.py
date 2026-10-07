@@ -253,7 +253,7 @@ def _rights_evidence_from_dicts(items) -> tuple:
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
                         capability_stage=None, infrastructure_stage=None,
-                        infrastructure_environment: str = 'preview') -> str | None:
+                        infrastructure_environment: str = 'preview', spec_repo=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
     done (unknown build id / already claimed by another delivery)."""
     try:
@@ -358,8 +358,22 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             requested_visible=request.get('branding_visible'),
             white_label_name=request.get('white_label_name'),
         )
-        version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                   message=f'148AI async live build {build_id}')
+        # Golden E2E #1 (2026-10-07): the first READY build could not be
+        # modified ("predates spec tracking (M4B)") because the live build
+        # never stored its ProductSpec. The version and its spec are written
+        # in one transaction, the same pattern modification acceptance uses.
+        pool = getattr(workspace, 'pool', None)
+        if spec_repo is not None and pool is not None:
+            with pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        version = workspace.commit(project_id=internal_project_id, repository=repo,
+                                                   message=f'148AI async live build {build_id}', cur=cur)
+                        spec_repo.save(version_id=version.id, project_id=internal_project_id,
+                                       spec=result.spec, cur=cur)
+        else:
+            version = workspace.commit(project_id=internal_project_id, repository=repo,
+                                       message=f'148AI async live build {build_id}')
         version_id = version.id
         artifact_key = getattr(version, 'artifact_key', None)
 
@@ -550,6 +564,7 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
     from .infrastructure_provisioner import (
         InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
     from .providers.managed_web_saas import build_managed_web_saas_provisioner
+    from .spec_repository import PostgresSpecRepository
     _run_live_build_job(
         build_id,
         jobs=jobs,
@@ -580,6 +595,7 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
         # the build (and releases its credits) instead of leaving it QUEUED
         # with credits reserved forever.
         preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
+        spec_repo=PostgresSpecRepository(_v28_pool),
     )
 
 
