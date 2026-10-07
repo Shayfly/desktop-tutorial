@@ -59,7 +59,17 @@ done < .env
 if grep -q '^OMNI_S3_ENDPOINT=.*r2\.cloudflarestorage\.com' .env; then
   ak=$(sed -n 's/^OMNI_S3_ACCESS_KEY=//p' .env | head -n 1); sk=$(sed -n 's/^OMNI_S3_SECRET_KEY=//p' .env | head -n 1)
   if [ "${#ak}" -ne 32 ]; then
-    echo "::error title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters; a Cloudflare R2 Access Key ID has 32"; problems=1
+    # Positions of characters that cannot be in a hex Access Key ID; the
+    # character itself is shown only when it is punctuation (not secret).
+    odd=$(python3 - "$ak" <<'PY'
+import sys, string
+v = sys.argv[1]
+out = [f"{i+1}:{c if c in string.punctuation else 'letter' if c.isalpha() else 'other'}"
+       for i, c in enumerate(v) if c not in "0123456789abcdef"]
+print(", ".join(out) or "none (all hex)")
+PY
+)
+    echo "::error title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters; a Cloudflare R2 Access Key ID has 32. Non-hex characters at positions: ${odd}"; problems=1
   fi
   if [ "${#sk}" -ne 64 ]; then
     echo "::error title=WORKER_ENV::OMNI_S3_SECRET_KEY has ${#sk} characters; a Cloudflare R2 Secret Access Key has 64"; problems=1
