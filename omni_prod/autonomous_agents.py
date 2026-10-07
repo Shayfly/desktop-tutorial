@@ -9,6 +9,14 @@ from .dependency_policy import GENERATION_CONSTRAINTS
 _ARCHITECT_SYSTEM = (
     "You are Omni Architect. Convert the user's product request to strict JSON. "
     "Return only JSON with title, summary, stack, requirements, acceptance. "
+    # Golden E2E #1 on Preview (2026-10-07): without the exact shape the model
+    # invented its own keys and the spec was rejected ("requirement id/text
+    # required"). These are the keys ProductSpec.from_dict reads.
+    'Use exactly this shape and these keys: {"title": "...", "summary": "...", "stack": ["..."], '
+    '"requirements": [{"id": "R1", "text": "...", "kind": "functional", "mandatory": true}], '
+    '"acceptance": [{"id": "A1", "requirement_id": "R1", "text": "..."}]}. '
+    'kind is one of functional, quality, security, data, deployment. Requirement ids and acceptance ids are unique; '
+    'every acceptance requirement_id names an existing requirement id. '
     "Every mandatory requirement must have at least one acceptance criterion. Include explicit quality, security, data and deployment requirements when relevant. "
     "Design for international use, accessibility, responsive behavior, safe secrets, observability and testability rather than a toy demo."
 )
@@ -92,7 +100,24 @@ class ArchitectAgent:
                 'instruction': 'Enrich the product specification without removing or weakening any deterministic minimum.',
             }, ensure_ascii=False)
         data = self.gateway.complete_json(system=_ARCHITECT_SYSTEM, user=user, max_tokens=6000)
-        return ProductSpec.from_dict(data)
+        try:
+            return ProductSpec.from_dict(data)
+        except (ValueError, TypeError, AttributeError) as first_error:
+            # One corrective round with the validator's exact complaint; a
+            # second invalid answer fails the build explicitly. Both calls are
+            # ordinary recorded, budget-checked model calls.
+            correction = json.dumps({
+                'original_request': user,
+                'invalid_specification': data,
+                'validation_error': str(first_error)[:500],
+                'instruction': 'Return the corrected specification as JSON with exactly the required shape and keys.',
+            }, ensure_ascii=False, default=str)
+            data = self.gateway.complete_json(system=_ARCHITECT_SYSTEM, user=correction, max_tokens=6000)
+            try:
+                return ProductSpec.from_dict(data)
+            except (ValueError, TypeError, AttributeError) as second_error:
+                raise ValueError(f'architect returned an invalid specification twice: {second_error} '
+                                 f'(first: {first_error})') from second_error
 
 class GeneratorAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):

@@ -222,6 +222,25 @@
   (8). Known open item: no reaper yet for builds whose worker dies mid-run
   (e.g. a worker redeploy during a build) — they would stay RUNNING.
 
+### 18:20 — third real build: real model answer, spec shape
+
+- Build on Preview `f822dd7`: ended **FAILED** with a visible reason
+  (`ValueError: requirement id/text required`) — the terminal-status fix
+  works (no more endless "running"). The error is raised while validating the
+  architect's answer, i.e. after a successful provider call: **Worker → Real
+  AI Provider: PASS** (a real Gemini response reached the pipeline; 503
+  retries/fallback in place). Next failing transition: **Multi-file Project
+  (spec → generation): FAIL** on the spec shape.
+- Cause: `_ARCHITECT_SYSTEM` named only the top-level fields; the
+  requirement/acceptance keys that `ProductSpec.from_dict` reads (`id`,
+  `text`, `kind`, `mandatory`; `id`, `requirement_id`, `text`) were never
+  stated, so the model invented its own. Fix: the prompt states the exact
+  shape, allowed kinds and id rules; one corrective round sends the
+  validator's exact error with the invalid answer; a second invalid answer
+  fails the build explicitly naming both errors. Both rounds are ordinary
+  recorded, budget-checked calls. Tests: `tests/test_architect_spec_shape.py`
+  (4).
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
