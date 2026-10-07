@@ -291,6 +291,25 @@
   The runner now makes the source root 0755 and the output root 0777 before
   the run; the probe's failure annotation now includes stderr.
 
+### 20:30 — sixth real build: through the sandbox, stopped at R2
+
+- Deploy of `6a5f8b3`: sandbox probe PASS (`code ran in the isolated sandbox
+  (3, 12), network blocked`), queue probe PASS, stale consumer absorbed: 1.
+- Build on Preview `6a5f8b3` ended **FAILED** with a visible reason after the
+  runner served six signed `/run` calls with HTTP 200 (diagnostics run,
+  sandbox-runner log): the generated repository was built and verified in the
+  isolated sandbox, then `workspace.commit` failed on Cloudflare R2:
+  `InvalidArgument ... Credential access key has length 34, should be 32`.
+  **Build → Tests → Verification: reached and executed in the real sandbox**
+  (pass/fail of the individual checks is not visible in this failure's
+  evidence because the commit came first). **Durable Artifact (R2): FAIL** —
+  the R2 Access Key ID in `WORKER_ENV` has two extra characters (value never
+  seen; the founder pasted it today).
+- Guard: `write-env.sh` now checks every `WORKER_ENV` line for surrounding
+  spaces or quotes and the R2 key lengths (32 / 64), reporting variable names
+  and lengths only, and fails the deploy before anything starts. Founder
+  action: correct the line in the secret.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
