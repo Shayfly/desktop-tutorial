@@ -72,3 +72,49 @@ jobs:
           docker compose logs --tail 80 worker
           echo "::error::worker did not start listening on its queue"
           exit 1
+
+      # "Listening on" proves the worker started; this proves it consumes the
+      # queue. A probe job (stdlib socket.gethostname, no side effects, no
+      # build, no model call) is enqueued on omni-builds through the same
+      # Redis the web app uses. PASS only if the running worker container on
+      # this host executes it: the job returns the hostname of the container
+      # that ran it, which must equal the worker container's id.
+      - name: Prove the worker executes a job from the build queue
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          expected=$(docker compose ps -q worker | cut -c1-12)
+          if [ -z "$expected" ]; then echo "::error::worker container is not running"; exit 1; fi
+          docker compose run --rm --no-deps -T -e EXPECTED_WORKER_HOST="$expected" worker python - <<'PY'
+          import os, socket, sys, time
+          from redis import Redis
+          from rq import Queue, Worker
+
+          conn = Redis.from_url(os.environ["OMNI_REDIS_URL"])
+          queue = Queue("omni-builds", connection=conn)
+          workers = Worker.all(queue=queue)
+          print(f"workers registered on omni-builds: {len(workers)} ({', '.join(sorted(w.hostname or '?' for w in workers))})")
+          job = queue.enqueue("socket.gethostname", job_timeout=60, ttl=120, result_ttl=600, failure_ttl=600,
+                              description="deploy probe: worker consumes omni-builds")
+          done = {"finished", "failed", "stopped", "canceled"}
+          deadline = time.monotonic() + 90
+
+          def current_status():
+              value = job.get_status(refresh=True)
+              return str(getattr(value, "value", value) or "")
+
+          status = current_status()
+          while status not in done and time.monotonic() < deadline:
+              time.sleep(2)
+              status = current_status()
+          job.refresh()
+          executed_on = job.return_value(refresh=True) if status == "finished" else None
+          expected = os.environ["EXPECTED_WORKER_HOST"]
+          print(f"probe job {job.id}: status={status} worker={job.worker_name} executed_on={executed_on} "
+                f"expected={expected} enqueued_from={socket.gethostname()}")
+          if status != "finished" or executed_on != expected:
+              print(f"::error title=worker-queue-probe::job {job.id} status={status} executed_on={executed_on} expected={expected}")
+              sys.exit(1)
+          print(f"::notice title=worker-queue-probe::PASS job {job.id} enqueued on omni-builds was executed by "
+                f"worker {job.worker_name} in container {executed_on} on this host")
+          PY

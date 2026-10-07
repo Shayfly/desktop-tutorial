@@ -1,5 +1,45 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-07 16:10 Asia/Jerusalem — worker host (Queue → Worker)
+
+- Oracle access: SSH timed out because the security-list ingress rule allowed
+  `5.29.18.127/32` while the founder's public IP had changed. The founder
+  updated the rule; `Test-NetConnection 151.145.89.132 -Port 22` →
+  `TcpTestSucceeded: True`; SSH as `ubuntu` works. Host: Ubuntu 24.04.5 LTS,
+  `aarch64`.
+- Runner: `infra/worker-host/bootstrap.sh` copied to the host by paste and
+  checked (`sha256 61cfad15…114c`, 55 lines = the committed file), run with a
+  registration token entered with `read -s` (never in chat or shell history).
+  Runner `148ai-worker-01`, labels `self-hosted, Linux, ARM64, omni-worker`,
+  status **Idle** (GitHub runners page, founder screenshot). Independent
+  evidence through the GitHub API: deploy run 37610280053 was picked up by
+  runner `148ai-worker-01` and failed explicitly at "Write environment file"
+  with the annotation `GitHub secret WORKER_ENV is not set` (the secret did not
+  exist yet).
+- `WORKER_ENV` created by the founder (values never seen by this session). The
+  Vercel copies are `sensitive` and cannot be read back, so the values came
+  from their sources: Neon `148ai-db` and Upstash `148ai-redis` (Vercel Storage
+  `.env.local`), a new R2 account token `148ai-worker` scoped to
+  `omni-artifacts` only, and a new Gemini API key `148ai-worker` (free tier).
+  `OMNI_SECRET_KEY` is deliberately not set on the worker: the build path
+  shares no secret with the web app (control-plane tokens are minted and
+  verified only by Vercel); to be set before production.
+- Deploy run 37624945100 (`workflow_dispatch`, `2464394`): every step PASS —
+  write env, build images, **apply database migrations**
+  (`python -m omni_prod.migrate`), start, worker logged `Listening on`.
+  Which migration versions were applied is NOT VERIFIED from here (job logs
+  are blocked by the egress proxy).
+- Queue → Worker: "Listening on" proves the worker started, not that it
+  consumes the queue. Added a deploy step that enqueues a side-effect-free
+  probe job (`socket.gethostname`) on `omni-builds` through the same Redis and
+  passes only if the running worker container on this host executes it.
+  Checked locally against a real Redis server and RQ 2.12.0 (source from
+  GitHub): PASS when the worker runs; FAIL when the executing host is not the
+  expected container; FAIL (status `queued`) when no worker runs. Status:
+  IMPLEMENTED, result pending the deploy run of this commit.
+- Vercel: `2464394` READY on 148aiv28 (`dpl_8PdrfGMYy6CRYxRXvTCLQJFriApT`);
+  148ai still connected to Git and failing every push.
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run
