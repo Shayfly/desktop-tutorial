@@ -6,7 +6,7 @@ import json
 from urllib import request, error
 from .autonomous_core import ExecutionReport, AcceptanceFailure
 from .product_spec import ProductSpec
-from .project_manifest import ProjectManifest, invalid_manifest_report
+from .project_manifest import ProjectManifest, invalid_manifest_report, uncovered_acceptance_failures
 
 class RemoteSandboxError(RuntimeError): pass
 
@@ -50,4 +50,5 @@ class RemoteSandboxRepositoryExecutor:
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',r['stderr'][-2000:]) for aid in check.acceptance_ids)
+        failures.extend(uncovered_acceptance_failures(manifest, spec))
         return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:])

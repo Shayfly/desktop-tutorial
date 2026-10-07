@@ -6,7 +6,7 @@ import tempfile
 from typing import Callable
 from .autonomous_core import ExecutionReport, AcceptanceFailure
 from .product_spec import ProductSpec
-from .project_manifest import ProjectManifest, invalid_manifest_report
+from .project_manifest import ProjectManifest, invalid_manifest_report, uncovered_acceptance_failures
 from .sandbox import SandboxLimits, run_sandbox
 from .repository_patch import normalize_repo_path
 
@@ -146,6 +146,7 @@ class SandboxRepositoryExecutor:
                                 result.stderr[-2000:],
                             )
                         )
+        failures.extend(uncovered_acceptance_failures(manifest, spec))
         return ExecutionReport(
             passed=not failures,
             failures=tuple(failures),

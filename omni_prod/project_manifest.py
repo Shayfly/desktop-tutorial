@@ -75,3 +75,19 @@ def invalid_manifest_report(error: Exception, spec):
     message = f'invalid .omni/project.json: {error}'[:500]
     return ExecutionReport(False, tuple(AcceptanceFailure(a.id, message, MANIFEST_SHAPE) for a in spec.acceptance),
                            message)
+
+
+def uncovered_acceptance_failures(manifest: ProjectManifest, spec) -> tuple:
+    """Acceptance criteria that no verification command claims are unverified,
+    not passed. Golden E2E #1 (2026-10-07): a build passed sandbox verification
+    with 4 of 7 criteria covered and was then rejected by the quality gate
+    (traceability 57%) without a repair round. Reporting them as failures lets
+    the repair loop add the missing tests."""
+    from .autonomous_core import AcceptanceFailure
+    covered = {aid for check in manifest.verify for aid in check.acceptance_ids}
+    return tuple(
+        AcceptanceFailure(
+            a.id, 'no verification command covers this acceptance criterion',
+            f'Add an automated test for "{a.text}" and list "{a.id}" in the acceptance_ids of a verify entry '
+            f'in .omni/project.json. {MANIFEST_SHAPE}')
+        for a in spec.acceptance if a.id not in covered)
