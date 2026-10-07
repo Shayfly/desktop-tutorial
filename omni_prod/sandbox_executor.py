@@ -6,7 +6,7 @@ import tempfile
 from typing import Callable
 from .autonomous_core import ExecutionReport, AcceptanceFailure
 from .product_spec import ProductSpec
-from .project_manifest import ProjectManifest
+from .project_manifest import ProjectManifest, invalid_manifest_report
 from .sandbox import SandboxLimits, run_sandbox
 from .repository_patch import normalize_repo_path
 
@@ -42,8 +42,14 @@ class SandboxRepositoryExecutor:
         self.build_id_factory = build_id_factory or (lambda: 'autonomous-check')
 
     def execute(self, *, repository: dict[str, str], spec: ProductSpec) -> ExecutionReport:
-        manifest = ProjectManifest.from_repository(repository)
         valid_acceptance = {a.id for a in spec.acceptance}
+        try:
+            manifest = ProjectManifest.from_repository(repository)
+            unknown = sorted({x for c in manifest.verify for x in c.acceptance_ids} - valid_acceptance)
+            if unknown:
+                raise ValueError('verification references unknown acceptance id: ' + ', '.join(unknown[:10]))
+        except ValueError as exc:
+            return invalid_manifest_report(exc, spec)
         failures = []
         logs = []
         with tempfile.TemporaryDirectory(prefix='omni-repo-') as td, \

@@ -2,6 +2,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
+# The exact shape ProjectManifest.from_repository reads. Stated verbatim to the
+# generator and repair agents: Golden E2E #1 on Preview (2026-10-07) failed
+# with "at least one verification command required" because the prompts never
+# named these keys and the model chose its own.
+MANIFEST_SHAPE = (
+    '.omni/project.json must use exactly these keys for building and verification: '
+    '{"build": [["python", "-m", "compileall", "-q", "."]], '
+    '"verify": [{"name": "unit tests", "argv": ["python", "-m", "pytest", "-q"], "acceptance_ids": ["A1", "A2"]}]}. '
+    '"build" is a list of argv arrays (it may be empty). "verify" is a non-empty list; every entry has a name, an '
+    'argv array and acceptance_ids naming only acceptance ids of the approved specification; together the entries '
+    'cover every acceptance id. '
+)
+
 @dataclass(frozen=True)
 class VerificationCommand:
     name: str
@@ -52,3 +65,13 @@ class ProjectManifest:
         if len(checks) > 64:
             raise ValueError('too many verification commands')
         return cls(builds, tuple(checks))
+
+
+def invalid_manifest_report(error: Exception, spec):
+    """An unusable manifest is a repository defect the repair loop can fix: it
+    fails every acceptance criterion with the parser's exact reason instead of
+    aborting the build before any repair round."""
+    from .autonomous_core import AcceptanceFailure, ExecutionReport
+    message = f'invalid .omni/project.json: {error}'[:500]
+    return ExecutionReport(False, tuple(AcceptanceFailure(a.id, message, MANIFEST_SHAPE) for a in spec.acceptance),
+                           message)

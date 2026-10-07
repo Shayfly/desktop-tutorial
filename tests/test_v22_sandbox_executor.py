@@ -38,16 +38,26 @@ class SandboxExecutorTests(unittest.TestCase):
         result=SandboxRepositoryExecutor(limits=SandboxLimits(),runner=runner).execute(repository=repo(),spec=SPEC)
         self.assertFalse(result.passed)
         self.assertEqual(result.failures[0].acceptance_id,'A1')
+    # Rejected as a failed verification (nothing runs in the sandbox), so the
+    # repair loop can fix the manifest instead of the whole build aborting
+    # (Golden E2E #1, 2026-10-07: "at least one verification command required").
     def test_unknown_acceptance_reference_rejected(self):
         r=repo()
         data=json.loads(r['.omni/project.json'])
         data['verify'][0]['acceptance_ids']=['NOPE']
         r['.omni/project.json']=json.dumps(data)
-        with self.assertRaises(ValueError):
-            SandboxRepositoryExecutor(limits=SandboxLimits(),runner=Runner([0])).execute(repository=r,spec=SPEC)
+        runner=Runner([0])
+        report=SandboxRepositoryExecutor(limits=SandboxLimits(),runner=runner).execute(repository=r,spec=SPEC)
+        self.assertFalse(report.passed)
+        self.assertIn('unknown acceptance id: NOPE', report.failures[0].message)
+        self.assertEqual(runner.commands, [])
     def test_missing_manifest_rejected(self):
-        with self.assertRaises(ValueError):
-            SandboxRepositoryExecutor(limits=SandboxLimits(),runner=Runner([])).execute(repository={'app.py':'x'},spec=SPEC)
+        runner=Runner([])
+        report=SandboxRepositoryExecutor(limits=SandboxLimits(),runner=runner).execute(repository={'app.py':'x'},spec=SPEC)
+        self.assertFalse(report.passed)
+        self.assertIn('missing .omni/project.json', report.failures[0].message)
+        self.assertEqual({f.acceptance_id for f in report.failures}, {a.id for a in SPEC.acceptance})
+        self.assertEqual(runner.commands, [])
 
 if __name__=='__main__':
     unittest.main()

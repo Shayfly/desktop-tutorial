@@ -6,7 +6,7 @@ import json
 from urllib import request, error
 from .autonomous_core import ExecutionReport, AcceptanceFailure
 from .product_spec import ProductSpec
-from .project_manifest import ProjectManifest
+from .project_manifest import ProjectManifest, invalid_manifest_report
 
 class RemoteSandboxError(RuntimeError): pass
 
@@ -35,13 +35,18 @@ class RemoteSandboxRepositoryExecutor:
         if not all(k in data for k in ('returncode','stdout','stderr')): raise RemoteSandboxError('invalid sandbox response')
         return data
     def execute(self, *, repository: dict[str,str], spec: ProductSpec) -> ExecutionReport:
-        manifest=ProjectManifest.from_repository(repository); valid={a.id for a in spec.acceptance}; failures=[]; logs=[]; n=0
+        valid={a.id for a in spec.acceptance}; failures=[]; logs=[]; n=0
+        try:
+            manifest=ProjectManifest.from_repository(repository)
+            unknown=sorted({x for c in manifest.verify for x in c.acceptance_ids} - valid)
+            if unknown: raise ValueError('verification references unknown acceptance id: '+', '.join(unknown[:10]))
+        except ValueError as exc:
+            return invalid_manifest_report(exc, spec)
         for command in manifest.build:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',r['stderr'][-2000:]) for a in spec.acceptance),'\n'.join(logs)[-10000:])
         for check in manifest.verify:
-            if any(x not in valid for x in check.acceptance_ids): raise ValueError('verification references unknown acceptance id')
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',r['stderr'][-2000:]) for aid in check.acceptance_ids)

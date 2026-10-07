@@ -241,6 +241,28 @@
   recorded, budget-checked calls. Tests: `tests/test_architect_spec_shape.py`
   (4).
 
+### 19:10 — fourth real build: spec PASS, manifest shape
+
+- Deploy run for `67d40be`: start-up reported `stale consumers absorbed
+  before start: 1` — the previous worker's blocked request was still
+  registered on Upstash after the container was replaced, and the decoy
+  satisfied it. This is the first direct observation of the cause found at
+  16:50; the probe then passed.
+- Build on Preview `67d40be`: the architect's spec was accepted (the shape
+  fix works); the generator's repository was rejected with `ValueError: at
+  least one verification command required`, 0 repair rounds, billing
+  `settled`. Cause: same class as the spec — the generator/repair prompts
+  never stated the `.omni/project.json` keys (`build`, `verify[].name`,
+  `argv`, `acceptance_ids`), and the parse error aborted the build before the
+  repair loop. Fix: `project_manifest.MANIFEST_SHAPE` (parsed by the test
+  suite to stay consistent with the parser) in both prompts; an invalid,
+  missing or unknown-id manifest is now a failed verification report for
+  every acceptance criterion with the parser's reason and the shape as
+  evidence, so the repair loop can fix it; nothing runs in the sandbox for it.
+  Tests: `tests/test_manifest_shape.py` (5); `tests/test_v22_sandbox_executor.py`
+  updated to the new contract (rejected as failed verification, sandbox not
+  called).
+
 ## Update 2026-10-07 14:10 Asia/Jerusalem
 
 - CI on `089f5bd` FAILED (`v24-ci` run 37549999227, `V11 Overlay CI` run

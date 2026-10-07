@@ -1,5 +1,7 @@
 from __future__ import annotations
 import json
+
+from .project_manifest import MANIFEST_SHAPE
 from .model_gateway import OpenAICompatibleGateway
 from .product_spec import ProductSpec
 from .repository_patch import parse_patch
@@ -25,6 +27,7 @@ _GENERATOR_SYSTEM = (
     '{"files":[{"path":"...","content":"..."}]}. '
     'Generate a coherent runnable repository. Include .omni/project.json with build '
     'commands and verification commands mapped to acceptance_ids. Commands must be argv arrays, not shell strings. '
+    + MANIFEST_SHAPE +
     # M3 Revision 2: versioned preview contract, parsed by
     # preview_runtime.parse_preview_contract(). Build/verify keys are unchanged
     # (ProjectManifest ignores unknown keys).
@@ -50,6 +53,7 @@ _REPAIR_SYSTEM = (
     'You are Omni Repair Agent. Return only JSON: '
     '{"files":[{"path":"...","content":"... or null"}]}. '
     'Make the smallest safe patch that fixes supplied acceptance failures. '
+    + MANIFEST_SHAPE +
     'Do not remove unrelated working behavior. '
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
