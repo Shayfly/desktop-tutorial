@@ -238,7 +238,7 @@ class PostgresPreviewRepository:
                                 COALESCE(evidence_json, '{}'::jsonb),
                                 '{web_saas_acceptance_reports}',
                                 COALESCE(evidence_json->'web_saas_acceptance_reports', '{}'::jsonb)
-                                    || jsonb_build_object(%s, %s::jsonb),
+                                    || jsonb_build_object(%s::text, %s::jsonb),
                                 true
                             ),
                             '{web_saas_acceptance_latest_preview_id}',

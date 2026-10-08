@@ -142,7 +142,10 @@ jobs:
           from omni_prod.storage import S3ArtifactStore
 
           def publish(title, body, limit=3400):
-              body = re.sub(r"(?i)(key|token|secret|password)([\"' :=]+)[^\s\"',]+", r"\1\2[redacted]", str(body))[:limit] or "<empty>"
+              # Generated code, not configuration: redact secret-shaped values (long
+              # tokens, known key prefixes) without mangling code like `key=lambda`.
+              body = re.sub(r"(?i)(key|token|secret|password)([\"' :=]+)[A-Za-z0-9_\-/+=.]{16,}", r"\1\2[redacted]", str(body))
+              body = re.sub(r"(AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{20,}|(?:rediss?|postgres(?:ql)?)://\S+)", "[redacted]", body)[:limit] or "<empty>"
               print(f"::notice title={title}::" + body.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
 
           with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:

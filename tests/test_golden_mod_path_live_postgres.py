@@ -207,6 +207,29 @@ class GoldenModificationPathTests(unittest.TestCase):
         self.assertEqual(used, Decimal('0.57'))  # 0.07 finished + 0.50 still running
         self.assertEqual(nothing, Decimal('0'))
 
+    def test_preview_acceptance_report_is_recorded_on_real_postgres(self):
+        """Founder library preview 2026-10-08 23:35 (prv_c242ef7e...): every
+        behaviour probe passed, then record_acceptance raised
+        IndeterminateDatatype (untyped jsonb_build_object key), the launch job
+        tore the container down and every click got 502 ("nothing responds")."""
+        from omni_prod.preview_repository import PostgresPreviewRepository
+        build_id, version_id = f'bld_{uuid.uuid4().hex}', f'v_{uuid.uuid4().hex[:16]}'
+        with self.pool.connection() as conn:
+            conn.execute("INSERT INTO build_jobs (id, project_id, status, result_version_id) VALUES (%s, %s, 'ready', %s)",
+                         (build_id, self.project, version_id))
+            conn.commit()
+        repo = PostgresPreviewRepository(self.pool)
+        for preview_id in ('prv_one', 'prv_two'):
+            self.assertEqual(repo.record_acceptance(preview_id, self.project, version_id,
+                                                    {'status': 'PASS', 'release_eligible': True}), build_id)
+        stored = repo.get_acceptance(self.project, version_id)
+        self.assertEqual(stored['preview_id'], 'prv_two')
+        self.assertEqual(stored['status'], 'PASS')
+        with self.pool.connection() as conn:
+            reports = conn.execute("SELECT evidence_json->'web_saas_acceptance_reports' FROM build_jobs WHERE id = %s",
+                                   (build_id,)).fetchone()[0]
+        self.assertEqual(set(reports), {'prv_one', 'prv_two'})
+
 
 if __name__ == '__main__':
     unittest.main()
