@@ -15,6 +15,10 @@ on:
         description: Build id (bld_...); empty = most recent build
         required: false
         default: ""
+      version_id:
+        description: "Optional version id (or prefix) whose start file is published in full, in parts"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/build-evidence.yml]
@@ -102,9 +106,11 @@ jobs:
 
       - name: Publish the latest promoted version's code (read-only)
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          VERSION_ID: ${{ inputs.version_id }}
         run: |
           set -uo pipefail
-          docker compose run --rm --no-deps -T worker python - <<'PY'
+          docker compose run --rm --no-deps -T -e VERSION_ID="$VERSION_ID" worker python - <<'PY'
           import io, json, os, re, zipfile
           import psycopg
           from omni_prod.storage import S3ArtifactStore
@@ -114,8 +120,13 @@ jobs:
               print(f"::notice title={title}::" + body.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
 
           with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
-              row = conn.execute("SELECT v.id, v.artifact_key FROM modification_requests m JOIN project_versions v "
-                                 "ON v.id = m.promoted_version_id ORDER BY m.created_at DESC LIMIT 1").fetchone()
+              want = os.environ.get("VERSION_ID", "").strip()
+              if want:
+                  row = conn.execute("SELECT id, artifact_key FROM project_versions WHERE id LIKE %s ORDER BY created_at DESC LIMIT 1",
+                                     (want + "%",)).fetchone()
+              else:
+                  row = conn.execute("SELECT v.id, v.artifact_key FROM modification_requests m JOIN project_versions v "
+                                     "ON v.id = m.promoted_version_id ORDER BY m.created_at DESC LIMIT 1").fetchone()
           if not row:
               publish("code", "no promoted version"); raise SystemExit(0)
           store = S3ArtifactStore(endpoint=os.environ["OMNI_S3_ENDPOINT"], bucket=os.environ["OMNI_S3_BUCKET"],
@@ -125,6 +136,13 @@ jobs:
           manifest = z.read(".omni/project.json").decode("utf-8", "replace") if ".omni/project.json" in names else ""
           publish("manifest " + row[0], manifest)
           start = (json.loads(manifest).get("start") or []) if manifest else []
-          for f in [a for a in start if a in names][:1] + (["tests/test_league.py"] if "tests/test_league.py" in names else []):
-              publish("file " + f.replace("/", "_"), z.read(f).decode("utf-8", "replace"))
+          publish("files " + row[0], ", ".join(sorted(names)))
+          if os.environ.get("VERSION_ID", "").strip():
+              # The whole start file, in parts (GitHub keeps 10 annotations per step).
+              src = z.read(start[-1]).decode("utf-8", "replace") if start and start[-1] in names else ""
+              for i in range(0, min(len(src), 3300 * 8), 3300):
+                  publish(f"part {i // 3300 + 1} {start[-1]}", src[i:i + 3300])
+          else:
+              for f in [a for a in start if a in names][:1] + (["tests/test_league.py"] if "tests/test_league.py" in names else []):
+                  publish("file " + f.replace("/", "_"), z.read(f).decode("utf-8", "replace"))
           PY
