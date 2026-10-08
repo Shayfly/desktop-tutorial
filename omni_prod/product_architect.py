@@ -144,6 +144,10 @@ class ProductArchitect:
                 # is still merged below and remains authoritative.
                 model_spec = self.architect_agent.create_spec(clean)
         product_spec = self._merge_specs(floor_spec, model_spec)
+        # Fingerprint the spec exactly as it will be read back from storage
+        # (founder build 2026-10-08: an 80-char title cut after a space was
+        # stripped on load, the fingerprint no longer matched, HTTP 500).
+        product_spec = ProductSpec.from_dict(product_spec.to_dict())
 
         roles, role_defaults = self._infer_roles(clean)
         data_requirements = self._infer_data_requirements(clean, decision.plan.modules)

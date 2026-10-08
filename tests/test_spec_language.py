@@ -29,3 +29,20 @@ class TestableCriteriaTests(unittest.TestCase):
         summary = AutonomousProductEngine._summary({'.omni/project.json': '{"verify": []}', 'app.py': 'x = 1'})
         entries = {e['path']: e for e in summary['files']}
         self.assertEqual(entries['.omni/project.json']['content'], '{"verify": []}')
+
+
+class ContractRoundTripTests(__import__('unittest').TestCase):
+    """Founder build 2026-10-08: HTTP 500 'build contract fingerprint mismatch'
+    when the 80-char title was cut right after a space."""
+
+    def test_every_prompt_prefix_round_trips(self):
+        import json
+        from omni_prod.build_contract import BuildContract
+        from omni_prod.product_architect import ProductArchitect
+        prompt = ('אתר בעברית לניהול רשימת משימות לצוות קטן: טופס להוספת משימה עם שם, אחראי ותאריך יעד, '
+                  'טבלה של כל המשימות, כפתור לסימון משימה כבוצעה, כפתור מחיקה ליד כל משימה, וסינון לפי אחראי.')
+        words = prompt.split()
+        for n in range(3, len(words) + 1):
+            c = ProductArchitect().compile(' '.join(words[:n]), project_id='prj_x', contract_version=1)
+            again = BuildContract.from_dict(json.loads(json.dumps(c.to_dict(), ensure_ascii=False)))
+            self.assertEqual(again.contract_fingerprint, c.contract_fingerprint)

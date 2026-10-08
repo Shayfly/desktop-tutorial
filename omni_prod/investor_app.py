@@ -240,7 +240,14 @@ def _m5_resolve_build_contract(*, repository, architect, project_id: str, prompt
     enqueue paid work.
     """
     if requested_contract_id:
-        contract = repository.get(requested_contract_id, project_id=project_id)
+        try:
+            contract = repository.get(requested_contract_id, project_id=project_id)
+        except ValueError as exc:
+            # A stored contract that no longer verifies (e.g. saved before the
+            # 2026-10-08 title-normalisation fix) is never built; the client
+            # asks for a fresh plan instead of getting an HTTP 500.
+            raise HTTPException(409, detail={'error': 'build_contract_invalid',
+                                             'message': 'This plan can no longer be used. Request the plan again.'}) from exc
     else:
         latest = repository.latest(project_id)
         next_version = 1 if latest is None else latest.contract_version + 1
