@@ -14,6 +14,10 @@ on:
         description: Log lines per container (max 200)
         required: false
         default: "120"
+      preview_id:
+        description: "Optional preview id (prv_<hex>): publish that preview container's state, request log and GET probes (read-only)"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/worker-diagnostics.yml]
@@ -30,6 +34,7 @@ jobs:
       - name: Publish container state and recent logs
         env:
           LINES_INPUT: ${{ inputs.lines }}
+          PREVIEW_INPUT: ${{ inputs.preview_id }}
         run: |
           set -uo pipefail
           n="${LINES_INPUT:-120}"; case "$n" in ''|*[!0-9]*) n=120;; esac; [ "$n" -gt 200 ] && n=200
@@ -52,3 +57,14 @@ jobs:
           publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
           publish "worker log" docker logs --tail "$n" omni-worker-worker-1
           publish "sandbox-runner log" docker logs --tail "$n" omni-worker-sandbox-runner-1
+          pv="${PREVIEW_INPUT:-}"
+          if [ -n "$pv" ]; then
+            case "$pv" in prv_[0-9a-f]*) ;; *) echo "::error::preview_id must look like prv_<hex>"; exit 1;; esac
+            case "$pv" in *[!0-9a-z_]*) echo "::error::preview_id has unsafe characters"; exit 1;; esac
+            c="omni-preview-$pv"
+            publish "preview state" docker inspect -f '{{.Name}} status={{.State.Status}} started={{.State.StartedAt}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$c"
+            publish "preview request log" docker logs --tail "$n" "$c"
+            hp=$(docker port "$c" 2>/dev/null | head -1 | sed 's/.*://')
+            probe() { for path in / /books /members /loans /overdue; do printf '%s %s\n' "$path" "$(curl -sS -m 5 -o /dev/null -w '%{http_code} %{size_download}b' "http://127.0.0.1:$hp$path" 2>&1)"; done; }
+            [ -n "$hp" ] && publish "preview GET probes" probe
+          fi
