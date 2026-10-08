@@ -94,9 +94,14 @@ BINDINGS: tuple[Binding, ...] = (
             '$0', ()),
     Binding('qa_verifier',
             ('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor', 'omni_prod.preview_smoke:PreviewReadyExecutor',
-             'omni_prod.quality_gate:QualityAwareExecutor'),
-            WEB, (_SANDBOX,), (_FOUNDER_BUILD, _REHEARSAL), '$0 model cost (sandbox compute)',
-            ('tests are written by the same model that writes the code', 'no independent behaviour/browser check of the running product')),
+             'omni_prod.quality_gate:QualityAwareExecutor', 'omni_prod.product_review:ProductReviewExecutor'),
+            WEB, (_SANDBOX, _MODEL), (_FOUNDER_BUILD, _REHEARSAL,
+                                      Evidence('live', 'golden-rehearsal run 37841459920',
+                                               'skills on: QA review round 1 by gemini-3.8-flash, 0 blocking; ready, quality 86')),
+            'one review call per round (~$0.01)',
+            ('the reviewer is a Gemini model like the author: OpenAI/Anthropic have no credit, so no independent vendor',
+             'reviews the code, not the running product: no HTTP behaviour probes or browser yet',
+             'not yet exercised on a founder build')),
     Binding('security_reviewer', ('omni_prod.security_testing:hostile_repository_scan', 'omni_prod.worker_tasks:evaluate_release_gates'),
             WEB, (), (_FOUNDER_BUILD,), '$0', ('static scan only; no authorization testing of the generated app',)),
     Binding('repair_agent', ('omni_prod.autonomous_agents:RepairAgent',), WEB, (_MODEL, _SANDBOX),
@@ -122,4 +127,25 @@ BINDINGS: tuple[Binding, ...] = (
 )
 
 BY_ROLE = {b.role: b for b in BINDINGS}
+
+
+@dataclass(frozen=True)
+class SkillBinding:
+    key: str                         # omni_prod.skills_runtime skill key
+    evidence: tuple[Evidence, ...] = ()
+    gaps: tuple[str, ...] = ()
+
+
+_SKILLS_REHEARSAL = Evidence('live', 'golden-rehearsal run 37841459920',
+                             'skills_applied recorded in the build; QA review against their checklists, 0 blocking')
+
+SKILL_BINDINGS: tuple[SkillBinding, ...] = (
+    SkillBinding('skill.request_fidelity', (_SKILLS_REHEARSAL,),
+                 ('the plan view still lists "login and sessions" from ProductArchitect for a "no login" request',)),
+    SkillBinding('skill.form_validation', (_SKILLS_REHEARSAL,), ('no HTTP probe sends invalid input to the running app yet',)),
+    SkillBinding('skill.ui_states', (_SKILLS_REHEARSAL,), ('checked by code review only, not in a browser',)),
+    SkillBinding('skill.text_locale', (_SKILLS_REHEARSAL,), ()),
+    SkillBinding('skill.data_integrity', (_SKILLS_REHEARSAL,), ('no conflict/404 probe against the running app yet',)),
+)
+SKILL_BY_KEY = {b.key: b for b in SKILL_BINDINGS}
 assert len(BY_ROLE) == len(BINDINGS), 'one binding per role'

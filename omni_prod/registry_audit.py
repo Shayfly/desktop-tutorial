@@ -144,6 +144,25 @@ def audit(env: Mapping[str, str] | None = None) -> list[Row]:
     return [audit_role(r, env, statuses.get(r.registry_key) if r.registry_key else None) for r in CATALOG]
 
 
+def skill_rows() -> list[list[str]]:
+    """Runtime skills (omni_prod.skills_runtime): code exists and is injected
+    into the named roles' prompts (CONNECTED); VERIFIED needs live evidence."""
+    from .runtime_bindings import SKILL_BY_KEY
+    from .skills_runtime import WEB_SKILLS
+    rows = []
+    for skill in WEB_SKILLS:
+        b = SKILL_BY_KEY.get(skill.key)
+        live = [e for e in (b.evidence if b else ()) if e.kind == 'live']
+        rows.append([f'{skill.key}@{skill.version}', VERIFIED if live else CONNECTED,
+                     'omni_prod.skills_runtime' + (' + static checks' if skill.static_checks else ''),
+                     'injected into: ' + ', '.join(skill.roles),
+                     'live (web)' if live else 'unit tests only',
+                     '; '.join(e.ref + (f' — {e.note}' if e.note else '') for e in (b.evidence if b else ())) or 'tests/test_skills_runtime_and_review.py',
+                     'part of the build call (longer prompts/code)',
+                     '; '.join(b.gaps) if b and b.gaps else '—'])
+    return rows
+
+
 def markdown(rows: list[Row], findings: list[str]) -> str:
     def cell(text):
         return str(text).replace('|', '/').replace('\n', ' ')
@@ -163,6 +182,10 @@ def markdown(rows: list[Row], findings: list[str]) -> str:
                 f'{r.role.name}', r.lifecycle + (' ⚠' if r.issues else ''), r.implementation, r.configuration,
                 r.verification, r.evidence, r.cost, r.gap)) + ' |')
         out.append('')
+    out += ['## runtime skills (web)', '',
+            '| Skill | Status | Implementation | Configuration | Verification | Evidence | Cost | Remaining gap |',
+            '|---|---|---|---|---|---|---|---|']
+    out += ['| ' + ' | '.join(cell(c) for c in r) + ' |' for r in skill_rows()] + ['']
     issues = [f'- {r.role.name}: {i}' for r in rows for i in r.issues]
     out += ['## Mismatches found', ''] + (issues or ['- none in agent roles']) + [f'- {f}' for f in findings] + ['']
     return '\n'.join(out)
