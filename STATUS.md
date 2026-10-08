@@ -1,5 +1,21 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-08 23:05 Asia/Jerusalem — Golden E2E #1: full chain from the founder's workspace
+
+**Verified end to end, one continuous path, founder at the keyboard (Vercel Preview `fe84c4d`+, worker `3a4d822`):**
+login → project "אתר לניהול משימות" → plan/quote → QA reservation → queue → worker → Gemini (paid tier) →
+multi-file repository → sandbox build + tests + repair (2 rounds) → quality 84 → R2 artifact → version
+`v_246bae81234e4c39` → live preview with a real Hebrew UI (`prv-1760dedc…sslip.io`) → natural-language change
+`mod_c14435dc9baa44bdac784d0c15ed9b85` (READY_FOR_REVIEW 22:04, restored after reload, accepted 22:55) → new
+version `v_0bc82ef7b33b4210` with spec A1–A6 (A5 date window → HTTP 400 + DD/MM/YYYY, A6 visible filter +
+reset after add; code checked through build-evidence) → ZIP downloaded and opened by the founder (22:59).
+Real QA spend counted since paid tier: $0.35.
+
+Still open (honest): the new version reports a bad date with `alert()`, shows the "done" button on finished
+tasks and renders via innerHTML of server-escaped text; earlier version double-escaped apostrophes. These are
+product-quality gaps for the generation baseline, not pipeline failures. Release acceptance asks for three
+different prompts: two done (league rehearsal/founder builds, tasks); one more pending.
+
 ## Update 2026-10-08 22:40 Asia/Jerusalem — first founder build with a real UI; change flow; real QA spend
 
 - **Build → Preview with a real UI: PASS (founder, from the workspace).** `bld_f419acd1317a40afab5a7bd287841048`
