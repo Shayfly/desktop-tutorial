@@ -281,6 +281,18 @@ class PostgresModificationRepository:
             accepted_at=_iso(row[13]), rejected_at=_iso(row[14]),
         )
 
+    def latest_for_project(self, project_id: str) -> ModificationDetails | None:
+        """Tenant-scoped most recent modification of a project, so the
+        workspace can show a pending review after a page reload (founder
+        2026-10-08: two candidates finished READY_FOR_REVIEW while the page
+        still said 'sent', with no way to reach the accept button)."""
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('SELECT id FROM modification_requests WHERE project_id = %s '
+                            'ORDER BY created_at DESC LIMIT 1', (project_id,))
+                row = cur.fetchone()
+        return self.get_details(row[0], project_id) if row else None
+
     def get_candidate(self, modification_id: str, project_id: str) -> dict:
         """Tenant-scoped read of the pending candidate stored by `complete()`
         for a READY_FOR_REVIEW modification -- used both by a review UI and

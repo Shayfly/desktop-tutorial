@@ -176,8 +176,13 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   let res;
-  try { res = await fetch(path, { method, headers, credentials: 'same-origin', body: body === undefined ? undefined : JSON.stringify(body) }); }
+  // A request that never answers must not freeze the page (2026-10-08: the
+  // change panel kept saying "sent" after the candidate was ready).
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 30000) : null;
+  try { res = await fetch(path, { method, headers, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined, body: body === undefined ? undefined : JSON.stringify(body) }); }
   catch { throw new ApiError(0, t('errNet')); }
+  finally { if (timer) clearTimeout(timer); }
   if (raw && res.ok) return res;
   let data = null;
   const text = await res.text();
@@ -317,6 +322,7 @@ async function selectProject(id) {
   applyLang();
   if (!S.projectId) return;
   await loadVersions();
+  await restoreMod();
 }
 
 /* ---------- plan + quote ---------- */
@@ -588,22 +594,43 @@ async function restoreVersion(versionId) {
 /* ---------- modification ---------- */
 async function sendModification() {
   const followup = $('followup').value.trim(); const vid = currentVersionId();
-  if (followup.length < 3 || !vid) return;
+  if (followup.length < 3 || !vid || modActive()) return;
   $('modifyBtn').disabled = true;
   try {
     const d = await api(`/api/v28/projects/${pid()}/versions/${encodeURIComponent(vid)}/modifications`, { method: 'POST', body: { followup } });
     S.mod = { id: d.modification_id, status: 'QUEUED' }; renderMod(); pollMod();
   } catch (e) { S.mod = { status: 'ERROR', error_message: explain(e) }; renderMod(); }
-  finally { $('modifyBtn').disabled = false; }
+  finally { renderMod(); }
 }
+const MOD_DONE = ['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT', 'ERROR'];
+// One change at a time: the send button stays locked while a change is being
+// built or waits for review (a double click once created two candidates).
+function modActive() { return !!(S.mod && S.mod.id && ['QUEUED', 'RUNNING', 'READY_FOR_REVIEW'].includes(S.mod.status)); }
 async function pollMod() {
   if (!S.mod || !S.mod.id) return;
   try {
     const d = await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}`);
-    S.mod = { ...S.mod, ...d }; renderMod();
-    if (['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(d.status)) return;
-  } catch (e) { S.mod = { ...S.mod, status: 'ERROR', error_message: explain(e) }; renderMod(); return; }
+    S.mod = { ...S.mod, ...d, misses: 0 }; renderMod();
+    if (MOD_DONE.includes(d.status)) return;
+  } catch (e) {
+    // A dropped or slow request is retried; only a real refusal ends polling.
+    S.mod.misses = (S.mod.misses || 0) + 1;
+    if (e.status && e.status !== 0 || S.mod.misses > 20) { S.mod = { ...S.mod, status: 'ERROR', error_message: explain(e) }; renderMod(); return; }
+  }
   S.timers.mod = setTimeout(pollMod, 3000);
+}
+/* After a reload or project switch, pick up the latest change of this
+   version: still running -> keep polling; ready -> show accept / reject. */
+async function restoreMod() {
+  const vid = currentVersionId();
+  if (!vid) return;
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/modifications/latest`);
+    if (!d || !d.modification_id || d.source_version_id !== vid) return;
+    if (!['QUEUED', 'RUNNING', 'READY_FOR_REVIEW'].includes(d.status)) return;
+    S.mod = { id: d.modification_id, ...d }; renderMod();
+    if (d.status !== 'READY_FOR_REVIEW') pollMod();
+  } catch { /* the panel simply starts empty */ }
 }
 async function decideMod(accept) {
   try {
@@ -616,6 +643,7 @@ async function decideMod(accept) {
 }
 function renderMod() {
   $('modifyPanel').hidden = !currentVersionId();
+  $('modifyBtn').disabled = modActive();
   const box = $('modifyState'); const m = S.mod;
   if (!m) { box.replaceChildren(); return; }
   const kids = [];

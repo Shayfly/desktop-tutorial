@@ -2003,6 +2003,23 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
 
     return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch})
 
+@app.get('/api/v28/projects/{project_id}/modifications/latest')
+def v28_modification_latest(project_id: str, request: Request) -> dict:
+    """The project's most recent modification (or none), same shape as the
+    status route, so a reloaded workspace can resume polling or review."""
+    _require_durable_backend('Natural-language product modification')
+    key = _modification_key(project_id, request)
+    d = PostgresModificationRepository(_v28_pool).latest_for_project(key)
+    if d is None:
+        return {'modification_id': None, 'status': None}
+    return {
+        'modification_id': d.id, 'status': d.status, 'classification': d.classification,
+        'classification_reason': d.classification_reason, 'source_version_id': d.source_version_id,
+        'promoted_version_id': d.promoted_version_id, 'repair_rounds': d.repair_rounds,
+        'error_code': d.error_code, 'error_message': d.error_message,
+        'created_at': d.created_at, 'completed_at': d.completed_at,
+    }
+
 @app.get('/api/v28/projects/{project_id}/modifications/{modification_id}')
 def v28_modification_status(project_id: str, modification_id: str, request: Request) -> dict:
     _require_durable_backend('Natural-language product modification')

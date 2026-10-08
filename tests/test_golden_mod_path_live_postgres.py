@@ -129,6 +129,12 @@ class GoldenModificationPathTests(unittest.TestCase):
         self.assertEqual(req['source_version_id'], version_id)
         self.assertEqual(spec_repo.get(req['source_version_id'], self.project).to_dict(), spec.to_dict())
 
+        # 3b. A reloaded workspace finds the pending modification (2026-10-08),
+        # tenant-scoped: another project sees nothing.
+        latest = mods.latest_for_project(self.project)
+        self.assertEqual((latest.id, latest.source_version_id), (mod_id, version_id))
+        self.assertIsNone(mods.latest_for_project(f'other_{uuid.uuid4().hex}'))
+
         # 4. Settlement of a QA-funded modification reservation.
         self.subs.settle(build_id=mod_id, actual_provider_cost_usd=Decimal('0.01'))
         with self.pool.connection() as conn:
