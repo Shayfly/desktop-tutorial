@@ -168,6 +168,45 @@ class GoldenModificationPathTests(unittest.TestCase):
         self.assertFalse(admission.allowed)
         self.assertEqual(admission.reason, 'cost class not included in plan')
 
+    def test_qa_budget_counts_recorded_spend_not_the_reservation(self):
+        """Founder 2026-10-08: '$10 real'. A finished change without a full
+        provider-reported actual counts its spend ledger, not the 0.50
+        reservation; a running one counts its maximum; 'since' scopes the count."""
+        import datetime
+        from omni_prod.modification_admission import admit_modification
+        from omni_prod.modification_repository import PostgresModificationRepository
+        from omni_prod.qa_budget import qa_used_usd
+        with self.pool.connection() as conn:
+            since = conn.execute('SELECT clock_timestamp()').fetchone()[0].isoformat()
+        from omni_prod.workspace import PostgresProjectWorkspace
+        source = PostgresProjectWorkspace(self.pool, _MemoryStore()).commit(
+            project_id=self.project, repository={'app.py': 'tasks'}, message='tasks')
+        mods = PostgresModificationRepository(self.pool)
+        ids = [f'mod_{uuid.uuid4().hex}' for _ in range(2)]
+        for mod_id in ids:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        self.assertTrue(admit_modification(
+                            cur, subscriptions=self.subs, modification_id=mod_id, account_id=self.account.id,
+                            project_id=self.project, cost_class='standard', credits=30,
+                            internal_qa=True, qa_policy=self.policy).allowed)
+                        mods.create(cur, modification_id=mod_id, project_id=self.project, user_id=self.account.id,
+                                    source_version_id=source.id, followup='f')
+        # The first finished: ledger says 0.07, provider actual unknown (NULL).
+        with self.pool.connection() as conn:
+            conn.execute("UPDATE modification_requests SET evidence_json = %s::jsonb WHERE id = %s",
+                         ('{"provider_spend_usd": "0.07000000"}', ids[0]))
+            conn.commit()
+        self.subs.settle(build_id=ids[0], actual_provider_cost_usd=None)
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                used = qa_used_usd(cur, since)
+                later = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)).isoformat()
+                nothing = qa_used_usd(cur, later)
+        self.assertEqual(used, Decimal('0.57'))  # 0.07 finished + 0.50 still running
+        self.assertEqual(nothing, Decimal('0'))
+
 
 if __name__ == '__main__':
     unittest.main()

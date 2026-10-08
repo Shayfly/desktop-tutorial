@@ -92,7 +92,15 @@ jobs:
               qa = conn.execute(
                   "SELECT status, count(*), sum(estimated_provider_cost_usd), sum(settled_provider_cost_usd), min(created_at), max(created_at) "
                   "FROM credit_reservations WHERE funding_source = 'internal_qa' GROUP BY status ORDER BY status").fetchall()
-              publish("qa budget", "status | count | reserved | settled | first | last\n" + "\n".join(" | ".join(str(x) for x in r) for r in qa))
+              counted = ""
+              try:
+                  from omni_prod.qa_budget import qa_used_usd
+                  with conn.cursor() as cur:
+                      counted = (f"\ncounted (real) all-time={qa_used_usd(cur, None)} "
+                                 f"since 2026-10-08T17:12Z={qa_used_usd(cur, '2026-10-08T17:12:00Z')}")
+              except Exception as exc:
+                  counted = f"\ncounted: n/a ({type(exc).__name__})"
+              publish("qa budget", "status | count | reserved | settled | first | last\n" + "\n".join(" | ".join(str(x) for x in r) for r in qa) + counted)
               publish("recent modifications", "\n".join(" | ".join(str(x) for x in r) for r in recent))
               m = conn.execute(
                   "SELECT id, status, classification, classification_reason, repair_rounds, error_code, error_message, "

@@ -18,6 +18,16 @@ Rules (all fail closed):
   overshoot. Customer-plan reservations never count, and QA reservations never
   touch the customer plan counters.
 * Missing or invalid caps mean QA funding is unavailable.
+
+Counting real money (founder 2026-10-08: "$10 real, all providers together").
+A finished build or change counts its recorded provider spend: the actual
+provider-reported cost when every call reported usage, otherwise the build's
+spend ledger (served calls at tokens x price, refused calls at $0, unanswered
+calls at their worst case) -- never the whole 0.50 reservation, which made
+$9.15 "used" while Google billed about $0.30. A running reservation still
+counts at its maximum. `OMNI_QA_BUDGET_SINCE` (ISO time) starts the count at a
+known point: before 2026-10-08 17:12 UTC every model call ran on Gemini's free
+tier or was refused for lack of credit, so it cost nothing.
 """
 from __future__ import annotations
 
@@ -50,6 +60,7 @@ class QABudgetPolicy:
     build_max_usd: Decimal | None
     total_usd: Decimal | None
     reason: str
+    since: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> 'QABudgetPolicy':
@@ -65,11 +76,41 @@ class QABudgetPolicy:
             return cls(False, environment, build_max, total, 'QA caps are not configured')
         if build_max > total:
             return cls(False, environment, build_max, total, 'QA per-build cap exceeds total cap')
-        return cls(True, environment, build_max, total, 'enabled')
+        since = (env.get('OMNI_QA_BUDGET_SINCE') or '').strip() or None
+        if since is not None:
+            from datetime import datetime
+            try:
+                datetime.fromisoformat(since.replace('Z', '+00:00'))
+            except ValueError:
+                return cls(False, environment, build_max, total, 'OMNI_QA_BUDGET_SINCE is not an ISO time')
+        return cls(True, environment, build_max, total, 'enabled', since)
 
     def evidence(self) -> dict:
         return {'funding_source': 'internal_qa', 'entitlement': QA_ENTITLEMENT, 'environment': self.environment,
-                'qa_build_max_usd': str(self.build_max_usd), 'qa_total_usd': str(self.total_usd)}
+                'qa_build_max_usd': str(self.build_max_usd), 'qa_total_usd': str(self.total_usd),
+                'qa_counted_since': self.since}
+
+
+def qa_used_usd(cur, since: str | None = None) -> Decimal:
+    """Real QA spend so far (see the module docstring for what counts)."""
+    cur.execute(
+        """
+        SELECT COALESCE(SUM(CASE
+                   WHEN r.status IN ('SETTLED', 'RELEASED') THEN COALESCE(
+                        r.actual_provider_cost_usd,
+                        NULLIF(COALESCE(b.evidence_json->>'provider_spend_usd', m.evidence_json->>'provider_spend_usd'), '')::numeric,
+                        r.settled_provider_cost_usd,
+                        CASE WHEN r.status = 'RELEASED' THEN 0 ELSE r.estimated_provider_cost_usd END)
+                   ELSE r.estimated_provider_cost_usd END), 0)
+        FROM credit_reservations r
+        LEFT JOIN build_jobs b ON b.id = r.build_id
+        LEFT JOIN modification_requests m ON m.id = r.build_id
+        WHERE r.funding_source = 'internal_qa'
+          AND (%s::timestamptz IS NULL OR r.created_at >= %s::timestamptz)
+        """,
+        (since, since),
+    )
+    return Decimal(str(cur.fetchone()[0] or 0))
 
 
 def active_entitlement(cur, policy: QABudgetPolicy, account_id: str) -> dict | None:
@@ -129,17 +170,7 @@ def authorize_qa_build(cur, policy: QABudgetPolicy, *, account_id: str, max_cost
     grant = active_entitlement(cur, policy, account_id)
     if grant is None:
         raise QABudgetDenied(f'no active {QA_ENTITLEMENT} entitlement for this account in {policy.environment}')
-    cur.execute(
-        """
-        SELECT COALESCE(SUM(CASE
-                   WHEN status = 'SETTLED' THEN COALESCE(settled_provider_cost_usd, estimated_provider_cost_usd)
-                   WHEN status = 'RELEASED' THEN COALESCE(settled_provider_cost_usd, 0)
-                   ELSE estimated_provider_cost_usd END), 0)
-        FROM credit_reservations
-        WHERE funding_source = 'internal_qa'
-        """
-    )
-    used = Decimal(str(cur.fetchone()[0] or 0))
+    used = qa_used_usd(cur, policy.since)
     if used + max_cost_usd > policy.total_usd:
         raise QABudgetDenied(f'QA total budget exhausted: used {used} + this build {max_cost_usd} > cap {policy.total_usd}')
     return {**policy.evidence(), **grant, 'qa_used_before_usd': str(used), 'qa_this_build_max_usd': str(max_cost_usd)}
