@@ -98,6 +98,9 @@ class RoutedModelGateway:
         # Routes that answered "quota spent" / "key rejected": skipped for the
         # rest of this gateway's life (one build or modification).
         self.unavailable: dict[str, str] = {}
+        # Which catalog routes served which task in this build, so the QA
+        # reviewer can prefer a model other than the one that wrote the code.
+        self.models_by_task: dict[str, set[str]] = {}
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
@@ -194,6 +197,7 @@ class RoutedModelGateway:
         self._fill(record, gateway, usage, option, elapsed)
         self._settle(route, record)
         record.outcome = 'ok'
+        self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
         self.recorder.add(record)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
                                 request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
@@ -257,7 +261,7 @@ class RoutedModelGateway:
         models stay available as escalation when it is unavailable.
         OMNI_MODEL_TASK_MIN_QUALITY (JSON object) overrides the defaults.
         """
-        floors = {'codegen': 85, 'repair': 85, 'modification': 85}
+        floors = {'codegen': 85, 'repair': 85, 'modification': 85, 'review': 85}
         raw = os.getenv('OMNI_MODEL_TASK_MIN_QUALITY', '').strip()
         if raw:
             try:
@@ -293,9 +297,15 @@ class RoutedModelGateway:
                      if policy.prefer_cost else (-option.quality, cost, option.latency_ms, model.endpoint.name))
             candidates.append((order, ProviderRoute(model.endpoint, cost), {**kwargs, 'max_tokens': out_tokens}, option))
         floor = self.task_quality_floor(task)
+        # Agent OS spec §4: the reviewer is not the author. Among models that
+        # meet the floor, prefer one that did not write or repair the code.
+        authors = set()
+        if task == 'review':
+            for t in ('codegen', 'repair', 'modification'):
+                authors |= self.models_by_task.get(t, set())
         # Models meeting the task's floor first (cheapest among them), then the
         # rest as escalation; the base minimum_quality filter above still holds.
-        candidates.sort(key=lambda c: (c[3].quality < floor, c[0]))
+        candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors, c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
     def _route(self, method: str, kwargs: dict, task: str = 'general'):

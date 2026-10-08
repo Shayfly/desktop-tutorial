@@ -4,6 +4,7 @@ from .model_gateway import OpenAICompatibleGateway
 from .product_spec import ProductSpec
 from .project_manifest import MANIFEST_SHAPE
 from .dependency_policy import GENERATION_CONSTRAINTS
+from .skills_runtime import guidance_for
 from .repository_patch import parse_patch
 
 # M4C: "change_request: DO NOT force it into RepairAgent... Implement a
@@ -44,6 +45,7 @@ _EVOLUTION_SYSTEM = (
     '.omni/project.json whenever you add acceptance ids. '
     + MANIFEST_SHAPE
     + GENERATION_CONSTRAINTS
+    + guidance_for('evolution')
 )
 
 

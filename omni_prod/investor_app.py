@@ -606,6 +606,10 @@ def _model_gateway_and_executor():
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor
     executor=QualityAwareExecutor(executor,minimum_score=int(os.getenv('OMNI_MIN_QUALITY_SCORE','80')))
+    # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists
+    # and static checks; blocking findings go back to repair (bounded).
+    from .product_review import ProductReviewExecutor
+    executor=ProductReviewExecutor(executor,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2')))
     return gateway,executor
 
 def _live_components():

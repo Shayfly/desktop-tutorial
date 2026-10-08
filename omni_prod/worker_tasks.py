@@ -65,6 +65,14 @@ SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state
                'is released to zero: it was not served and is not billed')
 
 
+def _skills_applied() -> list:
+    try:
+        from .skills_runtime import applied_skills
+        return applied_skills()
+    except Exception:  # evidence must never fail a build
+        return []
+
+
 def failure_code(exc: BaseException) -> str:
     """Customer-meaningful error code for an exception that ended a job.
 
@@ -441,6 +449,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
             'asset_capabilities': asset_capability_status(capability_plan),
+            # Agent OS §11: which skills shaped the build and what QA review found.
+            'skills_applied': _skills_applied(),
+            'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
         }
     except InfrastructureStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)

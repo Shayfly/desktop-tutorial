@@ -7,6 +7,7 @@ from .product_spec import ProductSpec
 from .repository_patch import parse_patch
 from .change_policy import ChangeAssessment
 from .dependency_policy import GENERATION_CONSTRAINTS
+from .skills_runtime import guidance_for
 
 _ARCHITECT_SYSTEM = (
     "You are Omni Architect. Convert the user's product request to strict JSON. "
@@ -37,6 +38,7 @@ _ARCHITECT_SYSTEM = (
     'every acceptance requirement_id names an existing requirement id. '
     "Every mandatory requirement must have at least one acceptance criterion. Include explicit quality, security, data and deployment requirements when relevant. "
     "Design for international use, accessibility, responsive behavior, safe secrets, observability and testability rather than a toy demo."
+    + guidance_for('architect')
 )
 _GENERATOR_SYSTEM = (
     'You are Omni Code Generator. Return only JSON: '
@@ -62,13 +64,14 @@ _GENERATOR_SYSTEM = (
     'Every product here is a website or web app, so the preview keys are required; '
     'the platform starts the app in the sandbox and checks health_path before accepting the build. '
     'For a Web/SaaS product, the same .omni/project.json must also include a data-driven "web_saas_acceptance" object. '
-    'It must contain "product_family":"managed_web_saas_v1", "required_kinds" covering auth, role, data_create, data_read, data_update, data_delete, integration, responsive, api_smoke, and non-empty "personas". '
+    'It must contain "product_family":"managed_web_saas_v1", "required_kinds" listing the kinds this product really has from auth, role, data_create, data_read, data_update, data_delete, integration, responsive, api_smoke (auth and role only when the product has sign-in or roles), and non-empty "personas". '
     # Decision 2026-10-07 #27: a self-contained app has no external integration
     # or background infrastructure; such steps would be NOT_VERIFIED, not passed.
     'When the approved spec stack is self-contained (embedded SQLite), omit the integration kind and any external-integration or background-job steps: they are out of scope and are reported as not verified. '
     'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
     + GENERATION_CONSTRAINTS
+    + guidance_for('generator')
 )
 _REPAIR_SYSTEM = (
     'You are Omni Repair Agent. Return only JSON: '
@@ -81,6 +84,7 @@ _REPAIR_SYSTEM = (
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
     + GENERATION_CONSTRAINTS
+    + guidance_for('repair')
 )
 
 # M2 Revision 4 (native adaptation): repo_summary is already a lightweight

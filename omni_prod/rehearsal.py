@@ -44,6 +44,10 @@ def run(prompt: str) -> dict:
                       for f in result.report.failures][:6],
             quality={'score': quality.score, 'passed': quality.passed, 'blockers': list(quality.blockers)},
             trace=getattr(engine, 'trace', [])[:8],
+            review=[{'round': r.get('round'), 'enforced': r.get('enforced'), 'reviewer': r.get('reviewer'),
+                     'model': r.get('model'), 'blocking': r.get('blocking'),
+                     'findings': [f"{f['severity']}/{f['source']} {f['skill']}: {f['problem'][:160]}" for f in r.get('findings', [])][:8]}
+                    for r in getattr(getattr(engine, 'executor', None), 'reviews', [])][:4],
         )
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
@@ -88,6 +92,10 @@ def annotations(report: dict) -> list[str]:
     if report.get('tokens'):
         lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
                                   f"{json.dumps(report.get('same_tokens_cost_usd'))}"))
+    if report.get('review'):
+        lines.append(note('qa review', '\n'.join(
+            f"round {r['round']} enforced={r['enforced']} reviewer={r['reviewer']} model={r['model']} blocking={r['blocking']}\n  "
+            + '\n  '.join(r['findings']) for r in report['review'])))
     if report.get('trace'):
         lines.append(note('repair rounds', '\n'.join(
             f"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}"
