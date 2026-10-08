@@ -81,7 +81,7 @@ class ProductEvolutionAgent:
             raise ValueError('followup cannot be empty')
         payload = {'spec': spec.to_dict(), 'repository': repo_summary, 'change_request': followup}
         data = self.gateway.complete_json(
-            system=_EVOLUTION_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=14000,
+            system=_EVOLUTION_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=24000,
         )
         new_spec = ProductSpec.from_dict(data.get('spec', {}))
         _assert_no_dropped_ids(old=spec, new=new_spec)

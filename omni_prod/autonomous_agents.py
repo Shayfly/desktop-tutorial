@@ -158,7 +158,9 @@ class GeneratorAgent:
         data = self.gateway.complete_json(
             system=_GENERATOR_SYSTEM,
             user=json.dumps(spec.to_dict(), ensure_ascii=False),
-            max_tokens=12000,
+            # Rehearsal 37840698696: with the quality skills the code is longer
+            # and 12k output tokens truncated the JSON on every model.
+            max_tokens=24000,
         )
         return parse_patch(data)
 
@@ -170,7 +172,7 @@ class RepairAgent:
         data = self.gateway.complete_json(
             system=_REPAIR_SYSTEM,
             user=json.dumps(payload, ensure_ascii=False),
-            max_tokens=10000,
+            max_tokens=20000,
         )
         return parse_patch(data)
 
