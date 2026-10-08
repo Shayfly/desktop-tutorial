@@ -89,6 +89,10 @@ jobs:
               recent = conn.execute(
                   "SELECT id, status, classification, repair_rounds, error_code, left(coalesce(error_message, classification_reason, ''), 300), "
                   "created_at, completed_at, accepted_at, promoted_version_id FROM modification_requests ORDER BY created_at DESC LIMIT 4").fetchall()
+              qa = conn.execute(
+                  "SELECT status, count(*), sum(estimated_provider_cost_usd), sum(settled_provider_cost_usd), min(created_at), max(created_at) "
+                  "FROM credit_reservations WHERE funding_source = 'internal_qa' GROUP BY status ORDER BY status").fetchall()
+              publish("qa budget", "status | count | reserved | settled | first | last\n" + "\n".join(" | ".join(str(x) for x in r) for r in qa))
               publish("recent modifications", "\n".join(" | ".join(str(x) for x in r) for r in recent))
               m = conn.execute(
                   "SELECT id, status, classification, classification_reason, repair_rounds, error_code, error_message, "
