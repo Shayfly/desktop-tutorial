@@ -108,6 +108,9 @@ class QuotaTests(unittest.TestCase):
         self.assertTrue(quota_exhausted(ModelHTTPError('HTTP 401: invalid x-api-key', status=401)))
         self.assertTrue(quota_exhausted(ModelHTTPError('HTTP 400: credit balance is too low', status=429)))
         self.assertFalse(quota_exhausted(ModelHTTPError('HTTP 429: rate limit', status=429)))
+        self.assertTrue(quota_exhausted(ModelHTTPError('HTTP 400: Your credit balance is too low', status=400)))
+        self.assertTrue(quota_exhausted(ModelHTTPError('HTTP 429: You have no credits remaining. Add credits ... /billing/', status=429)))
+        self.assertFalse(quota_exhausted(ModelHTTPError('HTTP 400: invalid request', status=400)))
         self.assertFalse(quota_exhausted(ModelHTTPError('HTTP 503', status=503)))
 
 

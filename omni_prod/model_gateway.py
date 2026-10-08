@@ -67,9 +67,12 @@ def quota_exhausted(exc) -> bool:
     status = getattr(exc, 'status', None)
     if status in (401, 402, 403):
         return True
+    text = str(exc).lower()
+    if status == 400:
+        # Anthropic answers an empty prepaid balance with HTTP 400 (model probe 2026-10-08).
+        return 'credit balance' in text
     if status != 429:
         return False
-    text = str(exc).lower()
     return any(k in text for k in ('quota', 'billing', 'insufficient', 'credit balance', 'resource_exhausted'))
 
 
