@@ -1,5 +1,27 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-08 22:40 Asia/Jerusalem — first founder build with a real UI; change flow; real QA spend
+
+- **Build → Preview with a real UI: PASS (founder, from the workspace).** `bld_f419acd1317a40afab5a7bd287841048`
+  (project "אתר לניהול משימות", 21:30–21:35, 2 repair rounds, quality 84) → `v_246bae81234e4c39`; preview
+  `https://prv-1760dedc67864c0186aa0cdf945bab0d.151-145-89-132.sslip.io` showed the Hebrew task form,
+  filter and table; the founder added tasks, filtered and deleted (screenshots 21:36–21:41).
+- Defects the founder found in the generated product (open, platform level): no input validation (due
+  date 2356 accepted), ISO dates, an active filter is not shown and hides new tasks; the planner adds
+  login/roles requirements although the request says "בלי התחברות". To do: a product-quality baseline
+  for generation (validation, clear errors, visible filter state, local date format).
+- Fixed: HTTP 500 on approving a plan (`build contract fingerprint mismatch`: title cut at 80 chars after
+  a space; 409 for a stale contract); "+ New project" with a name dialog and an empty request box.
+- Change flow: `mod_c8d186268bee413e9a03197ee15d8de6` (21:45–21:51) and `mod_c14435dc9baa44bdac784d0c15ed9b85`
+  (22:00–22:04) both READY_FOR_REVIEW, but the panel kept saying "sent" and a second click created a
+  second candidate. Fixed: latest-modification route + restore after reload, one change at a time,
+  30 s request timeout with polling retries (real-Postgres + Chromium checks). Accept/version/ZIP of the
+  change: pending founder action.
+- QA budget: the cap ($10, founder decision #23) counted reservations ($9.15 "used", 22 rows) while real
+  provider cost was ~ $0 before 17:12 UTC (Gemini free tier) and ~ $0.30 after. Founder 22:25: "$10 real,
+  all providers together". `qa_used_usd` now counts provider-reported actuals or the spend ledger;
+  `OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z` set on Vercel Preview (plain, non-secret).
+
 ## Update 2026-10-08 21:00 Asia/Jerusalem — first founder build after the provider work
 
 - `bld_78e2699472054c918890c5daddafc205` (founder, football project, 20:39): FAILED
