@@ -2,7 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import secrets
 import subprocess
+from datetime import datetime, timezone
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 
@@ -67,7 +69,11 @@ def build_docker_command(
         "--env", "PYTHONPYCACHEPREFIX=/tmp/pycache",
         "--env", "PYTHONDONTWRITEBYTECODE=1",
         "--env", "PYTEST_ADDOPTS=-p no:cacheprovider",
-        "--name", f"omni-build-{build_id}",
+        # Unique per run and labelled (2026-10-09): a fixed name "omni-build-t2"
+        # stayed taken by a hung test container and every later build failed
+        # with "Conflict. The container name ... is already in use".
+        "--name", container_name(build_id),
+        "--label", "omni.sandbox=1",
     ]
 
     if output_dir is not None:
@@ -94,6 +100,48 @@ def build_docker_command(
     argv.extend([limits.image, *command])
     return argv
 
+def container_name(build_id: str) -> str:
+    return f"omni-build-{build_id}-{secrets.token_hex(5)}"
+
+
+def _docker_env() -> dict:
+    import os
+    return {k: v for k, v in {"PATH": "/usr/bin:/bin", "DOCKER_HOST": os.environ.get("DOCKER_HOST", ""),
+                              "DOCKER_TLS_VERIFY": os.environ.get("DOCKER_TLS_VERIFY", ""),
+                              "DOCKER_CERT_PATH": os.environ.get("DOCKER_CERT_PATH", "")}.items() if v}
+
+
+def _parse_created(value: str) -> datetime | None:
+    # docker ps --format '{{.CreatedAt}}' -> "2026-10-09 01:58:00 +0300 IDT"
+    parts = value.strip().split()
+    try:
+        return datetime.strptime(' '.join(parts[:3]), '%Y-%m-%d %H:%M:%S %z')
+    except (ValueError, IndexError):
+        return None
+
+
+def sweep_stale_containers(max_age_seconds: int, *, runner=subprocess.run, now: datetime | None = None) -> list[str]:
+    """Remove sandbox containers older than max_age (hung tests whose docker
+    client was killed by the timeout keep running and hold resources). Matches
+    the label and, for containers started before labels existed, the name
+    prefix. Best effort: a docker error never fails the caller."""
+    now = now or datetime.now(timezone.utc)
+    removed = []
+    try:
+        out = runner(["docker", "ps", "-a", "--filter", "name=omni-build-", "--format", "{{.ID}}|{{.Names}}|{{.CreatedAt}}"],
+                     text=True, capture_output=True, timeout=20, check=False, env=_docker_env()).stdout or ''
+        for line in out.splitlines():
+            cid, _, rest = line.partition('|')
+            name, _, created = rest.partition('|')
+            when = _parse_created(created)
+            if cid and name.startswith('omni-build-') and when and (now - when).total_seconds() > max_age_seconds:
+                runner(["docker", "rm", "-f", cid], text=True, capture_output=True, timeout=30, check=False, env=_docker_env())
+                removed.append(name)
+    except Exception:
+        pass
+    return removed
+
+
 def run_sandbox(
     *,
     source_dir: str | Path,
@@ -102,6 +150,7 @@ def run_sandbox(
     command: list[str],
     output_dir: str | Path | None = None,
 ) -> SandboxResult:
+    sweep_stale_containers(limits.timeout_seconds + 120)
     argv = build_docker_command(
         source_dir=source_dir,
         build_id=build_id,
@@ -109,12 +158,22 @@ def run_sandbox(
         command=command,
         output_dir=output_dir,
     )
-    proc = subprocess.run(
-        argv,
-        text=True,
-        capture_output=True,
-        timeout=limits.timeout_seconds,
-        check=False,
-        env={k:v for k,v in {"PATH": "/usr/bin:/bin", "DOCKER_HOST": __import__("os").environ.get("DOCKER_HOST", ""), "DOCKER_TLS_VERIFY": __import__("os").environ.get("DOCKER_TLS_VERIFY", ""), "DOCKER_CERT_PATH": __import__("os").environ.get("DOCKER_CERT_PATH", "")}.items() if v},
-    )
+    name = argv[argv.index("--name") + 1]
+    try:
+        proc = subprocess.run(
+            argv,
+            text=True,
+            capture_output=True,
+            timeout=limits.timeout_seconds,
+            check=False,
+            env=_docker_env(),
+        )
+    except subprocess.TimeoutExpired as exc:
+        # The timeout kills only the docker client; the container would keep
+        # running (and, before unique names, block the next run). Remove it
+        # and report an explicit failure instead of raising.
+        subprocess.run(["docker", "rm", "-f", name], text=True, capture_output=True, timeout=30, check=False, env=_docker_env())
+        out = exc.stdout.decode('utf-8', 'replace') if isinstance(exc.stdout, bytes) else (exc.stdout or '')
+        err = exc.stderr.decode('utf-8', 'replace') if isinstance(exc.stderr, bytes) else (exc.stderr or '')
+        return SandboxResult(124, out, (err + f"\nsandbox timed out after {limits.timeout_seconds}s (a test or server never exited); container removed").strip())
     return SandboxResult(proc.returncode, proc.stdout, proc.stderr)

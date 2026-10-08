@@ -64,6 +64,11 @@ GENERATION_CONSTRAINTS = (
     'Tests run from the repository root with "python -m pytest -q" on Python 3.12; the preview runs Python 3.11, so '
     'use only syntax and standard-library features available in 3.11. There is no network except loopback: a test '
     'that needs the HTTP server starts it in a thread on a free port (bind port 0) and stops it afterwards.'
+    # Library rehearsal 2026-10-09: a test left its server running, the sandbox
+    # run never ended and was killed at its time limit.
+    ' Stopping is mandatory: use a pytest fixture with yield that calls server.shutdown() and server.server_close() '
+    '(daemon thread), give every urllib request a timeout of a few seconds, and never call serve_forever() in the '
+    'test process itself; the whole test run is killed after 180 seconds.'
 )
 
 _STDLIB = frozenset(sys.stdlib_module_names) | {'__future__'}
