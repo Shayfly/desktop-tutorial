@@ -1,5 +1,20 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-08 20:40 Asia/Jerusalem — providers connected, paid Gemini, measured build cost
+
+- `ff6b4f6` deployed (run 37739774562): quota answers disable a route for the build, refused
+  calls release their reservation, budget-fit fallback, failure codes `model_budget_exhausted` /
+  `model_unavailable`; OpenAI (`gpt-6-luna`, `gpt-6.1-sol`) and Anthropic (`claude-sonnet-5-5`,
+  native Messages API) in the catalog. Deploy notice: all 6 catalog models CONFIGURED (keys from
+  GitHub secrets `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`).
+- Model probe 37814803770 (after the founder enabled Gemini billing, Tier 1 prepay): 3 Gemini
+  models **PASS**; OpenAI **FAIL** "no credits remaining" (HTTP 429); Anthropic **FAIL** "credit
+  balance is too low" (HTTP 400). Blocked by: prepaid credit in both accounts (founder).
+- Rehearsal 37814985551 (Gemini only, Hebrew league prompt): `ready`, 5 repair rounds, quality
+  82/pass, 13 calls, 650 s. Measured tokens 26,570 in / 22,248 out; metered at list price
+  ≈ $0.075 (flash-lite 7 calls ≈ $0.018, 3.8-flash 3 calls ≈ $0.057). Ledger (conservative,
+  calls without reported usage kept at worst case) $0.2096.
+
 ## Update 2026-10-08 02:50 Asia/Jerusalem — root cause of bld_ccd38bd0; status review
 
 Full review (Hebrew): `docs/STATUS_REVIEW_2026-10-08_HE.md`. No operation running.
