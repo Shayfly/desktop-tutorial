@@ -19,6 +19,14 @@ on:
         description: "Optional version id (or prefix) whose start file is published in full, in parts"
         required: false
         default: ""
+      file_path:
+        description: "Optional file inside that version to publish instead of the start file"
+        required: false
+        default: ""
+      part_offset:
+        description: "Skip this many 3300-character parts (to read long files in several runs)"
+        required: false
+        default: "0"
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/build-evidence.yml]
@@ -124,9 +132,11 @@ jobs:
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
         env:
           VERSION_ID: ${{ inputs.version_id }}
+          FILE_PATH: ${{ inputs.file_path }}
+          PART_OFFSET: ${{ inputs.part_offset }}
         run: |
           set -uo pipefail
-          docker compose run --rm --no-deps -T -e VERSION_ID="$VERSION_ID" worker python - <<'PY'
+          docker compose run --rm --no-deps -T -e VERSION_ID="$VERSION_ID" -e FILE_PATH="$FILE_PATH" -e PART_OFFSET="$PART_OFFSET" worker python - <<'PY'
           import io, json, os, re, zipfile
           import psycopg
           from omni_prod.storage import S3ArtifactStore
@@ -155,9 +165,12 @@ jobs:
           publish("files " + row[0], ", ".join(sorted(names)))
           if os.environ.get("VERSION_ID", "").strip():
               # The whole start file, in parts (GitHub keeps 10 annotations per step).
-              src = z.read(start[-1]).decode("utf-8", "replace") if start and start[-1] in names else ""
-              for i in range(0, min(len(src), 3300 * 8), 3300):
-                  publish(f"part {i // 3300 + 1} {start[-1]}", src[i:i + 3300])
+              target = os.environ.get("FILE_PATH", "").strip() or (start[-1] if start else "")
+              src = z.read(target).decode("utf-8", "replace") if target in names else ""
+              first = max(0, int(os.environ.get("PART_OFFSET", "0") or 0)) * 3300
+              publish("length " + target, f"{len(src)} characters; parts of 3300")
+              for i in range(first, min(len(src), first + 3300 * 8), 3300):
+                  publish(f"part {i // 3300 + 1} {target}", src[i:i + 3300])
           else:
               for f in [a for a in start if a in names][:1] + (["tests/test_league.py"] if "tests/test_league.py" in names else []):
                   publish("file " + f.replace("/", "_"), z.read(f).decode("utf-8", "replace"))
