@@ -21,6 +21,7 @@
   <div class="projectbar" id="projectbar" hidden>
     <label class="sr" for="projectSelect" data-i18n="projects">פרויקטים</label>
     <select id="projectSelect"></select>
+    <button class="ghost" id="newProjectTopBtn" data-i18n="newProjectPlus">+ פרויקט חדש</button>
     <button class="ghost" id="projectMenuBtn" aria-haspopup="true" aria-expanded="false" data-i18n="manage">ניהול</button>
   </div>
   <div class="topright">
@@ -87,7 +88,7 @@
       </div>
 
       <div class="row" id="newBuildRow" hidden>
-        <button class="ghost" id="newBuildBtn" data-i18n="newBuild">בנייה חדשה מאפס</button>
+        <button class="ghost" id="newBuildBtn" data-i18n="newBuild">מוצר חדש בפרויקט חדש</button>
       </div>
 
       <div class="panel composer" id="composer">
@@ -155,6 +156,19 @@
     <div class="row"><button type="button" id="newProjectBtn" data-i18n="createProject">יצירת פרויקט</button></div>
     <p class="msg" id="projectMsg" role="alert"></p>
     <div class="row end"><button class="ghost" value="close" data-i18n="close">סגירה</button></div>
+  </form>
+</dialog>
+
+<dialog id="newProjectDialog">
+  <form method="dialog" id="newProjectForm">
+    <h2 data-i18n="newProject">פרויקט חדש</h2>
+    <p data-i18n="newProjectHint">לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.</p>
+    <label><span data-i18n="projectName">שם הפרויקט</span><input id="newProjectName" maxlength="120" required></label>
+    <p class="msg" id="newProjectMsg" role="alert"></p>
+    <div class="row end">
+      <button type="submit" id="newProjectCreate" value="create" data-i18n="createProject">יצירת פרויקט</button>
+      <button type="button" class="ghost" id="newProjectCancel" data-i18n="close">סגירה</button>
+    </div>
   </form>
 </dialog>
 </body>

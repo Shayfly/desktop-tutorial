@@ -15,7 +15,7 @@ const T = {
     login:'כניסה', register:'יצירת חשבון חינם',
     firstProject:'הפרויקט הראשון שלכם', projectName:'שם הפרויקט', createProject:'יצירת פרויקט',
     request:'מה תרצו לבנות?', build:'בנה עם 148AI', planHint:'קודם תוצג תוכנית ועלות. שום חיוב לא מתבצע לפני אישור.',
-    builtTitle:'מה נבנה עד עכשיו', newBuild:'בנייה חדשה מאפס', builtVersion:'גרסה נוכחית', files:'קבצים',
+    builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
     evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
     noPreview:'כאן תופיע האפליקציה אחרי שהבנייה תסתיים.', download:'הורדת קוד המקור (ZIP)', publish:'פרסום',
@@ -83,7 +83,7 @@ const T = {
     login:'Sign in', register:'Create free account',
     firstProject:'Your first project', projectName:'Project name', createProject:'Create project',
     request:'What do you want to build?', build:'Build with 148AI', planHint:'You will see a plan and cost first. Nothing is charged before you approve.',
-    builtTitle:'What has been built', newBuild:'New build from scratch', builtVersion:'Current version', files:'files',
+    builtTitle:'What has been built', newBuild:'New product in a new project', newProjectPlus:'+ New project', newProjectHint:'Each product gets its own project. Name it, then describe what to build.', nameRequired:'Give the project a name.', builtVersion:'Current version', files:'files',
     progress:'Build progress', modifyTitle:'What would you like to change?', modifySend:'Send change', versions:'Versions',
     evidence:'Technical details and evidence', refresh:'Refresh', openTab:'Open in new tab',
     noPreview:'Your app appears here once the build finishes.', download:'Download source (ZIP)', publish:'Publish',
@@ -290,11 +290,29 @@ async function createProject(title) {
   const p = await api('/api/v28/projects', { method: 'POST', body: { title: title || t('untitled') } });
   S.projectId = p.id;
   await loadProjects();
+  // A new project starts empty: no request text carried over from the last one.
+  $('prompt').value = ''; $('composerMsg').textContent = '';
+  $('prompt').focus();
+}
+function openNewProject() {
+  $('newProjectName').value = ''; $('newProjectMsg').textContent = '';
+  $('newProjectDialog').showModal(); $('newProjectName').focus();
+}
+async function submitNewProject(e) {
+  e.preventDefault();
+  const name = $('newProjectName').value.trim();
+  if (!name) { $('newProjectMsg').textContent = t('nameRequired'); return; }
+  $('newProjectCreate').disabled = true;
+  try { await createProject(name); $('newProjectDialog').close(); }
+  catch (err) { $('newProjectMsg').textContent = explain(err); }
+  finally { $('newProjectCreate').disabled = false; }
 }
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
+  if (S.projectId !== S.lastShownProject) { $('prompt').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
+  S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
   applyLang();
   if (!S.projectId) return;
@@ -681,7 +699,12 @@ function wire() {
     await createProject($('newProjectInput').value.trim());
   }, 'created'));
   $('planBtn').addEventListener('click', requestPlan);
-  $('newBuildBtn').addEventListener('click', () => { S.newBuildOpen = true; renderBuilt(); $('prompt').focus(); });
+  // Founder 2026-10-08: a new product never reuses the open project; it gets
+  // its own named project and an empty request box.
+  $('newBuildBtn').addEventListener('click', openNewProject);
+  $('newProjectTopBtn').addEventListener('click', openNewProject);
+  $('newProjectForm').addEventListener('submit', submitNewProject);
+  $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);
   $('refreshPreviewBtn').addEventListener('click', () => { const f = $('previewFrame'); if (f.src) f.src = f.src; });
   $('downloadBtn').addEventListener('click', downloadZip);
