@@ -35,5 +35,49 @@
     "output_per_million": "3.75",
     "max_output_tokens": 16384,
     "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)"
+  },
+  {
+    "name": "openai-gpt-6-luna",
+    "provider": "openai",
+    "api": "openai_reasoning",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-6-luna",
+    "api_key_env": "OPENAI_API_KEY",
+    "quality": 70,
+    "input_per_million": "0.10",
+    "output_per_million": "0.50",
+    "max_output_tokens": 16384,
+    "_price_source": "https://developers.openai.com/api/docs/pricing (standard, short context, checked 2026-10-08)",
+    "_quality_basis": "OpenAI's low-cost tier; not benchmarked by 148AI. GPT-6-class chat completions reject max_tokens and a non-default temperature (api=openai_reasoning)"
+  },
+  {
+    "name": "openai-gpt-6-1-sol",
+    "provider": "openai",
+    "api": "openai_reasoning",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-6.1-sol",
+    "api_key_env": "OPENAI_API_KEY",
+    "quality": 90,
+    "input_per_million": "2.00",
+    "output_per_million": "10.00",
+    "max_output_tokens": 16384,
+    "extra_body": {"reasoning_effort": "low"},
+    "_price_source": "https://developers.openai.com/api/docs/pricing (standard, short context, checked 2026-10-08)",
+    "_quality_basis": "OpenAI flagship tier; not benchmarked by 148AI. Reasoning tokens count against max_completion_tokens; effort low keeps room for the answer"
+  },
+  {
+    "name": "anthropic-claude-sonnet-5-5",
+    "provider": "anthropic",
+    "api": "anthropic",
+    "base_url": "https://api.anthropic.com/v1",
+    "model": "claude-sonnet-5-5",
+    "api_key_env": "ANTHROPIC_API_KEY",
+    "quality": 92,
+    "input_per_million": "2.00",
+    "output_per_million": "10.00",
+    "max_output_tokens": 16384,
+    "timeout_seconds": 240,
+    "_price_source": "https://platform.claude.com/docs/en/models/sonnet-5-5/overview (checked 2026-10-08)",
+    "_quality_basis": "Anthropic's current mid tier; not benchmarked by 148AI. Native Messages API (the OpenAI layer is documented as not for production); non-default temperature returns 400, so none is sent"
   }
 ]

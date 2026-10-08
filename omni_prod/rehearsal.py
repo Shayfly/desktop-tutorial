@@ -47,7 +47,30 @@ def run(prompt: str) -> dict:
         )
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
+    report.update(cost_projection(gateway))
     return report
+
+
+def cost_projection(gateway) -> dict:
+    """Measured tokens of this build and what the same tokens cost on every
+    catalog model (list price; a different model would write a different
+    number of tokens, so this is a price comparison, not a prediction)."""
+    from decimal import Decimal
+    tin = tout = 0
+    by_model: dict[str, list[int]] = {}
+    for rec in getattr(getattr(gateway, 'recorder', None), 'records', []) or []:
+        i, o = getattr(rec, 'input_tokens', None), getattr(rec, 'output_tokens', None)
+        if i is None or o is None:
+            continue
+        tin, tout = tin + i, tout + o
+        agg = by_model.setdefault(rec.model or '?', [0, 0, 0])
+        agg[0] += i; agg[1] += o; agg[2] += 1
+    prices = {}
+    for m in getattr(gateway, 'ranked', ()):
+        opt = m.option
+        prices[m.endpoint.name] = str(((Decimal(tin) * opt.input_per_million + Decimal(tout) * opt.output_per_million)
+                                       / Decimal(1_000_000)).quantize(Decimal('0.0001')))
+    return {'tokens': {'input': tin, 'output': tout, 'by_model': by_model}, 'same_tokens_cost_usd': prices}
 
 
 def annotations(report: dict) -> list[str]:
@@ -62,6 +85,9 @@ def annotations(report: dict) -> list[str]:
                              f"seconds={report.get('seconds')} {report.get('error', '')}"),
              note('acceptance', '\n'.join(report.get('acceptance') or [])),
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
+    if report.get('tokens'):
+        lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
+                                  f"{json.dumps(report.get('same_tokens_cost_usd'))}"))
     if report.get('trace'):
         lines.append(note('repair rounds', '\n'.join(
             f"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}"

@@ -44,6 +44,9 @@ const T = {
       unsupported_dependency:'הקוד ביקש ספרייה חיצונית שעדיין לא נתמכת בפלטפורמה.',
       worker_lost:'הבנייה הפסיקה להגיב ושוחררה. לא חויבו קרדיטים. אפשר לנסות שוב.',
       worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
+      model_budget_exhausted:'הבנייה הגיעה לתקרת העלות שנקבעה לה ונעצרה לפני שהושלמה. אפשר לנסות שוב.',
+      model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
+      model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
       capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.'},
     techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
@@ -109,6 +112,9 @@ const T = {
       unsupported_dependency:'The code asked for an external library the platform does not support yet.',
       worker_lost:'The build stopped responding and was released. No credits were charged. You can try again.',
       worker_exception:'An internal error occurred during the build. The details were recorded.',
+      model_budget_exhausted:'The build reached its cost ceiling and stopped before it was finished. You can try again.',
+      model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
+      model_policy_blocked:'The model usage policy did not allow this build in this environment.',
       capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.'},
     techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
@@ -412,7 +418,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
-    worker_exception: 3, verification_failed: 3, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, model_budget_exhausted: 3, model_unavailable: 3, model_policy_blocked: 3, verification_failed: 3, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -434,7 +440,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = 'pending', pNote = null;
   if (preview) {

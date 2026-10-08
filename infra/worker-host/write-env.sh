@@ -31,11 +31,39 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
 else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
+# Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
+# ANTHROPIC_API_KEY): added when set and not already given by WORKER_ENV(_OVERRIDES).
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+  key_value="${!key_name:-}"
+  if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
+    sed -i "/^${key_name}=/d" .env
+    printf '%s=%s\n' "$key_name" "$key_value" >> .env
+    echo "::notice title=provider keys::${key_name} added from its GitHub secret"
+  elif [ -z "$key_value" ] && ! grep -q "^${key_name}=." .env; then
+    echo "::notice title=provider keys::${key_name} not set; its catalog models stay NOT_CONFIGURED"
+  fi
+done
+unset key_value
 grep -q '^OMNI_SANDBOX_SHARED_SECRET=.' .env || echo "OMNI_SANDBOX_SHARED_SECRET=$(cat /etc/omni/sandbox_secret)" >> .env
 if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
   sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env
   echo "OMNI_MODEL_CATALOG_JSON=$(python3 -c 'import json;print(json.dumps(json.load(open("model-catalog.json")),separators=(",",":")))')" >> .env
 fi
+# Which catalog models can route (names and key presence only, never values).
+python3 - <<'PY' || true
+import json
+env = {}
+for line in open(".env", encoding="utf-8"):
+    if "=" in line and not line.startswith("#"):
+        k, v = line.rstrip("\n").split("=", 1)
+        env[k] = v
+try:
+    items = json.loads(env.get("OMNI_MODEL_CATALOG_JSON", "[]"))
+    rows = [f"{i.get('name')}={'CONFIGURED' if env.get(i.get('api_key_env', ''), '').strip() else 'NOT_CONFIGURED'}" for i in items]
+    print("::notice title=model catalog::" + " ".join(rows))
+except Exception as exc:
+    print(f"::warning title=model catalog::could not read the catalog: {type(exc).__name__}")
+PY
 # Preview edge defaults (non-secret). The public IP is the host's own egress
 # address; sslip.io resolves <anything>.<ip-with-dashes>.sslip.io to it.
 if ! grep -q '^OMNI_PREVIEW_HOST_SUFFIX=.' .env; then

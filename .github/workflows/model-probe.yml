@@ -1,0 +1,28 @@
+name: Model probe
+
+# One tiny real call to every configured catalog model on the worker host
+# (a fraction of a cent each): connected or not, request shape accepted,
+# tokens and metered cost. Names and numbers only, never keys.
+on:
+  workflow_dispatch:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/model-probe.yml]
+
+concurrency:
+  group: model-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 10
+    steps:
+      - name: Probe every configured model
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T worker python -m omni_prod.model_probe 2>&1 \
+            | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' | grep -E '^(::notice|::error|Traceback|  File|[A-Za-z]+Error)' | tail -30
+          exit ${PIPESTATUS[0]}

@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Callable, Any
 import time
 
-from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError, ModelHTTPError
+from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError, ModelHTTPError, quota_exhausted
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
 from .model_router import RoutingPolicy, estimated_cost
@@ -70,6 +70,11 @@ class RoutedModelGateway:
         # ranked: CatalogModel entries (omni_prod.model_catalog). Only configured
         # entries are routable; order is chosen per call by price and quality.
         self.ranked = tuple(m for m in ranked if getattr(m, 'endpoint', None) is not None)
+        # Diagnostics only (rehearsal per provider): restrict routing to the
+        # named catalog entries. Unset in the worker's normal environment.
+        only = {n.strip() for n in os.getenv('OMNI_MODEL_ONLY', '').split(',') if n.strip()}
+        if only:
+            self.ranked = tuple(m for m in self.ranked if m.endpoint.name in only)
         self.routing_policy = routing_policy or RoutingPolicy()
         if primary is None and not self.ranked and not fallback:
             raise ValueError('no model route is configured')
@@ -90,6 +95,9 @@ class RoutedModelGateway:
         self.max_retry_delay = 20.0
         self.sleep = sleep
         self.events: list[RouteEvent] = []
+        # Routes that answered "quota spent" / "key rejected": skipped for the
+        # rest of this gateway's life (one build or modification).
+        self.unavailable: dict[str, str] = {}
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
@@ -170,6 +178,8 @@ class RoutedModelGateway:
             self.usage.record(usage)
             self._fill(record, gateway, usage, option, elapsed)
             self._settle(route, record)
+            if usage is None and isinstance(exc, ModelHTTPError):
+                self._release_rejected(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
             record.failure_reason = f'{type(exc).__name__}: {exc}'[:500]
             self.recorder.add(record)
@@ -204,6 +214,21 @@ class RoutedModelGateway:
         release = route.max_estimated_cost_usd - metered
         if release > 0:
             self.state.external_spend_usd -= release
+
+    def _release_rejected(self, route: ProviderRoute, record: AttemptRecord) -> None:
+        """The provider answered with an HTTP error status: the request was
+        refused, not served, and no tokens are billed. Return its whole
+        reservation. bld_ccd38bd0 (2026-10-08): ten ~250 ms HTTP 429 quota
+        answers each kept a $0.045-0.050 worst case, so the ledger showed
+        $0.47 "spent" (provider cost $0) and the build stopped on budget.
+        Timeouts and dropped connections are NOT released: those requests may
+        have been served and billed."""
+        if not route.endpoint.external:
+            return
+        self.state.external_spend_usd -= route.max_estimated_cost_usd
+        if self.state.external_spend_usd < 0:
+            self.state.external_spend_usd = Decimal('0')
+        record.metered_cost_usd = Decimal('0')
 
     @staticmethod
     def _fill(record: AttemptRecord, gateway, usage, option, elapsed: int) -> None:
@@ -291,7 +316,12 @@ class RoutedModelGateway:
                           'max_cost_usd': str(r.max_estimated_cost_usd)} for r, _, _, _ in routes]
         from .model_policy import ModelPolicyViolation
         failures = []
+        budget_skips = 0
         for rank, (route, call_kwargs, why, option) in enumerate(routes):
+            name = route.endpoint.name
+            if name in self.unavailable:
+                failures.append(f'{route.endpoint.model}: skipped ({self.unavailable[name]})')
+                continue
             for retry in range(self.transient_retries + 1):
                 try:
                     return self._attempt(route, method, call_kwargs,
@@ -299,10 +329,20 @@ class RoutedModelGateway:
                                          task=task, option=option, rank=rank, candidate_set=candidate_set)
                 except Exception as exc:
                     last_error = exc
-                    # Policy errors intentionally stop the route rather than silently
-                    # bypassing budget/zero-cost controls.
                     if isinstance(exc, ModelPolicyViolation):
+                        # A route whose worst case does not fit the remaining
+                        # budget is passed over for a cheaper one that does (still
+                        # authorized). Every other policy error stops the call
+                        # rather than bypassing budget/zero-cost controls.
+                        if 'budget exceeded' in str(exc):
+                            budget_skips += 1
+                            failures.append(f'{route.endpoint.model}: does not fit the remaining budget')
+                            break
                         raise
+                    if quota_exhausted(exc):
+                        self.unavailable[name] = f'HTTP {getattr(exc, "status", "?")}: quota or key'
+                        failures.append(f'{route.endpoint.model}: {exc}')
+                        break
                     transient = isinstance(exc, ModelHTTPError) and exc.transient
                     if not transient or retry == self.transient_retries:
                         failures.append(f'{route.endpoint.model}: {exc}')
@@ -311,6 +351,8 @@ class RoutedModelGateway:
                     hint = exc.retry_after_seconds
                     delay = self.retry_delays[min(retry, len(self.retry_delays) - 1)]
                     self.sleep(min(self.max_retry_delay, hint if hint is not None else delay))
+        if budget_skips and all('remaining budget' in f or 'skipped' in f for f in failures):
+            raise ModelPolicyViolation('external model budget exceeded')
         detail = '; '.join(failures[-4:]) if failures else str(last_error)
         raise ModelGatewayError(f'all model routes failed: {detail}')
 

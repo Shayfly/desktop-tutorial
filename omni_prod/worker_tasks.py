@@ -61,7 +61,25 @@ GATE_ORDER = ('verification', 'quality', 'security', 'rights')
 SPEND_BASIS = ('authorized external-model spend ledger (RoutedModelGateway.state.external_spend_usd): each call '
                'reserves its worst case and is settled down to reported tokens x catalog price when the provider '
                'reports usage; calls without reported usage stay at their worst case. Provider-reported usage is in '
-               'provider_usage')
+               'provider_usage. A call the provider refused with an HTTP error status (quota, overload, bad key) '
+               'is released to zero: it was not served and is not billed')
+
+
+def failure_code(exc: BaseException) -> str:
+    """Customer-meaningful error code for an exception that ended a job.
+
+    bld_ccd38bd0 (2026-10-08) stopped on 'external model budget exceeded' and
+    was reported as the generic worker_exception ("internal error")."""
+    from .model_gateway import ModelGatewayError
+    from .model_policy import ModelPolicyViolation
+    text = str(exc)
+    if isinstance(exc, ModelPolicyViolation):
+        if 'budget exceeded' in text or 'call limit' in text:
+            return 'model_budget_exhausted'
+        return 'model_policy_blocked'
+    if isinstance(exc, ModelGatewayError) and 'all model routes failed' in text:
+        return 'model_unavailable'
+    return 'worker_exception'
 
 
 def _report_phase(jobs, build_id: str, phase: str, message: str = '') -> None:
@@ -486,7 +504,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
-            error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
+            error_code=failure_code(exc), error_message=f'{type(exc).__name__}: {exc}'[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
@@ -722,7 +740,7 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
         billing = resolve_billing(subscriptions, build_id=modification_id, ready=False, spent=spent, external_calls=calls)
         jobs.complete(
             modification_id, project_id=project_id, status='FAILED',
-            error_code='worker_exception', error_message=f'{type(exc).__name__}: {exc}'[:2000],
+            error_code=failure_code(exc), error_message=f'{type(exc).__name__}: {exc}'[:2000],
             evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
                            'provider_usage': provider_usage_evidence(gateway),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},

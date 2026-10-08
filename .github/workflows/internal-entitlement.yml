@@ -41,6 +41,8 @@ jobs:
         env:
           WORKER_ENV: ${{ secrets.WORKER_ENV }}
           WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: bash infra/worker-host/write-env.sh
 
       - name: Apply database migrations

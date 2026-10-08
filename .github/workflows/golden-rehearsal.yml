@@ -12,6 +12,10 @@ on:
         description: Product request
         required: true
         default: "אתר בעברית לניהול טבלת ליגת כדורגל: טבלה עם נקודות והפרש שערים, טופס להוספת קבוצה, טופס להזנת תוצאה בין שתי קבוצות, וכפתור מחיקה ליד כל קבוצה. ניצחון 3 נקודות, תיקו 1, הפסד 0. בלי התחברות משתמשים."
+      models:
+        description: "Optional: only these catalog names, comma separated (cost comparison per provider)"
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths: [.github/workflows/golden-rehearsal.yml]
@@ -30,9 +34,10 @@ jobs:
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
         env:
           PROMPT: ${{ inputs.prompt }}
+          MODELS: ${{ inputs.models }}
         run: |
           set -uo pipefail
-          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e PROMPT="$PROMPT" worker \
+          docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" worker \
             python -c 'import os, sys; from omni_prod.rehearsal import main; sys.exit(main([os.environ["PROMPT"]]))' 2>&1 \
-            | sed -E 's/AIza[0-9A-Za-z_-]{20,}/[redacted]/g' | grep -E '^(::notice|::error|REHEARSAL|Traceback|  File|[A-Za-z]+Error)' | grep -v '^REHEARSAL' | tail -40
+            | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' | grep -E '^(::notice|::error|REHEARSAL|Traceback|  File|[A-Za-z]+Error)' | grep -v '^REHEARSAL' | tail -40
           exit ${PIPESTATUS[0]}

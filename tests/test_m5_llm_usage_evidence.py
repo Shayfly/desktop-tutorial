@@ -262,7 +262,8 @@ class WorkerEvidenceTests(unittest.TestCase):
             harness.run()
         final = harness.final
         self.assertEqual(final["target"], BuildStatus.FAILED)
-        self.assertEqual(final["error_code"], "worker_exception")
+        # A provider outage is reported as such, not as an internal error.
+        self.assertEqual(final["error_code"], "model_unavailable")
         self.assertIn("all model routes failed", final["error_message"])
         harness.workspace.commit.assert_not_called()  # no repository, deterministic or otherwise
         self.assertIsNone(final["result_version_id"])

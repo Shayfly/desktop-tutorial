@@ -19,7 +19,7 @@ import re
 from typing import Mapping
 from urllib.parse import urlsplit
 
-from .model_gateway import ModelEndpoint
+from .model_gateway import API_STYLES, ModelEndpoint
 from .model_router import ModelOption
 
 _KEY_ENV = re.compile(r'^[A-Z][A-Z0-9_]{2,63}$')
@@ -122,6 +122,14 @@ def parse_model_catalog(raw: str, env: Mapping[str, str]) -> tuple[CatalogModel,
         if max_out < 1 or latency < 0 or timeout <= 0:
             raise ModelCatalogError(f'{name}: numeric limits are invalid')
         base_url = _https_base_url(item.get('base_url'), name)
+        api_style = str(item.get('api', 'openai')).strip()
+        if api_style not in API_STYLES:
+            raise ModelCatalogError(f'{name}: api must be one of {sorted(API_STYLES)}')
+        extra = item.get('extra_body') or {}
+        reserved = {'model', 'messages', 'system', 'max_tokens', 'max_completion_tokens', 'temperature', 'stream'}
+        if not isinstance(extra, dict) or any(not isinstance(k, str) or k in reserved for k in extra):
+            raise ModelCatalogError(f'{name}: extra_body must be an object without core request fields')
+        extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
         enabled = bool(item.get('enabled', True))
         key = (env.get(key_env) or '').strip()
         option = ModelOption(provider=provider, model=model, quality=quality, latency_ms=latency,
@@ -130,7 +138,8 @@ def parse_model_catalog(raw: str, env: Mapping[str, str]) -> tuple[CatalogModel,
         endpoint = None
         if key and enabled:
             endpoint = ModelEndpoint(name=name, base_url=base_url, model=model, api_key=key,
-                                     timeout_seconds=timeout, external=True)
+                                     timeout_seconds=timeout, external=True, api_style=api_style,
+                                     extra_body=extra_body)
         out.append(CatalogModel(option=option, endpoint=endpoint, max_output_tokens=max_out,
                                 api_key_env=key_env))
     return tuple(out)
