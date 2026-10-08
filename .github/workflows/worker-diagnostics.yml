@@ -57,6 +57,9 @@ jobs:
           publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
           publish "worker log" docker logs --tail "$n" omni-worker-worker-1
           publish "sandbox-runner log" docker logs --tail "$n" omni-worker-sandbox-runner-1
+          publish "janitor log" docker logs --timestamps --tail "$n" omni-worker-janitor-1
+          publish "preview-router log" docker logs --timestamps --tail "$n" omni-worker-preview-router-1
+          publish "preview-worker log" docker logs --timestamps --tail "$n" omni-worker-preview-worker-1
           pv="${PREVIEW_INPUT:-}"
           if [ -n "$pv" ]; then
             case "$pv" in prv_[0-9a-f]*) ;; *) echo "::error::preview_id must look like prv_<hex>"; exit 1;; esac
