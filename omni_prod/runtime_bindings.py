@@ -146,8 +146,10 @@ SKILL_BINDINGS: tuple[SkillBinding, ...] = (
     SkillBinding('skill.ui_states', (_SKILLS_REHEARSAL,), ('checked by code review only, not in a browser',)),
     SkillBinding('skill.text_locale', (_SKILLS_REHEARSAL,), ()),
     SkillBinding('skill.data_integrity', (_SKILLS_REHEARSAL,), ('no conflict/404 probe against the running app yet',)),
-    SkillBinding('skill.visual_design', (), ('added 2026-10-09 after the founder saw unstyled sites; not yet run in a build',
-                                             'checked by a CSS heuristic and code review, not by looking at a screenshot')),
+    SkillBinding('skill.visual_design', (Evidence('live', 'golden-rehearsal run 37858017258',
+                                                  'library prompt: ready, quality 86, design static check passed, review 0 blocking'),),
+                 ('checked by a CSS heuristic and code review, not by looking at a screenshot',
+                  'not yet seen by the founder in a preview')),
 )
 SKILL_BY_KEY = {b.key: b for b in SKILL_BINDINGS}
 assert len(BY_ROLE) == len(BINDINGS), 'one binding per role'
