@@ -57,10 +57,27 @@ if verdict == "OK":
         with urllib.request.urlopen("http://127.0.0.1:%%d/" %% port, timeout=3) as r:
             ctype, page = r.headers.get("Content-Type", ""), r.read(200000).decode("utf-8", "replace")
         low = page.lower()
+        # The UI may live in same-origin scripts/styles the page loads
+        # (bld_78e26994: a 382-char page was rejected without looking at them).
+        import re
+        assets = ""
+        for ref in re.findall(r"""<(?:script[^>]*\ssrc|link[^>]*\shref)\s*=\s*["']([^"'#?]+)""", page, re.I)[:6]:
+            if "//" in ref:
+                continue
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:%%d/%%s" %% (port, ref.lstrip("./")), timeout=3) as a:
+                    assets += a.read(200000).decode("utf-8", "replace")
+            except Exception:
+                pass
+        whole = low + assets.lower()
+        controls = ("<form", "<input", "<button", "<table", "<select", "<textarea",
+                    "createelement('button", 'createelement("button', "createelement('input", 'createelement("input',
+                    "createelement('table", 'createelement("table')
         if "text/html" not in ctype.lower() or ("<html" not in low and "<!doctype" not in low):
             verdict = "GET / did not return an HTML page (Content-Type %%r, starts %%r)" %% (ctype, page[:60])
-        elif len(page.strip()) < 400 or not any(t in low for t in ("<form", "<input", "<button", "<table", "<select")):
-            verdict = "GET / returned a placeholder page, not the product's user interface (%%d chars)" %% len(page.strip())
+        elif len(page.strip()) + len(assets.strip()) < 400 or not any(t in whole for t in controls):
+            verdict = ("GET / returned a placeholder page, not the product's user interface "
+                       "(%%d chars of HTML, %%d chars of linked scripts/styles; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
     except Exception as e:
         verdict = "GET / failed: %%s" %% e
 if p.poll() is None:

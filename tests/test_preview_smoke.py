@@ -93,3 +93,40 @@ class PreviewSmokeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class LinkedAssetSmokeTests(__import__('unittest').TestCase):
+    """bld_78e26994 (2026-10-08): a page whose UI is built by a same-origin
+    script must pass; a bare shell page must still fail, quoting its start."""
+
+    def _run(self, with_script):
+        import json, os, subprocess, sys, tempfile, socket
+        from omni_prod.preview_smoke import _SMOKE
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, '.omni'))
+        tag = '<script src="/app.js"></script>' if with_script else ''
+        app = ("import http.server, os\n"
+               f"PAGE=b'<!doctype html><html><body><div id=\"r\"></div>{tag}</body></html>'\n"
+               "JS=(\"document.createElement('button');\"*30).encode()\n"
+               "class H(http.server.BaseHTTPRequestHandler):\n"
+               "    def log_message(self,*a): pass\n"
+               "    def do_GET(self):\n"
+               "        b,c=(JS,'text/javascript') if self.path=='/app.js' else (PAGE,'text/html')\n"
+               "        self.send_response(200);self.send_header('Content-Type',c);self.end_headers();self.wfile.write(b)\n"
+               "http.server.HTTPServer(('127.0.0.1',int(os.environ['PORT'])),H).serve_forever()\n")
+        open(os.path.join(d, 'app.py'), 'w').write(app)
+        json.dump({'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
+                   'port': port, 'health_path': '/'}, open(os.path.join(d, '.omni', 'project.json'), 'w'))
+        r = subprocess.run([sys.executable, '-c', _SMOKE], cwd=d, capture_output=True, text=True, timeout=60)
+        return r.returncode, r.stdout.splitlines()[0]
+
+    def test_ui_in_linked_script_passes(self):
+        self.assertEqual(self._run(True), (0, 'PREVIEW-SMOKE OK'))
+
+    def test_shell_page_fails_and_shows_its_start(self):
+        code, line = self._run(False)
+        self.assertEqual(code, 1)
+        self.assertIn('placeholder page', line)
+        self.assertIn('<div id="r">', line)

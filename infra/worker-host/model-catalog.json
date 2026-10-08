@@ -9,7 +9,8 @@
     "input_per_million": "0.25",
     "output_per_million": "1.50",
     "max_output_tokens": 8192,
-    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)"
+    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)",
+    "timeout_seconds": 180
   },
   {
     "name": "gemini-3-5-flash-lite",
@@ -22,7 +23,8 @@
     "output_per_million": "2.50",
     "max_output_tokens": 8192,
     "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-07)",
-    "_quality_basis": "same Flash-Lite tier as gemini-3.1-flash-lite (Google lists it as the cost-effective variant); not benchmarked by 148AI; added as a second capacity pool after HTTP 503 high-demand answers on 2026-10-07"
+    "_quality_basis": "same Flash-Lite tier as gemini-3.1-flash-lite (Google lists it as the cost-effective variant); not benchmarked by 148AI; added as a second capacity pool after HTTP 503 high-demand answers on 2026-10-07",
+    "timeout_seconds": 180
   },
   {
     "name": "gemini-3-8-flash",
@@ -34,7 +36,9 @@
     "input_per_million": "0.75",
     "output_per_million": "3.75",
     "max_output_tokens": 16384,
-    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)"
+    "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)",
+    "timeout_seconds": 300,
+    "_timeout_basis": "bld_78e26994 (2026-10-08): a repair call timed out at the 120 s default; 16k output tokens need longer"
   },
   {
     "name": "openai-gpt-6-luna",
@@ -61,7 +65,9 @@
     "input_per_million": "2.00",
     "output_per_million": "10.00",
     "max_output_tokens": 16384,
-    "extra_body": {"reasoning_effort": "low"},
+    "extra_body": {
+      "reasoning_effort": "low"
+    },
     "_price_source": "https://developers.openai.com/api/docs/pricing (standard, short context, checked 2026-10-08)",
     "_quality_basis": "OpenAI flagship tier; not benchmarked by 148AI. Reasoning tokens count against max_completion_tokens; effort low keeps room for the answer"
   },

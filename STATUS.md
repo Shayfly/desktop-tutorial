@@ -1,5 +1,17 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-08 21:00 Asia/Jerusalem — first founder build after the provider work
+
+- `bld_78e2699472054c918890c5daddafc205` (founder, football project, 20:39): FAILED
+  `preview_not_ready` after 5 repair rounds: tests passed, quality 82, but "/" was a 382-char page.
+  Route events: `gpt-6.1-sol` 429 no credits (skipped, $0), `gemini-3.8-flash` failed twice
+  ("invalid model response shape" after 71 s; read timeout at 120 s), so repairs fell back to
+  Flash-Lite. Spend ledger $0.163, 16 calls.
+- Fixes: Gemini timeouts 300 s (3.8-flash) / 180 s; the shape error now names finish_reason
+  and returned keys; the preview smoke test also reads same-origin scripts/styles the page links
+  (a UI built by `/app.js` passes) and quotes the start of a rejected page so repair sees it;
+  the workspace marks `preview_not_ready` on the generation step. Tests added.
+
 ## Update 2026-10-08 20:40 Asia/Jerusalem — providers connected, paid Gemini, measured build cost
 
 - `ff6b4f6` deployed (run 37739774562): quota answers disable a route for the build, refused
@@ -435,11 +447,19 @@ agent saw only `{path, chars}` (never the manifest). Fixed: architect must
 write HTTP/HTML-testable criteria (3–6); build repair uses the bounded content
 summary. Not yet re-run.
 
-Workspace UX backlog (founder approved, to do after Golden E2E #1 passes):
-1. start the preview automatically when a project with a version opens;
-2. live build progress (current step, repair rounds, time estimate);
-3. mobile layout for the workspace;
-4. original request and Hebrew product description at the top of the project.
+Workspace UX backlog (founder approved, to do after Golden E2E #1 passes; extended 2026-10-08 20:50):
+1. **stop/cancel button** with server-side cancellation between steps, spend stopped, unused reservation released (none exists: no route, no worker check);
+2. **build-button lock** while a build runs (founder double-clicked "build" on 2026-10-08);
+3. **live activity log** of actions and results (spec written, files written, test A2 failed, repair round 2/5, app started) -- actions, not raw model reasoning;
+4. time estimate and progress from past builds;
+5. start the preview automatically when a build finishes / a project with a version opens;
+6. completion notification (sound/browser, later email);
+7. version diff in plain words ("added a delete button");
+8. live cost ("12 of 60 credits used");
+9. in-app file viewer;
+10. failure with a next action (retry, simplify the request);
+11. mobile layout for the workspace;
+12. original request and Hebrew product description at the top of the project.
 
 Open (superseded items struck): ~~failed builds also commit restorable versions~~; the build row
 `bld_2f248e2339cb4ad9848a7ebb5c0c4ed6` is still RUNNING; no reaper; raw

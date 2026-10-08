@@ -418,7 +418,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
-    worker_exception: 3, model_budget_exhausted: 3, model_unavailable: 3, model_policy_blocked: 3, verification_failed: 3, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_policy_blocked: 3, verification_failed: 3, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -440,7 +440,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'model_policy_blocked', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = 'pending', pNote = null;
   if (preview) {

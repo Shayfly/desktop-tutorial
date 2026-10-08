@@ -177,12 +177,19 @@ class OpenAICompatibleGateway:
             if not content.strip():
                 raise ModelGatewayError(f"empty model response (stop_reason={payload.get('stop_reason')})")
             return content
+        # bld_78e26994 (2026-10-08): gemini-3.8-flash answered after 71 s with
+        # "invalid model response shape" and nothing else; say why (finish
+        # reason, which keys came back) so the cause is visible in evidence.
+        choice = None
         try:
-            content = payload['choices'][0]['message']['content']
+            choice = payload['choices'][0]
+            content = choice['message']['content']
         except (KeyError, IndexError, TypeError) as exc:
-            raise ModelGatewayError('invalid model response shape') from exc
+            finish = choice.get('finish_reason') if isinstance(choice, dict) else None
+            keys = sorted(payload)[:8] if isinstance(payload, dict) else type(payload).__name__
+            raise ModelGatewayError(f'invalid model response shape (finish_reason={finish}, keys={keys})') from exc
         if not isinstance(content, str) or not content.strip():
-            raise ModelGatewayError('empty model response')
+            raise ModelGatewayError(f"empty model response (finish_reason={choice.get('finish_reason')})")
         return content
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
