@@ -218,7 +218,7 @@ def build_canonical_agents_registry(
         _agent("agent.security", "Security Agent", ("apply security checks and release gates",), CapabilityStatus.PARTIAL, ("skill.internal.security_review",)),
         _agent("agent.compliance", "Compliance Agent", ("apply domain, rights and regulatory gates",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.compliance_review",)),
         _agent("agent.repair", "Repair Agent", ("repair verified product failures without hiding them",), CapabilityStatus.PARTIAL, (_s("software.repair"), _s("software.code.modify"), _s("software.test"))),
-        _agent("agent.deployment", "Deployment Agent", ("publish verified releases and support rollback",), CapabilityStatus.PARTIAL, (_s("software.deploy.web"),) + publish_skills),
+        _agent("agent.deployment", "Deployment Agent", ("publish verified releases and support rollback",), CapabilityStatus.NOT_IMPLEMENTED, (_s("software.deploy.web"),) + publish_skills),
         _agent("agent.cost_auditor", "Cost Auditor", ("reconcile provider/platform cost and gross contribution",), CapabilityStatus.PARTIAL, ("skill.internal.cost_audit",)),
     )
     return MasterAgentsRegistry(agents, skills)

@@ -184,7 +184,9 @@ def _implementation_location_for(capability_key: str) -> str:
     if capability_key.startswith("target.android") or capability_key.startswith("target.ios"):
         return "omni_prod/mobile_pipeline.py"
     if capability_key.startswith("publish.") or capability_key == "software.deploy.web":
-        return "omni_prod/deployment.py"
+        # Release-record scaffolding only; no generated-app deployment runs yet
+        # (registry audit 2026-10-08: the old path omni_prod/deployment.py never existed).
+        return "omni_prod/deployments.py"
     if capability_key.startswith("software."):
         return "omni_prod/worker_tasks.py"
     return "omni_prod/capability_executor.py"
@@ -233,10 +235,10 @@ _INTERNAL_SKILLS: tuple[SkillDefinition, ...] = (
     _internal_skill("skill.internal.world.build", "Plan/build large game worlds and levels", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/game_pipeline.py"),
     _internal_skill("skill.internal.mission.design", "Plan mission/quest graphs and acceptance rules", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/game_pipeline.py"),
     _internal_skill("skill.internal.playtest", "Execute gameplay flows and collect pass/fail evidence", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/game_pipeline.py"),
-    _internal_skill("skill.internal.visual_qa", "Perform visual and responsive quality review", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/acceptance.py"),
+    _internal_skill("skill.internal.visual_qa", "Perform visual and responsive quality review", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/acceptance_pipeline.py"),
     _internal_skill("skill.internal.performance_qa", "Measure runtime performance and resource budgets", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/observability.py"),
     _internal_skill("skill.internal.security_review", "Perform security review and release gating", CapabilityStatus.PARTIAL, "omni_prod/security_testing.py"),
-    _internal_skill("skill.internal.compliance_review", "Apply domain/legal/compliance release gates", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/rights_engine.py"),
+    _internal_skill("skill.internal.compliance_review", "Apply domain/legal/compliance release gates", CapabilityStatus.NOT_IMPLEMENTED, "omni_prod/rights_ip.py"),
     _internal_skill("skill.internal.cost_audit", "Reconcile provider usage, platform cost and margin", CapabilityStatus.PARTIAL, "omni_prod/provider_pricing.py"),
     _internal_skill("skill.internal.release.gate", "Aggregate release evidence and block false readiness", CapabilityStatus.PARTIAL, "omni_prod/release_gate.py"),
 )
