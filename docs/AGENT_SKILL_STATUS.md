@@ -104,6 +104,7 @@ Totals: VERIFIED 15, CONNECTED 2, IMPLEMENTED 0, BLOCKED 0, DEFINED 32
 | skill.ui_states@1 | VERIFIED | omni_prod.skills_runtime | injected into: generator, repair, evolution, reviewer | live (web) | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | part of the build call (longer prompts/code) | checked by code review only, not in a browser |
 | skill.text_locale@1 | VERIFIED | omni_prod.skills_runtime + static checks | injected into: generator, repair, evolution, reviewer | live (web) | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | part of the build call (longer prompts/code) | — |
 | skill.data_integrity@1 | VERIFIED | omni_prod.skills_runtime | injected into: architect, generator, repair, evolution, reviewer | live (web) | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | part of the build call (longer prompts/code) | no conflict/404 probe against the running app yet |
+| skill.visual_design@1 | CONNECTED | omni_prod.skills_runtime + static checks | injected into: generator, repair, evolution, reviewer | unit tests only | tests/test_skills_runtime_and_review.py | part of the build call (longer prompts/code) | added 2026-10-09 after the founder saw unstyled sites; not yet run in a build; checked by a CSS heuristic and code review, not by looking at a screenshot |
 
 ## Mismatches found
 

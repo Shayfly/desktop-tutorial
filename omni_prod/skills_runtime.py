@@ -103,6 +103,30 @@ def _rtl_for_hebrew(repository: dict, context: dict) -> list[StaticFinding]:
     return []
 
 
+def _styled_page(repository: dict, context: dict) -> list[StaticFinding]:
+    """Founder 2026-10-09: "no colour, not a real site that looks good". The
+    page must carry a real design system, not the browser's default look."""
+    files = _text_files(repository)
+    pages = [c for c in files.values() if '<html' in c.lower()]
+    if not pages:
+        return []
+    css = ' '.join(re.findall(r'<style[^>]*>(.*?)</style>', ' '.join(pages), re.S | re.I))
+    css += ' '.join(c for p, c in files.items() if p.lower().endswith('.css'))
+    declarations = len(re.findall(r'[a-z-]+\s*:\s*[^;{}]+;', css))
+    problems = []
+    if declarations < 40:
+        problems.append(f'only {declarations} CSS declarations: the page shows the browser default look')
+    if '--' not in css:
+        problems.append('no colour/spacing tokens (CSS custom properties)')
+    if '@media' not in css:
+        problems.append('no responsive rule (@media) for phones')
+    if not problems:
+        return []
+    return [StaticFinding('skill.visual_design', 'blocking', '(html page)', '; '.join(problems),
+                          'add the design system described in skill.visual_design: tokens on :root, header, cards, '
+                          'styled form controls and buttons, table styling, status badges, and a phone layout')]
+
+
 def _innerhtml_interpolation(repository: dict, context: dict) -> list[StaticFinding]:
     out = []
     for path, text in _text_files(repository).items():
@@ -191,7 +215,34 @@ DATA_INTEGRITY = Skill(
                'Missing ids give 404, conflicts 409, with a readable message.'),
 )
 
-WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY)
+VISUAL_DESIGN = Skill(
+    key='skill.visual_design', version='1',
+    purpose='The product looks like a real, modern site: coherent colours, typography, spacing and components.',
+    boundaries='Visual presentation only; never removes or hides functionality, never loads code from other sites.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Visual design: ship a complete, polished design system in the page (one <style> block or a CSS file served by '
+        'the app), never the browser default look. Define tokens on :root: a primary colour chosen to fit the product '
+        'domain (e.g. teal for health, deep blue for finance, warm orange for food, green for sport), a darker hover shade, '
+        'neutral background (#f6f7f9-like), white surfaces, text and muted-text colours, success/warning/danger colours, '
+        'radius 10-14px, a soft shadow, and a spacing scale. Typography: font-family "Assistant", "Rubik", system-ui, '
+        'sans-serif (Hebrew-friendly; you may add <link> to Google Fonts for Assistant/Rubik), base 16px, clear heading '
+        'sizes. Layout: a header bar with the product name and a one-line description; content centred with max-width '
+        'about 1100px; each form and list inside a card (surface, radius, shadow, padding 20-24px) with a card title. '
+        'Forms: labels above inputs, inputs full-width with padding 10-12px, 1px border, radius, visible focus ring in '
+        'the primary colour; group fields in a responsive grid. Buttons: primary (filled primary colour, white text), '
+        'secondary (outline) and danger (red) styles with hover, focus-visible and disabled states; never unstyled. '
+        'Tables: full width, header row with tinted background, zebra rows, comfortable padding, numbers aligned, and on '
+        'phones the table scrolls horizontally inside its card. Status values as coloured pill badges (e.g. open/done, '
+        'late). Messages: success/error banners with the semantic colours, not plain text. Responsive: one column under '
+        '640px (@media), touch-friendly sizes. Accessibility: contrast at least 4.5:1, focus outlines kept. For RTL, use '
+        'logical properties (margin-inline-start, padding-inline) so the layout mirrors correctly.'),
+    checklist=('The page has a coherent colour palette, header, cards, styled inputs/buttons/tables and status badges.',
+               'It works on a phone width (single column, table scrolls), with visible focus and readable contrast.'),
+    static_checks=(_styled_page,),
+)
+
+WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:

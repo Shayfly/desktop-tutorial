@@ -11,7 +11,10 @@ from omni_prod.skills_runtime import (WEB_SKILLS, applied_skills, checklist_for_
 
 CLEAN = {
     'app.py': 'import sqlite3\ncur.execute("INSERT INTO tasks (title) VALUES (?)", (title,))\n',
-    'index.html': '<html lang="he" dir="rtl"><body><form><input></form><script>el.textContent = t.title;</script></body></html>',
+    'index.html': ('<html lang="he" dir="rtl"><head><style>:root{--primary:#0f766e;--bg:#f6f7f9;--radius:12px}'
+                   + 'body{margin:0;padding:0;color:#1f2937;background:var(--bg);font-family:Assistant,system-ui;}' * 8
+                   + '@media (max-width:640px){main{padding:12px;}}</style></head>'
+                   '<body><form><input></form><script>el.textContent = t.title;</script></body></html>'),
 }
 
 
@@ -19,6 +22,25 @@ def _spec():
     return ProductSpec.from_dict({'title': 'משימות', 'summary': 'ניהול משימות', 'stack': ['python'],
                                   'requirements': [{'id': 'R1', 'text': 'הוספת משימה'}],
                                   'acceptance': [{'id': 'A1', 'requirement_id': 'R1', 'text': 'POST /tasks'}]})
+
+
+class VisualDesignTests(unittest.TestCase):
+    """Founder 2026-10-09: generated sites had no colour or design."""
+
+    def test_unstyled_page_is_a_blocking_finding(self):
+        repo = {'index.html': '<html lang="he" dir="rtl"><body><form><input><button>הוסף</button></form></body></html>'}
+        found = [f for f in static_findings(repo, {'request': 'אתר'}) if f.skill == 'skill.visual_design']
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].severity, 'blocking')
+        self.assertIn('browser default look', found[0].problem)
+
+    def test_design_system_passes(self):
+        self.assertEqual([f for f in static_findings(CLEAN, {'request': 'אתר'}) if f.skill == 'skill.visual_design'], [])
+
+    def test_generator_and_reviewer_receive_the_design_skill(self):
+        self.assertIn('skill.visual_design@1', guidance_for('generator'))
+        self.assertIn('Visual design', guidance_for('repair'))
+        self.assertTrue(any(c['skill'] == 'skill.visual_design' for c in checklist_for_review()))
 
 
 class StaticChecks(unittest.TestCase):
@@ -40,7 +62,9 @@ class StaticChecks(unittest.TestCase):
 
     def test_rtl_only_required_for_hebrew_requests(self):
         repo = {'index.html': '<html><body><button>Add</button></body></html>'}
-        self.assertEqual(static_findings(repo, {'request': 'a todo site'}), [])
+        rtl = [f for f in static_findings(repo, {'request': 'a todo site'}) if 'rtl' in f.problem.lower()]
+        self.assertEqual(rtl, [])
+        self.assertTrue([f for f in static_findings(repo, {'request': 'אתר משימות'}) if 'rtl' in f.problem.lower()])
 
 
 class Guidance(unittest.TestCase):
