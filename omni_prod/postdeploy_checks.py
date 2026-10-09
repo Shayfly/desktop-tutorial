@@ -57,8 +57,11 @@ class H(http.server.BaseHTTPRequestHandler):
     def _count(self):
         return int(DATA.read_text()) if DATA.exists() else 0
     def do_GET(self):
-        self._send(VERSION + ":" + str(self._count()) if self.path.startswith("/count") else "ok")
+        self._send(VERSION + ":" + str(self._count()) if self.path == "/count" else "ok")
     def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length") or 0))  # never leave a body on a kept-alive connection
+        if self.path != "/hit-postdeploy":
+            self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
         DATA.write_text(str(self._count() + 1)); self._send("hit")
     def log_message(self, *a): pass
 http.server.ThreadingHTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever()
@@ -248,8 +251,9 @@ def plan_and_build(token, project_id, revision, prompt) -> dict:
     status, plan = api('POST', f'/api/v28/projects/{project_id}/build-contracts',
                        {'prompt': prompt, 'brief_revision': revision}, token)
     if status != 200 or not plan.get('can_build'):
-        raise RuntimeError(f'plan {status} can_build={isinstance(plan, dict) and plan.get("can_build")} '
-                           f'{json.dumps(plan, ensure_ascii=False, default=str)[:600]}')
+        info = {k: plan.get(k) for k in ('status', 'can_build', 'blockers', 'economics', 'durable_backend')} \
+            if isinstance(plan, dict) else plan
+        raise RuntimeError(f'plan {status} {json.dumps(info, ensure_ascii=False, default=str)[:1200]}')
     status, appr = api('POST', f'/api/v28/projects/{project_id}/approvals',
                        {'build_contract_id': plan['build_contract_id'], 'brief_revision': revision}, token)
     if status != 200:
@@ -343,7 +347,7 @@ def stage_free(state: dict) -> None:
         return
     record('preview creation', True, f"{view['id']} RUNNING data_storage={view.get('data_storage')} url={view['preview_url']}")
     url = view['preview_url'].rstrip('/')
-    http('POST', url + '/hit', {}); http('POST', url + '/hit', {})
+    http('POST', url + '/hit-postdeploy', {}); http('POST', url + '/hit-postdeploy', {})
     first = http('GET', url + '/count')[1]
     preview_stop(token, project, view['id'])
     view2, err = preview_launch(token, project, v1.id)
