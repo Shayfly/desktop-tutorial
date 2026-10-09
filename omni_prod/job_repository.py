@@ -24,6 +24,16 @@ class BuildJobDetails:
     evidence: dict | None = None
 
 
+# Live log wording for the phases the worker reports (customer language).
+PHASE_LABELS = {
+    'PLANNING': 'בודק את התוכנית והחוזה שאושרו',
+    'INFRASTRUCTURE': 'מכין את התשתית של המוצר',
+    'ASSETS': 'מכין תמונות ונכסים',
+    'GENERATING': 'מתחיל לכתוב את הקוד, להריץ בדיקות ולתקן',
+    'VERIFYING': 'מריץ בדיקות איכות, אבטחה וזכויות',
+}
+
+
 class PostgresBuildRepository:
     def __init__(self, database):
         # `database` may be a raw database_url string (legacy call sites) or a
@@ -277,6 +287,77 @@ class PostgresBuildRepository:
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute("UPDATE build_jobs SET phase = %s, message = %s WHERE id = %s", (phase, message, build_id))
+                    label = PHASE_LABELS.get(phase)
+                    if label:
+                        cur.execute("INSERT INTO build_events(build_id, kind, message) VALUES (%s, 'phase', %s)",
+                                    (build_id, label))
+
+    # ---- directive 2026-10-09 §10/§12: stop a build, live log ---------------
+    def add_event(self, build_id: str, kind: str, message: str) -> None:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO build_events(build_id, kind, message) VALUES (%s, %s, %s)",
+                                (build_id, kind, str(message)[:600]))
+
+    def events(self, build_id: str, internal_project_id: str, *, after: int = 0, limit: int = 200) -> list[dict]:
+        """Owner-scoped: the build must belong to the internal project."""
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM build_jobs WHERE id = %s AND project_id = %s", (build_id, internal_project_id))
+                if cur.fetchone() is None:
+                    raise KeyError("Job not found or access denied")
+                cur.execute("""SELECT seq, at, kind, message FROM build_events
+                               WHERE build_id = %s AND seq > %s ORDER BY seq LIMIT %s""",
+                            (build_id, int(after), int(limit)))
+                return [{'seq': r[0], 'at': r[1].isoformat() if r[1] else None, 'kind': r[2], 'message': r[3]}
+                        for r in cur.fetchall()]
+
+    def request_cancel(self, build_id: str, internal_project_id: str, *, requested_by: str) -> str:
+        """QUEUED -> CANCELLED at once; RUNNING -> flag the worker reads before
+        its next step. Returns 'cancelled', 'cancel_requested' or the terminal
+        status the build already had. Raises KeyError for a foreign build."""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT status FROM build_jobs WHERE id = %s AND project_id = %s FOR UPDATE",
+                                (build_id, internal_project_id))
+                    row = cur.fetchone()
+                    if row is None:
+                        raise KeyError("Job not found or access denied")
+                    status = row[0]
+                    if status == BuildStatus.QUEUED.value:
+                        cur.execute("""UPDATE build_jobs SET status = %s, phase = 'CANCELLED', finished_at = NOW(),
+                                              error_code = 'cancelled_by_user', cancel_requested_at = NOW(),
+                                              cancel_requested_by = %s
+                                       WHERE id = %s AND status = %s""",
+                                    (BuildStatus.CANCELLED.value, requested_by, build_id, BuildStatus.QUEUED.value))
+                        cur.execute("INSERT INTO build_events(build_id, kind, message) VALUES (%s, 'cancel', %s)",
+                                    (build_id, 'הבנייה בוטלה לפני שהתחילה. לא נוצלו קרדיטים.'))
+                        return 'cancelled'
+                    if status == BuildStatus.RUNNING.value:
+                        cur.execute("""UPDATE build_jobs SET cancel_requested_at = COALESCE(cancel_requested_at, NOW()),
+                                              cancel_requested_by = COALESCE(cancel_requested_by, %s)
+                                       WHERE id = %s""", (requested_by, build_id))
+                        cur.execute("INSERT INTO build_events(build_id, kind, message) VALUES (%s, 'cancel', %s)",
+                                    (build_id, 'התקבלה בקשת עצירה. הבנייה תיעצר בסיום הצעד הנוכחי.'))
+                        return 'cancel_requested'
+                    return status
+
+    def latest_for_project(self, internal_project_id: str) -> dict | None:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""SELECT id, status FROM build_jobs WHERE project_id = %s
+                               ORDER BY created_at DESC LIMIT 1""", (internal_project_id,))
+                row = cur.fetchone()
+                return {'build_id': row[0], 'status': row[1]} if row else None
+
+    def cancel_requested(self, build_id: str) -> bool:
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT cancel_requested_at IS NOT NULL FROM build_jobs WHERE id = %s", (build_id,))
+                row = cur.fetchone()
+                return bool(row and row[0])
 
     def get_details(self, build_id: str, internal_project_id: str) -> BuildJobDetails:
         with self.pool.connection() as conn:

@@ -51,6 +51,7 @@ from .models import BuildStatus
 from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
 from .infrastructure_provisioner import InfrastructureStageBlocked
+from .build_control import BuildCancelled, BuildControl, install as install_build_control
 from .modification_engine import CandidateModificationEngine
 from .provider_usage import ProviderUsageLedger
 from .spec_repository import SpecNotFound
@@ -364,6 +365,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         )
         engine, gateway = components_factory()
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
+        # Directive 2026-10-09 §10/§12: stop between steps; live log.
+        control = BuildControl(jobs, build_id)
+        install_build_control(engine, gateway, control)
+        control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         result = engine.build(prompt)
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
@@ -454,9 +459,30 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
-            # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
-            'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
         }
+    except BuildCancelled as exc:
+        spent, calls = spend_snapshot(gateway)
+        economics_quote = request.get('economics_quote') or {}
+        if economics_quote:
+            billing, settlement_evidence, actual_cost = resolve_m5_billing(
+                subscriptions, build_id=build_id, ready=False, gateway=gateway,
+                capability_evidence=capability_evidence, economics_quote=economics_quote,
+            )
+        else:
+            billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
+            settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
+        jobs.transition(
+            build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.CANCELLED,
+            error_code='cancelled_by_user', error_message=str(exc)[:500],
+            evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
+                           'provider_usage': provider_usage_evidence(gateway),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'provider_spend_usd': str(spent), 'external_model_calls': calls,
+                           'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
+            actual_provider_cost_usd=actual_cost,
+        )
+        return BuildStatus.CANCELLED.value
     except InfrastructureStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
         economics_quote = request.get('economics_quote') or {}

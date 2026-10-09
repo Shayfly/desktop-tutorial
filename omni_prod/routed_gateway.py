@@ -308,7 +308,13 @@ class RoutedModelGateway:
         candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors, c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
+    # Directive 2026-10-09 §10: a build's stop/live-log hook (BuildControl).
+    # Runs before any provider is contacted; raising here costs nothing.
+    before_call: Callable[[str], None] | None = None
+
     def _route(self, method: str, kwargs: dict, task: str = 'general'):
+        if self.before_call is not None:
+            self.before_call(task)
         last_error: Exception | None = None
         routes = []
         if self.primary is not None:

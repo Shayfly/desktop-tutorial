@@ -150,7 +150,11 @@ CATALOG: tuple[SkillSpec, ...] = (
        (_FOUNDER_BUILD,)),
     _s('task.checkpoint', 'execution', EXECUTABLE, (), (), (), _NI),
     _s('task.resume', 'execution', EXECUTABLE, (), ('task.checkpoint',), (), _NI),
-    _s('task.cancel', 'execution', EXECUTABLE, (), (), (), _NI),
+    _s('task.cancel', 'execution', EXECUTABLE, ('omni_prod.build_control:BuildControl',
+                                               'omni_prod.job_repository:PostgresBuildRepository.request_cancel'), (),
+       (Evidence('unit', 'tests/test_build_cancel_and_log.py', 'queued cancelled at once; running stops before the next '
+                 'model call or test run; foreign tenant refused (live Postgres)'),),
+       'builds only (not modifications); stops at a step boundary, not inside a model call'),
     _s('operation.deduplicate', 'execution', EXECUTABLE, ('omni_prod.job_repository:PostgresBuildRepository.claim_contract_build',),
        (), (_RACE,)),
     _s('effects.compensate', 'execution', EXECUTABLE, ('omni_prod.maintenance:run_once',), (), (),

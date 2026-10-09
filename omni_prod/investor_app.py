@@ -1993,6 +1993,22 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
 
+@app.get('/api/v28/projects/{project_id}/builds/latest')
+def v28_build_latest(project_id: str, request: Request) -> dict:
+    """The project's newest build, so a reloaded workspace can show a build
+    that is still running (and offer to stop it). Declared before the
+    {build_id} route so 'latest' is not read as an id."""
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    if not _v28_pool:
+        raise HTTPException(503, "Durable build status requires OMNI_CREATOR_PERSISTENCE=postgres")
+    latest = PostgresBuildRepository(_v28_pool).latest_for_project(key)
+    return {'build': latest}
+
+
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}')
 def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
     token = _v28_bearer(request)
@@ -2022,6 +2038,46 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
         }
     except KeyError:
         raise HTTPException(404, "Build not found or access denied")
+
+@app.post('/api/v28/projects/{project_id}/builds/{build_id}/cancel')
+def v28_build_cancel(project_id: str, build_id: str, request: Request) -> dict:
+    """Directive 2026-10-09 §10: the owner stops a build. A queued build is
+    cancelled at once and its reservation released; a running build stops at
+    its next step (before the next model call or test run) and is charged only
+    for what it already used."""
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    if not _v28_pool:
+        raise HTTPException(503, "Durable build status requires OMNI_CREATOR_PERSISTENCE=postgres")
+    jobs = PostgresBuildRepository(_v28_pool)
+    try:
+        outcome = jobs.request_cancel(build_id, key, requested_by=str(account.id))
+    except KeyError:
+        raise HTTPException(404, "Build not found or access denied")
+    if outcome == 'cancelled':
+        # Idempotent: a no-op unless the reservation is still RESERVED.
+        _v28.subscriptions.release(build_id=build_id)
+    return {'build_id': build_id, 'outcome': outcome}
+
+
+@app.get('/api/v28/projects/{project_id}/builds/{build_id}/events')
+def v28_build_events(project_id: str, build_id: str, request: Request, after: int = 0) -> dict:
+    """Directive 2026-10-09 §12: the live log of a build (customer language)."""
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    if not _v28_pool:
+        raise HTTPException(503, "Durable build status requires OMNI_CREATOR_PERSISTENCE=postgres")
+    try:
+        events = PostgresBuildRepository(_v28_pool).events(build_id, key, after=max(0, int(after)))
+    except KeyError:
+        raise HTTPException(404, "Build not found or access denied")
+    return {'build_id': build_id, 'events': events}
 
 #
 # M3 Revision 2: real running preview (separate lifecycle from the build sandbox).

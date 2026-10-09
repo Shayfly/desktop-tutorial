@@ -48,6 +48,7 @@ def run(prompt: str) -> dict:
                      'model': r.get('model'), 'blocking': r.get('blocking'),
                      'findings': [f"{f['severity']}/{f['source']} {f['skill']}: {f['problem'][:160]}" for f in r.get('findings', [])][:8]}
                     for r in getattr(getattr(engine, 'executor', None), 'reviews', [])][:4],
+            browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
         )
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
@@ -96,6 +97,8 @@ def annotations(report: dict) -> list[str]:
         lines.append(note('qa review', '\n'.join(
             f"round {r['round']} enforced={r['enforced']} reviewer={r['reviewer']} model={r['model']} blocking={r['blocking']}\n  "
             + '\n  '.join(r['findings']) for r in report['review'])))
+    if report.get('browser_check') is not None:
+        lines.append(note('browser check', json.dumps(report['browser_check'], ensure_ascii=False)))
     if report.get('trace'):
         lines.append(note('repair rounds', '\n'.join(
             f"round {t['round']}: failing {t['failing']} changed {t['changed']} :: {t['first_failure'][-500:]}"

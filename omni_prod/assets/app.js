@@ -46,6 +46,9 @@ const T = {
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
     repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
     buildFailed:'הבנייה נכשלה',
+    stopBuild:'עצירת הבנייה', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
+    stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
+    liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
     errCodes:{verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
       preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
@@ -125,6 +128,9 @@ const T = {
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
     repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
     buildFailed:'Build failed',
+    stopBuild:'Stop the build', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
+    stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
+    liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
     errCodes:{verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
       preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
@@ -348,6 +354,18 @@ async function selectProject(id) {
   await loadVersions();
   await restoreMod();
   await restoreDiscovery();
+  await restoreBuild();
+}
+// A build that is still queued/running survives a reload: its track, live log
+// and stop button come back (directive 2026-10-09 §12).
+async function restoreBuild() {
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/builds/latest`);
+    const b = d && d.build;
+    if (!b || isTerminal(b.status) || S.build) return;
+    S.build = { id: b.build_id, status: b.status, phase: '', evidence: {} };
+    renderTrack(); pollBuild();
+  } catch (e) { /* older server: nothing to restore */ }
 }
 
 /* ---------- plan + quote ---------- */
@@ -584,6 +602,7 @@ async function pollBuild() {
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
     S.build = { ...S.build, ...d };
+    await pollEvents();
     renderTrack(); renderEvidence();
     if (isTerminal(d.status)) {
       renderPlan();
@@ -597,6 +616,40 @@ async function pollBuild() {
     }
   } catch (e) { $('buildMsg').textContent = explain(e); }
   S.timers.build = setTimeout(pollBuild, 2500);
+}
+/* Directive 2026-10-09 §10/§12: live log + stop. */
+async function pollEvents() {
+  const b = S.build; if (!b || !b.id) return;
+  if (b.logFor !== b.id) { b.logFor = b.id; b.log = []; b.logAfter = 0; }
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.id)}/events?after=${b.logAfter || 0}`);
+    for (const e of d.events || []) { b.log.push(e); b.logAfter = Math.max(b.logAfter || 0, e.seq); }
+  } catch (e) { /* the log is a convenience; status polling carries on */ }
+}
+function renderLog() {
+  const b = S.build; const box = $('liveLog'); const list = $('liveLogList');
+  if (!b) { box.hidden = true; return; }
+  box.hidden = false;
+  const fmt = iso => { try { return new Date(iso).toLocaleTimeString(S.lang === 'he' ? 'he-IL' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
+  const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
+  list.replaceChildren(...(rows.length ? rows : [h('li', { class: 'ev muted' }, t('logEmpty'))]));
+}
+function renderControls() {
+  const b = S.build; const row = $('buildControls'); const btn = $('cancelBuildBtn');
+  const live = b && !isTerminal(b.status);
+  row.hidden = !live;
+  if (!live) return;
+  btn.disabled = Boolean(b.cancelRequested);
+  $('cancelHint').textContent = b.cancelRequested ? t('stopping') : '';
+}
+async function cancelBuild() {
+  const b = S.build; if (!b || isTerminal(b.status) || b.cancelRequested) return;
+  if (!window.confirm(t('stopConfirm'))) return;
+  b.cancelRequested = true; renderControls();
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.id)}/cancel`, { method: 'POST' });
+    if (d.outcome === 'cancelled') { clearTimeout(S.timers.build); pollBuild(); }
+  } catch (e) { b.cancelRequested = false; renderControls(); $('buildMsg').textContent = explain(e); }
 }
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
@@ -646,8 +699,10 @@ function renderTrack() {
   }
   push(t('stepPreview'), pState, pNote);
   $('track').replaceChildren(...steps);
+  renderControls(); renderLog();
   const msg = $('buildMsg'); msg.className = 'msg';
   if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); }
+  else if (status === 'cancelled') { msg.textContent = t('buildCancelled'); }
   else if (status === 'failed') {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
@@ -902,6 +957,7 @@ function wire() {
   // its own named project and an empty request box.
   $('newBuildBtn').addEventListener('click', openNewProject);
   $('newProjectTopBtn').addEventListener('click', openNewProject);
+  $('cancelBuildBtn').addEventListener('click', cancelBuild);
   $('newProjectForm').addEventListener('submit', submitNewProject);
   $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);

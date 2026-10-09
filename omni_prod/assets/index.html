@@ -115,6 +115,14 @@
       <div class="panel" id="progressPanel" hidden>
         <h2 data-i18n="progress">התקדמות הבנייה</h2>
         <ol class="track" id="track"></ol>
+        <div class="row" id="buildControls" hidden>
+          <button class="secondary danger" id="cancelBuildBtn" type="button" data-i18n="stopBuild">עצירת הבנייה</button>
+          <span class="hint" id="cancelHint"></span>
+        </div>
+        <details class="live-log" id="liveLog" hidden open>
+          <summary data-i18n="liveLog">מה קורה עכשיו</summary>
+          <ol id="liveLogList" aria-live="polite"></ol>
+        </details>
         <p class="msg" id="buildMsg" role="alert"></p>
       </div>
 

@@ -181,8 +181,11 @@ UI_STATES = Skill(
         '(added, deleted, error). When a filter or search is active, show it above the list ("מוצג סינון לפי: X") with a '
         'clear button, and after adding an item make sure the user sees it (clear the filter or say it is hidden by the '
         'filter). Offer only actions that make sense for the row state (no "mark done" on a done item; offer "undo" or '
-        'nothing). Prevent double submission (disable the button while a request is running).'),
+        'nothing). Prevent double submission (disable the button while a request is running). A status/banner element '
+        'that is hidden after a timeout must be made visible again on every later message (set hidden=false or '
+        'style.display="" each time and clear the previous timer) - a message that shows once and never again is a bug.'),
     checklist=('An empty list shows an explanatory sentence.',
+               'Every action shows its status message, also the second and third time (no banner left hidden).',
                'An active filter is visible and can be cleared; a newly added item is not silently hidden.',
                'Row actions match the row state; buttons are disabled while a request runs.'),
 )

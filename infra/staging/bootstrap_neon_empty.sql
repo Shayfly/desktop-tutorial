@@ -1100,6 +1100,37 @@ CREATE INDEX IF NOT EXISTS idx_build_approvals_project ON build_approvals(projec
 
 -- END SOURCE 030_project_briefs_and_approvals.sql
 
+-- BEGIN SOURCE 031_build_cancel_and_events.sql
+-- Stop a build and show what it is doing (migration 031).
+-- Master directive 2026-10-09 §10 (task states, cancel) and §12 (the user
+-- always sees what is happening).
+--
+-- cancel_requested_at: set by the owner's "stop" on a RUNNING build. The
+-- worker checks it before every model call and every sandbox run, stops
+-- there, settles only what was really used and writes CANCELLED. A QUEUED
+-- build is cancelled directly by the API (the worker's QUEUED -> RUNNING
+-- claim then fails, so it never starts).
+--
+-- build_events: an append-only, human-readable log of the build's steps
+-- (phase changes, model calls by task, test runs and their result). It is
+-- what the workspace shows as the live log. Messages never contain secrets
+-- or generated code; they are short sentences written by the worker.
+
+ALTER TABLE build_jobs ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+ALTER TABLE build_jobs ADD COLUMN IF NOT EXISTS cancel_requested_by TEXT;
+
+CREATE TABLE IF NOT EXISTS build_events (
+    seq        BIGSERIAL PRIMARY KEY,
+    build_id   TEXT NOT NULL REFERENCES build_jobs(id) ON DELETE CASCADE,
+    at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    kind       TEXT NOT NULL CHECK (kind IN ('phase', 'model', 'check', 'repair', 'cancel', 'info')),
+    message    TEXT NOT NULL CHECK (length(message) <= 600)
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_events_build_seq ON build_events (build_id, seq);
+
+-- END SOURCE 031_build_cancel_and_events.sql
+
 -- Record exact original migration checksums for the normal migration runner.
 INSERT INTO schema_migrations(version, name, sha256)
 VALUES (1, 'control_plane', encode(sha256(convert_to($source_001$CREATE TABLE IF NOT EXISTS build_jobs (
@@ -2157,6 +2188,36 @@ CREATE TABLE IF NOT EXISTS build_approvals (
 );
 CREATE INDEX IF NOT EXISTS idx_build_approvals_project ON build_approvals(project_id, created_at DESC);
 $source_030$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (31, 'build_cancel_and_events', encode(sha256(convert_to($source_031$-- Stop a build and show what it is doing (migration 031).
+-- Master directive 2026-10-09 §10 (task states, cancel) and §12 (the user
+-- always sees what is happening).
+--
+-- cancel_requested_at: set by the owner's "stop" on a RUNNING build. The
+-- worker checks it before every model call and every sandbox run, stops
+-- there, settles only what was really used and writes CANCELLED. A QUEUED
+-- build is cancelled directly by the API (the worker's QUEUED -> RUNNING
+-- claim then fails, so it never starts).
+--
+-- build_events: an append-only, human-readable log of the build's steps
+-- (phase changes, model calls by task, test runs and their result). It is
+-- what the workspace shows as the live log. Messages never contain secrets
+-- or generated code; they are short sentences written by the worker.
+
+ALTER TABLE build_jobs ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+ALTER TABLE build_jobs ADD COLUMN IF NOT EXISTS cancel_requested_by TEXT;
+
+CREATE TABLE IF NOT EXISTS build_events (
+    seq        BIGSERIAL PRIMARY KEY,
+    build_id   TEXT NOT NULL REFERENCES build_jobs(id) ON DELETE CASCADE,
+    at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    kind       TEXT NOT NULL CHECK (kind IN ('phase', 'model', 'check', 'repair', 'cancel', 'info')),
+    message    TEXT NOT NULL CHECK (length(message) <= 600)
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_events_build_seq ON build_events (build_id, seq);
+$source_031$, 'UTF8')), 'hex'));
 
 COMMIT;
 

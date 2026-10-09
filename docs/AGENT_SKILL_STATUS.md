@@ -4,9 +4,9 @@ Generated from `omni_prod/agent_catalog.py` (roles), `omni_prod/skill_catalog.py
 
 Dimensions are separate: implementation · configuration · verification (scope + freshness) · blocked. VERIFIED always names what the run asserted, and only counts while the implementation is unchanged since the commit that ran; otherwise the row is STALE and needs re-verification.
 
-Roles (61): VERIFIED 8, STALE 8, CONNECTED 3, DEFINED 42
+Roles (61): VERIFIED 6, STALE 10, CONNECTED 3, DEFINED 42
 
-Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7, NOT_IMPLEMENTED 79
+Skills in the §9 catalog (137): VERIFIED 17, STALE 19, TESTED 16, IMPLEMENTED 7, NOT_IMPLEMENTED 78
 
 ## management
 
@@ -17,7 +17,7 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | Capability Resolver | VERIFIED | CapabilityPlanner, BuildContract | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | VERIFIED for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI (fresh: bld_f419acd1317a40afab5a7bd287841048@beb67b4) | — | bld_f419acd1317a40afab5a7bd287841048 -> v_246bae81234e4c39 — founder build from the workspace, 2026-10-08 21:30-21:35, quality 84 [workspace@beb67b4] | $0 (deterministic) | keyword-based game detection misclassifies "משחק" (football match) |
 | Solution Architect | STALE | ArchitectAgent, GENERATION_CONSTRAINTS | GEMINI_API_KEY/OMNI_MODEL_CATALOG_JSON: ok (deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 37814803770 ok) | STALE — was verified for: the fixed stdlib stack is planned consistently at beb67b4; code changed since: omni_prod/autonomous_agents.py, omni_prod/dependency_policy.py | — | bld_f419acd1317a40afab5a7bd287841048 -> v_246bae81234e4c39 — founder build from the workspace, 2026-10-08 21:30-21:35, quality 84 [workspace@beb67b4] | shared with request_interpreter | one fixed stack (Python stdlib + SQLite in /tmp); no durable data or API-contract design |
 | Project Orchestrator | STALE | _run_live_build_job, AutonomousProductEngine, main | OMNI_REDIS_URL: ok (deploy-worker queue probe PASS); OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | STALE — was verified for: the fixed build pipeline runs to ready at 3a4d822; code changed since: omni_prod/worker_tasks.py | — | bld_f419acd1317a40afab5a7bd287841048 -> v_246bae81234e4c39 — founder build from the workspace, 2026-10-08 21:30-21:35, quality 84 [workspace@beb67b4]; STATUS.md "Golden E2E #1: full chain from the founder's workspace" (2026-10-08 23:05) [workspace@3a4d822] | $0 (deterministic) | fixed 4-step pipeline, not a task graph; no cancel; no resume of a half-finished build (janitor fails it) |
-| Cost Controller | VERIFIED | RoutedModelGateway, PostgresSubscriptionService, qa_used_usd | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | VERIFIED for: QA spend counted from recorded spend, reservation at most once per build (fresh: build-evidence@d8a01fa) | — | build-evidence run 37864934013 — QA counted all-time $3.31 [worker-host@d8a01fa]; tests/test_provider_quota_and_dialects.py; tests/test_qa_budget.py — a start date needs free-tier evidence | $0 (deterministic) | no per-step cost shown to the user; no provider invoice reconciliation; spend ledger is tokens x catalog price, not a supplier-confirmed cost |
+| Cost Controller | STALE | RoutedModelGateway, PostgresSubscriptionService, qa_used_usd | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | STALE — was verified for: QA budget cap enforced before a build is admitted at d8a01fa; code changed since: omni_prod/routed_gateway.py | — | build-evidence run 37864934013 — QA counted all-time $3.31 [worker-host@d8a01fa]; tests/test_provider_quota_and_dialects.py; tests/test_qa_budget.py — a start date needs free-tier evidence | $0 (deterministic) | no per-step cost shown to the user; no provider invoice reconciliation; spend ledger is tokens x catalog price, not a supplier-confirmed cost |
 | Discovery Lead | CONNECTED | next_group, answer, PostgresBriefRepository | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | unit tests only | — | tests/test_discovery_and_approval.py — engine + live-Postgres revisions and approvals | $0 (deterministic) | not yet used by the founder in the workspace; a fixed question bank; no model phrasing; domains: web apps/business systems only |
 | Customer Success & Handover Agent | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Product Economics Analyst | DEFINED | — | — | not verified | — | — | — | not implemented |
@@ -107,7 +107,7 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | Integration & Secret Steward | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Reliability & Recovery Engineer | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Performance & Resource Engineer | DEFINED | — | — | not verified | — | — | — | not implemented |
-| Release & Change Coordinator | VERIFIED | .github/workflows/deploy-worker.yml, PostgresBuildRepository.claim_contract_build | none needed | VERIFIED for: a real build survives a deploy (fresh: deploy-worker@d8a01fa) | — | deploy-worker run 37862903906 — drained 213 s for a running job, exit 0 [worker-host@51bb631]; deploy-worker run 37864475043 + build bld_e204320872c8 — founder build finished ready while the deploy drained 65 s [worker-host@d8a01fa]; tests/test_golden_mod_path_live_postgres.py::test_two_parallel_approvals_of_one_plan_create_one_build | $0 | branch ownership is a written rule, not enforced by a tool; no rollback step in the workflow |
+| Release & Change Coordinator | STALE | .github/workflows/deploy-worker.yml, PostgresBuildRepository.claim_contract_build | none needed | STALE — was verified for: no worker replacement mid-job at d8a01fa; code changed since: .github/workflows/deploy-worker.yml, omni_prod/job_repository.py | — | deploy-worker run 37862903906 — drained 213 s for a running job, exit 0 [worker-host@51bb631]; deploy-worker run 37864475043 + build bld_e204320872c8 — founder build finished ready while the deploy drained 65 s [worker-host@d8a01fa]; tests/test_golden_mod_path_live_postgres.py::test_two_parallel_approvals_of_one_plan_create_one_build | $0 | branch ownership is a written rule, not enforced by a tool; no rollback step in the workflow |
 
 ## Skills catalog (directive §9)
 
@@ -157,7 +157,7 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | diff.review | code | VALIDATOR | VERIFIED | ProductReviewExecutor | code.generate | VERIFIED for: model review of the code (fresh: golden-rehearsal@dbd1232) | reviews the whole code, not a diff |
 | migration.create | data | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented (generated apps) |
 | migration.verify | data | VALIDATOR | NOT_IMPLEMENTED | — | — | none | not implemented |
-| data.constraints | data | INSTRUCTION | VERIFIED | DATA_INTEGRITY | — | VERIFIED for: prompt -> ready build (library, business rules); HTTP acceptance: create/read/conflict/return/delete (fresh: bld_8263a2a1905346399747f4fe8b92e919@b0a0cfa) | library build: duplicate member answered 409 |
+| data.constraints | data | INSTRUCTION | STALE | DATA_INTEGRITY | — | STALE — was verified for: prompt -> ready build (library, business rules); HTTP acceptance: create/read/conflict/return/delete at b0a0cfa; code changed since: omni_prod/skills_runtime.py | library build: duplicate member answered 409 |
 | data.persistence.verify | data | VALIDATOR | NOT_IMPLEMENTED | — | — | none | not implemented (generated data lives in /tmp) |
 | data.backup | data | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
 | data.restore | data | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
@@ -175,7 +175,7 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | runtime.readiness | execution | VALIDATOR | VERIFIED | DockerPreviewProvider | app.start | VERIFIED for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI (fresh: bld_f419acd1317a40afab5a7bd287841048@beb67b4) | — |
 | task.checkpoint | execution | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
 | task.resume | execution | EXECUTABLE | NOT_IMPLEMENTED | — | task.checkpoint | none | not implemented |
-| task.cancel | execution | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
+| task.cancel | execution | EXECUTABLE | TESTED | BuildControl, PostgresBuildRepository.request_cancel | — | unit tests only | builds only (not modifications); stops at a step boundary, not inside a model call |
 | operation.deduplicate | execution | EXECUTABLE | TESTED | PostgresBuildRepository.claim_contract_build | — | unit tests only | — |
 | effects.compensate | execution | EXECUTABLE | IMPLEMENTED | run_once | — | none | janitor releases reservations of lost builds; nothing else |
 | resources.cleanup | execution | EXECUTABLE | TESTED | sweep_stale_containers, run_once | — | unit tests only | — |
@@ -199,12 +199,12 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | handover.generate | delivery | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
 | cost.quote | cost | EXECUTABLE | STALE | omni_prod/investor_app.py, build_economics_quote | — | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI at beb67b4; code changed since: omni_prod/investor_app.py | — |
 | budget.reserve | cost | EXECUTABLE | VERIFIED | PostgresSubscriptionService, authorize_qa_build | cost.quote | VERIFIED for: recorded spend counted once per build (fresh: build-evidence@d8a01fa) | — |
-| usage.record | cost | EXECUTABLE | VERIFIED | RoutedModelGateway | — | VERIFIED for: recorded spend counted once per build (fresh: build-evidence@d8a01fa) | tokens x catalog price, not supplier-confirmed |
+| usage.record | cost | EXECUTABLE | STALE | RoutedModelGateway | — | STALE — was verified for: recorded spend counted once per build at d8a01fa; code changed since: omni_prod/routed_gateway.py | tokens x catalog price, not supplier-confirmed |
 | cost.estimate | cost | EXECUTABLE | IMPLEMENTED | cost_projection | — | none | — |
 | cost.reconcile | cost | VALIDATOR | NOT_IMPLEMENTED | — | usage.record | none | not implemented (no supplier invoice) |
 | budget.settle | cost | EXECUTABLE | VERIFIED | PostgresSubscriptionService | budget.reserve | VERIFIED for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI (fresh: bld_f419acd1317a40afab5a7bd287841048@beb67b4) | — |
 | margin.calculate | cost | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
-| budget.guard | cost | VALIDATOR | VERIFIED | RoutedModelGateway, authorize_qa_build | budget.reserve | VERIFIED for: recorded spend counted once per build (fresh: build-evidence@d8a01fa) | — |
+| budget.guard | cost | VALIDATOR | STALE | RoutedModelGateway, authorize_qa_build | budget.reserve | STALE — was verified for: recorded spend counted once per build at d8a01fa; code changed since: omni_prod/routed_gateway.py | — |
 | assets.plan | assets | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
 | image.generate | assets | EXECUTABLE | TESTED | PredictionImageProvider | — | unit tests only | no image generated live; not on the build path |
 | image.edit | assets | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
@@ -260,7 +260,7 @@ Skills in the §9 catalog (137): VERIFIED 20, STALE 16, TESTED 15, IMPLEMENTED 7
 | skill.ui_states@1 | INSTRUCTION | STALE | injected into: generator, repair, evolution, reviewer | STALE — was verified for: guidance injected; model review found no blocking issue at dbd1232; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | checked by code review and the browser flow check; no screenshots |
 | skill.text_locale@1 | INSTRUCTION + VALIDATOR | STALE | injected into: generator, repair, evolution, reviewer | STALE — was verified for: guidance injected; model review found no blocking issue at dbd1232; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | — |
 | skill.data_integrity@1 | INSTRUCTION | STALE | injected into: architect, generator, repair, evolution, reviewer | STALE — was verified for: guidance injected; model review found no blocking issue at dbd1232; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | no conflict/404 probe against the running app yet |
-| skill.visual_design@1 | INSTRUCTION + VALIDATOR | VERIFIED | injected into: generator, repair, evolution, reviewer | VERIFIED for: CSS heuristic passed; model review 0 blocking (fresh: golden-rehearsal@727af63) | golden-rehearsal run 37858017258 — library prompt: ready, quality 86, design static check passed, review 0 blocking | checked by a CSS heuristic and code review, not by looking at a screenshot (directive §11: not a design approval); not yet seen by the founder in a preview |
+| skill.visual_design@1 | INSTRUCTION + VALIDATOR | STALE | injected into: generator, repair, evolution, reviewer | STALE — was verified for: CSS heuristic passed; model review 0 blocking at 727af63; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37858017258 — library prompt: ready, quality 86, design static check passed, review 0 blocking | checked by a CSS heuristic and code review, not by looking at a screenshot (directive §11: not a design approval); not yet seen by the founder in a preview |
 
 ## Mismatches found
 
