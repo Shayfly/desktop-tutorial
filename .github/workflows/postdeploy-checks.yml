@@ -17,10 +17,10 @@ on:
       stage:
         description: free or paid
         type: choice
-        options: [free, paid, cancel-build]
+        options: [free, paid, cancel-build, inspect-build]
         required: true
       build_id:
-        description: "cancel-build only: the synthetic build to stop (owner-scoped cancel, same code as the API)"
+        description: "cancel-build / inspect-build: the synthetic build id"
         required: false
         default: ""
       max_usd:
@@ -113,6 +113,28 @@ jobs:
           with _v28_pool.connection() as c:
               row = c.execute("SELECT b.status, r.status FROM build_jobs b LEFT JOIN credit_reservations r ON r.build_id = b.id WHERE b.id = %s", (bid,)).fetchone()
           print(f"::notice title=postdeploy cancel-build::{bid} outcome={out} build={row[0]} reservation={row[1]}")
+          '
+
+      - name: Inspect one build (read-only)
+        if: inputs.stage == 'inspect-build'
+        env:
+          BID: ${{ inputs.build_id }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres -e BID="$BID" "$IMG" python -c '
+          import os, json
+          from omni_prod.investor_app import _v28_pool
+          bid = os.environ["BID"]
+          def note(t, m):
+              print(f"::notice title={t}::" + str(m)[:3800].replace("%", "%25").replace("\n", "%0A"))
+          with _v28_pool.connection() as c:
+              ev = c.execute("SELECT evidence_json FROM build_jobs WHERE id = %s", (bid,)).fetchone()[0] or {}
+              r = c.execute("SELECT status, estimated_provider_cost_usd, actual_provider_cost_usd, settled_provider_cost_usd FROM credit_reservations WHERE build_id = %s", (bid,)).fetchone()
+          note("spend", {k: ev.get(k) for k in ("provider_spend_usd", "external_model_calls", "provider_spend_basis", "billing", "model_budget_binding", "economics_settlement")} | {"reservation": [str(x) for x in r]})
+          note("provider usage", json.dumps(ev.get("provider_usage"), default=str))
+          for pid, rep in (ev.get("web_saas_acceptance_reports") or {}).items():
+              checks = [{k: c.get(k) for k in ("id", "kind", "status", "method", "path", "expected", "observed", "message", "error")} for c in rep.get("checks", [])]
+              note("acceptance " + pid, json.dumps({"status": rep.get("status"), "summary": rep.get("summary"), "checks": checks}, ensure_ascii=False, default=str))
           '
 
       - name: Always restart the build worker
