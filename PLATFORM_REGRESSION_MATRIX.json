@@ -1,0 +1,159 @@
+{
+ "version": 1,
+ "areas": {
+  "discovery": {
+   "expected": "professional discovery, delegated answers, brief revisions",
+   "files": {
+    "tests/test_discovery_and_approval.py": {
+     "min_tests": 16
+    },
+    "tests/test_brief_capability_detection.py": {
+     "min_tests": 4
+    }
+   }
+  },
+  "approval": {
+   "expected": "server-bound approval, one build per approved plan",
+   "files": {
+    "tests/test_discovery_and_approval.py": {
+     "min_tests": 16
+    }
+   }
+  },
+  "build": {
+   "expected": "contract-bound build, gates, settlement",
+   "files": {
+    "tests/test_m3_preview_logic.py": {
+     "min_tests": 85
+    },
+    "tests/test_live_build_stores_spec.py": {
+     "min_tests": 2
+    }
+   }
+  },
+  "modify": {
+   "expected": "natural-language change with candidate and accept",
+   "files": {
+    "tests/test_golden_mod_path_live_postgres.py": {
+     "min_tests": 6
+    }
+   }
+  },
+  "cancel": {
+   "expected": "queued and running stop for builds and changes",
+   "files": {
+    "tests/test_build_cancel_and_log.py": {
+     "min_tests": 13
+    },
+    "tests/test_crash_recovery_and_change_parity.py": {
+     "min_tests": 5
+    }
+   }
+  },
+  "resume": {
+   "expected": "crash recovery and lost-queue redispatch",
+   "files": {
+    "tests/test_crash_recovery_and_change_parity.py": {
+     "min_tests": 5
+    },
+    "tests/test_janitor_redispatch.py": {
+     "min_tests": 4
+    }
+   }
+  },
+  "journal": {
+   "expected": "live build/change log",
+   "files": {
+    "tests/test_build_cancel_and_log.py": {
+     "min_tests": 13
+    }
+   }
+  },
+  "provider_routing": {
+   "expected": "price/quality routing, fallback, quota release",
+   "files": {
+    "tests/test_provider_quota_and_dialects.py": {
+     "min_tests": 17
+    }
+   }
+  },
+  "economics": {
+   "expected": "metered settlement, QA budget",
+   "files": {
+    "tests/test_actual_cost_settlement.py": {
+     "min_tests": 6
+    }
+   }
+  },
+  "persistence": {
+   "expected": "preview data across restart and versions",
+   "files": {
+    "tests/test_preview_data_durability.py": {
+     "min_tests": 9
+    }
+   }
+  },
+  "preview": {
+   "expected": "private previews, acceptance on a scratch copy",
+   "files": {
+    "tests/test_preview_access.py": {
+     "min_tests": 5
+    },
+    "tests/test_preview_router.py": {
+     "min_tests": 4
+    }
+   }
+  },
+  "browser_execution": {
+   "expected": "real-browser probe of every product",
+   "files": {
+    "tests/test_browser_probe.py": {
+     "min_tests": 9
+    }
+   }
+  },
+  "behavioral_acceptance": {
+   "expected": "in-build acceptance feeding repair, requirements-aware scope",
+   "files": {
+    "tests/test_behavior_acceptance_in_build.py": {
+     "min_tests": 5
+    },
+    "tests/test_demand_driven_infrastructure.py": {
+     "min_tests": 17
+    }
+   }
+  },
+  "release": {
+   "expected": "release gates and versions",
+   "files": {
+    "tests/test_m3_preview_logic.py": {
+     "min_tests": 85
+    }
+   }
+  },
+  "recovery": {
+   "expected": "backups proven by restore",
+   "files": {
+    "tests/test_backup_restore.py": {
+     "min_tests": 3
+    }
+   }
+  },
+  "agent_os": {
+   "expected": "durable agent runtime, permissions, budgets, verification, truthful registry",
+   "files": {
+    "tests/test_agent_os.py": {
+     "min_tests": 15
+    }
+   }
+  },
+  "failure_injection": {
+   "expected": "graceful handling of injected failures",
+   "files": {
+    "tests/test_failure_injection.py": {
+     "min_tests": 12
+    }
+   }
+  }
+ }
+}

@@ -344,7 +344,7 @@ def _rights_evidence_from_dicts(items) -> tuple:
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
                         capability_stage=None, infrastructure_stage=None,
-                        infrastructure_environment: str = 'preview', spec_repo=None) -> str | None:
+                        infrastructure_environment: str = 'preview', spec_repo=None, agent_recorder=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
     done (unknown build id / already claimed by another delivery)."""
     try:
@@ -423,6 +423,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
+        if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
+            control.recorder = agent_recorder
+            agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
@@ -668,11 +671,22 @@ def execute_live_build_job(build_id: str) -> None:
         captured['gateway'] = gateway
         return engine, gateway
 
+    recorder = None
+    if os.getenv('OMNI_AGENT_RECORDER', '1') != '0':
+        from .agent_os.recorder import BuildAgentRecorder
+        recorder = BuildAgentRecorder(_v28_pool, build_id)
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
-                                            components_factory=components_factory)
+                                            components_factory=components_factory, agent_recorder=recorder)
     finally:
         _persist_build_attempts(_v28_pool, jobs, build_id, captured.get('gateway'))
+        if recorder is not None and recorder.run_id is not None:
+            try:
+                with _v28_pool.connection() as conn:
+                    row = conn.execute('SELECT status, evidence_json FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
+                recorder.finish(status=row[0] if row else 'failed', evidence=row[1] if row else None)
+            except Exception:
+                logging.getLogger(__name__).warning('agent recorder finish failed for %s', build_id, exc_info=True)
 
 
 def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
@@ -695,7 +709,8 @@ def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
         logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
 
 
-def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, components_factory) -> None:
+def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, components_factory,
+                                        agent_recorder=None) -> None:
     from .investor_app import _v28, _v28_pool
     from .quality_gate import assess_repository
     from .security_testing import hostile_repository_scan
@@ -737,6 +752,7 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
         # with credits reserved forever.
         preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
         spec_repo=PostgresSpecRepository(_v28_pool),
+        agent_recorder=agent_recorder,
     )
 
 

@@ -22,6 +22,11 @@ jobs:
                   msg = (bad.get('message') or '').replace('\n', ' ')[:300]
                   print(f"::error title={name}::{msg}")
           PY
+      - name: Regression guardian (agent 48) -- every protected area keeps its tests and passes
+        if: always()
+        run: python -m omni_prod.agent_os.meta regression pytest-report.xml
+      - name: Capability auditor (agent 47) -- no registry inflation
+        run: python -m omni_prod.agent_os.audit
       - run: python scripts/run_hostile_static_suite.py
       - run: python scripts/run_international_gate.py
   compose-config:

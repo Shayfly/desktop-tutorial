@@ -75,6 +75,9 @@ class RoutedModelGateway:
         only = {n.strip() for n in os.getenv('OMNI_MODEL_ONLY', '').split(',') if n.strip()}
         if only:
             self.ranked = tuple(m for m in self.ranked if m.endpoint.name in only)
+        # Autonomous completion §19: DEV_ONLY / BLOCKED models never take work.
+        from .agent_os.providers import filter_routable
+        self.ranked = filter_routable(self.ranked)
         self.routing_policy = routing_policy or RoutingPolicy()
         if primary is None and not self.ranked and not fallback:
             raise ValueError('no model route is configured')

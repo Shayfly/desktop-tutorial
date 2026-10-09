@@ -1,0 +1,123 @@
+{
+ "version": 1,
+ "scenarios": [
+  {
+   "scenario": "Golden 1 — New SaaS (Hebrew, persistent, preview, restart, version)",
+   "status": "PASS",
+   "evidence": [
+    "postdeploy-checks run 37924920646",
+    "postdeploy-checks run 37936709830",
+    "golden-rehearsal run 37937211420"
+   ],
+   "commits": [
+    "301d631",
+    "1c7a9c9",
+    "1c7a9c9"
+   ],
+   "at": [
+    "2026-10-09T11:30Z",
+    "2026-10-09T12:43Z",
+    "2026-10-09T12:55Z"
+   ],
+   "note": ""
+  },
+  {
+   "scenario": "Golden 2 — SaaS with authentication",
+   "status": "NOT_RUN",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "generated-app sign-in is not implemented (Identity & Auth agent NOT_IMPLEMENTED)"
+  },
+  {
+   "scenario": "Golden 3 — Existing project modification",
+   "status": "PARTIAL",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "founder change verified 2026-10-08 (mod_c14435dc); not re-run on this code"
+  },
+  {
+   "scenario": "Golden 4 — Cancellation (queued + active)",
+   "status": "PASS",
+   "evidence": [
+    "postdeploy-checks run 37936709830"
+   ],
+   "commits": [
+    "1c7a9c9"
+   ],
+   "at": [
+    "2026-10-09T12:43Z"
+   ],
+   "note": ""
+  },
+  {
+   "scenario": "Golden 5 — Crash recovery",
+   "status": "PASS",
+   "evidence": [
+    "postdeploy-checks run 37940033628"
+   ],
+   "commits": [
+    "d1c7482"
+   ],
+   "at": [
+    "2026-10-09T13:58Z"
+   ],
+   "note": ""
+  },
+  {
+   "scenario": "Golden 6 — Provider failure",
+   "status": "PARTIAL",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider"
+  },
+  {
+   "scenario": "Golden 7 — Budget guard",
+   "status": "PARTIAL",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "ceiling enforced in the paid run ($0.15 effective); refusal proven by injection test"
+  },
+  {
+   "scenario": "Golden 8 — Backup / restore",
+   "status": "PASS",
+   "evidence": [
+    "backup-restore run 37939539147"
+   ],
+   "commits": [
+    "4dccda8"
+   ],
+   "at": [
+    "2026-10-09T13:49Z"
+   ],
+   "note": "restore into a throw-away database; no destructive drill"
+  },
+  {
+   "scenario": "Golden 9 — Automation",
+   "status": "NOT_RUN",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "Automation agent NOT_IMPLEMENTED"
+  },
+  {
+   "scenario": "Golden 10 — Media",
+   "status": "BLOCKED",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "image provider not configured on the build worker; video/voice/music providers not contracted"
+  },
+  {
+   "scenario": "Golden 11 — 2D game",
+   "status": "NOT_RUN",
+   "evidence": [],
+   "commits": [],
+   "at": [],
+   "note": "2D game agents NOT_IMPLEMENTED (Phaser not in the sandbox allowlist)"
+  }
+ ]
+}

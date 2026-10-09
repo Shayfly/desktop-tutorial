@@ -37,6 +37,7 @@ class BuildControl:
         self.build_id = build_id
         self.checks = 0
         self.model_calls = 0
+        self.recorder = None  # agent_os BuildAgentRecorder (durable agent task graph), optional
 
     def log(self, kind: str, message: str) -> None:
         add = getattr(self._jobs, 'add_event', None)
@@ -65,6 +66,8 @@ class BuildControl:
         self.checkpoint()
         self.model_calls += 1
         self.log('model', TASK_LABELS.get(task, 'שולח בקשה למודל'))
+        if self.recorder is not None:
+            self.recorder.on_model(task)
 
 
 class ControlledExecutor:
@@ -84,6 +87,9 @@ class ControlledExecutor:
         n = self._control.checks
         report = self._inner.execute(repository=repository, spec=spec)
         failures = list(getattr(report, 'failures', None) or [])
+        if self._control.recorder is not None:
+            reason = (getattr(failures[0], 'message', '') if failures else '') or 'all checks passed'
+            self._control.recorder.on_check(bool(getattr(report, 'passed', False)), reason)
         if getattr(report, 'passed', False):
             self._control.log('check', f'סבב בדיקות {n}: כל הבדיקות עברו')
         else:
