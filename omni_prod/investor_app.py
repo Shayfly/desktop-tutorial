@@ -2126,6 +2126,8 @@ def _preview_public_view(preview: dict, public_project_id: str, acceptance: dict
         'acceptance_summary': acceptance.get('summary') if acceptance else None,
         # Directive 2026-10-09 §13: 'temporary' data is lost when the preview stops.
         'data_storage': preview.get('data_storage') or 'temporary',
+        # Autonomous completion §4: PRIVATE unless the owner shared it.
+        'access_mode': preview.get('access_mode') or 'PRIVATE',
         'logs': None, 'logs_available': False,
         'logs_note': ('Live log streaming needs a distributed logging pipeline (worker -> log store) and is not '
                       'implemented; the API does not reach into worker Docker daemons. Startup/health-probe '
@@ -2187,6 +2189,53 @@ def v28_preview_status(project_id: str, preview_id: str, request: Request) -> di
         raise HTTPException(404, "Preview not found or access denied")
     acceptance = preview_repo.get_acceptance(key, preview['version_id'], preview_id)
     return _preview_public_view(preview, project_id, acceptance)
+
+class V28PreviewSharing(BaseModel):
+    mode: str = Field(pattern='^(PRIVATE|SHARED|PUBLIC)$')
+
+
+def _owned_preview(project_id: str, preview_id: str, request: Request) -> dict:
+    _require_durable_backend('Real running preview')
+    key = _preview_key(project_id, request)
+    try:
+        return PostgresPreviewRepository(_v28_pool).get(preview_id, key)
+    except KeyError:
+        raise HTTPException(404, "Preview not found or access denied")
+
+
+def _access_url(preview_url: str, token: str) -> str:
+    from .preview_access import QUERY_PARAM
+    return preview_url.rstrip('/') + '/?' + QUERY_PARAM + '=' + token
+
+
+@app.post('/api/v28/projects/{project_id}/previews/{preview_id}/access')
+def v28_preview_access(project_id: str, preview_id: str, request: Request) -> dict:
+    """Autonomous completion §4: the owner's short-lived link into a private
+    preview (the router exchanges it for an HttpOnly cookie)."""
+    from .preview_access import PreviewAccess
+    preview = _owned_preview(project_id, preview_id, request)
+    if preview['status'] != 'RUNNING' or not preview.get('preview_url'):
+        raise HTTPException(409, detail={'error': 'preview_not_running'})
+    account = _v28.account(_v28_bearer(request))
+    token, expires = PreviewAccess(_v28_pool).issue(preview_id, kind='owner', issued_to=str(account.id))
+    return {'preview_id': preview_id, 'url': _access_url(preview['preview_url'], token), 'expires_at': expires,
+            'access_mode': preview.get('access_mode') or 'PRIVATE'}
+
+
+@app.post('/api/v28/projects/{project_id}/previews/{preview_id}/sharing')
+def v28_preview_sharing(project_id: str, preview_id: str, req: V28PreviewSharing, request: Request) -> dict:
+    """PRIVATE (revokes share links), SHARED (returns a 7-day share link) or PUBLIC."""
+    from .preview_access import PreviewAccess
+    preview = _owned_preview(project_id, preview_id, request)
+    access = PreviewAccess(_v28_pool)
+    access.set_mode(preview_id, req.mode)
+    out = {'preview_id': preview_id, 'access_mode': req.mode}
+    if req.mode == 'SHARED' and preview.get('preview_url'):
+        account = _v28.account(_v28_bearer(request))
+        token, expires = access.issue(preview_id, kind='share', issued_to=str(account.id))
+        out.update(share_url=_access_url(preview['preview_url'], token), expires_at=expires)
+    return out
+
 
 @app.delete('/api/v28/projects/{project_id}/previews/{preview_id}')
 def v28_preview_stop(project_id: str, preview_id: str, request: Request):

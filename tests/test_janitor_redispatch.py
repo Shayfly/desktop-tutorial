@@ -16,9 +16,17 @@ class RedispatchUnitTests(unittest.TestCase):
                 (maintenance.BUILD_JOB, 'bld_lost'), (maintenance.BUILD_JOB, 'bld_waiting'),
                 (maintenance.MODIFICATION_JOB, 'mod_lost')]):
             out = maintenance.redispatch_lost(None, queued_ids=lambda: ['bld_waiting'],
-                                              enqueue=lambda f, i: sent.append((f, i)))
+                                              enqueue=lambda f, i: sent.append((f, i)), attempts={})
         self.assertEqual(out, ['bld_lost', 'mod_lost'])
         self.assertEqual(sent, [(maintenance.BUILD_JOB, 'bld_lost'), (maintenance.MODIFICATION_JOB, 'mod_lost')])
+
+    def test_an_item_is_sent_at_most_three_times(self):
+        sent, attempts = [], {}
+        with patch.object(maintenance, 'queued_too_long', return_value=[(maintenance.BUILD_JOB, 'bld_x')]):
+            for _ in range(5):
+                maintenance.redispatch_lost(None, queued_ids=lambda: [], enqueue=lambda f, i: sent.append(i),
+                                            attempts=attempts)
+        self.assertEqual(sent, ['bld_x'] * 3)
 
     def test_a_redis_error_is_reported_not_raised(self):
         class P:
@@ -52,13 +60,22 @@ class QueuedTooLongLivePostgresTests(unittest.TestCase):
         old, new, stopping = (f'bld_{uuid.uuid4().hex[:10]}' for _ in range(3))
         with pool.connection() as c:
             with c.transaction():
-                c.execute("INSERT INTO build_jobs(id, project_id, status, created_at) VALUES (%s,'t','queued', now() - interval '10 minutes')", (old,))
+                c.execute("INSERT INTO build_jobs(id, project_id, status, created_at) VALUES (%s,'t','queued', now() - interval '5 hours 59 minutes')", (old,))
                 c.execute("INSERT INTO build_jobs(id, project_id, status) VALUES (%s,'t','queued')", (new,))
                 c.execute("INSERT INTO build_jobs(id, project_id, status, created_at, cancel_requested_at) VALUES (%s,'t','queued', now() - interval '10 minutes', now())", (stopping,))
+        with pool.connection() as c:
+            with c.transaction():  # earlier test runs leave queued rows behind; age them out of the window
+                c.execute("UPDATE build_jobs SET created_at = now() - interval '2 days' WHERE status = 'queued' "
+                          "AND id NOT IN (%s, %s, %s)", (old, new, stopping))
         ids = [i for _, i in maintenance.queued_too_long(pool, 3)]
         self.assertIn(old, ids)
         self.assertNotIn(new, ids)
         self.assertNotIn(stopping, ids)
+        with pool.connection() as c:
+            with c.transaction():
+                c.execute("INSERT INTO build_jobs(id, project_id, status, created_at) VALUES (%s,'t','queued', now() - interval '1 day')",
+                          (f'bld_{uuid.uuid4().hex[:10]}',))
+        self.assertEqual(len(maintenance.queued_too_long(pool, 3)), len(ids))  # too old: left alone
 
 
 if __name__ == '__main__':

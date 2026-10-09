@@ -72,25 +72,37 @@ def queued_too_long(pool, minutes: int) -> list[tuple[str, str]]:
     """(job function, id) of builds and changes still QUEUED after `minutes`."""
     with pool.connection() as conn:
         with conn.cursor() as cur:
+            # Only recent work: a row queued for hours is not "lost in a deploy"
+            # and must not be re-sent every minute forever.
             cur.execute("SELECT id FROM build_jobs WHERE status = 'queued' AND cancel_requested_at IS NULL "
-                        "AND created_at < now() - make_interval(mins => %s) ORDER BY created_at LIMIT 20", (int(minutes),))
+                        "AND created_at < now() - make_interval(mins => %s) AND created_at > now() - interval '6 hours' "
+                        "ORDER BY created_at LIMIT 20", (int(minutes),))
             builds = [(BUILD_JOB, r[0]) for r in cur.fetchall()]
             cur.execute("SELECT id FROM modification_requests WHERE status = 'QUEUED' "
-                        "AND created_at < now() - make_interval(mins => %s) ORDER BY created_at LIMIT 20", (int(minutes),))
+                        "AND created_at < now() - make_interval(mins => %s) AND created_at > now() - interval '6 hours' "
+                        "ORDER BY created_at LIMIT 20", (int(minutes),))
             changes = [(MODIFICATION_JOB, r[0]) for r in cur.fetchall()]
     return builds + changes
 
 
-def redispatch_lost(pool, *, queued_ids, enqueue, minutes: int = LOST_QUEUED_MINUTES) -> list[str]:
+_REDISPATCHED: dict[str, int] = {}
+MAX_REDISPATCH = 3
+
+
+def redispatch_lost(pool, *, queued_ids, enqueue, minutes: int = LOST_QUEUED_MINUTES,
+                    attempts: dict | None = None) -> list[str]:
     """Re-enqueue QUEUED work whose id is no longer waiting in the queue.
     `queued_ids()` returns the ids currently in the build queue (and being
-    worked on); `enqueue(func, id)` dispatches with job_id=id."""
+    worked on); `enqueue(func, id)` dispatches with job_id=id. Each id is sent
+    again at most MAX_REDISPATCH times by this process."""
+    attempts = _REDISPATCHED if attempts is None else attempts
     waiting = set(queued_ids())
     sent = []
     for func, item in queued_too_long(pool, minutes):
-        if item in waiting:
-            continue  # still in line behind another job: not lost
+        if item in waiting or attempts.get(item, 0) >= MAX_REDISPATCH:
+            continue  # still in line behind another job, or given up on
         enqueue(func, item)
+        attempts[item] = attempts.get(item, 0) + 1
         sent.append(item)
     return sent
 

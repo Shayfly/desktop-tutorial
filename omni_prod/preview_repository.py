@@ -138,7 +138,7 @@ class PostgresPreviewRepository:
                     """
                     SELECT id, project_id, version_id, status, preview_url,
                            internal_container_id, error_message, created_at, expires_at,
-                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at, data_storage
+                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at, data_storage, access_mode
                     FROM project_previews
                     WHERE id = %s AND project_id = %s
                     """,
@@ -154,6 +154,7 @@ class PostgresPreviewRepository:
             'runtime_host': row[9], 'host_port': row[10], 'workdir_path': row[11],
             'stopped_at': _iso(row[12]), 'cleaned_at': _iso(row[13]),
             'data_storage': row[14] if len(row) > 14 else None,
+            'access_mode': row[15] if len(row) > 15 else None,
         }
 
     def get_runtime(self, preview_id: str) -> dict | None:

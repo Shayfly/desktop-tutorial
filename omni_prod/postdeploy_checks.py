@@ -98,9 +98,11 @@ def save_state(state: dict) -> None:
 
 
 # ---------------------------------------------------------------- HTTP ------
-def http(method: str, url: str, body=None, token: str | None = None, timeout: float = 60.0):
+def http(method: str, url: str, body=None, token: str | None = None, timeout: float = 60.0, headers=None):
     data = None if body is None else json.dumps(body).encode()
-    headers = {'Content-Type': 'application/json'} if body is not None else {}
+    headers = dict(headers or {})
+    if body is not None:
+        headers['Content-Type'] = 'application/json'
     if token:
         headers['Authorization'] = f'Bearer {token}'
     req = urlrequest.Request(url, data=data, method=method, headers=headers)
@@ -210,6 +212,16 @@ def preview_launch(token, project_id, version_id, seconds=150):
         return None
     view = wait(poll, seconds)
     return view, None if view else 'preview did not settle'
+
+
+def preview_header(token, project_id, view) -> dict:
+    """The owner's access token for a private preview, as the router header."""
+    from urllib.parse import parse_qs, urlsplit
+    from .preview_access import HEADER, QUERY_PARAM
+    s, d = api('POST', f"/api/v28/projects/{project_id}/previews/{view['id']}/access", None, token)
+    if s != 200:
+        raise RuntimeError(f'preview access {s} {d}')
+    return {HEADER: parse_qs(urlsplit(d['url']).query)[QUERY_PARAM][0]}
 
 
 def preview_stop(token, project_id, preview_id):
@@ -347,11 +359,16 @@ def stage_free(state: dict) -> None:
         return
     record('preview creation', True, f"{view['id']} RUNNING data_storage={view.get('data_storage')} url={view['preview_url']}")
     url = view['preview_url'].rstrip('/')
-    http('POST', url + '/hit-postdeploy', {}); http('POST', url + '/hit-postdeploy', {})
-    first = http('GET', url + '/count')[1]
+    anon = http('GET', url + '/count')
+    record('preview is private by default', anon[0] == 401 and view.get('access_mode') == 'PRIVATE',
+           f"anonymous GET -> {anon[0]}; access_mode={view.get('access_mode')}")
+    hdr = preview_header(token, project, view)
+    http('POST', url + '/hit-postdeploy', {}, headers=hdr); http('POST', url + '/hit-postdeploy', {}, headers=hdr)
+    first = http('GET', url + '/count', headers=hdr)[1]
     preview_stop(token, project, view['id'])
     view2, err = preview_launch(token, project, v1.id)
-    after_restart = http('GET', view2['preview_url'].rstrip('/') + '/count')[1] if view2 else err
+    after_restart = (http('GET', view2['preview_url'].rstrip('/') + '/count',
+                          headers=preview_header(token, project, view2))[1] if view2 else err)
     record('data survives preview restart', first == 'v1:2' and after_restart == 'v1:2'
            and (view2 or {}).get('data_storage') == 'persistent',
            f'before={first} after_restart={after_restart} data_storage={(view2 or {}).get("data_storage")}')
@@ -359,7 +376,19 @@ def stage_free(state: dict) -> None:
         preview_stop(token, project, view2['id'])
     v2 = ws.commit(project_id=key, repository=fixture('v2'), message='postdeploy fixture v2 (synthetic)')
     view3, err = preview_launch(token, project, v2.id)
-    after_version = http('GET', view3['preview_url'].rstrip('/') + '/count')[1] if view3 else err
+    after_version = (http('GET', view3['preview_url'].rstrip('/') + '/count',
+                          headers=preview_header(token, project, view3))[1] if view3 else err)
+    if view3:
+        s_sh, sh = api('POST', f"/api/v28/projects/{project}/previews/{view3['id']}/sharing", {'mode': 'SHARED'}, token)
+        from urllib.parse import parse_qs, urlsplit
+        from .preview_access import HEADER, QUERY_PARAM
+        share_tok = parse_qs(urlsplit((sh or {}).get('share_url', '')).query).get(QUERY_PARAM, [''])[0]
+        shared = http('GET', view3['preview_url'].rstrip('/') + '/count', headers={HEADER: share_tok})[0]
+        api('POST', f"/api/v28/projects/{project}/previews/{view3['id']}/sharing", {'mode': 'PRIVATE'}, token)
+        time.sleep(6)  # router caches mode/token decisions for a few seconds
+        revoked = http('GET', view3['preview_url'].rstrip('/') + '/count', headers={HEADER: share_tok})[0]
+        record('share link works only while shared', s_sh == 200 and shared == 200 and revoked == 401,
+               f'sharing={s_sh} shared GET={shared} after PRIVATE={revoked}')
     record('data survives a new version', after_version == 'v2:2', f'new version {v2.id} reads {after_version}')
     if view3:
         preview_stop(token, project, view3['id'])
@@ -466,7 +495,7 @@ def stage_paid_verify(state: dict) -> None:
         s, v = api('GET', f"/api/v28/projects/{project}/previews/{view['id']}", None, token)
         return v if s == 200 and v.get('acceptance_status') not in (None, 'NOT_CONFIGURED', 'PENDING') else None
     v2 = wait(accepted, 180, 4) or {}
-    page = http('GET', view['preview_url'], timeout=20)
+    page = http('GET', view['preview_url'], timeout=20, headers=preview_header(token, project, view))
     s_again, v3 = api('GET', f"/api/v28/projects/{project}/previews/{view['id']}", None, token)
     record('acceptance stored, page responsive afterwards',
            bool(v2) and page[0] == 200 and (v3 or {}).get('status') == 'RUNNING',

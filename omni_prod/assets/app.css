@@ -198,3 +198,5 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
 .live-log .ev.cancel{color:var(--bad)} .live-log .ev.check{color:var(--ink)} .live-log .ev.muted{color:var(--slate)}
 .offline{position:fixed;inset-inline:0;bottom:0;z-index:50;background:var(--amber);color:var(--surface);padding:.6rem 1rem;text-align:center;font-weight:600}
 .data-note{margin:0;padding:.35rem .8rem;border-bottom:1px solid var(--rule);font-size:.88em}
+.sharing{gap:.5rem;align-items:center;padding:.35rem .8rem;border-bottom:1px solid var(--rule);font-size:.88em;flex-wrap:wrap}
+.sharing input{flex:1;min-width:12rem;font-size:.85em}

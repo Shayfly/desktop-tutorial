@@ -78,7 +78,8 @@ const T = {
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
-    dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
+    dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
+    shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
     needPrompt:'כתבו לפחות כמה מילים על האפליקציה.', needEmail:'הזינו אימייל וסיסמה של 10 תווים לפחות.',
     registered:'החשבון נוצר.', created:'הפרויקט נוצר.', renamed:'השם נשמר.', archived:'הפרויקט הועבר לארכיון.',
     downloadReady:'ההורדה התחילה.', untitled:'פרויקט חדש',
@@ -162,7 +163,8 @@ const T = {
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
-    dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
+    dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
+    shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
     needPrompt:'Write at least a few words about the app.', needEmail:'Enter an email and a password of at least 10 characters.',
     registered:'Account created.', created:'Project created.', renamed:'Name saved.', archived:'Project archived.',
     downloadReady:'Download started.', untitled:'New project',
@@ -751,11 +753,17 @@ function renderPreview() {
   const note = $('previewDataNote');
   note.hidden = !running;
   if (running) note.textContent = p.data_storage === 'persistent' ? t('dataPersistent') : t('dataTemporary');
+  renderSharing(running ? p : null);
   if (running) {
-    if (frame.src !== p.preview_url) frame.src = p.preview_url;
-    link.href = p.preview_url;
+    // Autonomous completion §4: previews are private; open them with the
+    // owner's short-lived access link (the router turns it into a cookie).
+    const acc = S.previewAccess && S.previewAccess.id === p.id ? S.previewAccess : null;
+    if (!acc) { requestPreviewAccess(p); return; }
+    if (frame.dataset.access !== acc.url) { frame.dataset.access = acc.url; frame.src = acc.url; }
+    link.href = acc.url;
     return;
   }
+  delete frame.dataset.access;
   link.removeAttribute('href');
   if (frame.src) frame.removeAttribute('src');
   let message = t('noPreview');
@@ -774,6 +782,33 @@ function renderPreview() {
   if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
 }
 
+let accessPending = null;
+async function requestPreviewAccess(p) {
+  if (accessPending === p.id) return;
+  accessPending = p.id;
+  try {
+    const d = await api(`/api/v28/projects/${pid()}/previews/${encodeURIComponent(p.id)}/access`, { method: 'POST' });
+    S.previewAccess = { id: p.id, url: d.url };
+  } catch (e) {
+    S.previewAccess = null; $('previewEmptyText').textContent = explain(e);
+  } finally { accessPending = null; }
+  renderPreview();
+}
+function renderSharing(p) {
+  const box = $('previewSharing'); if (!box) return;
+  box.hidden = !p;
+  if (!p) return;
+  const mode = p.access_mode || 'PRIVATE';
+  const sel = h('select', { 'aria-label': t('shareLabel'), onchange: async (ev) => {
+    try {
+      const d = await api(`/api/v28/projects/${pid()}/previews/${encodeURIComponent(p.id)}/sharing`, { method: 'POST', body: { mode: ev.target.value } });
+      S.preview = { ...S.preview, access_mode: d.access_mode }; S.shareUrl = d.share_url || null; renderPreview();
+    } catch (e) { $('previewDataNote').textContent = explain(e); }
+  } }, ...['PRIVATE', 'SHARED', 'PUBLIC'].map(m => h('option', { value: m, selected: m === mode }, t('share' + m))));
+  const kids = [h('span', {}, t('shareLabel') + ': '), sel];
+  if (mode === 'SHARED' && S.shareUrl) kids.push(h('input', { readonly: true, value: S.shareUrl, dir: 'ltr', 'aria-label': t('shareLink'), onfocus: (e) => e.target.select() }));
+  box.replaceChildren(...kids);
+}
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
   return known || b.error_message || b.error_code || '';
@@ -975,7 +1010,8 @@ function wire() {
   $('newProjectForm').addEventListener('submit', submitNewProject);
   $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);
-  $('refreshPreviewBtn').addEventListener('click', () => { const f = $('previewFrame'); if (f.src) f.src = f.src; });
+  // A fresh owner link on every refresh (links expire; the cookie may be blocked in an iframe).
+  $('refreshPreviewBtn').addEventListener('click', () => { S.previewAccess = null; delete $('previewFrame').dataset.access; renderPreview(); });
   $('downloadBtn').addEventListener('click', downloadZip);
   $('publishBtn').addEventListener('click', publishNotConfigured);
 }
