@@ -17,8 +17,12 @@ on:
       stage:
         description: free or paid
         type: choice
-        options: [free, paid]
+        options: [free, paid, cancel-build]
         required: true
+      build_id:
+        description: "cancel-build only: the synthetic build to stop (owner-scoped cancel, same code as the API)"
+        required: false
+        default: ""
       max_usd:
         description: Hard model-spend ceiling for the paid build
         required: false
@@ -89,6 +93,27 @@ jobs:
           docker compose start worker
           run paid-verify || rc=1
           exit $rc
+
+      - name: Cancel one synthetic build
+        if: inputs.stage == 'cancel-build'
+        env:
+          BID: ${{ inputs.build_id }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres -e BID="$BID" "$IMG" python -c '
+          import os
+          from omni_prod.investor_app import _v28, _v28_pool
+          from omni_prod.job_repository import PostgresBuildRepository
+          bid = os.environ["BID"]
+          with _v28_pool.connection() as c:
+              key = c.execute("SELECT project_id FROM build_jobs WHERE id = %s", (bid,)).fetchone()[0]
+          out = PostgresBuildRepository(_v28_pool).request_cancel(bid, key, requested_by="postdeploy-cleanup")
+          if out == "cancelled":
+              _v28.subscriptions.release(build_id=bid)
+          with _v28_pool.connection() as c:
+              row = c.execute("SELECT b.status, r.status FROM build_jobs b LEFT JOIN credit_reservations r ON r.build_id = b.id WHERE b.id = %s", (bid,)).fetchone()
+          print(f"::notice title=postdeploy cancel-build::{bid} outcome={out} build={row[0]} reservation={row[1]}")
+          '
 
       - name: Always restart the build worker
         if: always()
