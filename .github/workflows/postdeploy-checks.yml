@@ -157,6 +157,9 @@ jobs:
           with _v28_pool.connection() as c:
               rows = c.execute("SELECT attempt_seq, kind, task_type, model, outcome, verification_class, metered_cost_usd, left(coalesce(failure_reason, \x27\x27), 300) FROM task_attempts WHERE build_id = %s ORDER BY attempt_seq", (bid,)).fetchall()
           note("attempts", "\n".join(" | ".join(str(x) for x in r) for r in rows))
+          with _v28_pool.connection() as c:
+              runs = c.execute("SELECT r.id, r.outcome, r.created_at, r.finished_at, count(t.id), string_agg(t.agent_key || \x27:\x27 || t.state, \x27 \x27 ORDER BY t.created_at) FROM agent_runs r LEFT JOIN agent_tasks t ON t.run_id = r.id WHERE r.subject_id = %s GROUP BY r.id ORDER BY r.created_at", (bid,)).fetchall()
+          note("agent runs", "\n".join(" | ".join(str(x) for x in r) for r in runs))
           for pid, rep in (ev.get("web_saas_acceptance_reports") or {}).items():
               checks = rep.get("checks", [])
               note("acceptance " + pid, json.dumps({"status": rep.get("status"), "summary": rep.get("summary"), "checks": checks}, ensure_ascii=False, default=str))

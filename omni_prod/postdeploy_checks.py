@@ -301,6 +301,8 @@ def agent_graph(build_id: str) -> tuple[tuple | None, list[tuple]]:
 
 
 def record_agent_graph(build_id: str, outcome: str, required: tuple[str, ...]) -> None:
+    # The build's status is written before the worker closes its agent run.
+    wait(lambda: (agent_graph(build_id)[0] or (None, None, False))[2] or None, 60, 3)
     run, tasks = agent_graph(build_id)
     succeeded = {t[1] for t in tasks if t[2] == 'SUCCEEDED'}
     open_tasks = [t[1] for t in tasks if t[2] in ('RUNNING', 'PENDING', 'READY', 'VERIFYING')]
