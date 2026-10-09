@@ -32,15 +32,46 @@ WEB_SAAS_REQUIRED_KINDS: tuple[str, ...] = (
 _NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 
 
+# Directive 2026-10-09 (autonomous completion §2): acceptance follows what
+# was approved. Words that promise editing or removal in the user's request
+# or the approved brief make those behaviours mandatory; otherwise they are
+# NOT_REQUIRED (a booking app that only creates, lists and cancels is not
+# failed for having no "edit"). Sign-in approved as NONE removes auth/role.
+_UPDATE_WORDS = ('edit', 'update', 'change', 'rename', 'mark', 'complete', 'done', 'toggle', 'status',
+                 'עריכ', 'ערוך', 'לערוך', 'עדכון', 'לעדכן', 'שינוי', 'לשנות', 'סימון', 'לסמן', 'סמן', 'הושלם',
+                 'בוצע', 'השלמה', 'סטטוס', 'מצב')
+_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחק', 'הסר', 'להסיר', 'ביטול', 'לבטל',
+                 'בטל', 'ארכיון')
+
+
+def _no_login(contract: Mapping[str, Any]) -> bool:
+    roles = [str(r) for r in (contract.get('user_roles') or ())]
+    defaults = [str(d) for d in (contract.get('defaults') or contract.get('defaults_applied') or ())]
+    prompt = str(contract.get('prompt') or '')
+    return ('no_login_single_user' in defaults or 'Sign-in: NONE' in prompt) and roles in ([], ['user'])
+
+
 def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(required floor, NOT_REQUIRED kinds) from the approved contract. No
+    contract (lookup failed) -> the strict full floor, nothing waived."""
     if not build_contract:
         return WEB_SAAS_REQUIRED_KINDS, ()
+    not_required: list[str] = []
     kinds = {str(i.get('kind')) for i in (build_contract.get('infrastructure') or ())
              if isinstance(i, Mapping) and i.get('required', True)}
     external = set(map(str, build_contract.get('required_integrations') or ())) - _NON_EXTERNAL_INTEGRATIONS
-    if kinds & {'scheduled_http', 'outbound'} or external:
-        return WEB_SAAS_REQUIRED_KINDS, ()
-    return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k != 'integration'), ('integration',)
+    if not (kinds & {'scheduled_http', 'outbound'} or external):
+        not_required.append('integration')
+    if 'prompt' in build_contract:  # the approved text is known: derive the rest from it
+        text = str(build_contract.get('prompt') or '').lower()
+        if _no_login(build_contract):
+            not_required += ['auth', 'role']
+        if not any(w in text for w in _UPDATE_WORDS):
+            not_required.append('data_update')
+        if not any(w in text for w in _DELETE_WORDS):
+            not_required.append('data_delete')
+    waived = tuple(dict.fromkeys(not_required))
+    return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k not in waived), waived
 
 
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
@@ -103,12 +134,17 @@ class AcceptanceCheckResult:
     passed: bool
     detail: str
     http_status: int | None = None
+    # Repair evidence (autonomous completion §1): what was sent and what came
+    # back, truncated. Synthetic test data only; never headers or cookies.
+    request: str | None = None
+    response_excerpt: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             'persona_id': self.persona_id, 'step_id': self.step_id, 'kind': self.kind,
             'acceptance_ids': list(self.acceptance_ids), 'passed': self.passed,
             'detail': self.detail, 'http_status': self.http_status,
+            'request': self.request, 'response_excerpt': self.response_excerpt,
         }
 
 
@@ -187,9 +223,13 @@ class WebSaaSAcceptanceRunner:
                     # NOT_REQUIRED for this build: never executed, never counted.
                     not_verified.append(f'{persona_id}:{step_id}')
                     continue
+                request_text = None
                 try:
                     method = str(step.get('method', 'GET')).upper()
                     path = _resolve(step.get('path', '/'), variables)
+                    request_text = f'{method} {path}'
+                    if step.get('json') is not None:
+                        request_text += ' ' + json.dumps(_resolve(step.get('json'), variables), ensure_ascii=False)[:600]
                     if not isinstance(path, str) or not path.startswith('/') or path.startswith('//'):
                         raise ValueError('path must be a relative absolute-path beginning with one /')
                     headers = _resolve(step.get('headers') or {}, variables)
@@ -207,10 +247,17 @@ class WebSaaSAcceptanceRunner:
                     resp = locals().get('resp')
                     detail = f'{type(exc).__name__}: {exc}'
                     passed = False
+                excerpt = None
+                if not passed and 'resp' in locals() and resp is not None:
+                    try:
+                        excerpt = resp.text()[:500]
+                    except Exception:
+                        excerpt = None
                 checks.append(AcceptanceCheckResult(
                     persona_id=persona_id, step_id=step_id, kind=kind,
                     acceptance_ids=acceptance_ids, passed=passed, detail=detail,
                     http_status=(getattr(resp, 'status', None) if 'resp' in locals() else None),
+                    request=request_text, response_excerpt=excerpt,
                 ))
                 if 'resp' in locals():
                     del resp

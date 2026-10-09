@@ -248,3 +248,40 @@ class PlanPreviewTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RequirementsAwareAcceptanceTests(unittest.TestCase):
+    """Autonomous completion directive §2 (real-server finding 2026-10-09):
+    a no-sign-in booking app was failed for missing auth/role checks."""
+
+    def _scope(self, prompt, roles=("user",), defaults=("no_login_single_user",)):
+        return {"infrastructure": [], "required_integrations": [], "user_roles": list(roles),
+                "defaults": list(defaults), "prompt": prompt}
+
+    def test_no_sign_in_waives_auth_and_role(self):
+        floor, waived = acceptance_scope(self._scope("booking with cancel. Sign-in: NONE."))
+        self.assertNotIn("auth", floor)
+        self.assertNotIn("role", floor)
+        self.assertIn("auth", waived)
+
+    def test_sign_in_keeps_auth_and_role(self):
+        floor, waived = acceptance_scope(self._scope("team tasks with edit and delete", roles=("admin", "staff"),
+                                                     defaults=()))
+        self.assertIn("auth", floor)
+        self.assertIn("role", floor)
+        self.assertIn("data_update", floor)
+        self.assertIn("data_delete", floor)
+
+    def test_only_promised_data_behaviours_are_required(self):
+        floor, waived = acceptance_scope(self._scope("אתר תורים: קביעת תור, רשימה וביטול תור. Sign-in: NONE."))
+        self.assertIn("data_create", floor)
+        self.assertIn("data_read", floor)
+        self.assertIn("data_delete", floor)      # "ביטול" promises removal
+        self.assertNotIn("data_update", floor)   # editing was never promised
+        self.assertIn("responsive", floor)
+        self.assertIn("api_smoke", floor)
+
+    def test_without_the_approved_text_nothing_but_integration_is_waived(self):
+        floor, waived = acceptance_scope({"infrastructure": [], "required_integrations": []})
+        self.assertEqual(waived, ("integration",))
+        self.assertIn("auth", floor)

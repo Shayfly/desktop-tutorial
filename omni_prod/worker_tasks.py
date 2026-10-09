@@ -52,6 +52,25 @@ from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
 from .infrastructure_provisioner import InfrastructureStageBlocked
 from .build_control import BuildCancelled, BuildControl, install as install_build_control
+
+
+def set_acceptance_scope(engine, contract: dict | None) -> None:
+    """Requirements-aware acceptance: hand the approved contract's scope to the
+    in-build behavioural acceptance (no contract -> strict floor)."""
+    from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
+    target = find_in_chain(getattr(engine, 'executor', None), BehaviorAcceptanceExecutor)
+    if target is None or not contract:
+        return
+    target.scope = {k: contract.get(k) for k in ('infrastructure', 'required_integrations', 'user_roles',
+                                                  'defaults_applied', 'prompt')}
+
+
+def behavior_evidence(engine) -> dict | None:
+    from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
+    target = find_in_chain(getattr(engine, 'executor', None), BehaviorAcceptanceExecutor)
+    if target is None:
+        return None
+    return {'last': target.last_report, 'rounds': list(target.history)}
 from .modification_engine import CandidateModificationEngine
 from .provider_usage import ProviderUsageLedger
 from .spec_repository import SpecNotFound
@@ -368,6 +387,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
+        set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         result = engine.build(prompt)
@@ -459,6 +479,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
+            # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
+            'behavior_acceptance': behavior_evidence(engine),
         }
     except BuildCancelled as exc:
         spent, calls = spend_snapshot(gateway)
@@ -760,6 +782,13 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             ) from exc
 
         classifier, repairer, evolver, executor, gateway = components_factory()
+        # Requirements-aware behavioural acceptance for the change too.
+        from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
+        acceptance_target = find_in_chain(executor, BehaviorAcceptanceExecutor)
+        scope_pool = getattr(workspace, 'pool', None)
+        if acceptance_target is not None and scope_pool is not None:
+            acceptance_target.scope = contract_scope_for_version(scope_pool, project_id=project_id,
+                                                                 version_id=source_version_id)
         engine = CandidateModificationEngine(
             classifier=classifier, repairer=repairer, executor=executor, evolver=evolver,
             quality_fn=quality_fn, security_fn=security_fn, rights_engine=rights_engine,
@@ -1052,7 +1081,8 @@ WITH RECURSIVE lineage(version_id, depth) AS (
     JOIN lineage l ON m.promoted_version_id = l.version_id
     WHERE l.depth < 64
 )
-SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations'
+SELECT c.contract_json->'infrastructure', c.contract_json->'required_integrations',
+       c.contract_json->'user_roles', c.contract_json->'defaults_applied', c.contract_json->>'prompt'
 FROM lineage l
 JOIN build_jobs j ON j.result_version_id = l.version_id
 JOIN build_requests r ON r.build_id = j.id
@@ -1074,12 +1104,14 @@ def contract_scope_for_version(pool, *, project_id: str, version_id: str) -> dic
                 row = cur.fetchone()
         if not row or row[0] is None:
             return None
-        infrastructure, integrations = row[0], row[1]
-        if isinstance(infrastructure, str):
-            infrastructure = json.loads(infrastructure)
-        if isinstance(integrations, str):
-            integrations = json.loads(integrations)
-        return {'infrastructure': infrastructure or [], 'required_integrations': integrations or []}
+        def _j(value):
+            return json.loads(value) if isinstance(value, str) else value
+        infrastructure, integrations = _j(row[0]), _j(row[1])
+        scope = {'infrastructure': infrastructure or [], 'required_integrations': integrations or []}
+        if len(row) > 4 and row[4] is not None:
+            # Requirements-aware acceptance: the approved roles and text.
+            scope.update(user_roles=_j(row[2]) or [], defaults=_j(row[3]) or [], prompt=row[4])
+        return scope
     except Exception:
         logging.getLogger(__name__).exception('contract scope lookup failed; strict acceptance floor applies')
         return None

@@ -626,6 +626,10 @@ def _model_gateway_and_executor():
     # The product must be startable for preview (contract + real start in the sandbox).
     from .preview_smoke import PreviewReadyExecutor
     executor=PreviewReadyExecutor(executor)
+    # Autonomous completion §1: the behavioural acceptance plan runs against
+    # the started app inside the sandbox; a failure is repaired, not reported.
+    from .behavior_acceptance import BehaviorAcceptanceExecutor
+    executor=BehaviorAcceptanceExecutor(executor,enabled=os.getenv('OMNI_BEHAVIOR_ACCEPTANCE','1')!='0')
     # Directive 2026-10-09 §17: a real browser clicks through the product
     # (forms submitted twice, JS errors, feedback that disappears).
     from .browser_probe import BrowserFlowExecutor

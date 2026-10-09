@@ -27,6 +27,14 @@ def run(prompt: str) -> dict:
     started = time.monotonic()
     engine, gateway = _live_components()
     report: dict = {'prompt': prompt}
+    # Same requirements-aware acceptance scope a real build gets from its contract.
+    try:
+        from .product_architect import ProductArchitect
+        from .worker_tasks import set_acceptance_scope
+        set_acceptance_scope(engine, ProductArchitect().compile(prompt, project_id='rehearsal',
+                                                                 contract_version=1).to_dict())
+    except Exception as exc:
+        report['acceptance_scope_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
         result = engine.build(prompt)
     except Exception as exc:
@@ -49,6 +57,7 @@ def run(prompt: str) -> dict:
                      'findings': [f"{f['severity']}/{f['source']} {f['skill']}: {f['problem'][:160]}" for f in r.get('findings', [])][:8]}
                     for r in getattr(getattr(engine, 'executor', None), 'reviews', [])][:4],
             browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
+            behavior_acceptance=__import__('omni_prod.worker_tasks', fromlist=['x']).behavior_evidence(engine),
         )
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
@@ -97,6 +106,12 @@ def annotations(report: dict) -> list[str]:
         lines.append(note('qa review', '\n'.join(
             f"round {r['round']} enforced={r['enforced']} reviewer={r['reviewer']} model={r['model']} blocking={r['blocking']}\n  "
             + '\n  '.join(r['findings']) for r in report['review'])))
+    if report.get('behavior_acceptance') is not None:
+        ba = report['behavior_acceptance']
+        last = (ba or {}).get('last') or {}
+        lines.append(note('behavior acceptance', json.dumps({'rounds': ba.get('rounds'), 'last': {
+            'status': last.get('status'), 'summary': last.get('summary'),
+            'failed': [c for c in (last.get('checks') or []) if not c.get('passed')][:4]}}, ensure_ascii=False)))
     if report.get('browser_check') is not None:
         lines.append(note('browser check', json.dumps(report['browser_check'], ensure_ascii=False)))
     if report.get('trace'):
