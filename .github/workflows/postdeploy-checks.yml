@@ -1,0 +1,91 @@
+name: Post-deploy checks
+
+# Founder approval 2026-10-09 13:38: verify the deployed pre-staging system on
+# the real infrastructure before anything is called LIVE. Synthetic account and
+# data only (qa-postdeploy-*@example.com). Never prints secrets.
+#   stage=free   $0: migrations, builder health, existing versions intact,
+#                demo/publish refused, preview + persistent data (restart and
+#                new version), queued and running stop, journal.
+#   stage=paid   one real build, model spend hard-capped by max_usd (one-off
+#                worker with OMNI_EXTERNAL_BUDGET_USD), then build evidence,
+#                settlement, preview, acceptance, restart.
+# The build worker is stopped (drained) only while builds are being set up and
+# is always started again.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: free or paid
+        type: choice
+        options: [free, paid]
+        required: true
+      max_usd:
+        description: Hard model-spend ceiling for the paid build
+        required: false
+        default: "0.15"
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/postdeploy-checks.yml]
+
+concurrency:
+  group: postdeploy-checks
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: Prepare
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pd" && chmod 777 "$RUNNER_TEMP/pd"
+          echo "IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")" >> "$GITHUB_ENV"
+          echo "SANDBOX_HEALTH=$(docker compose exec -T worker python -c "import urllib.request;print(urllib.request.urlopen('http://sandbox-runner:8010/health',timeout=5).status)" 2>/dev/null || echo down)" >> "$GITHUB_ENV"
+          echo "deployed=$(git -C ../.. rev-parse HEAD)"
+
+      - name: Free checks
+        if: inputs.stage == 'free'
+        run: |
+          set -uo pipefail
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+                    -e POSTDEPLOY_SANDBOX_HEALTH="$SANDBOX_HEALTH" -v "$RUNNER_TEMP/pd:/out" "$IMG" \
+                    python -m omni_prod.postdeploy_checks "$1" 2>&1 | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
+          rc=0
+          run free || rc=1
+          docker compose stop -t 1500 worker
+          run cancel-setup || rc=1
+          docker compose start worker
+          run cancel-verify || rc=1
+          exit $rc
+
+      - name: Paid build
+        if: inputs.stage == 'paid'
+        env:
+          MAX_USD: ${{ inputs.max_usd }}
+        run: |
+          set -uo pipefail
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+                    -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
+                    | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
+          docker compose stop -t 1500 worker
+          rc=0
+          run paid-create || rc=1
+          BID=$(python3 -c "import json;print(json.load(open('$RUNNER_TEMP/pd/state.json')).get('paid_build',''))")
+          if [ -n "$BID" ] && [ "$rc" = 0 ]; then
+            echo "::notice title=postdeploy paid build::running $BID in a one-off worker, model ceiling \$$MAX_USD"
+            docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD="$MAX_USD" -e BID="$BID" worker \
+              python -c 'import os; from omni_prod.worker_tasks import execute_live_build_job as e; e(os.environ["BID"])' 2>&1 \
+              | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' | grep -E '^(Traceback|[A-Za-z]+Error)' | tail -5 || true
+          fi
+          docker compose start worker
+          run paid-verify || rc=1
+          exit $rc
+
+      - name: Always restart the build worker
+        if: always()
+        run: docker compose start worker >/dev/null 2>&1 || true
