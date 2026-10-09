@@ -17,7 +17,7 @@ on:
       stage:
         description: free or paid
         type: choice
-        options: [free, paid, cancel-build, inspect-build]
+        options: [free, paid, crash, cancel-build, inspect-build]
         required: true
       build_id:
         description: "cancel-build / inspect-build: the synthetic build id"
@@ -92,6 +92,24 @@ jobs:
           fi
           docker compose start worker
           run paid-verify || rc=1
+          exit $rc
+
+      - name: Crash recovery (kill the build worker mid-build)
+        if: inputs.stage == 'crash'
+        run: |
+          set -uo pipefail
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
+                    -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
+                    | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
+          rc=0
+          run crash-create || rc=1
+          echo "::notice title=postdeploy crash::killing the build worker (SIGKILL, no drain)"
+          docker kill "$(docker compose ps -q worker)" >/dev/null
+          docker compose start worker
+          sleep 170  # the killed worker's registration (ttl 135 s) must expire first
+          docker compose run --rm --no-deps -T janitor python -c \
+            'import json; from omni_prod.maintenance import recover_now; print("::notice title=postdeploy recovery pass::" + json.dumps(recover_now(1)))'
+          run crash-verify || rc=1
           exit $rc
 
       - name: Cancel one synthetic build

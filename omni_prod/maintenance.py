@@ -220,6 +220,21 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
     return out
 
 
+def recover_now(minutes: int) -> dict:
+    """One recovery pass with a custom staleness limit (crash-recovery test)."""
+    from .investor_app import _v28, _v28_pool
+    from .queueing import BUILD_QUEUE, enqueue_build, queue, redis_connection
+    from rq import Worker
+    redis_url = os.environ['OMNI_REDIS_URL']
+
+    def busy():
+        return [w.get_current_job_id() for w in Worker.all(connection=redis_connection(redis_url))
+                if w.get_current_job_id()]
+    return recover_lost_running(_v28_pool, subscriptions=_v28.subscriptions,
+                                enqueue=lambda f, i: enqueue_build(redis_url, f, i, job_id=i),
+                                busy_ids=busy, minutes=minutes)
+
+
 def main():
     from .investor_app import _v28, _v28_pool
     from .job_repository import PostgresBuildRepository

@@ -513,8 +513,41 @@ def stage_paid_verify(state: dict) -> None:
     state['paid_preview'] = (view4 or {}).get('preview_url')
 
 
+CRASH_PROMPT = ('אתר בעברית לרשימת ספרים לקריאה: הוספת ספר עם שם וסופר, רשימה, וסימון שנקרא. בלי התחברות משתמשים. '
+                '(בדיקת התאוששות מקריסה)')
+
+
+def stage_crash_create(state: dict) -> None:
+    token = new_account(state)
+    project = new_project(token, 'postdeploy crash')
+    revision, _ = run_discovery(token, project, CRASH_PROMPT)
+    built = plan_and_build(token, project, revision, CRASH_PROMPT)
+    state.update(crash_project=project, crash_build=built['build_id'])
+
+    def first_model_call():
+        s, d = api('GET', f"/api/v28/projects/{project}/builds/{built['build_id']}/events?after=0", None, state['token'])
+        return any(e['kind'] == 'model' for e in (d or {}).get('events', [])) or None
+    record('crash: build reached its first model call', bool(wait(first_model_call, 300, 2)), built['build_id'])
+
+
+def stage_crash_verify(state: dict) -> None:
+    token, project, b = state['token'], state['crash_project'], state['crash_build']
+
+    def done():
+        s, d = api('GET', f'/api/v28/projects/{project}/builds/{b}', None, token)
+        return d if s == 200 and d.get('status') in ('ready', 'failed', 'cancelled') else None
+    d = wait(done, 1500, 10) or {}
+    row = sql('SELECT recovery_attempts, evidence_json->>\'provider_spend_usd\' FROM build_jobs WHERE id = %s', (b,))[0]
+    events = (api('GET', f'/api/v28/projects/{project}/builds/{b}/events?after=0', None, token)[1] or {}).get('events', [])
+    record('crash: build recovered after its worker was killed',
+           d.get('status') == 'ready' and row[0] == 1 and any(e['kind'] == 'info' for e in events),
+           f"status={d.get('status')} code={d.get('error_code')} recovery_attempts={row[0]} spend_after_recovery={row[1]} "
+           f"reservation={reservation(b)} events={[e['message'] for e in events if e['kind'] in ('info', 'phase')][-4:]}")
+
+
 STAGES = {'free': stage_free, 'cancel-setup': stage_cancel_setup, 'cancel-verify': stage_cancel_verify,
-          'paid-create': stage_paid_create, 'paid-verify': stage_paid_verify}
+          'paid-create': stage_paid_create, 'paid-verify': stage_paid_verify,
+          'crash-create': stage_crash_create, 'crash-verify': stage_crash_verify}
 
 
 def main(argv=None) -> int:
