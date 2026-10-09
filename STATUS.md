@@ -1,5 +1,49 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-09 14:45 Asia/Jerusalem — merged to pre-staging and verified on the real server (founder approval 13:38)
+
+**Status of this package: deployed to pre-staging, real-server checks passed with named failures below. Not LIVE, not production.**
+
+**Merge and deploy**
+- Rollback point (active branch before merge): `9db2d53294b15ce1ab929251be16ce7f0ad37c53`.
+- Merge = fast-forward pushes, no force, no history rewrite: `9db2d53..efd8d9d` (the approved package), then fixes found by the checks: `89949e5`, `2afaa22`, `38f7a26`, `c49ebff`, `697245d`, `301d631`, then workflow-only `224171f`, `4ef5378`.
+- Worker deployed at `301d631` (Deploy build worker 37924206187: drain 4 s, migrations, preview-data self-test PASS, browser probe PASS, sandbox PASS, queue PASS). Vercel `dpl_CZpf3HNimghmxQMyhxP5owTr3nef` READY on `301d631`; the deployed `app.js` contains the stop/log/offline/data-note code. No Vercel runtime errors in the last hour.
+- Migrations: 27 applied, latest 031 (`build_cancel_and_events`); the three new columns and `build_events` present.
+
+**Real-server checks** (workflow `postdeploy-checks`, synthetic account `qa-postdeploy-*@example.com`, API code of the deployed image served on the worker host against the real Neon/Upstash/R2/preview worker/Caddy; the Vercel URL itself is behind Vercel Authentication and only its assets/routes were fetched)
+- Free stage, run 37924447917 — all PASS:
+  - migrations; builder health (1 build worker idle, sandbox runner 200);
+  - existing data: 6 projects, all 24 versions loaded from R2 and checksummed, 0 failures;
+  - demo builds → 410, every promote → 501 `publish_not_available`;
+  - projects list + journal endpoint;
+  - preview creation (`data_storage=persistent`); data survives a preview restart (`v1:2` → `v1:2`) and a new version (`v2:2`);
+  - queued build stopped via the API → `cancelled`, reservation RELEASED;
+  - running build (claimed by the real worker with a stop request) stopped before any model call: `cancelled_by_user`, 0 model calls, spend 0, reservation RELEASED;
+  - journal readable incrementally (`after=`), latest build restored, cancel via another project → 404.
+- Paid stage, run 37924920646 — one build, model ceiling **$0.15** enforced (binding: reserved 0.50, effective 0.15):
+  - discovery (recommend mode) → plan → approval → build `bld_fde8abb01e4d4085aa180282e6026fb4` → **ready**, 5 repair rounds, version `v_bd07926c05d64deb`;
+  - browser check inside the build: passed (1 form, 0 findings); QA model review: 3 rounds, last with 0 blocking;
+  - live journal shows phases, agents and each test round;
+  - preview RUNNING, `data_storage=persistent`, acceptance report **stored**, page answers 200 afterwards, restart RUNNING.
+  - **Exact paid cost: $0.1209** (16 model calls, 110,365 input tokens; settled to reported tokens × catalog price; Gemini only).
+
+**Real-server failures found and fixed during the checks (no mocks, no fallbacks)**
+1. Every discovery-based plan was blocked (`can_build=false`): the brief text 148AI writes ("clear message", "Logo") triggered messaging and image capabilities. Fixed in `c49ebff` (detection reads the user's words + the sign-in decision); tests `tests/test_brief_capability_detection.py`. G2 had never been exercised end-to-end before this.
+2. A build enqueued while the worker was stopped for a drain was taken by the stopped worker's open Redis read and stayed QUEUED with credits reserved (`bld_a99ca1119c8f445aa4f6243c330d6a46`, cancelled at $0). Fixed in `697245d`: the janitor re-dispatches QUEUED work missing from the queue after 3 minutes; tests `tests/test_janitor_redispatch.py`.
+
+**Failures still open (named, not hidden)**
+- **Behavioural acceptance of the paid build: FAIL** (release not eligible). The model-written acceptance plan vs the generated app: create → HTTP 400, page text mismatch, delete step unresolved. It runs after the preview starts and does not feed the repair loop yet.
+- **Acceptance demands `auth`/`role` checks even for an approved no-sign-in product** (`acceptance_scope` only exempts `integration`), so such a product can never be release-eligible.
+- **Settlement is not "actual usage only" in the customer ledger**: the provider reports tokens but not cost, so the reservation settles at its conservative $0.50 (`CONSERVATIVE_RESERVATION`). The QA budget counts the measured $0.12.
+- **Public previews are found and scanned by internet bots within minutes** (router log: `/application.yml`, `/.gitconfig`, GraphQL probes). The hostnames are published in certificate-transparency logs (on-demand TLS), so an unguessable URL is not private. Data entered in a preview must be treated as public until previews get access control.
+- Cancel/live log cover builds, not changes; no resume after a worker crash; no backup/restore of product data; the Vercel edge could not be exercised with a session from this environment.
+
+**Tests**: local full suite 1023 passed, 53 skipped, 9 failed + 14 errors — identical to the baseline (environmental: fastapi/boto3 absent locally); CI v24-ci, V11 Overlay CI and Neon bootstrap CI green on every merged commit.
+
+**QA spend**: database-counted builds/changes ≈ $3.43 (incl. this build's $0.12) + rehearsals $1.74 → ≈ **$5.17 of $10**; remaining ≈ $4.83. The customer-ledger view of the same builds (conservative settlements) is higher and is not a cost.
+
+**Next (not started; section 21 waits for the founder)**: fix the two acceptance defects above, preview access control, then a founder session in the workspace.
+
 ## Update 2026-10-09 10:20 Asia/Jerusalem — stop + live log, durable preview data, no fake publish (task branch, awaiting integration)
 
 Task branch `claude/g0-baseline-2026-10-09` at `da8d952` (CI v24-ci, V11 Overlay CI and Neon bootstrap CI green). **Not yet on the active branch**: the fast-forward to `milestone/pre-staging-2026-10-05` (which deploys the worker and applies migration 031) waits for the founder's go-ahead in this session. Worker idle at the check (worker-diagnostics 37898263049: last job 00:55 UTC).
