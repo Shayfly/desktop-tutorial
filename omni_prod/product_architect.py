@@ -126,11 +126,16 @@ class ProductArchitect:
         if contract_version < 1:
             raise ValueError("contract_version must be >= 1")
 
-        decision = self.brain.decide(clean)
+        # Capabilities, infrastructure, roles and data needs are detected from
+        # the user's own request (plus the sign-in decision), never from the
+        # brief text 148AI wrote; the full text still binds the spec and code.
+        from .discovery import detection_text
+        intent = detection_text(clean) or clean
+        decision = self.brain.decide(intent)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
-        infrastructure = _infer_infrastructure(clean, self._infer_integrations(clean, capability_plan))
+        infrastructure = _infer_infrastructure(intent, self._infer_integrations(intent, capability_plan))
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
@@ -159,14 +164,14 @@ class ProductArchitect:
         # stripped on load, the fingerprint no longer matched, HTTP 500).
         product_spec = ProductSpec.from_dict(product_spec.to_dict())
 
-        roles, role_defaults = self._infer_roles(clean)
+        roles, role_defaults = self._infer_roles(intent)
         no_login = no_login_requested(clean)
         if no_login:
             # "No sign-in" is honoured: one kind of user, no roles or sessions.
             roles, role_defaults = ("user",), ["no_login_single_user"]
-        data_requirements = self._infer_data_requirements(clean, decision.plan.modules)
-        integrations = self._infer_integrations(clean, capability_plan)
-        questions = self._material_questions(clean, data_requirements)
+        data_requirements = self._infer_data_requirements(intent, decision.plan.modules)
+        integrations = self._infer_integrations(intent, capability_plan)
+        questions = self._material_questions(intent, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])
         security = tuple(s for s in (

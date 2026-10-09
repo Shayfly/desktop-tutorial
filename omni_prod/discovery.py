@@ -326,12 +326,35 @@ def _label(q: Question, value: str, lang: str = 'he') -> str:
     return value
 
 
+BRIEF_MARKER = '--- Approved project brief'
+
+
+def detection_text(prompt: str) -> str:
+    """The text keyword-based capability detection may read.
+
+    Post-deploy check 2026-10-09: the brief block is written by 148AI, not by
+    the user, and its own wording ("reject ... with a clear message", "Logo:
+    a text logo") made the planner add messaging and image-generation
+    capabilities nobody asked for, which blocked every discovery build. So
+    detection reads the user's request only, plus the sign-in decision taken
+    in the conversation (the one brief answer that adds infrastructure)."""
+    head, sep, brief = prompt.partition(BRIEF_MARKER)
+    if not sep:
+        return prompt
+    extra = ''
+    if 'Sign-in: simple sign-in' in brief:
+        extra = ' login'
+    elif 'Sign-in: users with different roles' in brief:
+        extra = ' login roles admin staff'
+    return (head.strip() + extra).strip()
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
     hence the approval, is bound to this exact revision."""
     v = brief.values()
-    lines = ['', '--- Approved project brief (binding; fingerprint ' + brief.fingerprint()[:16] + ') ---']
+    lines = ['', BRIEF_MARKER + ' (binding; fingerprint ' + brief.fingerprint()[:16] + ') ---']
     login = v.get('login', 'none')
     scope = v.get('access_scope')
     if scope == 'add_login':
