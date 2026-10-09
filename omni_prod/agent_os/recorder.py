@@ -47,6 +47,7 @@ class BuildAgentRecorder:
 
     def start(self, *, from_brief: bool) -> None:
         def go():
+            self.rt.supersede_open_runs(self.subject_kind, self.subject_id)
             self.run_id = self.rt.create_run(self.subject_kind, self.subject_id, budget_usd=self.budget)
             if self.subject_kind == 'build':
                 for agent, skills in (('discovery_agent', ('safe_default_selection',)) if from_brief else (None, ()),

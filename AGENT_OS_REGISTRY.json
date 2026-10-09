@@ -1073,9 +1073,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
    "evidence": [
+    "postdeploy-checks run 37936709830",
+    "postdeploy-checks run 37924920646",
     "postdeploy-checks run 37940033628"
    ],
    "last_verified_at": "2026-10-09T13:58Z",
@@ -5000,9 +5002,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
    "evidence": [
+    "postdeploy-checks run 37936709830",
     "deploy-worker run 37939751400"
    ],
    "last_verified_at": "2026-10-09T13:55Z",
@@ -7537,16 +7540,16 @@
  "summary": {
   "agents_total": 52,
   "agents": {
-   "LIVE": 24,
-   "PARTIAL": 13,
+   "LIVE": 23,
+   "PARTIAL": 14,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 11,
    "BLOCKED": 3
   },
   "skills_total": 427,
   "skills": {
-   "LIVE": 112,
-   "PARTIAL": 49,
+   "LIVE": 111,
+   "PARTIAL": 50,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 257,
    "BLOCKED": 8

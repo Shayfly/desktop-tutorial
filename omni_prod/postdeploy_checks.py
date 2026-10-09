@@ -288,6 +288,39 @@ def reservation(build_id):
             'settled': None if r[3] is None else str(r[3]), 'funding': r[4]}
 
 
+def agent_graph(build_id: str) -> tuple[tuple | None, list[tuple]]:
+    """The durable agent task graph the worker recorded for a build (migration 034)."""
+    runs = sql("SELECT id, outcome, finished_at IS NOT NULL FROM agent_runs WHERE subject_kind = 'build' AND subject_id = %s "
+               "ORDER BY created_at DESC LIMIT 1", (build_id,))
+    if not runs:
+        return None, []
+    tasks = sql('SELECT t.id, t.agent_key, t.state, t.verified_by_task, v.agent_key FROM agent_tasks t '
+                'LEFT JOIN agent_tasks v ON v.id = t.verified_by_task WHERE t.run_id = %s ORDER BY t.created_at', (runs[0][0],))
+    return runs[0], tasks
+
+
+def record_agent_graph(build_id: str, outcome: str, required: tuple[str, ...]) -> None:
+    run, tasks = agent_graph(build_id)
+    succeeded = {t[1] for t in tasks if t[2] == 'SUCCEEDED'}
+    open_tasks = [t[1] for t in tasks if t[2] in ('RUNNING', 'PENDING', 'READY', 'VERIFYING')]
+    self_verified = [t[1] for t in tasks if t[3] and t[4] == t[1]]
+    verified = sorted({f'{t[1]}<-{t[4]}' for t in tasks if t[3]})
+    record('agent task graph recorded', bool(run) and run[1] == outcome and run[2] and not open_tasks and not self_verified
+           and set(required) <= succeeded,
+           f"run={run and run[0]} outcome={run and run[1]} tasks={len(tasks)} succeeded={sorted(succeeded)} "
+           f"open={open_tasks} self_verified={self_verified} missing={sorted(set(required) - succeeded)} verified={verified[:12]}")
+
+
+def store_results(stage: str) -> None:
+    """Results become platform evidence the auditor and quality gate can read."""
+    try:
+        for r in RESULTS:
+            sql_write('INSERT INTO platform_check_results(check_key, stage, passed, detail, commit_sha) VALUES (%s, %s, %s, %s, %s)',
+                      (r['check'], stage, r['ok'], r['detail'][:2000], os.getenv('GITHUB_SHA', '')[:40] or None))
+    except Exception as exc:  # the check outcome is already printed; storage is best effort
+        print(f'::warning title=postdeploy::results not stored: {type(exc).__name__}', flush=True)
+
+
 # -------------------------------------------------------------- stages ------
 def stage_free(state: dict) -> None:
     # Migrations
@@ -451,6 +484,7 @@ def stage_cancel_verify(state: dict) -> None:
     other = new_project(token, 'postdeploy other')
     s3, _ = api('POST', f'/api/v28/projects/{other}/builds/{b}/cancel', None, token)
     record('cancel is owner/project scoped', s3 == 404, f'cancel via another project -> {s3}')
+    record_agent_graph(b, 'cancelled', ())
 
 
 PAID_PROMPT = ('אתר בעברית לניהול תורים למספרה קטנה: טופס קביעת תור עם שם, טלפון, תאריך ושעה, רשימת התורים הקרובים '
@@ -486,6 +520,7 @@ def stage_paid_verify(state: dict) -> None:
     s, log = api('GET', f'/api/v28/projects/{project}/builds/{b}/events?after=0', None, token)
     events = (log or {}).get('events') or []
     record('build journal', len(events) >= 3, [f"{e['kind']}: {e['message']}" for e in events][:14])
+    record_agent_graph(b, 'ready', ('coding_agent', 'qa_agent', 'release_agent', 'quality_gate_agent'))
     vid = d.get('result_version_id')
     if not vid:
         return
@@ -543,6 +578,7 @@ def stage_crash_verify(state: dict) -> None:
            d.get('status') == 'ready' and row[0] == 1 and any(e['kind'] == 'info' for e in events),
            f"status={d.get('status')} code={d.get('error_code')} recovery_attempts={row[0]} spend_after_recovery={row[1]} "
            f"reservation={reservation(b)} events={[e['message'] for e in events if e['kind'] in ('info', 'phase')][-4:]}")
+    record_agent_graph(b, 'ready', ('coding_agent', 'quality_gate_agent'))
 
 
 STAGES = {'free': stage_free, 'cancel-setup': stage_cancel_setup, 'cancel-verify': stage_cancel_verify,
@@ -561,6 +597,7 @@ def main(argv=None) -> int:
         record(f'{stage} aborted', False, f'{type(exc).__name__}: {exc}')
     finally:
         save_state(state)
+        store_results(stage)
     failed = [r['check'] for r in RESULTS if not r['ok']]
     lines = '\n'.join(f"{'PASS' if r['ok'] else 'FAIL'} {r['check']}: {r['detail'][:420]}" for r in RESULTS)
     print(f'::notice title=postdeploy {stage} summary::' + lines[:3800].replace('%', '%25').replace('\n', '%0A'), flush=True)

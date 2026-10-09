@@ -75,6 +75,21 @@ class AgentRuntime:
                              (run_id, subject_kind, subject_id, budget_usd))
         return run_id
 
+    def supersede_open_runs(self, subject_kind: str, subject_id: str) -> int:
+        """A recovered build starts a new run; the run of the lost worker is
+        closed as 'superseded' and its unfinished tasks FAILED (worker lost)."""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                ids = [r[0] for r in conn.execute(
+                    'SELECT id FROM agent_runs WHERE subject_kind = %s AND subject_id = %s AND finished_at IS NULL FOR UPDATE',
+                    (subject_kind, subject_id)).fetchall()]
+                if ids:
+                    conn.execute("UPDATE agent_tasks SET state = 'FAILED', finished_at = now(), "
+                                 "evidence = evidence || '{\"failed\": \"worker lost; run superseded by recovery\"}'::jsonb "
+                                 "WHERE run_id = ANY(%s) AND state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')", (ids,))
+                    conn.execute("UPDATE agent_runs SET finished_at = now(), outcome = 'superseded' WHERE id = ANY(%s)", (ids,))
+        return len(ids)
+
     def finish_run(self, run_id: str, outcome: str) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():

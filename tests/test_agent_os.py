@@ -159,6 +159,29 @@ class RuntimeLivePostgresTests(unittest.TestCase):
         with self.assertRaises(RuntimeViolation):
             self.rt.verify(qa, qa)
 
+    def test_recovered_build_supersedes_the_lost_workers_run(self):
+        from omni_prod.agent_os.recorder import BuildAgentRecorder
+        bid = f'bld_{uuid.uuid4().hex[:8]}'
+        lost = BuildAgentRecorder(self.pool, bid)
+        lost.start(from_brief=True)
+        lost.on_model('codegen')                 # worker killed here: coding task stays RUNNING
+        again = BuildAgentRecorder(self.pool, bid)
+        again.start(from_brief=True)
+        again.on_model('codegen')
+        again.on_check(True, 'tests passed')
+        again.finish(status='ready', evidence={})
+        with self.pool.connection() as conn:
+            runs = dict(conn.execute('SELECT id, outcome FROM agent_runs WHERE subject_id = %s', (bid,)).fetchall())
+            stuck = conn.execute("SELECT count(*) FROM agent_tasks t JOIN agent_runs r ON r.id = t.run_id WHERE r.subject_id = %s "
+                                 "AND t.state IN ('RUNNING', 'PENDING', 'READY')", (bid,)).fetchone()[0]
+            verified = conn.execute('SELECT t.agent_key, v.agent_key FROM agent_tasks t JOIN agent_tasks v ON v.id = t.verified_by_task '
+                                    'WHERE t.run_id = %s', (again.run_id,)).fetchall()
+        self.assertEqual(runs[lost.run_id], 'superseded')
+        self.assertEqual(runs[again.run_id], 'ready')
+        self.assertEqual(stuck, 0)
+        self.assertIn(('coding_agent', 'qa_agent'), verified)
+        self.assertTrue(all(a != b for a, b in verified))
+
     def test_budget_blocks_and_restart_resumes(self):
         run = self.rt.create_run('build', f'bld_{uuid.uuid4().hex[:8]}')
         t = self.rt.add_task(run, 'coding_agent', skills=('file_create',), budget_usd=Decimal('0.01'))
