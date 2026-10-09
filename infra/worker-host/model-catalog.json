@@ -39,7 +39,11 @@
     "_price_source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, <=200k prompt, checked 2026-10-06)",
     "timeout_seconds": 300,
     "_timeout_basis": "bld_78e26994 (2026-10-08): a repair call timed out at the 120 s default; 16k output tokens need longer",
-    "_output_basis": "model output limit 65,536 (ai.google.dev/gemini-api/docs/models/gemini-3.8-flash, checked 2026-10-08); rehearsal 37840698696 truncated JSON at the 12k request cap once skills made the code longer"
+    "_output_basis": "model output limit 65,536 (ai.google.dev/gemini-api/docs/models/gemini-3.8-flash, checked 2026-10-08); rehearsal 37840698696 truncated JSON at the 12k request cap once skills made the code longer",
+    "extra_body": {
+      "reasoning_effort": "low"
+    },
+    "_thinking_basis": "reasoning_effort=low -> thinking_level low (ai.google.dev/gemini-api/docs/openai, checked 2026-10-09). Paid builds 2026-10-09: default thinking consumed the output allowance (finish_reason=length, truncated repair JSON); thinking tokens are billed as output."
   },
   {
     "name": "openai-gpt-6-luna",
