@@ -133,7 +133,7 @@ jobs:
           note("spend", {k: ev.get(k) for k in ("provider_spend_usd", "external_model_calls", "provider_spend_basis", "billing", "model_budget_binding", "economics_settlement")} | {"reservation": [str(x) for x in r]})
           note("provider usage", json.dumps(ev.get("provider_usage"), default=str))
           for pid, rep in (ev.get("web_saas_acceptance_reports") or {}).items():
-              checks = [{k: c.get(k) for k in ("id", "kind", "status", "method", "path", "expected", "observed", "message", "error")} for c in rep.get("checks", [])]
+              checks = rep.get("checks", [])
               note("acceptance " + pid, json.dumps({"status": rep.get("status"), "summary": rep.get("summary"), "checks": checks}, ensure_ascii=False, default=str))
           '
 
