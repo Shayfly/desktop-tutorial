@@ -287,6 +287,16 @@ def _async_build_mode()->bool:
         return False
     return True
 
+def _reject_unbacked_publish()->None:
+    """Directive 2026-10-09 §3/§21 (gap map #11): the legacy promote routes
+    keep a 'deployment' in a dict inside one serverless invocation. That is
+    not publishing; in the durable deployment it is refused instead of
+    returning a success nobody can reach."""
+    if _async_build_mode():
+        raise HTTPException(501, {'error': 'publish_not_available',
+                                  'message': 'Publishing to a live address is not available in this version. '
+                                             'Use the preview and the ZIP export.'})
+
 def _reject_legacy_sync_build()->None:
     if _async_build_mode():
         raise HTTPException(410,'Synchronous builds are disabled in this deployment. Use POST '
@@ -554,6 +564,7 @@ def billing_classify(req:ChangeRequest)->dict:
 
 @app.post('/api/demo/build')
 def demo_build(req:PromptRequest)->dict:
+    _reject_legacy_sync_build()  # directive §21: no deterministic shadow build in the durable deployment
     spec=demo_spec(req.prompt); repo=create_demo_repository(req.prompt,spec)
     report=StaticDemoVerifier().execute(repository=repo,spec=spec)
     quality=assess_repository(spec=spec,repository=repo,minimum_score=75)
@@ -737,6 +748,7 @@ def v26_projects(request:Request)->dict:
 
 @app.post('/api/v26/projects/{project_id}/build')
 def v26_build(project_id:str,req:V26BuildRequest,request:Request)->dict:
+    _reject_legacy_sync_build()  # directive §21: no deterministic shadow build in the durable deployment
     try:return _v26.build(token=_v26_bearer(request),project_id=project_id,prompt=req.prompt)
     except PermissionError as exc: raise HTTPException(403,str(exc)) from exc
     except ValueError as exc: raise HTTPException(400,str(exc)) from exc
@@ -767,6 +779,7 @@ def v26_export(project_id:str,request:Request,version_id:str|None=None):
 
 @app.post('/api/v26/projects/{project_id}/promote')
 def v26_promote(project_id:str,request:Request,version_id:str|None=None)->dict:
+    _reject_unbacked_publish()
     try:return _v26.promote(token=_v26_bearer(request),project_id=project_id,version_id=version_id)
     except PermissionError as exc: raise HTTPException(403,str(exc)) from exc
     except KeyError as exc: raise HTTPException(404,'project/version not found') from exc
@@ -865,6 +878,7 @@ def v25_parity()->dict:
 
 @app.post('/api/v25/build')
 def v25_build(req:PromptRequest)->dict:
+    _reject_legacy_sync_build()  # directive §21: no deterministic shadow build in the durable deployment
     result=_unified.build(project_id=req.project_id,prompt=req.prompt)
     return result.to_dict()
 
@@ -883,6 +897,7 @@ def v25_patch(project_id:str,req:V25PatchRequest)->dict:
 
 @app.post('/api/v25/projects/{project_id}/promote')
 def v25_promote(project_id:str,version_id:str|None=None)->dict:
+    _reject_unbacked_publish()
     try: snap=_unified.promote(project_id=project_id,version_id=version_id)
     except KeyError as exc: raise HTTPException(404,'project/version not found') from exc
     return snap.__dict__
@@ -997,6 +1012,7 @@ def v27_projects(request:Request)->dict:
 
 @app.post('/api/v27/projects/{project_id}/build')
 def v27_build(project_id:str,req:V27BuildRequest,request:Request)->dict:
+    _reject_legacy_sync_build()  # directive §21: no deterministic shadow build in the durable deployment
     try:return _v27.build(token=_v27_bearer(request),project_id=project_id,prompt=req.prompt,target_markets=tuple(req.target_markets))
     except PermissionError as exc: raise HTTPException(403,str(exc)) from exc
     except ValueError as exc: raise HTTPException(400,str(exc)) from exc
@@ -1059,6 +1075,7 @@ def v27_original_alternative(project_id:str,req:V27OriginalizeRequest,request:Re
 
 @app.post('/api/v27/projects/{project_id}/promote')
 def v27_promote(project_id:str,request:Request,version_id:str|None=None)->dict:
+    _reject_unbacked_publish()
     try:return _v27.promote(token=_v27_bearer(request),project_id=project_id,version_id=version_id)
     except PermissionError as exc: raise HTTPException(409,str(exc)) from exc
     except KeyError as exc: raise HTTPException(404,'project/version not found') from exc
@@ -1581,6 +1598,7 @@ def v28_usage_quote(project_id: str, req: V28UsageQuoteRequest, request: Request
 
 @app.post('/api/v28/projects/{project_id}/promote')
 def v28_promote(project_id: str, request: Request, version_id: str | None = None) -> dict:
+    _reject_unbacked_publish()
     try:
         return _v28.promote(token=_v28_bearer(request), project_id=project_id, version_id=version_id)
     except PermissionError as exc:

@@ -76,7 +76,9 @@ const T = {
     emailUnverified:'האימייל עדיין לא אומת.',
     err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
-    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.',
+    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
+    err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
+    dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
     needPrompt:'כתבו לפחות כמה מילים על האפליקציה.', needEmail:'הזינו אימייל וסיסמה של 10 תווים לפחות.',
     registered:'החשבון נוצר.', created:'הפרויקט נוצר.', renamed:'השם נשמר.', archived:'הפרויקט הועבר לארכיון.',
     downloadReady:'ההורדה התחילה.', untitled:'פרויקט חדש',
@@ -158,7 +160,9 @@ const T = {
     emailUnverified:'Your email is not verified yet.',
     err401:'Your session expired. Sign in again.', err402:'Not enough credits or not allowed on your plan: ',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
-    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.',
+    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
+    err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
+    dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
     needPrompt:'Write at least a few words about the app.', needEmail:'Enter an email and a password of at least 10 characters.',
     registered:'Account created.', created:'Project created.', renamed:'Name saved.', archived:'Project archived.',
     downloadReady:'Download started.', untitled:'New project',
@@ -209,7 +213,7 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = ctl ? setTimeout(() => ctl.abort(), 30000) : null;
   try { res = await fetch(path, { method, headers, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined, body: body === undefined ? undefined : JSON.stringify(body) }); }
-  catch { throw new ApiError(0, t('errNet')); }
+  catch (e) { throw new ApiError(0, e && e.name === 'AbortError' ? 'timeout' : t('errNet')); }
   finally { if (timer) clearTimeout(timer); }
   if (raw && res.ok) return res;
   let data = null;
@@ -226,7 +230,7 @@ function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
   switch (err.status) {
-    case 0: return t('errNet');
+    case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
     case 402: return t('err402') + msg;
     case 403: return t('err403');
@@ -234,7 +238,7 @@ function explain(err) {
     case 409: return (err.detail && err.detail.message) || t('err409');
     case 422: return (err.detail && err.detail.message) || msg;
     case 503: return t('err503') + msg;
-    default: return msg;
+    default: return err.status >= 500 ? t('err5xx') : msg;
   }
 }
 const pid = () => encodeURIComponent(S.projectId);
@@ -632,7 +636,9 @@ function renderLog() {
   box.hidden = false;
   const fmt = iso => { try { return new Date(iso).toLocaleTimeString(S.lang === 'he' ? 'he-IL' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
   const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
+  const atEnd = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
   list.replaceChildren(...(rows.length ? rows : [h('li', { class: 'ev muted' }, t('logEmpty'))]));
+  if (atEnd) list.scrollTop = list.scrollHeight;  // follow the newest line unless the user scrolled up
 }
 function renderControls() {
   const b = S.build; const row = $('buildControls'); const btn = $('cancelBuildBtn');
@@ -672,8 +678,9 @@ function renderTrack() {
   const push = (name, state, note) => steps.push(h('li', { class: `step ${state}` }, h('span', { class: 'dot', 'aria-hidden': 'true' }),
     h('div', {}, h('span', { class: 'name' }, name), note ? h('span', { class: 'note' }, note) : null,
       h('span', { class: 'sr' }, ` (${state})`))));
-  push(t('stepPlanning'), S.plan ? 'done' : 'active');
-  push(t('stepContract'), S.plan ? (S.plan.status === 'READY' ? 'done' : 'failed') : 'pending',
+  // A build exists only for an approved plan (after a reload the plan itself is not reloaded).
+  push(t('stepPlanning'), (S.plan || b) ? 'done' : 'active');
+  push(t('stepContract'), S.plan ? (S.plan.status === 'READY' ? 'done' : 'failed') : b ? 'done' : 'pending',
     S.plan && S.plan.status !== 'READY' ? t('err409') : null);
   const backendStep = (key, idx, failCodes, note) => {
     if (!b) return push(t(key), 'pending', note);
@@ -681,6 +688,7 @@ function renderTrack() {
     if (status === 'ready') return push(t(key), 'done', note);
     if (status === 'failed') return push(t(key), (failedIdx >= 0 ? idx < failedIdx : reached > idx) ? 'done' : 'skipped', note);
     if (status === 'queued') return push(t(key), 'pending', idx === 0 ? t('queued') : note);
+    if (status === 'cancelled') return push(t(key), 'skipped', null);
     return push(t(key), reached === idx ? 'active' : reached > idx ? 'done' : 'pending', note);
   };
   const infraEv = ev.infrastructure; const capEv = ev.capabilities;
@@ -689,7 +697,7 @@ function renderTrack() {
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
   backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
-  let pState = 'pending', pNote = null;
+  let pState = (!preview && (status === 'cancelled' || status === 'failed')) ? 'skipped' : 'pending', pNote = null;
   if (preview) {
     const ps = preview.status;
     if (ps === 'RUNNING') pState = 'done';
@@ -740,6 +748,9 @@ function renderPreview() {
   frame.hidden = !running; empty.hidden = Boolean(running);
   refresh.disabled = !running; link.setAttribute('aria-disabled', running ? 'false' : 'true');
   $('previewUrl').textContent = running ? p.preview_url : '—';
+  const note = $('previewDataNote');
+  note.hidden = !running;
+  if (running) note.textContent = p.data_storage === 'persistent' ? t('dataPersistent') : t('dataTemporary');
   if (running) {
     if (frame.src !== p.preview_url) frame.src = p.preview_url;
     link.href = p.preview_url;
@@ -958,6 +969,9 @@ function wire() {
   $('newBuildBtn').addEventListener('click', openNewProject);
   $('newProjectTopBtn').addEventListener('click', openNewProject);
   $('cancelBuildBtn').addEventListener('click', cancelBuild);
+  // Directive 2026-10-09 §11: an offline state, not a frozen page.
+  const syncOnline = () => { $('offlineBanner').hidden = navigator.onLine !== false; };
+  window.addEventListener('online', syncOnline); window.addEventListener('offline', syncOnline); syncOnline();
   $('newProjectForm').addEventListener('submit', submitNewProject);
   $('newProjectCancel').addEventListener('click', () => $('newProjectDialog').close());
   $('modifyBtn').addEventListener('click', sendModification);

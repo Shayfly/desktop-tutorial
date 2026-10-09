@@ -196,3 +196,5 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
 .live-log li:last-child{border-bottom:0}
 .live-log time{color:var(--slate);font-variant-numeric:tabular-nums;margin-inline-end:6px}
 .live-log .ev.cancel{color:var(--bad)} .live-log .ev.check{color:var(--ink)} .live-log .ev.muted{color:var(--slate)}
+.offline{position:fixed;inset-inline:0;bottom:0;z-index:50;background:var(--amber);color:var(--surface);padding:.6rem 1rem;text-align:center;font-weight:600}
+.data-note{margin:0;padding:.35rem .8rem;border-bottom:1px solid var(--rule);font-size:.88em}

@@ -35,6 +35,7 @@
 
 <div class="banner" id="backendBanner" role="status" hidden></div>
 
+<div class="offline" id="offlineBanner" role="status" hidden data-i18n="offline">אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.</div>
 <main id="main">
   <!-- signed out -->
   <section class="welcome" id="welcomeView" hidden>
@@ -146,6 +147,7 @@
             <a class="ghost button" id="openPreviewLink" target="_blank" rel="noopener" aria-disabled="true" data-i18n="openTab">פתיחה בלשונית חדשה</a>
           </div>
         </div>
+        <p class="hint data-note" id="previewDataNote" hidden></p>
         <div class="viewport" id="viewport">
           <div class="empty" id="previewEmpty"><p id="previewEmptyText" data-i18n="noPreview">כאן תופיע האפליקציה אחרי שהבנייה תסתיים.</p></div>
           <iframe id="previewFrame" title="Preview" sandbox="allow-scripts allow-forms allow-same-origin allow-popups" referrerpolicy="no-referrer" hidden></iframe>
