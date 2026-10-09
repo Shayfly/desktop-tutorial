@@ -87,4 +87,5 @@ jobs:
         if: always()
         run: |
           docker rm -f omni-restore-test >/dev/null 2>&1 || true
-          rm -rf "$BK"
+          # Files written by root inside containers: remove them the same way.
+          docker run --rm -v "$RUNNER_TEMP:/t" alpine:3 rm -rf /t/bk || true
