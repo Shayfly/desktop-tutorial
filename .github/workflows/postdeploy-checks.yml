@@ -150,6 +150,13 @@ jobs:
               r = c.execute("SELECT status, estimated_provider_cost_usd, actual_provider_cost_usd, settled_provider_cost_usd FROM credit_reservations WHERE build_id = %s", (bid,)).fetchone()
           note("spend", {k: ev.get(k) for k in ("provider_spend_usd", "external_model_calls", "provider_spend_basis", "billing", "model_budget_binding", "economics_settlement")} | {"reservation": [str(x) for x in r]})
           note("provider usage", json.dumps(ev.get("provider_usage"), default=str))
+          gates = ev.get("gates") or {}
+          note("verification", json.dumps(gates.get("verification"), ensure_ascii=False, default=str))
+          note("repair", {k: ev.get(k) for k in ("repair_rounds", "repair_stop_reason", "behavior_acceptance")})
+          note("build log tail", ev.get("build_log_tail"))
+          with _v28_pool.connection() as c:
+              rows = c.execute("SELECT attempt_seq, kind, task_type, model, outcome, verification_class, metered_cost_usd, left(coalesce(failure_reason, \x27\x27), 300) FROM task_attempts WHERE build_id = %s ORDER BY attempt_seq", (bid,)).fetchall()
+          note("attempts", "\n".join(" | ".join(str(x) for x in r) for r in rows))
           for pid, rep in (ev.get("web_saas_acceptance_reports") or {}).items():
               checks = rep.get("checks", [])
               note("acceptance " + pid, json.dumps({"status": rep.get("status"), "summary": rep.get("summary"), "checks": checks}, ensure_ascii=False, default=str))
