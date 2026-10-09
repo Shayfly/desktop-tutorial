@@ -211,6 +211,30 @@ def capability_authorization_ceiling(request: dict) -> Decimal:
     return Decimal(str(request.get('authorized_provider_cost_usd', '0.25')))
 
 
+def metered_llm_cost(gateway, external_calls: int) -> tuple[Decimal | None, dict]:
+    """Exact model cost from usage: each external call's metered cost
+    (provider-reported tokens x the catalog price of that model, recorded with
+    the catalog version) or 0 for a call the provider refused. If any
+    authorized external call has no metered cost (timeout without usage, model
+    without a catalog price) the cost is UNKNOWN and None is returned: unknown
+    pricing never silently becomes zero, and settlement keeps the explicit
+    conservative policy (the reservation)."""
+    records = [r for r in (getattr(getattr(gateway, 'recorder', None), 'records', None) or [])
+               if getattr(r, 'kind', None) == 'provider_call' and (getattr(r, 'authorized_cost_usd', None) or 0) > 0]
+    versions = sorted({r.price_catalog_version for r in records if getattr(r, 'price_catalog_version', None)})
+    basis = {'llm': 'METERED_USAGE_X_PRICE_CATALOG', 'price_catalog_versions': versions,
+             'external_calls': external_calls, 'metered_records': len(records)}
+    if len(records) != external_calls or not versions:
+        basis['llm'] = 'UNKNOWN_CALLS_WITHOUT_METERING'
+        return None, basis
+    if any(getattr(r, 'metered_cost_usd', None) is None for r in records):
+        basis['llm'] = 'UNKNOWN_USAGE_NOT_REPORTED'
+        return None, basis
+    total = sum((Decimal(str(r.metered_cost_usd)) for r in records), Decimal('0'))
+    basis['metered_usd'] = str(total)
+    return total, basis
+
+
 def resolve_m5_billing(
     subscriptions, *, build_id: str, ready: bool, gateway, capability_evidence, economics_quote: dict | None,
 ) -> tuple[str, dict, Decimal | None]:
@@ -232,12 +256,18 @@ def resolve_m5_billing(
     # M5 Task 8: model spend is actual only when every authorized external call
     # left a provider-reported cost. Otherwise it stays unknown (NULL); the
     # authorized estimate is never relabelled as actual.
+    cost_basis = {'llm': 'NO_EXTERNAL_CALLS'}
     if external_calls == 0:
         llm_actual = Decimal('0')
     else:
         ledger = getattr(gateway, 'usage', None)
         llm_actual = (ledger.actual_external_cost_usd(authorized_external_calls=external_calls)
                       if isinstance(ledger, ProviderUsageLedger) else None)
+        cost_basis = {'llm': 'PROVIDER_REPORTED'}
+        if llm_actual is None:
+            # Autonomous completion §3: usage x versioned price catalog when
+            # every external call left reported usage (or was refused, = 0).
+            llm_actual, cost_basis = metered_llm_cost(gateway, external_calls)
     quote = dict(economics_quote or {})
     # Generated-app/platform infrastructure is reserved at its conservative
     # maximum; no provider reports its actual per-build cost, so any non-zero
@@ -255,7 +285,7 @@ def resolve_m5_billing(
         build_id=build_id, actual_provider_cost_usd=actual,
         revenue_usd=revenue, infra_cost_usd=Decimal('0'),
     )
-    evidence = {'action': 'settled'}
+    evidence = {'action': 'settled', 'cost_basis': cost_basis}
     if settlement:
         evidence.update(settlement)
     return 'settled', evidence, actual
