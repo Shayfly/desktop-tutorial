@@ -33,6 +33,20 @@ Directive: `docs/MASTER_EXECUTION_DIRECTIVE_2026-10-09_HE.md`. The G0 baseline, 
   - Proof: a live-Postgres race test fails without the lock (two builds) and passes with it. The endpoint test is `test_second_approval_of_the_same_plan_returns_the_existing_build` (CI v24-ci 37864338119).
   - UI: in-flight guard and a "this plan is already building" message.
 
+**Implemented, awaiting live (founder in the workspace)**
+- **G2 — discovery conversation, ProjectBrief, server-bound approval (`9db2d53`, deployed: Vercel dpl_3Hio8MbtAzFrUucJXCEvswaqttg4, migration 030 applied by Deploy build worker).**
+  - Engine: `omni_prod/discovery.py`. Questions include the simple ones (colour, font, style, logo, references, audience, content). They come in small groups. Facts already stated are not asked again. "No preference — choose for me" is recorded as delegated. Contradictions must be decided by the user. Changing an answer drops answers that depend on it. Guided and recommend modes are both available.
+  - Brief: immutable revisions with compare-and-set.
+  - Approval: bound to user, project, brief revision + fingerprint, contract + fingerprint, budget quote and a 30-minute TTL. It is consumed exactly once.
+  - Builds without an approval → 409 `approval_required`.
+  - "No sign-in" now means no sessions, a single user and no RBAC floor in the contract.
+  - Tests:
+    - engine;
+    - live Postgres: CAS race, approval used/stale/expired/bound;
+    - endpoints: CI v24-ci on `9db2d53`.
+  - UI: checked in a real browser against the real engine with a local harness (desktop and 390 px, refresh restore, change → new plan). The deployed `app.js` contains the new flow.
+  - **Not yet verified:** a founder session on the deployed workspace (this sandbox cannot reach vercel.app interactively).
+
 **Implemented, awaiting live**
 - **QA budget no longer hides cost behind a date.**
   - `OMNI_QA_BUDGET_SINCE` now counts only together with `OMNI_QA_FREE_TIER_EVIDENCE` (a reference to billing proof). Without that reference the count is all-time and the ignored date is recorded in build evidence.
