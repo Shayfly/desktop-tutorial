@@ -24,7 +24,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: [self-hosted, omni-worker]
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +59,25 @@ jobs:
             echo "INPUT rules for 80/443:"; iptables -S INPUT | grep -E "dport (80|443)" || true'
           docker pull -q python:3.11-slim
           docker pull -q node:20-slim
+
+      # Directive 2026-10-09 §18: never replace a worker in the middle of a build
+      # or change. `docker stop` sends SIGTERM; an RQ worker then makes a warm
+      # shutdown -- it takes no new job and finishes the one it is running. We
+      # stop (drain) both workers BEFORE migrations and before any container is
+      # replaced (the sandbox runner a build depends on included). New jobs wait
+      # in the queue and the new worker takes them. Past the deadline Docker
+      # kills the job; that is reported, never hidden.
+      - name: Drain workers (finish running jobs before replacing anything)
+        working-directory: infra/worker-host
+        run: |
+          set -uo pipefail
+          busy=$(docker ps -q -f name=omni-worker-worker-1 -f status=running | wc -l)
+          start=$(date +%s)
+          docker compose stop -t 1500 worker preview-worker
+          waited=$(( $(date +%s) - start ))
+          state=$(docker inspect -f '{{.State.ExitCode}} oom={{.State.OOMKilled}}' omni-worker-worker-1 2>/dev/null || echo "absent")
+          echo "::notice title=drain::workers stopped after ${waited}s (worker was running: ${busy}; exit ${state}). 137 means the 25-minute deadline killed a job."
+          docker logs --tail 5 omni-worker-worker-1 2>&1 | sed 's/^/worker: /' || true
 
       - name: Apply database migrations
         working-directory: infra/worker-host
