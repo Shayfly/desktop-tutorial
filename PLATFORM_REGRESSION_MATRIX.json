@@ -81,7 +81,7 @@
    "expected": "metered settlement, QA budget",
    "files": {
     "tests/test_actual_cost_settlement.py": {
-     "min_tests": 6
+     "min_tests": 11
     }
    }
   },

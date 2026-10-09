@@ -38,6 +38,17 @@ class BuildControl:
         self.checks = 0
         self.model_calls = 0
         self.recorder = None  # agent_os BuildAgentRecorder (durable agent task graph), optional
+        # Writes the attempt ledger so far (idempotent). Called at every model
+        # call and check round so a killed worker's metered calls survive it.
+        self.flush = None
+
+    def flush_attempts(self) -> None:
+        if self.flush is None:
+            return
+        try:
+            self.flush()
+        except Exception:  # pragma: no cover - telemetry must never fail a build
+            _log.warning('attempt ledger flush failed for %s', self.build_id, exc_info=True)
 
     def log(self, kind: str, message: str) -> None:
         add = getattr(self._jobs, 'add_event', None)
@@ -64,6 +75,7 @@ class BuildControl:
     # Installed on RoutedModelGateway.before_call.
     def before_model_call(self, task: str) -> None:
         self.checkpoint()
+        self.flush_attempts()
         self.model_calls += 1
         self.log('model', TASK_LABELS.get(task, 'שולח בקשה למודל'))
         if self.recorder is not None:
@@ -86,6 +98,7 @@ class ControlledExecutor:
         self._control.checks += 1
         n = self._control.checks
         report = self._inner.execute(repository=repository, spec=spec)
+        self._control.flush_attempts()
         failures = list(getattr(report, 'failures', None) or [])
         if self._control.recorder is not None:
             reason = (getattr(failures[0], 'message', '') if failures else '') or 'all checks passed'

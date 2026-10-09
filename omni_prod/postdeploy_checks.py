@@ -33,6 +33,7 @@ final JSON summary; state between stages is kept in /out/state.json.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 import os
 import sys
 import threading
@@ -559,10 +560,12 @@ def stage_crash_create(state: dict) -> None:
     built = plan_and_build(token, project, revision, CRASH_PROMPT)
     state.update(crash_project=project, crash_build=built['build_id'])
 
-    def first_model_call():
+    # Kill once the second model call starts: the first call is then complete
+    # and flushed to the attempt ledger, so recovery must account for it.
+    def second_model_call():
         s, d = api('GET', f"/api/v28/projects/{project}/builds/{built['build_id']}/events?after=0", None, state['token'])
-        return any(e['kind'] == 'model' for e in (d or {}).get('events', [])) or None
-    record('crash: build reached its first model call', bool(wait(first_model_call, 300, 2)), built['build_id'])
+        return sum(e['kind'] == 'model' for e in (d or {}).get('events', [])) >= 2 or None
+    record('crash: build reached its second model call', bool(wait(second_model_call, 300, 2)), built['build_id'])
 
 
 def stage_crash_verify(state: dict) -> None:
@@ -579,6 +582,15 @@ def stage_crash_verify(state: dict) -> None:
            f"status={d.get('status')} code={d.get('error_code')} recovery_attempts={row[0]} spend_after_recovery={row[1]} "
            f"reservation={reservation(b)} events={[e['message'] for e in events if e['kind'] in ('info', 'phase')][-4:]}")
     record_agent_graph(b, 'ready', ('coding_agent', 'quality_gate_agent'))
+    ledger = sql("SELECT count(*), COALESCE(sum(metered_cost_usd), 0), count(DISTINCT trace_id) FROM task_attempts "
+                 "WHERE build_id = %s AND kind = 'provider_call'", (b,))[0]
+    basis = sql("SELECT evidence_json->'economics_settlement'->'cost_basis' FROM build_jobs WHERE id = %s", (b,))[0][0] or {}
+    res = reservation(b) or {}
+    settled = Decimal(str(res.get('settled') or '-1'))
+    record('crash: lost worker\'s calls are in the ledger and the settlement',
+           ledger[2] >= 2 and bool(basis.get('earlier_workers')) and abs(settled - Decimal(str(ledger[1]))) < Decimal('0.000001'),
+           f"ledger calls={ledger[0]} metered={ledger[1]} workers(traces)={ledger[2]} settled={settled} "
+           f"earlier_workers={basis.get('earlier_workers')}")
 
 
 STAGES = {'free': stage_free, 'cancel-setup': stage_cancel_setup, 'cancel-verify': stage_cancel_verify,

@@ -235,6 +235,25 @@ def metered_llm_cost(gateway, external_calls: int) -> tuple[Decimal | None, dict
     return total, basis
 
 
+def prior_worker_metered_cost(pool, build_id: str) -> dict | None:
+    """Metered model cost already recorded for this build by an earlier
+    (lost) worker. None when nothing was recorded. `unknown` counts served
+    calls without metered cost; the call in flight at the moment of a crash
+    never reached the ledger and cannot be counted."""
+    try:
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT count(*), COALESCE(sum(metered_cost_usd), 0), "
+                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome = 'ok' AND COALESCE(authorized_cost_usd, 0) > 0) "
+                "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (build_id,)).fetchone()
+    except Exception:
+        logging.getLogger(__name__).warning('prior attempt lookup failed for %s', build_id, exc_info=True)
+        return None
+    if not row or not row[0]:
+        return None
+    return {'calls': int(row[0]), 'metered_usd': Decimal(str(row[1])), 'unknown_calls': int(row[2])}
+
+
 def resolve_m5_billing(
     subscriptions, *, build_id: str, ready: bool, gateway, capability_evidence, economics_quote: dict | None,
 ) -> tuple[str, dict, Decimal | None]:
@@ -248,7 +267,9 @@ def resolve_m5_billing(
     """
     _, external_calls = spend_snapshot(gateway)
     capability_actual, capability_activity = _capability_actual_cost(capability_evidence)
-    paid_activity = external_calls > 0 or capability_activity
+    prior = getattr(gateway, 'prior_metered', None)
+    prior = prior if isinstance(prior, dict) else None
+    paid_activity = external_calls > 0 or capability_activity or bool(prior and prior['metered_usd'] > 0)
     if not ready and not paid_activity:
         subscriptions.release(build_id=build_id)
         return 'released', {'action': 'released'}, None
@@ -268,6 +289,10 @@ def resolve_m5_billing(
             # Autonomous completion §3: usage x versioned price catalog when
             # every external call left reported usage (or was refused, = 0).
             llm_actual, cost_basis = metered_llm_cost(gateway, external_calls)
+    if prior:
+        cost_basis = {**cost_basis, 'earlier_workers': {k: str(v) for k, v in prior.items()}}
+        llm_actual = (None if llm_actual is None or prior['unknown_calls']
+                      else llm_actual + prior['metered_usd'])
     quote = dict(economics_quote or {})
     # Generated-app/platform infrastructure is reserved at its conservative
     # maximum; no provider reports its actual per-build cost, so any non-zero
@@ -344,7 +369,8 @@ def _rights_evidence_from_dicts(items) -> tuple:
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
                         capability_stage=None, infrastructure_stage=None,
-                        infrastructure_environment: str = 'preview', spec_repo=None, agent_recorder=None) -> str | None:
+                        infrastructure_environment: str = 'preview', spec_repo=None, agent_recorder=None,
+                        attempt_pool=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
     done (unknown build id / already claimed by another delivery)."""
     try:
@@ -423,6 +449,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
+        if attempt_pool is not None:
+            control.flush = lambda: _persist_build_attempts(attempt_pool, jobs, build_id, gateway)
+            # A recovered build: calls a lost worker already made are still owed.
+            gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
             agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
@@ -753,6 +783,7 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
         preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
         spec_repo=PostgresSpecRepository(_v28_pool),
         agent_recorder=agent_recorder,
+        attempt_pool=_v28_pool,
     )
 
 
