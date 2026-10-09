@@ -1,5 +1,44 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-09 20:10 Asia/Jerusalem — Autonomous Completion Directive: Agent OS, self-testing platform, build reliability, cost truth
+
+**Level reached: PRE_STAGING_READY candidate (pre-staging deployed and verified on the real server). Not PRIVATE_BETA_READY, not PUBLIC_BETA_READY, not production.**
+
+**Commits** (task branch `claude/g0-baseline-2026-10-09`, fast-forward merged to `milestone/pre-staging-2026-10-05`, no force push)
+- Start of this program: `d1c7482` (= rollback point). Final, deployed: `bdc5e9c` (deploy-worker 37965865051; free checks 37966155212 16/16 PASS).
+- Merged in order: `724705d` Agent OS/Skills OS + migration 034 · `d57ebd2` agent-graph checks · `c4cdb4a` router fitted output · `9feb3bb` progress-aware repair, tolerant JSON, decoded-JSON text match · `2b4bafd` crash-safe cost ledger · `54620a4` · `67392df` relative dates / no special-casing / review ranking · `20b4bcc` thinking tokens metered · `039574f` gemini-3-8-flash `reasoning_effort=low` · `bdc5e9c` repair sees the main file + evidence refresh.
+- Migrations: 30 applied, latest **034 `agent_runtime`** (additive: `agent_runs`, `agent_tasks`, `agent_handoffs`, `agent_memory`, `platform_check_results`). Rollback: code → `git revert` to `d1c7482` and redeploy; 034 needs no down-migration (new tables only, nothing reads them when the recorder is off: `OMNI_AGENT_RECORDER=0`).
+
+**Agent OS / Skills OS (computed by `python -m omni_prod.agent_os.audit --write`; CI fails on inflation)**
+- Agents 52: LIVE 30 · PARTIAL 7 · NOT_CONFIGURED 1 · NOT_IMPLEMENTED 11 · BLOCKED 3. Skills 427: LIVE 132 · PARTIAL 29 · NOT_CONFIGURED 1 · NOT_IMPLEMENTED 257 · BLOCKED 8. Registry: `AGENT_OS_REGISTRY.json`, `docs/AGENT_OS_REGISTRY.md`; matrices `PLATFORM_CAPABILITY_MATRIX.json`, `PLATFORM_REGRESSION_MATRIX.json` (17 areas), `GOLDEN_E2E_MATRIX.json`, `FAILURE_INJECTION_MATRIX.json`.
+- LIVE = implementation + fresh real-server run whose code is unchanged since (digests in `omni_prod/registry_evidence_lock.json`). Every real build now writes a durable agent task graph; paid run 37961193099: 14 agents SUCCEEDED, independent verification links (quality gate verifies release/acceptance/browser/security/cost/QA), no self-verification, no open tasks. Recovery closes the lost worker's run as `superseded`.
+
+### 1. Implemented and independently verified (real server, current or named commit)
+- Free checks 37966155212 (`bdc5e9c`) 16/16: migrations, builder health, 42 versions intact, demo/publish refused, private preview (anonymous 401), owner token, share link only while shared, data survives restart and new version, queued/running cancel, journal, scoping, agent graph closed for a cancelled build.
+- Golden SaaS build 37961193099 (`039574f`): discovery → approval → build READY (2 repairs) → browser check → QA review → preview → behavioural acceptance PASS (7 checks, 5 acceptance IDs) → restart; **settled $0.105302 at metered usage incl. thinking tokens**.
+- Crash recovery 37954236866 (`2b4bafd`): worker SIGKILLed at the 2nd model call → requeued once → READY; ledger holds both workers; **settled = ledger sum ($0.070368)**. Repeated in 37962802899 (`039574f`): recovery + settlement PASS again ($0.199043 = ledger), but that build then failed verification (see 4).
+- Backup/restore 37962179844 (`039574f`): restored into empty PostgreSQL 18, 42/42 versions rebuilt from artifacts, 14/14 preview data files, 34 migrations equal.
+- Failure injection: 16/17 PASS (14 unit/integration + 2 real-server: worker kill, deploy during build); invalid OAuth BLOCKED (no generated-app OAuth).
+- Regression guardian + capability auditor run in CI (`v24-ci`) on every push.
+
+### 2. Implemented, awaiting external live verification
+- `bdc5e9c` repair prompt includes the main file (>16k chars) and files named in failures — unit-tested, deployed, **no paid build run on it yet** (budget).
+- Modification (change) flow: last real run 2026-10-08 (`mod_c14435dc`); not re-run on this code.
+
+### 3. Blocked by a named credential/service
+- OpenAI: HTTP 429 "no credits remaining"; Anthropic: HTTP 400 "credit balance too low" — every build falls back to Gemini; cross-provider review/repair diversity unavailable.
+- Exact Gemini spend reconciliation needs the Google AI Studio / Cloud billing page (founder access).
+- Image provider not configured on the worker; no commercial video/voice/music provider contracted.
+
+### 4. Not implemented / open defects
+- Build reliability is not yet acceptable: 7 paid builds today on evolving code → 2 READY (37950195508, 37961193099), 5 failed after 5 repairs; each failure was diagnosed and fixed (see commits) but the latest fix set has only 1 paid success; the crash-stage build (book list) failed verification on `039574f`.
+- Generated-app sign-in/roles, automation, 2D games, media pipeline: NOT_IMPLEMENTED (agents/skills say so).
+- The call in flight at a worker crash cannot be metered (provider may bill it).
+
+**Cost truth correction**: Gemini's OpenAI-compatible usage reports thinking only in `total_tokens`; until `20b4bcc` metered cost excluded it. Spend audit 37966168410: QA guard (all-time, what the $10 cap counts) **$4.527** + rehearsals outside the guard ≈ $1.81 → **≈ $6.34 metered**. Conservative upper bound (gemini-3.8-flash pre-fix calls at worst case, +$1.93): **≈ $8.27 of $10**. Paid testing stopped; remaining is ≈ $3.66 metered / ≈ $1.73 conservative.
+
+**Tests**: local full suite 1108 passed, 53 skipped, 9 failed + 14 errors — identical to the baseline (fastapi/boto3 absent locally); regression guardian 0 problems; CI v24-ci, V11 Overlay CI, Neon bootstrap CI green on every merged commit.
+
 ## Update 2026-10-09 14:45 Asia/Jerusalem — merged to pre-staging and verified on the real server (founder approval 13:38)
 
 **Status of this package: deployed to pre-staging, real-server checks passed with named failures below. Not LIVE, not production.**
