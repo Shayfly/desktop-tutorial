@@ -28,7 +28,7 @@
 | `agent.security` | Security Agent | **PARTIAL** | 1 | `agent.chief_orchestrator` |
 | `agent.compliance` | Compliance Agent | **NOT_IMPLEMENTED** | 1 | `agent.chief_orchestrator` |
 | `agent.repair` | Repair Agent | **PARTIAL** | 3 | `agent.chief_orchestrator` |
-| `agent.deployment` | Deployment Agent | **PARTIAL** | 5 | `agent.chief_orchestrator` |
+| `agent.deployment` | Deployment Agent | **NOT_IMPLEMENTED** | 5 | `agent.chief_orchestrator` |
 | `agent.cost_auditor` | Cost Auditor | **PARTIAL** | 1 | `agent.chief_orchestrator` |
 
 Agent skill references and dependency cycles are validated in code and CI tests.

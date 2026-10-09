@@ -90,6 +90,14 @@
       ]
     },
     {
+      "category": "media",
+      "key": "replicate",
+      "optional": [],
+      "required_secrets": [
+        "REPLICATE_API_TOKEN"
+      ]
+    },
+    {
       "category": "email",
       "key": "resend",
       "optional": [],
@@ -147,5 +155,5 @@
   ],
   "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME",
   "schema_version": 1,
-  "truth_sha256": "318691c9c510c3ddd06cbe434d0924477b66504b63ea662e2c7b3405292265d9"
+  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
 }

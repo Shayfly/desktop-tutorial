@@ -1512,7 +1512,7 @@
         "project-scoped durable context",
         "immutable build-contract revision"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "success_criteria": [
         "produce machine-verifiable evidence or explicit failure"
       ],
@@ -1583,5 +1583,5 @@
     }
   ],
   "schema_version": 1,
-  "truth_sha256": "318691c9c510c3ddd06cbe434d0924477b66504b63ea662e2c7b3405292265d9"
+  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
 }

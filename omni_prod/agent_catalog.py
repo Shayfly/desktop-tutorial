@@ -164,6 +164,34 @@ CATALOG: tuple[AgentRole, ...] = (
        ('dependency checks', 'stale verification detection', 'implementation matching'), 'nothing is LIVE without implementation and evidence'),
     _r('provider_evaluator', PLATFORM, 'Provider Evaluator', 'test providers and models',
        ('benchmark execution', 'cost/quality measurement'), 'routing decisions rest on recorded measurements'),
+    # Master directive 2026-10-09 §8: 12 responsibilities that complete the
+    # company. Explicit roles (not merged), so each has its own status; several
+    # need deterministic components rather than an LLM.
+    _r('discovery_lead', MANAGEMENT, 'Discovery Lead', 'professional discovery conversation, not a generic form',
+       ('questions.select', 'preferences.delegate', 'contradiction.detect', 'answers.merge'),
+       'clear, vague and delegated conversations each end in a summary the user approves'),
+    _r('requirements_traceability_auditor', QUALITY, 'Requirements Traceability Auditor', 'prevent omissions',
+       ('brief->task->artifact->test matrix',), 'every approved requirement is covered by a passing check or an explicit blocker'),
+    _r('brand_design_director', SOFTWARE, 'Brand & Design Director', 'a professional visual language for each product',
+       ('palette.propose', 'typography.select', 'design.tokens', 'references'), 'approved choices are used consistently'),
+    _r('accessibility_localization_reviewer', QUALITY, 'Accessibility & Localization Reviewer', 'usability and languages',
+       ('keyboard/focus', 'labels', 'RTL/LTR', 'locale.verify'), 'desktop and mobile checks pass'),
+    _r('integration_secret_steward', PLATFORM, 'Integration & Secret Steward', 'ownership of commercial connections',
+       ('scopes', 'vault refs', 'revoke', 'managed/customer/BYOK'), 'no secret in any product, log or export'),
+    _r('reliability_recovery_engineer', PLATFORM, 'Reliability & Recovery Engineer', 'failure without losing work',
+       ('checkpoints', 'leases', 'compensation', 'restore'), 'crash recovery is proven'),
+    _r('performance_resource_engineer', PLATFORM, 'Performance & Resource Engineer', 'time and resources',
+       ('profiling', 'runtime limits', 'resources.cleanup'), 'measured limits hold'),
+    _r('release_change_coordinator', PLATFORM, 'Release & Change Coordinator', 'no uncoordinated change',
+       ('branch ownership', 'CI/worker gate', 'safe rollout'), 'no worker is replaced in the middle of a build'),
+    _r('privacy_ip_steward', QUALITY, 'Privacy & IP Steward', 'provenance, data and policy',
+       ('provenance', 'consent', 'retention', 'complaint routing'), 'no invented license'),
+    _r('customer_success_handover', MANAGEMENT, 'Customer Success & Handover Agent', 'a delivery the customer understands',
+       ('onboarding', 'known limits', 'usage guide'), 'a new person succeeds in using the product'),
+    _r('product_economics_analyst', MANAGEMENT, 'Product Economics Analyst', 'business advantage and contribution margin',
+       ('per-stage cost', 'scenario analysis', 'gross contribution'), 'assumptions are marked'),
+    _r('partner_readiness_reviewer', QUALITY, 'Partner Readiness Reviewer', 'independent review of the product',
+       ('acceptance matrix', 'cold demo', 'evidence review'), 'no blocker is hidden'),
 )
 
 BY_KEY = {role.key: role for role in CATALOG}

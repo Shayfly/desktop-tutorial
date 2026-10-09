@@ -123,19 +123,12 @@ def _status_for_capability(key: str) -> CapabilityStatus:
         )
     if key in {"target.web", "target.saas", "target.backend", "target.database"}:
         return CapabilityStatus.PARTIAL
-    if key in {
-        "target.android.source", "target.android.build", "target.ios.source",
-        "target.ios.build", "target.game.2d", "target.game.3d",
-    }:
-        return CapabilityStatus.PARTIAL
-    if key.startswith("media."):
-        return CapabilityStatus.PARTIAL
-    if key.startswith("integration.") and key in {
-        "integration.payment", "integration.email", "integration.maps",
-        "integration.storage", "integration.database", "integration.source_control",
-        "integration.oauth", "integration.analytics", "integration.webhook",
-    }:
-        return CapabilityStatus.PARTIAL
+    # Directive 2026-10-09 §6 ("fix the 49 old PARTIAL skills"): mobile/game
+    # targets (8), media (32) and integration (9) skills were PARTIAL although
+    # no build path runs them and no run ever verified them. They are
+    # NOT_IMPLEMENTED until a runtime binding with evidence exists
+    # (omni_prod/runtime_bindings.py; docs/AGENT_SKILL_STATUS.md). The scaffolding
+    # modules named in implementation_location stay; they are not a runtime path.
     return CapabilityStatus.NOT_IMPLEMENTED
 
 

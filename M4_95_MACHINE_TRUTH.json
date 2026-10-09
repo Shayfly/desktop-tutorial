@@ -1513,7 +1513,7 @@
         "project-scoped durable context",
         "immutable build-contract revision"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "success_criteria": [
         "produce machine-verifiable evidence or explicit failure"
       ],
@@ -2689,6 +2689,14 @@
         ]
       },
       {
+        "category": "media",
+        "key": "replicate",
+        "optional": [],
+        "required_secrets": [
+          "REPLICATE_API_TOKEN"
+        ]
+      },
+      {
         "category": "email",
         "key": "resend",
         "optional": [],
@@ -2746,7 +2754,7 @@
     ],
     "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME"
   },
-  "provider_definition_count": 16,
+  "provider_definition_count": 17,
   "registry_report": {
     "agent_governance_issues": [],
     "skill_governance_issues": [],
@@ -2755,7 +2763,7 @@
   },
   "registry_version": "m4.95-v2",
   "schema_version": 1,
-  "sha256": "318691c9c510c3ddd06cbe434d0924477b66504b63ea662e2c7b3405292265d9",
+  "sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a",
   "skill_count": 104,
   "skills": [
     {
@@ -3293,7 +3301,7 @@
         "skill.software.export"
       ],
       "description": "Execute capability software.deploy.web",
-      "implementation_location": "omni_prod/deployment.py",
+      "implementation_location": "omni_prod/deployments.py",
       "key": "skill.software.deploy.web",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -3539,7 +3547,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "mobile"
       ],
@@ -3581,7 +3589,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "mobile"
       ],
@@ -3623,7 +3631,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "mobile"
       ],
@@ -3665,7 +3673,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "mobile"
       ],
@@ -3833,7 +3841,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "game"
       ],
@@ -3875,7 +3883,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "game"
       ],
@@ -3919,7 +3927,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -3968,7 +3976,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4017,7 +4025,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4066,7 +4074,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4115,7 +4123,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4164,7 +4172,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4213,7 +4221,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4262,7 +4270,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4313,7 +4321,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4364,7 +4372,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4415,7 +4423,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4466,7 +4474,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4517,7 +4525,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4568,7 +4576,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4619,7 +4627,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4670,7 +4678,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4722,7 +4730,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4771,7 +4779,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4820,7 +4828,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4869,7 +4877,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4918,7 +4926,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -4967,7 +4975,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5016,7 +5024,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5065,7 +5073,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5114,7 +5122,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5163,7 +5171,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5212,7 +5220,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5261,7 +5269,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5310,7 +5318,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5359,7 +5367,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5408,7 +5416,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5457,7 +5465,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5808,7 +5816,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -5857,7 +5865,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6004,7 +6012,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6053,7 +6061,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6102,7 +6110,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6151,7 +6159,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6200,7 +6208,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6249,7 +6257,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6298,7 +6306,7 @@
         "no_secret_exposure",
         "evidence_required_before_success"
       ],
-      "status": "PARTIAL",
+      "status": "NOT_IMPLEMENTED",
       "supported_targets": [
         "web",
         "saas",
@@ -6318,7 +6326,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.web",
-      "implementation_location": "omni_prod/deployment.py",
+      "implementation_location": "omni_prod/deployments.py",
       "key": "skill.publish.web",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -6362,7 +6370,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.android",
-      "implementation_location": "omni_prod/deployment.py",
+      "implementation_location": "omni_prod/deployments.py",
       "key": "skill.publish.android",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -6406,7 +6414,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.ios",
-      "implementation_location": "omni_prod/deployment.py",
+      "implementation_location": "omni_prod/deployments.py",
       "key": "skill.publish.ios",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -6450,7 +6458,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Execute capability publish.asset",
-      "implementation_location": "omni_prod/deployment.py",
+      "implementation_location": "omni_prod/deployments.py",
       "key": "skill.publish.asset",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -7363,7 +7371,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Perform visual and responsive quality review",
-      "implementation_location": "omni_prod/acceptance.py",
+      "implementation_location": "omni_prod/acceptance_pipeline.py",
       "key": "skill.internal.visual_qa",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",
@@ -7480,7 +7488,7 @@
       "cost_model": "PLATFORM_COMPUTE",
       "dependency_keys": [],
       "description": "Apply domain/legal/compliance release gates",
-      "implementation_location": "omni_prod/rights_engine.py",
+      "implementation_location": "omni_prod/rights_ip.py",
       "key": "skill.internal.compliance_review",
       "last_verified_date": "2026-10-04",
       "last_verified_version": "registry-governance-v1",

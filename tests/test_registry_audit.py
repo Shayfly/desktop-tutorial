@@ -30,9 +30,9 @@ class CatalogAndBindingTests(unittest.TestCase):
 class LifecycleTests(unittest.TestCase):
     role = BY_KEY['qa_verifier']
 
-    def _row(self, binding, env=None, registry=None):
+    def _row(self, binding, env=None, registry=None, lock=None):
         with mock.patch.dict(ra.BY_ROLE, {self.role.key: binding}, clear=False):
-            return ra.audit_role(self.role, env or {}, registry)
+            return ra.audit_role(self.role, env or {}, registry, lock if lock is not None else {})
 
     def test_unbound_role_is_only_defined(self):
         with mock.patch.dict(ra.BY_ROLE, {}, clear=True):
@@ -46,13 +46,35 @@ class LifecycleTests(unittest.TestCase):
         b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web')
         self.assertEqual(self._row(b).lifecycle, ra.IMPLEMENTED)
 
+    def _fresh_lock(self, commit='abc1234'):
+        return {f'{commit}|omni_prod/registry_audit.py': ra._current_digest('omni_prod/registry_audit.py')}
+
     def test_missing_configuration_blocks_and_names_it(self):
         b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web', (Requirement(('SOME_KEY',)),),
-                    (Evidence('live', 'run 1'),))
+                    (Evidence('live', 'run 1', commit='abc1234', asserts=('x works',)),), verified_scope=('x works',))
         row = self._row(b, env={})
         self.assertEqual(row.lifecycle, ra.BLOCKED)
         self.assertIn('SOME_KEY: MISSING', row.configuration)
-        self.assertEqual(self._row(b, env={'SOME_KEY': 'x'}).lifecycle, ra.VERIFIED)
+        self.assertEqual(self._row(b, env={'SOME_KEY': 'x'}, lock=self._fresh_lock()).lifecycle, ra.VERIFIED)
+
+    def test_verified_names_its_scope_and_goes_stale_when_code_changes(self):
+        """Directive 2026-10-09 §6: VERIFIED is scoped, and a code change
+        after the run makes it STALE ("has a run id" is not enough)."""
+        b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web', (),
+                    (Evidence('live', 'run 7', commit='abc1234', asserts=('forms submit twice',)),), verified_scope=('forms',))
+        fresh = self._row(b, lock=self._fresh_lock())
+        self.assertEqual(fresh.lifecycle, ra.VERIFIED)
+        self.assertIn('VERIFIED for: forms submit twice', fresh.verification)
+        stale = self._row(b, lock={'abc1234|omni_prod/registry_audit.py': 'different'})
+        self.assertEqual(stale.lifecycle, ra.STALE)
+        self.assertIn('code changed since: omni_prod/registry_audit.py', stale.verification)
+        unknown = self._row(b, lock={})
+        self.assertEqual(unknown.lifecycle, ra.STALE)
+        self.assertIn('freshness unknown', unknown.verification)
+
+    def test_run_id_without_commit_is_never_verified(self):
+        b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web', (), (Evidence('live', 'run 1'),))
+        self.assertNotEqual(self._row(b, lock=self._fresh_lock()).lifecycle, ra.VERIFIED)
 
     def test_broken_implementation_is_flagged_not_trusted(self):
         b = Binding(self.role.key, ('omni_prod.nope:Gone',), 'web', (), (Evidence('live', 'run 1'),))
@@ -62,7 +84,38 @@ class LifecycleTests(unittest.TestCase):
 
     def test_registry_live_without_evidence_is_a_mismatch(self):
         b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web')
-        self.assertTrue(any('no live evidence' in i for i in self._row(b, registry='LIVE').issues))
+        self.assertTrue(any('no fresh live evidence' in i for i in self._row(b, registry='LIVE').issues))
+
+
+class DirectiveCatalogTests(unittest.TestCase):
+    def test_twelve_directive_roles_are_registered(self):
+        for key in ('discovery_lead', 'requirements_traceability_auditor', 'brand_design_director',
+                    'accessibility_localization_reviewer', 'integration_secret_steward', 'reliability_recovery_engineer',
+                    'performance_resource_engineer', 'release_change_coordinator', 'privacy_ip_steward',
+                    'customer_success_handover', 'product_economics_analyst', 'partner_readiness_reviewer'):
+            self.assertIn(key, BY_KEY)
+        self.assertEqual(len(CATALOG), 61)
+
+    def test_every_section_9_skill_has_a_kind_and_an_explicit_status(self):
+        from omni_prod.skill_catalog import CATALOG as SKILLS
+        rows = ra.catalog_skill_rows()
+        self.assertEqual(len(rows), len(SKILLS))
+        for key in ('intent.parse', 'approval.bind', 'browser.flow.verify', 'deployment.publish', 'budget.reserve',
+                    'video.generate', 'game.playtest', 'registry.audit'):
+            self.assertIn(key, {r[0] for r in rows})
+        for r in rows:
+            self.assertIn(r[2], ('INSTRUCTION', 'EXECUTABLE', 'VALIDATOR', 'WORKFLOW'), r[0])
+            self.assertIn(r[3], ra.ORDER, r[0])
+        by = {r[0]: r for r in rows}
+        self.assertEqual(by['deployment.publish'][3], ra.NOT_IMPLEMENTED)
+        self.assertEqual(by['video.generate'][3], ra.NOT_IMPLEMENTED)
+        self.assertNotEqual(by['image.generate'][3], ra.VERIFIED)  # Replicate auth is not image generation
+
+    def test_older_registry_has_no_partial_skill_off_the_web_path(self):
+        from omni_prod.skills_registry import build_canonical_skills_registry
+        partial = [s.key for s in build_canonical_skills_registry().all() if s.status.value == 'PARTIAL']
+        self.assertFalse([k for k in partial if k.startswith(('skill.media.', 'skill.integration.', 'skill.target.android',
+                                                              'skill.target.ios', 'skill.target.game'))], partial)
 
 
 class ReportTests(unittest.TestCase):
