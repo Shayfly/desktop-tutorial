@@ -141,6 +141,16 @@ def parse_openai_compatible_usage(payload: Any, headers: Any, *, provider: str, 
         elif "cached_tokens" in usage:
             cached_tokens = _non_negative_int(usage.get("cached_tokens"))
         cost = _cost(usage.get("cost", usage.get("total_cost")))
+        # Billable output includes hidden reasoning. OpenAI counts it inside
+        # completion_tokens (total == prompt + completion). Gemini's
+        # OpenAI-compatible endpoint leaves thinking out of completion_tokens
+        # and only in total_tokens, but bills it at the output price; the
+        # remainder is added so metered cost is not under-counted.
+        total = _non_negative_int(usage.get("total_tokens"))
+        if total is not None and input_tokens is not None and output_tokens is not None:
+            hidden = total - input_tokens - output_tokens
+            if hidden > 0:
+                output_tokens += hidden
 
     return ProviderUsage(
         provider=provider, model=model, external=external, request_id=request_id,

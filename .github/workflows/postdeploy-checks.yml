@@ -17,7 +17,7 @@ on:
       stage:
         description: free or paid
         type: choice
-        options: [free, paid, crash, cancel-build, inspect-build]
+        options: [free, paid, crash, cancel-build, inspect-build, spend-audit]
         required: true
       build_id:
         description: "cancel-build / inspect-build: the synthetic build id"
@@ -163,6 +163,34 @@ jobs:
           for pid, rep in (ev.get("web_saas_acceptance_reports") or {}).items():
               checks = rep.get("checks", [])
               note("acceptance " + pid, json.dumps({"status": rep.get("status"), "summary": rep.get("summary"), "checks": checks}, ensure_ascii=False, default=str))
+          '
+
+      - name: Spend audit (read-only)
+        if: inputs.stage == 'spend-audit'
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres "$IMG" python -c '
+          from omni_prod.investor_app import _v28_pool
+          from omni_prod.qa_budget import qa_used_usd
+          def note(t, m):
+              print(f"::notice title={t}::" + str(m)[:3800].replace("%", "%25").replace("\n", "%0A"))
+          with _v28_pool.connection() as c:
+              with c.cursor() as cur:
+                  used = qa_used_usd(cur)
+              rows = c.execute("""
+                SELECT a.model, count(*),
+                       COALESCE(sum(a.metered_cost_usd), 0),
+                       COALESCE(sum(a.authorized_cost_usd) FILTER (WHERE a.outcome = \x27ok\x27 OR a.failure_reason NOT LIKE \x27ModelHTTPError%%\x27), 0)
+                FROM task_attempts a JOIN credit_reservations r ON r.build_id = a.build_id
+                WHERE r.funding_source = \x27internal_qa\x27 AND a.kind = \x27provider_call\x27 AND a.metered_cost_usd IS NOT NULL
+                GROUP BY a.model ORDER BY 3 DESC""").fetchall()
+              metered_builds = c.execute("""
+                SELECT count(DISTINCT r.build_id), COALESCE(sum(r.settled_provider_cost_usd), 0)
+                FROM credit_reservations r WHERE r.funding_source = \x27internal_qa\x27
+                  AND r.build_id IN (SELECT build_id FROM task_attempts WHERE metered_cost_usd IS NOT NULL)""").fetchone()
+          note("qa guard total (all-time, what the 10 USD cap counts)", str(used))
+          note("builds settled at metered usage", f"builds={metered_builds[0]} settled_sum={metered_builds[1]}")
+          note("metered vs worst-case per model (served calls)", "\n".join(f"{m}: calls={n} metered={me} worst_case={wc}" for m, n, me, wc in rows))
           '
 
       - name: Always restart the build worker

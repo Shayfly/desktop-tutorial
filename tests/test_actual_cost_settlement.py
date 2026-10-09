@@ -123,5 +123,27 @@ class LedgerFlushTests(unittest.TestCase):
         self.assertEqual(control.model_calls, 1)
 
 
+
+class ThinkingTokenMeteringTests(unittest.TestCase):
+    """Gemini's OpenAI-compatible usage leaves thinking out of
+    completion_tokens (only in total_tokens) but bills it as output."""
+
+    def _usage(self, usage):
+        from omni_prod.provider_usage import parse_openai_compatible_usage
+        return parse_openai_compatible_usage({'id': 'r', 'usage': usage}, {}, provider='p', model='m', external=True)
+
+    def test_hidden_thinking_is_billed_as_output(self):
+        u = self._usage({'prompt_tokens': 12000, 'completion_tokens': 3700, 'total_tokens': 29500})
+        self.assertEqual(u.output_tokens, 17500)
+
+    def test_openai_style_usage_is_not_double_counted(self):
+        u = self._usage({'prompt_tokens': 100, 'completion_tokens': 900, 'total_tokens': 1000,
+                         'completion_tokens_details': {'reasoning_tokens': 700}})
+        self.assertEqual(u.output_tokens, 900)
+
+    def test_usage_without_total_is_unchanged(self):
+        self.assertEqual(self._usage({'input_tokens': 10, 'output_tokens': 20}).output_tokens, 20)
+
+
 if __name__ == '__main__':
     unittest.main()
