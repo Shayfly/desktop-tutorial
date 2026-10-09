@@ -126,6 +126,12 @@ class PreviewAccess:
         kind = self._cached(('tok', preview_id, h), 30.0, load)
         if kind == 'owner':
             return True
+        if kind == 'share' and mode != 'SHARED':
+            # The owner may have shared it a moment ago: never let the mode
+            # cache refuse a valid share link (real-server check 2026-10-09).
+            with self._lock:
+                self._cache.pop(('mode', preview_id), None)
+            mode = self.mode(preview_id)
         return kind == 'share' and mode == 'SHARED'
 
     def record_denied(self, preview_id: str) -> None:

@@ -297,7 +297,12 @@ def stage_free(state: dict) -> None:
                "((table_name='build_jobs' AND column_name IN ('cancel_requested_at','cancel_requested_by')) OR "
                "(table_name='project_previews' AND column_name='data_storage'))")
     events_table = sql("SELECT to_regclass('public.build_events') IS NOT NULL")[0][0]
-    record('migrations', max(versions) == 31 and 31 in versions and len(cols) == 3 and events_table,
+    access_table = sql("SELECT to_regclass('public.preview_access_tokens') IS NOT NULL")[0][0]
+    expected = max(int(p.name.split('_', 1)[0]) for p in __import__('pathlib').Path(__file__).resolve().parents[1]
+                   .joinpath('infra', 'postgres').glob('*.sql')) if __import__('pathlib').Path(__file__).resolve()\
+        .parents[1].joinpath('infra', 'postgres').exists() else max(versions)
+    record('migrations', max(versions) == expected and 31 in versions and len(cols) == 3 and events_table
+           and (max(versions) < 32 or access_table),
            f'{len(versions)} applied, latest {max(versions)} ({rows[-1][1]}); 031 columns {len(cols)}/3; '
            f'build_events={events_table}')
 

@@ -109,8 +109,7 @@ class PreviewAccessTests(unittest.TestCase):
     def test_share_link_works_only_while_shared_and_is_revoked_by_private(self):
         token, _ = self.access.issue(self.pid, kind='share')
         self.assertEqual(self.get('/', headers={HEADER: token})[0], 401)   # PRIVATE ignores share links
-        self.access.set_mode(self.pid, 'SHARED')
-        self.access._cache.clear()
+        self.access.set_mode(self.pid, 'SHARED')   # no cache clearing: works at once
         self.assertEqual(self.get('/', headers={HEADER: token})[0], 200)
         self.access.set_mode(self.pid, 'PRIVATE')
         self.access._cache.clear()
