@@ -14,6 +14,10 @@ on:
         description: Log lines per container (max 200)
         required: false
         default: "120"
+      drain_check_seconds:
+        description: "Optional 30-600: also enqueue ONE harmless time.sleep(N) job on the build queue, to prove a deploy drains (directive §18). Writes only that queue entry."
+        required: false
+        default: ""
       preview_id:
         description: "Optional preview id (prv_<hex>): publish that preview container's state, request log and GET probes (read-only)"
         required: false
@@ -35,6 +39,8 @@ jobs:
         env:
           LINES_INPUT: ${{ inputs.lines }}
           PREVIEW_INPUT: ${{ inputs.preview_id }}
+          DRAIN_INPUT: ${{ inputs.drain_check_seconds }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
           n="${LINES_INPUT:-120}"; case "$n" in ''|*[!0-9]*) n=120;; esac; [ "$n" -gt 200 ] && n=200
@@ -70,4 +76,18 @@ jobs:
             hp=$(docker port "$c" 2>/dev/null | head -1 | sed 's/.*://')
             probe() { for path in / /books /members /loans /overdue; do printf '%s %s\n' "$path" "$(curl -sS -m 5 -o /dev/null -w '%{http_code} %{size_download}b' "http://127.0.0.1:$hp$path" 2>&1)"; done; }
             [ -n "$hp" ] && publish "preview GET probes" probe
+          fi
+          s="${DRAIN_INPUT:-}"
+          if [ -n "$s" ]; then
+            case "$s" in *[!0-9]*) echo "::error::drain_check_seconds must be a number"; exit 1;; esac
+            [ "$s" -ge 30 ] && [ "$s" -le 600 ] || { echo "::error::drain_check_seconds must be 30-600"; exit 1; }
+            docker exec -e S="$s" -e JOB="drain-check-$RUN_ID" omni-worker-worker-1 python -c '
+          import os
+          from redis import Redis
+          from rq import Queue
+          s = int(os.environ["S"])
+          q = Queue("omni-builds", connection=Redis.from_url(os.environ["OMNI_REDIS_URL"]))
+          job = q.enqueue("time.sleep", s, job_id=os.environ["JOB"], job_timeout=s + 60, result_ttl=3600)
+          print(f"::notice title=drain check::enqueued {job.id}: time.sleep({s}) on omni-builds")
+          '
           fi
