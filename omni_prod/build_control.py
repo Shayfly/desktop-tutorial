@@ -48,7 +48,7 @@ class BuildControl:
             _log.warning('build event write failed for %s', self.build_id, exc_info=True)
 
     def checkpoint(self) -> None:
-        asked = getattr(self._jobs, 'cancel_requested', None)
+        asked = getattr(self._jobs, 'checkpoint', None) or getattr(self._jobs, 'cancel_requested', None)
         if asked is None:
             return
         try:
@@ -101,3 +101,56 @@ def install(engine, gateway, control: BuildControl):
     if getattr(engine, 'executor', None) is not None:
         engine.executor = ControlledExecutor(engine.executor, control)
     return engine
+
+
+class ModificationJobs:
+    """The control surface of a change (modification), same shape as the
+    build repository's: heartbeat + stop flag, live log, stop request."""
+
+    def __init__(self, pool):
+        self.pool = pool
+
+    def add_event(self, modification_id: str, kind: str, message: str) -> None:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("INSERT INTO build_events(build_id, kind, message, job_kind) VALUES (%s, %s, %s, 'modification')",
+                             (modification_id, kind, str(message)[:600]))
+
+    def checkpoint(self, modification_id: str) -> bool:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                row = conn.execute("UPDATE modification_requests SET heartbeat_at = now() WHERE id = %s "
+                                   "RETURNING cancel_requested_at IS NOT NULL", (modification_id,)).fetchone()
+        return bool(row and row[0])
+
+    def request_cancel(self, modification_id: str, project_id: str, *, requested_by: str) -> str:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                row = conn.execute("SELECT status FROM modification_requests WHERE id = %s AND project_id = %s FOR UPDATE",
+                                   (modification_id, project_id)).fetchone()
+                if row is None:
+                    raise KeyError('modification not found or access denied')
+                if row[0] == 'QUEUED':
+                    conn.execute("UPDATE modification_requests SET status = 'CANCELLED', completed_at = now(), "
+                                 "error_code = 'cancelled_by_user', cancel_requested_at = now() WHERE id = %s",
+                                 (modification_id,))
+                    conn.execute("INSERT INTO build_events(build_id, kind, message, job_kind) VALUES (%s, 'cancel', %s, 'modification')",
+                                 (modification_id, 'השינוי בוטל לפני שהתחיל. לא נוצלו קרדיטים.'))
+                    return 'cancelled'
+                if row[0] == 'RUNNING':
+                    conn.execute("UPDATE modification_requests SET cancel_requested_at = COALESCE(cancel_requested_at, now()) "
+                                 "WHERE id = %s", (modification_id,))
+                    conn.execute("INSERT INTO build_events(build_id, kind, message, job_kind) VALUES (%s, 'cancel', %s, 'modification')",
+                                 (modification_id, 'התקבלה בקשת עצירה. השינוי ייעצר בסיום הצעד הנוכחי.'))
+                    return 'cancel_requested'
+                return row[0]
+
+    def events(self, modification_id: str, project_id: str, *, after: int = 0, limit: int = 200) -> list[dict]:
+        with self.pool.connection() as conn:
+            if conn.execute("SELECT 1 FROM modification_requests WHERE id = %s AND project_id = %s",
+                            (modification_id, project_id)).fetchone() is None:
+                raise KeyError('modification not found or access denied')
+            rows = conn.execute("SELECT seq, at, kind, message FROM build_events WHERE build_id = %s "
+                                "AND job_kind = 'modification' AND seq > %s ORDER BY seq LIMIT %s",
+                                (modification_id, int(after), int(limit))).fetchall()
+        return [{'seq': r[0], 'at': r[1].isoformat() if r[1] else None, 'kind': r[2], 'message': r[3]} for r in rows]

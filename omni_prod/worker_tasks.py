@@ -51,7 +51,7 @@ from .models import BuildStatus
 from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
 from .infrastructure_provisioner import InfrastructureStageBlocked
-from .build_control import BuildCancelled, BuildControl, install as install_build_control
+from .build_control import BuildCancelled, BuildControl, ControlledExecutor, install as install_build_control
 
 
 def set_acceptance_scope(engine, contract: dict | None) -> None:
@@ -353,6 +353,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         return None
     if not jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.RUNNING):
         return None  # duplicate delivery / already handled: idempotent no-op
+    beat = getattr(jobs, 'checkpoint', None)
+    if callable(beat):  # crash recovery: the heartbeat starts at the claim
+        try:
+            beat(build_id)
+        except Exception:
+            logging.getLogger(__name__).warning('first heartbeat failed for %s', build_id, exc_info=True)
 
     subscriptions = platform.subscriptions
     internal_project_id = request['internal_project_id']
@@ -781,7 +787,7 @@ _MODIFICATION_STATUS_MAP = {
 
 def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, subscriptions,
                           components_factory, quality_fn, security_fn, rights_engine,
-                          min_quality: int = 80, preflight=None) -> str | None:
+                          min_quality: int = 80, preflight=None, control_jobs=None) -> str | None:
     """Returns the terminal status written, or None if nothing was done
     (unknown modification id / already claimed by another delivery)."""
     try:
@@ -819,6 +825,16 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
         if acceptance_target is not None and scope_pool is not None:
             acceptance_target.scope = contract_scope_for_version(scope_pool, project_id=project_id,
                                                                  version_id=source_version_id)
+        # Autonomous completion §5: a change can be stopped and shows its live
+        # log, like a build (heartbeat at every step boundary).
+        control = None
+        if control_jobs is not None:
+            control = BuildControl(control_jobs, modification_id)
+            if hasattr(gateway, 'before_call'):
+                gateway.before_call = control.before_model_call
+            executor = ControlledExecutor(executor, control)
+            control.log('phase', 'מתחיל לעבד את בקשת השינוי')
+            control.checkpoint()
         engine = CandidateModificationEngine(
             classifier=classifier, repairer=repairer, executor=executor, evolver=evolver,
             quality_fn=quality_fn, security_fn=security_fn, rights_engine=rights_engine,
@@ -835,6 +851,17 @@ def _run_modification_job(modification_id: str, *, jobs, spec_repo, workspace, s
             # 'change_request_not_supported' (see its docstring); this is a
             # contract-violation guard, not a real code path.
             raise RuntimeError(f'unexpected CandidateModificationEngine outcome status: {outcome.status!r}')
+    except BuildCancelled as exc:
+        spent, calls = spend_snapshot(gateway)
+        billing = resolve_billing(subscriptions, build_id=modification_id, ready=False, spent=spent, external_calls=calls)
+        jobs.complete(
+            modification_id, project_id=project_id, status='CANCELLED',
+            error_code='cancelled_by_user', error_message=str(exc)[:500],
+            evidence_json={'billing': billing, 'provider_spend_usd': str(spent),
+                           'provider_usage': provider_usage_evidence(gateway),
+                           'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS},
+        )
+        return 'CANCELLED'
     except Exception as exc:
         spent, calls = spend_snapshot(gateway)
         billing = resolve_billing(subscriptions, build_id=modification_id, ready=False, spent=spent, external_calls=calls)
@@ -900,6 +927,7 @@ def execute_modification_job(modification_id: str) -> None:
         rights_engine=_v28.rights,
         min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
         preflight=lambda: ensure_durable_workspace(workspace, purpose='Natural-language product modification'),
+        control_jobs=__import__('omni_prod.build_control', fromlist=['ModificationJobs']).ModificationJobs(_v28_pool),
     )
 
 

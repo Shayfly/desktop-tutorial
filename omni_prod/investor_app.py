@@ -2373,6 +2373,32 @@ def v28_modification_latest(project_id: str, request: Request) -> dict:
         'created_at': d.created_at, 'completed_at': d.completed_at,
     }
 
+@app.post('/api/v28/projects/{project_id}/modifications/{modification_id}/cancel')
+def v28_modification_cancel(project_id: str, modification_id: str, request: Request) -> dict:
+    """Autonomous completion §5: stop a change like a build."""
+    from .build_control import ModificationJobs
+    key = _modification_key(project_id, request)
+    account = _v28.account(_v28_bearer(request))
+    try:
+        outcome = ModificationJobs(_v28_pool).request_cancel(modification_id, key, requested_by=str(account.id))
+    except KeyError:
+        raise HTTPException(404, "Modification not found or access denied")
+    if outcome == 'cancelled':
+        _v28.subscriptions.release(build_id=modification_id)
+    return {'modification_id': modification_id, 'outcome': outcome}
+
+
+@app.get('/api/v28/projects/{project_id}/modifications/{modification_id}/events')
+def v28_modification_events(project_id: str, modification_id: str, request: Request, after: int = 0) -> dict:
+    from .build_control import ModificationJobs
+    key = _modification_key(project_id, request)
+    try:
+        events = ModificationJobs(_v28_pool).events(modification_id, key, after=max(0, int(after)))
+    except KeyError:
+        raise HTTPException(404, "Modification not found or access denied")
+    return {'modification_id': modification_id, 'events': events}
+
+
 @app.get('/api/v28/projects/{project_id}/modifications/{modification_id}')
 def v28_modification_status(project_id: str, modification_id: str, request: Request) -> dict:
     _require_durable_backend('Natural-language product modification')

@@ -20,6 +20,13 @@ Two gaps found during Golden E2E #1 (2026-10-07/08):
    dispatched again. Safe: the worker's QUEUED -> RUNNING claim is
    conditional, so a duplicate delivery is a no-op.
 
+4. Crash recovery (autonomous completion §5): a RUNNING build or change whose
+   worker heartbeat (written at every step boundary) is older than
+   OMNI_LOST_RUNNING_MINUTES and which no live worker reports as its current
+   job lost its worker. A stop request ends it CANCELLED; otherwise it is put
+   back in the queue once (recovery_attempts) and failed with `worker_lost`
+   after that. Reservations are released for anything that ends.
+
 Each step is independent and logged; one failing step never stops the loop.
 """
 from __future__ import annotations
@@ -30,6 +37,8 @@ import time
 STALE_BUILD_MINUTES = int(os.getenv('OMNI_STALE_BUILD_MINUTES', '45'))
 INTERVAL_SECONDS = int(os.getenv('OMNI_MAINTENANCE_INTERVAL_SECONDS', '60'))
 LOST_QUEUED_MINUTES = int(os.getenv('OMNI_LOST_QUEUED_MINUTES', '3'))
+LOST_RUNNING_MINUTES = int(os.getenv('OMNI_LOST_RUNNING_MINUTES', '15'))
+MAX_RECOVERY = 1
 
 BUILD_JOB = 'omni_prod.worker_tasks.execute_live_build_job'
 MODIFICATION_JOB = 'omni_prod.worker_tasks.execute_modification_job'
@@ -107,9 +116,76 @@ def redispatch_lost(pool, *, queued_ids, enqueue, minutes: int = LOST_QUEUED_MIN
     return sent
 
 
+_LOST = {
+    'build': ("SELECT id, cancel_requested_at IS NOT NULL, recovery_attempts FROM build_jobs WHERE status = 'running' "
+              "AND heartbeat_at IS NOT NULL AND heartbeat_at < now() - make_interval(mins => %s) LIMIT 20"),
+    'modification': ("SELECT id, cancel_requested_at IS NOT NULL, recovery_attempts FROM modification_requests "
+                     "WHERE status = 'RUNNING' AND heartbeat_at IS NOT NULL "
+                     "AND heartbeat_at < now() - make_interval(mins => %s) LIMIT 20"),
+}
+_END = {
+    'build': ("UPDATE build_jobs SET status = %s, phase = UPPER(%s), finished_at = now(), error_code = %s, "
+              "error_message = %s WHERE id = %s AND status = 'running'"),
+    'modification': ("UPDATE modification_requests SET status = UPPER(%s), completed_at = now(), error_code = %s, "
+                     "error_message = %s WHERE id = %s AND status = 'RUNNING'"),
+}
+_REQUEUE = {
+    'build': ("UPDATE build_jobs SET status = 'queued', phase = 'RECOVERING', heartbeat_at = NULL, "
+              "recovery_attempts = recovery_attempts + 1 WHERE id = %s AND status = 'running' "
+              "AND heartbeat_at < now() - make_interval(mins => %s)"),
+    'modification': ("UPDATE modification_requests SET status = 'QUEUED', heartbeat_at = NULL, "
+                     "recovery_attempts = recovery_attempts + 1 WHERE id = %s AND status = 'RUNNING' "
+                     "AND heartbeat_at < now() - make_interval(mins => %s)"),
+}
+
+
+def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), minutes: int = LOST_RUNNING_MINUTES,
+                         max_recovery: int = MAX_RECOVERY) -> dict:
+    """Crash recovery for builds and changes whose worker disappeared."""
+    out = {'recovered': [], 'cancelled': [], 'failed': []}
+    busy = set(busy_ids())
+    for kind in ('build', 'modification'):
+        with pool.connection() as conn:
+            rows = conn.execute(_LOST[kind], (int(minutes),)).fetchall()
+        for item, stop, attempts in rows:
+            if item in busy:
+                continue  # a live worker still has it: slow, not lost
+            with pool.connection() as conn:
+                with conn.transaction():
+                    if stop:
+                        done = _end(conn, kind, item, 'cancelled', 'cancelled_by_user',
+                                    'stopped on request; its worker had stopped responding')
+                        bucket, message = 'cancelled', 'הבנייה נעצרה לבקשתך.'
+                    elif attempts < max_recovery:
+                        done = conn.execute(_REQUEUE[kind], (item, int(minutes))).rowcount == 1
+                        bucket, message = 'recovered', 'השרת שעבד על זה הפסיק להגיב. מתחיל מחדש מהתחלה.'
+                    else:
+                        done = _end(conn, kind, item, 'failed', 'worker_lost',
+                                    f'the worker stopped responding for more than {minutes} minutes twice; '
+                                    'the reservation was released')
+                        bucket, message = 'failed', 'השרת הפסיק להגיב פעמיים. העבודה נעצרה והקרדיטים שוחררו.'
+                    if done:
+                        conn.execute("INSERT INTO build_events(build_id, kind, message, job_kind) VALUES (%s, 'info', %s, %s)",
+                                     (item, message, kind))
+            if not done:
+                continue
+            out[bucket].append(item)
+            if bucket == 'recovered':
+                enqueue(BUILD_JOB if kind == 'build' else MODIFICATION_JOB, item)
+            else:
+                subscriptions.release(build_id=item)
+    return out
+
+
+def _end(conn, kind, item, status, code, message) -> bool:
+    if kind == 'build':
+        return conn.execute(_END['build'], (status, status, code, message, item)).rowcount == 1
+    return conn.execute(_END['modification'], (status, code, message, item)).rowcount == 1
+
+
 def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_host: str,
-             queued_ids=None, enqueue=None) -> dict:
-    out = {'expired': 0, 'cleaned': 0, 'reaped': 0, 'redispatched': [], 'errors': []}
+             queued_ids=None, enqueue=None, busy_ids=None) -> dict:
+    out = {'expired': 0, 'cleaned': 0, 'reaped': 0, 'redispatched': [], 'recovery': None, 'errors': []}
     try:
         out['expired'] = preview_repo.mark_expired()
     except Exception as exc:
@@ -135,6 +211,12 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
             out['redispatched'] = redispatch_lost(pool, queued_ids=queued_ids, enqueue=enqueue)
         except Exception as exc:
             out['errors'].append(f'redispatch: {type(exc).__name__}: {exc}')
+        try:
+            rec = recover_lost_running(pool, subscriptions=subscriptions, enqueue=enqueue,
+                                       busy_ids=busy_ids or (lambda: ()))
+            out['recovery'] = rec if any(rec.values()) else None
+        except Exception as exc:
+            out['errors'].append(f'recovery: {type(exc).__name__}: {exc}')
     return out
 
 
@@ -157,16 +239,31 @@ def main():
     def enqueue(func, item):
         enqueue_build(redis_url, func, item, job_id=item)
 
+    def busy_ids():
+        from rq import Worker
+        from .queueing import redis_connection
+        ids = []
+        for w in Worker.all(connection=redis_connection(redis_url)):
+            try:
+                jid = w.get_current_job_id()
+            except Exception:
+                jid = None
+            if jid:
+                ids.append(jid)
+        return ids
+
     deps = dict(pool=_v28_pool, preview_repo=PostgresPreviewRepository(_v28_pool),
                 jobs=PostgresBuildRepository(_v28_pool), subscriptions=_v28.subscriptions,
                 stop_preview=stop_preview_task, runtime_host=host,
-                queued_ids=queued_ids if redis_url else None, enqueue=enqueue if redis_url else None)
+                queued_ids=queued_ids if redis_url else None, enqueue=enqueue if redis_url else None,
+                busy_ids=busy_ids if redis_url else None)
     _say(f'maintenance started: host {host}, every {INTERVAL_SECONDS}s, stale builds after {STALE_BUILD_MINUTES} min')
     while True:
         result = run_once(**deps)
-        if result['expired'] or result['cleaned'] or result['reaped'] or result['redispatched'] or result['errors']:
+        if (result['expired'] or result['cleaned'] or result['reaped'] or result['redispatched']
+                or result['recovery'] or result['errors']):
             _say(f"expired={result['expired']} cleaned={result['cleaned']} reaped={result['reaped']} "
-                 f"redispatched={result['redispatched']} errors={result['errors'][:3]}")
+                 f"redispatched={result['redispatched']} recovery={result['recovery']} errors={result['errors'][:3]}")
         time.sleep(INTERVAL_SECONDS)
 
 

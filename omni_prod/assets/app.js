@@ -46,7 +46,7 @@ const T = {
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
     repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
     buildFailed:'הבנייה נכשלה',
-    stopBuild:'עצירת הבנייה', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
+    stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
     errCodes:{verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
@@ -131,7 +131,7 @@ const T = {
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
     repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
     buildFailed:'Build failed',
-    stopBuild:'Stop the build', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
+    stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
     errCodes:{verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
@@ -874,7 +874,7 @@ async function sendModification() {
   } catch (e) { S.mod = { status: 'ERROR', error_message: explain(e) }; renderMod(); }
   finally { renderMod(); }
 }
-const MOD_DONE = ['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT', 'ERROR'];
+const MOD_DONE = ['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT', 'ERROR', 'CANCELLED'];
 // One change at a time: the send button stays locked while a change is being
 // built or waits for review (a double click once created two candidates).
 function modActive() { return !!(S.mod && S.mod.id && ['QUEUED', 'RUNNING', 'READY_FOR_REVIEW'].includes(S.mod.status)); }
@@ -882,7 +882,13 @@ async function pollMod() {
   if (!S.mod || !S.mod.id) return;
   try {
     const d = await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}`);
-    S.mod = { ...S.mod, ...d, misses: 0 }; renderMod();
+    S.mod = { ...S.mod, ...d, misses: 0 };
+    try {  // live log of the change (autonomous completion §5)
+      const ev = await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}/events?after=${S.mod.logAfter || 0}`);
+      S.mod.log = (S.mod.log || []).concat(ev.events || []);
+      if ((ev.events || []).length) S.mod.logAfter = ev.events[ev.events.length - 1].seq;
+    } catch (e) { /* the log is a convenience */ }
+    renderMod();
     if (MOD_DONE.includes(d.status)) return;
   } catch (e) {
     // A dropped or slow request is retried; only a real refusal ends polling.
@@ -903,6 +909,14 @@ async function restoreMod() {
     S.mod = { id: d.modification_id, ...d }; renderMod();
     if (d.status !== 'READY_FOR_REVIEW') pollMod();
   } catch { /* the panel simply starts empty */ }
+}
+async function cancelMod() {
+  if (!S.mod || !S.mod.id || !window.confirm(t('stopChangeConfirm'))) return;
+  S.mod.cancelRequested = true; renderMod();
+  try {
+    await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}/cancel`, { method: 'POST' });
+    clearTimeout(S.timers.mod); pollMod();
+  } catch (e) { S.mod.cancelRequested = false; S.mod.error_message = explain(e); renderMod(); }
 }
 async function decideMod(accept) {
   try {
@@ -927,7 +941,14 @@ function renderMod() {
   } else if (m.status === 'ACCEPTED') kids.push(h('p', { class: 'msg ok' }, t('modAccepted')));
   else if (m.status === 'REJECTED') kids.push(h('p', { class: 'hint' }, t('modRejected')));
   else if (['FAILED', 'ERROR', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT'].includes(m.status)) kids.push(h('p', { class: 'msg' }, t('modFailed') + (m.error_message || m.classification_reason || m.status)));
-  else kids.push(h('p', { class: 'hint' }, t('modQueued')));
+  else if (m.status === 'CANCELLED') kids.push(h('p', { class: 'hint' }, t('modCancelled')));
+  else {
+    kids.push(h('p', { class: 'hint' }, m.cancelRequested ? t('stopping') : t('modQueued')));
+    if (m.id && ['QUEUED', 'RUNNING'].includes(m.status))
+      kids.push(h('div', { class: 'row' }, h('button', { class: 'secondary danger', disabled: Boolean(m.cancelRequested), onclick: cancelMod }, t('stopChange'))));
+  }
+  if (m.log && m.log.length) kids.push(h('details', { class: 'live-log', open: true }, h('summary', {}, t('liveLog')),
+    h('ol', {}, ...m.log.slice(-30).map(e => h('li', { class: `ev ${e.kind}` }, e.message)))));
   box.replaceChildren(...kids);
 }
 

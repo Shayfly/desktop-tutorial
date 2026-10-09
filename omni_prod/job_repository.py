@@ -352,6 +352,16 @@ class PostgresBuildRepository:
                 row = cur.fetchone()
                 return {'build_id': row[0], 'status': row[1]} if row else None
 
+    def checkpoint(self, build_id: str) -> bool:
+        """Heartbeat (crash recovery, migration 033) + stop flag in one round trip."""
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE build_jobs SET heartbeat_at = now() WHERE id = %s "
+                                "RETURNING cancel_requested_at IS NOT NULL", (build_id,))
+                    row = cur.fetchone()
+                    return bool(row and row[0])
+
     def cancel_requested(self, build_id: str) -> bool:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:

@@ -1,0 +1,90 @@
+name: Backup and restore test
+
+# Autonomous completion directive §5: a backup counts only when a restore of
+# the *stored* copy succeeds. Daily and on demand, on the worker host:
+#   1. snapshot counts, migrations, project manifest, preview-data digests
+#   2. pg_dump the platform database; tar the preview data
+#   3. upload all three to object storage (backups/<stamp>/)
+#   4. download them again, restore the dump into an empty throw-away
+#      PostgreSQL, rebuild every project version from its artifact, compare
+#      the data archive with the snapshot
+#   5. prune backups older than 14 days
+# Never prints secrets; the throw-away database is always removed.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/backup-restore.yml]
+
+concurrency:
+  group: backup-restore
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.event_name != 'push'
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: Prepare
+        run: |
+          set -euo pipefail
+          BK="$RUNNER_TEMP/bk"; rm -rf "$BK"; mkdir -p "$BK" && chmod 777 "$BK"
+          echo "BK=$BK" >> "$GITHUB_ENV"
+          echo "STAMP=$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_ENV"
+          echo "IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")" >> "$GITHUB_ENV"
+          grep -E '^OMNI_DATABASE_URL=' .env > "$BK/db.env"
+          chmod 600 "$BK/db.env"
+
+      - name: Back up
+        run: |
+          set -euo pipefail
+          py() { docker run --rm --user 0 --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+                   -v "$BK:/bk" -v /var/lib/omni-preview/data:/var/lib/omni-preview/data:ro "$IMG" \
+                   python -m omni_prod.backup "$@"; }
+          py snapshot /bk "$STAMP"
+          MAJOR=$(docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres "$IMG" python -c \
+            "from omni_prod.investor_app import _v28_pool as p; c=p.connection().__enter__(); print(c.execute('show server_version_num').fetchone()[0][:2])")
+          echo "MAJOR=$MAJOR" >> "$GITHUB_ENV"
+          docker run --rm --network host --env-file "$BK/db.env" "postgres:$MAJOR" \
+            sh -c 'pg_dump -Fc --no-owner --no-acl "$OMNI_DATABASE_URL"' > "$BK/db.dump"
+          docker run --rm -v /var/lib/omni-preview:/src:ro -v "$BK:/bk" alpine:3 \
+            sh -c 'if [ -d /src/data ]; then tar -C /src -czf /bk/preview-data.tgz data; else tar -czf /bk/preview-data.tgz -T /dev/null; fi'
+          echo "::notice title=backup sizes::db.dump $(stat -c %s "$BK/db.dump") bytes, preview-data $(stat -c %s "$BK/preview-data.tgz") bytes, postgres client $MAJOR"
+          py upload /bk "$STAMP"
+
+      - name: Restore the stored copy and verify
+        run: |
+          set -uo pipefail
+          py() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+                   -v "$BK:/bk" "$IMG" python -m omni_prod.backup "$@"; }
+          py fetch /bk "$STAMP" || exit 1
+          PW=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+          docker rm -f omni-restore-test >/dev/null 2>&1 || true
+          docker run -d --name omni-restore-test -e POSTGRES_PASSWORD="$PW" -p 127.0.0.1:55499:5432 "postgres:$MAJOR" >/dev/null
+          for i in $(seq 1 40); do docker exec omni-restore-test pg_isready -U postgres -q && break; sleep 1; done
+          sleep 2
+          docker exec omni-restore-test createdb -U postgres restored
+          docker cp "$BK/restore/db.dump" omni-restore-test:/tmp/db.dump
+          errors=$(docker exec omni-restore-test pg_restore -U postgres -d restored --no-owner --no-acl /tmp/db.dump 2>&1 | grep -c 'error' || true)
+          echo "::notice title=backup restore::pg_restore of the stored copy finished (${errors} error lines)"
+          py verify /bk "$STAMP" "postgresql://postgres:${PW}@127.0.0.1:55499/restored"
+          rc=$?
+          docker rm -f omni-restore-test >/dev/null 2>&1 || true
+          exit $rc
+
+      - name: Prune old backups
+        run: |
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres "$IMG" \
+            python -m omni_prod.backup prune 14
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker rm -f omni-restore-test >/dev/null 2>&1 || true
+          rm -rf "$BK"
