@@ -19,6 +19,14 @@ services:
     entrypoint: ["true"]
     restart: "no"
 
+  browser-sandbox-image:
+    # Headless Chromium image for the real-browser check (BrowserFlowExecutor).
+    build:
+      context: ../browser-sandbox
+    image: omni-browser-sandbox:latest
+    entrypoint: ["true"]
+    restart: "no"
+
   sandbox-runner:
     build:
       context: ../..
@@ -32,6 +40,8 @@ services:
       - /var/lib/omni-sandbox:/var/lib/omni-sandbox
     depends_on:
       sandbox-image:
+        condition: service_completed_successfully
+      browser-sandbox-image:
         condition: service_completed_successfully
     networks: [internal]
     healthcheck:

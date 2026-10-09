@@ -15,6 +15,14 @@ class RunRequest(BaseModel):
     repository: dict[str,str]
     argv: list[str]=Field(min_length=1,max_length=64)
     build_id: str=Field(min_length=1,max_length=120)
+    # 'browser': the same isolation (no network, read-only source, caps
+    # dropped) in the image that also has headless Chromium + Playwright.
+    profile: str=Field(default='default',pattern='^(default|browser)$')
+
+PROFILES={
+    'default': SandboxLimits(),
+    'browser': SandboxLimits(image='omni-browser-sandbox:latest',timeout_seconds=150,memory='1536m',pids=1024,nofile=4096),
+}
 
 def _runner_ready() -> tuple[bool, str]:
     """Health reflects whether a run can work at all: the Docker client on
@@ -56,5 +64,5 @@ async def run(req: Request):
         # 2" in the first deploy sandbox probe, 2026-10-07). Same fix as
         # SandboxRepositoryExecutor (M4.9): readable source, writable output.
         os.chmod(root,0o755); os.chmod(out,0o777)
-        r=run_sandbox(source_dir=root,build_id=payload.build_id,limits=SandboxLimits(),command=payload.argv,output_dir=out)
+        r=run_sandbox(source_dir=root,build_id=payload.build_id,limits=PROFILES[payload.profile],command=payload.argv,output_dir=out)
         return {'returncode':r.returncode,'stdout':r.stdout[-100000:],'stderr':r.stderr[-100000:]}

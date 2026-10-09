@@ -12,6 +12,7 @@ on:
       - infra/worker-host/**
       - infra/sandbox/**
       - infra/sandbox-runner/**
+      - infra/browser-sandbox/**
       - infra/postgres/**
       - requirements-production.txt
       - Dockerfile
@@ -136,6 +137,35 @@ jobs:
               print(f"::error title=sandbox-probe::returncode={result['returncode']} stdout={out.strip()[:200]!r} stderr={err!r}")
               sys.exit(1)
           print(f"::notice title=sandbox-probe::PASS code ran and compiled in the isolated read-only sandbox ({out.split()[1:3]}), network blocked")
+          PY
+
+      # Directive 2026-10-09 §17: the real-browser check runs in its own image
+      # with the same isolation. Proven both ways on every deploy: a working
+      # fixture product passes, one that hides its message after the first use
+      # is caught. A failure here is a warning (builds then record
+      # browser_check "unavailable"; never read as passed).
+      - name: Prove the browser sandbox clicks through a product
+        working-directory: infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os
+          from omni_prod.browser_fixtures import fixture_repository
+          from omni_prod.browser_probe import BROWSER_PROFILE, PROBE, parse_probe_output
+          from omni_prod.remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
+          ex = RemoteSandboxRepositoryExecutor(RemoteSandboxConfig(
+              os.environ["OMNI_SANDBOX_RUNNER_URL"], os.environ["OMNI_SANDBOX_SHARED_SECRET"], timeout_seconds=200))
+          seen = {}
+          for name, kw in (("working", {}), ("message-bug", {"feedback_bug": True})):
+              try:
+                  r = ex._run(fixture_repository(**kw), ("python", "-c", PROBE), f"deploy-browser-{name}", profile=BROWSER_PROFILE)
+                  out = parse_probe_output(r["stdout"])
+                  seen[name] = sorted({f["kind"] for f in out["findings"]}) if out else ("no result: " + (r["stdout"] + r["stderr"])[-300:])
+              except Exception as exc:
+                  seen[name] = f"error: {type(exc).__name__}: {exc}"[:300]
+          ok = seen.get("working") == [] and seen.get("message-bug") == ["feedback_disappears"]
+          level = "notice" if ok else "warning"
+          print(f"::{level} title=browser-probe::{'PASS' if ok else 'NOT WORKING'} working={seen.get('working')} message-bug={seen.get('message-bug')}")
           PY
 
       - name: Preview edge is up

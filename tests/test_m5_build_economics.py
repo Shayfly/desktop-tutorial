@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
@@ -262,7 +263,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     """M5 remediation: the canonical build route reserves the FULL conservative
     total (LLM + capabilities + generated-app infra + retry) once, before enqueue."""
 
-    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None):
+    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None):
         from omni_prod.build_cost_plan import BuildCostInputs, CostQuoteUnknown
         from omni_prod.build_contract import BuildContractStatus
 
@@ -279,6 +280,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         v28.subscriptions.reserve = reserve
         v28._project_brand_visible = {}; v28._project_white_label = {}; v28._rights_evidence = {}
         jobs = MagicMock()
+        jobs.claim_contract_build.return_value = existing_build
         cursor = MagicMock(); cursor.__enter__ = lambda s: s; cursor.__exit__ = lambda *a: False
         conn = MagicMock(); conn.__enter__ = lambda s: s; conn.__exit__ = lambda *a: False
         conn.cursor.return_value = cursor
@@ -322,6 +324,17 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         reserve.assert_called_once()
         enqueue.assert_not_called()
         jobs.create_outbox.assert_not_called()
+
+    def test_second_approval_of_the_same_plan_returns_the_existing_build(self):
+        # Directive 2026-10-09 §5: a double click does not create two builds.
+        response, reserve, enqueue, jobs, exc = self._run(existing_build=('bld_first', 'running'))
+        self.assertIsNone(exc)
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.body)
+        self.assertEqual((body['build_id'], body['status'], body['duplicate']), ('bld_first', 'running', True))
+        reserve.assert_not_called()
+        enqueue.assert_not_called()
+        jobs.create_request.assert_not_called()
 
     def test_unknown_required_quote_blocks_before_reservation(self):
         from omni_prod.build_cost_plan import CostQuoteUnknown

@@ -34,8 +34,10 @@ def _output_tail(result: dict, limit: int = 3000) -> str:
 class RemoteSandboxRepositoryExecutor:
     def __init__(self, config: RemoteSandboxConfig, *, urlopen=None):
         self.config=config; self._urlopen=urlopen or request.urlopen
-    def _run(self, repository: dict[str,str], argv: tuple[str,...], build_id: str) -> dict:
-        body=json.dumps({'repository':repository,'argv':list(argv),'build_id':build_id},separators=(',',':')).encode()
+    def _run(self, repository: dict[str,str], argv: tuple[str,...], build_id: str, profile: str='default') -> dict:
+        payload={'repository':repository,'argv':list(argv),'build_id':build_id}
+        if profile!='default': payload['profile']=profile  # e.g. 'browser' (headless Chromium image)
+        body=json.dumps(payload,separators=(',',':')).encode()
         req=request.Request(self.config.base_url.rstrip('/')+'/run',data=body,method='POST',headers={'content-type':'application/json','x-omni-signature':sign_body(self.config.shared_secret,body)})
         try:
             with self._urlopen(req,timeout=self.config.timeout_seconds) as resp: data=json.loads(resp.read().decode())

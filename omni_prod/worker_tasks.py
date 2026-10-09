@@ -452,6 +452,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             # Agent OS §11: which skills shaped the build and what QA review found.
             'skills_applied': _skills_applied(),
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
+            # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
+            'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
+            # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
+            'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
         }
     except InfrastructureStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)

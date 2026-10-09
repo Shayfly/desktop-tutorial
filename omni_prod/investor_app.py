@@ -607,6 +607,10 @@ def _model_gateway_and_executor():
     # The product must be startable for preview (contract + real start in the sandbox).
     from .preview_smoke import PreviewReadyExecutor
     executor=PreviewReadyExecutor(executor)
+    # Directive 2026-10-09 §17: a real browser clicks through the product
+    # (forms submitted twice, JS errors, feedback that disappears).
+    from .browser_probe import BrowserFlowExecutor
+    executor=BrowserFlowExecutor(executor,enabled=os.getenv('OMNI_BROWSER_CHECK','1')!='0')
     # Quality shortfalls are repairable like failed checks (release gate uses
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor
