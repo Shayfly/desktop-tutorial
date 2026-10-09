@@ -47,12 +47,16 @@ jobs:
           echo "IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")" >> "$GITHUB_ENV"
           echo "SANDBOX_HEALTH=$(docker compose exec -T worker python -c "import urllib.request;print(urllib.request.urlopen('http://sandbox-runner:8010/health',timeout=5).status)" 2>/dev/null || echo down)" >> "$GITHUB_ENV"
           echo "deployed=$(git -C ../.. rev-parse HEAD)"
+          # The API's QA-funding settings as configured on the Vercel preview
+          # environment (plain values, no secrets), so the local API decides
+          # like the deployed one.
+          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=0.50 -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
 
       - name: Free checks
         if: inputs.stage == 'free'
         run: |
           set -uo pipefail
-          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
                     -e POSTDEPLOY_SANDBOX_HEALTH="$SANDBOX_HEALTH" -v "$RUNNER_TEMP/pd:/out" "$IMG" \
                     python -m omni_prod.postdeploy_checks "$1" 2>&1 | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
           rc=0
@@ -69,7 +73,7 @@ jobs:
           MAX_USD: ${{ inputs.max_usd }}
         run: |
           set -uo pipefail
-          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
                     -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
                     | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
           docker compose stop -t 1500 worker
