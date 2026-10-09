@@ -25,9 +25,13 @@ provider-reported cost when every call reported usage, otherwise the build's
 spend ledger (served calls at tokens x price, refused calls at $0, unanswered
 calls at their worst case) -- never the whole 0.50 reservation, which made
 $9.15 "used" while Google billed about $0.30. A running reservation still
-counts at its maximum. `OMNI_QA_BUDGET_SINCE` (ISO time) starts the count at a
-known point: before 2026-10-08 17:12 UTC every model call ran on Gemini's free
-tier or was refused for lack of credit, so it cost nothing.
+counts at its maximum.
+
+Directive 2026-10-09 §15: "do not hide cost by filtering dates without proof of
+free tier/billing". `OMNI_QA_BUDGET_SINCE` (ISO time) therefore only takes
+effect together with `OMNI_QA_FREE_TIER_EVIDENCE`, a reference to the proof
+(e.g. the provider billing page export showing $0 before that time). Without
+it the count is all-time, and the ignored date is reported, not silently used.
 """
 from __future__ import annotations
 
@@ -61,6 +65,7 @@ class QABudgetPolicy:
     total_usd: Decimal | None
     reason: str
     since: str | None = None
+    since_ignored: str | None = None  # a date that was configured but has no free-tier evidence
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> 'QABudgetPolicy':
@@ -83,12 +88,15 @@ class QABudgetPolicy:
                 datetime.fromisoformat(since.replace('Z', '+00:00'))
             except ValueError:
                 return cls(False, environment, build_max, total, 'OMNI_QA_BUDGET_SINCE is not an ISO time')
+            if not (env.get('OMNI_QA_FREE_TIER_EVIDENCE') or '').strip():
+                return cls(True, environment, build_max, total,
+                           'enabled; OMNI_QA_BUDGET_SINCE ignored: no OMNI_QA_FREE_TIER_EVIDENCE', None, since)
         return cls(True, environment, build_max, total, 'enabled', since)
 
     def evidence(self) -> dict:
         return {'funding_source': 'internal_qa', 'entitlement': QA_ENTITLEMENT, 'environment': self.environment,
                 'qa_build_max_usd': str(self.build_max_usd), 'qa_total_usd': str(self.total_usd),
-                'qa_counted_since': self.since}
+                'qa_counted_since': self.since, 'qa_since_ignored_no_evidence': self.since_ignored}
 
 
 def qa_used_usd(cur, since: str | None = None) -> Decimal:

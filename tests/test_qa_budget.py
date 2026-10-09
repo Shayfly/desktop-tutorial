@@ -54,6 +54,25 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(hasattr(p, "account_emails"))
 
 
+class SinceNeedsEvidenceTests(unittest.TestCase):
+    """Directive 2026-10-09 §15: no date filter without free-tier proof."""
+    base = {"OMNI_ENV": "staging", "OMNI_QA_BUILD_MAX_USD": "0.50", "OMNI_QA_BUDGET_TOTAL_USD": "10",
+            "OMNI_QA_BUDGET_SINCE": "2026-10-08T17:12:00Z"}
+
+    def test_date_without_evidence_is_ignored_and_reported(self):
+        p = QABudgetPolicy.from_env(self.base)
+        self.assertTrue(p.enabled)
+        self.assertIsNone(p.since)
+        self.assertEqual(p.since_ignored, "2026-10-08T17:12:00Z")
+        self.assertIn("ignored", p.reason)
+        self.assertEqual(p.evidence()["qa_since_ignored_no_evidence"], "2026-10-08T17:12:00Z")
+
+    def test_date_with_evidence_is_used(self):
+        p = QABudgetPolicy.from_env({**self.base, "OMNI_QA_FREE_TIER_EVIDENCE": "billing export 2026-10-09"})
+        self.assertEqual(p.since, "2026-10-08T17:12:00Z")
+        self.assertIsNone(p.since_ignored)
+
+
 class EntitlementLookupTests(unittest.TestCase):
     def test_lookup_by_account_id_and_scope(self):
         cur = _Cur(GRANT)

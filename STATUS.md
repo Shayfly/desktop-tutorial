@@ -1,5 +1,34 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-09 03:15 Asia/Jerusalem — Master directive G0; preview fix; deploy drain; honest QA count
+
+Directive: `docs/MASTER_EXECUTION_DIRECTIVE_2026-10-09_HE.md`. The G0 baseline, deploy-trigger map, ownership and work packages are in `docs/G0_BASELINE_2026-10-09_HE.md`. Claude now works on task branch `claude/g0-baseline-2026-10-09` and fast-forwards the active branch only when tests pass and no build is running.
+
+**Implemented and independently verified**
+- **"Nothing responds" in the founder's library preview — root cause and fix (`ab253f7`).**
+  - What happened: preview `prv_c242ef7e…` passed every behaviour probe (POST books/members/loans/return, DELETE; router log). `record_acceptance` then raised `IndeterminateDatatype` because the `jsonb_build_object` key was untyped. The launch job tore the container down, and every click after that got 502.
+  - Evidence: worker-diagnostics 37861985721 (preview-worker traceback and router log).
+  - Fix: `%s::text`, plus the live-Postgres test `test_preview_acceptance_report_is_recorded_on_real_postgres`, which fails with the same error without the fix. Deployed in Deploy build worker 37862267177.
+- **A deploy no longer replaces a worker mid-job (directive §18).**
+  - How: deploy-worker first runs `docker compose stop -t 1500 worker preview-worker`. That is an RQ warm shutdown: the running job finishes and no new one is taken. It runs before migrations and before any container is replaced. Compose also sets `stop_grace_period` 25m/5m.
+  - Proof:
+    - worker-diagnostics 37862864855 enqueued `time.sleep(240)`;
+    - the push of `51bb631` deployed with Deploy build worker 37862903906;
+    - the "drain" notice reads "workers stopped after 213s (worker was running: 1; exit 0)";
+    - migrations started only after that (00:08:44 UTC).
+  - Cost: $0.
+
+**Implemented, awaiting live**
+- **QA budget no longer hides cost behind a date.**
+  - `OMNI_QA_BUDGET_SINCE` now counts only together with `OMNI_QA_FREE_TIER_EVIDENCE` (a reference to billing proof). Without that reference the count is all-time and the ignored date is recorded in build evidence.
+  - With the current Vercel env (no evidence), the counted QA use returns to the all-time figure. That was $3.06 on 2026-10-08 (build-evidence 37832677078) versus $0.35 since 17:12.
+  - The founder can supply the Google billing view to restore the date. Until then the conservative figure stands.
+
+**Found, not yet fixed (G5)**
+- The generated library site hides every status message after the first one: `showBanner` leaves `style.display='none'`.
+  - Found by running the exact version in a real browser locally.
+  - HTTP acceptance cannot see it. WP-G5a adds a real-browser check.
+
 ## Update 2026-10-08 23:05 Asia/Jerusalem — Golden E2E #1: full chain from the founder's workspace
 
 **Verified end to end, one continuous path, founder at the keyboard (Vercel Preview `fe84c4d`+, worker `3a4d822`):**
