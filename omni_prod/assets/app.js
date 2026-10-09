@@ -52,6 +52,7 @@ const T = {
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
     previewFailed:'התצוגה המקדימה נכשלה: ', previewExpired:'התצוגה המקדימה פגה. אפשר להפעיל אותה מחדש.',
     startPreview:'הפעלת תצוגה מקדימה',
+    duplicateBuild:'התוכנית הזאת כבר נבנית או נבנתה — מוצגת הבנייה הקיימת. כדי לבנות שוב, עדכנו את הבקשה.',
     current:'נוכחית', restore:'שחזור לגרסה הזו', restored:'שוחזר. נוצרה גרסה חדשה.', noVersions:'עדיין אין גרסאות.',
     modQueued:'השינוי נשלח. בונים גרסה מועמדת ובודקים אותה…', modReview:'הגרסה המועמדת עברה את הבדיקות. מה תרצו לעשות?',
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
@@ -120,6 +121,7 @@ const T = {
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
     previewFailed:'Preview failed: ', previewExpired:'The preview expired. You can start it again.',
     startPreview:'Start preview',
+    duplicateBuild:'This plan is already building or built — showing that build. Update the request to build again.',
     current:'Current', restore:'Restore this version', restored:'Restored as a new version.', noVersions:'No versions yet.',
     modQueued:'Change sent. Building and testing a candidate version…', modReview:'The candidate version passed its checks. What would you like to do?',
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
@@ -397,16 +399,23 @@ function renderPlan() {
 
 /* ---------- build ---------- */
 const isTerminal = s => ['ready', 'failed', 'cancelled', 'READY', 'FAILED', 'CANCELLED'].includes(s);
+let buildStarting = false;
 async function startBuild() {
-  if (!S.plan || !S.plan.can_build) return;
+  if (!S.plan || !S.plan.can_build || buildStarting) return;
+  // One click = one request; the server also returns the existing build for
+  // an already-approved plan instead of starting a second one.
+  buildStarting = true;
   $('buildMsg').textContent = '';
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
       body: { prompt: $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id } });
-    S.build = { id: d.build_id, status: 'queued', phase: 'QUEUED', evidence: {} };
+    S.build = { id: d.build_id, status: d.status || 'queued', phase: d.duplicate ? '' : 'QUEUED', evidence: {} };
     renderPlan(); renderTrack(); renderBuilt(); pollBuild();
+    if (d.duplicate) $('buildMsg').textContent = t('duplicateBuild');
   } catch (e) {
     $('progressPanel').hidden = false; $('buildMsg').textContent = explain(e);
+  } finally {
+    buildStarting = false;
   }
 }
 async function pollBuild() {

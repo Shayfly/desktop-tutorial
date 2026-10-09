@@ -207,6 +207,64 @@ class GoldenModificationPathTests(unittest.TestCase):
         self.assertEqual(used, Decimal('0.57'))  # 0.07 finished + 0.50 still running
         self.assertEqual(nothing, Decimal('0'))
 
+    def test_two_parallel_approvals_of_one_plan_create_one_build(self):
+        """Directive 2026-10-09 §5: a double click (or two tabs) does not
+        create two builds. Two transactions race through claim -> insert; the
+        second must see the first's build. A failed build allows a retry."""
+        import threading
+        from omni_prod.job_repository import PostgresBuildRepository
+        public = f'p_{uuid.uuid4().hex[:10]}'
+        contract = f'bc_{uuid.uuid4().hex[:10]}'
+        with self.pool.connection() as conn:
+            conn.execute("INSERT INTO creator_projects (id, owner_id, title) VALUES (%s, %s, 't')", (public, self.account.id))
+            conn.execute("INSERT INTO m5_build_contracts (id, project_id, contract_version, status, capability_plan_fingerprint,"
+                         " contract_fingerprint, contract_json, created_at) VALUES (%s, %s, 1, 'READY', 'c', 'f', '{}'::jsonb, now())",
+                         (contract, public))
+            conn.commit()
+        jobs = PostgresBuildRepository(self.pool)
+        barrier, results = threading.Barrier(2), []
+
+        def approve():
+            try:
+                _approve()
+            except Exception as exc:  # surfaced in the assertion message
+                results.append(('error', repr(exc)))
+
+        def _approve():
+            build_id = f'bld_{uuid.uuid4().hex}'
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        barrier.wait()
+                        existing = jobs.claim_contract_build(cur, internal_project_id=self.project, build_contract_id=contract)
+                        if existing:
+                            results.append(('duplicate', existing[0]))
+                            return
+                        cur.execute("INSERT INTO credit_reservations (build_id, account_id, project_id, credits_reserved, status)"
+                                    " VALUES (%s, %s, %s, 0, 'RESERVED')", (build_id, self.account.id, self.project))
+                        jobs.create_request(cur, build_id=build_id, user_id=self.account.id, internal_project_id=self.project,
+                                            prompt='p', target_markets=(), branding_visible=None, white_label_name=None,
+                                            rights_evidence=[], public_project_id=public, build_contract_id=contract)
+                        jobs.create_with_cursor(cur, build_id=build_id, project_id=self.project, version_id='pending', evidence_json={})
+                        import time
+                        time.sleep(0.3)  # widen the race window
+                        results.append(('created', build_id))
+
+        threads = [threading.Thread(target=approve) for _ in range(2)]
+        [t.start() for t in threads]
+        [t.join(10) for t in threads]
+        kinds = sorted(k for k, _ in results)
+        self.assertNotIn("error", kinds, results)
+        self.assertEqual(kinds, ['created', 'duplicate'], results)
+        created = next(b for k, b in results if k == 'created')
+        self.assertEqual(next(b for k, b in results if k == 'duplicate'), created)
+        # A failed build does not block a deliberate retry of the same plan.
+        with self.pool.connection() as conn:
+            conn.execute("UPDATE build_jobs SET status = 'failed' WHERE id = %s", (created,))
+            conn.commit()
+            with conn.cursor() as cur:
+                self.assertIsNone(jobs.claim_contract_build(cur, internal_project_id=self.project, build_contract_id=contract))
+
     def test_preview_acceptance_report_is_recorded_on_real_postgres(self):
         """Founder library preview 2026-10-08 23:35 (prv_c242ef7e...): every
         behaviour probe passed, then record_acceptance raised

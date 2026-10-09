@@ -231,6 +231,11 @@ class M5BuildContractBlocked(RuntimeError):
         self.contract = contract
 
 
+class _DuplicateApproval(Exception):
+    """Rolls back the reservation transaction when the approved contract
+    already has a queued/running/ready build (returned instead)."""
+
+
 def _m5_resolve_build_contract(*, repository, architect, project_id: str, prompt: str, requested_contract_id: str | None):
     """Return the immutable contract revision that binds a durable build.
 
@@ -1714,43 +1719,57 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
 
         jobs = PostgresBuildRepository(_v28_pool)
 
-        with _v28_pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    # DEVIATION: reserve() now takes project_id=key (see
-                    # subscription_store.py) so credit_reservations.project_id
-                    # is never the literal placeholder 'UNKNOWN'.
-                    if internal_qa:
-                        try:
-                            economics_evidence['funding'] = authorize_qa_build(
-                                cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
-                        except QABudgetDenied as exc:
-                            logging.getLogger(__name__).warning('internal QA build refused: %s', exc)
-                            raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
-                    else:
-                        economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
-                    decision = _v28.subscriptions.reserve(
-                        cur, build_id=build_id, user_id=account.id, project_id=key,
-                        cost_class=cost_class.value, credits=credits,
-                        estimated_provider_cost_usd=provider_reservation_usd,
-                        **({'internal_qa': True} if internal_qa else {}),
-                    )
-                    if not decision.allowed:
-                        raise HTTPException(402, decision.reason)
+        existing = None
+        try:
+            with _v28_pool.connection() as conn:
+                with conn.transaction():
+                    with conn.cursor() as cur:
+                        existing = jobs.claim_contract_build(cur, internal_project_id=key,
+                                                             build_contract_id=build_contract.id)
+                        if existing is not None:
+                            # Same approved plan already building or built: no
+                            # second build, no second reservation.
+                            raise _DuplicateApproval()
+                        # DEVIATION: reserve() now takes project_id=key (see
+                        # subscription_store.py) so credit_reservations.project_id
+                        # is never the literal placeholder 'UNKNOWN'.
+                        if internal_qa:
+                            try:
+                                economics_evidence['funding'] = authorize_qa_build(
+                                    cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
+                            except QABudgetDenied as exc:
+                                logging.getLogger(__name__).warning('internal QA build refused: %s', exc)
+                                raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
+                        else:
+                            economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
+                        decision = _v28.subscriptions.reserve(
+                            cur, build_id=build_id, user_id=account.id, project_id=key,
+                            cost_class=cost_class.value, credits=credits,
+                            estimated_provider_cost_usd=provider_reservation_usd,
+                            **({'internal_qa': True} if internal_qa else {}),
+                        )
+                        if not decision.allowed:
+                            raise HTTPException(402, decision.reason)
 
-                    jobs.create_request(
-                        cur, build_id=build_id, user_id=account.id, internal_project_id=key,
-                        prompt=build_contract.prompt, target_markets=tuple(req.target_markets),
-                        branding_visible=brand_visible, white_label_name=white_label,
-                        rights_evidence=rights_evidence, public_project_id=project_id,
-                        build_contract_id=build_contract.id,
-                    )
-                    jobs.create_with_cursor(
-                        cur, build_id=build_id, project_id=key, version_id="pending",
-                        evidence_json={'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
-                        estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
-                    )
-                    jobs.create_outbox(cur, build_id=build_id)
+                        jobs.create_request(
+                            cur, build_id=build_id, user_id=account.id, internal_project_id=key,
+                            prompt=build_contract.prompt, target_markets=tuple(req.target_markets),
+                            branding_visible=brand_visible, white_label_name=white_label,
+                            rights_evidence=rights_evidence, public_project_id=project_id,
+                            build_contract_id=build_contract.id,
+                        )
+                        jobs.create_with_cursor(
+                            cur, build_id=build_id, project_id=key, version_id="pending",
+                            evidence_json={'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
+                            estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
+                        )
+                        jobs.create_outbox(cur, build_id=build_id)
+        except _DuplicateApproval:
+            return JSONResponse(status_code=200, content={
+                "status": existing[1], "build_id": existing[0], "duplicate": True,
+                "build_contract_id": build_contract.id,
+                "build_contract_fingerprint": build_contract.contract_fingerprint,
+            })
 
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
         try:

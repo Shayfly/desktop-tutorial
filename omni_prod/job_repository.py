@@ -119,6 +119,30 @@ class PostgresBuildRepository:
     # conn.cursor() as cur:` block in investor_app.py) so that the credit
     # reservation, build request, build job and outbox row commit atomically.
 
+    def claim_contract_build(self, cur, *, internal_project_id: str, build_contract_id: str):
+        """One build per approved contract revision (directive 2026-10-09 §5:
+        "a double click does not create two builds"). Takes a transaction-scoped
+        lock on (project, contract) and returns the existing queued/running/ready
+        build as (build_id, status), or None when a new build may be created.
+        A failed or cancelled build does not block a deliberate retry. Call it
+        first inside the caller's reservation transaction: a concurrent request
+        waits on the lock and then sees the committed build."""
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 148))",
+                    (f'build-approval:{internal_project_id}:{build_contract_id}',))
+        cur.execute(
+            """
+            SELECT bj.id, bj.status
+            FROM build_requests br JOIN build_jobs bj ON bj.id = br.build_id
+            WHERE br.internal_project_id = %s AND br.build_contract_id = %s
+              AND bj.status IN ('queued', 'running', 'ready')
+            ORDER BY bj.created_at DESC
+            LIMIT 1
+            """,
+            (internal_project_id, build_contract_id),
+        )
+        row = cur.fetchone()
+        return (row[0], row[1]) if row else None
+
     def create_request(self, cur, *, build_id: str, user_id: str, internal_project_id: str, prompt: str,
                         target_markets: tuple, branding_visible: bool | None, white_label_name: str | None,
                         rights_evidence: list, public_project_id: str | None = None,
