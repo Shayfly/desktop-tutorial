@@ -1,4 +1,4 @@
--- Stop a build and show what it is doing (migration 031).
+-- Stop a build and show what it is doing; preview data durability (migration 031).
 -- Master directive 2026-10-09 §10 (task states, cancel) and §12 (the user
 -- always sees what is happening).
 --
@@ -25,3 +25,9 @@ CREATE TABLE IF NOT EXISTS build_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_events_build_seq ON build_events (build_id, seq);
+
+-- Directive §13: whether a preview's product data survives a restart and a
+-- new version ('persistent', one directory per project on the preview host)
+-- or lives only in the container's tmpfs ('temporary'). NULL = before 031.
+ALTER TABLE project_previews ADD COLUMN IF NOT EXISTS data_storage TEXT
+    CHECK (data_storage IS NULL OR data_storage IN ('persistent', 'temporary'));

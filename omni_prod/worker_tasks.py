@@ -914,7 +914,8 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
 
     try:
         if not repo.record_runtime(preview_id, container_id=started.container_id, runtime_host=runtime_host,
-                                   host_port=started.host_port, workdir=started.workdir):
+                                   host_port=started.host_port, workdir=started.workdir,
+                                   data_storage='persistent' if getattr(started, 'data_dir', None) else 'temporary'):
             _teardown(provider, repo, preview_id, started)  # stopped while starting
             return 'STOPPED'
 
@@ -953,45 +954,84 @@ def _run_preview_launch(preview_id: str, project_id: str, version_id: str, *, re
         if acceptance_runner is not None:
             from dataclasses import replace
             from .web_saas_acceptance import AcceptanceReport
-            try:
-                report = acceptance_runner.verify(
-                    {'id': preview_id, 'project_id': project_id, 'version_id': version_id,
-                     'status': 'RUNNING', 'preview_url': url},
-                    acceptance_contract, acceptance_personas or (),
-                )
-            except Exception as exc:
-                report = AcceptanceReport(
-                    status='ERROR', release_eligible=False,
-                    summary=f'acceptance runner error: {type(exc).__name__}: {exc}', checks=(),
+
+            def _error_report(summary):
+                return AcceptanceReport(
+                    status='ERROR', release_eligible=False, summary=summary, checks=(),
                     covered_acceptance_ids=(), missing_acceptance_ids=(),
                     covered_kinds=(), missing_kinds=(), runtime_logs=None,
                 )
 
-            try:
-                alive, exit_code = provider.is_running(started.container_id)
-            except Exception:
-                alive, exit_code = True, None  # do not invent a crash if Docker status is unavailable
-            if not alive:
+            # Directive 2026-10-09 §13: when the product's data is persistent,
+            # the synthetic acceptance records must not land in it. The probes
+            # run against a scratch copy of the same version (no data mount),
+            # reached directly on the preview host, which is removed afterwards.
+            target, target_url, scratch, report = started, url, None, None
+            if getattr(provider, 'persistent_data', False):
                 try:
-                    tail = provider.logs(started.container_id, tail=100)
+                    sweep = getattr(provider, 'sweep_scratch', None)
+                    if callable(sweep):
+                        sweep()
+                    scratch = provider.start(preview_id=f'{preview_id}-qa', project_id=project_id,
+                                             version_id=version_id, persistent=False)
+                    if scratch.host_port is None:
+                        raise RuntimeError('the acceptance copy exited before its port was published')
+                    scratch_health = wait_until_healthy(
+                        url=f'http://{probe_host}:{scratch.host_port}{scratch.contract.health_path}',
+                        is_alive=lambda: provider.is_running(scratch.container_id),
+                        timeout_seconds=probe_timeout, interval_seconds=probe_interval,
+                        http_get=http_get, sleep=sleep, clock=clock,
+                    )
+                    if not scratch_health.ok:
+                        raise RuntimeError(f'the acceptance copy did not become healthy: {scratch_health.detail}')
+                    target, target_url = scratch, f'http://{probe_host}:{scratch.host_port}'
                 except Exception as exc:
-                    tail = f'(logs unavailable: {exc})'
-                report = replace(
-                    report, status='FAIL', release_eligible=False,
-                    summary=report.summary + f'; preview crashed during acceptance (exit code {exit_code})',
-                ).with_runtime_logs(tail)
-                try:
-                    repo.record_acceptance(preview_id, project_id, version_id, report)
-                finally:
-                    crash_message = (f'preview crashed during behavioral acceptance (exit code {exit_code})'
-                                     f'\n--- container logs (tail) ---\n{tail[-2500:]}')
-                    repo.mark_crashed(preview_id, crash_message)
-                    _teardown(provider, repo, preview_id, started)
-                return 'FAILED'
+                    report = _error_report(f'acceptance copy could not start: {type(exc).__name__}: {exc}'[:500])
+            try:
+                if report is None:
+                    try:
+                        report = acceptance_runner.verify(
+                            {'id': preview_id, 'project_id': project_id, 'version_id': version_id,
+                             'status': 'RUNNING', 'preview_url': target_url},
+                            acceptance_contract, acceptance_personas or (),
+                        )
+                    except Exception as exc:
+                        report = _error_report(f'acceptance runner error: {type(exc).__name__}: {exc}')
 
-            # Persist after checking liveness so a PASS can never be recorded
-            # for a process that died while the behavioral probes were running.
-            repo.record_acceptance(preview_id, project_id, version_id, report)
+                    try:
+                        alive, exit_code = provider.is_running(target.container_id)
+                    except Exception:
+                        alive, exit_code = True, None  # do not invent a crash if Docker status is unavailable
+                    if not alive:
+                        try:
+                            tail = provider.logs(target.container_id, tail=100)
+                        except Exception as exc:
+                            tail = f'(logs unavailable: {exc})'
+                        report = replace(
+                            report, status='FAIL', release_eligible=False,
+                            summary=report.summary + f'; preview crashed during acceptance (exit code {exit_code})',
+                        ).with_runtime_logs(tail)
+                        try:
+                            repo.record_acceptance(preview_id, project_id, version_id, report)
+                        finally:
+                            crash_message = (f'preview crashed during behavioral acceptance (exit code {exit_code})'
+                                             f'\n--- container logs (tail) ---\n{tail[-2500:]}')
+                            repo.mark_crashed(preview_id, crash_message)
+                            _teardown(provider, repo, preview_id, started)
+                        return 'FAILED'
+
+                # Persist after checking liveness so a PASS can never be recorded
+                # for a process that died while the behavioral probes were running.
+                repo.record_acceptance(preview_id, project_id, version_id, report)
+            finally:
+                if scratch is not None:
+                    for step in (lambda: provider.stop(scratch.container_id),
+                                 lambda: provider.remove_workdir(scratch.workdir)):
+                        try:
+                            step()
+                        except Exception:
+                            logging.getLogger(__name__).warning('acceptance copy cleanup failed for %s', preview_id,
+                                                                exc_info=True)
         return 'RUNNING'
     except Exception as exc:
         errors = _teardown(provider, repo, preview_id, started)

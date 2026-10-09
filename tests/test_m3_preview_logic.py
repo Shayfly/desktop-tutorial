@@ -566,7 +566,7 @@ class TestPreviewLaunch(unittest.TestCase):
         self.assertEqual(repo.url, 'https://prv-1.preview.148ai.com')  # DNS-safe label: '_' cannot be certified
         self.assertNotIn('127.0.0.1', repo.url)
         self.assertEqual(repo.runtime, {'container_id': 'cid1', 'runtime_host': 'worker-a', 'host_port': 45678,
-                                        'workdir': '/tmp/omni-preview-prv_1-abc'})
+                                        'workdir': '/tmp/omni-preview-prv_1-abc', 'data_storage': 'temporary'})
         self.assertNotIn('stop:cid1', provider.events)
 
     def test_probe_failure_is_failed_with_logs_and_full_teardown(self):

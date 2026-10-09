@@ -54,17 +54,18 @@ class PostgresPreviewRepository:
                     return cur.rowcount == 1
 
     def record_runtime(self, preview_id: str, *, container_id: str, runtime_host: str,
-                       host_port: int, workdir: str) -> bool:
+                       host_port: int, workdir: str, data_storage: str | None = None) -> bool:
         """Persisted immediately after `docker run`, before the health probe,
         so a stop request during probing can find (and clean up) the
         container. Still STARTING -- RUNNING only after the probe passes."""
         return self._conditional_update(
             """
             UPDATE project_previews
-            SET internal_container_id = %s, runtime_host = %s, host_port = %s, workdir_path = %s
+            SET internal_container_id = %s, runtime_host = %s, host_port = %s, workdir_path = %s,
+                data_storage = COALESCE(%s, data_storage)
             WHERE id = %s AND status = 'STARTING'
             """,
-            (container_id, runtime_host, host_port, workdir, preview_id),
+            (container_id, runtime_host, host_port, workdir, data_storage, preview_id),
         )
 
     def mark_running(self, preview_id: str, *, url: str) -> bool:
@@ -137,7 +138,7 @@ class PostgresPreviewRepository:
                     """
                     SELECT id, project_id, version_id, status, preview_url,
                            internal_container_id, error_message, created_at, expires_at,
-                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at
+                           runtime_host, host_port, workdir_path, stopped_at, cleaned_at, data_storage
                     FROM project_previews
                     WHERE id = %s AND project_id = %s
                     """,
@@ -152,6 +153,7 @@ class PostgresPreviewRepository:
             'created_at': _iso(row[7]), 'expires_at': _iso(row[8]),
             'runtime_host': row[9], 'host_port': row[10], 'workdir_path': row[11],
             'stopped_at': _iso(row[12]), 'cleaned_at': _iso(row[13]),
+            'data_storage': row[14] if len(row) > 14 else None,
         }
 
     def get_runtime(self, preview_id: str) -> dict | None:

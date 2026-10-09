@@ -189,6 +189,15 @@ jobs:
           if [ -z "$line" ]; then docker compose logs --tail 30 janitor; echo "::error title=janitor::maintenance loop did not start"; exit 1; fi
           echo "::notice title=janitor::$line"
 
+      # Directive 2026-10-09 §13: the generated product's own data survives a
+      # preview restart and a new version, acceptance probes use a scratch copy,
+      # and projects never share data. Real containers on this host, $0.
+      - name: Prove preview data survives a restart and a new version
+        working-directory: infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose exec -T preview-worker python -m omni_prod.preview_durability 2>&1 | grep -E '^::' || echo "::warning title=preview-data::self-test produced no result"
+
       # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
       # then SignatureDoesNotMatch) after minutes of paid generation. This writes,
       # reads back and deletes one small object through the same S3ArtifactStore

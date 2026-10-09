@@ -130,7 +130,12 @@ CATALOG: tuple[SkillSpec, ...] = (
     _s('migration.verify', 'data', VALIDATOR, (), (), (), _NI),
     _s('data.constraints', 'data', INSTRUCTION, ('omni_prod.skills_runtime:DATA_INTEGRITY',), (), (_LIBRARY,),
        'library build: duplicate member answered 409'),
-    _s('data.persistence.verify', 'data', VALIDATOR, (), (), (), _NI + ' (generated data lives in /tmp)'),
+    _s('data.persistence.verify', 'data', VALIDATOR, ('omni_prod.preview_durability:selftest',
+                                                      'omni_prod.preview_runtime:DockerPreviewProvider.ensure_data_dir'), (),
+       (Evidence('unit', 'tests/test_preview_data_durability.py', 'per-project data dir, scratch copy for acceptance, '
+                 'self-test logic'),),
+       'previews only (one directory per project on the preview host); no backup, no size quota, '
+       'no schema migration of old data'),
     _s('data.backup', 'data', EXECUTABLE, (), (), (), _NI),
     _s('data.restore', 'data', EXECUTABLE, (), (), (), _NI),
     _s('tenant.isolation.verify', 'data', VALIDATOR, (), (), (), _NI + ' (generated apps)'),

@@ -1101,7 +1101,7 @@ CREATE INDEX IF NOT EXISTS idx_build_approvals_project ON build_approvals(projec
 -- END SOURCE 030_project_briefs_and_approvals.sql
 
 -- BEGIN SOURCE 031_build_cancel_and_events.sql
--- Stop a build and show what it is doing (migration 031).
+-- Stop a build and show what it is doing; preview data durability (migration 031).
 -- Master directive 2026-10-09 §10 (task states, cancel) and §12 (the user
 -- always sees what is happening).
 --
@@ -1128,6 +1128,12 @@ CREATE TABLE IF NOT EXISTS build_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_events_build_seq ON build_events (build_id, seq);
+
+-- Directive §13: whether a preview's product data survives a restart and a
+-- new version ('persistent', one directory per project on the preview host)
+-- or lives only in the container's tmpfs ('temporary'). NULL = before 031.
+ALTER TABLE project_previews ADD COLUMN IF NOT EXISTS data_storage TEXT
+    CHECK (data_storage IS NULL OR data_storage IN ('persistent', 'temporary'));
 
 -- END SOURCE 031_build_cancel_and_events.sql
 
@@ -2190,7 +2196,7 @@ CREATE INDEX IF NOT EXISTS idx_build_approvals_project ON build_approvals(projec
 $source_030$, 'UTF8')), 'hex'));
 
 INSERT INTO schema_migrations(version, name, sha256)
-VALUES (31, 'build_cancel_and_events', encode(sha256(convert_to($source_031$-- Stop a build and show what it is doing (migration 031).
+VALUES (31, 'build_cancel_and_events', encode(sha256(convert_to($source_031$-- Stop a build and show what it is doing; preview data durability (migration 031).
 -- Master directive 2026-10-09 §10 (task states, cancel) and §12 (the user
 -- always sees what is happening).
 --
@@ -2217,6 +2223,12 @@ CREATE TABLE IF NOT EXISTS build_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_events_build_seq ON build_events (build_id, seq);
+
+-- Directive §13: whether a preview's product data survives a restart and a
+-- new version ('persistent', one directory per project on the preview host)
+-- or lives only in the container's tmpfs ('temporary'). NULL = before 031.
+ALTER TABLE project_previews ADD COLUMN IF NOT EXISTS data_storage TEXT
+    CHECK (data_storage IS NULL OR data_storage IN ('persistent', 'temporary'));
 $source_031$, 'UTF8')), 'hex'));
 
 COMMIT;

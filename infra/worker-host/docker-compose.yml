@@ -89,6 +89,9 @@ services:
       OMNI_PREVIEW_BIND_ADDRESS: 127.0.0.1
       OMNI_PREVIEW_PROBE_HOST: 127.0.0.1
       TMPDIR: /var/lib/omni-preview/tmp
+      # Directive 2026-10-09 §13: product data per project, survives preview
+      # restarts and new versions (same path on the host and in this container).
+      OMNI_PREVIEW_DATA_ROOT: /var/lib/omni-preview/data
     network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

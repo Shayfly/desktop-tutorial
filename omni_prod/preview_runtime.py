@@ -96,6 +96,7 @@ class StartedPreview:
     host_port: int | None  # None: the container exited before its port was published
     workdir: str
     contract: PreviewContract
+    data_dir: str | None = None  # set when the product's data persists (directive §13)
 
 
 @dataclass(frozen=True)
@@ -209,7 +210,7 @@ def container_name(preview_id: str) -> str:
 
 
 def build_run_argv(*, preview_id: str, contract: PreviewContract, workdir: str,
-                   bind_address: str = '127.0.0.1') -> list[str]:
+                   bind_address: str = '127.0.0.1', data_dir: str | None = None) -> list[str]:
     """`docker run [SECURITY_FLAGS] -d -p ... --mount ... IMAGE START_CMD`.
 
     DEVIATION FROM THE LITERAL `-P`: `-P` publishes only ports the *image*
@@ -226,12 +227,17 @@ def build_run_argv(*, preview_id: str, contract: PreviewContract, workdir: str,
         *SECURITY_FLAGS,
         '-e', 'HOME=/tmp',
         '-e', f'PORT={contract.port}',
-        '-e', 'PYTHONDONTWRITEBYTECODE=1', '-e', 'DATA_DIR=/tmp',
+        '-e', 'PYTHONDONTWRITEBYTECODE=1', '-e', f'DATA_DIR={"/data" if data_dir else "/tmp"}',
         '-d',
         '-p', f'{bind_address}::{contract.port}',
         '--name', container_name(preview_id),
         '--label', f'omni.preview_id={preview_id}',
         '--mount', f'type=bind,src={workdir},dst=/workspace,readonly',
+        # Directive 2026-10-09 §13: the product's own data survives a restart
+        # of the preview and a new version of the app (one directory per
+        # project on the preview host). Without it DATA_DIR is the tmpfs and
+        # the preview is labelled temporary.
+        *(('--mount', f'type=bind,src={data_dir},dst=/data') if data_dir else ()),
         '--workdir', '/workspace',
         contract.runtime,
         *contract.start,
@@ -383,26 +389,62 @@ def is_managed_workdir(path: str | None) -> bool:
 
 class PreviewProvider(Protocol):
     def start(self, *, preview_id: str, project_id: str, version_id: str,
-              repository: dict[str, str] | None = None) -> StartedPreview: ...
+              repository: dict[str, str] | None = None, persistent: bool = True) -> StartedPreview: ...
     def is_running(self, container_id: str) -> tuple[bool, int | None]: ...
     def stop(self, container_id: str) -> None: ...
     def logs(self, container_id: str, tail: int = 50) -> str: ...
     def remove_workdir(self, path: str | None) -> bool: ...
 
 
+PREVIEW_UID = 65534  # matches SECURITY_FLAGS --user
+SCRATCH_SUFFIX = '-qa'
+
+
+def project_data_dir(root: str, project_id: str) -> str:
+    """One directory per project under the preview host's data root. The
+    name is a digest of the (already opaque) internal project key, so a
+    path never carries user text and two projects can never share data."""
+    import hashlib
+    digest = hashlib.sha256(project_id.encode('utf-8')).hexdigest()[:32]
+    return str(Path(root) / f'p-{digest}')
+
+
 class DockerPreviewProvider:
     def __init__(self, *, workspace, bind_address: str | None = None,
-                 runner: Callable[..., subprocess.CompletedProcess] | None = None):
+                 runner: Callable[..., subprocess.CompletedProcess] | None = None,
+                 data_root: str | None = None):
         self.workspace = workspace
         self.bind_address = bind_address or os.getenv('OMNI_PREVIEW_BIND_ADDRESS', '127.0.0.1')
         self._runner = runner
+        # Set on the preview host (OMNI_PREVIEW_DATA_ROOT, a host path shared
+        # with this worker). Unset -> previews keep data only in /tmp.
+        self.data_root = (data_root if data_root is not None else os.getenv('OMNI_PREVIEW_DATA_ROOT', '')).strip() or None
+
+    @property
+    def persistent_data(self) -> bool:
+        return self.data_root is not None
+
+    def ensure_data_dir(self, project_id: str) -> str:
+        path = project_data_dir(self.data_root, project_id)
+        os.makedirs(path, mode=0o700, exist_ok=True)
+        try:
+            os.chown(path, PREVIEW_UID, PREVIEW_UID)
+        except PermissionError:
+            os.chmod(path, 0o777)  # non-root worker (tests/local); the host path itself is private
+        return path
+
+    def sweep_scratch(self, max_age_seconds: int = 900) -> list[str]:
+        """Acceptance copies left behind by a worker that died mid-probe."""
+        from .sandbox import sweep_stale_containers
+        runner = self._runner or subprocess.run
+        return sweep_stale_containers(max_age_seconds, runner=runner, prefix='omni-preview-', suffix=SCRATCH_SUFFIX)
 
     def _run(self, argv: list[str], timeout: int) -> subprocess.CompletedProcess:
         runner = self._runner or subprocess.run
         return runner(argv, text=True, capture_output=True, timeout=timeout)
 
     def start(self, *, preview_id: str, project_id: str, version_id: str,
-              repository: dict[str, str] | None = None) -> StartedPreview:
+              repository: dict[str, str] | None = None, persistent: bool = True) -> StartedPreview:
         if repository is None:
             repository = self.workspace.get(project_id=project_id, version_id=version_id).repository()
         contract = parse_preview_contract(repository)  # NotPreviewable before any side effect
@@ -416,8 +458,9 @@ class DockerPreviewProvider:
         try:
             _materialize_repository(root, repository)
             _make_world_readable(root)
+            data_dir = self.ensure_data_dir(project_id) if (persistent and self.persistent_data) else None
             argv = build_run_argv(preview_id=preview_id, contract=contract, workdir=str(root),
-                                  bind_address=self.bind_address)
+                                  bind_address=self.bind_address, data_dir=data_dir)
             result = self._run(argv, timeout=120)
             if result.returncode != 0:
                 raise RuntimeError(f'docker run failed (exit {result.returncode}): {(result.stderr or "").strip()[:1000]}')
@@ -442,7 +485,7 @@ class DockerPreviewProvider:
                 running, _ = self.is_running(container_id)
                 if not running:
                     return StartedPreview(container_id=container_id, host_port=None,
-                                          workdir=str(root), contract=contract)
+                                          workdir=str(root), contract=contract, data_dir=data_dir)
                 raise RuntimeError(f'docker port failed (exit {port_result.returncode}): {(port_result.stderr or "").strip()[:500]}')
             host_port = parse_docker_port_output(port_result.stdout or '')
         except Exception:
@@ -450,7 +493,8 @@ class DockerPreviewProvider:
             shutil.rmtree(root, ignore_errors=True)
             raise
 
-        return StartedPreview(container_id=container_id, host_port=host_port, workdir=str(root), contract=contract)
+        return StartedPreview(container_id=container_id, host_port=host_port, workdir=str(root), contract=contract,
+                              data_dir=data_dir)
 
     def is_running(self, container_id: str) -> tuple[bool, int | None]:
         r = self._run(['docker', 'inspect', '-f', '{{.State.Running}} {{.State.ExitCode}}', container_id], timeout=30)

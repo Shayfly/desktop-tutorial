@@ -2102,6 +2102,8 @@ def _preview_public_view(preview: dict, public_project_id: str, acceptance: dict
                                  and acceptance.get('status') == 'PASS'
                                  and acceptance.get('release_eligible') is True),
         'acceptance_summary': acceptance.get('summary') if acceptance else None,
+        # Directive 2026-10-09 §13: 'temporary' data is lost when the preview stops.
+        'data_storage': preview.get('data_storage') or 'temporary',
         'logs': None, 'logs_available': False,
         'logs_note': ('Live log streaming needs a distributed logging pipeline (worker -> log store) and is not '
                       'implemented; the API does not reach into worker Docker daemons. Startup/health-probe '

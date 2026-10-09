@@ -120,7 +120,8 @@ def _parse_created(value: str) -> datetime | None:
         return None
 
 
-def sweep_stale_containers(max_age_seconds: int, *, runner=subprocess.run, now: datetime | None = None) -> list[str]:
+def sweep_stale_containers(max_age_seconds: int, *, runner=subprocess.run, now: datetime | None = None,
+                           prefix: str = 'omni-build-', suffix: str = '') -> list[str]:
     """Remove sandbox containers older than max_age (hung tests whose docker
     client was killed by the timeout keep running and hold resources). Matches
     the label and, for containers started before labels existed, the name
@@ -128,13 +129,14 @@ def sweep_stale_containers(max_age_seconds: int, *, runner=subprocess.run, now: 
     now = now or datetime.now(timezone.utc)
     removed = []
     try:
-        out = runner(["docker", "ps", "-a", "--filter", "name=omni-build-", "--format", "{{.ID}}|{{.Names}}|{{.CreatedAt}}"],
+        out = runner(["docker", "ps", "-a", "--filter", f"name={prefix}", "--format", "{{.ID}}|{{.Names}}|{{.CreatedAt}}"],
                      text=True, capture_output=True, timeout=20, check=False, env=_docker_env()).stdout or ''
         for line in out.splitlines():
             cid, _, rest = line.partition('|')
             name, _, created = rest.partition('|')
             when = _parse_created(created)
-            if cid and name.startswith('omni-build-') and when and (now - when).total_seconds() > max_age_seconds:
+            if (cid and name.startswith(prefix) and name.endswith(suffix) and when
+                    and (now - when).total_seconds() > max_age_seconds):
                 runner(["docker", "rm", "-f", cid], text=True, capture_output=True, timeout=30, check=False, env=_docker_env())
                 removed.append(name)
     except Exception:
