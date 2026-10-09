@@ -364,7 +364,7 @@ def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:
         raise AssertionError(f'expected HTTP {expected_status}, got {response.status}')
     if 'expect_text_contains' in step:
         needle = str(step['expect_text_contains'])
-        if needle not in response.text():
+        if not _text_contains(response.text(), needle):
             raise AssertionError(f'response text missing {needle!r}')
     if 'expect_json_contains' in step:
         actual = response.json()
@@ -372,6 +372,19 @@ def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:
         if not _json_contains(actual, expected):
             raise AssertionError(f'JSON response does not contain expected subset {expected!r}')
     return f'HTTP {response.status} matched expectations'
+
+
+def _text_contains(text: str, needle: str) -> bool:
+    """Literal match, or match in the decoded JSON body: a JSON API may send
+    Hebrew as \\u05d4 escapes (paid build bld_2e55113c, 2026-10-09: the
+    conflict message was present but escaped and the check failed)."""
+    if needle in text:
+        return True
+    try:
+        decoded = json.loads(text)
+    except (ValueError, TypeError):
+        return False
+    return needle in json.dumps(decoded, ensure_ascii=False)
 
 
 def _json_contains(actual: Any, expected: Any) -> bool:

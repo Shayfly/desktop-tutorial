@@ -81,3 +81,68 @@ class StopLossTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class _StagedExecutor:
+    """Reports per repository content: 'build' / 'behavior' failures or pass."""
+
+    def __init__(self, outcomes):
+        self.outcomes, self.runs = outcomes, []
+
+    def execute(self, *, repository, spec):
+        content = repository['app.py']
+        self.runs.append(content)
+        kind = self.outcomes[content]
+        if kind == 'pass':
+            return PASS
+        if kind == 'build':
+            return ExecutionReport(False, tuple(AcceptanceFailure(a, 'remote build failed') for a in ('A1', 'A2')))
+        return ExecutionReport(False, (AcceptanceFailure('BEHAVIOR', 'behavioural acceptance failed: 1 failed check'),))
+
+
+class _RecordingRepairer(_Repairer):
+    def __init__(self, contents):
+        super().__init__(contents)
+        self.seen = []
+
+    def repair(self, **kw):
+        self.seen.append((kw['repo_summary'], kw['failures']))
+        return super().repair(**kw)
+
+
+class ProgressAwareRepairTests(unittest.TestCase):
+    """Paid builds 2026-10-09: a repair turned '1 behaviour check fails' into
+    'build fails' and later rounds drifted further from passing."""
+
+    def test_a_repair_that_goes_backwards_is_discarded_and_the_next_starts_from_the_best(self):
+        ex = _StagedExecutor({'v0': 'behavior', 'v1': 'build', 'v2': 'pass'})
+        rep = _RecordingRepairer(['v1', 'v2'])
+        engine = _engine(rep, ex)
+        engine._summary = lambda repo: dict(repo)
+        result = engine.build('p')
+        self.assertEqual(result.status, 'ready')
+        self.assertEqual(result.repository['app.py'], 'v2')
+        second_repo, second_failures = rep.seen[1]
+        self.assertEqual(second_repo['app.py'], 'v0')                       # back to the best candidate
+        self.assertEqual(second_failures[-1]['acceptance_id'], 'REPAIR_REGRESSION')
+        self.assertIn('discarded', engine.trace[0])
+
+    def test_a_failed_build_returns_the_best_candidate_not_the_last(self):
+        ex = _StagedExecutor({'v0': 'build', 'v1': 'behavior', 'v2': 'build', 'v3': 'build'})
+        result = _engine(_Repairer(['v1', 'v2', 'v3']), ex, rounds=3).build('p')
+        self.assertEqual(result.status, 'failed')
+        self.assertEqual(result.repository['app.py'], 'v1')
+        self.assertEqual(result.report.failures[0].acceptance_id, 'BEHAVIOR')
+
+    def test_progress_orders_the_verification_chain(self):
+        P = AutonomousProductEngine.progress
+        build = ExecutionReport(False, (AcceptanceFailure('A1', 'remote build failed'),))
+        unit = ExecutionReport(False, (AcceptanceFailure('A1', 'remote verification failed: unit tests'),))
+        acc = ExecutionReport(False, (AcceptanceFailure('A1', 'remote verification failed: acceptance tests'),))
+        prev = ExecutionReport(False, (AcceptanceFailure('PREVIEW', 'placeholder page'),))
+        beh = ExecutionReport(False, (AcceptanceFailure('BEHAVIOR', 'x'),))
+        self.assertLess(P(build), P(unit))
+        self.assertLess(P(unit), P(acc))
+        self.assertLess(P(acc), P(prev))
+        self.assertLess(P(prev), P(beh))
+        self.assertLess(P(beh), P(PASS))

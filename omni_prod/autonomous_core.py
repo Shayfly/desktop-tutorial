@@ -55,6 +55,31 @@ class AutonomousProductEngine:
     def _fingerprint(repo: dict[str, str]) -> str:
         return hashlib.sha256(json.dumps(sorted(repo.items())).encode('utf-8')).hexdigest()
 
+    @staticmethod
+    def progress(report) -> tuple[int, int]:
+        """How far a candidate got through the verification chain (build ->
+        unit tests -> acceptance tests -> preview -> behaviour), then fewer
+        failures. Higher is better."""
+        if report.passed:
+            return (9, 0)
+        stage = 9
+        for f in report.failures:
+            msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
+            if aid == 'BEHAVIOR':
+                s = 5
+            elif aid == 'PREVIEW':
+                s = 4
+            elif 'acceptance tests' in msg:
+                s = 3
+            elif 'unit tests' in msg:
+                s = 2
+            elif 'build failed' in msg or 'install' in msg:
+                s = 0
+            else:
+                s = 1
+            stage = min(stage, s)
+        return (stage, -len(report.failures))
+
     def build(self, prompt: str) -> AutonomousResult:
         """Generate, verify, repair.
 
@@ -73,9 +98,17 @@ class AutonomousProductEngine:
         seen = {self._fingerprint(repo)}
         stop_reason = 'passed' if report.passed else 'max_repair_rounds'
         self.trace = []  # per round: what failed and what the repair changed (diagnostics only)
+        # Paid builds 2026-10-09: a weaker repair turned "1 behaviour check
+        # fails" into "build fails" and later rounds drifted further. A repair
+        # that goes backwards is discarded; the next one starts from the best.
+        best_repo, best_report = repo, report
+        discarded_note = None
         while not report.passed and rounds < self.max_repair_rounds:
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
+            if discarded_note:
+                failures = failures + [discarded_note]
+                discarded_note = None
             patch = self.repairer.repair(
                 spec=spec,
                 repo_summary=self._summary(repo),
@@ -96,10 +129,24 @@ class AutonomousProductEngine:
                                else 'no_progress_repository_cycle')
                 break
             seen.add(fingerprint)
-            repo = candidate
-            report = self.executor.execute(repository=repo, spec=spec)
-            if report.passed:
-                stop_reason = 'passed'
+            new_report = self.executor.execute(repository=candidate, spec=spec)
+            if new_report.passed:
+                repo, report, stop_reason = candidate, new_report, 'passed'
+                break
+            if self.progress(new_report) < self.progress(best_report):
+                worse = [f'{f.acceptance_id}: {f.message}' for f in new_report.failures][:4]
+                self.trace[-1]['discarded'] = worse
+                discarded_note = {'acceptance_id': 'REPAIR_REGRESSION',
+                                  'message': 'Your previous change made the product worse and was discarded; this is '
+                                             'the better version again. Do not repeat that change.',
+                                  'evidence': '; '.join(worse)[:600]}
+                repo, report = best_repo, best_report
+                continue
+            repo, report = candidate, new_report
+            if self.progress(report) >= self.progress(best_report):
+                best_repo, best_report = repo, report
+        if not report.passed:
+            repo, report = best_repo, best_report
         return AutonomousResult(
             'ready' if report.passed else 'failed',
             spec,

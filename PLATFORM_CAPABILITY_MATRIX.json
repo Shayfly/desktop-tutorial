@@ -167,7 +167,7 @@
    "test_location": [
     "golden-rehearsal run 37937211420"
    ],
-   "last_result": "LIVE",
+   "last_result": "PARTIAL",
    "last_verified_commit": "1c7a9c9",
    "last_verified_at": "2026-10-09T12:55Z",
    "environment": "pre-staging worker host"

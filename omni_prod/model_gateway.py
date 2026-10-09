@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import json
+import re
 from typing import Any, Callable
 from urllib import request, error
 
@@ -152,6 +153,7 @@ class OpenAICompatibleGateway:
             body.setdefault(key, json.loads(raw))
         req = request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         self.last_usage = None
+        self.last_finish_reason = None
         try:
             with self._urlopen(req, timeout=self.endpoint.timeout_seconds) as resp:
                 response_headers = getattr(resp, 'headers', None)
@@ -176,6 +178,7 @@ class OpenAICompatibleGateway:
                               if isinstance(b, dict) and b.get('type') == 'text')
             if not content.strip():
                 raise ModelGatewayError(f"empty model response (stop_reason={payload.get('stop_reason')})")
+            self.last_finish_reason = payload.get('stop_reason')
             return content
         # bld_78e26994 (2026-10-08): gemini-3.8-flash answered after 71 s with
         # "invalid model response shape" and nothing else; say why (finish
@@ -190,7 +193,10 @@ class OpenAICompatibleGateway:
             raise ModelGatewayError(f'invalid model response shape (finish_reason={finish}, keys={keys})') from exc
         if not isinstance(content, str) or not content.strip():
             raise ModelGatewayError(f"empty model response (finish_reason={choice.get('finish_reason')})")
+        self.last_finish_reason = choice.get('finish_reason')
         return content
+
+    last_finish_reason = None
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
         raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens)
@@ -204,10 +210,47 @@ class OpenAICompatibleGateway:
             text = '\n'.join(lines).strip()
             if text.startswith('json'):
                 text = text[4:].lstrip()
-        try:
-            obj = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ModelGatewayError('model did not return valid JSON') from exc
+        obj, exc = _parse_json_object(text)
+        if exc is not None:
+            # Paid builds bld_2e55113c (2026-10-09): every repair answer of the
+            # strong model was refused with no reason; name it in the evidence.
+            finish = getattr(self, 'last_finish_reason', None)
+            raise ModelGatewayError(f'model did not return valid JSON ({exc.msg} at char {exc.pos} of {len(text)}; '
+                                    f'finish_reason={finish}; starts {text[:60]!r})') from exc
         if not isinstance(obj, dict):
             raise ModelGatewayError('model JSON root must be object')
         return obj
+
+
+def _parse_json_object(text: str):
+    """(object, None) or (None, JSONDecodeError). Accepts, in order: the text
+    as JSON; the same with raw control characters inside strings (models put
+    literal newlines/tabs in code strings); the outermost {...} when the model
+    wrapped the object in prose; invalid backslash escapes doubled. Nothing
+    is invented beyond that."""
+    first = None
+    for candidate in _json_candidates(text):
+        for strict in (True, False):
+            try:
+                return json.loads(candidate, strict=strict), None
+            except json.JSONDecodeError as exc:
+                first = first or exc
+    return None, first
+
+
+_BAD_ESCAPE = re.compile(r'(?<!\\)((?:\\\\)*)\\(?=[^"\\/bfnrtu])')
+
+
+def _json_candidates(text: str):
+    start, end = text.find('{'), text.rfind('}')
+    bases = [text]
+    if 0 <= start < end and (start > 0 or end < len(text) - 1):
+        bases.append(text[start:end + 1])
+    yield from bases
+    # A backslash before any other character is invalid JSON; models write
+    # them for regexes/paths in code ("\d+"). Doubling only those cannot change
+    # the meaning of valid JSON and recovers the literal the model wrote.
+    for base in bases:
+        fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', base)
+        if fixed != base:
+            yield fixed

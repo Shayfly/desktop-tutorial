@@ -19,7 +19,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/worker_tasks.py",
+   "why": "live evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37924920646",
     "postdeploy-checks run 37940033628"
@@ -1353,8 +1353,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
    "evidence": [
     "golden-rehearsal run 37937211420"
    ],
@@ -3605,8 +3605,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
    "evidence": [
     "golden-rehearsal run 37937211420"
    ],
@@ -3822,8 +3822,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
    "evidence": [
     "golden-rehearsal run 37937211420"
    ],
@@ -3840,8 +3840,8 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
    "evidence": [
     "golden-rehearsal run 37937211420"
    ],
@@ -4177,8 +4177,8 @@
    ],
    "gap": "bounded rounds",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py",
    "evidence": [
     "golden-rehearsal run 37937211420"
    ],
@@ -7548,8 +7548,8 @@
   },
   "skills_total": 427,
   "skills": {
-   "LIVE": 111,
-   "PARTIAL": 50,
+   "LIVE": 106,
+   "PARTIAL": 55,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 257,
    "BLOCKED": 8

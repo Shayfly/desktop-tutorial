@@ -4,13 +4,13 @@
 > LIVE only with a real run on the deployed system whose code is unchanged since. Do not edit by hand.
 
 Agents: 52 — LIVE 23, PARTIAL 14, NOT_CONFIGURED 1, NOT_IMPLEMENTED 11, BLOCKED 3
-Skills: 427 — LIVE 111, PARTIAL 50, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLOCKED 8
+Skills: 427 — LIVE 106, PARTIAL 55, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLOCKED 8
 
 ## Agents
 
 | Agent | Category | Status | Verifier | Why / evidence | Gap |
 |---|---|---|---|---|---|
-| Executive Orchestrator (`executive_orchestrator`) | management | **PARTIAL** | quality_gate_agent | live evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/worker_tasks.py — postdeploy-checks run 37924920646, postdeploy-checks run 37940033628 |  |
+| Executive Orchestrator (`executive_orchestrator`) | management | **PARTIAL** | quality_gate_agent | live evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py — postdeploy-checks run 37924920646, postdeploy-checks run 37940033628 |  |
 | Discovery Agent (`discovery_agent`) | management | **LIVE** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37924920646 |  |
 | Requirements Agent (`requirements_agent`) | management | **LIVE** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37924920646, golden-rehearsal run 37937211420 |  |
 | Product Planner (`product_planner`) | management | **LIVE** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37924920646 |  |
@@ -79,7 +79,7 @@ Skills: 427 — LIVE 111, PARTIAL 50, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLO
 | `functional_requirement_generation` | Discovery / Requirements | **LIVE** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `nonfunctional_requirement_generation` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `acceptance_criteria_generation` | Discovery / Requirements | **LIVE** | discovery_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `acceptance_contract_generation` | Discovery / Requirements | **LIVE** | discovery_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `acceptance_contract_generation` | Discovery / Requirements | **PARTIAL** | discovery_agent | live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
 | `scope_detection` | Discovery / Requirements | **PARTIAL** | discovery_agent | unit tests only |  |
 | `feature_prioritization` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `risk_identification` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
@@ -229,7 +229,7 @@ Skills: 427 — LIVE 111, PARTIAL 50, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLO
 | `e2e_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `e2e_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `regression_test` | QA | **PARTIAL** | qa_agent | unit tests only |  |
-| `negative_test` | QA | **LIVE** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `negative_test` | QA | **PARTIAL** | qa_agent | live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
 | `edge_case_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `api_test` | QA | **LIVE** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `auth_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
@@ -242,8 +242,8 @@ Skills: 427 — LIVE 111, PARTIAL 50, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLO
 | `restart_test` | QA | **LIVE** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `resume_test` | QA | **LIVE** | qa_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage | build restarts from the beginning |
 | `cancellation_test` | QA | **PARTIAL** | qa_agent | live evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
-| `behavioral_acceptance_test` | QA | **LIVE** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `requirement_traceability_test` | QA | **LIVE** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | acceptance IDs -> steps |
+| `behavioral_acceptance_test` | QA | **PARTIAL** | qa_agent | live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
+| `requirement_traceability_test` | QA | **PARTIAL** | qa_agent | live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **LIVE** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `page_load_test` | Browser | **LIVE** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `click_test` | Browser | **LIVE** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
@@ -264,7 +264,7 @@ Skills: 427 — LIVE 111, PARTIAL 50, NOT_CONFIGURED 1, NOT_IMPLEMENTED 257, BLO
 | `repair_execution` | Repair | **LIVE** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `repair_verification` | Repair | **LIVE** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `regression_after_repair` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
-| `retry_decision` | Repair | **LIVE** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | bounded rounds |
+| `retry_decision` | Repair | **PARTIAL** | repair_agent | live evidence is stale; code changed since: omni_prod/autonomous_core.py | bounded rounds |
 | `escalation_decision` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `secret_detection` | Security | **LIVE** | security_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | static |
 | `secret_exposure_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
