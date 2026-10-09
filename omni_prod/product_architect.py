@@ -46,6 +46,14 @@ _OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push noti
                    "מייל", "אימייל", 'דוא"ל', "דואל")
 
 
+_NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|משתמשים)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
+                       r"sign-in:\s*none", re.I)
+
+
+def no_login_requested(prompt: str) -> bool:
+    return bool(_NO_LOGIN.search(prompt or ''))
+
+
 def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
     """Infrastructure the product needs, in the canonical managed-profile order.
 
@@ -59,7 +67,9 @@ def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequ
     managed_db = wants(_MANAGED_DB_TERMS)
     needed = {
         "database": True,
-        "auth_session": True,
+        # Directive 2026-10-09 §17 "no-login fidelity": sessions are not added
+        # when the request (or the approved brief) says there is no sign-in.
+        "auth_session": not no_login_requested(prompt),
         "object_storage": wants(_UPLOAD_TERMS) or "storage" in integration_keys,
         "scheduled_http": wants(_SCHEDULE_TERMS),
         "outbound": wants(_OUTBOUND_TERMS) or bool({"email", "webhook"} & integration_keys),
@@ -150,12 +160,16 @@ class ProductArchitect:
         product_spec = ProductSpec.from_dict(product_spec.to_dict())
 
         roles, role_defaults = self._infer_roles(clean)
+        no_login = no_login_requested(clean)
+        if no_login:
+            # "No sign-in" is honoured: one kind of user, no roles or sessions.
+            roles, role_defaults = ("user",), ["no_login_single_user"]
         data_requirements = self._infer_data_requirements(clean, decision.plan.modules)
         integrations = self._infer_integrations(clean, capability_plan)
         questions = self._material_questions(clean, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])
-        security = (
+        security = tuple(s for s in (
             "tenant_isolation",
             "least_privilege_rbac",
             "secret_references_only",
@@ -163,7 +177,7 @@ class ProductArchitect:
             "input_validation",
             "audit_evidence",
             "no_cross_tenant_resource_access",
-        )
+        ) if not (no_login and s in ("least_privilege_rbac", "secure_session_lifecycle")))
         cost = CostEnvelopeReference(pricing_catalog_version=pricing_catalog_version)
 
         required_skills = self._required_skills(capability_plan)

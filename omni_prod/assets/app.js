@@ -14,7 +14,17 @@ const T = {
     signinTitle:'כניסה לחשבון', email:'אימייל', password:'סיסמה', passwordHint:'לפחות 10 תווים.',
     login:'כניסה', register:'יצירת חשבון חינם',
     firstProject:'הפרויקט הראשון שלכם', projectName:'שם הפרויקט', createProject:'יצירת פרויקט',
-    request:'מה תרצו לבנות?', build:'בנה עם 148AI', planHint:'קודם תוצג תוכנית ועלות. שום חיוב לא מתבצע לפני אישור.',
+    request:'מה תרצו לבנות?', build:'המשך', planHint:'שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.',
+    modeLegend:'איך תרצו להמשיך?', modeGuided:'שיחת אפיון מודרכת', modeGuidedHint:'נשאל כמה שאלות קצרות — גם על צבעים, גופן וסגנון. אפשר לענות "אין לי העדפה".',
+    modeRecommend:'המערכת תמליץ ותבחר', modeRecommendHint:'נבחר עבורכם לפי מה שכתבתם, ותראו הכול בסיכום לפני אישור.',
+    discTitle:'בואו נדייק את הבקשה', discProgress:(a, r) => `${a} החלטות · נשארו ${r}`, why:'למה שואלים: ',
+    delegate:'אין לי העדפה — בחרו עבורי', delegateWill:v => `(נבחר: ${v})`, suggestedFromRequest:'(לפי מה שכתבתם)',
+    next:'המשך', skipGroup:'דלגו על השאלות האלה', pauseNote:'הכול נשמר. אפשר לחזור ולהמשיך גם אחרי רענון או ממכשיר אחר.',
+    decided:'מה כבר החלטנו', change:'שינוי', save:'שמירה', cancel:'ביטול', needAnswer:q => `צריך תשובה ל: ${q}`,
+    discDone:'האפיון הושלם. זה הסיכום — בדקו אותו לפני אישור.', showSummary:'הצגת הסיכום והעלות',
+    src_message:'מהבקשה שלכם', src_answer:'התשובה שלכם', src_delegated:'נבחר עבורכם', src_default:'ברירת מחדל',
+    sumGoal:'המטרה', sumIncluded:'כלול', sumExcluded:'לא כלול בשלב זה', sumAssumptions:'החלטות שבחרנו עבורכם (אפשר לשנות)',
+    updateRequest:'עדכן את הבקשה', approveBuild:'אשר והתחל בנייה', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
     evidence:'פרטים טכניים ועדויות', refresh:'רענון', openTab:'פתיחה בלשונית חדשה',
@@ -83,7 +93,17 @@ const T = {
     signinTitle:'Sign in', email:'Email', password:'Password', passwordHint:'At least 10 characters.',
     login:'Sign in', register:'Create free account',
     firstProject:'Your first project', projectName:'Project name', createProject:'Create project',
-    request:'What do you want to build?', build:'Build with 148AI', planHint:'You will see a plan and cost first. Nothing is charged before you approve.',
+    request:'What do you want to build?', build:'Continue', planHint:'Nothing is built or charged before you approve a summary and a cost.',
+    modeLegend:'How would you like to continue?', modeGuided:'Guided discovery', modeGuidedHint:'A few short questions — colours, font and style too. "No preference" is always an option.',
+    modeRecommend:'Let 148AI recommend and choose', modeRecommendHint:'We choose from what you wrote; you review everything in the summary before approving.',
+    discTitle:'Let\'s get the request right', discProgress:(a, r) => `${a} decisions · ${r} left`, why:'Why we ask: ',
+    delegate:'No preference — choose for me', delegateWill:v => `(will use: ${v})`, suggestedFromRequest:'(from your request)',
+    next:'Continue', skipGroup:'Skip these questions', pauseNote:'Everything is saved. You can continue after a refresh or from another device.',
+    decided:'Decided so far', change:'Change', save:'Save', cancel:'Cancel', needAnswer:q => `Please answer: ${q}`,
+    discDone:'Discovery is complete. Here is the summary — check it before approving.', showSummary:'Show summary and cost',
+    src_message:'from your request', src_answer:'your answer', src_delegated:'chosen for you', src_default:'default',
+    sumGoal:'Goal', sumIncluded:'Included', sumExcluded:'Not included for now', sumAssumptions:'Chosen for you (you can change these)',
+    updateRequest:'Update the request', approveBuild:'Approve and start building', approvalExpired:'The approval expired. Review the summary and approve again.',
     builtTitle:'What has been built', newBuild:'New product in a new project', newProjectPlus:'+ New project', newProjectHint:'Each product gets its own project. Name it, then describe what to build.', nameRequired:'Give the project a name.', builtVersion:'Current version', files:'files',
     progress:'Build progress', modifyTitle:'What would you like to change?', modifySend:'Send change', versions:'Versions',
     evidence:'Technical details and evidence', refresh:'Refresh', openTab:'Open in new tab',
@@ -205,7 +225,8 @@ function explain(err) {
     case 402: return t('err402') + msg;
     case 403: return t('err403');
     case 404: return t('err404');
-    case 409: return t('err409');
+    case 409: return (err.detail && err.detail.message) || t('err409');
+    case 422: return (err.detail && err.detail.message) || msg;
     case 503: return t('err503') + msg;
     default: return msg;
   }
@@ -222,7 +243,7 @@ function applyLang() {
   $('prompt').placeholder = t('promptPlaceholder');
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
-  renderBanner(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
+  renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
 }
 
 /* ---------- auth ---------- */
@@ -318,6 +339,7 @@ async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
+  S.disc = null; S.editQ = null;
   if (S.projectId !== S.lastShownProject) { $('prompt').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
@@ -325,20 +347,136 @@ async function selectProject(id) {
   if (!S.projectId) return;
   await loadVersions();
   await restoreMod();
+  await restoreDiscovery();
 }
 
 /* ---------- plan + quote ---------- */
+/* ---------- discovery conversation (directive 2026-10-09 §4-5) ---------- */
+const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).slice(0, 60);
+const discPath = () => `/api/v28/projects/${pid()}/discovery`;
 async function requestPlan() {
   const prompt = $('prompt').value.trim();
   const msg = $('composerMsg'); msg.textContent = '';
   if (prompt.length < 12) { msg.textContent = t('needPrompt'); return; }
+  const mode = (document.querySelector('input[name="mode"]:checked') || {}).value || 'guided';
   $('planBtn').disabled = true;
   try {
-    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST', body: { prompt } });
-    S.build = null; renderPlan(); renderTrack();
-    $('planPanel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
+    S.disc = await api(`${discPath()}?lang=${S.lang}`, { method: 'POST', body: { prompt, mode, request_key: newKey() } });
+    S.plan = null; S.build = null; S.editQ = null; renderPlan(); renderTrack();
+    renderDiscovery();
+    if (S.disc.complete) await requestBriefPlan();
+    $('discoveryPanel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   } catch (e) { msg.textContent = explain(e); }
   finally { $('planBtn').disabled = false; }
+}
+async function restoreDiscovery() {
+  if ($('composer').hidden) { $('discoveryPanel').hidden = true; return; }
+  try { S.disc = await api(`${discPath()}?lang=${S.lang}`); }
+  catch { S.disc = null; }
+  if (S.disc && !$('prompt').value) $('prompt').value = S.disc.prompt;
+  renderDiscovery();
+}
+async function sendAnswers(answers) {
+  const msg = $('discMsg'); if (msg) msg.textContent = '';
+  try {
+    S.disc = await api(`${discPath()}/answers?lang=${S.lang}`, { method: 'POST',
+      body: { revision: S.disc.brief.revision, answers, request_key: newKey() } });
+    S.editQ = null; S.plan = null; renderPlan();
+    renderDiscovery();
+    if (S.disc.complete) await requestBriefPlan();
+  } catch (e) {
+    if (e.status === 409) { try { S.disc = await api(`${discPath()}?lang=${S.lang}`); renderDiscovery(); } catch { /* keep message */ } }
+    const m = $('discMsg'); if (m) m.textContent = explain(e);
+  }
+}
+async function requestBriefPlan() {
+  if (!S.disc || !S.disc.complete) return;
+  try {
+    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST',
+      body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
+    S.build = null; renderDiscovery(); renderPlan(); renderTrack();
+    $('planPanel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
+}
+function questionCard(q, current) {
+  const name = `q_${q.id}`;
+  const chosen = current !== undefined ? current : (q.suggested || '');
+  const kids = [h('legend', {}, q.text), h('p', { class: 'hint' }, t('why') + q.why)];
+  if (q.kind === 'choice') {
+    for (const o of q.options) {
+      kids.push(h('label', { class: 'opt' }, h('input', { type: 'radio', name, value: o.value, checked: o.value === chosen }),
+        h('span', {}, o.label, (q.suggested === o.value && current === undefined) ? h('small', {}, ' ' + t('suggestedFromRequest')) : null)));
+    }
+  } else {
+    kids.push(h('textarea', { name, rows: 2, maxlength: 2000, placeholder: q.recommended || '' }, current && current !== '__delegate__' ? current : ''));
+  }
+  if (q.delegable) {
+    const rec = q.kind === 'choice' ? ((q.options.find(o => o.value === q.recommended) || {}).label || '') : (q.recommended || '');
+    kids.push(h('label', { class: 'opt delegate' }, h('input', { type: 'radio', name: q.kind === 'choice' ? name : `${name}_d`, value: '__delegate__' }),
+      h('span', {}, t('delegate'), rec ? h('small', {}, ' ' + t('delegateWill')(rec)) : null)));
+  }
+  return h('fieldset', { class: 'question', 'data-q': q.id, 'data-kind': q.kind, 'data-delegable': q.delegable ? '1' : '' }, kids);
+}
+function collectAnswers(root, { skip = false } = {}) {
+  const answers = {}; const missing = [];
+  for (const fs of root.querySelectorAll('fieldset.question')) {
+    const id = fs.dataset.q;
+    let v = '';
+    if (fs.dataset.kind === 'choice') {
+      const c = fs.querySelector('input[type=radio]:checked'); v = c ? c.value : '';
+    } else {
+      const d = fs.querySelector(`input[name="q_${id}_d"]:checked`);
+      v = d ? '__delegate__' : (fs.querySelector('textarea').value || '').trim();
+    }
+    if (skip && fs.dataset.delegable) v = '';
+    if (!v && !fs.dataset.delegable) missing.push(fs.querySelector('legend').textContent);
+    answers[id] = v;
+  }
+  return { answers, missing };
+}
+function renderDiscovery() {
+  const panel = $('discoveryPanel'); const d = S.disc;
+  if (!d || $('composer').hidden) { panel.hidden = true; return; }
+  panel.hidden = false;
+  const kids = [h('h2', {}, t('discTitle')),
+    h('p', { class: 'hint' }, t('discProgress')(d.progress.answered, d.progress.remaining))];
+  const editing = S.editQ && d.answered.find(a => a.id === S.editQ);
+  if (editing) {
+    const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
+      const { answers, missing } = collectAnswers(form);
+      if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
+      sendAnswers(answers); } },
+      questionCard(editing, editing.source === 'delegated' ? undefined : editing.value),
+      h('div', { class: 'row' }, h('button', { type: 'submit' }, t('save')),
+        h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = null; renderDiscovery(); } }, t('cancel'))));
+    kids.push(form);
+  } else if (!d.complete && d.questions.length) {
+    const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
+      const { answers, missing } = collectAnswers(form);
+      if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
+      sendAnswers(answers); } },
+      h('h3', {}, d.group_title), ...d.questions.map(q => questionCard(q)),
+      h('div', { class: 'row' }, h('button', { type: 'submit' }, t('next')),
+        h('button', { type: 'button', class: 'ghost', onclick: () => {
+          const { answers, missing } = collectAnswers(form, { skip: true });
+          if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
+          sendAnswers(answers); } }, t('skipGroup'))),
+      h('p', { class: 'hint' }, t('pauseNote')));
+    kids.push(form);
+  } else if (d.complete) {
+    kids.push(h('p', { class: 'msg ok' }, t('discDone')));
+    if (!S.plan) kids.push(h('div', { class: 'row' }, h('button', { onclick: requestBriefPlan }, t('showSummary'))));
+  }
+  if (d.answered.length) {
+    kids.push(h('details', { class: 'decided', open: d.complete && !S.plan ? true : null }, h('summary', {}, t('decided')),
+      h('ul', { class: 'answers' }, d.answered.map(a => h('li', {},
+        h('span', { class: 'q' }, a.text), h('b', {}, a.value_label),
+        h('span', { class: `pill ${a.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${a.source}`)),
+        h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = a.id; renderDiscovery();
+          $('discoveryPanel').scrollIntoView({ block: 'start' }); } }, t('change')))))));
+  }
+  kids.push(h('p', { class: 'msg', id: 'discMsg', role: 'alert' }));
+  panel.replaceChildren(...kids);
 }
 function pill(status) {
   const cls = { LIVE: 'ok', SELF_CONTAINED: 'ok', PRICED: 'ok', PARTIAL: 'warn', UNKNOWN: 'warn', NOT_CONFIGURED: 'bad', BLOCKED: 'bad', NOT_AUTHORIZED: 'bad' }[status] || 'muted';
@@ -359,8 +497,18 @@ function renderPlan() {
       h('span', { class: 'pill muted' }, c.executed_by === 'external provider' ? t('byProvider') : t('byPipeline'))));
   }
   const infra = p.infrastructure.map(i => h('li', {}, h('span', {}, t(`k_${i.kind}`) || i.purpose), pill(i.readiness)));
+  const sum = (p.brief_revision && S.disc && S.disc.summary) ? S.disc.summary : null;
+  const briefKids = sum ? [
+    h('h3', {}, t('sumGoal')), h('p', { class: 'summary' }, sum.goal),
+    ...Object.entries(sum.sections).filter(([, items]) => items.length).map(([g, items]) => [
+      h('h3', {}, sum.group_titles[g]),
+      h('ul', { class: 'answers' }, items.map(x => h('li', {}, h('span', { class: 'q' }, x.question), h('b', {}, x.value),
+        h('span', { class: `pill ${x.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${x.source}`)))))]),
+    ...facts(t('sumIncluded'), sum.included), ...facts(t('sumExcluded'), sum.excluded),
+  ].flat() : [];
   const kids = [
     h('h2', {}, t('planTitle')),
+    ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
     ...facts(t('roles'), p.product.user_roles), ...facts(t('data'), p.product.data_requirements),
@@ -392,8 +540,12 @@ function renderPlan() {
         h('ul', { dir: 'ltr' }, p.blockers.map(b => h('li', {}, h('code', {}, b.code), ': ', b.message)))));
   }
   kids.push(h('div', { class: 'row' },
-    h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild }, t('confirm')),
-    h('button', { class: 'secondary', onclick: () => { $('prompt').focus(); } }, t('editRequest'))));
+    h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
+      p.brief_revision ? t('approveBuild') : t('confirm')),
+    h('button', { class: 'secondary', onclick: () => {
+      if (S.disc) { const det = document.querySelector('#discoveryPanel details.decided'); if (det) det.open = true;
+        $('discoveryPanel').scrollIntoView({ block: 'start' }); }
+      else $('prompt').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
   panel.replaceChildren(...kids);
 }
 
@@ -407,8 +559,17 @@ async function startBuild() {
   buildStarting = true;
   $('buildMsg').textContent = '';
   try {
+    // Directive 2026-10-09 §5: the server binds this approval to the user,
+    // the brief revision, the plan and the price; the build consumes it once.
+    let approvalId = null;
+    if (S.plan.brief_revision) {
+      const a = await api(`/api/v28/projects/${pid()}/approvals`, { method: 'POST',
+        body: { build_contract_id: S.plan.build_contract_id, brief_revision: S.plan.brief_revision } });
+      approvalId = a.approval_id;
+    }
     const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
-      body: { prompt: $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id } });
+      body: { prompt: (S.disc && S.disc.prompt) || $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id,
+              approval_id: approvalId } });
     S.build = { id: d.build_id, status: d.status || 'queued', phase: d.duplicate ? '' : 'QUEUED', evidence: {} };
     renderPlan(); renderTrack(); renderBuilt(); pollBuild();
     if (d.duplicate) $('buildMsg').textContent = t('duplicateBuild');
@@ -570,6 +731,7 @@ function renderBuilt() {
   $('builtPanel').hidden = !v;
   $('newBuildRow').hidden = !v || S.newBuildOpen || building;
   $('composer').hidden = !!v && !S.newBuildOpen && !building;
+  renderDiscovery();
   if (!v) return;
   $('builtName').textContent = v.title || v.message || v.id;
   $('builtSummary').textContent = v.summary || '';

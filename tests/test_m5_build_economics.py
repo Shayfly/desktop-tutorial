@@ -263,7 +263,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     """M5 remediation: the canonical build route reserves the FULL conservative
     total (LLM + capabilities + generated-app infra + retry) once, before enqueue."""
 
-    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None):
+    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None, require_approval='0'):
         from omni_prod.build_cost_plan import BuildCostInputs, CostQuoteUnknown
         from omni_prod.build_contract import BuildContractStatus
 
@@ -290,7 +290,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         env = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1', 'OMNI_EXTERNAL_BUDGET_USD': '0.30',
                'OMNI_EXTERNAL_CALLS_PER_BUILD': '3', 'OMNI_BUILD_INFRA_ESTIMATED_USD': '0',
                'OMNI_BUILD_INFRA_MAX_USD': '0', 'OMNI_BUILD_RETRY_RESERVE_USD': '0.05',
-               'OMNI_MIN_BUILD_VARIABLE_MARGIN': '0.20'}
+               'OMNI_MIN_BUILD_VARIABLE_MARGIN': '0.20', 'OMNI_REQUIRE_APPROVAL': require_approval}
         cost = MagicMock(side_effect=cost_inputs_exc) if cost_inputs_exc else MagicMock(return_value=inputs)
         with patch.dict('os.environ', env, clear=False), \
              patch.object(investor_app, '_require_durable_backend'), \
@@ -324,6 +324,14 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         reserve.assert_called_once()
         enqueue.assert_not_called()
         jobs.create_outbox.assert_not_called()
+
+    def test_build_without_an_approval_is_refused(self):
+        # Directive 2026-10-09 §5: a direct API call does not bypass approval.
+        _, reserve, enqueue, jobs, exc = self._run(require_approval='1')
+        self.assertEqual(exc.status_code, 409)
+        self.assertEqual(exc.detail['error'], 'approval_required')
+        reserve.assert_not_called()
+        enqueue.assert_not_called()
 
     def test_second_approval_of_the_same_plan_returns_the_existing_build(self):
         # Directive 2026-10-09 §5: a double click does not create two builds.

@@ -165,3 +165,26 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
 
 /* "+ New project" stays on one line in the top bar */
 .projectbar button{white-space:nowrap}
+
+/* Discovery conversation (directive 2026-10-09 §4) */
+.modes{border:0;padding:0;margin:.8rem 0;display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))}
+.modes legend{font-weight:650;margin-block-end:.4rem}
+.mode{display:flex;gap:.6rem;align-items:flex-start;border:1px solid var(--rule);border-radius:var(--radius-control);padding:.7rem .8rem;cursor:pointer;background:var(--surface)}
+.mode:has(input:checked){border-color:var(--signal);box-shadow:inset 0 0 0 1px var(--signal)}
+.mode input,.opt input{width:auto;margin-top:.3rem;accent-color:var(--signal)}
+.mode small{display:block;color:var(--slate);font-size:.85rem;font-weight:400}
+.discovery h2{margin:0 0 .2rem}
+.qgroup h3{font-size:1rem;margin:.9rem 0 .4rem;color:var(--signal)}
+.question{border:1px solid var(--rule);border-radius:var(--radius-control);padding:.8rem .9rem;margin:0 0 .7rem}
+.question legend{font-weight:650;padding:0 .3rem}
+.question .hint{margin:0 0 .5rem}
+.opt{display:flex;gap:.55rem;align-items:flex-start;padding:.35rem .2rem;cursor:pointer;border-radius:6px}
+.opt:hover{background:var(--sunk)}
+.opt small{color:var(--slate)}
+.opt.delegate{border-top:1px dashed var(--rule);margin-top:.3rem;padding-top:.5rem;color:var(--slate)}
+.answers{list-style:none;padding:0;margin:.4rem 0;display:grid;gap:.35rem}
+.answers li{display:flex;flex-wrap:wrap;gap:.4rem .7rem;align-items:center;background:var(--sunk);border-radius:var(--radius-control);padding:.4rem .6rem}
+.answers .q{color:var(--slate);font-size:.88rem;flex:1 1 14rem}
+.decided summary{cursor:pointer;font-weight:650;margin-top:.6rem}
+.opt>span,.mode>span{display:block;font-size:1rem;color:var(--ink);margin:0}
+.opt{margin:0}

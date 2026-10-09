@@ -93,13 +93,22 @@
 
       <div class="panel composer" id="composer">
         <label for="prompt" class="composerLabel" data-i18n="request">מה תרצו לבנות?</label>
-        <textarea id="prompt" rows="6" maxlength="12000"></textarea>
+        <textarea id="prompt" rows="6" maxlength="8000"></textarea>
+        <fieldset class="modes" id="modeChoice">
+          <legend data-i18n="modeLegend">איך תרצו להמשיך?</legend>
+          <label class="mode"><input type="radio" name="mode" value="guided" checked>
+            <span><b data-i18n="modeGuided">שיחת אפיון מודרכת</b><small data-i18n="modeGuidedHint">נשאל כמה שאלות קצרות — גם על צבעים, גופן וסגנון. אפשר לענות "אין לי העדפה".</small></span></label>
+          <label class="mode"><input type="radio" name="mode" value="recommend">
+            <span><b data-i18n="modeRecommend">המערכת תמליץ ותבחר</b><small data-i18n="modeRecommendHint">נבחר עבורכם לפי מה שכתבתם, ותראו הכול בסיכום לפני אישור.</small></span></label>
+        </fieldset>
         <div class="row">
-          <button id="planBtn" data-i18n="build">בנה עם 148AI</button>
-          <span class="hint" data-i18n="planHint">קודם תוצג תוכנית ועלות. שום חיוב לא מתבצע לפני אישור.</span>
+          <button id="planBtn" data-i18n="build">המשך</button>
+          <span class="hint" data-i18n="planHint">שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.</span>
         </div>
         <p class="msg" id="composerMsg" role="alert"></p>
       </div>
+
+      <div class="panel discovery" id="discoveryPanel" hidden aria-live="polite"></div>
 
       <div class="panel plan" id="planPanel" hidden aria-live="polite"></div>
 

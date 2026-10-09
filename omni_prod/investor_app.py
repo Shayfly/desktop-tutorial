@@ -231,6 +231,12 @@ class M5BuildContractBlocked(RuntimeError):
         self.contract = contract
 
 
+def _approval_required() -> bool:
+    """Directive 2026-10-09 §5: a direct API call does not bypass approval.
+    On by default; OMNI_REQUIRE_APPROVAL=0 only for tests of older paths."""
+    return os.getenv('OMNI_REQUIRE_APPROVAL', '1') != '0'
+
+
 class _DuplicateApproval(Exception):
     """Rolls back the reservation transaction when the approved contract
     already has a queued/running/ready build (returned instead)."""
@@ -392,6 +398,8 @@ class V27BuildRequest(BaseModel):
     prompt: str = Field(min_length=3,max_length=12000)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
     build_contract_id: str | None = Field(default=None, min_length=1, max_length=160)
+    # Directive 2026-10-09 §5: the server-bound approval this build consumes.
+    approval_id: str | None = Field(default=None, min_length=1, max_length=80)
 
 class V27RightsEvidenceRequest(BaseModel):
     right_kind: str
@@ -1621,6 +1629,177 @@ def _internal_qa_funding(account_id: str):
 
 class V28PlanRequest(BaseModel):
     prompt: str = Field(min_length=3, max_length=12000)
+    # Directive 2026-10-09 §4-5: plan from the approved discovery brief. The
+    # contract prompt then carries the brief's requirements and fingerprint.
+    brief_revision: int | None = Field(default=None, ge=1)
+
+
+# ---- Discovery conversation + ProjectBrief + approval (directive 2026-10-09 §4-5)
+
+class V28DiscoveryStart(BaseModel):
+    prompt: str = Field(min_length=12, max_length=8000)
+    mode: str = Field(default='guided', pattern='^(guided|recommend)$')
+    request_key: str | None = Field(default=None, max_length=80)
+    expected_revision: int | None = Field(default=None, ge=0)
+
+
+class V28DiscoveryAnswers(BaseModel):
+    revision: int = Field(ge=1)
+    answers: dict[str, str] = Field(default_factory=dict)
+    request_key: str | None = Field(default=None, max_length=80)
+
+
+class V28ApprovalRequest(BaseModel):
+    build_contract_id: str = Field(min_length=1, max_length=160)
+    brief_revision: int = Field(ge=1)
+
+
+def _brief_repo():
+    from .brief_repository import PostgresBriefRepository
+    if _v28_pool is None:
+        raise HTTPException(503, detail={'error': 'durable_backend_required'})
+    return PostgresBriefRepository(_v28_pool)
+
+
+def _lang(request: Request) -> str:
+    return 'en' if (request.query_params.get('lang') or '').lower().startswith('en') else 'he'
+
+
+def _discovery_view(row, lang: str) -> dict:
+    from . import discovery as d
+    brief = row.brief
+    group, questions = d.next_group(brief)
+    answered = []
+    for q in d.QUESTIONS:
+        f = brief.fields.get(q.field)
+        if f:
+            answered.append({**q.to_dict(lang), 'value': f['value'], 'value_label': d._label(q, f['value'], lang),
+                             'source': f['source']})
+    return {
+        'brief': row.to_dict(), 'prompt': brief.prompt, 'mode': brief.mode,
+        'group': group, 'group_title': d.GROUP_TITLES[group][0 if lang != 'en' else 1] if group else None,
+        'questions': [{**q.to_dict(lang), 'suggested': brief.hints.get(q.field)} for q in questions],
+        'answered': answered, 'complete': row.complete,
+        'progress': {'answered': len(answered), 'remaining': len(d.pending(brief))},
+        'summary': d.summary(brief, lang) if row.complete else None,
+    }
+
+
+def _discovery_account(request: Request, project_id: str):
+    token = _v28_bearer(request)
+    try:
+        account, _ = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return account
+
+
+@app.post('/api/v28/projects/{project_id}/discovery')
+def v28_discovery_start(project_id: str, req: V28DiscoveryStart, request: Request) -> dict:
+    """Start (or restart) the discovery conversation for a request. Costs
+    nothing (deterministic engine). Every change is a new brief revision."""
+    from . import discovery as d
+    from .brief_repository import StaleBrief
+    account = _discovery_account(request, project_id)
+    repo = _brief_repo()
+    current = repo.latest(project_id)
+    expected = req.expected_revision if req.expected_revision is not None else (current.revision if current else 0)
+    try:
+        row = repo.save(project_id=project_id, account_id=account.id, brief=d.start(req.prompt, req.mode),
+                        expected_revision=expected, request_key=req.request_key)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
+    return _discovery_view(row, _lang(request))
+
+
+@app.get('/api/v28/projects/{project_id}/discovery')
+def v28_discovery_get(project_id: str, request: Request) -> dict:
+    """The latest brief revision: a refresh or another device resumes here."""
+    _discovery_account(request, project_id)
+    row = _brief_repo().latest(project_id)
+    if row is None:
+        raise HTTPException(404, detail={'error': 'no_discovery'})
+    return _discovery_view(row, _lang(request))
+
+
+@app.post('/api/v28/projects/{project_id}/discovery/answers')
+def v28_discovery_answer(project_id: str, req: V28DiscoveryAnswers, request: Request) -> dict:
+    """Answer, delegate ("__delegate__"), skip ("") or change earlier answers.
+    Compare-and-set on `revision`: a stale tab gets 409 instead of overwriting."""
+    from . import discovery as d
+    from .brief_repository import StaleBrief
+    account = _discovery_account(request, project_id)
+    repo = _brief_repo()
+    current = repo.latest(project_id)
+    if current is None:
+        raise HTTPException(404, detail={'error': 'no_discovery'})
+    if current.revision != req.revision:
+        if req.request_key:
+            try:  # a retried submission returns the revision it already made
+                return _discovery_view(repo.save(project_id=project_id, account_id=account.id, brief=current.brief,
+                                                 expected_revision=-1, request_key=req.request_key), _lang(request))
+            except StaleBrief:
+                pass
+        raise HTTPException(409, detail={'error': 'brief_stale', 'revision': current.revision,
+                                         'message': 'The request was changed elsewhere. Reload to continue.'})
+    try:
+        brief = d.answer(current.brief, req.answers)
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
+    try:
+        row = repo.save(project_id=project_id, account_id=account.id, brief=brief, expected_revision=current.revision,
+                        request_key=req.request_key)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
+    return _discovery_view(row, _lang(request))
+
+
+def _budget_fingerprint(contract, quote, funding: str) -> str:
+    import hashlib
+    basis = f'{contract.contract_fingerprint}|{quote.total_authorized_variable_usd}|{_M5_BUILD_CREDITS}|{funding}'
+    return hashlib.sha256(basis.encode()).hexdigest()
+
+
+def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
+    from . import discovery as d
+    row = _brief_repo().latest(project_id)
+    if row is None or row.revision != revision:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the new summary.'})
+    if not row.complete:
+        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.'})
+    return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
+
+
+@app.post('/api/v28/projects/{project_id}/approvals')
+def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Request) -> dict:
+    """"Approve and start building": binds user, project, brief revision +
+    fingerprint, contract + fingerprint and the budget quote for a limited
+    time. POST .../builds consumes it exactly once."""
+    from .brief_repository import ApprovalError
+    account = _discovery_account(request, project_id)
+    _, row = _brief_prompt(project_id, req.brief_revision)
+    contracts = PostgresBuildContractRepository(_v28_pool)
+    try:
+        contract = contracts.get(req.build_contract_id, project_id=project_id)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(409, detail={'error': 'build_contract_invalid', 'message': 'Request the plan again.'}) from exc
+    if row.fingerprint[:16] not in contract.prompt:
+        raise HTTPException(409, detail={'error': 'approval_stale', 'message': 'This plan was made for another version of the request.'})
+    plan = _v28.subscriptions.plan_for(account.id)
+    _, internal_qa = _internal_qa_funding(account.id)
+    try:
+        inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
+        quote = _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None)
+    except (CostQuoteUnknown, PermissionError) as exc:
+        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'}) from exc
+    try:
+        return _brief_repo().create_approval(
+            project_id=project_id, account_id=account.id, brief_row=row, build_contract_id=contract.id,
+            contract_fingerprint=contract.contract_fingerprint,
+            budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan'))
+    except ApprovalError as exc:
+        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
 
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
@@ -1653,14 +1832,18 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
                 raise PermissionError('internal QA funding would refuse this build') from exc
         return quote
 
+    prompt = req.prompt
+    if req.brief_revision is not None:
+        prompt, _ = _brief_prompt(project_id, req.brief_revision)
     preview = build_plan_preview(
-        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=req.prompt,
+        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
         economics=economics,
         durable_backend=_async_build_mode(),
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
     # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
     preview['credits_required'] = _M5_BUILD_CREDITS
+    preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
     return preview
 
@@ -1734,6 +1917,20 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             # Same approved plan already building or built: no
                             # second build, no second reservation.
                             raise _DuplicateApproval()
+                        if req.approval_id:
+                            from .brief_repository import ApprovalError, PostgresBriefRepository
+                            try:
+                                economics_evidence['approval'] = PostgresBriefRepository(_v28_pool).consume(
+                                    cur, approval_id=req.approval_id, project_id=project_id, account_id=account.id,
+                                    build_contract_id=build_contract.id, contract_fingerprint=build_contract.contract_fingerprint,
+                                    budget_fingerprint=_budget_fingerprint(
+                                        build_contract, economics_quote, 'internal_qa' if internal_qa else 'customer_plan'),
+                                    build_id=build_id)
+                            except ApprovalError as exc:
+                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+                        elif _approval_required():
+                            raise HTTPException(409, detail={'error': 'approval_required',
+                                                             'message': 'Approve the summary and plan first.'})
                         # DEVIATION: reserve() now takes project_id=key (see
                         # subscription_store.py) so credit_reservations.project_id
                         # is never the literal placeholder 'UNKNOWN'.
