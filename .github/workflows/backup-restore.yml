@@ -34,7 +34,7 @@ jobs:
       - name: Prepare
         run: |
           set -euo pipefail
-          BK="$RUNNER_TEMP/bk"; rm -rf "$BK"; mkdir -p "$BK" && chmod 777 "$BK"
+          BK="$RUNNER_TEMP/bk"; docker run --rm -v "$RUNNER_TEMP:/t" alpine:3 rm -rf /t/bk; mkdir -p "$BK" && chmod 777 "$BK"
           echo "BK=$BK" >> "$GITHUB_ENV"
           echo "STAMP=$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_ENV"
           echo "IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")" >> "$GITHUB_ENV"
