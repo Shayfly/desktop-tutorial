@@ -77,9 +77,9 @@ def fixture(version: str) -> dict[str, str]:
 def record(check: str, ok: bool, detail='') -> bool:
     detail = detail if isinstance(detail, str) else json.dumps(detail, ensure_ascii=False, default=str)
     RESULTS.append({'check': check, 'ok': bool(ok), 'detail': detail[:900]})
-    level = 'notice' if ok else 'error'
-    body = (('PASS ' if ok else 'FAIL ') + detail)[:1500].replace('%', '%25').replace('\n', '%0A')
-    print(f'::{level} title=postdeploy {check}::{body}', flush=True)
+    if not ok:  # GitHub keeps only 10 annotations per step: failures individually, passes in one summary
+        body = ('FAIL ' + detail)[:1500].replace('%', '%25').replace('\n', '%0A')
+        print(f'::error title=postdeploy {check}::{body}', flush=True)
     return ok
 
 
@@ -399,12 +399,14 @@ def stage_cancel_verify(state: dict) -> None:
     # A job pushed while the worker was stopped can be lost to the stopped
     # worker's open read; the janitor re-dispatches it after 3 minutes.
     d = wait(poll, 480, 5) or {}
-    ev = d.get('evidence') or {}
     res = reservation(b)
+    # Worker-side evidence (the API view strips the economics keys).
+    row = sql("SELECT evidence_json->>'external_model_calls', evidence_json->>'billing', evidence_json->>'provider_spend_usd', "
+              "started_at IS NOT NULL FROM build_jobs WHERE id = %s", (b,))[0]
     record('running build stops at the next step', d.get('status') == 'cancelled' and d.get('error_code') == 'cancelled_by_user'
-           and str(ev.get('external_model_calls')) == '0' and (res or {}).get('status') == 'RELEASED',
-           f"status={d.get('status')} code={d.get('error_code')} model_calls={ev.get('external_model_calls')} "
-           f"billing={ev.get('billing')} reservation={res}")
+           and row[0] == '0' and row[1] == 'released' and row[3] and (res or {}).get('status') == 'RELEASED',
+           f"status={d.get('status')} code={d.get('error_code')} claimed_by_worker={row[3]} model_calls={row[0]} "
+           f"billing={row[1]} spend={row[2]} reservation={res}")
     s, log = api('GET', f'/api/v28/projects/{project}/builds/{b}/events?after=0', None, token)
     events = (log or {}).get('events') or []
     later = api('GET', f'/api/v28/projects/{project}/builds/{b}/events?after={events[0]["seq"]}', None, token)[1] if events else {}
@@ -493,6 +495,8 @@ def main(argv=None) -> int:
     finally:
         save_state(state)
     failed = [r['check'] for r in RESULTS if not r['ok']]
+    lines = '\n'.join(f"{'PASS' if r['ok'] else 'FAIL'} {r['check']}: {r['detail'][:420]}" for r in RESULTS)
+    print(f'::notice title=postdeploy {stage} summary::' + lines[:3800].replace('%', '%25').replace('\n', '%0A'), flush=True)
     print('POSTDEPLOY ' + json.dumps({'stage': stage, 'passed': len(RESULTS) - len(failed), 'failed': failed},
                                      ensure_ascii=False), flush=True)
     return 1 if failed else 0
