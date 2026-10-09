@@ -22,6 +22,14 @@ Task branch `claude/g0-baseline-2026-10-09` at `da8d952` (CI v24-ci, V11 Overlay
 - **Workspace states (directive §11)**: offline banner, timeout vs no connection vs server error, data-storage note on the preview, track after reload/stop. Checked in Chromium against a mock API (desktop + 390 px, restore, stop → stopping → cancelled, offline): no page errors.
 - **G5 rule**: `skill.ui_states` now requires a banner to show again on every message (the library bug); the rehearsal report includes `browser_check`.
 
+**Merge plan and rollback (written before the merge, founder approval 2026-10-09 13:38)**
+- Target before merge: `milestone/pre-staging-2026-10-05` = `9db2d53294b15ce1ab929251be16ce7f0ad37c53` (rollback point). Merge = fast-forward push, no force, no history rewrite.
+- Migration 031 is additive only: two nullable columns on `build_jobs`, one nullable column (with CHECK) on `project_previews`, a new table `build_events` + index. No backfill, no rewrite, no drop; code at `9db2d53` ignores all of it, so a code rollback needs no schema change.
+- Code rollback: push a revert commit of `0159126..409d19d` onto the active branch (never force-push); deploy-worker redeploys the old worker (drain first). The schema stays.
+- Optional schema removal (only with a separate approval, after the code rollback): `DROP TABLE build_events; ALTER TABLE build_jobs DROP COLUMN cancel_requested_at, DROP COLUMN cancel_requested_by; ALTER TABLE project_previews DROP COLUMN data_storage; DELETE FROM schema_migrations WHERE version = 31;` — this deletes the live logs only.
+- Known window: Vercel and the worker deploy in parallel; until deploy-worker has applied 031 (a few minutes, after the drain), the API's preview status read (`data_storage`) and the new log/stop endpoints can return 500. Worker idle at merge time.
+- Preview data directories (`/var/lib/omni-preview/data/p-*`) are never deleted by a rollback.
+
 **QA spend — honest total against the $10 ceiling**
 - Recorded in the database (builds + changes, all-time, build-evidence 37864934013): **$3.31**.
 - Golden rehearsals do not write the database; their authorized spend from the run annotations: 37700287077 $0.101, 37700596406 $0.098, 37701168910 $0.467, 37701990475 $0.391, 37814985551 $0.210, 37820429767 $0.072, 37840698696 $0.069, 37841459920 $0.125, 37857189740 $0.098, 37858017258 $0.110 = **$1.74**.
