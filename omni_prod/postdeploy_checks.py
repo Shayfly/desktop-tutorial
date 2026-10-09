@@ -261,7 +261,7 @@ def plan_and_build(token, project_id, revision, prompt) -> dict:
     status, build = api('POST', f'/api/v28/projects/{project_id}/builds',
                         {'prompt': prompt, 'build_contract_id': plan['build_contract_id'],
                          'approval_id': appr['approval_id']}, token)
-    if status != 200:
+    if status not in (200, 202):
         raise RuntimeError(f'build {status} {build}')
     return {'build_id': build['build_id'], 'plan': plan.get('build_contract_id'), 'approval': appr['approval_id']}
 
@@ -396,7 +396,9 @@ def stage_cancel_verify(state: dict) -> None:
     def poll():
         s, d = api('GET', f'/api/v28/projects/{project}/builds/{b}', None, token)
         return d if s == 200 and d.get('status') in ('ready', 'failed', 'cancelled') else None
-    d = wait(poll, 240, 3) or {}
+    # A job pushed while the worker was stopped can be lost to the stopped
+    # worker's open read; the janitor re-dispatches it after 3 minutes.
+    d = wait(poll, 480, 5) or {}
     ev = d.get('evidence') or {}
     res = reservation(b)
     record('running build stops at the next step', d.get('status') == 'cancelled' and d.get('error_code') == 'cancelled_by_user'

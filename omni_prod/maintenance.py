@@ -11,6 +11,15 @@ Two gaps found during Golden E2E #1 (2026-10-07/08):
    the stale limit (default 45 minutes; the job timeout is 15) are moved to
    FAILED with error `worker_lost`, and their reservation is released.
 
+3. Lost queue entries (post-deploy check 2026-10-09): a job pushed while the
+   build worker was stopped (deploy drain) can be taken by the stopped
+   worker's still-open blocking read on the serverless Redis and is then
+   gone; the build stayed QUEUED with its credits reserved
+   (bld_a99ca1119c8f445aa4f6243c330d6a46). A build or change that is still
+   QUEUED after a few minutes and whose id is no longer in its queue is
+   dispatched again. Safe: the worker's QUEUED -> RUNNING claim is
+   conditional, so a duplicate delivery is a no-op.
+
 Each step is independent and logged; one failing step never stops the loop.
 """
 from __future__ import annotations
@@ -20,6 +29,10 @@ import time
 
 STALE_BUILD_MINUTES = int(os.getenv('OMNI_STALE_BUILD_MINUTES', '45'))
 INTERVAL_SECONDS = int(os.getenv('OMNI_MAINTENANCE_INTERVAL_SECONDS', '60'))
+LOST_QUEUED_MINUTES = int(os.getenv('OMNI_LOST_QUEUED_MINUTES', '3'))
+
+BUILD_JOB = 'omni_prod.worker_tasks.execute_live_build_job'
+MODIFICATION_JOB = 'omni_prod.worker_tasks.execute_modification_job'
 
 
 def _say(msg: str) -> None:
@@ -55,8 +68,36 @@ def reap_build(jobs, subscriptions, build_id: str, minutes: int) -> bool:
     return bool(moved)
 
 
-def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_host: str) -> dict:
-    out = {'expired': 0, 'cleaned': 0, 'reaped': 0, 'errors': []}
+def queued_too_long(pool, minutes: int) -> list[tuple[str, str]]:
+    """(job function, id) of builds and changes still QUEUED after `minutes`."""
+    with pool.connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM build_jobs WHERE status = 'queued' AND cancel_requested_at IS NULL "
+                        "AND created_at < now() - make_interval(mins => %s) ORDER BY created_at LIMIT 20", (int(minutes),))
+            builds = [(BUILD_JOB, r[0]) for r in cur.fetchall()]
+            cur.execute("SELECT id FROM modification_requests WHERE status = 'QUEUED' "
+                        "AND created_at < now() - make_interval(mins => %s) ORDER BY created_at LIMIT 20", (int(minutes),))
+            changes = [(MODIFICATION_JOB, r[0]) for r in cur.fetchall()]
+    return builds + changes
+
+
+def redispatch_lost(pool, *, queued_ids, enqueue, minutes: int = LOST_QUEUED_MINUTES) -> list[str]:
+    """Re-enqueue QUEUED work whose id is no longer waiting in the queue.
+    `queued_ids()` returns the ids currently in the build queue (and being
+    worked on); `enqueue(func, id)` dispatches with job_id=id."""
+    waiting = set(queued_ids())
+    sent = []
+    for func, item in queued_too_long(pool, minutes):
+        if item in waiting:
+            continue  # still in line behind another job: not lost
+        enqueue(func, item)
+        sent.append(item)
+    return sent
+
+
+def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_host: str,
+             queued_ids=None, enqueue=None) -> dict:
+    out = {'expired': 0, 'cleaned': 0, 'reaped': 0, 'redispatched': [], 'errors': []}
     try:
         out['expired'] = preview_repo.mark_expired()
     except Exception as exc:
@@ -77,6 +118,11 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
                 out['errors'].append(f'reap {bid}: {type(exc).__name__}: {exc}')
     except Exception as exc:
         out['errors'].append(f'stale_builds: {type(exc).__name__}: {exc}')
+    if queued_ids is not None and enqueue is not None:
+        try:
+            out['redispatched'] = redispatch_lost(pool, queued_ids=queued_ids, enqueue=enqueue)
+        except Exception as exc:
+            out['errors'].append(f'redispatch: {type(exc).__name__}: {exc}')
     return out
 
 
@@ -88,15 +134,27 @@ def main():
     if _v28_pool is None:
         raise RuntimeError('maintenance requires OMNI_CREATOR_PERSISTENCE=postgres')
     host = preview_runtime_host()
+    from .queueing import BUILD_QUEUE, enqueue_build, queue
+    redis_url = os.getenv('OMNI_REDIS_URL', '')
+
+    def queued_ids():
+        from rq.registry import StartedJobRegistry
+        q = queue(redis_url, BUILD_QUEUE)
+        return list(q.job_ids) + list(StartedJobRegistry(queue=q).get_job_ids())
+
+    def enqueue(func, item):
+        enqueue_build(redis_url, func, item, job_id=item)
+
     deps = dict(pool=_v28_pool, preview_repo=PostgresPreviewRepository(_v28_pool),
                 jobs=PostgresBuildRepository(_v28_pool), subscriptions=_v28.subscriptions,
-                stop_preview=stop_preview_task, runtime_host=host)
+                stop_preview=stop_preview_task, runtime_host=host,
+                queued_ids=queued_ids if redis_url else None, enqueue=enqueue if redis_url else None)
     _say(f'maintenance started: host {host}, every {INTERVAL_SECONDS}s, stale builds after {STALE_BUILD_MINUTES} min')
     while True:
         result = run_once(**deps)
-        if result['expired'] or result['cleaned'] or result['reaped'] or result['errors']:
+        if result['expired'] or result['cleaned'] or result['reaped'] or result['redispatched'] or result['errors']:
             _say(f"expired={result['expired']} cleaned={result['cleaned']} reaped={result['reaped']} "
-                 f"errors={result['errors'][:3]}")
+                 f"redispatched={result['redispatched']} errors={result['errors'][:3]}")
         time.sleep(INTERVAL_SECONDS)
 
 

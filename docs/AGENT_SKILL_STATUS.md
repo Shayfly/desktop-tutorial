@@ -4,7 +4,7 @@ Generated from `omni_prod/agent_catalog.py` (roles), `omni_prod/skill_catalog.py
 
 Dimensions are separate: implementation · configuration · verification (scope + freshness) · blocked. VERIFIED always names what the run asserted, and only counts while the implementation is unchanged since the commit that ran; otherwise the row is STALE and needs re-verification.
 
-Roles (61): VERIFIED 6, STALE 10, CONNECTED 3, DEFINED 42
+Roles (61): VERIFIED 5, STALE 11, CONNECTED 3, DEFINED 42
 
 Skills in the §9 catalog (137): VERIFIED 16, STALE 20, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
 
@@ -44,7 +44,7 @@ Skills in the §9 catalog (137): VERIFIED 16, STALE 20, TESTED 17, IMPLEMENTED 7
 | Repair Agent | STALE | RepairAgent | GEMINI_API_KEY/OMNI_MODEL_CATALOG_JSON: ok (deploy-worker run 37739774562 notice "model catalog": gemini-* CONFIGURED; model-probe 37814803770 ok); OMNI_SANDBOX_RUNNER_URL/OMNI_SANDBOX_SHARED_SECRET: ok (deploy-worker sandbox probe PASS (every deploy)) | STALE — was verified for: failing sandbox tests repaired within the round limit at ff6b4f6; code changed since: omni_prod/autonomous_agents.py | — | bld_f419acd1317a40afab5a7bd287841048 -> v_246bae81234e4c39 — founder build from the workspace, 2026-10-08 21:30-21:35, quality 84 [workspace@beb67b4]; golden-rehearsal run 37814985551 — 5 repair rounds converged [worker-host@ff6b4f6] | part of ~$0.07 per build | repairs the whole repository rather than a minimal patch |
 | Preview Operator | STALE | DockerPreviewProvider, make_handler, PostgresPreviewRepository | PREVIEW_DOMAIN_TEMPLATE/OMNI_PREVIEW_HOST_SUFFIX: ok (deploy-worker "Preview edge is up" PASS) | STALE — was verified for: preview container started and routed over HTTPS at beb67b4; code changed since: omni_prod/preview_repository.py, omni_prod/preview_runtime.py | — | https://prv-1760dedc67864c0186aa0cdf945bab0d.151-145-89-132.sslip.io — v_246bae81234e4c39 shown in the workspace [workspace@beb67b4]; tests/test_golden_mod_path_live_postgres.py::test_preview_acceptance_report_is_recorded_on_real_postgres — acceptance recording fixed 2026-10-09 (library preview was torn down) | $0 (worker host) | data in /tmp is lost when the preview stops; temporary sslip.io address, open to anyone with the link; acceptance recording fix not yet seen on a founder preview |
 | Release Agent | DEFINED | — | — | not verified | — | — | — | not implemented |
-| Operations Agent | VERIFIED | run_once | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | VERIFIED for: janitor process running (fresh: deploy-worker@d8a01fa) | — | tests/test_maintenance_live_postgres.py; deploy-worker "janitor started" [worker-host@d8a01fa] | $0 | no alerting; no health monitoring of generated products |
+| Operations Agent | STALE | run_once | OMNI_DATABASE_URL: ok (deploy-worker migrations + queue probe PASS) | STALE — was verified for: janitor runs at d8a01fa; code changed since: omni_prod/maintenance.py | — | tests/test_maintenance_live_postgres.py; deploy-worker "janitor started" [worker-host@d8a01fa] | $0 | no alerting; no health monitoring of generated products |
 | Requirements Traceability Auditor | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Accessibility & Localization Reviewer | DEFINED | — | — | not verified | — | — | — | not implemented |
 | Privacy & IP Steward | DEFINED | — | — | not verified | — | — | — | not implemented |
