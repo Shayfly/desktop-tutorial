@@ -18,10 +18,25 @@ Directive: `docs/MASTER_EXECUTION_DIRECTIVE_2026-10-09_HE.md`. The G0 baseline, 
     - migrations started only after that (00:08:44 UTC).
   - Cost: $0.
 
+- **Real-browser check of every generated product (directive §17).**
+  - What runs: `omni_prod/browser_probe.py`. It needs no knowledge of the product: it fills each form by field type and submits it twice, then reports page errors, dead forms, vanishing feedback and 5xx responses. These become a repairable BROWSER failure.
+  - Where it runs: in its own image `omni-browser-sandbox` (Debian chromium + Playwright, `--network none`, read-only, non-root), via the sandbox-runner profile `browser`. Build evidence records `browser_check`.
+  - Verified locally on the exact library version `v_f65e904334`: it reports `feedback_disappears`. With the one-line fix it reports no findings. Fixtures for a dead form and a JS error are also caught (`tests/test_browser_probe.py`, 9 tests).
+  - Verified on the worker host: Deploy build worker 37864475043 reports "browser-probe: PASS working=[] message-bug=['feedback_disappears']".
+  - Not yet exercised inside a real founder build.
+- **Drain also held during a real build.**
+  - Founder build `bld_e2043208…` started 00:23:52 UTC.
+  - Deploy 37864475043 drained for 65 s, and the build finished `ready` at 00:26:04 (build-evidence 37864934013).
+- **Approval idempotency (directive §5).**
+  - Behaviour: a second approval of the same plan revision returns the existing queued/running/ready build. There is no second build and no second reservation. A failed build still allows a retry.
+  - Mechanism: an advisory lock on (project, contract) plus a check for an existing build.
+  - Proof: a live-Postgres race test fails without the lock (two builds) and passes with it. The endpoint test is `test_second_approval_of_the_same_plan_returns_the_existing_build` (CI v24-ci 37864338119).
+  - UI: in-flight guard and a "this plan is already building" message.
+
 **Implemented, awaiting live**
 - **QA budget no longer hides cost behind a date.**
   - `OMNI_QA_BUDGET_SINCE` now counts only together with `OMNI_QA_FREE_TIER_EVIDENCE` (a reference to billing proof). Without that reference the count is all-time and the ignored date is recorded in build evidence.
-  - With the current Vercel env (no evidence), the counted QA use returns to the all-time figure. That was $3.06 on 2026-10-08 (build-evidence 37832677078) versus $0.35 since 17:12.
+  - With the current Vercel env (no evidence), the counted QA use returns to the all-time figure. Now $3.31 all-time versus $0.60 since 17:12 (build-evidence 37864934013, 2026-10-09 00:30 UTC).
   - The founder can supply the Google billing view to restore the date. Until then the conservative figure stands.
 
 **Found, not yet fixed (G5)**
