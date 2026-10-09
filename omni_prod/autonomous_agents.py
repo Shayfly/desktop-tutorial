@@ -67,7 +67,7 @@ _GENERATOR_SYSTEM = (
     'It must contain "product_family":"managed_web_saas_v1", "required_kinds" listing the kinds this product really has from auth, role, data_create, data_read, data_update, data_delete, integration, responsive, api_smoke (auth and role only when the product has sign-in or roles), and non-empty "personas". '
     # Decision 2026-10-07 #27: a self-contained app has no external integration
     # or background infrastructure; such steps would be NOT_VERIFIED, not passed.
-    'The plan is run against the real app inside the build and every failing step is sent back for repair, so its test data must be valid under the product\'s own rules (dates from today within the allowed window, phone numbers in local format, unique values where duplicates are refused) and expect_text_contains must quote text the page really shows. '
+    'The plan is run against the real app inside the build and every failing step is sent back for repair, so its test data must be valid under the product\'s own rules (dates from today within the allowed window, phone numbers in local format, unique values where duplicates are refused) and expect_text_contains must quote text the page really shows. Never write a fixed calendar date in a step: use ${today}, ${date_plus_N} or ${date_minus_N} (N days from the day the plan runs), which the platform fills in. '
     'When the approved spec stack is self-contained (embedded SQLite), omit the integration kind and any external-integration or background-job steps: they are out of scope and are reported as not verified. '
     'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
@@ -82,6 +82,10 @@ _REPAIR_SYSTEM = (
     'return each changed file in full. '
     + MANIFEST_SHAPE +
     'Do not remove unrelated working behavior. '
+    'Never special-case particular test values (names, dates, ids, phone numbers) in product code to make a check pass; '
+    'fix the general behaviour. If an acceptance step itself uses data that is invalid under the approved rules '
+    '(for example a past or fixed date), correct that step in .omni/project.json -- use ${today} or ${date_plus_N} '
+    'for dates -- and keep the rule in the app. '
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
     + GENERATION_CONSTRAINTS

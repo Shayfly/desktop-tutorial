@@ -58,14 +58,21 @@ class AutonomousProductEngine:
     @staticmethod
     def progress(report) -> tuple[int, int]:
         """How far a candidate got through the verification chain (build ->
-        unit tests -> acceptance tests -> preview -> behaviour), then fewer
-        failures. Higher is better."""
+        unit tests -> acceptance tests -> preview -> behaviour -> browser ->
+        quality -> review), then fewer failures. Higher is better."""
         if report.passed:
-            return (9, 0)
-        stage = 9
+            return (10, 0)
+        stage = 10
+        # Chain order (investor_app): sandbox -> dependency gate -> preview ->
+        # behaviour -> browser -> quality -> model review. A REVIEW failure
+        # means everything before it passed (paid build bld_2be07937 ranked it
+        # lowest and discarded the candidate whose behaviour had passed).
+        later = {'REVIEW': 8, 'QUALITY': 7, 'BROWSER': 6}
         for f in report.failures:
             msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
-            if aid == 'BEHAVIOR':
+            if aid in later:
+                s = later[aid]
+            elif aid == 'BEHAVIOR':
                 s = 5
             elif aid == 'PREVIEW':
                 s = 4

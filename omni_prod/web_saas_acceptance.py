@@ -341,13 +341,35 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
     return None
 
 
+_DATE_VAR = re.compile(r'^date_(plus|minus)_(\d{1,4})$')
+
+
+def _builtin_variable(key: str) -> str | None:
+    """Dates relative to the day the plan runs: ${today}, ${date_plus_7},
+    ${date_minus_1}. Paid build bld_2be07937 (2026-10-09): a plan with a fixed
+    date went stale, the app rightly refused it, and repair tried to special-
+    case the test data instead."""
+    import datetime
+    today = datetime.date.today()
+    if key == 'today':
+        return today.isoformat()
+    m = _DATE_VAR.match(key)
+    if m:
+        days = int(m.group(2)) * (1 if m.group(1) == 'plus' else -1)
+        return (today + datetime.timedelta(days=days)).isoformat()
+    return None
+
+
 def _resolve(value: Any, variables: Mapping[str, Any]) -> Any:
     if isinstance(value, str):
         def sub(match):
             key = match.group(1)
-            if key not in variables:
+            if key in variables:
+                return str(variables[key])
+            builtin = _builtin_variable(key)
+            if builtin is None:
                 raise ValueError(f'unresolved acceptance variable {key}')
-            return str(variables[key])
+            return builtin
         return _VAR.sub(sub, value)
     if isinstance(value, list):
         return [_resolve(x, variables) for x in value]

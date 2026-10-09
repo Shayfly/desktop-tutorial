@@ -37,7 +37,7 @@ PLAN_SHAPE = (
     '{"product_family": "managed_web_saas_v1", "required_kinds": [...], "personas": [{"id": "...", "steps": '
     '[{"id": "s1", "kind": "data_create", "acceptance_ids": ["A1"], "method": "POST", "path": "/api/...", '
     '"json": {...}, "expect_status": 201, "capture": {"created_id": "id"}}, ...]}]}. Every step runs against the '
-    'real app over HTTP; dates in test data must be valid for the app\'s own rules (e.g. from today on).'
+    'real app over HTTP; dates in test data must be valid for the app\'s own rules (e.g. from today on): write them as ${today} / ${date_plus_N}, never a fixed date, and never special-case test values in the app.'
 )
 
 # Runs inside the sandbox: start the app, run the plan with the shipped runner.

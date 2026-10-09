@@ -145,4 +145,8 @@ class ProgressAwareRepairTests(unittest.TestCase):
         self.assertLess(P(unit), P(acc))
         self.assertLess(P(acc), P(prev))
         self.assertLess(P(prev), P(beh))
-        self.assertLess(P(beh), P(PASS))
+        review = ExecutionReport(False, (AcceptanceFailure('REVIEW', 'hard-coded exception for test names'),))
+        browser = ExecutionReport(False, (AcceptanceFailure('BROWSER', 'x'),))
+        self.assertLess(P(beh), P(browser))
+        self.assertLess(P(browser), P(review))   # review runs only after behaviour passed
+        self.assertLess(P(review), P(PASS))

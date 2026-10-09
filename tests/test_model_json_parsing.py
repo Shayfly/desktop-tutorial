@@ -64,5 +64,25 @@ class AcceptanceTextTests(unittest.TestCase):
         self.assertFalse(_text_contains('<html>nothing</html>', 'תפוסה'))
 
 
+
+class AcceptanceDateVariableTests(unittest.TestCase):
+    """Paid build bld_2be07937: a fixed date in the plan went stale."""
+
+    def test_relative_dates_resolve_from_today(self):
+        import datetime
+        from omni_prod.web_saas_acceptance import _resolve
+        today = datetime.date.today()
+        out = _resolve({'date': '${date_plus_7}', 'since': '${date_minus_1}', 'on': '${today}', 'id': '${id}'}, {'id': 3})
+        self.assertEqual(out, {'date': (today + datetime.timedelta(days=7)).isoformat(),
+                               'since': (today - datetime.timedelta(days=1)).isoformat(),
+                               'on': today.isoformat(), 'id': '3'})
+
+    def test_captured_values_win_and_unknown_names_still_fail(self):
+        from omni_prod.web_saas_acceptance import _resolve
+        self.assertEqual(_resolve('${today}', {'today': 'captured'}), 'captured')
+        with self.assertRaises(ValueError):
+            _resolve('${nope}', {})
+
+
 if __name__ == '__main__':
     unittest.main()
