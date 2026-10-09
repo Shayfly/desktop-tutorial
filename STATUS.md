@@ -1,5 +1,42 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-09 10:20 Asia/Jerusalem — stop + live log, durable preview data, no fake publish (task branch, awaiting integration)
+
+Task branch `claude/g0-baseline-2026-10-09` at `da8d952` (CI v24-ci, V11 Overlay CI and Neon bootstrap CI green). **Not yet on the active branch**: the fast-forward to `milestone/pre-staging-2026-10-05` (which deploys the worker and applies migration 031) waits for the founder's go-ahead in this session. Worker idle at the check (worker-diagnostics 37898263049: last job 00:55 UTC).
+
+**Implemented and independently verified (locally / CI; not yet deployed)**
+- **Neon bootstrap includes 030 and 031** (`0159126`): the fresh-Postgres CI that failed on G2 (37867037351) passes again; locally 27 exact migrations verified.
+- **Stop a build (directive §10)** (`3f2dd65`, migration 031).
+  - Queued build: cancelled at once by the API, reservation released, the worker's claim then fails.
+  - Running build: the worker checks before every model call (`RoutedModelGateway.before_call`) and every sandbox run; it ends `cancelled` / `cancelled_by_user`, creates no version, and settles only what was spent (release if nothing paid).
+  - Owner-scoped (another tenant gets 404). Tests: `tests/test_build_cancel_and_log.py` (unit + live Postgres, 13).
+  - Limit: builds only, not modifications; a stop takes effect at the next step (a model call can take minutes).
+- **Live log (directive §12)**: `build_events` in customer language (phases, which agent is working, each test round and its first failure, stop). `GET builds/{id}/events`, `GET builds/latest` (a reload brings back a running build with its stop button).
+- **Product data of a preview survives restart and a new version (directive §13)** (`7c1078c`).
+  - One directory per project on the preview host (`OMNI_PREVIEW_DATA_ROOT`, mounted at `/data`); stopping/expiring a preview never deletes it.
+  - Behavioural acceptance probes now run on a scratch copy of the version (no data mount), so synthetic records never enter the product's data.
+  - `project_previews.data_storage` and the workspace say "persistent" or "temporary".
+  - deploy-worker gains a $0 self-test with real containers (2 hits → restart as v2 reads 2; scratch reads 0; other project reads 0). **Runs on the first deploy after integration.**
+  - Limits: no backup, no size quota, no migration of old data when a new version changes its schema.
+- **No fake publish, no shadow builds (gap map #11)** (`da8d952`): in the durable deployment the deterministic builds (demo/v25/v26/v27) answer 410 and the in-memory promote routes answer 501 `publish_not_available` (CI endpoint test).
+- **Workspace states (directive §11)**: offline banner, timeout vs no connection vs server error, data-storage note on the preview, track after reload/stop. Checked in Chromium against a mock API (desktop + 390 px, restore, stop → stopping → cancelled, offline): no page errors.
+- **G5 rule**: `skill.ui_states` now requires a banner to show again on every message (the library bug); the rehearsal report includes `browser_check`.
+
+**QA spend — honest total against the $10 ceiling**
+- Recorded in the database (builds + changes, all-time, build-evidence 37864934013): **$3.31**.
+- Golden rehearsals do not write the database; their authorized spend from the run annotations: 37700287077 $0.101, 37700596406 $0.098, 37701168910 $0.467, 37701990475 $0.391, 37814985551 $0.210, 37820429767 $0.072, 37840698696 $0.069, 37841459920 $0.125, 37857189740 $0.098, 37858017258 $0.110 = **$1.74**.
+- Conservative total ≈ **$5.05 used, ≈ $4.95 left** (list-price authorizations; real provider billing may be lower; model probes not included, a few cents). No spend in this update.
+
+**Awaiting live (after integration)**
+- Deploy: drain, migration 031, the preview-data self-test.
+- One rehearsal (~$0.10) to see `browser_check` inside the real pipeline.
+- Founder session: discovery → approve → build → stop one build → live log → preview data kept after "refresh preview".
+
+**Not implemented (still open for Partner Review)**
+- Cancel/live log for modifications; resume after a worker crash (the janitor still fails a lost build after 45 min).
+- Data backup/restore of generated apps; visual screenshot QA; publishing to a real target.
+- The three Partner Review scenarios (§21) and the partner pack (§23) — need the deployed version and a founder/new-user session.
+
 ## Update 2026-10-09 03:15 Asia/Jerusalem — Master directive G0; preview fix; deploy drain; honest QA count
 
 Directive: `docs/MASTER_EXECUTION_DIRECTIVE_2026-10-09_HE.md`. The G0 baseline, deploy-trigger map, ownership and work packages are in `docs/G0_BASELINE_2026-10-09_HE.md`. Claude now works on task branch `claude/g0-baseline-2026-10-09` and fast-forwards the active branch only when tests pass and no build is running.
