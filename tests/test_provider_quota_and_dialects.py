@@ -269,3 +269,31 @@ class ProbeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FittedOutputTests(unittest.TestCase):
+    """Paid build bld_e2698426 (2026-10-09): the strong model's 20k-token repair
+    reservation did not fit the $0.09 left; every repair went to the weak model
+    and five rounds oscillated. The strong model is now tried once with the
+    largest output allowance that fits, before any weaker model."""
+
+    def setUp(self):
+        self.models = (_model('weak', 70, '0.25', '1.50'), _model('strong', 85, '0.75', '3.75'))
+
+    def test_repair_keeps_the_strong_model_with_a_smaller_output_allowance(self):
+        s = Script({})
+        gw = _gw(s, self.models, budget='0.06')   # 20k x 3.75/M = 0.075 does not fit; 15k does
+        out = gw.complete_json(system='s', user='u' * 2000, max_tokens=20000, task='repair')
+        self.assertEqual(out, {'ok': 'strong'})
+        self.assertEqual(s.calls, ['strong'])
+        self.assertLessEqual(gw.state.external_spend_usd, Decimal('0.06'))
+
+    def test_too_little_budget_for_a_useful_answer_still_falls_back(self):
+        s = Script({})
+        gw = _gw(s, self.models, budget='0.02')   # strong: < 6000 output tokens fit; weak at 10k does
+        self.assertEqual(gw.complete_json(system='s', user='u', max_tokens=10000, task='repair'), {'ok': 'weak'})
+
+    def test_tasks_without_a_floor_are_not_stretched(self):
+        s = Script({})
+        gw = _gw(s, self.models, budget='0.06')
+        self.assertEqual(gw.complete_json(system='s', user='u', max_tokens=20000, task='architecture'), {'ok': 'weak'})

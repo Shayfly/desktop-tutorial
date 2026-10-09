@@ -311,6 +311,39 @@ class RoutedModelGateway:
         candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors, c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
+    # Smallest output allowance still useful per task: below it a response is
+    # likely truncated and the call is wasted.
+    MIN_FITTED_OUTPUT = {'codegen': 12000, 'repair': 6000, 'modification': 6000}
+
+    def fit_to_budget(self, route: ProviderRoute, call_kwargs: dict, option, task: str):
+        """A model at or above the task's quality floor whose worst case does
+        not fit the remaining budget gets one more try with the largest output
+        allowance that does fit (never below MIN_FITTED_OUTPUT), instead of
+        dropping straight to a weaker model.
+
+        Paid build bld_e2698426 (2026-10-09): with $0.09 left after code
+        generation, the strong model's 20k-token repair reservation ($0.11) did
+        not fit, every repair went to Flash-Lite (8k output), and five rounds
+        oscillated without converging. Real repair responses were 1-3k tokens.
+        Returns (route, kwargs) or None. The cut call is still authorized
+        against the budget like any other."""
+        minimum = self.MIN_FITTED_OUTPUT.get(task)
+        if option is None or minimum is None or option.quality < self.task_quality_floor(task):
+            return None
+        current = int(call_kwargs.get('max_tokens', 0))
+        text = f"{call_kwargs.get('system', '')}{call_kwargs.get('user', '')}"
+        input_tokens = len(text.encode('utf-8')) + 64
+        remaining = self.policy.external_budget_usd - self.state.external_spend_usd
+        out_price = Decimal(str(option.output_per_million)) / Decimal(1_000_000)
+        if out_price <= 0:
+            return None
+        input_cost = estimated_cost(option, input_tokens=input_tokens, output_tokens=0)
+        allowance = int(((remaining - input_cost) / out_price) * Decimal('0.98'))
+        if allowance < minimum or allowance >= current:
+            return None
+        cost = estimated_cost(option, input_tokens=input_tokens, output_tokens=allowance)
+        return ProviderRoute(route.endpoint, cost), {**call_kwargs, 'max_tokens': allowance}
+
     # Directive 2026-10-09 §10: a build's stop/live-log hook (BuildControl).
     # Runs before any provider is contacted; raising here costs nothing.
     before_call: Callable[[str], None] | None = None
@@ -354,6 +387,23 @@ class RoutedModelGateway:
                         # authorized). Every other policy error stops the call
                         # rather than bypassing budget/zero-cost controls.
                         if 'budget exceeded' in str(exc):
+                            fitted = self.fit_to_budget(route, call_kwargs, option, task)
+                            if fitted is not None:
+                                # Same model, smaller output allowance that fits: one attempt.
+                                f_route, f_kwargs = fitted
+                                try:
+                                    return self._attempt(f_route, method, f_kwargs,
+                                                         f'{why}; output allowance cut to {f_kwargs["max_tokens"]} tokens '
+                                                         'to fit the remaining budget',
+                                                         task=task, option=option, rank=rank, candidate_set=candidate_set)
+                                except Exception as fitted_exc:
+                                    last_error = fitted_exc
+                                    if isinstance(fitted_exc, ModelPolicyViolation) and 'budget exceeded' not in str(fitted_exc):
+                                        raise
+                                    if quota_exhausted(fitted_exc):
+                                        self.unavailable[name] = f'HTTP {getattr(fitted_exc, "status", "?")}: quota or key'
+                                    failures.append(f'{route.endpoint.model} (fitted output): {fitted_exc}')
+                                    break
                             budget_skips += 1
                             failures.append(f'{route.endpoint.model}: does not fit the remaining budget')
                             break
