@@ -19,13 +19,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
+   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "discovery_agent",
@@ -45,12 +45,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "requirements_agent",
@@ -70,13 +70,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "product_planner",
@@ -95,12 +95,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "architecture_agent",
@@ -117,13 +117,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "ux_ui_design_agent",
@@ -145,12 +145,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "frontend_agent",
@@ -168,13 +168,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "backend_agent",
@@ -191,13 +191,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "database_agent",
@@ -216,14 +216,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a n",
    "evidence": [
-    "golden-rehearsal run 37937211420",
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "identity_auth_agent",
@@ -277,13 +277,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "code_review_agent",
@@ -299,13 +299,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "qa_agent",
@@ -326,11 +326,11 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "golden-rehearsal run 37937211420",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "browser_rehearsal_agent",
@@ -348,14 +348,14 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; in-build behaviour",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "deploy-worker run 37939751400",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "behavioral_acceptance_agent",
@@ -372,13 +372,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "repair_agent",
@@ -395,13 +395,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "security_agent",
@@ -420,12 +420,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "compliance_ip_agent",
@@ -442,13 +443,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/agent_os/providers.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "provider_router_agent",
@@ -466,14 +467,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "cost_economics_agent",
@@ -492,14 +493,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verificati",
    "evidence": [
-    "postdeploy-checks run 37940033628",
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "infrastructure_agent",
@@ -518,13 +519,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "postdeploy-checks run 37940033628",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "deployment_agent",
@@ -545,10 +546,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "release_agent",
@@ -566,13 +567,13 @@
    ],
    "gap": "no publishing to a live customer domain",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "observability_agent",
@@ -591,14 +592,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/build_control.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "sre_reliability_agent",
@@ -616,13 +617,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "postdeploy-checks run 37940033628",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "backup_recovery_agent",
@@ -642,10 +643,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "migration_agent",
@@ -664,10 +665,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "performance_agent",
@@ -702,12 +703,12 @@
    "gap": "instructions + review only; no automated a11y test",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "localization_rtl_agent",
@@ -725,12 +726,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "seo_web_quality_agent",
@@ -994,10 +995,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "support_agent",
@@ -1073,15 +1074,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "system_test_orchestrator",
@@ -1118,13 +1118,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/agent_os/meta.py",
+   "status": "LIVE",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "quality_gate_agent",
@@ -1161,12 +1161,12 @@
    "gap": "keyword families, no model",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "requirement_extraction",
@@ -1180,13 +1180,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "ambiguity_detection",
@@ -1199,12 +1199,12 @@
    "gap": "fixed question set",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "smart_question_generation",
@@ -1217,12 +1217,12 @@
    "gap": "deterministic questions, not generated",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "safe_default_selection",
@@ -1235,12 +1235,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "confidence_scoring",
@@ -1305,12 +1305,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "nonfunctional_requirement_generation",
@@ -1335,13 +1335,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "acceptance_contract_generation",
@@ -1353,13 +1353,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "scope_detection",
@@ -1417,12 +1417,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "dependency_analysis",
@@ -1435,12 +1435,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "build_plan_generation",
@@ -1453,12 +1453,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "milestone_generation",
@@ -1546,12 +1546,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "capability_closure",
@@ -1626,12 +1626,12 @@
    "gap": "one self-contained web stack",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "frontend_architecture",
@@ -1763,10 +1763,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "api_contract_design",
@@ -1778,13 +1778,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "data_model_design",
@@ -1796,13 +1796,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "event_model_design",
@@ -1893,12 +1893,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "design_system_generation",
@@ -1911,12 +1911,12 @@
    "gap": "instruction + CSS heuristic",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "design_token_generation",
@@ -1929,12 +1929,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "component_selection",
@@ -1960,12 +1960,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "navigation_design",
@@ -1991,12 +1991,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "error_state_design",
@@ -2009,12 +2009,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "loading_state_design",
@@ -2027,12 +2027,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "mobile_layout",
@@ -2084,12 +2084,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "page_generation",
@@ -2101,13 +2101,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "component_generation",
@@ -2132,13 +2132,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "client_validation",
@@ -2151,12 +2151,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "state_management",
@@ -2181,13 +2181,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "auth_ui",
@@ -2226,12 +2226,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "loading_ui",
@@ -2282,13 +2282,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "dashboard_generation",
@@ -2365,13 +2365,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "request_validation",
@@ -2386,10 +2386,10 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "business_logic_generation",
@@ -2401,13 +2401,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "service_layer_generation",
@@ -2510,13 +2510,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "idempotency",
@@ -2606,13 +2606,13 @@
    ],
    "gap": "SQLite in DATA_DIR",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "migration_generation",
@@ -2641,10 +2641,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "index_design",
@@ -2709,12 +2709,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "foreign_key_design",
@@ -2755,11 +2755,11 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
-    "deploy-worker run 37939751400",
-    "postdeploy-checks run 37936709830"
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "data_isolation",
@@ -2774,11 +2774,11 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37962165888",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "scratch_database_generation",
@@ -2791,14 +2791,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "golden-rehearsal run 37937211420",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "data_upgrade",
@@ -2839,10 +2839,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "restore_validation",
@@ -2857,10 +2857,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "signup",
@@ -2875,10 +2875,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "login",
@@ -2891,12 +2891,12 @@
    "gap": "platform accounts",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "logout",
@@ -3177,13 +3177,13 @@
    ],
    "gap": "model calls (429 released, route skipped)",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "integration_retry",
@@ -3270,13 +3270,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "file_modify",
@@ -3288,13 +3288,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "safe_refactor",
@@ -3322,10 +3322,10 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "dependency_remove",
@@ -3470,10 +3470,10 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "unit_test_generation",
@@ -3485,13 +3485,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "unit_test_execution",
@@ -3506,11 +3506,11 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "golden-rehearsal run 37937211420",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "contract_test",
@@ -3605,13 +3605,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "edge_case_test",
@@ -3636,13 +3636,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "auth_test",
@@ -3683,11 +3683,11 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
-    "deploy-worker run 37939751400",
-    "postdeploy-checks run 37936709830"
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "migration_test",
@@ -3702,10 +3702,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "rollback_test",
@@ -3730,13 +3730,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "provider_failure_test",
@@ -3769,11 +3769,11 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
-    "deploy-worker run 37939751400",
-    "postdeploy-checks run 37936709830"
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "resume_test",
@@ -3786,12 +3786,12 @@
    "gap": "build restarts from the beginning",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "cancellation_test",
@@ -3803,13 +3803,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "behavioral_acceptance_test",
@@ -3822,13 +3822,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "requirement_traceability_test",
@@ -3840,13 +3840,13 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "browser_launch",
@@ -3859,13 +3859,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "page_load_test",
@@ -3878,12 +3878,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "click_test",
@@ -3896,12 +3896,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "form_test",
@@ -3914,13 +3914,13 @@
    "gap": "fills forms by field type",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "navigation_test",
@@ -3987,10 +3987,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "network_error_detection",
@@ -4005,10 +4005,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "browser_persistence_test",
@@ -4047,13 +4047,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "failure_classification",
@@ -4068,10 +4068,10 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "root_cause_analysis",
@@ -4109,13 +4109,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "repair_execution",
@@ -4127,13 +4127,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "repair_verification",
@@ -4146,13 +4146,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "regression_after_repair",
@@ -4180,10 +4180,10 @@
    "status": "PARTIAL",
    "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "escalation_decision",
@@ -4209,12 +4209,12 @@
    "gap": "static",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "secret_exposure_check",
@@ -4256,10 +4256,10 @@
    "status": "LIVE",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "csrf_check",
@@ -4383,10 +4383,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "security_release_gate",
@@ -4398,13 +4398,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "commercial_provider_validation",
@@ -4474,12 +4474,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "license_requirement_detection",
@@ -4518,12 +4518,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "commercial_use_policy_check",
@@ -4579,13 +4579,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "provider_health_check",
@@ -4615,13 +4615,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "provider_quality_compare",
@@ -4633,13 +4633,13 @@
    ],
    "gap": "catalog quality scores",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "provider_latency_compare",
@@ -4695,14 +4695,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "provider_fallback_selection",
@@ -4750,13 +4750,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "build_quote",
@@ -4769,12 +4769,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "credit_reservation",
@@ -4787,13 +4787,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only wh",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "agent_budget_assignment",
@@ -4837,12 +4837,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "provider_price_lookup",
@@ -4855,12 +4855,12 @@
    "gap": "versioned catalog",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "actual_cost_calculation",
@@ -4872,13 +4872,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "credit_settlement",
@@ -4890,13 +4890,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "unused_reservation_release",
@@ -4911,11 +4911,11 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "margin_calculation",
@@ -4954,12 +4954,12 @@
    "gap": "ceiling bound to the reservation",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "budget_escalation",
@@ -5002,14 +5002,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37962165888",
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "queue_health_check",
@@ -5024,10 +5024,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "storage_health_check",
@@ -5042,10 +5042,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "database_health_check",
@@ -5057,13 +5057,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "environment_validation",
@@ -5078,10 +5078,10 @@
    "status": "LIVE",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37939751400"
+    "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T13:55Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T16:41Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "runtime_validation",
@@ -5120,13 +5120,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only wh",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "job_resume",
@@ -5139,12 +5139,12 @@
    "gap": "restart from the beginning, once",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "job_cancel",
@@ -5157,13 +5157,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "job_timeout",
@@ -5195,12 +5195,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T13:58Z",
-   "last_verified_commit": "d1c7482"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "preview_prepare",
@@ -5215,10 +5215,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "preview_deploy",
@@ -5233,11 +5233,11 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "preview_health_check",
@@ -5252,10 +5252,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "preview_access_protect",
@@ -5271,10 +5271,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "preview_token_issue",
@@ -5289,10 +5289,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "preview_token_revoke",
@@ -5307,10 +5307,10 @@
    "status": "LIVE",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "production_prepare",
@@ -5390,13 +5390,13 @@
    ],
    "gap": "platform deploy",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "version_create",
@@ -5409,13 +5409,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only wh",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "artifact_commit",
@@ -5428,12 +5428,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "release_evidence_generation",
@@ -5445,13 +5445,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "release_candidate_validation",
@@ -5476,13 +5476,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "LIVE",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "release_publish",
@@ -5538,14 +5538,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/build_control.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830",
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "agent_trace",
@@ -5589,12 +5589,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "cost_trace",
@@ -5607,13 +5607,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; crash recovery (requeue once); build finished after recovery; settlement at metered usage",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; crash recovery (requeue once); build finished after recovery; lost worker's calls settled; superseded agent run clos",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "failure_trace",
@@ -5625,13 +5625,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "status": "LIVE",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T12:55Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "latency_measurement",
@@ -5669,13 +5669,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/build_control.py",
+   "status": "LIVE",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_verified_at": "2026-10-09T12:43Z",
-   "last_verified_commit": "1c7a9c9"
+   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "incident_creation",
@@ -5701,13 +5701,13 @@
    ],
    "gap": "same object store as artifacts",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: .github/workflows/backup-restore.yml",
+   "status": "LIVE",
+   "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "artifact_backup",
@@ -5722,10 +5722,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "project_backup",
@@ -5740,10 +5740,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "backup_validation",
@@ -5758,10 +5758,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "restore_database",
@@ -5773,13 +5773,13 @@
    ],
    "gap": "into a throw-away database",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: .github/workflows/backup-restore.yml",
+   "status": "LIVE",
+   "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "restore_project",
@@ -5794,10 +5794,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "restore_artifact",
@@ -5812,10 +5812,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "restore_verification",
@@ -5830,10 +5830,10 @@
    "status": "LIVE",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "disaster_recovery_test",
@@ -5845,13 +5845,13 @@
    ],
    "gap": "restore drill only; no failover",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: .github/workflows/backup-restore.yml",
+   "status": "LIVE",
+   "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
-   "last_verified_at": "2026-10-09T13:49Z",
-   "last_verified_commit": "4dccda8"
+   "last_verified_at": "2026-10-09T16:52Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "frontend_performance_test",
@@ -6007,12 +6007,12 @@
    "gap": "instruction + review",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "contrast_test",
@@ -6025,12 +6025,12 @@
    "gap": "instruction only",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "touch_target_test",
@@ -6095,12 +6095,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "rtl_layout",
@@ -6113,12 +6113,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "ltr_layout",
@@ -6144,12 +6144,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
-    "postdeploy-checks run 37924920646"
+    "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T11:30Z",
-   "last_verified_commit": "301d631"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "locale_currency",
@@ -7540,16 +7540,16 @@
  "summary": {
   "agents_total": 52,
   "agents": {
-   "LIVE": 16,
-   "PARTIAL": 21,
+   "LIVE": 30,
+   "PARTIAL": 7,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 11,
    "BLOCKED": 3
   },
   "skills_total": 427,
   "skills": {
-   "LIVE": 86,
-   "PARTIAL": 75,
+   "LIVE": 132,
+   "PARTIAL": 29,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 257,
    "BLOCKED": 8

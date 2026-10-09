@@ -5,19 +5,19 @@
    "scenario": "Golden 1 — New SaaS (Hebrew, persistent, preview, restart, version)",
    "status": "PASS",
    "evidence": [
-    "postdeploy-checks run 37924920646",
-    "postdeploy-checks run 37936709830",
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "commits": [
-    "301d631",
-    "1c7a9c9",
-    "1c7a9c9"
+    "039574f",
+    "039574f",
+    "039574f"
    ],
    "at": [
-    "2026-10-09T11:30Z",
-    "2026-10-09T12:43Z",
-    "2026-10-09T12:55Z"
+    "2026-10-09T16:43Z",
+    "2026-10-09T16:51Z",
+    "2026-10-09T16:43Z"
    ],
    "note": ""
   },
@@ -41,13 +41,13 @@
    "scenario": "Golden 4 — Cancellation (queued + active)",
    "status": "PASS",
    "evidence": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
    "commits": [
-    "1c7a9c9"
+    "039574f"
    ],
    "at": [
-    "2026-10-09T12:43Z"
+    "2026-10-09T16:51Z"
    ],
    "note": ""
   },
@@ -55,13 +55,13 @@
    "scenario": "Golden 5 — Crash recovery",
    "status": "PASS",
    "evidence": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "commits": [
-    "d1c7482"
+    "2b4bafd"
    ],
    "at": [
-    "2026-10-09T13:58Z"
+    "2026-10-09T15:46Z"
    ],
    "note": ""
   },
@@ -85,13 +85,13 @@
    "scenario": "Golden 8 — Backup / restore",
    "status": "PASS",
    "evidence": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
    "commits": [
-    "4dccda8"
+    "039574f"
    ],
    "at": [
-    "2026-10-09T13:49Z"
+    "2026-10-09T16:52Z"
    ],
    "note": "restore into a throw-away database; no destructive drill"
   },

@@ -140,21 +140,43 @@ _MAX_FILE_CONTENT_CHARS = 16_000
 _MAX_TOTAL_CONTENT_CHARS = 64_000
 
 
-def _content_eligible(path: str, content: str) -> bool:
+# Crash run 37962802899 (2026-10-09): a single-file web app (server +
+# embedded page) is larger than 16k characters, so the main file was left out
+# and the repair model answered "app.py was omitted from prompt content".
+# Files the failures name, and the app entry point, may be larger and go first.
+_MAX_FOCUS_FILE_CHARS = 48_000
+_ENTRY_NAMES = ('app.py', 'main.py', 'server.py', 'index.js', 'server.js', 'app.js')
+
+
+def _content_eligible(path: str, content: str, limit: int = _MAX_FILE_CONTENT_CHARS) -> bool:
     low = path.lower()
     return (low.endswith(_CONTENT_SUFFIXES) and not low.startswith(_CONTENT_SKIP_PREFIXES)
-            and low.rsplit('/', 1)[-1] not in _CONTENT_SKIP_NAMES and len(content) <= _MAX_FILE_CONTENT_CHARS)
+            and low.rsplit('/', 1)[-1] not in _CONTENT_SKIP_NAMES and len(content) <= limit)
 
 
-def repo_summary(repo: dict[str, str]) -> dict:
+def focus_paths(repo: dict[str, str], failures=()) -> set[str]:
+    """Files a repair most needs to see: those named in the failure text, and
+    the top-level app entry point."""
+    text = ' '.join(f"{f.get('message', '')} {f.get('evidence', '')}" if isinstance(f, dict) else str(f) for f in failures)
+    focus = {p for p in repo if '/' not in p and p in _ENTRY_NAMES}
+    for p in repo:
+        name = p.rsplit('/', 1)[-1]
+        if len(name) > 3 and (p in text or name in text):
+            focus.add(p)
+    return focus
+
+
+def repo_summary(repo: dict[str, str], failures=()) -> dict:
     files, budget = [], _MAX_TOTAL_CONTENT_CHARS
-    # .omni/project.json and smaller files first, so the manifest and core
-    # sources fit before large ones exhaust the budget.
-    order = sorted(repo, key=lambda p: (p != '.omni/project.json', len(repo[p]), p))
+    focus = focus_paths(repo, failures)
+    # .omni/project.json, then the focus files, then smaller files first, so
+    # the manifest and the code under repair fit before large ones exhaust the budget.
+    order = sorted(repo, key=lambda p: (p != '.omni/project.json', p not in focus, len(repo[p]), p))
     included = set()
     for path in order:
         content = repo[path]
-        if _content_eligible(path, content) and len(content) <= budget:
+        limit = _MAX_FOCUS_FILE_CHARS if path in focus else _MAX_FILE_CONTENT_CHARS
+        if _content_eligible(path, content, limit) and len(content) <= budget:
             included.add(path); budget -= len(content)
     for path, content in sorted(repo.items()):
         entry = {'path': path, 'chars': len(content)}
@@ -194,7 +216,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     rounds = 0
     while failures and rounds < max_repair_rounds:
         rounds += 1
-        patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo), failures=failures)
+        patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo, failures), failures=failures)
         repo = apply_patch(repo, patch)
         report = executor.execute(repository=repo, spec=spec)
         failures = [f.__dict__ for f in report.failures]

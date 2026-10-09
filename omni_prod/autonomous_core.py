@@ -43,13 +43,13 @@ class AutonomousProductEngine:
         self.max_repair_rounds = max_repair_rounds
 
     @staticmethod
-    def _summary(repo: dict[str, str]) -> dict:
+    def _summary(repo: dict[str, str], failures=()) -> dict:
         # Golden E2E #1 build bld_85cc573b473341e9b3f10d248d743ff1: five repair
         # rounds could not list acceptance ids in .omni/project.json because the
         # repair agent saw only {path, chars}. Same bounded content summary the
         # modification path uses.
         from .modifier_engine import repo_summary
-        return repo_summary(repo)
+        return repo_summary(repo, failures)
 
     @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
@@ -118,7 +118,7 @@ class AutonomousProductEngine:
                 discarded_note = None
             patch = self.repairer.repair(
                 spec=spec,
-                repo_summary=self._summary(repo),
+                repo_summary=self._summary(repo, failures),
                 failures=failures,
             )
             candidate = apply_patch(repo, patch)

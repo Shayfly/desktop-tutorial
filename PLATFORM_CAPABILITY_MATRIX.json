@@ -165,11 +165,11 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "golden-rehearsal run 37937211420"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_result": "PARTIAL",
-   "last_verified_commit": "1c7a9c9",
-   "last_verified_at": "2026-10-09T12:55Z",
+   "last_result": "LIVE",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:43Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -177,11 +177,11 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
    "last_result": "LIVE",
-   "last_verified_commit": "1c7a9c9",
-   "last_verified_at": "2026-10-09T12:43Z",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:51Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -189,12 +189,12 @@
    "expected_behavior": "previews only",
    "test_layer": "real-server",
    "test_location": [
-    "deploy-worker run 37939751400",
-    "postdeploy-checks run 37936709830"
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37962165888"
    ],
    "last_result": "LIVE",
-   "last_verified_commit": "d1c7482",
-   "last_verified_at": "2026-10-09T13:55Z",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:41Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -202,11 +202,11 @@
    "expected_behavior": "restart from the beginning, once",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_result": "LIVE",
-   "last_verified_commit": "d1c7482",
-   "last_verified_at": "2026-10-09T13:58Z",
+   "last_verified_commit": "2b4bafd",
+   "last_verified_at": "2026-10-09T15:46Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -214,11 +214,11 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37940033628"
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_result": "PARTIAL",
-   "last_verified_commit": "d1c7482",
-   "last_verified_at": "2026-10-09T13:58Z",
+   "last_result": "LIVE",
+   "last_verified_commit": "2b4bafd",
+   "last_verified_at": "2026-10-09T15:46Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -226,11 +226,11 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "backup-restore run 37939539147"
+    "backup-restore run 37962179844"
    ],
    "last_result": "LIVE",
-   "last_verified_commit": "4dccda8",
-   "last_verified_at": "2026-10-09T13:49Z",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:52Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -238,12 +238,12 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37924920646",
-    "deploy-worker run 37939751400"
+    "postdeploy-checks run 37961193099",
+    "deploy-worker run 37960891900"
    ],
    "last_result": "LIVE",
-   "last_verified_commit": "301d631",
-   "last_verified_at": "2026-10-09T11:30Z",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:43Z",
    "environment": "pre-staging worker host"
   },
   {
@@ -251,11 +251,11 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37936709830"
+    "postdeploy-checks run 37962165888"
    ],
-   "last_result": "PARTIAL",
-   "last_verified_commit": "1c7a9c9",
-   "last_verified_at": "2026-10-09T12:43Z",
+   "last_result": "LIVE",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:51Z",
    "environment": "pre-staging worker host"
   }
  ]

@@ -118,7 +118,7 @@ class ProgressAwareRepairTests(unittest.TestCase):
         ex = _StagedExecutor({'v0': 'behavior', 'v1': 'build', 'v2': 'pass'})
         rep = _RecordingRepairer(['v1', 'v2'])
         engine = _engine(rep, ex)
-        engine._summary = lambda repo: dict(repo)
+        engine._summary = lambda repo, failures=(): dict(repo)
         result = engine.build('p')
         self.assertEqual(result.status, 'ready')
         self.assertEqual(result.repository['app.py'], 'v2')

@@ -81,14 +81,14 @@
   {
    "failure": "worker killed mid-build",
    "expected_handling": "requeued once, build finished READY",
-   "proven_by": "postdeploy-checks run 37940033628",
+   "proven_by": "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
    "status": "PASS",
    "layer": "real-server"
   },
   {
    "failure": "deployment during a build",
    "expected_handling": "drain: running job finishes first",
-   "proven_by": "deploy-worker run 37939751400",
+   "proven_by": "deploy-worker run 37960891900",
    "status": "PASS",
    "layer": "real-server"
   },
