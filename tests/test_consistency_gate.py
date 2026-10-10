@@ -74,6 +74,16 @@ class ConsistencyTests(unittest.TestCase):
                              "parts = self.path.strip('/').split('/')\n        if parts[0] == 'api' and parts[1] == 'items':")
         self.assertNotIn('routes', checks(scan(repo(**{'app.py': server}))))
 
+    def test_specific_prefix_handler_serves_slugs_but_generic_api_does_not(self):
+        server = APP + "\n        elif self.path.startswith('/team/'):\n            pass\n        elif self.path.startswith('/api/'):\n            pass\n"
+        m = json.loads(json.dumps(MANIFEST))
+        m['web_saas_acceptance']['personas'][0]['steps'][0]['path'] = '/team/maccabi-tel-aviv'
+        m['web_saas_acceptance']['personas'][0]['steps'][1]['path'] = '/api/bookings'
+        r = scan(repo(**{'app.py': server, '.omni/project.json': json.dumps(m)}))
+        msgs = ' '.join(f.message for f in r.blocking)
+        self.assertNotIn('/team/', msgs)
+        self.assertIn('/api/bookings', msgs)
+
     def test_missing_static_asset(self):
         r = scan(repo(**{'static/app.css': None}))
         self.assertIn('static', checks(r))
@@ -111,6 +121,19 @@ class GateExecutorTests(unittest.TestCase):
     def test_disabled_gate_passes_through(self):
         inner = type('I', (), {'execute': lambda self, **k: 'inner'})()
         self.assertEqual(ConsistencyGateExecutor(inner, enabled=False).execute(repository={}, spec=None), 'inner')
+
+
+
+class ReplayTests(unittest.TestCase):
+    def test_replay_counts_blocking_versions_and_prompt_coverage(self):
+        from omni_prod.gate_replay import replay
+        good, bad = repo(), repo(**{'storage.py': 'def add_item(x):\n    pass\n'})
+        good['rights/rights-manifest.json'] = '{}'
+        store = {'k1': good, 'k2': bad}
+        out = replay([('v1', 'k1'), ('v2', 'k2'), ('v3', 'missing')], lambda k: store[k])
+        self.assertEqual((out['versions'], out['blocking_versions'], out['load_failures']), (2, 1, 1))
+        self.assertEqual(out['coverage']['entry_in_prompt'], 2)
+        self.assertEqual(out['coverage']['all_source_in_prompt'], 2)   # rights metadata is not code
 
 
 if __name__ == '__main__':

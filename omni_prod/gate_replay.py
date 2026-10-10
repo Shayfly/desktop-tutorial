@@ -18,12 +18,19 @@ import sys
 from collections import Counter
 
 from .consistency_gate import scan
-from .modifier_engine import _CONTENT_SUFFIXES, repo_summary
+from .modifier_engine import repo_summary
+
+
+_CODE = ('.py', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.html', '.css', '.sql', '.vue', '.svelte', '.json')
+_NOT_CODE = ('.148ai/', 'rights/', 'docs/', 'node_modules/', 'dist/', 'build/')
 
 
 def coverage(repo: dict[str, str]) -> dict:
+    """Code a repair prompt shows in full. Rights/provenance metadata and docs
+    are excluded from the prompt on purpose and are not counted as code."""
     summary = repo_summary(repo)
-    src = [f for f in summary['files'] if f['path'].lower().endswith(_CONTENT_SUFFIXES)]
+    src = [f for f in summary['files'] if f['path'].lower().endswith(_CODE) and not f['path'].startswith(_NOT_CODE)
+           and f['path'] not in ('package-lock.json',)]
     with_content = [f for f in src if 'content' in f]
     entry = [p for p in repo if '/' not in p and p in ('app.py', 'main.py', 'server.py', 'index.js', 'server.js', 'app.js')]
     return {

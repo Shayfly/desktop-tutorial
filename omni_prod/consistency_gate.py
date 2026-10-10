@@ -226,10 +226,19 @@ def _static_prefix(raw: str) -> str | None:
     return '/' + '/'.join(segments)
 
 
+_GENERIC = {'api', 'v1', 'v2', 'static', 'assets', 'public'}
+
+
 def _served(prefix: str, server: str) -> bool:
     if prefix in server or prefix.rstrip('/') + '/' in server:
         return True
     segments = prefix.strip('/').split('/')
+    # a prefix handler for a specific parent: startswith('/team/') serves
+    # /team/maccabi-tel-aviv (replay 38071176710: false positive otherwise)
+    for k in range(len(segments) - 1, 0, -1):
+        parent = segments[:k]
+        if parent[-1] not in _GENERIC and '/' + '/'.join(parent) + '/' in server:
+            return True
     # path dispatched by segments: parts[0] == 'api' and parts[1] == 'items'
     return all(re.search(r'''['"]%s['"]''' % re.escape(s), server) for s in segments)
 
