@@ -46,7 +46,7 @@ class AuditTests(unittest.TestCase):
         from omni_prod.agent_os.contracts import SkillContract
         base = next(s for s in SKILLS if s.skill_key == 'preview_access_protect')
         unit_only = SkillContract(**{**base.__dict__, 'evidence': (Evidence('unit', 'tests/x.py'),)})
-        self.assertEqual(audit.status_of(unit_only, {})['status'], 'PARTIAL')
+        self.assertEqual(audit.status_of(unit_only, {})['status'], 'UNIT_TESTED')
         no_code = SkillContract(**{**base.__dict__, 'implementation_location': ()})
         self.assertEqual(audit.status_of(no_code, {})['status'], NOT_IMPLEMENTED)
         broken = SkillContract(**{**base.__dict__, 'implementation_location': ('omni_prod.nope:Missing',)})
@@ -73,9 +73,13 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(RuntimeViolation):
             VerificationEngine.check('coding_agent', 'coding_agent')
         with self.assertRaises(RuntimeViolation):
-            VerificationEngine.check('coding_agent', 'release_agent')   # must be review or QA
-        VerificationEngine.check('coding_agent', 'qa_agent')
-        VerificationEngine.check('repair_agent', 'qa_agent')
+            VerificationEngine.check('coding_agent', 'release_agent')   # must be review or the release policy
+        with self.assertRaises(RuntimeViolation):
+            VerificationEngine.check('coding_agent', 'qa_agent')         # runs tests the coding agent wrote
+        with self.assertRaises(RuntimeViolation):
+            VerificationEngine.check('repair_agent', 'qa_agent')
+        VerificationEngine.check('coding_agent', 'quality_gate_agent')
+        VerificationEngine.check('repair_agent', 'code_review_agent')
 
     def test_commercial_safety(self):
         self.assertEqual(commercial_status('gemini-3-8-flash')[0], COMMERCIAL_APPROVED)
@@ -145,11 +149,11 @@ class RuntimeLivePostgresTests(unittest.TestCase):
     def test_task_graph_dependencies_states_and_verification(self):
         run = self.rt.create_run('build', f'bld_{uuid.uuid4().hex[:8]}', budget_usd=Decimal('0.10'))
         code = self.rt.add_task(run, 'coding_agent', skills=('file_create',), budget_usd=Decimal('0.05'))
-        qa = self.rt.add_task(run, 'qa_agent', skills=('unit_test_execution',), depends_on=(code,))
+        qa = self.rt.add_task(run, 'quality_gate_agent', depends_on=(code,))
         with self.assertRaises(RuntimeViolation):
             self.rt.transition(qa, 'RUNNING')                      # PENDING cannot run
         self.rt.transition(code, 'RUNNING')
-        self.rt.handoff(code, 'qa_agent', {'repository': 'ref'})
+        self.rt.handoff(code, 'quality_gate_agent', {'repository': 'ref'})
         self.rt.transition(code, 'SUCCEEDED', cost_usd=Decimal('0.02'))
         self.assertEqual(self.rt.get(qa)['state'], 'READY')         # dependency released it
         self.rt.transition(qa, 'RUNNING')
@@ -169,7 +173,7 @@ class RuntimeLivePostgresTests(unittest.TestCase):
         again.start(from_brief=True)
         again.on_model('codegen')
         again.on_check(True, 'tests passed')
-        again.finish(status='ready', evidence={})
+        again.finish(status='ready', evidence={'quality_report': {'decision': 'READY'}})
         with self.pool.connection() as conn:
             runs = dict(conn.execute('SELECT id, outcome FROM agent_runs WHERE subject_id = %s', (bid,)).fetchall())
             stuck = conn.execute("SELECT count(*) FROM agent_tasks t JOIN agent_runs r ON r.id = t.run_id WHERE r.subject_id = %s "
@@ -179,7 +183,7 @@ class RuntimeLivePostgresTests(unittest.TestCase):
         self.assertEqual(runs[lost.run_id], 'superseded')
         self.assertEqual(runs[again.run_id], 'ready')
         self.assertEqual(stuck, 0)
-        self.assertIn(('coding_agent', 'qa_agent'), verified)
+        self.assertIn(('coding_agent', 'quality_gate_agent'), verified)
         self.assertTrue(all(a != b for a, b in verified))
 
     def test_budget_blocks_and_restart_resumes(self):
@@ -209,7 +213,8 @@ class RuntimeLivePostgresTests(unittest.TestCase):
         rec.finish(status='ready', evidence={'browser_check': {'status': 'passed'},
                                              'behavior_acceptance': {'last': {'status': 'PASS', 'summary': 'ok'}},
                                              'gates': {'security': {'passed': True}},
-                                             'economics_settlement': {'cost_basis': {'llm': 'METERED'}}})
+                                             'economics_settlement': {'cost_basis': {'llm': 'METERED'}},
+                                             'quality_report': {'decision': 'READY', 'policy_version': 'release-policy/1'}})
         tasks = self.rt.tasks(rec.run_id)
         agents = [t['agent_key'] for t in tasks]
         for agent in ('discovery_agent', 'architecture_agent', 'coding_agent', 'qa_agent', 'repair_agent',
@@ -217,9 +222,46 @@ class RuntimeLivePostgresTests(unittest.TestCase):
                       'quality_gate_agent'):
             self.assertIn(agent, agents)
         repair = next(t for t in tasks if t['agent_key'] == 'repair_agent')
-        self.assertIsNotNone(repair['verified_by_task'])            # QA verified the repair
+        gate = next(t for t in tasks if t['agent_key'] == 'quality_gate_agent')
+        # Verified by the independent release policy, not by tests the repair agent wrote.
+        self.assertEqual(repair['verified_by_task'], gate['id'])
         self.assertTrue(any(t['state'] == 'FAILED' and t['agent_key'] == 'qa_agent' for t in tasks))
 
+    def test_without_a_ready_policy_report_nothing_is_verified(self):
+        from omni_prod.agent_os.recorder import BuildAgentRecorder
+        rec = BuildAgentRecorder(self.pool, f'bld_{uuid.uuid4().hex[:8]}')
+        rec.start(from_brief=False)
+        rec.on_model('codegen')
+        rec.on_check(True, 'tests passed')
+        rec.finish(status='ready', evidence={'economics_settlement': {'cost_basis': {'llm': 'UNKNOWN_USAGE_NOT_REPORTED'}}})
+        tasks = self.rt.tasks(rec.run_id)
+        self.assertEqual(next(t for t in tasks if t['agent_key'] == 'quality_gate_agent')['state'], 'FAILED')
+        self.assertEqual(next(t for t in tasks if t['agent_key'] == 'cost_economics_agent')['state'], 'FAILED')
+        self.assertTrue(all(t['verified_by_task'] is None for t in tasks))
+
+
+
+class TruthMatrixTests(unittest.TestCase):
+    def test_committed_truth_matrix_is_current_and_lists_customer_findings(self):
+        import json
+        from omni_prod.agent_os import truth_matrix
+        from omni_prod.registry_audit import load_lock
+        matrix = truth_matrix.build(audit.audit(), load_lock())
+        committed = json.loads(truth_matrix.TRUTH_JSON.read_text())
+        self.assertEqual(committed['counts'], matrix['counts'], 'run python -m omni_prod.agent_os.audit --write')
+        rank = truth_matrix.RANK
+        for row in matrix['rows']:
+            if row['shown_to_customer'] and rank[row['status']] < rank['REAL_SERVER_VERIFIED']:
+                self.assertTrue(any(row['requirement'] in f for f in matrix['customer_visible_findings']), row)
+
+    def test_nothing_is_live_without_production_evidence(self):
+        result = audit.audit()
+        self.assertFalse([r for r in result['agents'] + result['skills'] if r['status'] == LIVE])
+
+    def test_model_instruction_alone_is_not_verified(self):
+        result = {s['skill_key']: s['status'] for s in audit.audit()['skills']}
+        self.assertEqual(result['contrast_test'], 'IMPLEMENTED')
+        self.assertEqual(result['signup'], NOT_IMPLEMENTED)   # generated apps; platform accounts are separate
 
 if __name__ == '__main__':
     unittest.main()

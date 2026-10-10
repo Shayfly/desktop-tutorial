@@ -56,7 +56,14 @@ class RemoteSandboxRepositoryExecutor:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_output_tail(r)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
+        from .sandbox_executor import _is_fake_verification
         for check in manifest.verify:
+            if _is_fake_verification(tuple(check.argv)):
+                failures.extend(AcceptanceFailure(aid, f'verification failed: {check.name}',
+                                                  '[FATAL] Fake verification command detected (it cannot fail). '
+                                                  'Write an executable test (pytest/unittest) that exercises the product.')
+                                for aid in check.acceptance_ids)
+                continue
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',_output_tail(r)) for aid in check.acceptance_ids)

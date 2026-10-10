@@ -100,6 +100,8 @@ def _failure(message: str, detail: str = '') -> ExecutionReport:
 class PreviewReadyExecutor:
     def __init__(self, inner):
         self._inner = inner
+        # What the last run did (release policy: NOT_RUN is not PASS).
+        self.last_smoke: dict | None = None
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
@@ -111,18 +113,23 @@ class PreviewReadyExecutor:
         try:
             contract = parse_preview_contract(repository)
         except NotPreviewable as exc:
+            self.last_smoke = {'status': 'FAIL', 'reason': str(exc)[:300]}
             failed = _failure(f'the product cannot be previewed: {exc}')
             return ExecutionReport(False, failed.failures, report.build_log)
         run = getattr(self._inner, '_run', None)
         if not contract.runtime.startswith('python') or not callable(run):
+            self.last_smoke = {'status': 'NOT_RUN', 'reason': 'no sandbox runtime to start this product'}
             return report  # contract valid; no sandbox runtime to start it in here
         try:
             result = run(repository, ('python', '-c', _SMOKE), 'preview-smoke')
         except Exception as exc:  # sandbox unavailable: the build cannot be verified
+            self.last_smoke = {'status': 'FAIL', 'reason': f'could not run: {exc}'[:300]}
             return ExecutionReport(False, (AcceptanceFailure(PREVIEW_FAILURE_ID, f'preview smoke test could not run: {exc}'),),
                                    report.build_log)
         if int(result.get('returncode', 1)) == 0:
+            self.last_smoke = {'status': 'PASS'}
             return report
+        self.last_smoke = {'status': 'FAIL'}
         output = (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-1800:]
         first = output.strip().splitlines()[0] if output.strip() else 'no output'
         needs = ''

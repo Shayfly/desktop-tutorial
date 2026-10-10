@@ -375,12 +375,17 @@ def stage_free(state: dict) -> None:
     for path, body in (('/api/demo/build', {'prompt': 'post deploy check'}), ('/api/v25/build', {'prompt': 'post deploy check'}),
                        ('/api/v26/projects/p/build', {'prompt': 'post deploy check'}),
                        ('/api/v27/projects/p/build', {'prompt': 'post deploy check'}),
+                       ('/api/v28/projects/p/build', {'prompt': 'post deploy check'}),
+                       ('/api/live/build', {'prompt': 'post deploy check'}),
                        ('/api/v25/projects/p/promote', None), ('/api/v26/projects/p/promote', None),
-                       ('/api/v27/projects/p/promote', None), ('/api/v28/projects/p/promote', None)):
+                       ('/api/v27/projects/p/promote', None), ('/api/v28/projects/p/promote', None),
+                       ('/api/v28/projects/p/patch', {'files': {'a.txt': 'x'}})):
         refused[path] = api('POST', path, body)[0]
-    ok = all(v == 410 for k, v in refused.items() if k.endswith('/build')) and \
+    for path in ('/hosted/v25/x', '/api/source/mobile/android', '/api/v25/source/omni-android'):
+        refused['GET ' + path] = api('GET', path)[0]
+    ok = all(v == 410 for k, v in refused.items() if k.endswith(('/build', '/patch')) or k.startswith('GET ')) and \
         all(v == 501 for k, v in refused.items() if k.endswith('/promote'))
-    record('demo/publish refused', ok, refused)
+    record('demo/publish/legacy paths refused', ok, refused)
 
     # Synthetic account, project list, journal endpoints on an empty project.
     token = new_account(state)
@@ -435,6 +440,30 @@ def stage_free(state: dict) -> None:
         preview_stop(token, project, view3['id'])
     s, hist = api('GET', f'/api/v28/projects/{project}/history', None, token)
     record('versions listed', s == 200 and len(hist.get('versions', [])) == 2, f'history={s} versions={len(hist.get("versions", []))}')
+
+    # Customer-visible: ZIP export of a version and rollback to it (G0 2026-10-10).
+    import io
+    import zipfile
+    req = urlrequest.Request(f'{BASE}/api/v28/projects/{project}/export?version_id={v1.id}',
+                             headers={'Authorization': f'Bearer {token}'})
+    try:
+        with urlrequest.urlopen(req, timeout=60) as resp:
+            blob, es = resp.read(), resp.status
+    except urlerror.HTTPError as exc:
+        blob, es = b'', exc.code
+    try:
+        names = set(zipfile.ZipFile(io.BytesIO(blob)).namelist())
+    except zipfile.BadZipFile:
+        names = set()
+    expected = set(fixture('v1'))
+    record('ZIP export of a version', es == 200 and expected <= names,
+           f'status={es} files={len(names)} missing={sorted(expected - names)}')
+    s_rb, rb = api('POST', f'/api/v28/projects/{project}/rollback', {'target_version_id': v1.id, 'message': 'postdeploy rollback'}, token)
+    new_id = (rb or {}).get('version_id') if isinstance(rb, dict) else None
+    sums = dict(sql('SELECT id, repository_sha256 FROM project_versions WHERE id = ANY(%s)', ([v1.id, new_id or ''],)))
+    record('rollback restores the exact stored version', s_rb == 200 and bool(new_id) and new_id != v1.id
+           and sums.get(new_id) == sums.get(v1.id) is not None,
+           f'status={s_rb} new={new_id} same_checksum={sums.get(new_id) == sums.get(v1.id)} spec_restored={(rb or {}).get("spec_restored") if isinstance(rb, dict) else None}')
 
 
 CANCEL_PROMPT = ('אתר בעברית לרשימת קניות משפחתית: הוספת פריט עם כמות, סימון שנקנה ומחיקה. בלי התחברות משתמשים. '

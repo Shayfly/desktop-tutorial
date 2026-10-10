@@ -1,5 +1,6 @@
 from __future__ import annotations
 from decimal import Decimal
+import re
 import logging
 import os
 import shutil
@@ -104,6 +105,27 @@ async def production_auth(request:Request,call_next):
         except AuthError:
             from fastapi.responses import JSONResponse
             return JSONResponse({'detail':'invalid authentication'},status_code=401)
+    return await call_next(request)
+# Audit 2026-10-10: legacy in-process paths (template "builds", an in-memory
+# hosted runtime, canned source templates, a file patch that skips every gate)
+# must not be reachable on staging/production even if the durable backend is
+# misconfigured. They stay available for local development only.
+_LEGACY_PREFIXES=('/hosted/','/runtime/','/api/source/','/api/v25/source/')
+_LEGACY_PATCH=re.compile(r'^/api/v2[5-8]/projects/[^/]+/patch$')
+
+def _legacy_refused()->bool:
+    if os.getenv('OMNI_ENV','development').strip().lower() in ('staging','production'):
+        return True
+    return _async_build_mode()
+
+@app.middleware('http')
+async def legacy_paths_guard(request:Request,call_next):
+    path=request.url.path
+    if (path.startswith(_LEGACY_PREFIXES) or _LEGACY_PATCH.match(path)) and _legacy_refused():
+        from fastapi.responses import JSONResponse
+        return JSONResponse({'error':'legacy_path_disabled',
+                             'message':'This legacy path is not part of the verified build pipeline and is disabled here. '
+                                       'Changes go through POST /api/v28/projects/{project_id}/modifications.'},status_code=410)
     return await call_next(request)
 _workspace=ProjectWorkspace()
 _memory=ProjectMemory()
@@ -292,13 +314,13 @@ def _reject_unbacked_publish()->None:
     keep a 'deployment' in a dict inside one serverless invocation. That is
     not publishing; in the durable deployment it is refused instead of
     returning a success nobody can reach."""
-    if _async_build_mode():
+    if _legacy_refused():
         raise HTTPException(501, {'error': 'publish_not_available',
                                   'message': 'Publishing to a live address is not available in this version. '
                                              'Use the preview and the ZIP export.'})
 
 def _reject_legacy_sync_build()->None:
-    if _async_build_mode():
+    if _legacy_refused():
         raise HTTPException(410,'Synchronous builds are disabled in this deployment. Use POST '
                                 '/api/v28/projects/{project_id}/builds (durable async pipeline) and poll '
                                 'GET /api/v28/projects/{project_id}/builds/{build_id}.')

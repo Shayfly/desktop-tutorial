@@ -11,8 +11,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
 
-LIVE, PARTIAL, NOT_CONFIGURED, NOT_IMPLEMENTED, BLOCKED = 'LIVE', 'PARTIAL', 'NOT_CONFIGURED', 'NOT_IMPLEMENTED', 'BLOCKED'
-STATUSES = (LIVE, PARTIAL, NOT_CONFIGURED, NOT_IMPLEMENTED, BLOCKED)
+# Status vocabulary (Production Assurance v2 §3, 2026-10-10), weakest to strongest:
+#   NOT_IMPLEMENTED       no implementation, or it does not import
+#   IMPLEMENTED           code exists, no test evidence
+#   UNIT_TESTED           unit tests only
+#   INTEGRATION_TESTED    tests against real dependencies (e.g. live PostgreSQL)
+#   REAL_SERVER_VERIFIED  a fresh run on the deployed pre-staging system
+#   LIVE                  a fresh run in PRODUCTION (no production exists yet)
+#   BLOCKED               a named external blocker (credential, contract, configuration)
+NOT_IMPLEMENTED, IMPLEMENTED, UNIT_TESTED, INTEGRATION_TESTED = 'NOT_IMPLEMENTED', 'IMPLEMENTED', 'UNIT_TESTED', 'INTEGRATION_TESTED'
+REAL_SERVER_VERIFIED, LIVE, BLOCKED = 'REAL_SERVER_VERIFIED', 'LIVE', 'BLOCKED'
+STATUSES = (NOT_IMPLEMENTED, IMPLEMENTED, UNIT_TESTED, INTEGRATION_TESTED, REAL_SERVER_VERIFIED, LIVE, BLOCKED)
+VERIFIED_STATUSES = (REAL_SERVER_VERIFIED, LIVE)
+PRODUCTION_ENVS = ('production',)
 
 
 @dataclass(frozen=True)

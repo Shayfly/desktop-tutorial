@@ -44,8 +44,15 @@ DEPLOY = Evidence('live', 'deploy-worker run 37960891900', 'drain, migrations, p
                   ('drain before replace', 'migrations', 'queue consumed', 'sandbox isolated (no network)',
                    'storage write/read/delete', 'browser probe both fixtures', 'preview data self-test', 'preview edge'))
 
+# Free replay over every stored real version on the deployed worker: the
+# consistency gate blocked none of 44 working versions (run on f39bec9).
+GATE_REPLAY = Evidence('live', 'postdeploy-checks gate-replay run 38071513038', 'consistency gate over 44 stored '
+                       'versions: 0 blocking; repair prompt coverage 44/44 entry files', 'f39bec9', 'worker-host',
+                       ('no false positive on stored working versions', 'repair prompt contains the code'))
+
 # When each run happened (UTC) -- shown as last_verified_at.
 AT = {
     FREE.ref: '2026-10-09T16:51Z', PAID.ref: '2026-10-09T16:43Z', REHEARSAL_ACCEPT.ref: '2026-10-09T16:43Z',
     CRASH.ref: '2026-10-09T15:46Z', BACKUP.ref: '2026-10-09T16:52Z', DEPLOY.ref: '2026-10-09T16:41Z',
+    GATE_REPLAY.ref: '2026-10-10T18:20Z',
 }

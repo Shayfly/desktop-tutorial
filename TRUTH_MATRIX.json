@@ -1,0 +1,1093 @@
+{
+ "rows": [
+  {
+   "requirement": "Describe the product in natural language (Hebrew/English)",
+   "capability": "discovery",
+   "agent": "discovery_agent",
+   "skills": [
+    "requirement_extraction",
+    "acceptance_criteria_generation"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.autonomous_agents:ArchitectAgent",
+    "omni_prod.discovery:requirements_text",
+    "omni_prod.product_architect:ProductArchitect"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_brief_capability_detection.py"
+   ],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:requirement_extraction",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:acceptance_criteria_generation",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+    }
+   ]
+  },
+  {
+   "requirement": "Clarifying questions only when needed",
+   "capability": "discovery questions",
+   "agent": "discovery_agent",
+   "skills": [
+    "smart_question_generation",
+    "safe_default_selection"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.discovery:answer",
+    "omni_prod.discovery:next_group"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:smart_question_generation",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:safe_default_selection",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Plan and cost quote before the build",
+   "capability": "plan + quote",
+   "agent": "product_planner",
+   "skills": [
+    "build_plan_generation",
+    "build_quote"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.build_cost_plan:build_economics_quote",
+    "omni_prod.creator_plan:build_plan_preview"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:build_plan_generation",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:build_quote",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Approval binds the build to the approved contract",
+   "capability": "server-side approval",
+   "agent": "executive_orchestrator",
+   "skills": [],
+   "platform": [
+    "contract_bound_approval"
+   ],
+   "implementation": [
+    "omni_prod.job_repository:PostgresBuildRepository.claim_contract_build"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:contract_bound_approval",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Sign up / sign in to 148AI",
+   "capability": "148AI accounts",
+   "agent": "security_agent",
+   "skills": [],
+   "platform": [
+    "platform_accounts"
+   ],
+   "implementation": [
+    "omni_prod.creator_accounts:PostgresAccountService",
+    "omni_prod.identity_lifecycle:IdentityService"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_m5_identity_lifecycle.py"
+   ],
+   "evidence": [
+    "postdeploy-checks run 37962165888"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:platform_accounts",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+    }
+   ]
+  },
+  {
+   "requirement": "Generate the product code",
+   "capability": "code generation",
+   "agent": "coding_agent",
+   "skills": [
+    "file_create"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.autonomous_agents:GeneratorAgent"
+   ],
+   "provider": "Gemini (catalog)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   ],
+   "cost": "metered per call",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:file_create",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+    }
+   ]
+  },
+  {
+   "requirement": "Detect cross-file errors before running (syntax, imports, routes, assets)",
+   "capability": "consistency gate",
+   "agent": "qa_agent",
+   "skills": [],
+   "platform": [
+    "consistency_gate"
+   ],
+   "implementation": [
+    "omni_prod.consistency_gate:ConsistencyGateExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_consistency_gate.py"
+   ],
+   "evidence": [
+    "postdeploy-checks gate-replay run 38071513038"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:consistency_gate",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: no false positive on stored working versions; repair prompt contains the code"
+    }
+   ]
+  },
+  {
+   "requirement": "Run the product's tests in an isolated sandbox",
+   "capability": "sandbox verification",
+   "agent": "qa_agent",
+   "skills": [
+    "unit_test_execution"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor"
+   ],
+   "provider": "sandbox runner (no network)",
+   "tests": [],
+   "evidence": [
+    "tests/test_acceptance_coverage.py",
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0 marginal",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "tests are written by the generating model",
+   "parts": [
+    {
+     "part": "skill:unit_test_execution",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Repair focused on real errors; worse repairs rolled back",
+   "capability": "repair loop",
+   "agent": "repair_agent",
+   "skills": [
+    "repair_execution",
+    "retry_decision"
+   ],
+   "platform": [
+    "round_snapshots_rollback"
+   ],
+   "implementation": [
+    "omni_prod.autonomous_agents:RepairAgent",
+    "omni_prod.autonomous_core:AutonomousProductEngine",
+    "omni_prod.worker_tasks:install_round_snapshots"
+   ],
+   "provider": "Gemini",
+   "tests": [
+    "tests/test_repair_stop_loss.py"
+   ],
+   "evidence": [
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "tests/test_repair_stop_loss.py"
+   ],
+   "cost": "metered per call",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:repair_execution",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+    },
+    {
+     "part": "skill:retry_decision",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py"
+    },
+    {
+     "part": "platform:round_snapshots_rollback",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "The product starts for preview",
+   "capability": "preview smoke",
+   "agent": "deployment_agent",
+   "skills": [
+    "page_load_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_smoke:PreviewReadyExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_preview_smoke.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:page_load_test",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py"
+    }
+   ]
+  },
+  {
+   "requirement": "The product does what was asked (behaviour over HTTP)",
+   "capability": "behavioural acceptance",
+   "agent": "behavioral_acceptance_agent",
+   "skills": [
+    "behavioral_acceptance_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor",
+    "omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "steps written by the model; platform enforces required kinds",
+   "parts": [
+    {
+     "part": "skill:behavioral_acceptance_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+    }
+   ]
+  },
+  {
+   "requirement": "A real browser uses the product (forms, JS errors)",
+   "capability": "browser check",
+   "agent": "browser_rehearsal_agent",
+   "skills": [
+    "browser_acceptance_test",
+    "javascript_error_detection"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.browser_probe:BrowserFlowExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:browser_acceptance_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:javascript_error_detection",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge"
+    }
+   ]
+  },
+  {
+   "requirement": "Looks right on desktop and mobile, RTL",
+   "capability": "visual QA",
+   "agent": "ux_ui_design_agent",
+   "skills": [
+    "responsive_layout",
+    "rtl_design"
+   ],
+   "platform": [
+    "visual_qa_desktop_mobile"
+   ],
+   "implementation": [
+    "omni_prod.skills_runtime:TEXT_LOCALE",
+    "omni_prod.skills_runtime:VISUAL_DESIGN"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:responsive_layout",
+     "status": "IMPLEMENTED",
+     "why": "model instruction only; no platform check verifies the result"
+    },
+    {
+     "part": "skill:rtl_design",
+     "status": "IMPLEMENTED",
+     "why": "model instruction only; no platform check verifies the result"
+    },
+    {
+     "part": "platform:visual_qa_desktop_mobile",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "Accessible (labels, contrast, keyboard)",
+   "capability": "accessibility",
+   "agent": "accessibility_agent",
+   "skills": [
+    "label_test",
+    "contrast_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.skills_runtime:FORM_VALIDATION",
+    "omni_prod.skills_runtime:VISUAL_DESIGN"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:label_test",
+     "status": "IMPLEMENTED",
+     "why": "model instruction only; no platform check verifies the result"
+    },
+    {
+     "part": "skill:contrast_test",
+     "status": "IMPLEMENTED",
+     "why": "model instruction only; no platform check verifies the result"
+    }
+   ]
+  },
+  {
+   "requirement": "Performance within budget",
+   "capability": "performance",
+   "agent": "performance_agent",
+   "skills": [],
+   "platform": [
+    "performance_budgets"
+   ],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:performance_budgets",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "No secrets or unsafe code in the product",
+   "capability": "security scan",
+   "agent": "security_agent",
+   "skills": [
+    "secret_detection",
+    "security_release_gate"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.security_testing:hostile_repository_scan",
+    "omni_prod.worker_tasks:evaluate_release_gates"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:secret_detection",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:security_release_gate",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Never READY when a mandatory check failed or did not run",
+   "capability": "release policy",
+   "agent": "quality_gate_agent",
+   "skills": [],
+   "platform": [
+    "release_policy"
+   ],
+   "implementation": [
+    "omni_prod.release_policy:build_report"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_release_policy.py",
+    "tests/test_release_blocks_on_failed_acceptance.py"
+   ],
+   "evidence": [
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:release_policy",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "Private preview; sharing only on purpose",
+   "capability": "preview access",
+   "agent": "deployment_agent",
+   "skills": [
+    "preview_access_protect",
+    "preview_token_revoke"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_access:PreviewAccess",
+    "omni_prod.preview_access:PreviewAccess.set_mode",
+    "omni_prod.preview_router:make_handler"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37962165888"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:preview_access_protect",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+    },
+    {
+     "part": "skill:preview_token_revoke",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+    }
+   ]
+  },
+  {
+   "requirement": "Preview data survives restarts and new versions",
+   "capability": "preview data",
+   "agent": "database_agent",
+   "skills": [
+    "persistence_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_durability:selftest"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "deploy-worker run 37960891900",
+    "postdeploy-checks run 37962165888"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:persistence_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations "
+    }
+   ]
+  },
+  {
+   "requirement": "Change the product in natural language",
+   "capability": "modification",
+   "agent": "product_evolution_agent",
+   "skills": [
+    "file_modify"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.autonomous_agents:RepairAgent"
+   ],
+   "provider": "Gemini",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   ],
+   "cost": "metered per call",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:file_modify",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+    }
+   ]
+  },
+  {
+   "requirement": "Version history and rollback",
+   "capability": "versions",
+   "agent": "release_agent",
+   "skills": [
+    "version_create"
+   ],
+   "platform": [
+    "version_rollback"
+   ],
+   "implementation": [
+    "omni_prod.modification_repository:PostgresModificationRepository.rollback",
+    "omni_prod.workspace:PostgresProjectWorkspace.commit"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888",
+    "tests/test_m4_acceptance.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:version_create",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "platform:version_rollback",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "Download the product as ZIP",
+   "capability": "export",
+   "agent": "release_agent",
+   "skills": [],
+   "platform": [
+    "zip_export"
+   ],
+   "implementation": [
+    "omni_prod.unified_engine:UnifiedOmniEngine.export_zip",
+    "omni_prod.v26_platform:V26UniversalPlatform.export"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_v25_unified_v10_parity.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:zip_export",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "Publish to a live address",
+   "capability": "publish",
+   "agent": "deployment_agent",
+   "skills": [
+    "release_publish"
+   ],
+   "platform": [
+    "publish"
+   ],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "refused with 501; not shown in the UI",
+   "parts": [
+    {
+     "part": "skill:release_publish",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    },
+    {
+     "part": "platform:publish",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "Stop a build; live progress journal",
+   "capability": "cancel + journal",
+   "agent": "infrastructure_agent",
+   "skills": [
+    "job_cancel"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.build_control:BuildControl",
+    "omni_prod.job_repository:PostgresBuildRepository.request_cancel"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37962165888"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:job_cancel",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+    }
+   ]
+  },
+  {
+   "requirement": "Recover a build after a worker crash",
+   "capability": "crash recovery",
+   "agent": "infrastructure_agent",
+   "skills": [
+    "job_resume",
+    "stale_job_recovery"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.maintenance:redispatch_lost"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:job_resume",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed"
+    },
+    {
+     "part": "skill:stale_job_recovery",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed"
+    }
+   ]
+  },
+  {
+   "requirement": "Charge only actual usage (metered settlement)",
+   "capability": "settlement",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "credit_reservation",
+    "actual_cost_calculation",
+    "credit_settlement"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.subscription_store:PostgresSubscriptionService",
+    "omni_prod.worker_tasks:metered_llm_cost",
+    "omni_prod.worker_tasks:resolve_m5_billing"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37962165888",
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "cost": "ledger",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:credit_reservation",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "skill:actual_cost_calculation",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    },
+    {
+     "part": "skill:credit_settlement",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Hard budget ceiling per build and in total",
+   "capability": "budget guard",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "budget_guard"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.model_policy:authorize_model_call"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:budget_guard",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Costs reconciled with provider invoices",
+   "capability": "reconciliation",
+   "agent": "cost_economics_agent",
+   "skills": [],
+   "platform": [
+    "invoice_reconciliation"
+   ],
+   "implementation": [
+    "omni_prod.qa_budget:qa_used_usd"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:invoice_reconciliation",
+     "status": "BLOCKED",
+     "why": "needs the provider billing export (founder access to Google AI Studio / Cloud billing)"
+    }
+   ]
+  },
+  {
+   "requirement": "Backups that restore",
+   "capability": "backup/restore",
+   "agent": "backup_recovery_agent",
+   "skills": [
+    "restore_verification"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.backup:verify"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "backup-restore run 37962179844"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:restore_verification",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune"
+    }
+   ]
+  },
+  {
+   "requirement": "Fallback to a second AI provider",
+   "capability": "provider fallback",
+   "agent": "provider_router_agent",
+   "skills": [
+    "provider_fallback_selection"
+   ],
+   "platform": [
+    "second_model_provider"
+   ],
+   "implementation": [
+    "omni_prod.routed_gateway:RoutedModelGateway"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_provider_quota_and_dialects.py"
+   ],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:provider_fallback_selection",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    },
+    {
+     "part": "platform:second_model_provider",
+     "status": "BLOCKED",
+     "why": "OpenAI: no credits (HTTP 429); Anthropic: credit balance too low (HTTP 400)"
+    }
+   ]
+  },
+  {
+   "requirement": "Sign-in and roles inside generated products",
+   "capability": "generated-app auth",
+   "agent": "identity_auth_agent",
+   "skills": [
+    "signup",
+    "login"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:signup",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    },
+    {
+     "part": "skill:login",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "Images for the product",
+   "capability": "media",
+   "agent": "image_agent",
+   "skills": [
+    "text_to_image"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.providers.image_provider:PredictionImageProvider"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:text_to_image",
+     "status": "BLOCKED",
+     "why": "not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF, OMNI_IMAGE_PROVIDER_MODEL"
+    }
+   ]
+  },
+  {
+   "requirement": "Automations",
+   "capability": "automation",
+   "agent": "automation_agent",
+   "skills": [
+    "workflow_test"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:workflow_test",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "2D games",
+   "capability": "games",
+   "agent": "game_engineering_2d_agent",
+   "skills": [
+    "gameplay_test"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:gameplay_test",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "REAL_SERVER_VERIFIED": 16,
+  "UNIT_TESTED": 8,
+  "NOT_IMPLEMENTED": 6,
+  "IMPLEMENTED": 1,
+  "BLOCKED": 3
+ },
+ "customer_visible_findings": [
+  "shown to the customer but UNIT_TESTED: Version history and rollback",
+  "shown to the customer but UNIT_TESTED: Download the product as ZIP"
+ ]
+}

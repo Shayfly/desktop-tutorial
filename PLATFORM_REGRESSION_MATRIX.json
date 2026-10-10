@@ -143,7 +143,7 @@
    "expected": "durable agent runtime, permissions, budgets, verification, truthful registry",
    "files": {
     "tests/test_agent_os.py": {
-     "min_tests": 16
+     "min_tests": 17
     }
    }
   },

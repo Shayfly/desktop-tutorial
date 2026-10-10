@@ -42,6 +42,20 @@ def coverage(repo: dict[str, str]) -> dict:
     }
 
 
+def _fake_verify_commands(repo: dict[str, str]) -> list[str]:
+    from .sandbox_executor import _is_fake_verification
+    try:
+        data = json.loads(repo.get('.omni/project.json') or '{}')
+    except json.JSONDecodeError:
+        return []
+    out = []
+    for item in data.get('verify') or []:
+        argv = item.get('argv') if isinstance(item, dict) else None
+        if isinstance(argv, list) and _is_fake_verification(tuple(argv)):
+            out.append(' '.join(map(str, argv))[:120])
+    return out
+
+
 def replay(rows, load) -> dict:
     out = {'versions': 0, 'load_failures': 0, 'blocking_versions': 0, 'blocking_by_check': Counter(),
            'advisories_by_check': Counter(), 'examples': [], 'coverage': {'versions': 0, 'entry_in_prompt': 0,
@@ -56,6 +70,11 @@ def replay(rows, load) -> dict:
             continue
         out['versions'] += 1
         report = scan(repo)
+        fake = _fake_verify_commands(repo)
+        if fake:
+            out['fake_verify_versions'] = out.get('fake_verify_versions', 0) + 1
+            if len(out['examples']) < 12:
+                out['examples'].append({'version': vid, 'fake_verify': fake[:3]})
         if report.blocking:
             out['blocking_versions'] += 1
             if len(out['examples']) < 12:
@@ -109,13 +128,36 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
                                                           'defaults_applied', 'prompt')}
             t0 = time.monotonic()
             report = chain.execute(repository=repo, spec=spec)
+            policy = _policy_decision(vid, chain, spec, repo, report)
             results.append({'version': vid, 'status': 'PASS' if report.passed else 'FAIL',
-                             'seconds': round(time.monotonic() - t0),
+                             'seconds': round(time.monotonic() - t0), 'policy': policy['decision'],
+                             'policy_blocking': policy['blocking'][:4],
                              'failing': [f'{f.acceptance_id}: {f.message}'[:200] for f in report.failures][:3]})
         except Exception as exc:
             results.append({'version': vid, 'status': 'ERROR', 'why': f'{type(exc).__name__}: {str(exc)[:200]}'})
     counts = Counter(r['status'] for r in results)
-    return {'versions': len(results), 'counts': dict(counts), 'results': results}
+    policy = Counter(r.get('policy') for r in results if r.get('policy'))
+    agree = sum(1 for r in results if r.get('policy') and (r['policy'] == 'READY') == (r['status'] == 'PASS'))
+    return {'versions': len(results), 'counts': dict(counts), 'policy': dict(policy),
+            'policy_agrees_with_chain': agree, 'results': results}
+
+
+def _policy_decision(vid, chain, spec, repo, report) -> dict:
+    """Release-policy decision for a replayed version (no model review ran:
+    the review check is advisory NOT_RUN; rights treated as clear)."""
+    from types import SimpleNamespace
+    from .quality_gate import assess_repository
+    from .security_testing import hostile_repository_scan
+    from .worker_tasks import release_quality_report
+    result = SimpleNamespace(status='ready' if report.passed else 'failed', spec=spec, repository=repo, report=report)
+    quality = assess_repository(spec=spec, repository=repo)
+    security = hostile_repository_scan(repo)
+    qr = release_quality_report(vid, SimpleNamespace(executor=chain), None, result, quality, security,
+                                SimpleNamespace(publish_allowed=True))
+    if qr is None:
+        return {'decision': 'ERROR', 'blocking': ['policy report could not be built']}
+    d = qr.to_dict()
+    return {'decision': d['decision'], 'blocking': d['blocking']}
 
 
 def main() -> int:

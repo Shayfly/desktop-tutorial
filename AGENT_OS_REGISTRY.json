@@ -18,9 +18,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
@@ -44,7 +45,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -69,7 +70,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -94,7 +95,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -117,7 +118,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -144,13 +145,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "agent_key": "frontend_agent",
@@ -168,7 +167,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -191,7 +190,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -216,7 +215,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a n",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
@@ -277,7 +276,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -298,7 +297,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -323,13 +322,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
     "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_at": "2026-10-09T16:41Z",
    "last_verified_commit": "039574f"
   },
   {
@@ -347,7 +347,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -372,7 +372,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -395,7 +395,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -419,7 +419,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -443,7 +443,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -467,7 +467,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -493,9 +493,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "postdeploy-checks run 37961193099"
    ],
@@ -518,7 +519,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
@@ -543,7 +544,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -567,9 +568,10 @@
    ],
    "gap": "no publishing to a live customer domain",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -592,7 +594,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888",
@@ -616,7 +618,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
@@ -640,7 +642,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -662,7 +664,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -702,13 +704,11 @@
    ],
    "gap": "instructions + review only; no automated a11y test",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "agent_key": "localization_rtl_agent",
@@ -725,13 +725,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "agent_key": "seo_web_quality_agent",
@@ -783,9 +781,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_agents.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "mod_c14435dc9baa44bdac784d0c15ed9b85 -> v_0bc82ef7b33b4210"
    ],
    "last_verified_at": null,
@@ -823,7 +822,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_m495_worker_capabilities.py"
@@ -845,8 +844,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "NOT_CONFIGURED",
-   "why": "not observed on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF",
+   "status": "BLOCKED",
+   "why": "not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -992,7 +991,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -1029,7 +1028,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1050,7 +1049,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1074,9 +1073,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888",
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -1098,7 +1098,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1119,9 +1119,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/meta.py",
    "evidence": [
+    "tests/test_failure_injection.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -1141,7 +1144,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1161,7 +1164,7 @@
    ],
    "gap": "keyword families, no model",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1180,7 +1183,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -1199,7 +1202,7 @@
    ],
    "gap": "fixed question set",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1217,7 +1220,7 @@
    ],
    "gap": "deterministic questions, not generated",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1235,7 +1238,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1305,7 +1308,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1336,7 +1339,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -1354,7 +1357,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -1373,7 +1376,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_brief_capability_detection.py"
@@ -1417,7 +1420,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1435,7 +1438,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1453,7 +1456,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1484,7 +1487,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1502,7 +1505,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1546,7 +1549,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1564,7 +1567,7 @@
    ],
    "gap": "web/SaaS families only",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1582,7 +1585,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -1626,7 +1629,7 @@
    ],
    "gap": "one self-contained web stack",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -1761,7 +1764,7 @@
    ],
    "gap": "platform-level isolation of generated data",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -1779,7 +1782,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -1797,7 +1800,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -1893,13 +1896,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "design_system_generation",
@@ -1911,13 +1912,11 @@
    ],
    "gap": "instruction + CSS heuristic",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "design_token_generation",
@@ -1929,13 +1928,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "component_selection",
@@ -1960,13 +1957,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "navigation_design",
@@ -1991,13 +1986,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "error_state_design",
@@ -2009,13 +2002,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "loading_state_design",
@@ -2027,13 +2018,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "mobile_layout",
@@ -2084,13 +2073,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "page_generation",
@@ -2102,7 +2089,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2133,7 +2120,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2151,13 +2138,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "state_management",
@@ -2182,7 +2167,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2226,13 +2211,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "loading_ui",
@@ -2283,7 +2266,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2366,7 +2349,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2384,13 +2367,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "business_logic_generation",
@@ -2402,7 +2383,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2511,7 +2492,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2607,7 +2588,7 @@
    ],
    "gap": "SQLite in DATA_DIR",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -2639,7 +2620,7 @@
    ],
    "gap": "platform migrations only",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -2709,13 +2690,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "foreign_key_design",
@@ -2753,7 +2732,7 @@
    ],
    "gap": "previews only",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
     "deploy-worker run 37960891900",
@@ -2772,7 +2751,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888",
@@ -2792,7 +2771,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
@@ -2837,7 +2816,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -2855,7 +2834,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -2868,52 +2847,37 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.creator_accounts:PostgresAccountService"
-   ],
-   "gap": "platform accounts, not generated apps",
+   "implementation_location": [],
+   "gap": "generated-app sign-up not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
-    "postdeploy-checks run 37962165888"
-   ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "login",
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.creator_accounts:PostgresAccountService"
-   ],
-   "gap": "platform accounts",
+   "implementation_location": [],
+   "gap": "generated-app login not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "logout",
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app logout not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -2922,16 +2886,11 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app session management not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -2966,16 +2925,11 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "no mail sender configured",
+   "implementation_location": [],
+   "gap": "generated-app email verification not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -2984,16 +2938,11 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "no mail sender configured",
+   "implementation_location": [],
+   "gap": "generated-app password reset not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3028,16 +2977,11 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app account deletion not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3046,16 +2990,11 @@
    "category": "Authentication",
    "primary_agent": "identity_auth_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.identity_lifecycle:IdentityService"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app account export not implemented; platform accounts are tracked separately",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m5_identity_lifecycle.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3142,18 +3081,13 @@
    "category": "Integration",
    "primary_agent": "integration_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.model_probe:probe"
-   ],
-   "gap": "model providers only",
+   "implementation_location": [],
+   "gap": "generated-app integrations not implemented; model-provider probe is platform routing",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: model provider availability",
-   "evidence": [
-    "model-probe run 37814803770"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
-   "last_verified_commit": "ff6b4f6"
+   "last_verified_commit": null
   },
   {
    "skill_key": "credential_validation",
@@ -3173,18 +3107,13 @@
    "category": "Integration",
    "primary_agent": "integration_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.routed_gateway:RoutedModelGateway"
-   ],
-   "gap": "model calls (429 released, route skipped)",
+   "implementation_location": [],
+   "gap": "generated-app integrations not implemented; model 429 handling is platform routing",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "integration_retry",
@@ -3217,16 +3146,11 @@
    "category": "Integration",
    "primary_agent": "integration_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.routed_gateway:RoutedModelGateway"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app integrations not implemented; model fallback is platform routing",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_provider_quota_and_dialects.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3248,16 +3172,11 @@
    "category": "Integration",
    "primary_agent": "integration_agent",
    "verifier_agent": "security_agent",
-   "implementation_location": [
-    "omni_prod.worker_tasks:failure_code"
-   ],
-   "gap": "",
+   "implementation_location": [],
+   "gap": "generated-app integrations not implemented",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "unit tests only",
-   "evidence": [
-    "tests/test_m3_preview_logic.py"
-   ],
+   "status": "NOT_IMPLEMENTED",
+   "why": "no implementation",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3271,7 +3190,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3289,7 +3208,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3320,7 +3239,7 @@
    ],
    "gap": "pinned allowlist only",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3468,7 +3387,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3486,7 +3405,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3504,13 +3423,17 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
    "evidence": [
+    "tests/test_acceptance_coverage.py",
+    "tests/test_release_policy.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
     "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_at": "2026-10-09T16:41Z",
    "last_verified_commit": "039574f"
   },
   {
@@ -3588,7 +3511,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -3606,7 +3529,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3637,7 +3560,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3681,7 +3604,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
     "deploy-worker run 37960891900",
@@ -3700,7 +3623,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -3731,9 +3654,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -3749,7 +3675,7 @@
    ],
    "gap": "simulated providers",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_failure_injection.py"
@@ -3767,7 +3693,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
    "evidence": [
     "deploy-worker run 37960891900",
@@ -3786,7 +3712,7 @@
    ],
    "gap": "build restarts from the beginning",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -3804,9 +3730,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888"
    ],
    "last_verified_at": "2026-10-09T16:51Z",
@@ -3823,7 +3750,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3841,7 +3768,7 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -3859,7 +3786,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -3878,9 +3805,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py",
    "evidence": [
+    "tests/test_preview_smoke.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3896,7 +3826,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -3914,7 +3844,7 @@
    ],
    "gap": "fills forms by field type",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -3985,7 +3915,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -4003,7 +3933,7 @@
    ],
    "gap": "5xx answers",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -4047,7 +3977,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -4066,7 +3996,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -4110,7 +4040,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -4128,7 +4058,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -4147,9 +4077,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4178,9 +4109,12 @@
    ],
    "gap": "bounded rounds",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py",
    "evidence": [
+    "tests/test_repair_stop_loss.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4209,7 +4143,7 @@
    ],
    "gap": "static",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4254,7 +4188,7 @@
    ],
    "gap": "review + instruction, no dynamic XSS probe",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -4272,7 +4206,7 @@
    ],
    "gap": "platform API only",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_v24_auth.py"
@@ -4381,7 +4315,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -4399,9 +4333,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
+    "tests/test_release_policy.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4417,7 +4354,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -4474,7 +4411,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4518,7 +4455,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4536,7 +4473,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -4580,7 +4517,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4598,7 +4535,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: model provider availability",
    "evidence": [
     "model-probe run 37814803770"
@@ -4616,7 +4553,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4634,7 +4571,7 @@
    ],
    "gap": "catalog quality scores",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4665,7 +4602,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -4696,7 +4633,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -4715,7 +4652,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_provider_quota_and_dialects.py"
@@ -4733,7 +4670,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_provider_quota_and_dialects.py"
@@ -4751,7 +4688,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4769,7 +4706,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4787,7 +4724,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -4806,7 +4743,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -4837,7 +4774,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -4855,7 +4792,7 @@
    ],
    "gap": "versioned catalog",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -4873,9 +4810,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -4891,9 +4831,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -4909,7 +4852,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888",
@@ -4954,7 +4897,7 @@
    ],
    "gap": "ceiling bound to the reservation",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -4985,7 +4928,7 @@
    ],
    "gap": "QA ledger",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_golden_mod_path_live_postgres.py"
@@ -5003,13 +4946,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888",
     "deploy-worker run 37960891900"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_at": "2026-10-09T16:41Z",
    "last_verified_commit": "039574f"
   },
   {
@@ -5022,7 +4966,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -5040,7 +4984,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -5058,9 +5002,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888"
    ],
    "last_verified_at": "2026-10-09T16:51Z",
@@ -5076,7 +5021,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "deploy-worker run 37960891900"
@@ -5120,7 +5065,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -5139,7 +5084,7 @@
    ],
    "gap": "restart from the beginning, once",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -5158,7 +5103,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5176,7 +5121,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_sandbox_cleanup.py"
@@ -5195,7 +5140,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -5213,7 +5158,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5231,7 +5176,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888",
@@ -5250,7 +5195,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5269,7 +5214,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5287,7 +5232,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5305,7 +5250,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5375,7 +5320,7 @@
    ],
    "gap": "documented procedure, not automated",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "IMPLEMENTED",
    "why": "code exists; no evidence",
    "evidence": [],
    "last_verified_at": null,
@@ -5391,9 +5336,10 @@
    ],
    "gap": "platform deploy",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888"
    ],
    "last_verified_at": "2026-10-09T16:51Z",
@@ -5409,7 +5355,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -5428,7 +5374,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -5446,9 +5392,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -5477,9 +5424,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -5508,7 +5456,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_golden_mod_path_live_postgres.py"
@@ -5539,7 +5487,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888",
@@ -5558,7 +5506,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_agent_os.py"
@@ -5589,7 +5537,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
    "evidence": [
     "postdeploy-checks run 37961193099"
@@ -5607,7 +5555,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; crash recovery (requeue once); build finished after recovery; lost worker's calls settled; superseded agent run clos",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -5626,7 +5574,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -5670,7 +5618,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
    "evidence": [
     "postdeploy-checks run 37962165888"
@@ -5702,7 +5650,7 @@
    ],
    "gap": "same object store as artifacts",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5720,7 +5668,7 @@
    ],
    "gap": "content-addressed artifacts re-verified",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5738,7 +5686,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5756,7 +5704,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5774,7 +5722,7 @@
    ],
    "gap": "into a throw-away database",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5792,7 +5740,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5810,7 +5758,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5828,7 +5776,7 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -5846,7 +5794,7 @@
    ],
    "gap": "restore drill only; no failover",
    "missing_contract_fields": [],
-   "status": "LIVE",
+   "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune",
    "evidence": [
     "backup-restore run 37962179844"
@@ -6007,13 +5955,11 @@
    ],
    "gap": "instruction + review",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "contrast_test",
@@ -6025,13 +5971,11 @@
    ],
    "gap": "instruction only",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "touch_target_test",
@@ -6095,13 +6039,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "rtl_layout",
@@ -6113,13 +6055,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "ltr_layout",
@@ -6144,13 +6084,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "status": "IMPLEMENTED",
+   "why": "model instruction only; no platform check verifies the result",
+   "evidence": [],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "skill_key": "locale_currency",
@@ -6422,8 +6360,8 @@
    ],
    "gap": "no verified real generation",
    "missing_contract_fields": [],
-   "status": "NOT_CONFIGURED",
-   "why": "not observed on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF, OMNI_IMAGE_PROVIDER_MODEL",
+   "status": "BLOCKED",
+   "why": "not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF, OMNI_IMAGE_PROVIDER_MODEL",
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -6541,7 +6479,7 @@
    ],
    "gap": "format/size only",
    "missing_contract_fields": [],
-   "status": "PARTIAL",
+   "status": "UNIT_TESTED",
    "why": "unit tests only",
    "evidence": [
     "tests/test_replicate_image_test.py"
@@ -7541,19 +7479,23 @@
  "summary": {
   "agents_total": 52,
   "agents": {
-   "LIVE": 27,
-   "PARTIAL": 10,
-   "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 11,
-   "BLOCKED": 3
+   "IMPLEMENTED": 9,
+   "UNIT_TESTED": 6,
+   "INTEGRATION_TESTED": 0,
+   "REAL_SERVER_VERIFIED": 22,
+   "LIVE": 0,
+   "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
-   "LIVE": 126,
-   "PARTIAL": 35,
-   "NOT_CONFIGURED": 1,
-   "NOT_IMPLEMENTED": 257,
-   "BLOCKED": 8
+   "NOT_IMPLEMENTED": 269,
+   "IMPLEMENTED": 25,
+   "UNIT_TESTED": 26,
+   "INTEGRATION_TESTED": 0,
+   "REAL_SERVER_VERIFIED": 98,
+   "LIVE": 0,
+   "BLOCKED": 9
   }
  }
 }

@@ -167,7 +167,7 @@
    "test_location": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:43Z",
    "environment": "pre-staging worker host"
@@ -179,7 +179,7 @@
    "test_location": [
     "postdeploy-checks run 37962165888"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:51Z",
    "environment": "pre-staging worker host"
@@ -192,7 +192,7 @@
     "deploy-worker run 37960891900",
     "postdeploy-checks run 37962165888"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:41Z",
    "environment": "pre-staging worker host"
@@ -204,7 +204,7 @@
    "test_location": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "2b4bafd",
    "last_verified_at": "2026-10-09T15:46Z",
    "environment": "pre-staging worker host"
@@ -214,9 +214,9 @@
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
    "test_location": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+    "tests/test_actual_cost_settlement.py"
    ],
-   "last_result": "PARTIAL",
+   "last_result": "UNIT_TESTED",
    "last_verified_commit": "2b4bafd",
    "last_verified_at": "2026-10-09T15:46Z",
    "environment": "pre-staging worker host"
@@ -228,7 +228,7 @@
    "test_location": [
     "backup-restore run 37962179844"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:52Z",
    "environment": "pre-staging worker host"
@@ -241,7 +241,7 @@
     "postdeploy-checks run 37961193099",
     "deploy-worker run 37960891900"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:43Z",
    "environment": "pre-staging worker host"
@@ -253,7 +253,7 @@
    "test_location": [
     "postdeploy-checks run 37962165888"
    ],
-   "last_result": "LIVE",
+   "last_result": "REAL_SERVER_VERIFIED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:51Z",
    "environment": "pre-staging worker host"

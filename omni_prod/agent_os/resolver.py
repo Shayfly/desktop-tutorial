@@ -7,7 +7,8 @@ the audited Skills OS, never from an agent's name.
 from __future__ import annotations
 
 AVAILABLE, PARTIAL, MISSING, BLOCKED = 'AVAILABLE', 'PARTIAL', 'MISSING', 'BLOCKED'
-_MAP = {'LIVE': AVAILABLE, 'PARTIAL': PARTIAL, 'NOT_CONFIGURED': PARTIAL, 'NOT_IMPLEMENTED': MISSING, 'BLOCKED': BLOCKED}
+_MAP = {'LIVE': AVAILABLE, 'REAL_SERVER_VERIFIED': AVAILABLE, 'INTEGRATION_TESTED': PARTIAL, 'UNIT_TESTED': PARTIAL,
+        'IMPLEMENTED': PARTIAL, 'NOT_IMPLEMENTED': MISSING, 'BLOCKED': BLOCKED}
 
 WEB_SAAS = ('requirement_extraction', 'acceptance_contract_generation', 'build_plan_generation', 'cost_estimation',
             'page_generation', 'form_generation', 'api_endpoint_generation', 'request_validation', 'schema_generation',

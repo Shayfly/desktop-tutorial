@@ -113,20 +113,22 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'scratch_database_generation': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor', 'omni_prod.preview_runtime:DockerPreviewProvider'), (REHEARSAL_ACCEPT, DEPLOY), ''),
     'backup_generation': (('omni_prod.backup:snapshot',), (BACKUP,), ''),
     'restore_validation': (('omni_prod.backup:verify',), (BACKUP,), ''),
-    # Authentication (platform identity)
-    'signup': (('omni_prod.creator_accounts:PostgresAccountService',), (FREE,), 'platform accounts, not generated apps'),
-    'login': (('omni_prod.creator_accounts:PostgresAccountService',), (PAID,), 'platform accounts'),
-    'logout': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), ''),
-    'session_management': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), ''),
-    'email_verification': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), 'no mail sender configured'),
-    'password_reset': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), 'no mail sender configured'),
-    'account_deletion': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), ''),
-    'account_export': (('omni_prod.identity_lifecycle:IdentityService',), (U('tests/test_m5_identity_lifecycle.py'),), ''),
-    # Integration
-    'integration_health_check': (('omni_prod.model_probe:probe',), (Evidence('live', 'model-probe run 37814803770', '', 'ff6b4f6', 'worker-host', ('model provider availability',)),), 'model providers only'),
-    'rate_limit_handling': (('omni_prod.routed_gateway:RoutedModelGateway',), (PAID,), 'model calls (429 released, route skipped)'),
-    'provider_fallback': (('omni_prod.routed_gateway:RoutedModelGateway',), (U('tests/test_provider_quota_and_dialects.py'),), ''),
-    'external_error_normalization': (('omni_prod.worker_tasks:failure_code',), (U('tests/test_m3_preview_logic.py'),), ''),
+    # Authentication skills are for GENERATED products (identity_auth_agent). 148AI's own
+    # accounts are a platform capability (TRUTH_MATRIX 'platform_accounts'), not evidence here.
+    'signup': ((), (), 'generated-app sign-up not implemented; platform accounts are tracked separately'),
+    'login': ((), (), 'generated-app login not implemented; platform accounts are tracked separately'),
+    'logout': ((), (), 'generated-app logout not implemented; platform accounts are tracked separately'),
+    'session_management': ((), (), 'generated-app session management not implemented; platform accounts are tracked separately'),
+    'email_verification': ((), (), 'generated-app email verification not implemented; platform accounts are tracked separately'),
+    'password_reset': ((), (), 'generated-app password reset not implemented; platform accounts are tracked separately'),
+    'account_deletion': ((), (), 'generated-app account deletion not implemented; platform accounts are tracked separately'),
+    'account_export': ((), (), 'generated-app account export not implemented; platform accounts are tracked separately'),
+    # Integration -- for GENERATED products (integration_agent). The platform's own model-provider
+    # health/429/fallback handling is routing (provider_router_agent), not generated-app integration.
+    'integration_health_check': ((), (), 'generated-app integrations not implemented; model-provider probe is platform routing'),
+    'rate_limit_handling': ((), (), 'generated-app integrations not implemented; model 429 handling is platform routing'),
+    'provider_fallback': ((), (), 'generated-app integrations not implemented; model fallback is platform routing'),
+    'external_error_normalization': ((), (), 'generated-app integrations not implemented'),
     # Coding
     'file_create': (('omni_prod.autonomous_agents:GeneratorAgent',), (REHEARSAL_ACCEPT,), ''),
     'file_modify': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT,), ''),
@@ -134,7 +136,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'dependency_add': (('omni_prod.dependency_policy:DependencyGateExecutor',), (REHEARSAL_ACCEPT,), 'pinned allowlist only'),
     # QA
     'unit_test_generation': (('omni_prod.autonomous_agents:GeneratorAgent',), (REHEARSAL_ACCEPT,), ''),
-    'unit_test_execution': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor',), (REHEARSAL_ACCEPT, DEPLOY), ''),
+    'unit_test_execution': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor',), (REHEARSAL_ACCEPT, DEPLOY, U('tests/test_acceptance_coverage.py'), U('tests/test_release_policy.py')), ''),
     'api_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor',), (REHEARSAL_ACCEPT,), ''),
     'behavioral_acceptance_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor', 'omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner'), (REHEARSAL_ACCEPT,), ''),
     'requirement_traceability_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (REHEARSAL_ACCEPT,), 'acceptance IDs -> steps'),
@@ -149,7 +151,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'negative_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (REHEARSAL_ACCEPT,), ''),
     # Browser
     'browser_launch': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, DEPLOY), ''),
-    'page_load_test': (('omni_prod.preview_smoke:PreviewReadyExecutor',), (PAID,), ''),
+    'page_load_test': (('omni_prod.preview_smoke:PreviewReadyExecutor',), (PAID, U('tests/test_preview_smoke.py')), ''),
     'form_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, DEPLOY), 'fills forms by field type'),
     'click_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID,), ''),
     'javascript_error_detection': (('omni_prod.browser_probe:BrowserFlowExecutor',), (DEPLOY,), ''),
@@ -157,15 +159,15 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'browser_acceptance_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, REHEARSAL_ACCEPT), ''),
     # Repair
     'failure_classification': (('omni_prod.attempt_ledger:classify_execution',), (REHEARSAL_ACCEPT,), ''),
-    'minimal_patch_generation': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT,), ''),
-    'repair_execution': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT,), ''),
+    'minimal_patch_generation': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT, U('tests/test_repair_sees_main_file.py')), ''),
+    'repair_execution': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT, U('tests/test_repair_stop_loss.py')), ''),
     'repair_verification': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor', 'omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor'), (REHEARSAL_ACCEPT,), ''),
-    'retry_decision': (('omni_prod.autonomous_core:AutonomousProductEngine',), (REHEARSAL_ACCEPT,), 'bounded rounds'),
+    'retry_decision': (('omni_prod.autonomous_core:AutonomousProductEngine',), (REHEARSAL_ACCEPT, U('tests/test_repair_stop_loss.py')), 'bounded rounds'),
     # Security
-    'secret_detection': (('omni_prod.security_testing:hostile_repository_scan',), (PAID,), 'static'),
+    'secret_detection': (('omni_prod.security_testing:hostile_repository_scan',), (PAID, U('tests/test_m49_clean_room.py')), 'static'),
     'xss_check': (('omni_prod.skills_runtime:TEXT_LOCALE', 'omni_prod.product_review:ProductReviewExecutor'), (REHEARSAL_ACCEPT,), 'review + instruction, no dynamic XSS probe'),
     'preview_access_check': (('omni_prod.preview_access:PreviewAccess',), (FREE,), ''),
-    'security_release_gate': (('omni_prod.worker_tasks:evaluate_release_gates',), (PAID,), ''),
+    'security_release_gate': (('omni_prod.worker_tasks:evaluate_release_gates',), (PAID, U('tests/test_release_policy.py')), ''),
     'csrf_check': (('omni_prod.browser_session:extract_session_token',), (U('tests/test_v24_auth.py'),), 'platform API only'),
     # Compliance
     'commercial_provider_validation': (('omni_prod.agent_os.providers:commercial_status',), (U('tests/test_agent_os.py'),), ''),
@@ -187,8 +189,8 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'credit_reservation': (('omni_prod.subscription_store:PostgresSubscriptionService',), (PAID, FREE), ''),
     'usage_metering': (('omni_prod.attempt_ledger:metered_cost',), (CRASH,), ''),
     'provider_price_lookup': (('omni_prod.model_catalog:load_model_catalog',), (CRASH,), 'versioned catalog'),
-    'actual_cost_calculation': (('omni_prod.worker_tasks:metered_llm_cost',), (CRASH,), ''),
-    'credit_settlement': (('omni_prod.worker_tasks:resolve_m5_billing',), (CRASH,), ''),
+    'actual_cost_calculation': (('omni_prod.worker_tasks:metered_llm_cost',), (CRASH, U('tests/test_actual_cost_settlement.py')), ''),
+    'credit_settlement': (('omni_prod.worker_tasks:resolve_m5_billing',), (CRASH, U('tests/test_actual_cost_settlement.py')), ''),
     'unused_reservation_release': (('omni_prod.subscription_store:PostgresSubscriptionService',), (FREE, CRASH), ''),
     'budget_guard': (('omni_prod.model_policy:authorize_model_call',), (PAID,), 'ceiling bound to the reservation'),
     'reconciliation': (('omni_prod.qa_budget:qa_used_usd',), (U('tests/test_golden_mod_path_live_postgres.py'),), 'QA ledger'),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from tests.policy_fixtures import ACCEPTED_SPEC, verified_chain
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -71,8 +72,8 @@ def platform_for(plan):
 
 def passing_engine():
     report=SimpleNamespace(passed=True, failures=(), build_log='ok')
-    return SimpleNamespace(build=lambda prompt: SimpleNamespace(
-        status='ready', report=report, spec='spec', repository={'app.py':'x'}, repair_rounds=0))
+    return SimpleNamespace(executor=verified_chain(), build=lambda prompt: SimpleNamespace(
+        status='ready', report=report, spec=ACCEPTED_SPEC, repository={'app.py':'x'}, repair_rounds=0))
 
 
 class WorkerCapabilityGateTests(unittest.TestCase):

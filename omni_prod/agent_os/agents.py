@@ -212,7 +212,10 @@ GAPS = {s[0]: s[9].get('gap', '') for s in _SPECS}
 
 # Separation of duties (§13): producer -> required independent verifiers.
 SEPARATION_OF_DUTIES = {
-    'coding_agent': ('code_review_agent', 'qa_agent'),
+    # Not qa_agent: the tests it runs were written by the coding agent (audit
+    # 2026-10-10). The release policy (quality gate) is platform-owned.
+    'coding_agent': ('code_review_agent', 'quality_gate_agent'),
+    'repair_agent': ('code_review_agent', 'quality_gate_agent'),
     'deployment_agent': ('release_agent',),
     'migration_agent': ('qa_agent', 'backup_recovery_agent'),
     'provider_router_agent': ('compliance_ip_agent',),

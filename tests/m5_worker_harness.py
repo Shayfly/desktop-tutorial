@@ -10,6 +10,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from omni_prod import worker_tasks
+try:
+    from tests.policy_fixtures import ACCEPTED_SPEC, verified_chain
+except ImportError:  # pragma: no cover
+    from policy_fixtures import ACCEPTED_SPEC, verified_chain
 from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
 from omni_prod.models import BuildStatus
 from omni_prod.rights_ip import GateStatus
@@ -67,7 +71,7 @@ class ContractBuildHarness:
             failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),
             build_log='log')
         self.result = SimpleNamespace(
-            status='ready' if verified else 'failed', spec='spec',
+            status='ready' if verified else 'failed', spec=ACCEPTED_SPEC,
             repository={'app.py': 'x', '.omni/project.json': '{}'}, repair_rounds=0, report=report)
         self.engine_builds = 0
         self.engine_exc = engine_exc
@@ -75,6 +79,9 @@ class ContractBuildHarness:
         harness = self
 
         class _Engine:
+            # release policy: the checks of the chain ran and passed
+            executor = verified_chain()
+
             def build(self, prompt):
                 harness.engine_builds += 1
                 if harness.engine_exc is not None:

@@ -24,10 +24,24 @@ def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
 # of running a real test framework. These are rejected before self.runner is
 # ever invoked for them, so the sandbox can never be asked to "confirm" a
 # no-op as a pass.
+_NOOP = {'true', ':', 'exit 0', 'pass', ''}
+
+
 def _is_fake_verification(argv: tuple[str, ...]) -> bool:
-    if tuple(argv) == ('true',):
+    """A verify command that cannot fail is not evidence (audit 2026-10-10:
+    the remote runner, used in production, did not apply this check)."""
+    argv = tuple(str(a) for a in argv)
+    if not argv or argv[0] in ('true', ':') or any(token == 'echo' for token in argv):
         return True
-    return any(token == 'echo' for token in argv)
+    if argv[0] in ('exit',) and argv[1:] in ((), ('0',)):
+        return True
+    if argv[0] in ('sh', 'bash') and len(argv) >= 3 and argv[1] == '-c':
+        script = argv[2].strip()
+        return script in _NOOP or script.startswith('echo ') or script.startswith('exit 0')
+    if argv[0].startswith('python') and len(argv) >= 3 and argv[1] == '-c':
+        code = argv[2]
+        return not any(word in code for word in ('import', 'assert', 'pytest', 'unittest', 'raise', 'exit('))
+    return False
 
 class SandboxRepositoryExecutor:
     def __init__(

@@ -87,12 +87,10 @@ class BuildAgentRecorder:
     def on_check(self, passed: bool, summary: str) -> None:
         self._close_current()
         self._open('qa_agent', ('unit_test_execution',))
-        tid = self.current[0] if self.current else None
-        self._close_current('SUCCEEDED' if passed else 'FAILED', {'summary': summary[:300]})
-        if passed and tid:
-            producer = self.done.get('repair_agent') or self.done.get('coding_agent')
-            if producer:
-                self._safe(self.rt.verify, producer, tid)
+        # Not a verification of the coding agent: the tests that ran were
+        # written by the coding agent (audit 2026-10-10, self-certification).
+        self._close_current('SUCCEEDED' if passed else 'FAILED', {'summary': summary[:300],
+                                                                  'tests_written_by': 'coding_agent'})
 
     def finish(self, *, status: str, evidence: dict | None) -> None:
         if self.run_id is None:
@@ -111,7 +109,9 @@ class BuildAgentRecorder:
             final.append(('security_agent', ('secret_detection', 'security_release_gate'), bool(gates['security'].get('passed')), 'static scan'))
         settlement = ev.get('economics_settlement') or {}
         if settlement:
-            final.append(('cost_economics_agent', ('credit_settlement',), True, (settlement.get('cost_basis') or {}).get('llm')))
+            basis = (settlement.get('cost_basis') or {}).get('llm') or ''
+            # Succeeds only when the cost is actually known (metered/reported), not on any settlement.
+            final.append(('cost_economics_agent', ('credit_settlement',), not str(basis).startswith('UNKNOWN'), basis))
         if status == 'ready':
             final.append(('release_agent', ('version_create', 'release_gate'), True, 'version committed'))
         for agent, skills, ok, note in final:
@@ -121,13 +121,18 @@ class BuildAgentRecorder:
                 self._safe(self.rt.transition, tid, 'SUCCEEDED' if ok else 'FAILED', evidence={'note': str(note)[:200]})
                 if ok:
                     self.done[agent] = tid
+        qr = ev.get('quality_report') or {}
         gate = self._safe(self.rt.add_task, self.run_id, 'quality_gate_agent')
         if gate:
             self._safe(self.rt.transition, gate, 'RUNNING')
-            self._safe(self.rt.transition, gate, 'SUCCEEDED' if status == 'ready' else 'FAILED', evidence={'status': status})
-            if status == 'ready':
-                for agent in ('release_agent', 'behavioral_acceptance_agent', 'browser_rehearsal_agent', 'security_agent',
-                              'cost_economics_agent', 'qa_agent'):
+            # The release policy is the independent decision (platform-owned checks).
+            ok = status == 'ready' and qr.get('decision') == 'READY'
+            self._safe(self.rt.transition, gate, 'SUCCEEDED' if ok else 'FAILED',
+                       evidence={'status': status, 'policy': qr.get('policy_version'), 'decision': qr.get('decision'),
+                                 'artifact_sha256': qr.get('artifact_sha256'), 'blocking': qr.get('blocking')})
+            if ok:
+                for agent in ('coding_agent', 'repair_agent', 'release_agent', 'behavioral_acceptance_agent',
+                              'browser_rehearsal_agent', 'security_agent', 'cost_economics_agent', 'qa_agent'):
                     if agent in self.done:
                         self._safe(self.rt.verify, self.done[agent], gate)
         self._safe(self.rt.finish_run, self.run_id, status)

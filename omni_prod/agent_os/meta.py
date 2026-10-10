@@ -196,7 +196,7 @@ def quality_gate(*, result: dict, regression_problems: list[str] | None, inflati
     for g in golden:
         if g['scenario'].startswith(must) and g['status'] != 'PASS':
             reasons.append(f"{g['scenario'].split(' — ')[0]} not PASS")
-    live = {s['skill_key'] for s in result['skills'] if s['status'] == 'LIVE'}
+    live = {s['skill_key'] for s in result['skills'] if s['status'] in ('REAL_SERVER_VERIFIED', 'LIVE')}
     for need in ('behavioral_acceptance_test', 'credit_settlement', 'preview_access_protect', 'restore_verification', 'job_resume'):
         if need not in live:
             reasons.append(f'{need} has no fresh live evidence')

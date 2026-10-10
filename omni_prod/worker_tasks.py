@@ -97,6 +97,47 @@ def install_round_snapshots(engine, workspace, build_id: str, sink: list, contro
     engine.round_hook = hook
 
 
+def preview_smoke_evidence(engine) -> dict | None:
+    from .behavior_acceptance import find_in_chain
+    from .preview_smoke import PreviewReadyExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), PreviewReadyExecutor)
+    return None if target is None else target.last_smoke
+
+
+def author_models(gateway) -> set[str]:
+    """Endpoint names and model ids that wrote or repaired code in this build."""
+    names = set()
+    for task in ('architecture', 'codegen', 'repair', 'modification'):
+        names |= set((getattr(gateway, 'models_by_task', None) or {}).get(task, set()))
+    for m in getattr(gateway, 'ranked', ()) or ():
+        endpoint = getattr(m, 'endpoint', None)
+        if endpoint is not None and endpoint.name in names:
+            names.add(endpoint.model)
+    return names
+
+
+def release_quality_report(build_id, engine, gateway, result, quality, security, rights):
+    """QualityReport of this build (None if it cannot be built: the policy then
+    cannot have been evaluated and the build is not READY by policy)."""
+    from .release_policy import build_report
+    from .workspace import _checksum
+    try:
+        executor = getattr(engine, 'executor', None)
+        evidence = {
+            'consistency_gate': consistency_evidence(engine),
+            'preview_smoke': preview_smoke_evidence(engine),
+            'behavior_acceptance': behavior_evidence(engine),
+            'browser_check': getattr(executor, 'last_probe', None),
+            'product_review': list(getattr(executor, 'reviews', None) or []),
+        }
+        return build_report(build_id=build_id, artifact_sha256=_checksum(result.repository), result=result,
+                            evidence=evidence, quality=quality, security=security, rights=rights,
+                            author_models=author_models(gateway))
+    except Exception:
+        logging.getLogger(__name__).exception('release policy report failed for %s', build_id)
+        return None
+
+
 def consistency_evidence(engine) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .consistency_gate import ConsistencyGateExecutor
@@ -506,6 +547,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
 
         core_ready, error_code, error_message = evaluate_release_gates(
             result=result, quality=quality, security=security, rights=rights)
+        # Release policy (directive 2026-10-10): a check that did not run is not
+        # a pass; mandatory checks must PASS for this exact repository.
+        quality_report = release_quality_report(build_id, engine, gateway, result, quality, security, rights)
+        if core_ready and quality_report is not None and quality_report.blocking:
+            from .release_policy import enforcement_mode, explain
+            if enforcement_mode() == 'enforce':
+                core_ready, error_code, error_message = False, 'release_policy_failed', explain(quality_report)
         if capability_stage is not None:
             capability_evidence = capability_stage.finalize_native(
                 build_id=build_id, plan=capability_plan, core_ready=core_ready,
@@ -591,6 +639,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
             'behavior_acceptance': behavior_evidence(engine),
             'consistency_gate': consistency_evidence(engine),
+            'preview_smoke': preview_smoke_evidence(engine),
+            'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
         }
     except BuildCancelled as exc:

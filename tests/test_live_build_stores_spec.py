@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 from tests.test_m3_preview_logic import BuildHarness
+from tests.policy_fixtures import ACCEPTED_SPEC
 from omni_prod import worker_tasks
 
 
@@ -51,7 +52,7 @@ class StoresSpecTests(unittest.TestCase):
             components_factory=h.factory, quality_fn=lambda **kw: h.quality,
             security_fn=lambda repo: h.security, spec_repo=_SpecRepo(log))
         self.assertEqual(status, 'ready')
-        self.assertEqual(log, ['begin', ('commit', 'CUR'), ('spec', 'ver_1', 'tenant_abc', 'spec', 'CUR'), 'commit'])
+        self.assertEqual(log, ['begin', ('commit', 'CUR'), ('spec', 'ver_1', 'tenant_abc', ACCEPTED_SPEC, 'CUR'), 'commit'])
 
     def test_without_spec_repo_commit_is_unchanged(self):
         h = BuildHarness()

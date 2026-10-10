@@ -1,14 +1,18 @@
 """Platform Capability Auditor (agent 47): computes every agent's and skill's
 status from code, configuration and evidence -- never from a contract.
 
-  BLOCKED          a named external blocker (credential, contract, account)
-  NOT_IMPLEMENTED  no implementation, or it does not import
-  NOT_CONFIGURED   implementation exists, required configuration not observed
-  LIVE             implementation + FRESH live evidence (a real run on the
-                   deployed system whose implementation files are unchanged
-                   since the commit that ran -- digests in the evidence lock)
-  PARTIAL          implementation + only unit evidence, or live evidence that
-                   went stale because the code changed since
+  BLOCKED               a named external blocker, or required configuration not observed
+  NOT_IMPLEMENTED       no implementation, or it does not import
+  IMPLEMENTED           implementation, no test evidence
+  UNIT_TESTED           implementation + unit tests (+ stale real-server evidence, if any)
+  INTEGRATION_TESTED    implementation + tests against real dependencies
+  REAL_SERVER_VERIFIED  implementation + FRESH real-server evidence (a real run on
+                        the deployed pre-staging system whose implementation files
+                        are unchanged since the commit that ran -- digests in the lock)
+  LIVE                  the same, but the run was in PRODUCTION (none exists yet)
+
+A code change that touches an implementation file makes its evidence stale
+immediately: the status drops until a new real run.
 
 `python -m omni_prod.agent_os.audit --write` refreshes the evidence lock and
 writes AGENT_OS_REGISTRY.json, docs/AGENT_OS_REGISTRY.md and the platform
@@ -23,13 +27,15 @@ from pathlib import Path
 
 from ..registry_audit import _importable, freshness, implementation_files, load_lock, refresh_lock
 from .agents import AGENTS, GAPS
-from .contracts import BLOCKED, LIVE, NOT_CONFIGURED, NOT_IMPLEMENTED, PARTIAL
+from .contracts import (BLOCKED, IMPLEMENTED, INTEGRATION_TESTED, LIVE, NOT_IMPLEMENTED, PRODUCTION_ENVS,
+                        REAL_SERVER_VERIFIED, STATUSES, UNIT_TESTED, VERIFIED_STATUSES)
 from .evidence import AT
 from .skills import SKILLS
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_JSON = ROOT / 'AGENT_OS_REGISTRY.json'
 REGISTRY_MD = ROOT / 'docs' / 'AGENT_OS_REGISTRY.md'
+GUIDANCE_PREFIX = 'omni_prod.skills_runtime:'
 OBSERVED_CONFIG = {
     # names observed on the build worker (deploy-worker notices); values never read
     'GEMINI_API_KEY', 'OMNI_MODEL_CATALOG_JSON', 'OMNI_SANDBOX_RUNNER_URL', 'OMNI_DATABASE_URL', 'OMNI_REDIS_URL',
@@ -46,8 +52,13 @@ def status_of(record, lock) -> dict:
         return {'status': NOT_IMPLEMENTED, 'why': ('does not import: ' + ', '.join(missing)) if missing else 'no implementation',
                 'last_verified_at': None, 'last_verified_commit': None}
     if record.config and not all(c in OBSERVED_CONFIG for c in record.config):
-        return {'status': NOT_CONFIGURED, 'why': 'not observed on the worker: ' + ', '.join(c for c in record.config if c not in OBSERVED_CONFIG),
+        return {'status': BLOCKED, 'why': 'not configured on the worker: ' + ', '.join(c for c in record.config if c not in OBSERVED_CONFIG),
                 'last_verified_at': None, 'last_verified_commit': None}
+    if all(t.startswith(GUIDANCE_PREFIX) for t in impl):
+        # Only an instruction to the generating model: nothing on the platform
+        # checks that the product does it (G0 audit 2026-10-10).
+        return {'status': IMPLEMENTED, 'why': 'model instruction only; no platform check verifies the result',
+                'evidence': [], 'last_verified_at': None, 'last_verified_commit': None}
     files = implementation_files(impl)
     fresh, stale = [], []
     for ev in record.evidence:
@@ -57,21 +68,25 @@ def status_of(record, lock) -> dict:
         (fresh if state == 'fresh' else stale).append((ev, changed))
     if fresh:
         ev = fresh[0][0]
-        return {'status': LIVE, 'why': 'verified for: ' + '; '.join(dict.fromkeys(a for e, _ in fresh for a in e.asserts))[:400],
+        level = LIVE if any(e.env in PRODUCTION_ENVS for e, _ in fresh) else REAL_SERVER_VERIFIED
+        return {'status': level, 'why': 'verified for: ' + '; '.join(dict.fromkeys(a for e, _ in fresh for a in e.asserts))[:400],
                 'evidence': [e.ref for e, _ in fresh], 'last_verified_at': AT.get(ev.ref), 'last_verified_commit': ev.commit}
+    integration = [e.ref for e in record.evidence if e.kind == 'integration']
+    units = [e.ref for e in record.evidence if e.kind == 'unit']
+    level = INTEGRATION_TESTED if integration else (UNIT_TESTED if units else IMPLEMENTED)
     if stale:
         changed = sorted({c for _, ch in stale for c in ch})
-        return {'status': PARTIAL, 'why': 'live evidence is stale; code changed since: ' + (', '.join(changed) or 'unknown'),
-                'evidence': [e.ref for e, _ in stale], 'last_verified_at': AT.get(stale[-1][0].ref),
-                'last_verified_commit': stale[-1][0].commit}
-    units = [e.ref for e in record.evidence if e.kind == 'unit']
-    return {'status': PARTIAL, 'why': 'unit tests only' if units else 'code exists; no evidence',
-            'evidence': units, 'last_verified_at': None, 'last_verified_commit': None}
+        return {'status': level, 'why': 'real-server evidence is stale; code changed since: ' + (', '.join(changed) or 'unknown'),
+                'evidence': integration + units, 'stale_evidence': [e.ref for e, _ in stale],
+                'last_verified_at': AT.get(stale[-1][0].ref), 'last_verified_commit': stale[-1][0].commit}
+    why = {INTEGRATION_TESTED: 'integration tests', UNIT_TESTED: 'unit tests only', IMPLEMENTED: 'code exists; no evidence'}[level]
+    return {'status': level, 'why': why, 'evidence': integration + units, 'last_verified_at': None, 'last_verified_commit': None}
 
 
 def evidence_pairs() -> set[tuple[str, str]]:
+    from .truth_matrix import PLATFORM
     pairs = set()
-    for rec in (*AGENTS, *SKILLS):
+    for rec in (*AGENTS, *SKILLS, *PLATFORM.values()):
         for ev in rec.evidence:
             if ev.kind == 'live' and ev.commit and rec.implementation_location:
                 pairs |= {(ev.commit, f) for f in implementation_files(rec.implementation_location)}
@@ -94,7 +109,7 @@ def audit(lock=None) -> dict:
                        'gap': s.gap, 'missing_contract_fields': s.missing_fields(), **st})
 
     def counts(rows):
-        out = {k: 0 for k in (LIVE, PARTIAL, NOT_CONFIGURED, NOT_IMPLEMENTED, BLOCKED)}
+        out = {k: 0 for k in STATUSES}
         for r in rows:
             out[r['status']] += 1
         return out
@@ -114,8 +129,8 @@ def inflation_findings(result: dict) -> list[str]:
     out = []
     for r in result['agents'] + result['skills']:
         name = r.get('agent_key') or r.get('skill_key')
-        if r['status'] == LIVE and not r.get('evidence'):
-            out.append(f'{name}: LIVE without evidence')
+        if r['status'] in VERIFIED_STATUSES and not r.get('evidence'):
+            out.append(f"{name}: {r['status']} without evidence")
         if r['missing_contract_fields']:
             out.append(f"{name}: contract fields empty: {', '.join(r['missing_contract_fields'])}")
     for a in result['agents']:
@@ -130,7 +145,8 @@ def markdown(result: dict) -> str:
     s = result['summary']
     lines = ['# Agent OS / Skills OS registry (computed)', '',
              '> Generated by `python -m omni_prod.agent_os.audit --write`. Status = code + configuration + fresh evidence;',
-             '> LIVE only with a real run on the deployed system whose code is unchanged since. Do not edit by hand.', '',
+             '> REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;',
+             '> LIVE only with such a run in production (none exists yet). Do not edit by hand.', '',
              f"Agents: {s['agents_total']} — " + ', '.join(f'{k} {v}' for k, v in s['agents'].items()),
              f"Skills: {s['skills_total']} — " + ', '.join(f'{k} {v}' for k, v in s['skills'].items()), '',
              '## Agents', '', '| Agent | Category | Status | Verifier | Why / evidence | Gap |', '|---|---|---|---|---|---|']
@@ -143,11 +159,13 @@ def markdown(result: dict) -> str:
     return '\n'.join(lines) + '\n'
 
 
-def write(result: dict) -> None:
+def write(result: dict, lock=None) -> None:
     REGISTRY_JSON.write_text(json.dumps(result, ensure_ascii=False, indent=1, default=str) + '\n', encoding='utf-8')
     REGISTRY_MD.write_text(markdown(result), encoding='utf-8')
     from .meta import write_matrices
     write_matrices(result)
+    from .truth_matrix import write as write_truth
+    write_truth(result, load_lock() if lock is None else lock)
 
 
 def main(argv=None) -> int:
@@ -155,7 +173,7 @@ def main(argv=None) -> int:
     if '--write' in argv:
         lock = refresh_lock(evidence_pairs())
         result = audit(lock)
-        write(result)
+        write(result, lock)
     else:
         result = audit()
     problems = inflation_findings(result)

@@ -180,7 +180,7 @@ jobs:
           r = json.loads(line[len('GATE_REPLAY '):])
           def note(t, m):
               print(f"::notice title={t}::" + str(m)[:3800].replace("%", "%25").replace("\n", "%0A"))
-          note("gate replay", {k: r[k] for k in ("versions", "load_failures", "blocking_versions", "blocking_by_check", "advisories_by_check")})
+          note("gate replay", {k: r.get(k) for k in ("versions", "load_failures", "blocking_versions", "blocking_by_check", "advisories_by_check", "fake_verify_versions")})
           note("repair prompt coverage", r["coverage"])
           note("examples", json.dumps(r["examples"], ensure_ascii=False))
           PY
@@ -202,7 +202,7 @@ jobs:
           r = json.loads(line[len('VERIFY_REPLAY '):])
           def note(t, m):
               print(f"::notice title={t}::" + str(m)[:3800].replace("%", "%25").replace("\n", "%0A"))
-          note("verify replay", {"versions": r["versions"], "counts": r["counts"]})
+          note("verify replay", {k: r.get(k) for k in ("versions", "counts", "policy", "policy_agrees_with_chain")})
           note("verify replay results", "\n".join(json.dumps(x, ensure_ascii=False) for x in r["results"]))
           PY
 

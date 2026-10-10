@@ -27,6 +27,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from tests.policy_fixtures import ACCEPTED_SPEC, verified_chain
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -918,9 +919,10 @@ class BuildHarness:
         self.gateway = real_spend_gateway(calls, '0.25')
         report = ExecutionReport(passed=verified, failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),
                                  build_log='log')
-        self.result = SimpleNamespace(status='ready' if verified else 'failed', spec='spec',
+        self.result = SimpleNamespace(status='ready' if verified else 'failed', spec=ACCEPTED_SPEC,
                                       repository={'app.py': 'x', '.omni/project.json': '{}'}, repair_rounds=1, report=report)
         self.engine = MagicMock()
+        self.engine.executor = verified_chain()  # release policy: checks ran and passed
         if engine_exc:
             self.engine.build.side_effect = engine_exc
         else:
