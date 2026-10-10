@@ -88,7 +88,7 @@
   {
    "failure": "deployment during a build",
    "expected_handling": "drain: running job finishes first",
-   "proven_by": "deploy-worker run 37960891900",
+   "proven_by": "deploy-worker run 38083162363",
    "status": "PASS",
    "layer": "real-server"
   },

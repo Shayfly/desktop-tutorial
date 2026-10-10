@@ -6,17 +6,17 @@
    "status": "PASS",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 38083312245",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "commits": [
     "039574f",
-    "039574f",
+    "67a0765",
     "039574f"
    ],
    "at": [
     "2026-10-09T16:43Z",
-    "2026-10-09T16:51Z",
+    "2026-10-10T20:20Z",
     "2026-10-09T16:43Z"
    ],
    "note": ""
@@ -41,13 +41,13 @@
    "scenario": "Golden 4 — Cancellation (queued + active)",
    "status": "PASS",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "commits": [
-    "039574f"
+    "67a0765"
    ],
    "at": [
-    "2026-10-09T16:51Z"
+    "2026-10-10T20:20Z"
    ],
    "note": ""
   },

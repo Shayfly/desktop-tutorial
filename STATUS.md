@@ -1,5 +1,19 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 01:20 Asia/Jerusalem — Production Assurance v2 (G0–G3, free work only) + handoff
+
+**Level: PRE_STAGING_READY candidate. Not PRIVATE_BETA_READY. $0 spent in this round. Handoff: `docs/CONTINUATION_HANDOFF.md`.**
+
+- Deployed code on pre-staging: `67a0765` (deploy-worker 38083162363, migration 035). Rollback point: `8ce71c0`.
+- **G0**: truth vocabulary in code; LIVE requires production → **0 LIVE**; agents 52 = REAL_SERVER_VERIFIED 23 · UNIT_TESTED 6 · IMPLEMENTED 8 · BLOCKED 4 · NOT_IMPLEMENTED 11; skills 427 = REAL_SERVER_VERIFIED 102 · UNIT_TESTED 24 · IMPLEMENTED 28 · BLOCKED 9 · NOT_IMPLEMENTED 264. Truth matrix 36 rows (`TRUTH_MATRIX.json`): 25 REAL_SERVER_VERIFIED, 3 UNIT_TESTED, 3 BLOCKED, 5 NOT_IMPLEMENTED; no customer-visible feature without real-server evidence. Audit: `docs/G0_AUDIT_2026-10-10.md` (7 findings fixed, 6 open).
+- **G1**: release policy (NOT_RUN ≠ PASS; mandatory checks block READY), durable stage rows (`build_stage_results`), forward-only phases, legacy/patch paths 410 on staging/production.
+- **G2**: visual QA desktop+mobile with screenshots; layout rules enforced (0 false positives on stored products); contrast/labels advisory (real WCAG defects in 3/5 working products — founder decision).
+- **G3**: write-ahead cost ledger (in-flight call = bounded unknown exposure), Gemini thinking metered, unit economics report.
+- Real-server evidence (free): free checks 18/18 (38083312245); gate-replay 0/55 blocking (38083647077); verify-replay policy agrees 12/12, 5/5 current products READY (38083686082); economics (38083624196).
+- Ledger economics (60 days): 32 builds, 11 READY (34%), cost per successful build $0.153, 53% of spend on failed builds, gemini-3.8-flash 41% call success.
+- **Not run**: 10-build paid Golden E2E acceptance gate (budget unverified until Gemini invoice reconciliation); crash and backup runs on the current code.
+- Tests: local 1167 passed, 9 failed + 14 errors = environment baseline (fastapi/boto3 absent); CI green up to `67a0765`.
+
 ## Update 2026-10-10 21:30 Asia/Jerusalem — Executive directive: task 0 (audit access) + P0 build reliability (deterministic part)
 
 **Level: unchanged — PRE_STAGING_READY candidate. Paid testing frozen: no verified budget remainder until the Gemini bill is reconciled (directive budget policy). No money spent in this section.**

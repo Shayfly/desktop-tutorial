@@ -261,7 +261,7 @@ class TruthMatrixTests(unittest.TestCase):
     def test_model_instruction_alone_is_not_verified(self):
         result = {s['skill_key']: s['status'] for s in audit.audit()['skills']}
         self.assertEqual(result['rtl_design'], 'IMPLEMENTED')              # still only an instruction to the model
-        self.assertEqual(result['contrast_test'], 'INTEGRATION_TESTED')  # measured by visual_qa in a real browser
+        self.assertEqual(result['contrast_test'], 'REAL_SERVER_VERIFIED')  # measured by visual_qa on the real server (verify-replay)
         self.assertEqual(result['signup'], NOT_IMPLEMENTED)   # generated apps; platform accounts are separate
 
 if __name__ == '__main__':
