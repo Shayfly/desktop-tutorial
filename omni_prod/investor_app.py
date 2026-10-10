@@ -621,6 +621,10 @@ def _model_gateway_and_executor():
         executor=SandboxRepositoryExecutor(limits=SandboxLimits())
     # Decision 2026-10-07 #25: only the image's pinned allowlist; anything else
     # fails as UNSUPPORTED_DEPENDENCY before the sandbox starts.
+    # Directive 2026-10-10 P0.4/5/7: cross-file consistency (syntax, local
+    # imports, routes, assets, manifest) read from the files before the sandbox.
+    from .consistency_gate import ConsistencyGateExecutor
+    executor=ConsistencyGateExecutor(executor,enabled=os.getenv('OMNI_CONSISTENCY_GATE','0')=='1')
     from .dependency_policy import DependencyGateExecutor
     executor=DependencyGateExecutor(executor)
     # The product must be startable for preview (contract + real start in the sandbox).

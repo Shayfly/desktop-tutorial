@@ -71,6 +71,15 @@ def behavior_evidence(engine) -> dict | None:
     if target is None:
         return None
     return {'last': target.last_report, 'rounds': list(target.history)}
+
+
+def consistency_evidence(engine) -> dict | None:
+    from .behavior_acceptance import find_in_chain
+    from .consistency_gate import ConsistencyGateExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), ConsistencyGateExecutor)
+    if target is None or not target.enabled:
+        return None
+    return {'last': target.last_consistency, 'rounds': list(target.consistency_rounds)}
 from .modification_engine import CandidateModificationEngine
 from .provider_usage import ProviderUsageLedger
 from .spec_repository import SpecNotFound
@@ -550,6 +559,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
             'behavior_acceptance': behavior_evidence(engine),
+            'consistency_gate': consistency_evidence(engine),
         }
     except BuildCancelled as exc:
         spent, calls = spend_snapshot(gateway)

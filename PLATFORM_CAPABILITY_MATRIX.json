@@ -216,7 +216,7 @@
    "test_location": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_result": "LIVE",
+   "last_result": "PARTIAL",
    "last_verified_commit": "2b4bafd",
    "last_verified_at": "2026-10-09T15:46Z",
    "environment": "pre-staging worker host"

@@ -19,7 +19,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "PARTIAL",
-   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py",
+   "why": "live evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -493,14 +493,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verificati",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "agent_key": "infrastructure_agent",
@@ -567,8 +567,8 @@
    ],
    "gap": "no publishing to a live customer domain",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37961193099"
    ],
@@ -1074,14 +1074,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
    "evidence": [
     "postdeploy-checks run 37962165888",
-    "postdeploy-checks run 37961193099"
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "agent_key": "system_test_orchestrator",
@@ -3730,8 +3731,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
@@ -4398,8 +4399,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37961193099"
    ],
@@ -4872,8 +4873,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
@@ -4890,8 +4891,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
@@ -5445,8 +5446,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37961193099"
    ],
@@ -5476,8 +5477,8 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "LIVE",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "status": "PARTIAL",
+   "why": "live evidence is stale; code changed since: omni_prod/worker_tasks.py",
    "evidence": [
     "postdeploy-checks run 37961193099"
    ],
@@ -7540,16 +7541,16 @@
  "summary": {
   "agents_total": 52,
   "agents": {
-   "LIVE": 30,
-   "PARTIAL": 7,
+   "LIVE": 27,
+   "PARTIAL": 10,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 11,
    "BLOCKED": 3
   },
   "skills_total": 427,
   "skills": {
-   "LIVE": 132,
-   "PARTIAL": 29,
+   "LIVE": 126,
+   "PARTIAL": 35,
    "NOT_CONFIGURED": 1,
    "NOT_IMPLEMENTED": 257,
    "BLOCKED": 8
