@@ -22,10 +22,9 @@ a DOM audit runs. Findings are measured, never inferred from pixels alone:
   console_error     console error or uncaught exception on load
 
 Screenshots (JPEG) are returned for evidence and stored by the caller; they
-are never sent to any third party. The executor runs in SHADOW mode by default:
-findings are recorded and reported, not blocking, until a replay over stored
-working versions shows which rules have no false positives
-(OMNI_VISUAL_QA_ENFORCE lists the rules allowed to block).
+are never sent to any third party. Only rules proven free of false positives on
+stored working products block (DEFAULT_ENFORCED; OMNI_VISUAL_QA_ENFORCE
+overrides, '' = shadow); the rest are recorded as advisories.
 """
 from __future__ import annotations
 
@@ -169,8 +168,17 @@ def parse(stdout: str) -> tuple[dict | None, bytes | None]:
     return report, shot
 
 
+# Enforced by default: layout rules with 0 findings on the 5 working stored
+# products x 2 viewports (verify-replay 38082307056) -- no false positives.
+# Contrast/labels found real WCAG defects in 3 of 5 working products; they stay
+# advisory until the founder decides the cost/quality trade-off.
+DEFAULT_ENFORCED = ('no_mobile_viewport', 'h_overflow', 'offscreen_control', 'overlap', 'broken_image')
+
+
 def enforced_rules() -> set[str]:
-    raw = os.getenv('OMNI_VISUAL_QA_ENFORCE', '').strip()
+    raw = os.getenv('OMNI_VISUAL_QA_ENFORCE')
+    if raw is None:
+        return set(DEFAULT_ENFORCED)
     return {r.strip() for r in raw.split(',') if r.strip() in RULES}
 
 

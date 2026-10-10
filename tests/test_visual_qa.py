@@ -47,7 +47,7 @@ class ExecutorTests(unittest.TestCase):
         ex = VisualQAExecutor(inner)
         stored = {}
         ex.screenshot_sink = lambda vp, jpg: stored.setdefault(vp, f'k/{vp}.jpg')
-        with patch.dict(os.environ, {'OMNI_VISUAL_QA_ENFORCE': ''}):
+        with patch.dict(os.environ, {'OMNI_VISUAL_QA_ENFORCE': ''}):          # explicit shadow mode
             self.assertTrue(ex.execute(repository={}, spec=None).passed)
         self.assertEqual([c[0] for c in inner.calls], ['desktop', 'mobile'])
         self.assertTrue(all(c[1] == 'browser' for c in inner.calls))
@@ -63,6 +63,14 @@ class ExecutorTests(unittest.TestCase):
         self.assertFalse(report.passed)
         self.assertEqual(report.failures[0].acceptance_id, VISUAL_FAILURE_ID)
         self.assertIn('(mobile) h_overflow', report.failures[0].message)
+
+    def test_layout_rules_block_by_default_but_contrast_does_not(self):
+        env = dict(os.environ); env.pop('OMNI_VISUAL_QA_ENFORCE', None)
+        with patch.dict(os.environ, env, clear=True):
+            contrast = _Inner({'desktop': [{'kind': 'low_contrast', 'detail': '4.1:1', 'at': 'button'}]})
+            self.assertTrue(VisualQAExecutor(contrast).execute(repository={}, spec=None).passed)
+            overflow = _Inner({'mobile': [{'kind': 'h_overflow', 'detail': '600px', 'at': ''}]})
+            self.assertFalse(VisualQAExecutor(overflow).execute(repository={}, spec=None).passed)
 
     def test_no_runner_is_not_run_not_pass(self):
         ex = VisualQAExecutor(SimpleNamespace(execute=lambda **k: ExecutionReport(True, (), '')))
