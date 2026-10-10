@@ -55,6 +55,20 @@ class AutonomousProductEngine:
     def _fingerprint(repo: dict[str, str]) -> str:
         return hashlib.sha256(json.dumps(sorted(repo.items())).encode('utf-8')).hexdigest()
 
+    # Directive 2026-10-10 P0.3: every verified candidate is handed to this
+    # hook (the worker stores it durably) before the next repair; the loop
+    # itself rolls back to the best candidate when a repair goes backwards.
+    round_hook = None
+
+    def _snapshot(self, index: int, repo: dict, report, decision: str) -> None:
+        if self.round_hook is None:
+            return
+        try:
+            self.round_hook(index, repo, report, decision, self.progress(report))
+        except Exception:  # a snapshot must never change the build
+            import logging
+            logging.getLogger(__name__).warning('round snapshot failed', exc_info=True)
+
     @staticmethod
     def progress(report) -> tuple[int, int]:
         """How far a candidate got through the verification chain (build ->
@@ -101,6 +115,7 @@ class AutonomousProductEngine:
         initial = self.generator.generate(spec)
         repo = apply_patch({}, initial)
         report = self.executor.execute(repository=repo, spec=spec)
+        self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
         stop_reason = 'passed' if report.passed else 'max_repair_rounds'
@@ -137,16 +152,19 @@ class AutonomousProductEngine:
                 break
             seen.add(fingerprint)
             new_report = self.executor.execute(repository=candidate, spec=spec)
+            worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
+            self._snapshot(rounds, candidate, new_report,
+                           'passed' if new_report.passed else ('discarded' if worse else 'adopted'))
             if new_report.passed:
                 repo, report, stop_reason = candidate, new_report, 'passed'
                 break
-            if self.progress(new_report) < self.progress(best_report):
-                worse = [f'{f.acceptance_id}: {f.message}' for f in new_report.failures][:4]
-                self.trace[-1]['discarded'] = worse
+            if worse:
+                failing = [f'{f.acceptance_id}: {f.message}' for f in new_report.failures][:4]
+                self.trace[-1]['discarded'] = failing
                 discarded_note = {'acceptance_id': 'REPAIR_REGRESSION',
                                   'message': 'Your previous change made the product worse and was discarded; this is '
                                              'the better version again. Do not repeat that change.',
-                                  'evidence': '; '.join(worse)[:600]}
+                                  'evidence': '; '.join(failing)[:600]}
                 repo, report = best_repo, best_report
                 continue
             repo, report = candidate, new_report

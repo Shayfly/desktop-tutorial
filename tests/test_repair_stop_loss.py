@@ -79,6 +79,40 @@ class StopLossTests(unittest.TestCase):
         self.assertEqual((result.stop_reason, result.repair_rounds), ('passed', 0))
 
 
+
+class RoundSnapshotTests(unittest.TestCase):
+    """Directive 2026-10-10 P0.3: each verified candidate is stored before the next repair."""
+
+    def test_every_round_is_snapshotted_with_its_decision(self):
+        ex = _StagedExecutor({'v0': 'behavior', 'v1': 'build', 'v2': 'pass'})
+        engine = _engine(_Repairer(['v1', 'v2']), ex)
+        seen = []
+        engine.round_hook = lambda i, repo, report, decision, progress: seen.append((i, repo['app.py'], decision))
+        engine.build('p')
+        self.assertEqual(seen, [(0, 'v0', 'initial'), (1, 'v1', 'discarded'), (2, 'v2', 'passed')])
+
+    def test_worker_stores_rounds_durably_and_logs_a_discard(self):
+        from types import SimpleNamespace
+        from omni_prod.worker_tasks import install_round_snapshots
+        stored, events, sink = {}, [], []
+        ws = SimpleNamespace(storage=SimpleNamespace(put_bytes=lambda k, d: stored.__setitem__(k, d)),
+                             _zip_repo=lambda repo: repr(sorted(repo.items())).encode())
+        control = SimpleNamespace(log=lambda kind, msg: events.append(kind))
+        ex = _StagedExecutor({'v0': 'behavior', 'v1': 'build', 'v2': 'pass'})
+        engine = _engine(_Repairer(['v1', 'v2']), ex)
+        install_round_snapshots(engine, ws, 'bld_x', sink, control)
+        engine.build('p')
+        self.assertEqual([e['decision'] for e in sink], ['initial', 'discarded', 'passed'])
+        self.assertTrue(all(e['key'] in stored and e['key'].startswith('build-rounds/bld_x/') for e in sink))
+        self.assertEqual(sink[0]['failing'], ['BEHAVIOR'])
+        self.assertEqual(events, ['info'])
+
+    def test_a_failing_store_never_breaks_the_build(self):
+        ex = _StagedExecutor({'v0': 'pass'})
+        engine = _engine(_Repairer([]), ex)
+        engine.round_hook = lambda *a: (_ for _ in ()).throw(OSError('r2 down'))
+        self.assertEqual(engine.build('p').status, 'ready')
+
 if __name__ == '__main__':
     unittest.main()
 

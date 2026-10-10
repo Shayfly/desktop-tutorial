@@ -77,7 +77,51 @@ def replay(rows, load) -> dict:
     return out
 
 
+def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
+    """Run the production verification chain (no model review: free) over the
+    newest `limit` stored versions that have a spec. Read-only for product
+    data: the sandbox has no network and behavioural acceptance runs on a
+    scratch data directory."""
+    import time
+    from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
+    from .investor_app import _v28, _v28_pool, _verification_executor
+    from .spec_repository import PostgresSpecRepository
+    from .worker_tasks import contract_scope_for_version
+    ws = _v28.engine.workspace
+    specs = PostgresSpecRepository(_v28_pool)
+    with _v28_pool.connection() as conn:
+        rows = conn.execute(
+            'SELECT v.id, v.project_id, v.artifact_key FROM project_versions v '
+            'JOIN project_version_specs s ON s.version_id = v.id ORDER BY v.created_at DESC LIMIT %s', (limit,)).fetchall()
+    started, results = time.monotonic(), []
+    for vid, pid, key in rows:
+        if time.monotonic() - started > deadline_s:
+            results.append({'version': vid, 'status': 'NOT_RUN', 'why': 'deadline'})
+            continue
+        try:
+            repo = ws._unzip_repo(ws.storage.get_bytes(key, verify=True))
+            spec = specs.get(vid, pid)
+            chain = _verification_executor(None)
+            target = find_in_chain(chain, BehaviorAcceptanceExecutor)
+            scope = contract_scope_for_version(_v28_pool, project_id=pid, version_id=vid)
+            if target is not None and scope:
+                target.scope = {k: scope.get(k) for k in ('infrastructure', 'required_integrations', 'user_roles',
+                                                          'defaults_applied', 'prompt')}
+            t0 = time.monotonic()
+            report = chain.execute(repository=repo, spec=spec)
+            results.append({'version': vid, 'status': 'PASS' if report.passed else 'FAIL',
+                             'seconds': round(time.monotonic() - t0),
+                             'failing': [f'{f.acceptance_id}: {f.message}'[:200] for f in report.failures][:3]})
+        except Exception as exc:
+            results.append({'version': vid, 'status': 'ERROR', 'why': f'{type(exc).__name__}: {str(exc)[:200]}'})
+    counts = Counter(r['status'] for r in results)
+    return {'versions': len(results), 'counts': dict(counts), 'results': results}
+
+
 def main() -> int:
+    if len(sys.argv) > 2 and sys.argv[1] == '--verify':
+        print('VERIFY_REPLAY ' + json.dumps(verify_versions(int(sys.argv[2])), ensure_ascii=False, default=str))
+        return 0
     from .investor_app import _v28, _v28_pool
     ws = _v28.engine.workspace
     store = ws.storage

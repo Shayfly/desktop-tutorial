@@ -73,6 +73,30 @@ def behavior_evidence(engine) -> dict | None:
     return {'last': target.last_report, 'rounds': list(target.history)}
 
 
+def install_round_snapshots(engine, workspace, build_id: str, sink: list, control=None) -> None:
+    """Directive 2026-10-10 P0.3: store every verified candidate durably
+    (object storage, checksum-verified on read) before the next repair, with
+    its verification progress and what the loop decided. The loop rolls back
+    to the best one; these keys make each round inspectable and restorable."""
+    store = getattr(workspace, 'storage', None)
+    zip_repo = getattr(workspace, '_zip_repo', None)
+    if not hasattr(engine, 'round_hook'):
+        return
+
+    def hook(index, repo, report, decision, progress):
+        from .workspace import _checksum
+        entry = {'round': index, 'decision': decision, 'progress': list(progress), 'sha256': _checksum(repo),
+                 'failing': sorted({getattr(f, 'acceptance_id', '?') for f in getattr(report, 'failures', ()) or ()})}
+        if store is not None and zip_repo is not None:
+            key = f'build-rounds/{build_id}/{index:02d}-{entry["sha256"][:12]}.zip'
+            store.put_bytes(key, zip_repo(repo))
+            entry['key'] = key
+        sink.append(entry)
+        if control is not None and decision == 'discarded':
+            control.log('info', f'סבב תיקון {index} החמיר את המוצר ונזרק; ממשיכים מהגרסה הטובה ביותר.')
+    engine.round_hook = hook
+
+
 def consistency_evidence(engine) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .consistency_gate import ConsistencyGateExecutor
@@ -345,7 +369,12 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
                        if getattr(f, 'acceptance_id', None) == UNSUPPORTED_DEPENDENCY]
         if unsupported:
             return False, 'unsupported_dependency', unsupported[0].message[:2000]
-        return False, 'verification_failed', 'build did not pass sandbox verification'
+        # Name what still failed (the UI shows this under technical details).
+        last = '; '.join(f'{getattr(f, "acceptance_id", "?")}: {getattr(f, "message", "")}'[:240]
+                         for f in report_failures[:4])
+        return False, 'verification_failed', (
+            f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
+            + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
         return False, 'quality_gate_failed', (
@@ -465,6 +494,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
             agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
+        round_snapshots: list[dict] = []
+        install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
@@ -560,6 +591,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
             'behavior_acceptance': behavior_evidence(engine),
             'consistency_gate': consistency_evidence(engine),
+            'round_snapshots': round_snapshots,
         }
     except BuildCancelled as exc:
         spent, calls = spend_snapshot(gateway)

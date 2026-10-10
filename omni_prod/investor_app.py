@@ -603,15 +603,9 @@ def project_memory(project_id:str)->dict:
     return {'project_id':project_id,'context':_memory.context(project_id),'entries':[x.__dict__ for x in _memory.list(project_id)]}
 
 
-def _model_gateway_and_executor():
-    # M4: pure extraction out of _live_components() (behavior-preserving --
-    # _live_components() below is unchanged in what it returns) so
-    # _modification_components() can build the *same* gateway/sandbox-executor
-    # wiring for its own, different set of agents (ChangeClassifierAgent /
-    # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
-    if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
-    cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
-    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy)
+def _verification_executor(gateway=None):
+    """The production verification chain. gateway=None leaves out the model
+    review (used by the free replay of stored versions, gate_replay --verify)."""
     remote_url=os.getenv('OMNI_SANDBOX_RUNNER_URL','').strip()
     if remote_url:
         secret=os.getenv('OMNI_SANDBOX_SHARED_SECRET','')
@@ -624,7 +618,7 @@ def _model_gateway_and_executor():
     # Directive 2026-10-10 P0.4/5/7: cross-file consistency (syntax, local
     # imports, routes, assets, manifest) read from the files before the sandbox.
     from .consistency_gate import ConsistencyGateExecutor
-    executor=ConsistencyGateExecutor(executor,enabled=os.getenv('OMNI_CONSISTENCY_GATE','0')=='1')
+    executor=ConsistencyGateExecutor(executor,enabled=os.getenv('OMNI_CONSISTENCY_GATE','1')!='0')
     from .dependency_policy import DependencyGateExecutor
     executor=DependencyGateExecutor(executor)
     # The product must be startable for preview (contract + real start in the sandbox).
@@ -644,8 +638,21 @@ def _model_gateway_and_executor():
     executor=QualityAwareExecutor(executor,minimum_score=int(os.getenv('OMNI_MIN_QUALITY_SCORE','80')))
     # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists
     # and static checks; blocking findings go back to repair (bounded).
-    from .product_review import ProductReviewExecutor
-    executor=ProductReviewExecutor(executor,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2')))
+    if gateway is not None:
+        from .product_review import ProductReviewExecutor
+        executor=ProductReviewExecutor(executor,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2')))
+    return executor
+
+def _model_gateway_and_executor():
+    # M4: pure extraction out of _live_components() (behavior-preserving --
+    # _live_components() below is unchanged in what it returns) so
+    # _modification_components() can build the *same* gateway/sandbox-executor
+    # wiring for its own, different set of agents (ChangeClassifierAgent /
+    # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
+    if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
+    cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
+    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy)
+    executor=_verification_executor(gateway)
     return gateway,executor
 
 def _live_components():

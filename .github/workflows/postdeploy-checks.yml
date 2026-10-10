@@ -17,12 +17,16 @@ on:
       stage:
         description: free or paid
         type: choice
-        options: [free, paid, crash, cancel-build, inspect-build, spend-audit, gate-replay]
+        options: [free, paid, crash, cancel-build, inspect-build, spend-audit, gate-replay, verify-replay]
         required: true
       build_id:
         description: "cancel-build / inspect-build: the synthetic build id"
         required: false
         default: ""
+      versions:
+        description: "verify-replay: how many newest stored versions to re-verify (no model calls)"
+        required: false
+        default: "10"
       max_usd:
         description: Hard model-spend ceiling for the paid build
         required: false
@@ -179,6 +183,27 @@ jobs:
           note("gate replay", {k: r[k] for k in ("versions", "load_failures", "blocking_versions", "blocking_by_check", "advisories_by_check")})
           note("repair prompt coverage", r["coverage"])
           note("examples", json.dumps(r["examples"], ensure_ascii=False))
+          PY
+
+      - name: Re-verify stored versions through the production chain (no model calls)
+        if: inputs.stage == 'verify-replay'
+        timeout-minutes: 50
+        env:
+          N: ${{ inputs.versions }}
+        run: |
+          set -euo pipefail
+          case "$N" in ''|*[!0-9]*) echo "versions must be a number"; exit 1;; esac
+          # one-off worker container: same env and network as the build worker (sandbox runner reachable)
+          docker compose run --rm --no-deps -T worker python -m omni_prod.gate_replay --verify "$N" 2>/dev/null \
+            | grep '^VERIFY_REPLAY ' > "$RUNNER_TEMP/verify.txt"
+          python3 - "$RUNNER_TEMP/verify.txt" <<'PY'
+          import json, sys
+          line = [l for l in open(sys.argv[1]) if l.startswith('VERIFY_REPLAY ')][-1]
+          r = json.loads(line[len('VERIFY_REPLAY '):])
+          def note(t, m):
+              print(f"::notice title={t}::" + str(m)[:3800].replace("%", "%25").replace("\n", "%0A"))
+          note("verify replay", {"versions": r["versions"], "counts": r["counts"]})
+          note("verify replay results", "\n".join(json.dumps(x, ensure_ascii=False) for x in r["results"]))
           PY
 
       - name: Spend audit (read-only)
