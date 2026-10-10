@@ -397,38 +397,45 @@
    "capability": "visual QA",
    "agent": "ux_ui_design_agent",
    "skills": [
-    "responsive_layout",
-    "rtl_design"
+    "mobile_view_test",
+    "desktop_view_test",
+    "responsive_test"
    ],
    "platform": [
     "visual_qa_desktop_mobile"
    ],
    "implementation": [
-    "omni_prod.skills_runtime:TEXT_LOCALE",
-    "omni_prod.skills_runtime:VISUAL_DESIGN"
+    "omni_prod.visual_qa:VisualQAExecutor"
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [],
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "cost": "$0",
-   "status": "NOT_IMPLEMENTED",
+   "status": "INTEGRATION_TESTED",
    "shown_to_customer": false,
-   "note": "",
+   "note": "shadow mode: measured and recorded, not yet blocking",
    "parts": [
     {
-     "part": "skill:responsive_layout",
-     "status": "IMPLEMENTED",
-     "why": "model instruction only; no platform check verifies the result"
+     "part": "skill:mobile_view_test",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     },
     {
-     "part": "skill:rtl_design",
-     "status": "IMPLEMENTED",
-     "why": "model instruction only; no platform check verifies the result"
+     "part": "skill:desktop_view_test",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
+    },
+    {
+     "part": "skill:responsive_test",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     },
     {
      "part": "platform:visual_qa_desktop_mobile",
-     "status": "NOT_IMPLEMENTED",
-     "why": "no implementation"
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     }
    ]
   },
@@ -442,26 +449,28 @@
    ],
    "platform": [],
    "implementation": [
-    "omni_prod.skills_runtime:FORM_VALIDATION",
-    "omni_prod.skills_runtime:VISUAL_DESIGN"
+    "omni_prod.consistency_gate:scan",
+    "omni_prod.visual_qa:VisualQAExecutor"
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [],
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "cost": "$0",
-   "status": "IMPLEMENTED",
+   "status": "INTEGRATION_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:label_test",
-     "status": "IMPLEMENTED",
-     "why": "model instruction only; no platform check verifies the result"
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     },
     {
      "part": "skill:contrast_test",
-     "status": "IMPLEMENTED",
-     "why": "model instruction only; no platform check verifies the result"
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     }
    ]
   },
@@ -818,10 +827,14 @@
     "actual_cost_calculation",
     "credit_settlement"
    ],
-   "platform": [],
+   "platform": [
+    "write_ahead_cost_ledger"
+   ],
    "implementation": [
+    "omni_prod.attempt_ledger:persist_attempts",
     "omni_prod.subscription_store:PostgresSubscriptionService",
     "omni_prod.worker_tasks:metered_llm_cost",
+    "omni_prod.worker_tasks:prior_worker_metered_cost",
     "omni_prod.worker_tasks:resolve_m5_billing"
    ],
    "provider": "none (deterministic)",
@@ -850,6 +863,74 @@
      "part": "skill:credit_settlement",
      "status": "UNIT_TESTED",
      "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    },
+    {
+     "part": "platform:write_ahead_cost_ledger",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
+    }
+   ]
+  },
+  {
+   "requirement": "Cost per build / per successful build / by model, from the ledger",
+   "capability": "unit economics",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "margin_calculation"
+   ],
+   "platform": [
+    "unit_economics_report"
+   ],
+   "implementation": [
+    "omni_prod.economics_report:compute"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_economics_report.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:margin_calculation",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    },
+    {
+     "part": "platform:unit_economics_report",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "Every check stored per build, bound to the artifact",
+   "capability": "stage evidence",
+   "agent": "quality_gate_agent",
+   "skills": [],
+   "platform": [
+    "durable_stage_evidence"
+   ],
+   "implementation": [
+    "omni_prod.release_policy:persist"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "INTEGRATION_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:durable_stage_evidence",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
     }
    ]
   },
@@ -1077,9 +1158,10 @@
  ],
  "counts": {
   "REAL_SERVER_VERIFIED": 14,
-  "IMPLEMENTED": 3,
-  "UNIT_TESTED": 8,
-  "NOT_IMPLEMENTED": 6,
+  "IMPLEMENTED": 2,
+  "UNIT_TESTED": 9,
+  "INTEGRATION_TESTED": 3,
+  "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
  },
  "customer_visible_findings": [

@@ -231,6 +231,10 @@ _COLUMNS = ('attempt_id', 'build_id', 'tenant_id', 'project_id', 'task_id', 'tas
             'escalation_count', 'fallback_count')
 
 
+_COMPLETABLE = ('model_version', 'provider_request_id', 'metered_cost_usd', 'provider_reported_cost_usd', 'input_tokens',
+                'output_tokens', 'cached_tokens', 'latency_ms', 'verification_class', 'failure_reason')
+
+
 def ledger_rows(records: Iterable[AttemptRecord], *, build_id: str, tenant_id: str | None,
                 project_id: str | None, reservation_id: str | None, final_outcome: str | None) -> list[tuple]:
     rows = []
@@ -253,8 +257,16 @@ def persist_attempts(pool, records: list[AttemptRecord], *, build_id: str, tenan
     if not rows:
         return 0
     placeholders = ','.join('%s::jsonb' if c == 'candidate_set' else '%s' for c in _COLUMNS)
+    # Write-ahead ledger (issue #6 P3.3): a provider call is first written with
+    # outcome 'unknown' and its authorized worst case, BEFORE the request; a later
+    # write completes it. Only a still-'unknown' row may be completed, and a known
+    # value is never overwritten by NULL. A row left 'unknown' after a worker
+    # died is the call that was in flight: unknown cost, bounded by authorization.
+    completion = ', '.join(f"{c} = CASE WHEN task_attempts.outcome = 'unknown' THEN COALESCE(EXCLUDED.{c}, task_attempts.{c}) "
+                           f"ELSE task_attempts.{c} END" for c in _COMPLETABLE)
     sql = (f"INSERT INTO task_attempts ({','.join(_COLUMNS)}) VALUES ({placeholders}) "
-           "ON CONFLICT (attempt_id) DO UPDATE SET final_outcome = EXCLUDED.final_outcome")
+           f"ON CONFLICT (attempt_id) DO UPDATE SET final_outcome = EXCLUDED.final_outcome, {completion}, "
+           "outcome = CASE WHEN task_attempts.outcome = 'unknown' THEN EXCLUDED.outcome ELSE task_attempts.outcome END")
     with pool.connection() as conn:
         with conn.transaction():
             with conn.cursor() as cur:

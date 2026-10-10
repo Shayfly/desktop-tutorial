@@ -124,7 +124,14 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={"width": VIEW[0], "height": VIEW[1]}, is_mobile=VIEW[2], has_touch=VIEW[2],
                         device_scale_factor=1, locale="he-IL")
     page = ctx.new_page()
-    page.on("console", lambda m: m.type == "error" and out["console"].append(m.text[:200]))
+    # "Failed to load resource" console lines are replaced by the exact failed
+    # request below; the browser's own /favicon.ico probe is not the product's.
+    page.on("console", lambda m: m.type == "error" and not m.text.startswith("Failed to load resource")
+            and out["console"].append(m.text[:200]))
+    def on_resp(r):
+        if r.status >= 400 and r.url.startswith(base) and not r.url.split("?")[0].endswith("/favicon.ico"):
+            out["console"].append(("%s %s -> %s" % (r.request.method, r.url[len(base):], r.status))[:200])
+    page.on("response", on_resp)
     page.on("pageerror", lambda e: out["console"].append(("uncaught: " + str(e))[:200]))
     page.goto(base + "/", wait_until="load", timeout=15000)
     page.wait_for_timeout(1200)

@@ -355,14 +355,20 @@ def prior_worker_metered_cost(pool, build_id: str) -> dict | None:
         with pool.connection() as conn:
             row = conn.execute(
                 "SELECT count(*), COALESCE(sum(metered_cost_usd), 0), "
-                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome = 'ok' AND COALESCE(authorized_cost_usd, 0) > 0) "
+                "count(*) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown') "
+                "                 AND COALESCE(authorized_cost_usd, 0) > 0), "
+                "COALESCE(sum(authorized_cost_usd) FILTER (WHERE metered_cost_usd IS NULL AND outcome IN ('ok', 'unknown')), 0) "
                 "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (build_id,)).fetchone()
     except Exception:
         logging.getLogger(__name__).warning('prior attempt lookup failed for %s', build_id, exc_info=True)
         return None
     if not row or not row[0]:
         return None
-    return {'calls': int(row[0]), 'metered_usd': Decimal(str(row[1])), 'unknown_calls': int(row[2])}
+    # unknown_calls includes the call that was in flight when the worker died
+    # (write-ahead row still 'unknown'): its cost is unknown, bounded by its
+    # authorization (unknown_exposure_usd) -- never counted as zero or exact.
+    return {'calls': int(row[0]), 'metered_usd': Decimal(str(row[1])), 'unknown_calls': int(row[2]),
+            'unknown_exposure_usd': Decimal(str(row[3] if len(row) > 3 else 0))}
 
 
 def resolve_m5_billing(
@@ -567,6 +573,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         install_build_control(engine, gateway, control)
         if attempt_pool is not None:
             control.flush = lambda: _persist_build_attempts(attempt_pool, jobs, build_id, gateway)
+            if hasattr(gateway, 'on_attempt_start'):
+                gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
             gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph

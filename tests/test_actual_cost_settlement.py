@@ -145,5 +145,63 @@ class ThinkingTokenMeteringTests(unittest.TestCase):
         self.assertEqual(self._usage({'input_tokens': 10, 'output_tokens': 20}).output_tokens, 20)
 
 
+
+@unittest.skipUnless(__import__('os').environ.get('M4D2_DATABASE_URL'), 'live PostgreSQL not configured')
+class WriteAheadLedgerLivePostgresTests(unittest.TestCase):
+    """Issue #6 P3.3: the call in flight at a worker crash is UNKNOWN cost
+    exposure bounded by its authorization -- not zero, not exact."""
+
+    def setUp(self):
+        import os
+        from pathlib import Path
+        from omni_prod.db import DatabasePool
+        self.pool = DatabasePool(os.environ['M4D2_DATABASE_URL'])
+        sql = (Path(__file__).resolve().parents[1] / 'infra/postgres/027_task_attempts.sql').read_text()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(sql)
+
+    def _rec(self, **kw):
+        from omni_prod.attempt_ledger import AttemptRecord
+        base = dict(task_type='codegen', attempt_seq=0, kind='provider_call', outcome='unknown', provider='p', model='m',
+                    authorized_cost_usd=Decimal('0.07'))
+        base.update(kw)
+        return AttemptRecord(**base)
+
+    def test_in_flight_row_is_completed_later_and_never_overwritten(self):
+        import uuid
+        from omni_prod.attempt_ledger import persist_attempts
+        bid = f'bld_{uuid.uuid4().hex[:10]}'
+        r = self._rec()
+        persist_attempts(self.pool, [r], build_id=bid)                       # written ahead, before the call
+        r.outcome, r.metered_cost_usd, r.input_tokens, r.output_tokens = 'ok', Decimal('0.012'), 1000, 2000
+        persist_attempts(self.pool, [r], build_id=bid)                       # completed after the call
+        r.metered_cost_usd = None
+        persist_attempts(self.pool, [r], build_id=bid, final_outcome='ready')  # a later flush cannot erase it
+        with self.pool.connection() as conn:
+            row = conn.execute('SELECT outcome, metered_cost_usd, output_tokens, final_outcome FROM task_attempts '
+                               'WHERE attempt_id = %s', (r.attempt_id,)).fetchone()
+        self.assertEqual((row[0], Decimal(str(row[1])), row[2], row[3]), ('ok', Decimal('0.012'), 2000, 'ready'))
+
+    def test_a_crash_leaves_bounded_unknown_exposure(self):
+        import uuid
+        from omni_prod.attempt_ledger import persist_attempts
+        bid = f'bld_{uuid.uuid4().hex[:10]}'
+        done = self._rec(outcome='ok', metered_cost_usd=Decimal('0.01'), attempt_seq=0)
+        in_flight = self._rec(attempt_seq=1, authorized_cost_usd=Decimal('0.09'))
+        persist_attempts(self.pool, [done, in_flight], build_id=bid)          # then the worker is killed
+        prior = worker_tasks.prior_worker_metered_cost(self.pool, bid)
+        self.assertEqual(prior['unknown_calls'], 1)
+        self.assertEqual(prior['unknown_exposure_usd'], Decimal('0.09'))
+        gw = gateway([rec('0.05')])
+        gw.prior_metered = prior
+        from unittest.mock import patch
+        with patch.object(worker_tasks, 'spend_snapshot', return_value=(Decimal('0.05'), 1)):
+            _, evidence, actual = worker_tasks.resolve_m5_billing(MagicMock(), build_id=bid, ready=True, gateway=gw,
+                                                                  capability_evidence=None,
+                                                                  economics_quote={'infrastructure_maximum_usd': '0'})
+        self.assertIsNone(actual)                                            # unknown, settled conservatively
+        self.assertEqual(Decimal(evidence['cost_basis']['earlier_workers']['unknown_exposure_usd']), Decimal('0.09'))
+
 if __name__ == '__main__':
     unittest.main()

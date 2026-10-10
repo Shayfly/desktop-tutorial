@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 52 — NOT_IMPLEMENTED 11, IMPLEMENTED 9, UNIT_TESTED 6, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 22, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 96, LIVE 0, BLOCKED 9
+Agents: 52 — NOT_IMPLEMENTED 11, IMPLEMENTED 11, UNIT_TESTED 6, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 20, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 34, UNIT_TESTED 27, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 87, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -30,12 +30,12 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION
 | Repair Agent (`repair_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
 | Security Agent (`security_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37962165888 |  |
 | Compliance & IP Agent (`compliance_ip_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
-| Provider Router Agent (`provider_router_agent`) | platform | **REAL_SERVER_VERIFIED** | compliance_ip_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Provider Router Agent (`provider_router_agent`) | platform | **IMPLEMENTED** | compliance_ip_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | Cost & Economics Agent (`cost_economics_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | Infrastructure Agent (`infrastructure_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before repl — postdeploy-checks run 37954236866 (+ inspect 37955419872), deploy-worker run 37960891900 |  |
 | Deployment Agent (`deployment_agent`) | platform | **REAL_SERVER_VERIFIED** | release_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token — postdeploy-checks run 37962165888 |  |
 | Release Agent (`release_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py | no publishing to a live customer domain |
-| Observability Agent (`observability_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token — postdeploy-checks run 37962165888, postdeploy-checks run 37961193099 |  |
+| Observability Agent (`observability_agent`) | platform | **IMPLEMENTED** | sre_reliability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | SRE / Reliability Agent (`sre_reliability_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before repl — postdeploy-checks run 37954236866 (+ inspect 37955419872), deploy-worker run 37960891900 |  |
 | Backup & Recovery Agent (`backup_recovery_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune — backup-restore run 37962179844 |  |
 | Migration Agent (`migration_agent`) | platform | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 37960891900 |  |
@@ -250,15 +250,15 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION
 | `click_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `form_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | fills forms by field type |
 | `navigation_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `mobile_view_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `desktop_view_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `responsive_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
+| `mobile_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | integration tests | 390x844, shadow mode |
+| `desktop_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | integration tests | 1440x900, shadow mode |
+| `responsive_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | integration tests | overflow/offscreen/viewport, shadow mode |
 | `javascript_error_detection` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `network_error_detection` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both | 5xx answers |
 | `browser_persistence_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
 | `reload_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
 | `browser_acceptance_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `failure_classification` | Repair | **REAL_SERVER_VERIFIED** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `failure_classification` | Repair | **IMPLEMENTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `root_cause_analysis` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `repair_plan_generation` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `minimal_patch_generation` | Repair | **REAL_SERVER_VERIFIED** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
@@ -292,27 +292,27 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION
 | `commercial_use_policy_check` | Compliance | **UNIT_TESTED** | compliance_ip_agent | unit tests only |  |
 | `provider_terms_check` | Compliance | **NOT_IMPLEMENTED** | compliance_ip_agent | no implementation | not implemented |
 | `content_takedown_support` | Compliance | **NOT_IMPLEMENTED** | compliance_ip_agent | no implementation | not implemented |
-| `capability_provider_match` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `capability_provider_match` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | `provider_health_check` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: model provider availability |  |
-| `provider_cost_compare` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `provider_quality_compare` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | catalog quality scores |
+| `provider_cost_compare` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
+| `provider_quality_compare` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py | catalog quality scores |
 | `provider_latency_compare` | Provider Routing | **NOT_IMPLEMENTED** | provider_router_agent | no implementation | not implemented |
 | `commercial_permission_check` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
 | `privacy_policy_check` | Provider Routing | **NOT_IMPLEMENTED** | provider_router_agent | no implementation | not implemented |
-| `provider_selection` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `provider_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | `provider_fallback_selection` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
 | `provider_retry` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
-| `model_selection` | Provider Routing | **REAL_SERVER_VERIFIED** | provider_router_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `model_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | `build_quote` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `credit_reservation` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `usage_metering` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers |  |
+| `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `provider_price_lookup` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | versioned catalog |
 | `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `unused_reservation_release` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private |  |
-| `margin_calculation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
+| `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only | margin UNKNOWN until revenue exists; costs from the ledger |
 | `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |
 | `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
@@ -352,8 +352,8 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION
 | `execution_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private |  |
 | `agent_trace` | Observability | **UNIT_TESTED** | observability_agent | unit tests only |  |
 | `skill_trace` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `provider_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `cost_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `provider_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
+| `cost_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `failure_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `latency_measurement` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `health_metric` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
@@ -379,9 +379,9 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION
 | `load_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
 | `keyboard_navigation_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `semantic_html_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `label_test` | Accessibility | **IMPLEMENTED** | accessibility_agent | model instruction only; no platform check verifies the result | instruction + review |
-| `contrast_test` | Accessibility | **IMPLEMENTED** | accessibility_agent | model instruction only; no platform check verifies the result | instruction only |
-| `touch_target_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
+| `label_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | integration tests | unlabelled_field rule |
+| `contrast_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | integration tests | WCAG AA ratio, shadow mode |
+| `touch_target_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | integration tests | mobile 24x24 CSS px, shadow mode |
 | `screen_reader_structure_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `focus_order_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `translation` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |

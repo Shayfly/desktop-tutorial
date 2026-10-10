@@ -19,6 +19,8 @@ from .evidence import BACKUP, CRASH, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
 TAXONOMY: dict[str, list[str]] = json.loads((Path(__file__).with_name('skills_taxonomy.json')).read_text(encoding='utf-8'))
 
 U = lambda path, note='': Evidence('unit', path, note)  # noqa: E731
+# Real Chromium against fixture products (tests/test_visual_qa.py RealBrowserTests).
+VQ = Evidence('integration', 'tests/test_visual_qa.py', 'real browser on fixture products')
 
 # category -> (primary agent, verifier agent, targets, cost model, data policy, providers)
 _CAT = {
@@ -194,6 +196,8 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'unused_reservation_release': (('omni_prod.subscription_store:PostgresSubscriptionService',), (FREE, CRASH), ''),
     'budget_guard': (('omni_prod.model_policy:authorize_model_call',), (PAID,), 'ceiling bound to the reservation'),
     'reconciliation': (('omni_prod.qa_budget:qa_used_usd',), (U('tests/test_golden_mod_path_live_postgres.py'),), 'QA ledger'),
+    'margin_calculation': (('omni_prod.economics_report:compute',), (U('tests/test_economics_report.py'),),
+                           'margin UNKNOWN until revenue exists; costs from the ledger'),
     'agent_budget_assignment': (('omni_prod.agent_os.runtime:AgentRuntime',), (U('tests/test_agent_os.py'),), ''),
     # Infrastructure
     'worker_health_check': (('omni_prod.postdeploy_checks:stage_free',), (FREE, DEPLOY), ''),
@@ -239,8 +243,13 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'restore_verification': (('omni_prod.backup:verify',), (BACKUP,), ''),
     'disaster_recovery_test': (('path:.github/workflows/backup-restore.yml',), (BACKUP,), 'restore drill only; no failover'),
     # Accessibility / Localization (instructions + review)
-    'label_test': (('omni_prod.skills_runtime:FORM_VALIDATION',), (PAID,), 'instruction + review'),
-    'contrast_test': (('omni_prod.skills_runtime:VISUAL_DESIGN',), (PAID,), 'instruction only'),
+    # Measured by visual_qa in a real browser (shadow mode: recorded, not yet blocking).
+    'label_test': (('omni_prod.visual_qa:VisualQAExecutor', 'omni_prod.consistency_gate:scan'), (VQ,), 'unlabelled_field rule'),
+    'contrast_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'WCAG AA ratio, shadow mode'),
+    'touch_target_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'mobile 24x24 CSS px, shadow mode'),
+    'mobile_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), '390x844, shadow mode'),
+    'desktop_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), '1440x900, shadow mode'),
+    'responsive_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'overflow/offscreen/viewport, shadow mode'),
     'hebrew_localization': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),
     'rtl_layout': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),
     'locale_date': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),

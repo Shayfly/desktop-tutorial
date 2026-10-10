@@ -175,6 +175,14 @@ class RoutedModelGateway:
             price_catalog_version=self.price_catalog_version if option is not None else None,
             selection_reason=reason, selected_candidate=route.endpoint.name, candidate_set=candidate_set,
             fallback_rank=rank, authorized_cost_usd=route.max_estimated_cost_usd)
+        # Write-ahead: the attempt exists (outcome 'unknown', authorized worst
+        # case) before the provider is contacted, and is flushed to the ledger.
+        self.recorder.add(record)
+        if self.on_attempt_start is not None:
+            try:
+                self.on_attempt_start()
+            except Exception:  # telemetry must never block the call
+                pass
         try:
             gateway = self.gateway_factory(route.endpoint)
             value = getattr(gateway, method)(**kwargs)
@@ -188,7 +196,6 @@ class RoutedModelGateway:
                 self._release_rejected(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
             record.failure_reason = f'{type(exc).__name__}: {exc}'[:500]
-            self.recorder.add(record)
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
                                     request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):
@@ -201,7 +208,6 @@ class RoutedModelGateway:
         self._settle(route, record)
         record.outcome = 'ok'
         self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
-        self.recorder.add(record)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
                                 request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
         return value
@@ -347,6 +353,8 @@ class RoutedModelGateway:
     # Directive 2026-10-09 §10: a build's stop/live-log hook (BuildControl).
     # Runs before any provider is contacted; raising here costs nothing.
     before_call: Callable[[str], None] | None = None
+    # Called after a provider attempt is written ahead (worker: flush the ledger).
+    on_attempt_start: Callable[[], None] | None = None
 
     def _route(self, method: str, kwargs: dict, task: str = 'general'):
         if self.before_call is not None:

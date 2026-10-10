@@ -172,7 +172,9 @@ def _visual_summary(chain) -> dict | None:
     if not v:
         return None
     return {'status': v.get('status'), 'viewports': {k: {'status': e.get('status'), 'counts': e.get('counts'),
-                                                       'shot': e.get('screenshot_key'), 'reason': e.get('reason')}
+                                                       'shot': e.get('screenshot_key'), 'reason': e.get('reason'),
+                                                       'examples': [f"{f['kind']} {f.get('at', '')} {f.get('detail', '')}"[:120]
+                                                                    for f in (e.get('findings') or [])[:6]]}
                                                    for k, e in (v.get('viewports') or {}).items()}}
 
 

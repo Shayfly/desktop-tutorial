@@ -467,9 +467,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
@@ -594,13 +595,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
+   "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
   },
   {
@@ -3871,11 +3873,16 @@
    "category": "Browser",
    "primary_agent": "browser_rehearsal_agent",
    "verifier_agent": "quality_gate_agent",
-   "implementation_location": [],
-   "gap": "not implemented",
+   "implementation_location": [
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "gap": "390x844, shadow mode",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "no implementation",
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3884,11 +3891,16 @@
    "category": "Browser",
    "primary_agent": "browser_rehearsal_agent",
    "verifier_agent": "quality_gate_agent",
-   "implementation_location": [],
-   "gap": "not implemented",
+   "implementation_location": [
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "gap": "1440x900, shadow mode",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "no implementation",
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3897,11 +3909,16 @@
    "category": "Browser",
    "primary_agent": "browser_rehearsal_agent",
    "verifier_agent": "quality_gate_agent",
-   "implementation_location": [],
-   "gap": "not implemented",
+   "implementation_location": [
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "gap": "overflow/offscreen/viewport, shadow mode",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "no implementation",
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -3996,9 +4013,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4517,9 +4535,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4553,9 +4572,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4571,9 +4591,10 @@
    ],
    "gap": "catalog quality scores",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4633,9 +4654,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
@@ -4688,9 +4710,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/routed_gateway.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4774,9 +4797,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -4866,11 +4890,16 @@
    "category": "Economics",
    "primary_agent": "cost_economics_agent",
    "verifier_agent": "quality_gate_agent",
-   "implementation_location": [],
-   "gap": "not implemented",
+   "implementation_location": [
+    "omni_prod.economics_report:compute"
+   ],
+   "gap": "margin UNKNOWN until revenue exists; costs from the ledger",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "no implementation",
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_economics_report.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -5539,9 +5568,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -5557,14 +5587,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; crash recovery (requeue once); build finished after recovery; lost worker's calls settled; superseded agent run clos",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "failure_trace",
@@ -5953,13 +5984,16 @@
    "primary_agent": "accessibility_agent",
    "verifier_agent": "qa_agent",
    "implementation_location": [
-    "omni_prod.skills_runtime:FORM_VALIDATION"
+    "omni_prod.visual_qa:VisualQAExecutor",
+    "omni_prod.consistency_gate:scan"
    ],
-   "gap": "instruction + review",
+   "gap": "unlabelled_field rule",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "model instruction only; no platform check verifies the result",
-   "evidence": [],
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -5969,13 +6003,15 @@
    "primary_agent": "accessibility_agent",
    "verifier_agent": "qa_agent",
    "implementation_location": [
-    "omni_prod.skills_runtime:VISUAL_DESIGN"
+    "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "instruction only",
+   "gap": "WCAG AA ratio, shadow mode",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "model instruction only; no platform check verifies the result",
-   "evidence": [],
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -5984,11 +6020,16 @@
    "category": "Accessibility",
    "primary_agent": "accessibility_agent",
    "verifier_agent": "qa_agent",
-   "implementation_location": [],
-   "gap": "not implemented",
+   "implementation_location": [
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "gap": "mobile 24x24 CSS px, shadow mode",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "no implementation",
+   "status": "INTEGRATION_TESTED",
+   "why": "integration tests",
+   "evidence": [
+    "tests/test_visual_qa.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -7482,20 +7523,20 @@
   "agents_total": 52,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 9,
+   "IMPLEMENTED": 11,
    "UNIT_TESTED": 6,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 22,
+   "REAL_SERVER_VERIFIED": 20,
    "LIVE": 0,
    "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
-   "NOT_IMPLEMENTED": 269,
-   "IMPLEMENTED": 27,
-   "UNIT_TESTED": 26,
-   "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 96,
+   "NOT_IMPLEMENTED": 264,
+   "IMPLEMENTED": 34,
+   "UNIT_TESTED": 27,
+   "INTEGRATION_TESTED": 6,
+   "REAL_SERVER_VERIFIED": 87,
    "LIVE": 0,
    "BLOCKED": 9
   }

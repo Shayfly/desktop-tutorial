@@ -297,3 +297,14 @@ class FittedOutputTests(unittest.TestCase):
         s = Script({})
         gw = _gw(s, self.models, budget='0.06')
         self.assertEqual(gw.complete_json(system='s', user='u', max_tokens=20000, task='architecture'), {'ok': 'weak'})
+
+
+class WriteAheadTests(unittest.TestCase):
+    def test_attempt_is_recorded_and_flushed_before_the_provider_is_called(self):
+        s = Script({})
+        gw = _gw(s, (_model('strong', 85, '0.75', '3.75'),), budget='1')
+        seen = []
+        gw.on_attempt_start = lambda: seen.append([(r.outcome, len(s.calls)) for r in gw.recorder.records])
+        gw.complete_json(system='s', user='u', max_tokens=1000, task='codegen')
+        self.assertEqual(seen, [[('unknown', 0)]])                 # in the ledger before any provider call
+        self.assertEqual([r.outcome for r in gw.recorder.records], ['ok'])   # completed in place, not duplicated
