@@ -37,6 +37,18 @@ def _status(report, check):
 
 
 class PolicyTests(unittest.TestCase):
+    def test_enforced_visual_failure_blocks_even_with_missing_visual_evidence(self):
+        for visual in ({'status': 'FINDINGS'}, None, {'status': 'PASS'}):
+            with self.subTest(visual=visual):
+                r = _report(_evidence(visual_qa=visual), passed=False,
+                            failures=(AcceptanceFailure('VISUAL', 'enforced layout failure'),))
+                self.assertEqual(r.decision, 'FAILED')
+                self.assertEqual(_status(r, 'visual_layout_desktop_mobile'), FAIL)
+
+    def test_advisory_visual_findings_do_not_block(self):
+        r = _report(_evidence(visual_qa={'status': 'FINDINGS'}))
+        self.assertEqual(r.decision, 'READY')
+
     def test_everything_ran_and_passed_is_ready(self):
         r = _report(_evidence())
         self.assertEqual(r.decision, 'READY', r.to_dict()['blocking'])
@@ -97,6 +109,34 @@ class PolicyTests(unittest.TestCase):
 
 
 class WorkerPolicyTests(unittest.TestCase):
+    def test_report_generation_error_blocks_ready_and_preserves_billing(self):
+        from decimal import Decimal
+        for environment in ('staging', 'production'):
+            for calls in (0, 2):
+                with self.subTest(environment=environment, calls=calls):
+                    h = BuildHarness(calls=calls)
+                    with patch.dict(os.environ, {'OMNI_ENV': environment, 'OMNI_RELEASE_POLICY': 'shadow'}), \
+                         patch('omni_prod.release_policy.build_report', side_effect=ValueError('broken report')), \
+                         self.assertLogs('omni_prod.worker_tasks', level='ERROR'):
+                        self.assertEqual(h.run(), 'failed')
+                    self.assertEqual(h.final['error_code'], 'release_policy_unavailable')
+                    h.workspace.commit.assert_not_called()
+                    self.assertIsNone(h.final['result_version_id'])
+                    self.assertFalse(h.final['evidence_json']['release_ready'])
+                    if calls:
+                        h.subs.settle.assert_called_once_with(
+                            build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+                        h.subs.release.assert_not_called()
+                    else:
+                        h.subs.release.assert_called_once_with(build_id='bld_1')
+                        h.subs.settle.assert_not_called()
+
+    def test_missing_report_remains_advisory_in_explicit_development_shadow(self):
+        h = BuildHarness()
+        with patch.dict(os.environ, {'OMNI_ENV': 'development', 'OMNI_RELEASE_POLICY': 'shadow'}), \
+             patch('omni_prod.worker_tasks.release_quality_report', return_value=None):
+            self.assertEqual(h.run(), 'ready')
+
     def test_build_with_an_unavailable_browser_check_is_not_ready(self):
         h = BuildHarness()
         h.engine.executor = verified_chain(overrides={'browser': {'status': 'unavailable', 'reason': 'no chromium'}})
