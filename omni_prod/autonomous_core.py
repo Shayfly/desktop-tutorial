@@ -75,13 +75,13 @@ class AutonomousProductEngine:
         unit tests -> acceptance tests -> preview -> behaviour -> browser ->
         quality -> review), then fewer failures. Higher is better."""
         if report.passed:
-            return (10, 0)
-        stage = 10
+            return (11, 0)
+        stage = 11
         # Chain order (investor_app): sandbox -> dependency gate -> preview ->
         # behaviour -> browser -> quality -> model review. A REVIEW failure
         # means everything before it passed (paid build bld_2be07937 ranked it
         # lowest and discarded the candidate whose behaviour had passed).
-        later = {'REVIEW': 8, 'QUALITY': 7, 'BROWSER': 6}
+        later = {'REVIEW': 9, 'QUALITY': 8, 'VISUAL': 7, 'BROWSER': 6}
         for f in report.failures:
             msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
             if aid in later:

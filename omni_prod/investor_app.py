@@ -654,6 +654,10 @@ def _verification_executor(gateway=None):
     # (forms submitted twice, JS errors, feedback that disappears).
     from .browser_probe import BrowserFlowExecutor
     executor=BrowserFlowExecutor(executor,enabled=os.getenv('OMNI_BROWSER_CHECK','1')!='0')
+    # Production Assurance v2 §6: desktop + mobile DOM audit and screenshots
+    # (shadow mode until replay shows which rules may block).
+    from .visual_qa import VisualQAExecutor
+    executor=VisualQAExecutor(executor,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
     # Quality shortfalls are repairable like failed checks (release gate uses
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor

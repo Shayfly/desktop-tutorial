@@ -97,6 +97,30 @@ def install_round_snapshots(engine, workspace, build_id: str, sink: list, contro
     engine.round_hook = hook
 
 
+def visual_evidence(engine) -> dict | None:
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), VisualQAExecutor)
+    return None if target is None else target.last_visual
+
+
+def install_visual_sink(engine, workspace, build_id: str) -> None:
+    """Screenshots of each viewport go to object storage (never to a third party)."""
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), VisualQAExecutor)
+    store = getattr(workspace, 'storage', None)
+    if target is None or store is None:
+        return
+    import hashlib
+
+    def sink(viewport: str, jpeg: bytes) -> str:
+        key = f'build-visual/{build_id}/{viewport}-{hashlib.sha256(jpeg).hexdigest()[:12]}.jpg'
+        store.put_bytes(key, jpeg)
+        return key
+    target.screenshot_sink = sink
+
+
 def preview_smoke_evidence(engine) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .preview_smoke import PreviewReadyExecutor
@@ -141,6 +165,7 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
             'behavior_acceptance': behavior_evidence(engine),
             'browser_check': getattr(executor, 'last_probe', None),
             'product_review': list(getattr(executor, 'reviews', None) or []),
+            'visual_qa': visual_evidence(engine),
         }
         return build_report(build_id=build_id, artifact_sha256=_checksum(result.repository), result=result,
                             evidence=evidence, quality=quality, security=security, rights=rights,
@@ -549,6 +574,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
         round_snapshots: list[dict] = []
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
+        install_visual_sink(engine, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
@@ -653,6 +679,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'behavior_acceptance': behavior_evidence(engine),
             'consistency_gate': consistency_evidence(engine),
             'preview_smoke': preview_smoke_evidence(engine),
+            'visual_qa': visual_evidence(engine),
             'quality_report': quality_report.to_dict() if quality_report is not None else None,
             'round_snapshots': round_snapshots,
         }

@@ -107,7 +107,7 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
     authors = author_models or set()
 
     pre_sandbox = {'CONSISTENCY', 'UNSUPPORTED_DEPENDENCY'}
-    after_tests = {'PREVIEW', 'BEHAVIOR', 'BROWSER', 'QUALITY', 'REVIEW'}
+    after_tests = {'PREVIEW', 'BEHAVIOR', 'BROWSER', 'VISUAL', 'QUALITY', 'REVIEW'}
 
     def tests_status() -> str:
         # Chain order: consistency/dependencies -> sandbox tests -> preview ->
@@ -160,6 +160,17 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
     probe = ev.get('browser_check') or {}
     add(Check('visual', 'browser_flow', FAIL if 'BROWSER' in failing_ids else _status_from(probe.get('status')),
               True, 'platform:browser_probe', True, 'high', str(probe.get('reason') or '')[:300]))
+
+    vis = ev.get('visual_qa') or {}
+    vstat = {'PASS': PASS, 'FINDINGS': FAIL, 'FAIL': FAIL, 'NOT_RUN': NOT_RUN}.get(vis.get('status'), NOT_RUN)
+    counts = {}
+    for vp in (vis.get('viewports') or {}).values():
+        for k, n in (vp.get('counts') or {}).items():
+            counts[k] = counts.get(k, 0) + n
+    # Advisory until replay proves the rules (shadow); enforced rules block
+    # inside the chain (VISUAL failures) and show up as a failed tests status.
+    add(Check('visual', 'visual_layout_desktop_mobile', vstat, False, 'platform:visual_qa', True, 'medium',
+              ', '.join(f'{k} {n}' for k, n in sorted(counts.items()))[:300] or str(vis.get('reason') or '')))
 
     add(Check('quality', 'quality_score', PASS if quality.passed else FAIL, True, 'platform:quality_gate', True,
               'medium', f'score {getattr(quality, "score", "?")}/{getattr(quality, "minimum_score", "?")}'))

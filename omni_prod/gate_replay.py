@@ -121,6 +121,7 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
             repo = ws._unzip_repo(ws.storage.get_bytes(key, verify=True))
             spec = specs.get(vid, pid)
             chain = _verification_executor(None)
+            _replay_screenshots(chain, vid)
             target = find_in_chain(chain, BehaviorAcceptanceExecutor)
             scope = contract_scope_for_version(_v28_pool, project_id=pid, version_id=vid)
             if target is not None and scope:
@@ -129,9 +130,11 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
             t0 = time.monotonic()
             report = chain.execute(repository=repo, spec=spec)
             policy = _policy_decision(vid, chain, spec, repo, report)
+            visual = _visual_summary(chain)
             results.append({'version': vid, 'status': 'PASS' if report.passed else 'FAIL',
                              'seconds': round(time.monotonic() - t0), 'policy': policy['decision'],
                              'policy_blocking': policy['blocking'][:4], 'stage_rows': policy.get('stage_rows'),
+                             'visual': visual,
                              'failing': [f'{f.acceptance_id}: {f.message}'[:200] for f in report.failures][:3]})
         except Exception as exc:
             results.append({'version': vid, 'status': 'ERROR', 'why': f'{type(exc).__name__}: {str(exc)[:200]}'})
@@ -140,6 +143,37 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
     agree = sum(1 for r in results if r.get('policy') and (r['policy'] == 'READY') == (r['status'] == 'PASS'))
     return {'versions': len(results), 'counts': dict(counts), 'policy': dict(policy),
             'policy_agrees_with_chain': agree, 'results': results}
+
+
+def _replay_screenshots(chain, vid: str) -> None:
+    """Replay: screenshots go to OMNI_REPLAY_OUT (a mounted folder the workflow
+    uploads as an artifact) -- synthetic/stored products only, no third party."""
+    import os
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    out = os.getenv('OMNI_REPLAY_OUT', '').strip()
+    target = find_in_chain(chain, VisualQAExecutor)
+    if not out or target is None:
+        return
+
+    def sink(viewport: str, jpeg: bytes) -> str:
+        path = os.path.join(out, f'{vid}-{viewport}.jpg')
+        with open(path, 'wb') as f:
+            f.write(jpeg)
+        return os.path.basename(path)
+    target.screenshot_sink = sink
+
+
+def _visual_summary(chain) -> dict | None:
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(chain, VisualQAExecutor)
+    v = getattr(target, 'last_visual', None) if target is not None else None
+    if not v:
+        return None
+    return {'status': v.get('status'), 'viewports': {k: {'status': e.get('status'), 'counts': e.get('counts'),
+                                                       'shot': e.get('screenshot_key'), 'reason': e.get('reason')}
+                                                   for k, e in (v.get('viewports') or {}).items()}}
 
 
 def _policy_decision(vid, chain, spec, repo, report) -> dict:
