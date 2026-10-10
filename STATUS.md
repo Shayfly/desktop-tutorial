@@ -1,5 +1,26 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-10 21:30 Asia/Jerusalem — Executive directive: task 0 (audit access) + P0 build reliability (deterministic part)
+
+**Level: unchanged — PRE_STAGING_READY candidate. Paid testing frozen: no verified budget remainder until the Gemini bill is reconciled (directive budget policy). No money spent in this section.**
+
+- Commits (fast-forward to the active branch, CI green each): `f4b80ba`, `f39bec9`, `e573ab5` (deployed: deploy-worker 38071999051; free checks 38072386506 16/16 PASS). Rollback point: `f90accb`.
+- Audit access: `docs/AUDIT_ACCESS.md` (repository, active branch vs. old default `main`, servers, truth documents, evidence runs).
+
+| P0 item | State | Evidence |
+|---|---|---|
+| 1 repair sees all relevant source, incl. large files | VERIFIED on real data | gate-replay 38071513038: entry file in the repair prompt for 44/44 stored versions; all code files for 43/44 (97.9% of code chars); the one omission (a >16k test file) is included when a failure names it (`focus_paths`, unit-tested) |
+| 2 a repair that worsens the product is discarded | TESTED (unit) + seen live 2026-10-09 | `autonomous_core.progress`, tests `test_repair_stop_loss.py` |
+| 3 good version kept before each repair, rollback | IMPLEMENTED + TESTED; not yet in a real build | every verified candidate stored as `build-rounds/<build>/<round>-<sha>.zip` with decision/progress (`round_snapshots` evidence); loop rolls back to the best |
+| 4/5 checks while files are produced; cross-file consistency | VERIFIED on real data (no false positive) | `consistency_gate.py` (syntax, local import names, page/acceptance routes vs server, assets, manifest) runs before the sandbox, ON by default; replay: 0 blocking findings on 44 stored working versions |
+| 6 usability/a11y/security/performance/design checks | PARTIAL | a11y advisories (labels, lang/dir, alt) — 17 on stored versions; security scan + model review existed; no automated performance or design scoring |
+| 7 focused repair from real errors | IMPLEMENTED | consistency failures give `file:line` + fix before any sandbox run |
+| 8 no READY while mandatory acceptance fails | TESTED | `tests/test_release_blocks_on_failed_acceptance.py`; failure message now names the checks still failing |
+| Acceptance gate: ≥10 diverse Golden E2E builds, ≥90% | **NOT RUN** | needs paid builds; blocked by the budget policy until the Gemini bill is reconciled |
+
+- Free re-verification (verify-replay 38072167057): the 12 newest stored versions through the current production chain without the model review — **5/5 versions built by the current pipeline PASS** (incl. today's READY builds); 7 older versions (built before behavioural acceptance / preview contract v2) FAIL the stricter gates, as expected.
+- Tests: local 1127 passed, 9 failed + 14 errors = baseline (environment); regression guardian 0 problems; CI green.
+
 ## Update 2026-10-09 20:10 Asia/Jerusalem — Autonomous Completion Directive: Agent OS, self-testing platform, build reliability, cost truth
 
 **Level reached: PRE_STAGING_READY candidate (pre-staging deployed and verified on the real server). Not PRIVATE_BETA_READY, not PUBLIC_BETA_READY, not production.**
