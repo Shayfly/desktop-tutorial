@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 52 — NOT_IMPLEMENTED 11, IMPLEMENTED 8, UNIT_TESTED 6, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 28, UNIT_TESTED 24, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 102, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 12, IMPLEMENTED 8, UNIT_TESTED 7, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 24, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 101, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -14,6 +14,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 28, UNIT_TESTED 24, INTEGRATION
 | Executive Orchestrator (`executive_orchestrator`) | management | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py |  |
 | Discovery Agent (`discovery_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Requirements Agent (`requirements_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Intake Agent (`intake_agent`) | management | **NOT_IMPLEMENTED** | requirements_agent | does not import: omni_prod.conversation.supervisor:ConversationSupervisor |  |
+| Chief Architect (`chief_architect`) | software | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_conversation_os.py |  |
 | Product Planner (`product_planner`) | management | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Architecture Agent (`architecture_agent`) | software | **REAL_SERVER_VERIFIED** | code_review_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
 | UX/UI Design Agent (`ux_ui_design_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | model instruction only; no platform check verifies the result |  |
@@ -308,7 +310,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 28, UNIT_TESTED 24, INTEGRATION
 | `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `provider_price_lookup` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | versioned catalog |
+| `provider_price_lookup` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/model_catalog.py | versioned catalog |
 | `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `unused_reservation_release` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |

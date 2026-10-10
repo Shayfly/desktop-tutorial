@@ -80,6 +80,54 @@
    "last_verified_commit": "039574f"
   },
   {
+   "agent_key": "intake_agent",
+   "name": "Intake Agent",
+   "category": "management",
+   "verifier": "requirements_agent",
+   "allowed_skills": [
+    "intent_classification",
+    "requirement_extraction",
+    "ambiguity_detection",
+    "safe_default_selection"
+   ],
+   "implementation_location": [
+    "omni_prod.conversation.supervisor:ConversationSupervisor",
+    "omni_prod.intake.agent:apply",
+    "omni_prod.intake.interpreter:DeterministicInterpreter"
+   ],
+   "gap": "",
+   "missing_contract_fields": [],
+   "status": "NOT_IMPLEMENTED",
+   "why": "does not import: omni_prod.conversation.supervisor:ConversationSupervisor",
+   "last_verified_at": null,
+   "last_verified_commit": null
+  },
+  {
+   "agent_key": "chief_architect",
+   "name": "Chief Architect",
+   "category": "software",
+   "verifier": "quality_gate_agent",
+   "allowed_skills": [
+    "stack_selection",
+    "data_model_design",
+    "api_contract_design"
+   ],
+   "implementation_location": [
+    "omni_prod.planning.architect:ChiefArchitect",
+    "omni_prod.planning.graph:ExecutionGraph",
+    "omni_prod.planning.feasibility:assess"
+   ],
+   "gap": "",
+   "missing_contract_fields": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_conversation_os.py"
+   ],
+   "last_verified_at": null,
+   "last_verified_commit": null
+  },
+  {
    "agent_key": "product_planner",
    "name": "Product Planner",
    "category": "management",
@@ -4808,9 +4856,10 @@
    ],
    "gap": "versioned catalog",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/model_catalog.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -7507,11 +7556,11 @@
   }
  ],
  "summary": {
-  "agents_total": 52,
+  "agents_total": 54,
   "agents": {
-   "NOT_IMPLEMENTED": 11,
+   "NOT_IMPLEMENTED": 12,
    "IMPLEMENTED": 8,
-   "UNIT_TESTED": 6,
+   "UNIT_TESTED": 7,
    "INTEGRATION_TESTED": 0,
    "REAL_SERVER_VERIFIED": 23,
    "LIVE": 0,
@@ -7520,10 +7569,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 28,
+   "IMPLEMENTED": 29,
    "UNIT_TESTED": 24,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 102,
+   "REAL_SERVER_VERIFIED": 101,
    "LIVE": 0,
    "BLOCKED": 9
   }

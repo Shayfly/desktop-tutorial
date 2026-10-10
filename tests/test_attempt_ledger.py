@@ -76,9 +76,11 @@ def _gw():
 class GatewayAttemptTests(unittest.TestCase):
     def test_task_tag_versions_and_cost_layers(self):
         gw = _gw()
-        TaskTaggedGateway(gw, "architecture").complete(system="SYS", user="u", max_tokens=600)
+        # Wave A: 'architecture' now prefers the quality-85 model (task_policy);
+        # this test is about the ledger record, so it uses a cheap task class.
+        TaskTaggedGateway(gw, "classification").complete(system="SYS", user="u", max_tokens=600)
         (r,) = gw.recorder.records
-        self.assertEqual((r.task_type, r.kind, r.outcome, r.provider, r.model), ("architecture", "provider_call", "ok", "cheap", "m-cheap"))
+        self.assertEqual((r.task_type, r.kind, r.outcome, r.provider, r.model), ("classification", "provider_call", "ok", "cheap", "m-cheap"))
         self.assertEqual(r.model_version, "m-cheap-2026-09")
         self.assertEqual(r.provider_request_id, "req-cheap")
         self.assertEqual(r.fallback_rank, 0)

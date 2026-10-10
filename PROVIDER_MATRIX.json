@@ -1,0 +1,1438 @@
+{
+ "schema": "provider-matrix/1",
+ "as_of": "2026-10-11",
+ "summary": {
+  "credential_state": {
+   "CREDENTIAL_PRESENT": 14
+  },
+  "connection_state": {
+   "CONNECTION_TESTED": 7,
+   "NOT_CONNECTED": 7
+  },
+  "verification_state": {
+   "REAL_EXECUTION_VERIFIED": 3,
+   "UNVERIFIED": 11
+  },
+  "availability": {
+   "AVAILABLE": 2,
+   "DEPRECATED": 1,
+   "INSUFFICIENT_CREDIT": 3,
+   "NOT_ROUTED": 8
+  },
+  "implementation_status": {
+   "BLOCKED": 3,
+   "IMPLEMENTED": 4,
+   "NOT_IMPLEMENTED": 4,
+   "REAL_SERVER_VERIFIED": 3
+  },
+  "models": 14
+ },
+ "models": [
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-8-flash",
+   "provider_model_id": "gemini-3.8-flash",
+   "id_source": "model-probe 37814803770 served_model",
+   "model_family": "Gemini Flash",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": 1000000,
+   "maximum_output_tokens": 65536,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "REAL_EXECUTION_VERIFIED",
+   "implementation_status": "REAL_SERVER_VERIFIED",
+   "health": "HEALTHY",
+   "availability": "AVAILABLE",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10",
+    "postdeploy-checks run 37961193099 @ 2026-10-09T16:43Z (commit 039574f): paid golden build READY: discovery -> approval -> model-built product -> preview"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": "2027-01-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.8-flash",
+    "effective_from": "2026-10-01",
+    "effective_until": "2027-01-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.75",
+    "cached_input_per_million": "0.075",
+    "output_per_million": "3.75",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [
+    {
+     "provider": "gemini",
+     "model": "gemini-3.8-flash",
+     "effective_from": "2027-01-01",
+     "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+     "verified_at": "2026-10-11",
+     "applicable_tier": "paid standard",
+     "currency": "USD",
+     "input_per_million": "1.50",
+     "cached_input_per_million": "0.15",
+     "output_per_million": "7.50",
+     "reasoning_accounting": "billed as output tokens",
+     "units_note": "announced on the pricing page: rises on 2027-01-01"
+    }
+   ],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "41% call success in the ledger (timeouts, truncated JSON before reasoning_effort=low); price doubles 2027-01-01",
+   "fallback_eligibility": "primary",
+   "in_worker_catalog": true,
+   "catalog_quality": 85,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review",
+    "security_review"
+   ],
+   "current_operational_status": "routing real builds",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-1-flash-lite",
+   "provider_model_id": "gemini-3.1-flash-lite",
+   "id_source": "model-probe 37814803770 served_model",
+   "model_family": "Gemini Flash-Lite",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": 1000000,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "REAL_EXECUTION_VERIFIED",
+   "implementation_status": "REAL_SERVER_VERIFIED",
+   "health": "HEALTHY",
+   "availability": "DEPRECATED",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.1-flash-lite",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.25",
+    "cached_input_per_million": "0.025",
+    "output_per_million": "1.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": "output price includes thinking tokens"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "DEPRECATION_ANNOUNCED",
+   "replacement_model": "gemini-3.5-flash-lite",
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "retires 2027-05-07 (successor gemini-3.5-flash-lite); below the 85 floor for code",
+   "fallback_eligibility": "escalation",
+   "in_worker_catalog": true,
+   "catalog_quality": 70,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review"
+   ],
+   "current_operational_status": "routing real builds",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-5-flash-lite",
+   "provider_model_id": "gemini-3.5-flash-lite",
+   "id_source": "model-probe 37814803770 served_model",
+   "model_family": "Gemini Flash-Lite",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": 1000000,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "REAL_EXECUTION_VERIFIED",
+   "implementation_status": "REAL_SERVER_VERIFIED",
+   "health": "HEALTHY",
+   "availability": "AVAILABLE",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.30",
+    "cached_input_per_million": "0.03",
+    "output_per_million": "2.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "only 2 real calls in the ledger: too few to measure quality; Hebrew intake quality unmeasured",
+   "fallback_eligibility": "escalation",
+   "in_worker_catalog": true,
+   "catalog_quality": 70,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review"
+   ],
+   "current_operational_status": "routing real builds",
+   "blocker": ""
+  },
+  {
+   "provider_key": "openai",
+   "model_key": "openai-gpt-6-luna",
+   "provider_model_id": "gpt-6-luna",
+   "id_source": "model-probe 37814803770 served_model",
+   "model_family": "GPT Luna",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "general",
+    "conversation",
+    "intake_extraction"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI reasoning dialect)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENAI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "BLOCKED",
+   "health": "CREDIT_EXHAUSTED",
+   "availability": "INSUFFICIENT_CREDIT",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://developers.openai.com/api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "openai",
+    "model": "gpt-6-luna",
+    "effective_from": "2026-10-01",
+    "source_url": "https://developers.openai.com/api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.10",
+    "cached_input_per_million": "0.01",
+    "output_per_million": "0.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "OpenAI API (pay-as-you-go)",
+   "commercial_usage_constraints": "OpenAI API terms: customer owns outputs; API data not used for training by default",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no successful call: account has no credit",
+   "fallback_eligibility": "escalation",
+   "in_worker_catalog": true,
+   "catalog_quality": 70,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review"
+   ],
+   "current_operational_status": "configured but blocked: provider account has no credit",
+   "blocker": "HTTP 429 no credits remaining (2026-10-08); 0 ok / 18 in the ledger"
+  },
+  {
+   "provider_key": "openai",
+   "model_key": "openai-gpt-6-1-sol",
+   "provider_model_id": "gpt-6.1-sol",
+   "id_source": "model-probe 37814803770 served_model",
+   "model_family": "GPT Sol",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "codegen",
+    "repair",
+    "review",
+    "security_review"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI reasoning dialect)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENAI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "BLOCKED",
+   "health": "CREDIT_EXHAUSTED",
+   "availability": "INSUFFICIENT_CREDIT",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://developers.openai.com/api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "effective_from": "2026-10-01",
+    "source_url": "https://developers.openai.com/api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "cached_input_per_million": "0.10",
+    "output_per_million": "10.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "OpenAI API (pay-as-you-go)",
+   "commercial_usage_constraints": "OpenAI API terms: customer owns outputs; API data not used for training by default",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no successful call: account has no credit",
+   "fallback_eligibility": "review-only",
+   "in_worker_catalog": true,
+   "catalog_quality": 90,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review",
+    "security_review"
+   ],
+   "current_operational_status": "configured but blocked: provider account has no credit",
+   "blocker": "HTTP 429 no credits remaining (2026-10-08); 0 ok / 10 in the ledger"
+  },
+  {
+   "provider_key": "anthropic",
+   "model_key": "anthropic-claude-sonnet-5-5",
+   "provider_model_id": "claude-sonnet-5-5",
+   "id_source": "Anthropic published model string",
+   "model_family": "Claude Sonnet",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "codegen",
+    "repair",
+    "review",
+    "security_review"
+   ],
+   "execution_adapter": "routed_gateway (Anthropic Messages API)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": 16384,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "ANTHROPIC_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "BLOCKED",
+   "health": "CREDIT_EXHAUSTED",
+   "availability": "INSUFFICIENT_CREDIT",
+   "last_verified_at": "2026-10-10T20:24Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
+    "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5-5",
+    "effective_from": "2026-10-01",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "cached_input_per_million": "0.10",
+    "output_per_million": "10.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": ""
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Anthropic API (commercial terms)",
+   "commercial_usage_constraints": "Anthropic commercial terms: customer owns outputs; no training on API data by default",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no successful call: prepaid balance too low",
+   "fallback_eligibility": "review-only",
+   "in_worker_catalog": true,
+   "catalog_quality": 92,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review",
+    "security_review"
+   ],
+   "current_operational_status": "configured but blocked: provider account has no credit",
+   "blocker": "HTTP 400 credit balance too low (2026-10-08); 0 ok / 10 in the ledger"
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-2-5-flash-lite",
+   "provider_model_id": "gemini-2.5-flash-lite",
+   "id_source": "Gemini deprecations page (2026-10-11)",
+   "model_family": "Gemini Flash-Lite",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "conversation",
+    "intake_extraction"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": 1000000,
+   "maximum_output_tokens": 8192,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-2.5-flash-lite",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.10",
+    "output_per_million": "0.40",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": "access limited to projects that used 2.5 before (deprecations page)"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "RESTRICTED",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "Google limits 2.5 access to projects that used it before: availability for this project unknown until probed",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "anthropic",
+   "model_key": "anthropic-claude-haiku-5-5",
+   "provider_model_id": "claude-haiku-5-5",
+   "id_source": "Anthropic published model string",
+   "model_family": "Claude Haiku",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "conversation",
+    "intake_extraction"
+   ],
+   "execution_adapter": "routed_gateway (Anthropic Messages API)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "ANTHROPIC_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "anthropic",
+    "model": "claude-haiku-5-5",
+    "effective_from": "2026-10-01",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.10",
+    "cached_input_per_million": "0.01",
+    "output_per_million": "0.50",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": "<=100k prompt tokens"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Anthropic API (commercial terms)",
+   "commercial_usage_constraints": "Anthropic commercial terms",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "not in the catalog; same account as Sonnet (balance too low)",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-1-pro-preview",
+   "provider_model_id": "gemini-3.1-pro-preview",
+   "id_source": "Gemini pricing page (2026-10-11)",
+   "model_family": "Gemini Pro",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "architecture",
+    "security_review"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": true,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.1-pro-preview",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "output_per_million": "12.00",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": "<=200k prompt tokens; preview"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "preview model; no free tier",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "replicate",
+   "model_key": "replicate-flux-schnell",
+   "provider_model_id": "black-forest-labs/flux-schnell",
+   "id_source": "Replicate official model",
+   "model_family": "FLUX",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "image_provider (Replicate predictions)",
+   "adapter_implementation_path": "omni_prod/providers/image_provider.py, omni_prod/providers/replicate_connection.py",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "REPLICATE_API_TOKEN"
+   ],
+   "credential_scope": "vercel-preview",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "CONNECTION_TESTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-11",
+   "evidence_reference": [
+    "Vercel project 148aiv28 environment variable names (read 2026-10-11, values not read) @ 2026-10-11: REPLICATE_API_TOKEN present (Preview, sensitive); no LLM provider key on Vercel",
+    "Vercel Preview deployment p40n0qijl, GET /api/v28/providers/replicate/check @ 2026-10-06: authenticated account check connection_verified=true; no prediction was ever submitted"
+   ],
+   "price_schedule_reference": null,
+   "price_in_force": null,
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "Replicate per-model licence",
+   "commercial_usage_constraints": "per-model licence: FLUX Schnell is Apache-2.0 (check per model)",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no image ever generated; the worker has no OMNI_IMAGE_PROVIDER_* configuration",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-1-flash-lite-image",
+   "provider_model_id": "gemini-3.1-flash-lite-image",
+   "id_source": "Gemini pricing page (2026-10-11)",
+   "model_family": "Nano Banana",
+   "provider_type": "image",
+   "capability_types": [
+    "media.image.generate"
+   ],
+   "intended_task_types": [
+    "image_asset"
+   ],
+   "execution_adapter": "none (adapter not written)",
+   "adapter_implementation_path": "",
+   "supported_modalities": [
+    "text",
+    "image"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "NOT_IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.1-flash-lite-image",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.25",
+    "reasoning_accounting": "billed as output tokens",
+    "per_image": "0.0336",
+    "units_note": "per 1K image"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no adapter; no free tier",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-omni-1-1-flash",
+   "provider_model_id": "gemini-omni-1.1-flash",
+   "id_source": "Gemini deprecations page (2026-10-11)",
+   "model_family": "Gemini Omni",
+   "provider_type": "video",
+   "capability_types": [
+    "media.video.generate"
+   ],
+   "intended_task_types": [
+    "video_asset"
+   ],
+   "execution_adapter": "none (adapter not written)",
+   "adapter_implementation_path": "",
+   "supported_modalities": [
+    "text",
+    "image",
+    "video"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": true,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "NOT_IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-omni-1.1-flash",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "1.50",
+    "reasoning_accounting": "billed as output tokens",
+    "per_video_second": "0.10",
+    "units_note": "about $0.10 per second of 720p video"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no adapter; long-running jobs need polling + artifact storage",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "gemini-3-8-flash-lite-tts",
+   "provider_model_id": "gemini-3.8-flash-lite-tts",
+   "id_source": "Gemini deprecations page (2026-10-11)",
+   "model_family": "Gemini TTS",
+   "provider_type": "audio",
+   "capability_types": [
+    "media.speech.generate"
+   ],
+   "intended_task_types": [
+    "voice_asset"
+   ],
+   "execution_adapter": "none (adapter not written)",
+   "adapter_implementation_path": "",
+   "supported_modalities": [
+    "text",
+    "audio"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "NOT_IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": "2027-01-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "gemini-3.8-flash-lite-tts",
+    "effective_from": "2026-10-01",
+    "effective_until": "2027-01-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.50",
+    "reasoning_accounting": "billed as output tokens",
+    "per_audio_second": "0.00015",
+    "units_note": "about $0.0015 per 10 s of audio"
+   },
+   "price_changes_announced": [
+    {
+     "provider": "gemini",
+     "model": "gemini-3.8-flash-lite-tts",
+     "effective_from": "2027-01-01",
+     "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+     "verified_at": "2026-10-11",
+     "applicable_tier": "paid standard",
+     "currency": "USD",
+     "input_per_million": "1.00",
+     "reasoning_accounting": "billed as output tokens",
+     "per_audio_second": "0.0003",
+     "units_note": "about $0.003 per 10 s of audio from 2027-01-01"
+    }
+   ],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "COMMERCIAL_APPROVED",
+   "commercial_plan": "Gemini API paid tier (billing enabled by the founder, Tier 1, 2026-10-08)",
+   "commercial_usage_constraints": "Gemini API paid tier: outputs usable commercially; paid-tier prompts not used to improve products",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no adapter; Hebrew voice quality unmeasured",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  },
+  {
+   "provider_key": "gemini",
+   "model_key": "lyria-3-5",
+   "provider_model_id": "lyria-3.5",
+   "id_source": "Gemini pricing page (2026-10-11)",
+   "model_family": "Lyria",
+   "provider_type": "music",
+   "capability_types": [
+    "media.music.generate"
+   ],
+   "intended_task_types": [
+    "music_asset"
+   ],
+   "execution_adapter": "none (adapter not written)",
+   "adapter_implementation_path": "",
+   "supported_modalities": [
+    "text",
+    "audio"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": null,
+   "maximum_output_tokens": null,
+   "supports_tool_calls": false,
+   "supports_structured_output": false,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "GEMINI_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "CREDENTIAL_PRESENT",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "NOT_IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_ROUTED",
+   "last_verified_at": "2026-10-10T20:17Z",
+   "evidence_reference": [
+    "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets"
+   ],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11"
+   },
+   "price_in_force": {
+    "provider": "gemini",
+    "model": "lyria-3.5",
+    "effective_from": "2026-10-01",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "verified_at": "2026-10-11",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "reasoning_accounting": "billed as output tokens",
+    "per_song": "0.08",
+    "units_note": "full song"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "unknown plan",
+   "commercial_usage_constraints": "commercial music licence terms NOT yet reviewed: blocked until founder review",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "no adapter; licence unreviewed",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": false,
+   "catalog_quality": null,
+   "eligible_tasks": [],
+   "current_operational_status": "candidate: not routed (not in the worker catalog)",
+   "blocker": ""
+  }
+ ],
+ "task_classes": [
+  {
+   "task": "general",
+   "description": "unclassified call (strict default)",
+   "preferred_floor": 70,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "classification",
+   "description": "route a change request / intent",
+   "preferred_floor": 70,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "conversation",
+   "description": "customer intake dialogue (Hebrew/English)",
+   "preferred_floor": 70,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "intake_extraction",
+   "description": "structured requirements from the dialogue",
+   "preferred_floor": 70,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": true
+  },
+  {
+   "task": "architecture",
+   "description": "architecture + plan for the build",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "codegen",
+   "description": "write the product code",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "repair",
+   "description": "fix failing checks",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "modification",
+   "description": "change an existing product",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [],
+   "deterministic_first": false
+  },
+  {
+   "task": "review",
+   "description": "QA review of generated code",
+   "preferred_floor": 85,
+   "mandatory_floor": 70,
+   "allow_models": [],
+   "independent_of": [
+    "codegen",
+    "repair",
+    "modification"
+   ],
+   "deterministic_first": false
+  },
+  {
+   "task": "security_review",
+   "description": "security review",
+   "preferred_floor": 85,
+   "mandatory_floor": 85,
+   "allow_models": [],
+   "independent_of": [
+    "codegen",
+    "repair",
+    "modification"
+   ],
+   "deterministic_first": false
+  }
+ ],
+ "legacy_routes": [
+  {
+   "route": "OMNI_LOCAL_MODEL_URL (local primary)",
+   "path": "omni_prod/model_runtime_config.py",
+   "state": "NOT_CONNECTED",
+   "note": "DEV_ONLY; docker-compose.production.yml (legacy) still requires it; unset on the worker"
+  },
+  {
+   "route": "OMNI_EXTERNAL_MODELS_JSON (legacy fallback list)",
+   "path": "omni_prod/model_runtime_config.py",
+   "state": "NOT_CONNECTED",
+   "note": "carries raw api_key inside JSON; superseded by the catalog; deprecated"
+  },
+  {
+   "route": "providers/llm_provider.LLMCapabilityProvider",
+   "path": "omni_prod/providers/llm_provider.py",
+   "state": "NOT_CONNECTED",
+   "note": "no production caller"
+  },
+  {
+   "route": "providers/http_media_provider",
+   "path": "omni_prod/providers/http_media_provider.py",
+   "state": "NOT_CONNECTED",
+   "note": "no production caller"
+  },
+  {
+   "route": "media_gateway.HTTPMediaGateway (OMNI_MEDIA_BASE_URL)",
+   "path": "omni_prod/media_gateway.py",
+   "state": "NOT_CONNECTED",
+   "note": "used only by media_branding; no endpoint configured"
+  }
+ ],
+ "capability_gaps": [
+  {
+   "capability": "3d.generate",
+   "state": "NOT_CONNECTED",
+   "note": "no 3D model in the Google/OpenAI catalogs read 2026-10-11; Replicate models vary by licence: founder decision"
+  },
+  {
+   "capability": "media.sfx.generate",
+   "state": "NOT_CONNECTED",
+   "note": "no provider selected"
+  },
+  {
+   "capability": "review.independent_provider",
+   "state": "BLOCKED",
+   "note": "needs a second provider with credit (OpenAI or Anthropic); same-model review is not independent"
+  }
+ ],
+ "state_rules": {
+  "credential_state=CREDENTIAL_PRESENT": "deploy annotation naming the route CONFIGURED (names only, never values)",
+  "connection_state=CONNECTION_TESTED": "a recorded provider answer (any HTTP status) for this exact model id",
+  "connection_state=CONNECTION_FAILED": "a recorded transport failure for this exact model id",
+  "verification_state=REAL_EXECUTION_VERIFIED": "attempt-ledger rows with outcome ok for real 148AI work (economics run) or a real-server run that used the model",
+  "verification_state=PRODUCTION_LIVE": "a fresh run in production (none exists: never accepted)"
+ }
+}

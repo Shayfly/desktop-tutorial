@@ -669,6 +669,14 @@ def _verification_executor(gateway=None):
         executor=ProductReviewExecutor(executor,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2')))
     return executor
 
+def _provider_health():
+    """Wave A: durable provider circuit breakers (migration 036) shared by every
+    build on this worker; None (per-gateway memory) without a database."""
+    if _v28_pool is None:
+        return None
+    from .intelligence.health import HealthBook, PostgresHealthStore
+    return HealthBook(PostgresHealthStore(_v28_pool))
+
 def _model_gateway_and_executor():
     # M4: pure extraction out of _live_components() (behavior-preserving --
     # _live_components() below is unchanged in what it returns) so
@@ -677,7 +685,7 @@ def _model_gateway_and_executor():
     # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
     if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
     cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
-    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy)
+    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy,health=_provider_health())
     executor=_verification_executor(gateway)
     return gateway,executor
 

@@ -16,7 +16,7 @@ from omni_prod.runtime_bindings import Evidence
 
 class CatalogTests(unittest.TestCase):
     def test_all_agents_and_skills_of_the_directive_exist_with_full_contracts(self):
-        self.assertEqual(len(AGENTS), 52)
+        self.assertEqual(len(AGENTS), 54)  # 52 of the directive + intake_agent, chief_architect (Wave A)
         self.assertEqual(len(SKILLS), sum(len(v) for v in TAXONOMY.values()))
         self.assertEqual(len(TAXONOMY), 33)
         self.assertEqual(UNKNOWN_IMPL_KEYS, [])
