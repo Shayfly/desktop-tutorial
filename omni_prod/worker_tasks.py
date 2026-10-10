@@ -597,10 +597,15 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # a pass; mandatory checks must PASS for this exact repository.
         quality_report = release_quality_report(build_id, engine, gateway, result, quality, security, rights)
         persist_quality_report(attempt_pool, quality_report, request.get('internal_project_id'))
-        if core_ready and quality_report is not None and quality_report.blocking:
+        if core_ready:
             from .release_policy import enforcement_mode, explain
             if enforcement_mode() == 'enforce':
-                core_ready, error_code, error_message = False, 'release_policy_failed', explain(quality_report)
+                if quality_report is None:
+                    core_ready, error_code, error_message = (
+                        False, 'release_policy_unavailable',
+                        'release policy: required quality report could not be generated')
+                elif quality_report.blocking:
+                    core_ready, error_code, error_message = False, 'release_policy_failed', explain(quality_report)
         if capability_stage is not None:
             capability_evidence = capability_stage.finalize_native(
                 build_id=build_id, plan=capability_plan, core_ready=core_ready,
