@@ -12,6 +12,7 @@ from omni_prod.build_contract_repository import MemoryBuildContractRepository
 from omni_prod.job_repository import PostgresBuildRepository
 from omni_prod.models import BuildStatus
 from omni_prod.product_architect import ProductArchitect
+from tests.policy_fixtures import ACCEPTED_SPEC, verified_chain
 
 
 class _Cursor:
@@ -208,8 +209,9 @@ class WorkerContractBindingTests(unittest.TestCase):
 
         report = SimpleNamespace(passed=True, failures=(), build_log="ok")
         engine = MagicMock()
+        engine.executor = verified_chain()  # release policy: the chain's checks ran and passed
         engine.build.return_value = SimpleNamespace(
-            status="ready", report=report, spec="spec", repository={"app.py": "x"}, repair_rounds=0,
+            status="ready", report=report, spec=ACCEPTED_SPEC, repository={"app.py": "x"}, repair_rounds=0,
         )
         workspace = MagicMock()
         workspace.commit.return_value = SimpleNamespace(id="v1", artifact_key="a.zip")

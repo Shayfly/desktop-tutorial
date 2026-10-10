@@ -25,5 +25,6 @@ class AuthApiTests(unittest.TestCase):
     def test_production_token_allows_route(self):
         t=issue_token(secret=SECRET,user_id='u',org_id='o',role='owner',ttl_seconds=3600)
         with patch.dict(os.environ,{'OMNI_ENV':'production','OMNI_SECRET_KEY':SECRET},clear=False):
+            # Auth passes; the legacy template build itself is refused in production (audit 2026-10-10).
             c=TestClient(app); r=c.post('/api/demo/build',headers={'Authorization':'Bearer '+t},json={'prompt':'Build CRM','project_id':'auth-p'})
-            self.assertEqual(r.status_code,200)
+            self.assertEqual(r.status_code,410)   # not 401: the token was accepted

@@ -18,7 +18,7 @@ class LegacyGuardTests(unittest.TestCase):
             for method, path in (('get', '/hosted/v25/x'), ('post', '/runtime/v27/x/login'),
                                  ('get', '/api/source/mobile/android'), ('get', '/api/v25/source/omni-android'),
                                  ('post', '/api/v28/projects/p/patch')):
-                r = getattr(client, method)(path, json={})
+                r = client.request(method.upper(), path, json={})
                 self.assertEqual(r.status_code, 410, (path, r.status_code))
                 self.assertEqual(r.json()['error'], 'legacy_path_disabled')
 
