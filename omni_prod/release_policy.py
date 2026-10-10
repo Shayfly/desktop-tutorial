@@ -136,9 +136,13 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
                   'platform:consistency_gate', True, 'high',
                   f"{len(last.get('blocking') or [])} blocking, {len(last.get('advisories') or [])} advisories"))
 
-    add(Check('dependencies', 'dependency_allowlist',
-              FAIL if 'UNSUPPORTED_DEPENDENCY' in failing_ids else (PASS if chain_passed else UNKNOWN),
-              True, 'platform:dependency_policy', True, 'high'))
+    if 'UNSUPPORTED_DEPENDENCY' in failing_ids:
+        dep = FAIL
+    elif chain_passed or (failing_ids and not failing_ids & {'CONSISTENCY'}):
+        dep = PASS   # the allowlist runs before the sandbox; a later failure means it passed
+    else:
+        dep = NOT_RUN if 'CONSISTENCY' in failing_ids else UNKNOWN
+    add(Check('dependencies', 'dependency_allowlist', dep, True, 'platform:dependency_policy', True, 'high'))
     add(Check('tests', 'sandbox_build_and_tests', tests_status(),
               True, 'platform:sandbox (model-written tests)', False, 'high',
               'tests and verify commands were written by the generating model'))
@@ -196,3 +200,26 @@ def enforcement_mode() -> str:
 def explain(report: QualityReport) -> str:
     parts = [f'{c.stage}/{c.check} {c.status}' + (f' ({c.detail})' if c.detail else '') for c in report.blocking]
     return ('release policy: mandatory checks not passed: ' + '; '.join(parts))[:2000]
+
+
+_STAGE_SQL = (
+    'INSERT INTO build_stage_results (build_id, job_kind, tenant_key, stage, check_key, status, required, verifier, '
+    'independent, severity, detail, artifact_sha256, policy_version, report_schema, decision, source_commit, environment) '
+    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) '
+    'ON CONFLICT (build_id, artifact_sha256, policy_version, check_key) DO NOTHING')
+
+
+def persist(pool, report: QualityReport, *, tenant_key: str | None = None, job_kind: str = 'build') -> int:
+    """Store every check of the report as an immutable stage row (migration
+    035). Idempotent per (build, artifact digest, policy version, check).
+    Details are short and contain no repository content or secrets."""
+    commit = (os.getenv('OMNI_SOURCE_COMMIT') or '')[:40] or None
+    env = (os.getenv('OMNI_ENV') or '')[:40] or None
+    rows = [(report.build_id, job_kind, tenant_key, c.stage, c.check, c.status, c.required, c.verifier[:120],
+             c.independent, c.severity, c.detail[:1000], report.artifact_sha256, report.policy_version, report.schema,
+             report.decision, commit, env) for c in report.checks]
+    with pool.connection() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.executemany(_STAGE_SQL, rows)
+    return len(rows)

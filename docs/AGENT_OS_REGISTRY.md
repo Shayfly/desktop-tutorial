@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 52 — NOT_IMPLEMENTED 11, IMPLEMENTED 9, UNIT_TESTED 6, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 22, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 25, UNIT_TESTED 26, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 98, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 27, UNIT_TESTED 26, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 96, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -321,12 +321,12 @@ Skills: 427 — NOT_IMPLEMENTED 269, IMPLEMENTED 25, UNIT_TESTED 26, INTEGRATION
 | `queue_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `storage_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `database_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
-| `environment_validation` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
+| `environment_validation` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: infra/worker-host/write-env.sh |  |
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `job_resume` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | restart from the beginning, once |
-| `job_cancel` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private |  |
+| `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
 | `stale_job_recovery` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers |  |
 | `preview_prepare` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private |  |

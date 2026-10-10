@@ -5021,9 +5021,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: infra/worker-host/write-env.sh",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 37960891900"
    ],
    "last_verified_at": "2026-10-09T16:41Z",
@@ -5103,9 +5104,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37962165888"
    ],
    "last_verified_at": "2026-10-09T16:51Z",
@@ -7490,10 +7492,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 269,
-   "IMPLEMENTED": 25,
+   "IMPLEMENTED": 27,
    "UNIT_TESTED": 26,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 98,
+   "REAL_SERVER_VERIFIED": 96,
    "LIVE": 0,
    "BLOCKED": 9
   }

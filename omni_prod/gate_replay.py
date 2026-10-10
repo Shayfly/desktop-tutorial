@@ -131,7 +131,7 @@ def verify_versions(limit: int, deadline_s: float = 2400) -> dict:
             policy = _policy_decision(vid, chain, spec, repo, report)
             results.append({'version': vid, 'status': 'PASS' if report.passed else 'FAIL',
                              'seconds': round(time.monotonic() - t0), 'policy': policy['decision'],
-                             'policy_blocking': policy['blocking'][:4],
+                             'policy_blocking': policy['blocking'][:4], 'stage_rows': policy.get('stage_rows'),
                              'failing': [f'{f.acceptance_id}: {f.message}'[:200] for f in report.failures][:3]})
         except Exception as exc:
             results.append({'version': vid, 'status': 'ERROR', 'why': f'{type(exc).__name__}: {str(exc)[:200]}'})
@@ -152,12 +152,19 @@ def _policy_decision(vid, chain, spec, repo, report) -> dict:
     result = SimpleNamespace(status='ready' if report.passed else 'failed', spec=spec, repository=repo, report=report)
     quality = assess_repository(spec=spec, repository=repo)
     security = hostile_repository_scan(repo)
-    qr = release_quality_report(vid, SimpleNamespace(executor=chain), None, result, quality, security,
+    qr = release_quality_report(f'replay:{vid}', SimpleNamespace(executor=chain), None, result, quality, security,
                                 SimpleNamespace(publish_allowed=True))
     if qr is None:
         return {'decision': 'ERROR', 'blocking': ['policy report could not be built']}
+    stored = 0
+    try:  # durable stage rows for the replay (migration 035), job_kind 'replay'
+        from .investor_app import _v28_pool
+        from .release_policy import persist
+        stored = persist(_v28_pool, qr, job_kind='replay') if _v28_pool is not None else 0
+    except Exception as exc:
+        stored = f'{type(exc).__name__}'
     d = qr.to_dict()
-    return {'decision': d['decision'], 'blocking': d['blocking']}
+    return {'decision': d['decision'], 'blocking': d['blocking'], 'stage_rows': stored}
 
 
 def main() -> int:

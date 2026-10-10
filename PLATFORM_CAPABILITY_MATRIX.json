@@ -250,10 +250,8 @@
    "capability": "job_cancel",
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
-   "test_location": [
-    "postdeploy-checks run 37962165888"
-   ],
-   "last_result": "REAL_SERVER_VERIFIED",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
    "last_verified_commit": "039574f",
    "last_verified_at": "2026-10-09T16:51Z",
    "environment": "pre-staging worker host"

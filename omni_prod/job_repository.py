@@ -282,15 +282,23 @@ class PostgresBuildRepository:
             dispatched.append(build_id)
         return dispatched
 
-    def update_phase(self, build_id: str, phase: str, message: str = "") -> None:
+    def update_phase(self, build_id: str, phase: str, message: str = "") -> bool:
+        """Phase moves forward only while the build is RUNNING (build_state.PHASES);
+        returns False (nothing written) otherwise."""
+        from .build_state import phase_may_follow
         with self.pool.connection() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    cur.execute("SELECT status, phase FROM build_jobs WHERE id = %s FOR UPDATE", (build_id,))
+                    row = cur.fetchone()
+                    if row is None or row[0] != 'running' or not phase_may_follow(row[1], phase):
+                        return False
                     cur.execute("UPDATE build_jobs SET phase = %s, message = %s WHERE id = %s", (phase, message, build_id))
                     label = PHASE_LABELS.get(phase)
                     if label:
                         cur.execute("INSERT INTO build_events(build_id, kind, message) VALUES (%s, 'phase', %s)",
                                     (build_id, label))
+        return True
 
     # ---- directive 2026-10-09 §10/§12: stop a build, live log ---------------
     def add_event(self, build_id: str, kind: str, message: str) -> None:

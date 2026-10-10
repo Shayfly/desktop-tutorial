@@ -84,6 +84,10 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(_status(r, 'sandbox_build_and_tests'), FAIL)
         r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('CONSISTENCY', 'x'),))
         self.assertEqual(_status(r, 'sandbox_build_and_tests'), NOT_RUN)
+        r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('BEHAVIOR', 'x'),))
+        self.assertEqual(_status(r, 'dependency_allowlist'), PASS)        # replay 38080024444 showed UNKNOWN
+        r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('UNSUPPORTED_DEPENDENCY', 'x'),))
+        self.assertEqual(_status(r, 'dependency_allowlist'), FAIL)
 
     def test_shadow_mode_is_refused_on_staging_and_production(self):
         with patch.dict(os.environ, {'OMNI_RELEASE_POLICY': 'shadow', 'OMNI_ENV': 'staging'}):
@@ -136,3 +140,43 @@ class FakeVerificationTests(unittest.TestCase):
         self.assertFalse(report.passed)
         self.assertIn('Fake verification', report.failures[0].evidence)
         self.assertEqual(ran, [])
+
+
+DATABASE_URL = os.environ.get('M4D2_DATABASE_URL')
+
+
+@unittest.skipUnless(DATABASE_URL, 'live PostgreSQL not configured')
+class StageEvidenceLivePostgresTests(unittest.TestCase):
+    """Migration 035: immutable, idempotent stage rows bound to the artifact digest."""
+
+    def setUp(self):
+        from pathlib import Path
+        from omni_prod.db import DatabasePool
+        self.pool = DatabasePool(DATABASE_URL)
+        sql = (Path(__file__).resolve().parents[1] / 'infra/postgres/035_build_stage_results.sql').read_text()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(sql)
+
+    def _rows(self, build_id):
+        with self.pool.connection() as conn:
+            return conn.execute('SELECT check_key, status, artifact_sha256, decision, source_commit FROM build_stage_results '
+                                'WHERE build_id = %s ORDER BY check_key', (build_id,)).fetchall()
+
+    def test_rows_are_written_once_and_bound_to_the_artifact(self):
+        import uuid
+        from omni_prod.release_policy import persist
+        bid = f'bld_{uuid.uuid4().hex[:10]}'
+        report = _report(_evidence(browser_check={'status': 'unavailable'}))
+        report.build_id = bid
+        with patch.dict(os.environ, {'OMNI_SOURCE_COMMIT': 'abc123', 'OMNI_ENV': 'staging'}):
+            n = persist(self.pool, report, tenant_key='tenant-x')
+            persist(self.pool, report, tenant_key='tenant-x')            # duplicate delivery: no new rows
+        rows = self._rows(bid)
+        self.assertEqual(len(rows), n)
+        self.assertTrue(all(r[2] == 'sha' and r[3] == 'FAILED' and r[4] == 'abc123' for r in rows))
+        self.assertIn(('browser_flow', 'NOT_RUN'), [(r[0], r[1]) for r in rows])
+        report2 = _report(_evidence())
+        report2.build_id, report2.artifact_sha256 = bid, 'sha-2'                # a new repository state
+        persist(self.pool, report2)
+        self.assertEqual(len(self._rows(bid)), 2 * n)                         # evidence does not transfer

@@ -116,6 +116,18 @@ def author_models(gateway) -> set[str]:
     return names
 
 
+def persist_quality_report(pool, report, tenant_key) -> None:
+    """Durable stage evidence (migration 035); best effort -- the decision is
+    already made and also stored in the build's evidence."""
+    if pool is None or report is None:
+        return
+    try:
+        from .release_policy import persist
+        persist(pool, report, tenant_key=tenant_key)
+    except Exception:
+        logging.getLogger(__name__).exception('stage evidence write failed for %s', report.build_id)
+
+
 def release_quality_report(build_id, engine, gateway, result, quality, security, rights):
     """QualityReport of this build (None if it cannot be built: the policy then
     cannot have been evaluated and the build is not READY by policy)."""
@@ -550,6 +562,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Release policy (directive 2026-10-10): a check that did not run is not
         # a pass; mandatory checks must PASS for this exact repository.
         quality_report = release_quality_report(build_id, engine, gateway, result, quality, security, rights)
+        persist_quality_report(attempt_pool, quality_report, request.get('internal_project_id'))
         if core_ready and quality_report is not None and quality_report.blocking:
             from .release_policy import enforcement_mode, explain
             if enforcement_mode() == 'enforce':

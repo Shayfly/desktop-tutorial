@@ -44,6 +44,9 @@ for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
   fi
 done
 unset key_value
+# The deployed commit (not a secret): stored with every stage result as its source commit.
+sed -i '/^OMNI_SOURCE_COMMIT=/d' .env
+echo "OMNI_SOURCE_COMMIT=${GITHUB_SHA:-unknown}" >> .env
 grep -q '^OMNI_SANDBOX_SHARED_SECRET=.' .env || echo "OMNI_SANDBOX_SHARED_SECRET=$(cat /etc/omni/sandbox_secret)" >> .env
 if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
   sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env
