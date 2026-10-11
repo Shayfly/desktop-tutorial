@@ -53,7 +53,8 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.NOT_RUN)])[0], vc.BLOCKED)
         self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.UNKNOWN)])[0], vc.BLOCKED)
         self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.FAIL, mandatory=False)])[0], vc.VERIFIED_WITH_ADVISORIES)
-        self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.NA)])[0], vc.VERIFIED)
+        self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.NA)])[0], vc.BLOCKED)          # mandatory NA: fail closed
+        self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.NA, mandatory=False)])[0], vc.VERIFIED)
         # FAIL outranks NOT_RUN
         self.assertEqual(vc.decide([C('a', vc.PASS), C('b', vc.NOT_RUN), C('c', vc.FAIL)])[0], vc.FAILED)
 
@@ -100,6 +101,122 @@ class VerdictTests(unittest.TestCase):
         # the canonical verdict agrees with the release policy decision
         self.assertEqual(rp.QualityReport(build_id='b', artifact_sha256='a', product_family='web', checks=[
             rp.Check('runtime', 'preview_smoke', rp.FAIL, True, 'x', True)]).decision, 'FAILED')
+
+
+POLICY = {'version': 'na-exceptions/1', 'allowed': ['b'], 'reason': 'no payments in this product family'}
+
+
+class ReviewFindingTests(unittest.TestCase):
+    """Independent review of PR #11 (2026-10-11): exact SHA, timestamp validity, NA fail-closed."""
+
+    def result(self, *, sha=SHA, checks=None, na_policy=None, **kw):
+        return vc.VerificationResult(kind='deployment', target='t', environment='preview', commit_sha=sha,
+                                     checks=checks or [C('a', vc.PASS)], na_policy=na_policy, **kw).finish().to_dict()
+
+    # finding 1: exact full-SHA equality
+    def test_forged_sha_prefixes_are_refused(self):
+        ok = self.result()
+        self.assertTrue(vc.may_promote(ok, commit_sha=SHA)[0])
+        self.assertTrue(vc.may_promote(ok, commit_sha=SHA.upper())[0])               # case only
+        forged = SHA[:12] + 'f' * 28                                                     # same 12-char prefix
+        self.assertFalse(vc.may_promote(ok, commit_sha=forged)[0])
+        self.assertFalse(vc.may_promote(self.result(sha=forged), commit_sha=SHA)[0])
+        for short in (SHA[:7], SHA[:12], SHA[:39], SHA + '0', '', ' ' + SHA, 'g' * 40):
+            with self.subTest(short=short):
+                self.assertFalse(vc.may_promote(ok, commit_sha=short or None)[0])
+                self.assertFalse(vc.may_promote(self.result(sha=short or None), commit_sha=SHA)[0])
+
+    def test_unbound_promotion_is_refused(self):
+        self.assertIn('not bound', vc.may_promote(self.result())[1])
+        self.assertTrue(vc.may_promote(self.result(artifact_sha256='d' * 64), artifact_sha256='d' * 64)[0])
+
+    # finding 2: timestamps and validity window
+    def test_future_dated_and_malformed_timestamps_are_refused(self):
+        now = time.time()
+        cases = {
+            'future finished_at': {'finished_at': now + 3600},
+            'future started+finished': {'started_at': now + 7200, 'finished_at': now + 7300},
+            'missing finished_at': {'finished_at': None},
+            'missing started_at': {'started_at': None},
+            'string timestamp': {'finished_at': str(now)},
+            'bool timestamp': {'finished_at': True},
+            'nan timestamp': {'finished_at': float('nan')},
+            'inf timestamp': {'finished_at': float('inf')},
+            'finished before started': {'started_at': now, 'finished_at': now - 10},
+            'ttl zero': {'ttl_seconds': 0},
+            'ttl negative': {'ttl_seconds': -5},
+            'ttl huge': {'ttl_seconds': vc.MAX_TTL_SECONDS + 1},
+            'ttl missing': {'ttl_seconds': None},
+            'ttl string': {'ttl_seconds': '86400'},
+            'ttl bool': {'ttl_seconds': True},
+        }
+        for name, patch in cases.items():
+            with self.subTest(name):
+                r = {**self.result(), **patch}
+                self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=now)[0], name)
+        r = self.result()
+        self.assertTrue(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] + 30)[0])           # small skew ok
+        self.assertTrue(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] - 30)[0])
+        self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] - 3600)[0])       # clock behind
+        self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] + vc.DEFAULT_TTL_SECONDS + 1)[0])
+        short = self.result(ttl_seconds=60)
+        self.assertFalse(vc.may_promote(short, commit_sha=SHA, now=short['finished_at'] + 61)[0])
+
+    def test_forged_verdict_is_recomputed_and_refused(self):
+        bad = self.result(checks=[C('a', vc.PASS), C('b', vc.FAIL)])
+        self.assertEqual(bad['verdict'], vc.FAILED)
+        forged = {**bad, 'verdict': vc.VERIFIED}
+        ok, why = vc.may_promote(forged, commit_sha=SHA)
+        self.assertFalse(ok)
+        self.assertIn('does not match', why)
+        self.assertFalse(vc.may_promote({**self.result(), 'checks': [{'check': 'a'}]}, commit_sha=SHA)[0])
+        dropped = {**self.result(checks=[C('a', vc.PASS), C('b', vc.PASS)], required=('a', 'b'))}
+        dropped['checks'] = dropped['checks'][:1]                                      # required check removed
+        self.assertFalse(vc.may_promote(dropped, commit_sha=SHA)[0])
+
+    # finding 3: mandatory NOT_APPLICABLE fails closed
+    def test_mandatory_not_applicable_blocks_without_policy(self):
+        checks = [C('a', vc.PASS), C('b', vc.NA, reason='no payments')]
+        r = self.result(checks=checks)
+        self.assertEqual(r['verdict'], vc.BLOCKED)
+        self.assertIn('b', r['summary']['critical_blockers'])
+        self.assertFalse(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertEqual(vc.decide([C('b', vc.NA)], na_policy=POLICY)[0], vc.BLOCKED)    # NA alone never verifies
+
+    def test_versioned_policy_authorizes_only_named_checks(self):
+        checks = [C('a', vc.PASS), C('b', vc.NA, reason='no payments')]
+        r = self.result(checks=checks, na_policy=POLICY)
+        self.assertEqual(r['verdict'], vc.VERIFIED_WITH_ADVISORIES)
+        self.assertIn('na-exceptions/1', r['reason'])
+        self.assertNotIn('b', r['summary']['critical_blockers'])
+        self.assertTrue(vc.may_promote(r, commit_sha=SHA)[0])
+        other = [C('a', vc.PASS), C('c', vc.NA, reason='x')]
+        self.assertEqual(vc.decide(other, na_policy=POLICY)[0], vc.BLOCKED)              # not named -> blocked
+        # policy stripped from stored evidence -> recomputation blocks promotion
+        self.assertFalse(vc.may_promote({**r, 'na_policy': None}, commit_sha=SHA)[0])
+
+    def test_malformed_policies_never_authorize(self):
+        checks = [C('a', vc.PASS), C('b', vc.NA, reason='x')]
+        for bad in ({'allowed': ['b'], 'reason': 'r'},                     # unversioned
+                    {'version': 'latest', 'allowed': ['b'], 'reason': 'r'},
+                    {'version': 'na/0', 'allowed': ['b'], 'reason': 'r'},
+                    {'version': 'na/1', 'allowed': 'b', 'reason': 'r'},       # string, not a list
+                    {'version': 'na/1', 'allowed': [''], 'reason': 'r'},
+                    {'version': 'na/1', 'allowed': ['b']},                    # no reason
+                    {'version': 'na/1', 'allowed': ['b'], 'reason': '  '},
+                    ['b'], 'na/1'):
+            with self.subTest(policy=bad):
+                self.assertEqual(vc.decide(checks, na_policy=bad)[0], vc.BLOCKED)
+
+    def test_quality_report_mandatory_na_maps_fail_closed(self):
+        rep = rp.QualityReport(build_id='b', artifact_sha256='a', product_family='web', checks=[
+            rp.Check('build', 'compile', rp.PASS, True, 'x', True),
+            rp.Check('payments', 'checkout', rp.NA, True, 'x', True, detail='no payments')]).to_dict()
+        self.assertEqual(rep['decision'], 'READY')                                      # release-policy/1 view
+        self.assertEqual(vc.from_quality_report(rep, environment='staging').verdict, vc.BLOCKED)
+        pol = {'version': 'na-exceptions/1', 'allowed': ['payments/checkout'], 'reason': 'family has no payments'}
+        self.assertEqual(vc.from_quality_report(rep, environment='staging', na_policy=pol).verdict,
+                         vc.VERIFIED_WITH_ADVISORIES)
 
 
 class _Stub:

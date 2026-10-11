@@ -9,14 +9,21 @@ One machine-readable result for every verification run, whatever produced it
   * any mandatory check NOT_RUN / UNKNOWN            -> BLOCKED (cannot be verified)
   * only optional (advisory) checks failed/skipped   -> VERIFIED_WITH_ADVISORIES
   * otherwise                                        -> VERIFIED
-  * stale evidence never promotes: the result must be for the exact commit /
-    artifact being promoted and not past its expiry.
+  * a mandatory check NOT_APPLICABLE                -> BLOCKED, unless an explicitly
+    versioned NA policy (`na_policy`) names that check; then the verdict is
+    VERIFIED_WITH_ADVISORIES and the policy version is recorded (fail closed)
+  * stale evidence never promotes: the result must be bound to the exact full
+    40-hex commit SHA and/or artifact digest being promoted, carry valid
+    timestamps (started <= finished <= now + skew) and be inside its TTL.
+    The verdict is recomputed from the checks at promotion time.
 
 Check statuses reuse release_policy's vocabulary (PASS, FAIL, NOT_RUN, UNKNOWN,
 NOT_APPLICABLE) so a quality-report/1 maps onto this contract unchanged.
 """
 from __future__ import annotations
 
+import math
+import re
 import time
 from dataclasses import asdict, dataclass, field
 
@@ -39,6 +46,10 @@ BLOCKING_CATEGORIES = (
 )
 
 DEFAULT_TTL_SECONDS = 24 * 3600
+MAX_TTL_SECONDS = 7 * 24 * 3600
+CLOCK_SKEW_SECONDS = 60
+_SHA_RE = re.compile(r'[0-9a-f]{40}')
+_POLICY_VERSION_RE = re.compile(r'[a-z0-9][a-z0-9-]{0,63}/[1-9][0-9]{0,5}')
 
 
 @dataclass(frozen=True)
@@ -57,9 +68,27 @@ class CheckResult:
             raise ValueError(f'check {self.check!r} skipped without a reason')
 
 
-def decide(checks: list[CheckResult], required: tuple[str, ...] = ()) -> tuple[str, str]:
+def validate_na_policy(policy) -> frozenset[str] | None:
+    """Checks a NOT_APPLICABLE exception policy authorizes, or None if the
+    policy is absent or malformed (malformed never authorizes anything).
+    Shape: {'version': 'name/N', 'allowed': ['check', ...], 'reason': '...'}"""
+    if policy is None or not isinstance(policy, dict):
+        return None
+    version, allowed, reason = policy.get('version'), policy.get('allowed'), policy.get('reason')
+    if not (isinstance(version, str) and _POLICY_VERSION_RE.fullmatch(version)):
+        return None
+    if not isinstance(reason, str) or not reason.strip():
+        return None
+    if not isinstance(allowed, (list, tuple, frozenset, set)) or not all(isinstance(a, str) and a for a in allowed):
+        return None
+    return frozenset(allowed)
+
+
+def decide(checks: list[CheckResult], required: tuple[str, ...] = (), na_policy: dict | None = None
+           ) -> tuple[str, str]:
     """(verdict, reason) under the rules in the module docstring. `required`
-    names checks that must be present: a missing one blocks VERIFIED."""
+    names checks that must be present: a missing one blocks VERIFIED.
+    `na_policy` is the only way a mandatory NOT_APPLICABLE check can pass."""
     missing = [n for n in required if n not in {c.check for c in checks}]
     if missing:
         return BLOCKED, 'required checks missing: ' + ', '.join(missing)
@@ -75,6 +104,13 @@ def decide(checks: list[CheckResult], required: tuple[str, ...] = ()) -> tuple[s
     unverified = [c.check for c in mandatory if c.status in (NOT_RUN, UNKNOWN)]
     if unverified:
         return BLOCKED, 'not verified: ' + ', '.join(unverified)
+    na = [c.check for c in mandatory if c.status == NA]
+    authorized = validate_na_policy(na_policy) or frozenset()
+    unauthorized = [n for n in na if n not in authorized]
+    if unauthorized:
+        return BLOCKED, 'mandatory checks not applicable without an authorizing NA policy: ' + ', '.join(unauthorized)
+    if na:
+        return VERIFIED_WITH_ADVISORIES, f"not applicable under {na_policy['version']}: " + ', '.join(na)
     advisories = [c.check for c in checks if not c.mandatory and c.status in (FAIL, NOT_RUN, UNKNOWN)]
     if advisories:
         return VERIFIED_WITH_ADVISORIES, 'advisories: ' + ', '.join(advisories)
@@ -97,12 +133,13 @@ class VerificationResult:
     finished_at: float | None = None
     ttl_seconds: int = DEFAULT_TTL_SECONDS
     required: tuple = ()                            # check names that must be present and mandatory
+    na_policy: dict | None = None                   # versioned NOT_APPLICABLE exceptions (None = none)
     verdict: str = PENDING
     reason: str = ''
 
     def finish(self) -> 'VerificationResult':
         self.finished_at = time.time()
-        self.verdict, self.reason = decide(self.checks, tuple(self.required))
+        self.verdict, self.reason = decide(self.checks, tuple(self.required), self.na_policy)
         return self
 
     def to_dict(self) -> dict:
@@ -113,30 +150,65 @@ class VerificationResult:
                         'failed': by(FAIL), 'skipped': [{'check': c.check, 'reason': c.reason}
                                                        for c in self.checks if c.status in (NOT_RUN, NA)],
                         'critical_blockers': [c.check for c in self.checks if c.mandatory and c.status != PASS
-                                              and c.status != NA],
+                                              and not (c.status == NA and c.check in
+                                                       (validate_na_policy(self.na_policy) or ()))],
                         'warnings': [c.check for c in self.checks if not c.mandatory and c.status != PASS]}
         return d
 
 
+def _number(v) -> float | None:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    return float(v)
+
+
 def may_promote(result: dict, *, commit_sha: str | None = None, artifact_sha256: str | None = None,
                 now: float | None = None) -> tuple[bool, str]:
-    """Promotion gate. Refuses unverified, stale or mismatched evidence."""
-    if result.get('schema') != SCHEMA:
+    """Promotion gate. Refuses unverified, unbound, forged, stale or mismatched evidence."""
+    if not isinstance(result, dict) or result.get('schema') != SCHEMA:
         return False, 'not a verification-result/1'
     if result.get('verdict') not in PROMOTABLE:
         return False, f"verdict {result.get('verdict')}: {result.get('reason', '')}"
-    if commit_sha and not (result.get('commit_sha') or '').startswith(commit_sha[:12]):
-        return False, 'evidence is for a different commit (stale)'
-    if artifact_sha256 and result.get('artifact_sha256') != artifact_sha256:
+    if not commit_sha and not artifact_sha256:
+        return False, 'promotion target not bound (commit SHA or artifact digest required)'
+    if commit_sha is not None:
+        if not (isinstance(commit_sha, str) and _SHA_RE.fullmatch(commit_sha.lower())):
+            return False, 'promotion commit must be a full 40-character SHA'
+        ev = result.get('commit_sha')
+        if not (isinstance(ev, str) and _SHA_RE.fullmatch(ev.lower()) and ev.lower() == commit_sha.lower()):
+            return False, 'evidence is for a different or unidentified commit (exact 40-character match required)'
+    if artifact_sha256 is not None and result.get('artifact_sha256') != artifact_sha256:
         return False, 'evidence is for a different artifact (stale)'
-    finished = result.get('finished_at') or 0
-    if (now or time.time()) - finished > int(result.get('ttl_seconds') or DEFAULT_TTL_SECONDS):
+    started, finished = _number(result.get('started_at')), _number(result.get('finished_at'))
+    ttl = result.get('ttl_seconds')
+    clock = time.time() if now is None else now
+    if started is None or finished is None:
+        return False, 'evidence timestamps missing or invalid'
+    if started > finished:
+        return False, 'evidence finished before it started'
+    if finished > clock + CLOCK_SKEW_SECONDS:
+        return False, 'evidence is dated in the future'
+    if isinstance(ttl, bool) or not isinstance(ttl, int) or not 0 < ttl <= MAX_TTL_SECONDS:
+        return False, 'evidence TTL missing or invalid'
+    if clock - finished > ttl:
         return False, 'evidence expired'
+    try:   # never trust the stored verdict: recompute it from the checks
+        checks = [CheckResult(check=c['check'], status=c['status'], mandatory=c['mandatory'] is True,
+                              category=c.get('category', 'core_journey'), reason=c.get('reason') or '')
+                  for c in result.get('checks') or []]
+        verdict, _ = decide(checks, tuple(result.get('required') or ()), result.get('na_policy'))
+    except (KeyError, TypeError, ValueError):
+        return False, 'evidence checks malformed'
+    if verdict != result.get('verdict'):
+        return False, f'stored verdict does not match its checks (recomputed {verdict})'
     return True, 'promotable'
 
 
-def from_quality_report(report: dict, *, environment: str, commit_sha: str | None = None) -> VerificationResult:
-    """Map a release_policy quality-report/1 dict onto the canonical contract."""
+def from_quality_report(report: dict, *, environment: str, commit_sha: str | None = None,
+                        na_policy: dict | None = None) -> VerificationResult:
+    """Map a release_policy quality-report/1 dict onto the canonical contract.
+    release-policy/1 treats a required NOT_APPLICABLE check as non-blocking;
+    here it blocks unless `na_policy` explicitly authorizes it (fail closed)."""
     checks = []
     for c in report.get('checks', []):
         status = c.get('status', UNKNOWN)
@@ -148,4 +220,5 @@ def from_quality_report(report: dict, *, environment: str, commit_sha: str | Non
     return VerificationResult(kind='build', target=report.get('build_id') or '?', environment=environment,
                               commit_sha=commit_sha, checks=checks, build_id=report.get('build_id'),
                               artifact_sha256=report.get('artifact_sha256'),
-                              suites={'release_policy': report.get('policy_version', '?')}).finish()
+                              suites={'release_policy': report.get('policy_version', '?')},
+                              na_policy=na_policy).finish()

@@ -24,6 +24,8 @@
 
 - Real-run regression found and fixed: run 38120874664 produced no result because argparse took the dash-leading host suffix for an option; the workflow now uses `--allowed-host-suffix=…` and a bad command line still writes a BLOCKED result (exit 3).
 
+- Independent review findings R1–R3 fixed in `verification_contract.py`: exact full-SHA promotion binding (no prefixes, unbound promotion refused); timestamp/TTL validity window (future-dated, missing, non-finite, inverted, invalid TTL refused); mandatory NOT_APPLICABLE fails closed unless a versioned NA policy names the check; plus verdict recomputation at promotion (forged verdicts refused). `tests/test_deployment_verification.py`: 43 passed (+58 subtests). Full suite 1488 passed, 1 failed (`test_m4_acceptance` W, environment-only, also on base), 43 skipped.
+
 **Residual risks (not fixed)**: DNS rebinding between the address check and connect; `vercel.app` suffix trust relies on Vercel team-slug hostnames (mitigated by the `vercel[bot]` gate); app-reported SHA is self-reported; synthetic rows accumulate in the shared pre-staging DB.
 
 ## Update 2026-10-11 08:20 Asia/Jerusalem — Vercel "Server error" fixed + Continuous Verification P0.1–P0.4

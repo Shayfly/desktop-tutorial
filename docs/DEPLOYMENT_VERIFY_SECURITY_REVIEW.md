@@ -23,6 +23,15 @@ Reviewer of record for the merge decision: independent (ChatGPT), per the founde
 
 | 12 | Medium | Found on the first real run (38120874664): argparse treated the dash-leading suffix as an option and exited with no result file. | Real GitHub run. | `--allowed-host-suffix=…` in the workflow; argument errors produce a BLOCKED result (exit 3); CLI regression test |
 
+## Independent review (ChatGPT, 2026-10-11 10:28) — contract findings
+
+| # | Finding | Fix in `omni_prod/verification_contract.py` | Regression tests (`ReviewFindingTests`) |
+|---|---|---|---|
+| R1 | `may_promote` accepted a 12-character prefix match | promotion target must be bound (commit or artifact); commit = exact full 40-hex equality (case-insensitive), malformed SHAs refused on both sides | `test_forged_sha_prefixes_are_refused` (same 12-char prefix, 7/12/39/41 chars, non-hex, blank), `test_unbound_promotion_is_refused` |
+| R2 | future-dated / missing timestamps, invalid TTL accepted | started/finished must be finite numbers, started <= finished <= now + 60 s skew, TTL int in (0, 7 days], now - finished <= TTL | `test_future_dated_and_malformed_timestamps_are_refused` (15 cases + skew/expiry boundaries) |
+| R3 | mandatory NOT_APPLICABLE counted as satisfied | BLOCKED unless a versioned NA policy (`{'version': 'name/N', 'allowed': [...], 'reason': ...}`) names the check → VERIFIED_WITH_ADVISORIES with the policy version in the reason; malformed policies authorize nothing; `from_quality_report` fails closed too (release-policy/1 would call it READY) | `test_mandatory_not_applicable_blocks_without_policy`, `test_versioned_policy_authorizes_only_named_checks`, `test_malformed_policies_never_authorize`, `test_quality_report_mandatory_na_maps_fail_closed` |
+| R+ | (added) stored verdict trusted as-is | `may_promote` recomputes the verdict from the stored checks, required list and NA policy; any mismatch or malformed check refuses | `test_forged_verdict_is_recomputed_and_refused` |
+
 ## Compared with PR #9 (PDV-001) — adopted / not adopted
 
 Adopted: no-redirect handler, origin-only URL validation, https-unless-loopback, IP-literal ban, exact host allowlist, no proxies, response cap, error classification (incl. nested FastAPI `detail.error = conversation_not_ready` → `MIGRATION_NOT_APPLIED`), full-SHA requirement, trusted-metadata SHA, "secrets never in output", CLI exit codes (0/1/2/3), test shapes 14–25 and 27–33.
