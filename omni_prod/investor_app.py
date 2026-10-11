@@ -2875,6 +2875,34 @@ def v28_build_capability_truth(project_id: str, build_id: str, request: Request)
 def v28_m5_status() -> dict:
     return _m5_status_payload()
 
+
+def _schema_compatibility() -> dict:
+    """Required (code) vs applied (database) migrations. Versions only, no data."""
+    from .schema_manifest import EXPECTED_VERSIONS, REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME
+    out = {'required': REQUIRED_MIGRATION, 'required_name': REQUIRED_MIGRATION_NAME}
+    if _v28_pool is None:
+        return {**out, 'status': 'NOT_CONFIGURED', 'compatible': False}
+    try:
+        with _v28_pool.connection() as conn:
+            exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
+            applied = sorted(int(r[0]) for r in conn.execute('SELECT version FROM schema_migrations').fetchall()) if exists else []
+    except Exception as exc:
+        return {**out, 'status': 'UNREACHABLE', 'compatible': False, 'error': type(exc).__name__}
+    missing = [v for v in EXPECTED_VERSIONS if v not in set(applied)]
+    return {**out, 'applied_max': applied[-1] if applied else None, 'missing': missing,
+            'status': 'COMPATIBLE' if not missing else 'MIGRATIONS_PENDING', 'compatible': not missing}
+
+
+@app.get('/api/v28/deployment')
+def v28_deployment() -> dict:
+    """Post-deployment verification input (Continuous Verification P0.4): which
+    commit this deployment runs, in which environment, and whether its database
+    schema matches the code. No secrets, no customer data."""
+    return {'source_commit': os.getenv('VERCEL_GIT_COMMIT_SHA') or os.getenv('OMNI_SOURCE_COMMIT') or None,
+            'environment': os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV', 'development'),
+            'branch': os.getenv('VERCEL_GIT_COMMIT_REF') or None,
+            'schema': _schema_compatibility()}
+
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
     try:

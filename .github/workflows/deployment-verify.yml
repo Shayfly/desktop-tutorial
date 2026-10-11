@@ -1,0 +1,70 @@
+name: deployment-verify
+
+# Continuous Verification P0.4. Vercel reports each deployment to GitHub; when a
+# deployment becomes ready this job runs tools/deployment_verify.py against
+# that exact URL and commit: deployment identity (SHA), database schema
+# compatibility, register -> project -> conversation -> persistence -> memory,
+# anonymous denial and cross-user isolation. Synthetic users only, no build, no
+# model call ($0). The job fails (red check on the commit) unless the canonical
+# verdict is promotable, so "Vercel READY" alone never counts as verified.
+# A protected deployment needs the repository secret
+# VERCEL_AUTOMATION_BYPASS_SECRET (Vercel "Protection Bypass for Automation");
+# without it the verdict is BLOCKED, never VERIFIED. The token is never printed.
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: deployment URL (https://...)
+        required: true
+      sha:
+        description: commit SHA the deployment must be running
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-verify-${{ github.event.deployment_status.target_url || inputs.url }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Verify deployment
+        env:
+          TARGET_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url || inputs.url }}
+          EXPECT_SHA: ${{ github.event.deployment.sha || inputs.sha }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          python tools/deployment_verify.py "$TARGET_URL" --expect-sha "$EXPECT_SHA" \
+            --bypass-token-env VERCEL_AUTOMATION_BYPASS_SECRET --out deployment-verification.json
+      - name: Publish verdict
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          try:
+              r = json.load(open('deployment-verification.json'))
+          except Exception as exc:
+              print(f'::error title=deployment-verify::no result ({type(exc).__name__})'); raise SystemExit(0)
+          print(f"::notice title=verdict {r['verdict']}::{r['reason']} (commit {r.get('commit_sha')}, env {r.get('environment')})")
+          for c in r['checks']:
+              if c['status'] != 'PASS':
+                  print(f"::error title={c['check']} {c['status']}::{json.dumps(c.get('evidence') or c.get('reason'))[:300]}")
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(f"## Deployment verification: {r['verdict']}\n\n{r['reason']}\n\n| check | status |\n|---|---|\n")
+              f.writelines(f"| {c['check']} | {c['status']} |\n" for c in r['checks'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-verification
+          path: deployment-verification.json
+          if-no-files-found: ignore
