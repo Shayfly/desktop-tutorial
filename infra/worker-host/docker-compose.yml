@@ -69,6 +69,25 @@ services:
     healthcheck:
       disable: true
 
+  # Wave A: customer intake interpretation by a real model (Gemini key stays
+  # on this host). Own queue so a running build never delays a chat reply; no
+  # sandbox, no Docker socket. Does nothing unless OMNI_INTAKE_MODEL=1 and
+  # OMNI_INTAKE_CALL_BUDGET_USD are set in WORKER_ENV(_OVERRIDES) (founder
+  # authorization for paid inference).
+  intake-worker:
+    build:
+      context: ../..
+    restart: unless-stopped
+    command: ["python", "-m", "omni_prod.worker"]
+    stop_grace_period: 1m
+    env_file: .env
+    environment:
+      OMNI_CREATOR_PERSISTENCE: postgres
+      OMNI_WORKER_QUEUES: omni-intake
+    networks: [internal]
+    healthcheck:
+      disable: true
+
   # Running previews (M3). Separate from the build worker so only this
   # orchestrator holds the Docker socket. Host network: preview containers
   # publish on 127.0.0.1 of the host, which the health probe and the router

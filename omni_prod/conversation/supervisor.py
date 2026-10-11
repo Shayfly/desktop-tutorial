@@ -139,7 +139,7 @@ def _label(field_: str, value, lang: str) -> str:
 
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
-                 budget_usd: Decimal = Decimal('0.50'), context=None):
+                 budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
@@ -147,12 +147,18 @@ class ConversationSupervisor:
         self.credits = credits
         self.budget_usd = budget_usd
         self.context = context or (lambda project_id: {})   # durable build/version state (read-only)
+        self.worker_interpreter = worker_interpreter           # injected in tests; RQ in production
 
     # ------------------------------------------------------------------ helpers
     def _interpreter(self, project_id):
         cap = Decimal(os.getenv('OMNI_INTAKE_MODEL_BUDGET_USD', '0') or '0')
-        if cap <= 0 or self.store.conversation_cost(project_id) >= cap:
-            return DeterministicInterpreter()     # no budget -> no paid inference
+        if cap <= 0 or self.store.conversation_cost(project_id) >= cap or os.getenv('OMNI_INTAKE_MODEL') != '1':
+            return DeterministicInterpreter()     # no budget/authorization -> no paid inference
+        if os.getenv('OMNI_INTAKE_VIA_WORKER') == '1':
+            if self.worker_interpreter is not None:
+                return self.worker_interpreter
+            from ..intake.worker_route import rq_worker_interpreter
+            return rq_worker_interpreter(os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0'))
         return interpreter_from_env(self.gateway)
 
     def _plan(self, project_id, row):
