@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 18, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 13, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 59, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 67, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 19, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 12, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 60, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 66, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -40,7 +40,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 59, UNIT_TESTED 28, INTEGRATION
 | Observability Agent (`observability_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
 | SRE / Reliability Agent (`sre_reliability_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | Backup & Recovery Agent (`backup_recovery_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune — backup-restore run 37962179844 |  |
-| Migration Agent (`migration_agent`) | platform | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
+| Migration Agent (`migration_agent`) | platform | **IMPLEMENTED** | backup_recovery_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py |  |
 | Performance Agent (`performance_agent`) | quality | **NOT_IMPLEMENTED** | quality_gate_agent | no implementation | not implemented |
 | Accessibility Agent (`accessibility_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result | instructions + review only; no automated a11y test |
 | Localization / RTL Agent (`localization_rtl_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result |  |
@@ -168,7 +168,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 59, UNIT_TESTED 28, INTEGRATION
 | `file_upload_backend` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `schema_generation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py | SQLite in DATA_DIR |
 | `migration_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
-| `migration_validation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both | platform migrations only |
+| `migration_validation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py | platform migrations only |
 | `index_design` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_optimization` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |

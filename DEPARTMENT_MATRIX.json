@@ -205,13 +205,13 @@
     "database_agent": "IMPLEMENTED"
    },
    "support_agents": {
-    "migration_agent": "REAL_SERVER_VERIFIED",
+    "migration_agent": "IMPLEMENTED",
     "analytics_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 3,
+    "IMPLEMENTED": 4,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 5
+    "REAL_SERVER_VERIFIED": 4
    },
    "missing_roles": [],
    "missing_adapters": [],
