@@ -90,6 +90,17 @@ const T = {
     b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',
     b_cost_quote_unknown:'חלק מהעלויות של הבנייה לא ידועות, ולכן אי אפשר לאשר אותה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
+    newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
+    hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
+    hidePreview:'סגירת התצוגה', resizePreview:'גרירה לשינוי רוחב התצוגה', send:'שליחה',
+    chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
+    chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
+    tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
+    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
+    delegateShort:'בחרו עבורי', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
+    f_FEASIBLE:'אפשר לבנות', f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
+    constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'משימות הסוכנים (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
+    ts_SUCCEEDED:'הושלם', ts_RUNNING:'רץ', ts_PENDING:'ממתין', ts_READY:'מוכן', ts_FAILED:'נכשל', ts_BLOCKED:'חסום', ts_CANCELLED:'לא בוצע', ts_REPAIRING:'בתיקון', ts_NOT_RECORDED:'לא נרשם',
   },
   en: {
     skip:'Skip to content', projects:'Projects', manage:'Manage', logout:'Sign out',
@@ -176,6 +187,17 @@ const T = {
     b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
     b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
+    newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
+    hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
+    hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
+    chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI',
+    chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
+    tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
+    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
+    delegateShort:'Choose for me', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
+    f_FEASIBLE:'Buildable', f_FEASIBLE_WITH_CONSTRAINTS:'Buildable with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
+    constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Agent tasks (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
+    ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
   },
 };
 
@@ -252,12 +274,14 @@ function applyLang() {
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  $('langBtn').textContent = S.lang === 'he' ? 'English' : 'עברית';
-  $('langBtn').lang = S.lang === 'he' ? 'en' : 'he';
-  $('prompt').placeholder = t('promptPlaceholder');
+  document.querySelectorAll('[data-i18n-label]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nLabel)); el.title = t(el.dataset.i18nLabel); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
+  $('chatInput').placeholder = t('chatPlaceholder');
   $('publishNote').textContent = t('publishNotConfigured');
   document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
+  renderProjects(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
 }
 
 /* ---------- auth ---------- */
@@ -287,11 +311,13 @@ function showView() {
   const signedIn = Boolean(S.signedIn && S.me);
   $('welcomeView').hidden = signedIn;
   $('workspaceView').hidden = !signedIn;
-  $('projectbar').hidden = !signedIn;
   $('accountBox').hidden = !signedIn;
+  document.body.classList.toggle('signed-in', signedIn);
+  document.body.classList.toggle('signed-out', !signedIn);
   if (signedIn) {
     const unverified = S.me.email_verified === false ? ` (${t('emailUnverified')})` : '';
     $('accountEmail').textContent = S.me.email + unverified;
+    $('sbEmail').textContent = S.me.email + unverified;
   }
   renderBanner();
 }
@@ -325,16 +351,27 @@ function renderProjects() {
   const sel = $('projectSelect');
   sel.replaceChildren(...S.projects.map(p => h('option', { value: p.id, selected: p.id === S.projectId }, p.title || t('untitled'))));
   $('emptyProjects').hidden = S.projects.length > 0;
-  $('composer').hidden = S.projects.length === 0;
-  $('projectMenuBtn').disabled = false;
+  $('chatForm').hidden = S.projects.length === 0;
+  $('chatCol').classList.toggle('no-project', S.projects.length === 0);
+  $('projectMenuBtn').disabled = !S.projectId;
+  // Sidebar: the real project list (one persistent conversation per project), filtered locally.
+  const q = ($('sbSearch').value || '').trim().toLowerCase();
+  const items = S.projects.filter(p => !q || String(p.title || '').toLowerCase().includes(q));
+  $('sbProjects').replaceChildren(...(items.length ? items.map(p => h('li', {},
+    h('button', { type: 'button', 'aria-current': p.id === S.projectId ? 'true' : 'false', title: p.title || t('untitled'),
+      onclick: () => { closeSidebarMobile(); if (p.id !== S.projectId) selectProject(p.id); } },
+      h('span', { class: `st ${String(p.last_build_status || p.status || '').toLowerCase()}`, 'aria-hidden': 'true' }),
+      h('span', { class: 'ttl' }, p.title || t('untitled'))))) : [h('li', { class: 'hint' }, t('noMatches'))]));
+  const cur = S.projects.find(p => p.id === S.projectId);
+  $('chatTitle').textContent = cur ? (cur.title || t('untitled')) : '148AI';
 }
 async function createProject(title) {
   const p = await api('/api/v28/projects', { method: 'POST', body: { title: title || t('untitled') } });
   S.projectId = p.id;
   await loadProjects();
-  // A new project starts empty: no request text carried over from the last one.
-  $('prompt').value = ''; $('composerMsg').textContent = '';
-  $('prompt').focus();
+  // A new project starts with an empty conversation (selectProject cleared the
+  // box before loading); never clear again here -- the user may already be typing.
+  $('chatInput').focus();
 }
 function openNewProject() {
   $('newProjectName').value = ''; $('newProjectMsg').textContent = '';
@@ -353,15 +390,15 @@ async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
-  S.disc = null; S.editQ = null;
-  if (S.projectId !== S.lastShownProject) { $('prompt').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
+  S.disc = null; S.editQ = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
+  if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
   applyLang();
   if (!S.projectId) return;
   await loadVersions();
   await restoreMod();
-  await restoreDiscovery();
+  await restoreConversation();
   await restoreBuild();
 }
 // A build that is still queued/running survives a reload: its track, live log
@@ -380,33 +417,15 @@ async function restoreBuild() {
 /* ---------- discovery conversation (directive 2026-10-09 §4-5) ---------- */
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).slice(0, 60);
 const discPath = () => `/api/v28/projects/${pid()}/discovery`;
-async function requestPlan() {
-  const prompt = $('prompt').value.trim();
-  const msg = $('composerMsg'); msg.textContent = '';
-  if (prompt.length < 12) { msg.textContent = t('needPrompt'); return; }
-  const mode = (document.querySelector('input[name="mode"]:checked') || {}).value || 'guided';
-  $('planBtn').disabled = true;
-  try {
-    S.disc = await api(`${discPath()}?lang=${S.lang}`, { method: 'POST', body: { prompt, mode, request_key: newKey() } });
-    S.plan = null; S.build = null; S.editQ = null; renderPlan(); renderTrack();
-    renderDiscovery();
-    if (S.disc.complete) await requestBriefPlan();
-    $('discoveryPanel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-  } catch (e) { msg.textContent = explain(e); }
-  finally { $('planBtn').disabled = false; }
-}
-async function restoreDiscovery() {
-  if ($('composer').hidden) { $('discoveryPanel').hidden = true; return; }
-  try { S.disc = await api(`${discPath()}?lang=${S.lang}`); }
-  catch { S.disc = null; }
-  if (S.disc && !$('prompt').value) $('prompt').value = S.disc.prompt;
-  renderDiscovery();
-}
+/* The old "describe + choose a mode" composer is replaced by the conversation
+   (Unified Conversation OS): the supervisor decides how many questions to ask. */
 async function sendAnswers(answers) {
   const msg = $('discMsg'); if (msg) msg.textContent = '';
   try {
-    S.disc = await api(`${discPath()}/answers?lang=${S.lang}`, { method: 'POST',
-      body: { revision: S.disc.brief.revision, answers, request_key: newKey() } });
+    // Edits made in the requirements panel go through the same conversation,
+    // so the project history records them (the brief stays the source of truth).
+    applyConversation(await api(`/api/v28/projects/${pid()}/conversation?lang=${S.lang}`, { method: 'POST',
+      body: { answers, request_key: newKey() } }));
     S.editQ = null; S.plan = null; renderPlan();
     renderDiscovery();
     if (S.disc.complete) await requestBriefPlan();
@@ -415,13 +434,12 @@ async function sendAnswers(answers) {
     const m = $('discMsg'); if (m) m.textContent = explain(e);
   }
 }
-async function requestBriefPlan() {
+async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
   try {
     S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
-    S.build = null; renderDiscovery(); renderPlan(); renderTrack();
-    $('planPanel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
 }
 function questionCard(q, current) {
@@ -462,7 +480,7 @@ function collectAnswers(root, { skip = false } = {}) {
 }
 function renderDiscovery() {
   const panel = $('discoveryPanel'); const d = S.disc;
-  if (!d || $('composer').hidden) { panel.hidden = true; return; }
+  if (!d) { panel.hidden = true; return; }
   panel.hidden = false;
   const kids = [h('h2', {}, t('discTitle')),
     h('p', { class: 'hint' }, t('discProgress')(d.progress.answered, d.progress.remaining))];
@@ -476,7 +494,7 @@ function renderDiscovery() {
       h('div', { class: 'row' }, h('button', { type: 'submit' }, t('save')),
         h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = null; renderDiscovery(); } }, t('cancel'))));
     kids.push(form);
-  } else if (!d.complete && d.questions.length) {
+  } else if (!d.complete && d.questions.length && !S.chat) {
     const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
       const { answers, missing } = collectAnswers(form);
       if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
@@ -491,7 +509,7 @@ function renderDiscovery() {
     kids.push(form);
   } else if (d.complete) {
     kids.push(h('p', { class: 'msg ok' }, t('discDone')));
-    if (!S.plan) kids.push(h('div', { class: 'row' }, h('button', { onclick: requestBriefPlan }, t('showSummary'))));
+    if (!S.plan) kids.push(h('div', { class: 'row' }, h('button', { onclick: () => requestBriefPlan(true) }, t('showSummary'))));
   }
   if (d.answered.length) {
     kids.push(h('details', { class: 'decided', open: d.complete && !S.plan ? true : null }, h('summary', {}, t('decided')),
@@ -499,7 +517,7 @@ function renderDiscovery() {
         h('span', { class: 'q' }, a.text), h('b', {}, a.value_label),
         h('span', { class: `pill ${a.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${a.source}`)),
         h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = a.id; renderDiscovery();
-          $('discoveryPanel').scrollIntoView({ block: 'start' }); } }, t('change')))))));
+          openTab('req'); } }, t('change')))))));
   }
   kids.push(h('p', { class: 'msg', id: 'discMsg', role: 'alert' }));
   panel.replaceChildren(...kids);
@@ -569,9 +587,8 @@ function renderPlan() {
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
       p.brief_revision ? t('approveBuild') : t('confirm')),
     h('button', { class: 'secondary', onclick: () => {
-      if (S.disc) { const det = document.querySelector('#discoveryPanel details.decided'); if (det) det.open = true;
-        $('discoveryPanel').scrollIntoView({ block: 'start' }); }
-      else $('prompt').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
+      if (S.disc) { const det = document.querySelector('#discoveryPanel details.decided'); if (det) det.open = true; openTab('req'); }
+      else $('chatInput').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
   panel.replaceChildren(...kids);
 }
 
@@ -594,10 +611,10 @@ async function startBuild() {
       approvalId = a.approval_id;
     }
     const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
-      body: { prompt: (S.disc && S.disc.prompt) || $('prompt').value.trim() || 'build', build_contract_id: S.plan.build_contract_id,
+      body: { prompt: (S.disc && S.disc.prompt) || 'build', build_contract_id: S.plan.build_contract_id,
               approval_id: approvalId } });
     S.build = { id: d.build_id, status: d.status || 'queued', phase: d.duplicate ? '' : 'QUEUED', evidence: {} };
-    renderPlan(); renderTrack(); renderBuilt(); pollBuild();
+    renderPlan(); renderTrack(); renderBuilt(); openTab('build'); pollBuild();
     if (d.duplicate) $('buildMsg').textContent = t('duplicateBuild');
   } catch (e) {
     $('progressPanel').hidden = false; $('buildMsg').textContent = explain(e);
@@ -611,7 +628,8 @@ async function pollBuild() {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
     S.build = { ...S.build, ...d };
     await pollEvents();
-    renderTrack(); renderEvidence();
+    await loadTasks();
+    renderTrack(); renderEvidence(); renderTasks(); renderChat();
     if (isTerminal(d.status)) {
       renderPlan();
       if (String(d.status).toLowerCase() === 'ready' && d.result_version_id) {
@@ -833,7 +851,6 @@ function renderBuilt() {
   const building = (!!S.plan && !S.build) || (!!S.build && !isTerminal(S.build.status));
   $('builtPanel').hidden = !v;
   $('newBuildRow').hidden = !v || S.newBuildOpen || building;
-  $('composer').hidden = !!v && !S.newBuildOpen && !building;
   renderDiscovery();
   if (!v) return;
   $('builtName').textContent = v.title || v.message || v.id;
@@ -998,6 +1015,221 @@ async function dialogAction(fn, okKey) {
   catch (e) { msg.textContent = explain(e); }
 }
 
+
+/* ---------- conversation (Unified Conversation OS) ---------- */
+const convPath = () => `/api/v28/projects/${pid()}/conversation`;
+function applyConversation(view) {
+  S.chat = view;
+  if (view.discovery) S.disc = view.discovery;
+  S.arch = view.plan || null;
+  renderChat(); renderDiscovery(); renderArch(); renderTabs();
+  const acts = (view.turn && view.turn.actions) || [];
+  // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
+  if (acts.some(a => a.type === 'show_plan' || a.type === 'approve_build') && S.disc && S.disc.complete && !S.plan) requestBriefPlan(false);
+}
+async function restoreConversation() {
+  try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
+  catch (e) {
+    S.chat = { messages: [], unavailable: e.status === 503 ? explain(e) : null };
+    try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
+    renderChat(); renderDiscovery(); renderTabs();
+  }
+}
+let chatBusy = false;
+async function sendChat(body, shownText) {
+  if (chatBusy || !S.projectId) return;
+  chatBusy = true; $('chatSend').disabled = true; $('composerMsg').textContent = '';
+  const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
+  if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
+  try {
+    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: newKey() } });
+    S.forceScroll = true;
+    applyConversation(view);
+    if (body.message) $('chatInput').value = '';
+    autoGrow();
+  } catch (e) {
+    if (pending) { S.chat.messages = S.chat.messages.filter(m => m !== pending); renderChat(); }
+    $('composerMsg').textContent = explain(e);
+  } finally { chatBusy = false; $('chatSend').disabled = false; }
+}
+function submitChat(e) {
+  if (e) e.preventDefault();
+  const text = $('chatInput').value.trim();
+  if (!text) return;
+  if (!S.projectId) { openNewProject(); return; }
+  sendChat({ message: text }, text);
+}
+function quickReplies(questions) {
+  return h('div', { class: 'quick' }, questions.map(q => h('div', {},
+    h('div', { class: 'qq' }, q.text),
+    h('div', { class: 'opts' },
+      ...(q.kind === 'choice' ? q.options.map(o => h('button', { type: 'button', onclick: () => sendChat({ answers: { [q.id]: o.value } }, o.label) },
+        o.label, q.suggested === o.value ? ' ✓' : '')) : []),
+      q.delegable ? h('button', { type: 'button', class: 'del', onclick: () => sendChat({ answers: { [q.id]: '__delegate__' } }, t('delegateShort')) }, t('delegateShort')) : null))));
+}
+function actionButtons(actions) {
+  const out = [];
+  for (const a of actions || []) {
+    if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
+    if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
+    if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
+      onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(); } }, t('actConfirmMod')));
+  }
+  return out.length ? h('div', { class: 'acts' }, out) : null;
+}
+function renderChat() {
+  const box = $('thread'); if (!box) return;
+  if (!S.projectId) { box.replaceChildren(); return; }
+  const msgs = (S.chat && S.chat.messages) || [];
+  const kids = [];
+  if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
+    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
+  const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
+  msgs.forEach((m, i) => {
+    const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'who' }, m.role === 'customer' ? t('you') : t('assistant')), m.content);
+    if (i === lastAssistant) {
+      const turnQs = (S.chat.turn && S.chat.turn.questions) || [];
+      const qs = turnQs.length ? turnQs : (S.disc && !S.disc.complete ? (S.disc.questions || []).slice(0, 2) : []);
+      if (qs.length) bubble.append(quickReplies(qs));
+      const acts = actionButtons(m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []));
+      if (acts) bubble.append(acts);
+    }
+    kids.push(bubble);
+  });
+  // Build/change state lines come from the server records (no invented progress).
+  if (S.build && S.build.status) {
+    const st = String(S.build.status).toLowerCase();
+    const counts = (S.tasks && S.tasks.tasks || []).reduce((a, x) => { a[x.state] = (a[x.state] || 0) + 1; return a; }, {});
+    const label = st === 'ready' ? t('buildReady') : st === 'failed' ? `${t('buildFailed')}: ${friendlyError(S.build)}` :
+      st === 'cancelled' ? t('buildCancelled') : `${t('buildRunning')}${S.build.phase ? ` · ${S.build.phase}` : ''}`;
+    kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('build') }, label,
+      counts.SUCCEEDED ? ` · ${counts.SUCCEEDED} ${t('ts_SUCCEEDED')}` : ''));
+  }
+  if (S.mod && S.mod.status) kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('change') },
+    S.mod.status === 'READY_FOR_REVIEW' ? t('modReview') : S.mod.status === 'ACCEPTED' ? t('modAccepted') : t('modQueued')));
+  const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.replaceChildren(...kids);
+  if (atEnd || msgs.length < 3 || S.forceScroll) { box.scrollTop = box.scrollHeight; S.forceScroll = false; }
+}
+function renderArch() {
+  const panel = $('archPanel'); const a = S.arch;
+  if (!a) { panel.hidden = true; return; }
+  panel.hidden = false;
+  const f = a.feasibility || {};
+  const byId = Object.fromEntries((a.tasks || []).map(x => [x.task_id, x]));
+  const layers = (a.layers || []).map((ids, i) => h('div', { class: 'layer' }, h('b', {}, `${t('layer')} ${i + 1}`),
+    ids.map(id => { const x = byId[id] || {}; return h('span', { class: `tk ${x.executable === false ? 'gap' : ''}`, title: `${x.department} · ${x.agent}` },
+      `${x.department} · ${ttLabel(x.task_type || id)}${x.conditional ? ` (${t('ifNeeded')})` : ''}`); })));
+  const limits = (f.findings || []).filter(x => x.outcome !== 'FEASIBLE');
+  panel.replaceChildren(h('h2', {}, t('archTitle')),
+    h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, t(`f_${f.outcome}`) || f.outcome)),
+    limits.length ? h('details', {}, h('summary', {}, `${t('constraints')} (${limits.length})`),
+      h('ul', {}, limits.map(x => h('li', {}, `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : '')))) : null,
+    h('div', { class: 'layers' }, layers),
+    (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
+}
+const TT = {
+  he: { requirements:'דרישות', plan_and_quote:'תוכנית והצעת מחיר', architecture:'ארכיטקטורה', implementation:'כתיבת הקוד',
+    unit_tests:'בדיקות בסביבה מבודדת', repair:'תיקונים', preview_smoke:'הפעלת תצוגה', behavioural_acceptance:'בדיקות התנהגות',
+    browser_flow:'בדיקת דפדפן', visual_qa:'בדיקה חזותית', security_scan:'סריקת אבטחה', code_review:'סקירת קוד',
+    release_gate:'שער שחרור', version_release:'שמירת גרסה', cost_settlement:'חישוב עלות' },
+};
+const ttLabel = k => (TT[S.lang] && TT[S.lang][k]) || String(k).replace(/_/g, ' ');
+async function loadTasks() {
+  if (!S.build || !S.build.id) return;
+  try { S.tasks = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}/plan`); }
+  catch { S.tasks = null; }
+}
+function renderTasks() {
+  const box = $('taskBoard'); if (!box) return;
+  const tasks = (S.tasks && S.tasks.bound && S.tasks.tasks) || [];
+  if (!tasks.length) { box.replaceChildren(); return; }
+  const cls = st => ({ SUCCEEDED: 'ok', RUNNING: 'warn', REPAIRING: 'warn', FAILED: 'bad', BLOCKED: 'bad' })[st] || 'muted';
+  box.replaceChildren(h('h3', {}, t('tasksTitle')), h('ul', { class: 'taskboard' }, tasks.map(x => h('li', {},
+    h('span', { class: 'dept' }, x.department), h('span', {}, ttLabel(x.task_type)),
+    h('span', { class: `pill ${cls(x.state)}` }, t(`ts_${x.state}`) || x.state)))));
+}
+
+/* ---------- context tabs (requirements / plan / build / change / versions / details) ---------- */
+const TABS = [['built', ['builtPanel', 'newBuildRow']], ['req', ['discoveryPanel']], ['plan', ['archPanel', 'planPanel']],
+  ['build', ['progressPanel']], ['change', ['modifyPanel']], ['versions', ['versionsPanel']], ['details', ['evidencePanel']]];
+function renderTabs() {
+  const nav = $('ctxTabs'); if (!nav) return;
+  const avail = TABS.filter(([, ids]) => ids.some(id => $(id) && !$(id).hidden));
+  if (S.tab && !avail.find(([k]) => k === S.tab)) S.tab = null;
+  nav.replaceChildren(...avail.map(([k]) => h('button', { type: 'button', 'aria-selected': S.tab === k ? 'true' : 'false',
+    'aria-controls': 'ctx', onclick: () => openTab(S.tab === k ? null : k) }, t(`tab_${k}`))));
+  for (const [k, ids] of TABS) for (const id of ids) { const el = $(id); if (el) el.classList.toggle('active', S.tab === k); }
+  $('ctx').classList.toggle('open', Boolean(S.tab));
+}
+function openTab(k) { S.tab = k; renderTabs(); }
+const tabObserver = new MutationObserver(() => renderTabs());
+
+/* ---------- workspace shell: sidebar, splitter, preview size ---------- */
+function closeSidebarMobile() { $('workspaceView').classList.remove('sb-open'); $('sbScrim').hidden = true; }
+function syncStageButtons() {
+  const ws = $('workspaceView'); if (!ws) return;
+  const hidden = ws.classList.contains('stage-hidden') && !matchMedia('(max-width:900px)').matches;
+  $('togglePreviewBtn').setAttribute('aria-expanded', hidden ? 'false' : 'true');
+  const max = ws.classList.contains('stage-max');
+  $('expandPreviewBtn').setAttribute('aria-pressed', max ? 'true' : 'false');
+  $('expandPreviewBtn').textContent = max ? '⤡' : '⤢';
+  $('expandPreviewBtn').setAttribute('aria-label', t(max ? 'shrinkPreview' : 'expandPreview'));
+  $('expandPreviewBtn').title = t(max ? 'shrinkPreview' : 'expandPreview');
+}
+function setStageWidth(pct) {
+  const v = Math.max(24, Math.min(60, pct));  // the conversation always keeps a usable width
+  document.documentElement.style.setProperty('--stage-w', `${v}%`);
+  try { localStorage.setItem('148ai_stage_w', String(v)); } catch { /* convenience only */ }
+}
+function autoGrow() { const el = $('chatInput'); el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 192)}px`; }
+function wireWorkspace() {
+  const ws = $('workspaceView');
+  try { const w = Number(localStorage.getItem('148ai_stage_w')); if (w) setStageWidth(w); } catch { /* default width */ }
+  try { if (localStorage.getItem('148ai_sb') === 'collapsed') ws.classList.add('sb-collapsed'); } catch { /* default */ }
+  $('chatForm').addEventListener('submit', submitChat);
+  $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) submitChat(e); });
+  $('chatInput').addEventListener('input', autoGrow);
+  $('sbSearch').addEventListener('input', renderProjects);
+  $('sbCollapse').addEventListener('click', () => { ws.classList.add('sb-collapsed'); try { localStorage.setItem('148ai_sb', 'collapsed'); } catch { /* */ } });
+  $('sbOpen').addEventListener('click', () => {
+    if (matchMedia('(max-width:900px)').matches) { ws.classList.add('sb-open'); $('sbScrim').hidden = false; }
+    else { ws.classList.remove('sb-collapsed'); try { localStorage.removeItem('148ai_sb'); } catch { /* */ } }
+  });
+  $('sbScrim').addEventListener('click', closeSidebarMobile);
+  $('langBtn2').addEventListener('click', () => $('langBtn').click());
+  $('logoutBtn2').addEventListener('click', logout);
+  $('togglePreviewBtn').addEventListener('click', () => {
+    if (matchMedia('(max-width:900px)').matches) ws.classList.toggle('stage-mobile');
+    else { ws.classList.toggle('stage-hidden'); ws.classList.remove('stage-max'); }
+    syncStageButtons();
+  });
+  $('closePreviewBtn').addEventListener('click', () => { ws.classList.remove('stage-max', 'stage-mobile'); if (!matchMedia('(max-width:900px)').matches) ws.classList.add('stage-hidden'); syncStageButtons(); });
+  $('expandPreviewBtn').addEventListener('click', () => { ws.classList.toggle('stage-max'); syncStageButtons(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ws.classList.contains('stage-max')) { ws.classList.remove('stage-max'); syncStageButtons(); } });
+  // Drag the separator: the preview width follows the pointer (keyboard: arrows).
+  const sp = $('splitter');
+  const rtl = () => document.documentElement.dir === 'rtl';
+  sp.addEventListener('pointerdown', e => {
+    sp.setPointerCapture(e.pointerId); sp.classList.add('drag');
+    const frame = $('previewFrame'); frame.style.pointerEvents = 'none';
+    const move = ev => {
+      const r = ws.getBoundingClientRect();
+      const fromEdge = rtl() ? ev.clientX - r.left : r.right - ev.clientX;
+      setStageWidth(fromEdge / r.width * 100);
+    };
+    const up = () => { sp.classList.remove('drag'); frame.style.pointerEvents = ''; sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); };
+    sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up);
+  });
+  sp.addEventListener('keydown', e => {
+    const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--stage-w')) || 42;
+    const grow = (e.key === 'ArrowLeft') !== rtl() ? 1 : -1;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); setStageWidth(cur + 3 * grow); }
+  });
+  for (const [, ids] of TABS) for (const id of ids) if ($(id)) tabObserver.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  syncStageButtons();
+}
+
 /* ---------- wiring ---------- */
 function wire() {
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
@@ -1010,6 +1242,7 @@ function wire() {
     e.preventDefault();
     try { await createProject($('firstProjectName').value.trim()); } catch (err) { $('composerMsg').textContent = explain(err); }
   });
+  wireWorkspace();
   $('renameBtn').addEventListener('click', () => dialogAction(async () => {
     await api(`/api/v28/projects/${pid()}`, { method: 'PATCH', body: { title: $('renameInput').value.trim() } });
     await loadProjects();
@@ -1021,7 +1254,6 @@ function wire() {
   $('newProjectBtn').addEventListener('click', () => dialogAction(async () => {
     await createProject($('newProjectInput').value.trim());
   }, 'created'));
-  $('planBtn').addEventListener('click', requestPlan);
   // Founder 2026-10-08: a new product never reuses the open project; it gets
   // its own named project and an empty request box.
   $('newBuildBtn').addEventListener('click', openNewProject);

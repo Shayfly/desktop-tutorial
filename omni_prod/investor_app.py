@@ -1821,6 +1821,179 @@ def v28_discovery_answer(project_id: str, req: V28DiscoveryAnswers, request: Req
     return _discovery_view(row, _lang(request))
 
 
+# ---- Wave A: one continuous conversation (Unified Conversation OS) ---------
+
+class V28ConversationMessage(BaseModel):
+    message: str = Field(default='', max_length=8000)
+    answers: dict[str, str] = Field(default_factory=dict)
+    request_key: str | None = Field(default=None, max_length=80)
+
+
+def _conversation_store():
+    from .conversation.store import PostgresConversationStore
+    if _v28_pool is None:
+        raise HTTPException(503, detail={'error': 'durable_backend_required'})
+    return PostgresConversationStore(_v28_pool)
+
+
+def _project_context(key: str):
+    """Durable build/version state for the supervisor (read-only)."""
+    def ctx(_project_id):
+        out = {}
+        try:
+            with _v28_pool.connection() as conn:
+                b = conn.execute('SELECT id, status, phase, version_id FROM build_jobs WHERE project_id = %s '
+                                 'ORDER BY created_at DESC LIMIT 1', (key,)).fetchone()
+                v = conn.execute('SELECT id FROM project_versions WHERE project_id = %s ORDER BY created_at DESC LIMIT 1',
+                                 (key,)).fetchone()
+                if b:
+                    out['latest_build'] = {'build_id': b[0], 'status': b[1], 'phase': b[2]}
+                    rows = conn.execute("SELECT t.state, count(*) FROM agent_tasks t JOIN agent_runs r ON r.id = t.run_id "
+                                        "WHERE r.subject_kind = 'build' AND r.subject_id = %s "
+                                        "AND r.outcome IS DISTINCT FROM 'superseded' GROUP BY t.state", (b[0],)).fetchall()
+                    out['task_counts'] = {r[0]: r[1] for r in rows}
+                if v:
+                    out['latest_version_id'] = v[0]
+        except Exception:
+            logging.getLogger(__name__).warning('project context unavailable', exc_info=True)
+        return out
+    return ctx
+
+
+def _supervisor(key: str):
+    from .conversation.supervisor import ConversationSupervisor
+    gateway = None
+    if os.getenv('OMNI_INTAKE_MODEL') == '1':
+        try:
+            gateway = _model_gateway_and_executor()[0]
+        except Exception:
+            gateway = None   # no model route here: the deterministic interpreter answers
+    return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=gateway,
+                                  credits=_M5_BUILD_CREDITS, context=_project_context(key),
+                                  budget_usd=Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50'))
+
+
+def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
+    store, repo = _conversation_store(), _brief_repo()
+    row = repo.latest(project_id)
+    plan = store.plan_for(project_id, row.fingerprint) if row else None
+    from .conversation.supervisor import _plan_view
+    return {
+        'turn': turn.to_dict(lang) if turn is not None else None,
+        'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
+                      'intent': (m.get('interpretation') or {}).get('intent'),
+                      'actions': (m.get('interpretation') or {}).get('actions') or []}
+                     for m in store.messages_for(project_id, limit=100)],
+        'discovery': _discovery_view(row, lang) if row else None,
+        'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
+        'interpreter': 'model' if os.getenv('OMNI_INTAKE_MODEL') == '1' else 'deterministic',
+    }
+
+
+@app.post('/api/v28/projects/{project_id}/conversation')
+def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request: Request) -> dict:
+    """One message of the project's single continuous conversation. Routes to
+    brief updates, the Chief Architect, feasibility, cost, status or the
+    modification offer. Never starts a paid build (approval stays explicit)."""
+    from .brief_repository import StaleBrief
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    if not req.message.strip() and not req.answers:
+        raise HTTPException(422, detail={'error': 'empty_message'})
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')   # a retried send: no second turn
+    try:
+        turn = _supervisor(key).turn(project_id=project_id, account_id=account.id, message=req.message,
+                                     answers=req.answers, request_key=req.request_key, lang=lang)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
+    return _conversation_view(project_id, turn.language, turn)
+
+
+@app.get('/api/v28/projects/{project_id}/conversation')
+def v28_conversation_get(project_id: str, request: Request) -> dict:
+    _discovery_account(request, project_id)
+    return _conversation_view(project_id, _lang(request))
+
+
+@app.get('/api/v28/projects/{project_id}/memory')
+def v28_project_memory(project_id: str, request: Request) -> dict:
+    """Structured project memory: ten separate sections from durable tables."""
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    from .conversation.memory import snapshot
+    return snapshot(_v28_pool, project_id=project_id, internal_key=key, store=_conversation_store(), briefs=_brief_repo())
+
+
+def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None:
+    """At build admission: the Chief Architect's plan for the approved brief,
+    gated by feasibility. Deterministic and free; stored once per fingerprint."""
+    from .intake import contract as C
+    from .planning.architect import ChiefArchitect
+    row = _brief_repo().latest(project_id)
+    if row is None or row.fingerprint != brief_fingerprint:
+        return None
+    store = _conversation_store()
+    saved = store.plan_for(project_id, brief_fingerprint)
+    if saved is None:
+        try:
+            contract = C.build(row.brief)
+        except C.ContractInvalid as exc:
+            raise HTTPException(409, detail={'error': 'requirements_invalid', 'problems': exc.problems}) from exc
+        plan = ChiefArchitect().plan(contract,
+                                     budget_usd=Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50'),
+                                     status='PROPOSED')
+        saved = store.save_plan(project_id=project_id, brief_revision=row.revision, brief_fingerprint=brief_fingerprint, plan=plan)
+    plan = saved['plan']
+    if os.getenv('OMNI_FEASIBILITY_GATE', 'enforce') == 'enforce' and not plan.get('executable'):
+        blocked = [f for f in plan['feasibility']['findings'] if f['outcome'] not in ('FEASIBLE', 'FEASIBLE_WITH_CONSTRAINTS')]
+        raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
+                                         'findings': blocked or plan.get('graph_problems')})
+    return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
+            'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED'}
+
+
+@app.get('/api/v28/projects/{project_id}/builds/{build_id}/plan')
+def v28_build_plan(project_id: str, build_id: str, request: Request) -> dict:
+    """The approved DAG of a build with each task's durable state (customer progress)."""
+    token = _v28_bearer(request)
+    try:
+        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    with _v28_pool.connection() as conn:
+        job = conn.execute("SELECT evidence_json -> 'execution_plan', status FROM build_jobs WHERE id = %s AND project_id = %s",
+                           (build_id, key)).fetchone()
+        if job is None:
+            raise HTTPException(404, detail={'error': 'build_not_found'})
+        rows = conn.execute("SELECT t.evidence ->> 'plan_task', t.agent_key, t.state, t.started_at, t.finished_at "
+                            "FROM agent_tasks t JOIN agent_runs r ON r.id = t.run_id WHERE r.subject_kind = 'build' "
+                            "AND r.subject_id = %s AND r.outcome IS DISTINCT FROM 'superseded' ORDER BY t.created_at",
+                            (build_id,)).fetchall()
+    binding = job[0] if isinstance(job[0], dict) else None
+    states = {r[0]: {'agent': r[1], 'state': r[2], 'started_at': r[3].isoformat() if r[3] else None,
+                     'finished_at': r[4].isoformat() if r[4] else None} for r in rows if r[0]}
+    tasks = []
+    for t in (binding or {}).get('graph', {}).get('tasks', []):
+        live = states.get(t['task_id'], {})
+        tasks.append({'task_id': t['task_id'], 'task_type': t['task_type'], 'department': t['department'],
+                      'agent': t['responsible_agent'], 'dependencies': t['dependencies'], 'stage': t['stage'],
+                      'state': live.get('state', 'NOT_RECORDED'), 'started_at': live.get('started_at'),
+                      'finished_at': live.get('finished_at')})
+    return {'build_id': build_id, 'build_status': job[1], 'plan_id': (binding or {}).get('plan_id'),
+            'bound': binding is not None, 'tasks': tasks}
+
+
 def _budget_fingerprint(contract, quote, funding: str) -> str:
     import hashlib
     basis = f'{contract.contract_fingerprint}|{quote.total_authorized_variable_usd}|{_M5_BUILD_CREDITS}|{funding}'
@@ -1974,6 +2147,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         jobs = PostgresBuildRepository(_v28_pool)
 
         existing = None
+        plan_binding = None
         try:
             with _v28_pool.connection() as conn:
                 with conn.transaction():
@@ -1995,6 +2169,9 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                     build_id=build_id)
                             except ApprovalError as exc:
                                 raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+                            # Wave A: the approved brief's execution plan is bound to the build;
+                            # an infeasible plan refuses the build (rolls back this transaction).
+                            plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))
                         elif _approval_required():
                             raise HTTPException(409, detail={'error': 'approval_required',
                                                              'message': 'Approve the summary and plan first.'})
@@ -2026,9 +2203,12 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             rights_evidence=rights_evidence, public_project_id=project_id,
                             build_contract_id=build_contract.id,
                         )
+                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}}
+                        if plan_binding is not None:
+                            job_evidence['execution_plan'] = plan_binding
                         jobs.create_with_cursor(
                             cur, build_id=build_id, project_id=key, version_id="pending",
-                            evidence_json={'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}},
+                            evidence_json=job_evidence,
                             estimated_provider_cost_usd=economics_quote.total_authorized_variable_usd,
                         )
                         jobs.create_outbox(cur, build_id=build_id)

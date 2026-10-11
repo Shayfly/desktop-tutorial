@@ -4,17 +4,17 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 12, IMPLEMENTED 8, UNIT_TESTED 7, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 24, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 101, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 8, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 100, LIVE 0, BLOCKED 9
 
 ## Agents
 
 | Agent | Category | Status | Verifier | Why / evidence | Gap |
 |---|---|---|---|---|---|
-| Executive Orchestrator (`executive_orchestrator`) | management | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py |  |
+| Executive Orchestrator (`executive_orchestrator`) | management | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py |  |
 | Discovery Agent (`discovery_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Requirements Agent (`requirements_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
-| Intake Agent (`intake_agent`) | management | **NOT_IMPLEMENTED** | requirements_agent | does not import: omni_prod.conversation.supervisor:ConversationSupervisor |  |
+| Intake Agent (`intake_agent`) | management | **UNIT_TESTED** | requirements_agent | unit tests only — tests/test_conversation_os.py |  |
 | Chief Architect (`chief_architect`) | software | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_conversation_os.py |  |
 | Product Planner (`product_planner`) | management | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Architecture Agent (`architecture_agent`) | software | **REAL_SERVER_VERIFIED** | code_review_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
@@ -314,7 +314,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 24, INTEGRATION
 | `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `unused_reservation_release` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `margin_calculation` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: cost per build from the ledger; unknown cost reported as exposure | margin UNKNOWN until revenue exists; costs from the ledger |
+| `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/economics_report.py | margin UNKNOWN until revenue exists; costs from the ledger |
 | `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |
 | `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |

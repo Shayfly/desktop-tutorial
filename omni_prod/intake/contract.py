@@ -128,7 +128,7 @@ def validate(c: RequirementsContract) -> list[str]:
 
 
 _INTEGRATION_WORDS = (
-    ('payments', r'(תשלום|סליקה|כרטיס אשראי|stripe|paypal|payment|checkout)'),
+    ('payments', r'(תשלו[םמ]|סליקה|כרטיס אשראי|stripe|paypal|payment|checkout)'),
     ('email', r'(שליחת מייל|שליחת אימייל|newsletter|send email|email notification)'),
     ('sms', r'(sms|הודעת טקסט|וואטסאפ|whatsapp)'),
     ('maps', r'(מפה|google maps|mapbox|\bmap\b)'),

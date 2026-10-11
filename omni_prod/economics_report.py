@@ -100,11 +100,79 @@ def compute(builds: list[dict], attempts: list[dict]) -> dict:
         'models': {k: {**v, 'metered': str(v['metered']),
                        'success_rate': round(v['ok'] / v['calls'], 3) if v['calls'] else None}
                    for k, v in sorted(models.items(), key=lambda kv: -kv[1]['metered'])},
+        'cost_of_failure': cost_of_failure(rows, attempts),
         'contribution_margin': 'UNKNOWN: no customer revenue recorded (QA-funded builds only); '
                                'infrastructure runs on free tiers with no per-build allocation',
         'invoice_reconciliation': 'BLOCKED: needs the provider billing export (founder access)',
     }
     return out
+
+
+MIN_SAMPLE = 10   # below this a ranking is reported as INSUFFICIENT_SAMPLE, never as a winner
+
+
+def _wilson(k: int, n: int, z: float = 1.96):
+    """95% Wilson interval for a success rate (honest uncertainty for small n)."""
+    if n == 0:
+        return None
+    p = k / n
+    den = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / den
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / den
+    return [round(max(0.0, centre - half), 3), round(min(1.0, centre + half), 3)]
+
+
+def cost_of_failure(rows: list[dict], attempts: list[dict]) -> dict:
+    """Wave A §10: cost per VERIFIED successful build, by the model that wrote
+    the code (codegen author), including every repair/review/failed attempt of
+    those builds. A build counts as a verified success only when it ended
+    READY (release policy READY). Builds with unknown cost are excluded from
+    the cost figures (counted separately)."""
+    author: dict[str, str] = {}
+    by_task = defaultdict(lambda: defaultdict(lambda: {'calls': 0, 'ok': 0, 'metered': Decimal('0')}))
+    for a in attempts:
+        if a.get('task_type') == 'codegen' and a.get('outcome') == 'ok' and a['build_id'] not in author:
+            author[a['build_id']] = a.get('model') or '?'
+        t = by_task[a.get('task_type') or 'general'][a.get('model') or '?']
+        t['calls'] += 1
+        t['ok'] += a.get('outcome') == 'ok'
+        m = _d(a.get('metered'))
+        if m is not None:
+            t['metered'] += m
+    groups = defaultdict(lambda: {'builds': 0, 'ready': 0, 'cost': Decimal('0'), 'unknown_cost_builds': 0, 'repair_cost': Decimal('0')})
+    for r in rows:
+        if r.get('status') not in ('ready', 'failed') or r['metered'] is None:
+            continue
+        g = groups[author.get(r['id'], 'no-codegen-call')]
+        g['builds'] += 1
+        g['ready'] += r['status'] == 'ready'
+        if r['cost'] is None:
+            g['unknown_cost_builds'] += 1
+        else:
+            g['cost'] += r['cost']
+            g['repair_cost'] += r['repair_metered'] or Decimal('0')
+    by_author = {}
+    for model, g in sorted(groups.items()):
+        n, k = g['builds'], g['ready']
+        by_author[model] = {
+            'builds': n, 'verified_successes': k, 'success_rate': round(k / n, 3) if n else None,
+            'success_rate_95ci': _wilson(k, n), 'total_cost_usd': str(g['cost']), 'repair_cost_usd': str(g['repair_cost']),
+            'unknown_cost_builds': g['unknown_cost_builds'],
+            'cost_per_verified_success_usd': str(round(g['cost'] / k, 6)) if k else None,
+            'sample': 'OK' if n >= MIN_SAMPLE else f'INSUFFICIENT_SAMPLE (<{MIN_SAMPLE} builds)',
+        }
+    ranked = [m for m, v in by_author.items() if v['sample'] == 'OK' and v['cost_per_verified_success_usd']]
+    ranked.sort(key=lambda m: Decimal(by_author[m]['cost_per_verified_success_usd']))
+    return {
+        'definition': 'total metered cost of builds authored by the model (initial + repairs + reviews + failed calls) '
+                      '/ builds that ended READY under the release policy',
+        'by_codegen_model': by_author,
+        'by_task_and_model': {t: {m: {**v, 'metered': str(v['metered']),
+                                      'call_success_rate': round(v['ok'] / v['calls'], 3) if v['calls'] else None}
+                                  for m, v in ms.items()} for t, ms in sorted(by_task.items())},
+        'cheapest_verified_model': ranked[0] if ranked else 'UNDETERMINED (no model has a sufficient sample)',
+        'note': 'quality gates are never lowered to improve these numbers; infrastructure cost not allocated per build',
+    }
 
 
 _BUILDS_SQL = """

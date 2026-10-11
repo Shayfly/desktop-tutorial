@@ -18,7 +18,7 @@ _RULES = (
     ('game', r'(משחק|גיים|game\b|games\b|platformer|multiplayer|מולטיפלייר|שלבים במשחק)'),
     ('3d_experience', r'(תלת[- ]?מימד|\b3d\b|three\.?js|מודל תלת)'),
     ('mobile_app', r'(אפליקציה (?:לנייד|לטלפון|לאייפון|לאנדרואיד)|אפליקצי[הת] מובייל|\bios\b|android|אנדרואיד|app store|play store|mobile app)'),
-    ('media', r'(סרטון|וידאו|וידיאו|video|פודקאסט|podcast|מוזיקה|שיר\b|music|קריינות|voice ?over)'),
+    ('media', r'(סרטו[ןנ]|וידאו|וידיאו|video|פודקאסט|podcast|מוזיקה|שיר\b|music|קריינות|voice ?over)'),
     ('automation', r'(אוטומצי|automation|workflow|זרימת עבודה|תזמון אוטומטי|zapier|n8n|כל בוקר שלח)'),
     ('ai_agent', r'(סוכן ai|ai agent|צ\'?אטבוט|chatbot|בוט שעונה|assistant bot)'),
     ('api_integration', r'(\bapi\b(?! key)|webhook|אינטגרציה|integration with|לחבר ל)'),

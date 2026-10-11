@@ -88,8 +88,12 @@ def web_graph(contract, *, budget_usd: D) -> ExecutionGraph:
         _t('T11', 'security_scan', 'security_agent', ('secret_detection', 'security_release_gate'), ('T04',), 'security',
            outputs=('static security findings',), accept=('no blocking finding',), verify='static scan (platform-owned)',
            complexity='low'),
+        _t('T15', 'code_review', 'code_review_agent', ('xss_check',), ('T07',), 'review',
+           outputs=('review findings on the running candidate',), accept=('no blocking finding',),
+           verify='model review; independent of the author only when another provider is available (recorded)',
+           model_task='review', est='0.01', cap='0.05'),
         _t('T12', 'release_gate', 'quality_gate_agent', ('release_gate', 'security_release_gate'),
-           ('T08', 'T09', 'T10', 'T11'), 'quality_gate', outputs=('quality-report/1 decision',),
+           ('T08', 'T09', 'T10', 'T11', 'T15'), 'quality_gate', outputs=('quality-report/1 decision',),
            accept=('every mandatory check PASS; NOT_RUN/UNKNOWN block',), verify='release policy (platform-owned, independent)',
            complexity='low'),
         _t('T13', 'version_release', 'release_agent', ('version_create', 'release_gate'), ('T12',), 'release',
@@ -99,11 +103,6 @@ def web_graph(contract, *, budget_usd: D) -> ExecutionGraph:
            outputs=('settlement at metered usage',), accept=('ledger sum == settlement; unknown cost reported as exposure',),
            verify='attempt ledger reconciliation', failure='continue_advisory', complexity='low'),
     ]
-    if complex_:
-        tasks.insert(3, _t('T03R', 'architecture_review', 'code_review_agent', ('xss_check',), ('T03',), 'review',
-                           outputs=('independent review of the spec',), accept=('no blocking finding',),
-                           verify='different model than the author when available', model_task='review', est='0.01', cap='0.05'))
-        tasks = [t if t.task_id != 'T04' else PlanTask(**{**t.__dict__, 'dependencies': ('T03', 'T03R')}) for t in tasks]
     return ExecutionGraph(tuple(tasks), budget_usd)
 
 

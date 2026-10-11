@@ -138,4 +138,185 @@ class BuildAgentRecorder:
         self._safe(self.rt.finish_run, self.run_id, status)
 
 
-__all__ = ['BuildAgentRecorder', 'RuntimeViolation']
+__all__ = ['BuildAgentRecorder', 'PlanBoundRecorder', 'RuntimeViolation', 'recorder_for']
+
+
+# ---------------------------------------------------------------------------
+# Wave A: the approved execution plan drives the task graph.
+# ---------------------------------------------------------------------------
+MODEL_TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repair': 'repair', 'review': 'review'}
+# Release-policy check that decides each verification stage (platform-owned).
+STAGE_CHECK = {'preview': 'preview_starts', 'behavior': 'behavioural_acceptance', 'browser': 'browser_flow',
+               'visual': 'visual_layout_desktop_mobile', 'security': 'static_security_scan',
+               'review': 'qa_review_blocking_findings'}
+
+
+class PlanBoundRecorder(BuildAgentRecorder):
+    """Materializes the Chief Architect's validated DAG as durable agent tasks
+    BEFORE the engine runs (PENDING with real depends_on), then moves each
+    task through its states as the existing engine performs the bound stage.
+
+    Truth rules: a task is SUCCEEDED only when its stage actually happened and
+    passed (stage results come from the platform-owned release policy, not the
+    author); a failure BLOCKS its downstream tasks (runtime cascade); tasks the
+    build never reached end CANCELLED with 'not reached'; non-executable tasks
+    are BLOCKED with their gap. Recording never changes the build outcome.
+    """
+
+    def __init__(self, pool, subject_id: str, *, plan: dict, plan_id: str | None = None, **kw):
+        super().__init__(pool, subject_id, **kw)
+        self.plan = plan
+        self.plan_id = plan_id
+        self.by_stage: dict[str, str] = {}
+        self.agent_of: dict[str, str] = {}
+        self.state: dict[str, str] = {}
+
+    def _move(self, tid, target, evidence=None):
+        if tid is None:
+            return False
+        ok = self._safe(self.rt.transition, tid, target, evidence=evidence or {}) is None and self._last_ok(tid, target)
+        return ok
+
+    def _last_ok(self, tid, target):
+        try:
+            st = self.rt.get(tid)['state']
+        except Exception:
+            return False
+        self.state[tid] = st
+        return st == target
+
+    def start(self, *, from_brief: bool) -> None:
+        def go():
+            self.rt.supersede_open_runs(self.subject_kind, self.subject_id)
+            self.run_id = self.rt.create_run(self.subject_kind, self.subject_id, budget_usd=self.budget)
+            ids: dict[str, str] = {}
+            from ..planning.graph import ExecutionGraph
+            graph = ExecutionGraph.from_dict(self.plan)
+            for plan_task_id in graph.order():
+                t = graph.by_id[plan_task_id]
+                tid = self.rt.add_task(self.run_id, t.responsible_agent, skills=t.required_skills,
+                                       depends_on=[ids[x] for x in t.dependencies],
+                                       budget_usd=t.maximum_authorized_cost_usd * t.max_iterations
+                                       if t.maximum_authorized_cost_usd and t.model_task else None,
+                                       evidence={'plan_task': t.task_id, 'plan_id': self.plan_id, 'stage': t.stage,
+                                                 'department': t.department, 'task_type': t.task_type,
+                                                 'conditional': t.conditional})
+                ids[plan_task_id] = tid
+                self.by_stage.setdefault(t.stage, tid)
+                self.agent_of[tid] = t.responsible_agent
+                if not t.executable:
+                    self.rt.transition(tid, 'BLOCKED', evidence={'gap': t.gap or 'no execution engine'})
+        self._safe(go)
+        for stage, note in (('intake', 'approved brief bound to the approval'), ('planning', 'build contract + reserved quote')):
+            tid = self.by_stage.get(stage)
+            if tid and self._move(tid, 'RUNNING'):
+                self._move(tid, 'SUCCEEDED', {'source': note})
+                self.done[self.agent_of[tid]] = tid
+
+    def _stage_state(self, stage):
+        tid = self.by_stage.get(stage)
+        return tid, (self.state.get(tid) if tid else None)
+
+    def _open(self, stage):
+        tid, st = self._stage_state(stage)
+        if tid is None:
+            return None
+        if st in (None, 'PENDING', 'READY'):
+            self._move(tid, 'RUNNING')
+        elif st == 'REPAIRING':
+            self._move(tid, 'RUNNING')
+        return tid
+
+    def _close(self, stage, ok: bool, evidence=None):
+        tid, st = self._stage_state(stage)
+        if tid is None or st in ('SUCCEEDED', 'FAILED', 'CANCELLED', 'BLOCKED'):
+            return
+        if st != 'RUNNING' and not self._move(tid, 'RUNNING'):
+            return
+        if self._move(tid, 'SUCCEEDED' if ok else 'FAILED', evidence or {}) and ok:
+            self.done[self.agent_of[tid]] = tid
+
+    def on_model(self, task: str) -> None:
+        stage = MODEL_TASK_STAGE.get(task)
+        if stage is None:
+            return
+        if stage == 'codegen':
+            self._close('architecture', True, {'note': 'spec produced; code generation started'})
+        if stage in ('codegen', 'repair', 'review', 'architecture'):
+            self._open(stage)
+
+    def on_check(self, passed: bool, summary: str) -> None:
+        self._close('codegen', True, {'note': 'files produced and handed to verification'})
+        tid = self._open('unit_tests')
+        if tid is None:
+            return
+        if passed:
+            self._close('unit_tests', True, {'summary': summary[:300], 'tests_written_by': 'coding_agent'})
+            tid_r, st_r = self._stage_state('repair')
+            if st_r == 'RUNNING':
+                self._close('repair', True, {'note': 'checks pass after repair'})
+        else:
+            self._move(tid, 'REPAIRING', {'last_failure': summary[:300]})
+
+    def finish(self, *, status: str, evidence: dict | None) -> None:
+        if self.run_id is None:
+            return
+        ev = evidence or {}
+        qr = ev.get('quality_report') or {}
+        checks = {c.get('check'): c.get('status') for c in qr.get('checks') or []}
+        ready = status == 'ready'
+        tid, st = self._stage_state('unit_tests')
+        if st in ('RUNNING', 'REPAIRING'):
+            if st == 'REPAIRING':
+                self._move(tid, 'FAILED', {'note': 'checks still failing at the end of the build'})
+            else:
+                self._close('unit_tests', ready)
+        tid, st = self._stage_state('repair')
+        if st == 'RUNNING':
+            self._close('repair', ready, {'note': 'build ' + status})
+        for stage, check in STAGE_CHECK.items():
+            res = checks.get(check)
+            if res in ('PASS', 'FAIL'):
+                self._close(stage, res == 'PASS', {'release_check': check, 'status': res})
+        settlement = ev.get('economics_settlement') or {}
+        if settlement:
+            basis = (settlement.get('cost_basis') or {}).get('llm') or ''
+            self._close('cost', not str(basis).startswith('UNKNOWN'), {'basis': str(basis)[:200]})
+        if qr:
+            gate_ok = ready and qr.get('decision') == 'READY'
+            self._close('quality_gate', gate_ok, {'policy': qr.get('policy_version'), 'decision': qr.get('decision'),
+                                                  'blocking': qr.get('blocking')})
+            gtid, gst = self._stage_state('quality_gate')
+            if gate_ok and gst == 'SUCCEEDED':
+                for agent in ('coding_agent', 'repair_agent', 'behavioral_acceptance_agent', 'browser_rehearsal_agent',
+                              'security_agent', 'cost_economics_agent', 'qa_agent'):
+                    if agent in self.done:
+                        self._safe(self.rt.verify, self.done[agent], gtid)
+        if ready:
+            self._close('release', True, {'note': 'version committed'})
+        # Everything not reached ends CANCELLED (never silently SUCCEEDED).
+        for stage, tid in self.by_stage.items():
+            st = self._last_state(tid)
+            if st in ('PENDING', 'READY'):
+                self._move(tid, 'CANCELLED', {'note': 'not needed' if stage == 'repair' else f'not reached (build {status})'})
+            elif st == 'BLOCKED':
+                self._move(tid, 'CANCELLED', {'note': f'blocked; build {status}'})
+            elif st in ('RUNNING', 'REPAIRING', 'VERIFYING'):
+                self._move(tid, 'FAILED', {'note': f'interrupted: build {status}'})
+        self._safe(self.rt.finish_run, self.run_id, status)
+
+    def _last_state(self, tid):
+        try:
+            st = self.rt.get(tid)['state']
+        except Exception:
+            return None
+        self.state[tid] = st
+        return st
+
+
+def recorder_for(pool, build_id: str, plan_binding: dict | None):
+    """The plan-bound recorder when the build carries an approved plan; the
+    reactive recorder otherwise (legacy builds keep their behaviour)."""
+    if plan_binding and isinstance(plan_binding.get('graph'), dict):
+        return PlanBoundRecorder(pool, build_id, plan=plan_binding['graph'], plan_id=plan_binding.get('plan_id'))
+    return BuildAgentRecorder(pool, build_id)

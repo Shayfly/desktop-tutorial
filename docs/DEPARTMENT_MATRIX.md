@@ -6,7 +6,7 @@ Summary: {'IMPLEMENTED': 5, 'NOT_IMPLEMENTED': 3, 'PARTIAL': 7, 'READY': 3}
 
 | # | Department | Readiness | Core agents (status) | Missing roles / adapters |
 |---|---|---|---|---|
-| D01 | Customer Discovery & Product Requirements | **PARTIAL** | intake_agent (NOT_IMPLEMENTED), discovery_agent (REAL_SERVER_VERIFIED), requirements_agent (REAL_SERVER_VERIFIED) | — |
+| D01 | Customer Discovery & Product Requirements | **PARTIAL** | intake_agent (UNIT_TESTED), discovery_agent (REAL_SERVER_VERIFIED), requirements_agent (REAL_SERVER_VERIFIED) | — |
 | D02 | Product Management & Planning | **PARTIAL** | product_planner (REAL_SERVER_VERIFIED), executive_orchestrator (IMPLEMENTED) | backlog_manager |
 | D03 | Systems Architecture | **PARTIAL** | chief_architect (UNIT_TESTED), architecture_agent (REAL_SERVER_VERIFIED) | — |
 | D04 | UX Research & Product Design | **IMPLEMENTED** | accessibility_agent (IMPLEMENTED) | ux_research_agent |

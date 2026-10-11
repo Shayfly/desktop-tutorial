@@ -19,7 +19,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099",
@@ -97,8 +97,11 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "NOT_IMPLEMENTED",
-   "why": "does not import: omni_prod.conversation.supervisor:ConversationSupervisor",
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_conversation_os.py"
+   ],
    "last_verified_at": null,
    "last_verified_commit": null
   },
@@ -4936,9 +4939,12 @@
    ],
    "gap": "margin UNKNOWN until revenue exists; costs from the ledger",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: cost per build from the ledger; unknown cost reported as exposure",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py",
    "evidence": [
+    "tests/test_economics_report.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks economics run 38083624196"
    ],
    "last_verified_at": "2026-10-10T20:23Z",
@@ -7558,9 +7564,9 @@
  "summary": {
   "agents_total": 54,
   "agents": {
-   "NOT_IMPLEMENTED": 12,
+   "NOT_IMPLEMENTED": 11,
    "IMPLEMENTED": 8,
-   "UNIT_TESTED": 7,
+   "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
    "REAL_SERVER_VERIFIED": 23,
    "LIVE": 0,
@@ -7570,9 +7576,9 @@
   "skills": {
    "NOT_IMPLEMENTED": 264,
    "IMPLEMENTED": 29,
-   "UNIT_TESTED": 24,
+   "UNIT_TESTED": 25,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 101,
+   "REAL_SERVER_VERIFIED": 100,
    "LIVE": 0,
    "BLOCKED": 9
   }

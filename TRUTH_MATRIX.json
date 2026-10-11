@@ -893,22 +893,22 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks economics run 38083624196"
+    "tests/test_economics_report.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:margin_calculation",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: cost per build from the ledger; unknown cost reported as exposure"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
     },
     {
      "part": "platform:unit_economics_report",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: cost per build from the ledger; unknown cost reported as exposure"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
     }
    ]
   },
@@ -1163,8 +1163,8 @@
   }
  ],
  "counts": {
-  "REAL_SERVER_VERIFIED": 23,
-  "UNIT_TESTED": 4,
+  "REAL_SERVER_VERIFIED": 22,
+  "UNIT_TESTED": 5,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,
   "BLOCKED": 3

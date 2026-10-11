@@ -1,0 +1,30 @@
+{
+ "schema": "intake-benchmark/1",
+ "note": "Hebrew and English intake cases. expected = fields a correct interpreter must extract with at least the given confidence; forbidden = values it must NOT propose (hallucination checks). Used for the free deterministic benchmark now and for model candidates once a paid evaluation budget is approved.",
+ "cases": [
+  {"id": "he-barber", "lang": "he", "message": "אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון. בצבע ירוק",
+   "family": "web_app", "expected": {"login": "none", "color": "green", "personal_data": "yes", "dates": "future_year"}, "forbidden": {"login": "roles"}},
+  {"id": "he-typos", "lang": "he", "message": "צריך אפלקציה פשוטה לצוות שלי למעקב משימות, בליי התחברות בכלל, בעברית",
+   "family": "web_app", "expected": {"languages": "he", "audience": "internal", "login": "none"}, "forbidden": {"audience": "public"}},
+  {"id": "he-roles", "lang": "he", "message": "מערכת מלאי למחסן עם מנהל ועובדים, הרשאות שונות, בעברית ואנגלית",
+   "family": "web_app", "expected": {"login": "roles", "languages": "he_en"}, "forbidden": {"login": "none"}},
+  {"id": "he-delegate", "lang": "he", "message": "דף נחיתה לסטודיו יוגה, תחליט אתה על העיצוב",
+   "family": "website", "expected": {}, "delegate_rest": true, "forbidden": {}},
+  {"id": "he-game", "lang": "he", "message": "אני רוצה משחק פלטפורמה עם שלבים לילדים",
+   "family": "game", "expected": {}, "forbidden": {}},
+  {"id": "he-dup", "lang": "he", "message": "הזמנת שולחנות למסעדה, למנוע כפילויות, צבע כתום, גופן rubik",
+   "family": "web_app", "expected": {"duplicates": "block", "color": "orange", "font": "rubik", "dates": "future_year"}, "forbidden": {}},
+  {"id": "en-loans", "lang": "en", "message": "I need a simple internal tool for my team to track equipment loans, in English, no login.",
+   "family": "web_app", "expected": {"login": "none", "audience": "internal", "languages": "en"}, "forbidden": {"login": "simple"}},
+  {"id": "en-roles", "lang": "en", "message": "Build a CRM for my agency with admin and staff roles, blue theme, bilingual",
+   "family": "web_app", "expected": {"login": "roles", "color": "blue", "languages": "he_en"}, "forbidden": {}},
+  {"id": "en-mobile", "lang": "en", "message": "an android app for my delivery drivers",
+   "family": "mobile_app", "expected": {}, "forbidden": {}},
+  {"id": "en-noperson", "lang": "en", "message": "Expense tracker for myself, no personal data, warm friendly style, you decide the rest",
+   "family": "web_app", "expected": {"personal_data": "no", "audience": "internal", "style": "warm"}, "delegate_rest": true, "forbidden": {}},
+  {"id": "en-automation", "lang": "en", "message": "an automation workflow that emails me a sales summary every morning",
+   "family": "automation", "expected": {}, "forbidden": {}},
+  {"id": "en-signin", "lang": "en", "message": "A booking site for my clinic where users must log in, no duplicates please",
+   "family": "web_app", "expected": {"login": "simple", "duplicates": "block", "dates": "future_year"}, "forbidden": {"login": "none"}}
+ ]
+}

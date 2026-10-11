@@ -848,8 +848,10 @@ def execute_live_build_job(build_id: str) -> None:
 
     recorder = None
     if os.getenv('OMNI_AGENT_RECORDER', '1') != '0':
-        from .agent_os.recorder import BuildAgentRecorder
-        recorder = BuildAgentRecorder(_v28_pool, build_id)
+        # Wave A: a build approved with an execution plan records that plan's
+        # DAG (pre-created tasks with real dependencies); others stay reactive.
+        from .agent_os.recorder import recorder_for
+        recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id))
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
                                             components_factory=components_factory, agent_recorder=recorder)
@@ -862,6 +864,21 @@ def execute_live_build_job(build_id: str) -> None:
                 recorder.finish(status=row[0] if row else 'failed', evidence=row[1] if row else None)
             except Exception:
                 logging.getLogger(__name__).warning('agent recorder finish failed for %s', build_id, exc_info=True)
+
+
+def execution_plan_binding(pool, build_id: str) -> dict | None:
+    """The approved plan bound to this build at admission (evidence_json.execution_plan)."""
+    try:
+        with pool.connection() as conn:
+            row = conn.execute("SELECT evidence_json -> 'execution_plan' FROM build_jobs WHERE id = %s", (build_id,)).fetchone()
+    except Exception:
+        logging.getLogger(__name__).warning('execution plan lookup failed for %s', build_id, exc_info=True)
+        return None
+    value = row[0] if row else None
+    if isinstance(value, str):
+        import json as _json
+        value = _json.loads(value)
+    return value if isinstance(value, dict) else None
 
 
 def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
