@@ -59,14 +59,36 @@ _ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסי
            'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
 
 
+# A bare "start" once a brief exists ("תתחיל", "בוא נתחיל", "go") asks for the approval screen. The first message
+# of a project ("תבנה לי ...") stays a requirements message because it only matches with a brief and as a full match.
+_START_BARE = (r'(?:יאללה\s+)?(?:בוא(?:ו)?\s+)?(?:נתחיל|תתחיל(?:ו)?|תתחילי|תבנה|תבנו|תבני|להתחיל|התחל)'
+               r'(?:\s+לבנות)?(?:\s+(?:עכשיו|כבר|בבקשה))*|(?:ok\s+)?(?:go|start|let\'?s start)(?:\s+(?:now|please))*')
+
+
 def classify_intent(message: str, *, has_version: bool, has_brief: bool) -> str:
     t = (message or '').strip().lower()
+    if has_brief and re.fullmatch(_START_BARE, t.strip(' .!?,'), re.I):
+        return 'approve'
     for intent in ('status', 'approve', 'cost', 'missing', 'recommend', 'feasibility'):
         if re.search(_RX[intent], t, re.I):
             return intent
     if has_version and re.search(_MODIFY_RX, t, re.I):
         return 'modify'
     return 'requirements'
+
+
+# Content the customer adds after the brief is complete (prices, copy, links, logo text). It is recorded, verbatim,
+# in the brief's "content" field as a new revision; the new fingerprint invalidates any earlier approval.
+_CONTENT_RX = re.compile(r'(₪|\bnis\b|\bils\b|\$|\d{2,}\s*(ש"ח|שקל|₪)|מחיר|מחירון|מחירים|טקסט|תוכן|קישור|לינק|וואטסאפ|ווטסאפ|whatsapp|wa\.me|'
+               r'לוגו|logo|price|prices|copy|link)', re.I)
+
+
+def _record_content(brief, message: str):
+    text = ' '.join((message or '').split())[:1500]
+    cur = brief.fields.get('content')
+    if cur and cur.get('source') in ('answer', 'message') and text not in str(cur.get('value')):
+        text = (str(cur['value']) + ' | ' + text)[:2000]
+    return d.answer(brief, {'content': text})
 
 
 @dataclass
@@ -107,6 +129,8 @@ def _plan_view(plan: dict) -> dict:
 
 _TXT = {
     'he': {'got': 'הבנתי', 'assumed': 'בחרתי עבורכם (אפשר לשנות בכל רגע)', 'ask': 'כדי להמשיך אני צריך תשובה אחת קטנה',
+           'content_saved': 'שמרתי את התוכן שכתבתם בסיכום הפרויקט, בדיוק כפי שנכתב. האישור הקודם בוטל — צריך לאשר את הגרסה המעודכנת.',
+           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
@@ -131,6 +155,8 @@ _TXT = {
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
+           'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
+           'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
@@ -328,6 +354,10 @@ class ConversationSupervisor:
         res = intake_agent.apply(brief, interp, require_confirmation=sensitive) if interp else intake_agent.apply(
             brief, DeterministicInterpreter().interpret('', brief))
         new_brief = res.brief
+        recorded = False
+        if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
+                and not answers and _CONTENT_RX.search(message)):
+            new_brief, recorded = _record_content(new_brief, message), True
         expected = row.revision if row else 0
         if row is None or new_brief.fingerprint() != row.fingerprint:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
@@ -363,7 +393,10 @@ class ConversationSupervisor:
             turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
             feas = (turn.plan or {}).get('feasibility', {})
             if feas.get('buildable'):
-                parts.append(T['ready'])
+                if recorded:
+                    parts.append(T['content_saved'])
+                again = not stated and not res.corrected and (recorded or self._prev_ready(project_id))
+                parts.append(T['ready_again'] if again else T['ready'])
                 turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
@@ -381,6 +414,14 @@ class ConversationSupervisor:
         return turn
 
     _last_reply_was_why = False
+
+    def _prev_ready(self, project_id) -> bool:
+        """The previous assistant turn already said the plan is ready (do not repeat the same sentence)."""
+        try:
+            prev = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
+        except Exception:
+            return False
+        return bool(prev) and any(a.get('type') == 'show_plan' for a in ((prev[-1].get('interpretation') or {}).get('actions') or []))
 
     def _repeats(self, project_id, asked) -> bool:
         """The same open question was already the subject of the previous answer."""
@@ -456,6 +497,8 @@ class ConversationSupervisor:
     def _feasibility_answer(self, message, row, T) -> str:
         """Answers "can we add X?" from the registries, never from a model."""
         import dataclasses
+        from ..product_architect import strip_whatsapp_links
+        message = strip_whatsapp_links(message)          # a WhatsApp link is a hyperlink, not an SMS capability
         contract = C.from_brief(row.brief)
         out = []
         for name, rx in _FEAS_KEYS:

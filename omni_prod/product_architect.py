@@ -54,6 +54,32 @@ def no_login_requested(prompt: str) -> bool:
     return bool(_NO_LOGIN.search(prompt or ''))
 
 
+# A WhatsApp *link* (wa.me / "קישור לוואטסאפ" / "whatsapp button") is a plain hyperlink, not a messaging
+# integration: nothing is sent by the product. Stripped before integration inference only.
+_WA_LINK = re.compile(
+    r"(wa\.me\S*|api\.whatsapp\.com\S*|"
+    r"(קישור|לינק|כפתור|link|button)\s+(ישיר\s+)?(ל|של\s+)?(וואטסאפ|ווטסאפ|whatsapp)|"
+    r"(וואטסאפ|ווטסאפ|whatsapp)\s+(link|button|קישור|לינק|כפתור))", re.I)
+
+
+def strip_whatsapp_links(text: str) -> str:
+    return _WA_LINK.sub(" ", text or "")
+
+
+_CONTENT_ONLY_PROMPT = ("Product kind: CONTENT-ONLY website", "Sign-in: NONE", "Do not store personal or contact details of people.")
+
+
+def content_only_approved(prompt: str) -> bool:
+    """True only when the *approved brief block* (not the free text) records a content-only website with no
+    sign-in and no personal data. Free-text keywords never qualify."""
+    flat = " ".join((prompt or "").split())
+    marker = "--- Approved project brief"
+    if marker not in flat:
+        return False
+    block = flat.split(marker, 1)[1]
+    return all(t in block for t in _CONTENT_ONLY_PROMPT)
+
+
 def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
     """Infrastructure the product needs, in the canonical managed-profile order.
 
@@ -173,7 +199,8 @@ class ProductArchitect:
         integrations = self._infer_integrations(intent, capability_plan)
         questions = self._material_questions(intent, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
-        defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])
+        static_default = ["static_content_site"] if (no_login and content_only_approved(clean)) else []
+        defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
         security = tuple(s for s in (
             "tenant_isolation",
             "least_privilege_rbac",
@@ -365,7 +392,7 @@ class ProductArchitect:
 
     @staticmethod
     def _infer_integrations(prompt: str, capability_plan) -> tuple[str, ...]:
-        low = prompt.casefold()
+        low = strip_whatsapp_links(prompt).casefold()
         result: list[str] = []
         canonical_capability_integrations = {
             "integration.payment": "payments",

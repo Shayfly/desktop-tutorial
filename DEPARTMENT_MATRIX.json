@@ -1,27 +1,28 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 5,
+  "IMPLEMENTED": 6,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 7,
+  "PARTIAL": 6,
   "READY": 3
  },
  "departments": [
   {
    "key": "D01",
    "name": "Customer Discovery & Product Requirements",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "intake conversation, requirements, ambiguity, approval",
    "core_agents": {
     "intake_agent": "UNIT_TESTED",
-    "discovery_agent": "REAL_SERVER_VERIFIED",
-    "requirements_agent": "REAL_SERVER_VERIFIED"
+    "discovery_agent": "IMPLEMENTED",
+    "requirements_agent": "IMPLEMENTED"
    },
    "support_agents": {},
    "skills": {
+    "IMPLEMENTED": 7,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 10,
-    "UNIT_TESTED": 1
+    "REAL_SERVER_VERIFIED": 2,
+    "UNIT_TESTED": 2
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -74,8 +75,9 @@
    },
    "support_agents": {},
    "skills": {
+    "IMPLEMENTED": 1,
     "NOT_IMPLEMENTED": 12,
-    "REAL_SERVER_VERIFIED": 4
+    "REAL_SERVER_VERIFIED": 3
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -208,9 +210,9 @@
     "analytics_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 2,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 7
+    "REAL_SERVER_VERIFIED": 6
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -313,7 +315,7 @@
    "responsibilities": "unit, integration, E2E, browser, regression",
    "core_agents": {
     "qa_agent": "REAL_SERVER_VERIFIED",
-    "behavioral_acceptance_agent": "REAL_SERVER_VERIFIED",
+    "behavioral_acceptance_agent": "IMPLEMENTED",
     "browser_rehearsal_agent": "REAL_SERVER_VERIFIED",
     "code_review_agent": "REAL_SERVER_VERIFIED"
    },
@@ -325,9 +327,9 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 2,
+    "IMPLEMENTED": 6,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 23,
+    "REAL_SERVER_VERIFIED": 19,
     "UNIT_TESTED": 4
    },
    "missing_roles": [],
@@ -478,9 +480,9 @@
     "platform_capability_auditor": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 4,
+    "IMPLEMENTED": 5,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 5,
+    "REAL_SERVER_VERIFIED": 4,
     "UNIT_TESTED": 2
    },
    "missing_roles": [],

@@ -94,6 +94,19 @@ QUESTIONS: tuple[Question, ...] = (
              'Will it store personal details (name, phone, email)?',
              'פרטים אישיים מחייבים לחשוב מי רשאי לראות אותם.', 'Personal data needs a decision about who may see it.',
              options=(_o('yes', 'כן', 'Yes'), _o('no', 'לא', 'No')), recommended='yes'),
+    # Content-only sites (landing pages, brochure sites): the one structured decision that lets acceptance skip
+    # "create records" checks. Never delegable and never defaulted: only the customer's own answer (or an
+    # unchanged pre-selected hint they confirm) sets it, it is shown in the approval summary, and it is bound
+    # into the build contract through requirements_text (see product_architect.content_only_approved).
+    Question('content_only', 'content_only', 'access',
+             'האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?',
+             'Is this a content-only site: it shows information, prices and links and stores nothing from visitors?',
+             'אתר תוכן לא נבדק על יצירה ועריכה של נתונים. אם יש טופס שנשמר, הזמנות או רשימה שמתעדכנת — ענו "לא".',
+             'A content-only site is not tested for creating or editing records. If it has a saved form, orders or a changing list, answer "no".',
+             options=(_o('yes', 'כן, אתר תוכן בלבד — בלי שמירת נתונים', 'Yes, content only: nothing is stored'),
+                      _o('no', 'לא, יש נתונים שנשמרים או משתנים', 'No, some data is stored or changes')),
+             delegable=False,
+             ask_if=lambda v: v.get('login') == 'none' and v.get('personal_data') == 'no' and v.get('_family') == 'website'),
     Question('access_scope', 'access_scope', 'access',
              'ביקשתם בלי התחברות, אבל יישמרו פרטים אישיים ואנשים מבחוץ ישתמשו. איך להמשיך?',
              'No sign-in, personal data and outside users: how should we proceed?',
@@ -159,6 +172,9 @@ _RULES: tuple[tuple[str, str, str, str], ...] = (
     (r'(בלי|ללא)\s+(התחברות|הרשמה|סיסמ)', 'login', 'none', 'high'),
     (r'\b(no|without)\s+(login|sign[- ]?in)', 'login', 'none', 'high'),
     (r'(הרשאות|תפקידים)', 'login', 'roles', 'hint'),
+    (r'(בלי|ללא)\s+(איסוף\s+|שמירת\s+|שמירה\s+של\s+|שמירה\s+)?(של\s+)?(פרטים|מידע|נתונים)\s+אישיים', 'personal_data', 'no', 'high'),
+    (r'\b(no|without)\s+(collecting\s+|storing\s+|saving\s+)?(any\s+)?personal\s+(data|details|information)', 'personal_data', 'no', 'high'),
+    (r'(דף נחיתה|אתר תדמית|landing page|brochure site)', 'content_only', 'yes', 'hint'),
     (r'(טלפון|מייל|אימייל|דוא"ל|כתובת מגורים|ת\.?ז)', 'personal_data', 'yes', 'hint'),
     (r'(לקוחות|ציבור|מטופלים|גולשים)', 'audience', 'public', 'hint'),
     (r'(צוות|עובדים|פנימי|שלי בלבד)', 'audience', 'internal', 'hint'),
@@ -224,7 +240,7 @@ def start(prompt: str, mode: str = GUIDED) -> Brief:
         while changed:  # a choice can make a dependent question applicable
             changed = False
             for q in QUESTIONS:
-                if q.field not in brief.fields and q.delegable and q.recommended is not None and q.ask_if(brief.values()):
+                if q.field not in brief.fields and q.delegable and q.recommended is not None and q.ask_if(_ctx(brief)):
                     brief.fields[q.field] = {'value': _recommended(q, brief, hints), 'source': 'delegated',
                                              'question_id': q.id, 'confidence': 'recommended'}
                     changed = True
@@ -232,9 +248,36 @@ def start(prompt: str, mode: str = GUIDED) -> Brief:
     return brief
 
 
+# A website (landing page, brochure site) shows content; it is not a list-and-form application. The generic
+# defaults below (a list screen with an add form, date ranges, duplicate blocking, an empty start) are right
+# for applications and wrong for a website, so a website-family request gets content defaults instead.
+# Defaults are only proposals: they are listed as assumptions in the approval summary and can be changed.
+_WEBSITE_DEFAULTS = {
+    'audience': 'public',
+    'screens': 'דף אחד: לוגו וכותרת, תיאור העסק, המוצרים או השירותים עם המחירים שצוינו, וקישורי יצירת קשר שצוינו',
+    'content': 'הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו',
+    'dates': 'none',
+    'duplicates': 'allow',
+}
+
+
+def is_website(brief: 'Brief') -> bool:
+    from .intake.families import classify_family
+    return classify_family(brief.prompt) == 'website'
+
+
+def _ctx(brief: 'Brief') -> dict:
+    """What a question's ask_if may look at: the brief's values plus the platform's family classification."""
+    v = brief.values()
+    v['_family'] = 'website' if is_website(brief) else 'other'
+    return v
+
+
 def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
     if q.recommended == '__from_request__':
         return brief.prompt[:300]
+    if q.field in _WEBSITE_DEFAULTS and q.field not in hints and is_website(brief):
+        return _WEBSITE_DEFAULTS[q.field]
     return hints.get(q.field, q.recommended)
 
 
@@ -243,7 +286,7 @@ def _drop_inapplicable(brief: Brief) -> None:
     changed = True
     while changed:
         changed = False
-        vals = brief.values()
+        vals = _ctx(brief)
         for q in QUESTIONS:
             if q.field in brief.fields and not q.ask_if(vals):
                 del brief.fields[q.field]
@@ -281,7 +324,7 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
 
 
 def pending(brief: Brief) -> list[Question]:
-    vals = brief.values()
+    vals = _ctx(brief)
     return [q for q in QUESTIONS if q.field not in brief.fields and q.id not in brief.skipped and q.ask_if(vals)]
 
 
@@ -349,6 +392,16 @@ def detection_text(prompt: str) -> str:
     return (head.strip() + extra).strip()
 
 
+CONTENT_ONLY_LINE = ('Product kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; '
+                     'no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.')
+
+
+def _content_only(v: dict, login: str) -> bool:
+    """Only an explicit, non-delegated yes together with no sign-in and no personal data."""
+    return (v.get('content_only') == 'yes' and login == 'none'
+            and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -366,6 +419,8 @@ def requirements_text(brief: Brief) -> str:
         lines.append('Access: internal tool; only the owner gets the link (no public pages).')
     if scope == 'no_personal' or v.get('personal_data') == 'no':
         lines.append('Do not store personal or contact details of people.')
+    if _content_only(v, login):
+        lines.append(CONTENT_ONLY_LINE)
     for fld, label in (('audience', 'Audience'), ('goal', 'Main action'), ('screens', 'Screens'), ('content', 'Initial content'),
                        ('references', 'Visual references (inspiration only)')):
         if v.get(fld):
@@ -412,6 +467,8 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
         included.append('התחברות' if he else 'Sign-in')
     if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal':
         excluded.append('שמירת פרטים אישיים' if he else 'Personal details')
+    if _content_only(v, 'none' if login == 'none' else 'x'):
+        excluded.append('שמירת נתונים מהמבקרים (אתר תוכן בלבד)' if he else 'Visitor data storage (content-only site)')
     excluded += (['פרסום לכתובת קבועה (בשלב זה: תצוגה מקדימה וקוד להורדה)'] if he
                  else ['Publishing to a permanent address (for now: preview and downloadable code)'])
     excluded += (['שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים'] if he

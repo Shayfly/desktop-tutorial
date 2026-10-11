@@ -1,5 +1,29 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~19:30 Asia/Jerusalem — project "חגית" failed build: content-only site acceptance (LOCAL ONLY, nothing pushed)
+
+Base: a3cc9abc (PR #17 head). Branch `claude/fix-static-site-acceptance-2026-10-11`. No push, merge, deploy, live migration, secret change or paid call was made; spend by this work: $0.
+
+**Customer failure (from the founder's screenshot, not from job evidence):** `BEHAVIOR: ... 2 failed check(s); missing acceptance coverage: A2,A4,A5; missing required behavior kinds: data_create,responsive`.
+
+### 1. Implemented and independently verified (offline, this commit)
+- Structured content-only handling: a new non-delegable question `content_only`; the binding brief block gets `Product kind: CONTENT-ONLY website` only after an explicit "yes" with sign-in NONE and no personal data; `ProductArchitect.compile` records `static_content_site` only from that approved block (free text never qualifies); `acceptance_scope` then waives **data_create only**. data_read, responsive and api_smoke stay required; missing/unknown contract, any login/role, personal data, external integration, storage/scheduled/outbound infra, or a CRUD product keep the full floor.
+- "No personal data" in Hebrew/English is read from the request; delegation never decides `content_only`.
+- A WhatsApp *link* (wa.me, "קישור/כפתור וואטסאפ") is no longer inferred as an SMS/messaging integration (architect, intake contract, feasibility answer).
+- Conversation: a bare "תתחיל/בוא נתחיל/go" with an existing brief returns the `approve_build` action (no auto-approval); content added after the brief is complete (prices, texts, links) is recorded verbatim in the brief `content` field as a new revision, which invalidates any earlier approval via the fingerprint; the "ready" sentence is not repeated.
+- Repair feedback now states which kinds are NOT_REQUIRED and that criteria mapped only to them stay uncovered (target of the "A2,A4,A5 missing" loop).
+- Tests: `tests/test_content_only_site.py` (13) fail without the fix (collection error) and pass with it, including a real local HTTP run of `WebSaaSAcceptanceRunner`.
+- Full suite on the fix: 1627 passed, 44 skipped, 3 failed → the 3 were registry/department files made stale by the code change; regenerated with the canonical generators (`python -m omni_prod.agent_os.audit --write`, `python -m omni_prod.agent_os.departments --write`) and re-run green. **Side effect: real-server evidence for discovery requirement_extraction / smart_question_generation / safe_default_selection is now STALE (REAL_SERVER_VERIFIED → IMPLEMENTED; Truth Matrix 22 → 19) until re-verified on a real server.**
+
+### 2. Implemented, awaiting external live verification
+- Everything above on the real worker/Preview. The failed job itself has NOT been reproduced: its approved brief/contract, A2/A4/A5 definitions, generated files, `.omni/project.json`, per-round failures and spend are not accessible from here (UNVERIFIED which of scope / mapping / data defect / responsive defect / stagnation applies).
+
+### 3. Blocked by a named credential/service
+- Job evidence export (authenticated project/job APIs / DB read), worker runtime SHA and flags, Preview/Production env isolation values, `VERCEL_AUTOMATION_BYPASS_SECRET` for deployment-verify (HTTP 401 PROTECTED), live migration 038.
+
+### 4. Not implemented
+- Safe-deploy recovery changes (drain consumers, fail on 137/OOM, recover on migration/start failure), the daily-backup cron on the default branch, inspector activation, candidate-before-accept, durable resume, paid Golden E2E proof.
+
 ## Update 2026-10-11 ~15:30 Asia/Jerusalem — Conversation UX, image attachments, Visual Edit, 3-pane workspace
 
 **Branch `claude/visual-edit-workspace-2026-10-11` (stacked on PR #16). Not merged. $0: no paid model call, no paid flag, no secret change, no production deploy.** Details and gap list: `docs/VISUAL_EDIT_AND_ATTACHMENTS.md`.
