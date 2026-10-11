@@ -10,6 +10,10 @@ name: deployment-verify
 # A protected deployment needs the repository secret
 # VERCEL_AUTOMATION_BYPASS_SECRET (Vercel "Protection Bypass for Automation");
 # without it the verdict is BLOCKED, never VERIFIED. The token is never printed.
+# Security: only deployments created by the Vercel GitHub app are verified,
+# the target host must match the team's preview suffix, redirects are never
+# followed (secrets stay on that host), Production is skipped (synthetic
+# writes there need a founder-approved run with --allow-production-writes).
 on:
   deployment_status:
   workflow_dispatch:
@@ -30,7 +34,11 @@ concurrency:
 
 jobs:
   verify:
-    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.creator.login == 'vercel[bot]' &&
+       !startsWith(github.event.deployment.environment, 'Production'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -42,8 +50,10 @@ jobs:
           TARGET_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url || inputs.url }}
           EXPECT_SHA: ${{ github.event.deployment.sha || inputs.sha }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          ALLOWED_SUFFIX: -shayflys-projects.vercel.app
         run: |
           python tools/deployment_verify.py "$TARGET_URL" --expect-sha "$EXPECT_SHA" \
+            --allowed-host-suffix "$ALLOWED_SUFFIX" \
             --bypass-token-env VERCEL_AUTOMATION_BYPASS_SECRET --out deployment-verification.json
       - name: Publish verdict
         if: always()

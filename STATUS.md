@@ -1,5 +1,29 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 10:45 Asia/Jerusalem — PR #11 security hardening of the deployment verifier (implementation: Claude; independent review: ChatGPT)
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11` (PR #11). Not merged. No production deploy, no secret change, $0.** Review: `docs/DEPLOYMENT_VERIFY_SECURITY_REVIEW.md`.
+
+**Implemented and independently verified (local, real HTTP over loopback; real FastAPI + PostgreSQL)**
+- High: secret leak on redirect **reproduced** (Bearer token + bypass secret delivered to a second host after a 302) and fixed — redirects never followed; secrets only sent to the validated origin.
+- High: SSRF — origin-only target, https except loopback, no IP literals/credentials/path/query, exact host or anchored suffix allowlist, all resolved addresses must be public.
+- No cookie jar, no env proxies, 1 MiB response cap, per-request timeout + overall deadline, classified network failures (no crash), evidence without bodies/tokens + final scrub, full 40-hex SHA (+ optional trusted deployment-metadata SHA), production writes refused without explicit flag, server-controlled ids validated.
+- Canonical contract: declared required checks; a missing/downgraded/NOT_RUN mandatory check ⇒ BLOCKED; FAIL ⇒ FAILED (takes precedence).
+- PR #9 compared; its hardening and test shapes merged into PR #11 (PR #9 itself not merged).
+- Tests `tests/test_deployment_verification.py`: 35 passed (+27 subtests) — attacks (cross/same-origin redirect, post-login redirect, cookies, echoed Authorization, path-steering id, 19 SSRF URL shapes, private/metadata DNS), network failures (refused, reset mid-journey, timeout, oversize, non-JSON), wrong credentials (bad bypass, no token, rejected token), SHA (short, malformed, mismatch, trusted mismatch, missing), schema mismatch, production guard, CLI exit codes 0/1/2/3.
+- Full suite: 1479 passed, 1 failed (`test_m4_acceptance` W — environment-only, also failing on base), 43 skipped.
+- Real local servers (`docs/evidence/verification/`): 036 DB → VERIFIED (exit 0); 035 DB → FAILED schema_compatible + conversation (exit 1); wrong SHA → FAILED (exit 1); `https://evil.example` → configuration error (exit 3).
+
+**Implemented but awaiting external live verification**
+- Workflow now runs only for `vercel[bot]` deployments (creator confirmed on real run 38114225915), non-Production, host suffix `-shayflys-projects.vercel.app`. Verdict on the protected Preview will remain BLOCKED until the bypass secret exists.
+
+**Blocked by a named credential/service**
+- `VERCEL_AUTOMATION_BYPASS_SECRET` (GitHub secret, from Vercel "Protection Bypass for Automation") — founder action.
+- Promotion gating on the check (Vercel Deployment Checks / branch protection) — founder action.
+- Merge decision — independent review (ChatGPT) + founder.
+
+**Residual risks (not fixed)**: DNS rebinding between the address check and connect; `vercel.app` suffix trust relies on Vercel team-slug hostnames (mitigated by the `vercel[bot]` gate); app-reported SHA is self-reported; synthetic rows accumulate in the shared pre-staging DB.
+
 ## Update 2026-10-11 08:20 Asia/Jerusalem — Vercel "Server error" fixed + Continuous Verification P0.1–P0.4
 
 **Branch `claude/wave-a-fix-conversation-schema-2026-10-11`. $0 spent. No production deploy, no secret change, no model call.**

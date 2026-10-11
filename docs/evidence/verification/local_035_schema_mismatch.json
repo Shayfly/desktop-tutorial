@@ -2,7 +2,7 @@
  "kind": "deployment",
  "target": "http://127.0.0.1:8149",
  "environment": "development",
- "commit_sha": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+ "commit_sha": "45f621c9469bdb8864f283bd437d1295b1dbaf43",
  "checks": [
   {
    "check": "deployment_endpoint",
@@ -10,7 +10,8 @@
    "mandatory": true,
    "category": "startup",
    "evidence": {
-    "status": 200
+    "status": 200,
+    "error_class": "NONE"
    },
    "reason": ""
   },
@@ -20,9 +21,10 @@
    "mandatory": true,
    "category": "deployment_identity",
    "evidence": {
-    "source_commit": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
-    "expected": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
-    "branch": null
+    "reported": "45f621c9469bdb8864f283bd437d1295b1dbaf43",
+    "expected": "45f621c9469bdb8864f283bd437d1295b1dbaf43",
+    "trusted_observed": null,
+    "source": "app-reported VERCEL_GIT_COMMIT_SHA"
    },
    "reason": ""
   },
@@ -33,12 +35,12 @@
    "category": "migration_compatibility",
    "evidence": {
     "required": 36,
-    "required_name": "036_intelligence_plane",
     "applied_max": 35,
+    "status": "MIGRATIONS_PENDING",
+    "required_name": "036_intelligence_plane",
     "missing": [
      36
     ],
-    "status": "MIGRATIONS_PENDING",
     "compatible": false
    },
    "reason": ""
@@ -49,7 +51,8 @@
    "mandatory": true,
    "category": "critical_api",
    "evidence": {
-    "status": 200
+    "status": 200,
+    "error_class": "NONE"
    },
    "reason": ""
   },
@@ -59,7 +62,8 @@
    "mandatory": true,
    "category": "core_journey",
    "evidence": {
-    "status": 200
+    "status": 200,
+    "error_class": "NONE"
    },
    "reason": ""
   },
@@ -70,11 +74,9 @@
    "category": "core_journey",
    "evidence": {
     "status": 503,
-    "error": {
-     "error": "conversation_not_ready",
-     "missing_migration": "036_intelligence_plane",
-     "message": "The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work."
-    }
+    "error_class": "MIGRATION_NOT_APPLIED",
+    "error": "conversation_not_ready",
+    "missing_migration": "036_intelligence_plane"
    },
    "reason": ""
   },
@@ -85,6 +87,9 @@
    "category": "data_integrity",
    "evidence": {
     "status": 503,
+    "error_class": "MIGRATION_NOT_APPLIED",
+    "error": "conversation_not_ready",
+    "missing_migration": "036_intelligence_plane",
     "messages": 0
    },
    "reason": ""
@@ -95,7 +100,10 @@
    "mandatory": true,
    "category": "core_journey",
    "evidence": {
-    "status": 503
+    "status": 503,
+    "error_class": "MIGRATION_NOT_APPLIED",
+    "error": "conversation_not_ready",
+    "missing_migration": "036_intelligence_plane"
    },
    "reason": ""
   },
@@ -105,7 +113,8 @@
    "mandatory": true,
    "category": "auth_bypass",
    "evidence": {
-    "status": 401
+    "status": 401,
+    "error_class": "AUTH_INVALID"
    },
    "reason": ""
   },
@@ -115,7 +124,8 @@
    "mandatory": true,
    "category": "cross_user_exposure",
    "evidence": {
-    "other_user_status": 403
+    "status": 403,
+    "error_class": "HTTP_403"
    },
    "reason": ""
   }
@@ -124,12 +134,24 @@
  "build_id": null,
  "project_id": null,
  "suites": {
-  "deployment_verify": "deployment-verify/2"
+  "deployment_verify": "deployment-verify/3"
  },
  "cost_usd": "0",
- "started_at": 1791695402.917683,
- "finished_at": 1791695402.917687,
+ "started_at": 1791702673.876853,
+ "finished_at": 1791702673.8768563,
  "ttl_seconds": 86400,
+ "required": [
+  "deployment_endpoint",
+  "commit_sha",
+  "schema_compatible",
+  "register_synthetic_user",
+  "create_project",
+  "conversation_turn",
+  "conversation_persists",
+  "project_memory",
+  "unauthenticated_denied",
+  "cross_user_isolation"
+ ],
  "verdict": "FAILED",
  "reason": "failed: schema_compatible, conversation_turn, conversation_persists, project_memory",
  "schema": "verification-result/1",

@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import sys
 import threading
+import uuid
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +24,7 @@ from omni_prod.schema_manifest import EXPECTED_VERSIONS, REQUIRED_MIGRATION
 ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location('deployment_verify', ROOT / 'tools' / 'deployment_verify.py')
 dv = importlib.util.module_from_spec(_spec)
+sys.modules['deployment_verify'] = dv
 _spec.loader.exec_module(dv)
 
 SHA = '0123456789abcdef0123456789abcdef01234567'
@@ -99,50 +103,74 @@ class VerdictTests(unittest.TestCase):
 
 
 class _Stub:
-    """Minimal stand-in for a deployed 148AI API with switchable faults."""
+    """Minimal stand-in for a deployed 148AI API with switchable faults/attacks.
+    Records every request's sensitive headers so leaks can be asserted."""
 
     def __init__(self, **faults):
-        self.f = {'sha': SHA, 'compatible': True, 'conversation_status': 200, 'leak': False,
-                  'protected': False, 'anon_ok': False, **faults}
-        self.tokens, self.owner, self.messages = {}, {}, {}
+        self.f = {'sha': SHA, 'env': 'preview', 'compatible': True, 'conversation_status': 200, 'leak': False,
+                  'protected': False, 'bypass_ok': 'synthetic-bypass', 'anon_ok': False, 'redirect_to': None,
+                  'set_cookie': False, 'sleep_on': None, 'drop_on': None, 'huge_on': None, 'html_on': None,
+                  'no_token': False, 'reject_tokens': False, 'project_id': None, 'echo_auth': False, **faults}
+        self.tokens, self.owner, self.messages, self.seen = {}, {}, {}, []
         stub = self
 
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a):
                 pass
 
-            def _send(self, code, body, ctype='application/json'):
-                raw = body.encode() if isinstance(body, str) else json.dumps(body).encode()
+            def _send(self, code, body, ctype='application/json', extra=()):
+                raw = body if isinstance(body, bytes) else (body.encode() if isinstance(body, str) else json.dumps(body).encode())
                 self.send_response(code)
                 self.send_header('Content-Type', ctype)
                 self.send_header('Content-Length', str(len(raw)))
+                for k, v in extra:
+                    self.send_header(k, v)
                 self.end_headers()
                 self.wfile.write(raw)
 
             def _user(self):
+                if stub.f['reject_tokens']:
+                    return None
                 return stub.tokens.get((self.headers.get('Authorization') or '').removeprefix('Bearer '))
 
             def _route(self, method):
-                if stub.f['protected'] and not self.headers.get('x-vercel-protection-bypass'):
+                path = self.path.split('?')[0]
+                stub.seen.append({'path': path, 'auth': self.headers.get('Authorization'),
+                                  'bypass': self.headers.get('x-vercel-protection-bypass'),
+                                  'cookie': self.headers.get('Cookie')})
+                tag = path.rsplit('/', 1)[-1]
+                if stub.f['drop_on'] == tag:
+                    self.connection.shutdown(2)
+                    return
+                if stub.f['sleep_on'] == tag:
+                    time.sleep(1.5)
+                if stub.f['redirect_to'] and path == stub.f.get('redirect_path', '/api/v28/deployment'):
+                    return self._send(302, b'', extra=[('Location', stub.f['redirect_to'] + path)])
+                if stub.f['protected'] and self.headers.get('x-vercel-protection-bypass') != stub.f['bypass_ok']:
                     return self._send(401, '<html>Authentication Required</html>', 'text/html')
+                if stub.f['huge_on'] == tag:
+                    return self._send(200, b'{"x":"' + b'a' * (dv.MAX_BYTES + 10) + b'"}')
+                if stub.f['html_on'] == tag:
+                    return self._send(200, '<html>ok</html>', 'text/html')
                 body = {}
                 if method == 'POST':
                     body = json.loads(self.rfile.read(int(self.headers.get('Content-Length') or 0)) or b'{}')
-                path = self.path.split('?')[0]
+                cookie = [('Set-Cookie', 'track=1; Path=/')] if stub.f['set_cookie'] else []
                 if path == '/api/v28/deployment':
-                    return self._send(200, {'source_commit': stub.f['sha'], 'environment': 'preview', 'branch': 'b',
+                    return self._send(200, {'source_commit': stub.f['sha'], 'environment': stub.f['env'], 'branch': 'b',
                                             'schema': {'required': 36, 'compatible': stub.f['compatible'],
                                                        'status': 'COMPATIBLE' if stub.f['compatible'] else 'MIGRATIONS_PENDING',
-                                                       'missing': [] if stub.f['compatible'] else [36]}})
+                                                       'missing': [] if stub.f['compatible'] else [36],
+                                                       'note': 'free text <script> must not be copied'}}, extra=cookie)
                 if path == '/api/v28/auth/register':
-                    tok = f'tok{len(stub.tokens)}'
+                    tok = f'sess-{uuid.uuid4().hex}'
                     stub.tokens[tok] = body['email']
-                    return self._send(200, {'token': tok})
+                    return self._send(200, {} if stub.f['no_token'] else {'token': tok}, extra=cookie)
                 user = self._user()
                 if path == '/api/v28/projects':
                     if not user:
                         return self._send(401, {'detail': 'authentication required'})
-                    pid = f'p{len(stub.owner)}'
+                    pid = stub.f['project_id'] or f'p{len(stub.owner)}'
                     stub.owner[pid] = user
                     return self._send(200, {'id': pid})
                 pid = path.split('/')[4]
@@ -151,8 +179,13 @@ class _Stub:
                 if user and stub.owner.get(pid) != user and not stub.f['leak']:
                     return self._send(404, {'detail': 'not found'})
                 if path.endswith('/conversation'):
+                    if stub.f['conversation_status'] == 503:
+                        return self._send(503, {'detail': {'error': 'conversation_not_ready',
+                                                           'missing_migration': '036_intelligence_plane',
+                                                           'message': 'free text'}})
                     if stub.f['conversation_status'] != 200:
-                        return self._send(stub.f['conversation_status'], 'Internal Server Error', 'text/plain')
+                        echoed = self.headers.get('Authorization') if stub.f['echo_auth'] else 'Internal Server Error'
+                        return self._send(stub.f['conversation_status'], {'detail': echoed})
                     if method == 'POST':
                         stub.messages.setdefault(pid, []).extend(['u', 'a'])
                         return self._send(200, {'turn': {'reply': 'ok'}})
@@ -177,20 +210,31 @@ class _Stub:
 
 
 class DeploymentVerifyTests(unittest.TestCase):
-    def run_stub(self, expect_sha=SHA, bypass=None, **faults):
-        stub = _Stub(**faults)
+    def run_stub(self, expect_sha=SHA, bypass=None, stub=None, **kw):
+        faults = {k: v for k, v in kw.items() if k not in ('trusted_observed_sha', 'allow_production_writes', 'timeout')}
+        opts = {k: v for k, v in kw.items() if k in ('trusted_observed_sha', 'allow_production_writes', 'timeout')}
+        stub = stub or _Stub(**faults)
         try:
-            return dv.verify(stub.url, expect_sha=expect_sha, bypass=bypass)
+            return dv.verify(stub.url, expect_sha=expect_sha, bypass=bypass, **opts)
         finally:
             stub.close()
 
     def status(self, result, name):
         return next(c['status'] for c in result['checks'] if c['check'] == name)
 
+    def ev(self, result, name):
+        return next(c for c in result['checks'] if c['check'] == name)['evidence']
+
+    def assert_not_promotable(self, r):
+        self.assertNotIn(r['verdict'], vc.PROMOTABLE)
+        self.assertFalse(vc.may_promote(r, commit_sha=SHA)[0])
+
+    # --- journey and acceptance scenarios ---------------------------------
     def test_healthy_deployment_is_verified_and_promotable(self):
         r = self.run_stub()
         self.assertEqual(r['verdict'], vc.VERIFIED, r['reason'])
         self.assertEqual(r['commit_sha'], SHA)
+        self.assertEqual([c['check'] for c in r['checks']], list(dv.REQUIRED_CHECKS))
         self.assertTrue(vc.may_promote(r, commit_sha=SHA)[0])
 
     def test_scenario_a_conversation_500_is_linked_to_the_deployed_commit(self):
@@ -198,13 +242,18 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.FAILED)
         self.assertEqual(self.status(r, 'conversation_turn'), vc.FAIL)
         self.assertEqual(r['commit_sha'], SHA)
-        self.assertEqual(next(c for c in r['checks'] if c['check'] == 'conversation_turn')['evidence']['status'], 500)
-        self.assertFalse(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertEqual(self.ev(r, 'conversation_turn'), {'status': 500, 'error_class': 'HTTP_500'})
+        self.assert_not_promotable(r)
 
     def test_scenario_e_schema_mismatch_blocks_promotion(self):
-        r = self.run_stub(compatible=False)
+        r = self.run_stub(compatible=False, conversation_status=503)
         self.assertEqual(r['verdict'], vc.FAILED)
         self.assertEqual(self.status(r, 'schema_compatible'), vc.FAIL)
+        self.assertEqual(self.ev(r, 'schema_compatible')['missing'], [36])
+        self.assertNotIn('note', self.ev(r, 'schema_compatible'))            # server free text never copied
+        self.assertEqual(self.ev(r, 'conversation_turn')['error_class'], 'MIGRATION_NOT_APPLIED')
+        self.assertEqual(self.ev(r, 'conversation_turn')['missing_migration'], '036_intelligence_plane')
+        self.assertNotIn('message', self.ev(r, 'conversation_turn'))
         self.assertIn('schema_compatible', r['summary']['critical_blockers'])
 
     def test_scenario_j_green_locally_but_wrong_build_deployed(self):
@@ -212,14 +261,43 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.FAILED)
         self.assertEqual(self.status(r, 'commit_sha'), vc.FAIL)
 
-    def test_without_expected_sha_evidence_is_not_promotable(self):
+    # --- SHA handling -------------------------------------------------------
+    def test_sha_must_be_full_and_well_formed(self):
+        for bad in ('0123456', 'zz' * 20, SHA + '0', ''):
+            with self.assertRaises(dv.TargetError):
+                dv.verify('http://127.0.0.1:9', expect_sha=bad or 'x')
+        with self.assertRaises(dv.TargetError):
+            dv.verify('http://127.0.0.1:9', expect_sha=SHA, trusted_observed_sha='abc')
+
+    def test_trusted_metadata_disagreeing_with_expected_sha_fails(self):
+        r = self.run_stub(trusted_observed_sha='f' * 40)
+        self.assertEqual(self.status(r, 'commit_sha'), vc.FAIL)
+        self.assertEqual(self.run_stub(trusted_observed_sha=SHA)['verdict'], vc.VERIFIED)
+
+    def test_deployment_without_sha_or_without_expectation_is_blocked(self):
         r = self.run_stub(expect_sha=None)
         self.assertEqual(r['verdict'], vc.BLOCKED)
-        self.assertFalse(vc.may_promote(r)[0])
+        self.assertEqual(self.status(r, 'commit_sha'), vc.NOT_RUN)
+        r = self.run_stub(sha=None)
+        self.assertEqual(r['verdict'], vc.BLOCKED)
+        r = self.run_stub(sha='not-a-sha')
+        self.assertEqual(self.status(r, 'commit_sha'), vc.NOT_RUN)
+        self.assert_not_promotable(r)
 
+    # --- access control and credentials -----------------------------------
     def test_cross_user_exposure_and_auth_bypass_fail(self):
         self.assertEqual(self.status(self.run_stub(leak=True), 'cross_user_isolation'), vc.FAIL)
         self.assertEqual(self.status(self.run_stub(anon_ok=True), 'unauthenticated_denied'), vc.FAIL)
+
+    def test_wrong_credentials(self):
+        r = self.run_stub(protected=True, bypass='wrong-bypass')
+        self.assertEqual(r['verdict'], vc.BLOCKED)
+        self.assertIn('bypass token rejected', r['checks'][0]['reason'])
+        r = self.run_stub(no_token=True)                       # register answers without a session token
+        self.assertEqual((r['verdict'], self.status(r, 'register_synthetic_user')), (vc.FAILED, vc.FAIL))
+        r = self.run_stub(reject_tokens=True)                  # token issued but not accepted
+        self.assertEqual(self.ev(r, 'create_project')['error_class'], 'AUTH_INVALID')
+        self.assertEqual(r['verdict'], vc.FAILED)
 
     def test_protected_or_unreachable_is_blocked_never_verified(self):
         prot = self.run_stub(protected=True)
@@ -228,12 +306,167 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(self.run_stub(protected=True, bypass='synthetic-bypass')['verdict'], vc.VERIFIED)
         r = dv.verify('http://127.0.0.1:9', expect_sha=SHA)
         self.assertEqual(r['verdict'], vc.BLOCKED)
+        self.assertEqual(r['checks'][0]['evidence']['error_class'], 'CONNECTION_FAILURE')
 
-    def test_bypass_and_session_tokens_never_appear_in_output(self):
-        r = self.run_stub(protected=True, bypass='synthetic-bypass-value')
+    def test_production_writes_refused_without_explicit_approval(self):
+        r = self.run_stub(env='production')
+        self.assertEqual(r['verdict'], vc.BLOCKED)
+        reason = next(c['reason'] for c in r['checks'] if c['check'] == 'register_synthetic_user')
+        self.assertIn('allow-production-writes', reason)
+        self.assertEqual(self.run_stub(env='production', allow_production_writes=True)['verdict'], vc.VERIFIED)
+
+    # --- every mandatory check accounted for -------------------------------
+    def test_unreached_mandatory_checks_are_reported_not_run_and_block(self):
+        r = self.run_stub(protected=True)
+        self.assertEqual([c['check'] for c in r['checks']], list(dv.REQUIRED_CHECKS))
+        self.assertTrue(all(c['status'] == vc.NOT_RUN and c['reason'] for c in r['checks']))
+        r = self.run_stub(no_token=True)
+        later = [c for c in r['checks'] if dv.REQUIRED_CHECKS.index(c['check']) > 3]
+        self.assertTrue(later and all(c['status'] == vc.NOT_RUN for c in later))
+        self.assertTrue(all('not reached: register_synthetic_user FAIL' in c['reason'] for c in later))
+
+    def test_contract_blocks_when_a_required_check_is_missing_or_optional(self):
+        passing = [C(n, vc.PASS) for n in dv.REQUIRED_CHECKS]
+        self.assertEqual(vc.decide(passing, dv.REQUIRED_CHECKS)[0], vc.VERIFIED)
+        self.assertEqual(vc.decide(passing[:-1], dv.REQUIRED_CHECKS)[0], vc.BLOCKED)
+        downgraded = passing[:-1] + [C(dv.REQUIRED_CHECKS[-1], vc.FAIL, mandatory=False)]
+        self.assertEqual(vc.decide(downgraded, dv.REQUIRED_CHECKS)[0], vc.BLOCKED)
+
+    # --- network failures ---------------------------------------------------
+    def test_network_failures_mid_journey_produce_a_result_not_a_crash(self):
+        r = self.run_stub(drop_on='conversation')
+        self.assertEqual(r['verdict'], vc.FAILED)
+        self.assertEqual(self.ev(r, 'conversation_turn')['error_class'], 'CONNECTION_FAILURE')
+        r = self.run_stub(sleep_on='memory', timeout=0.5)
+        self.assertEqual(self.ev(r, 'project_memory')['error_class'], 'TIMEOUT')
+        self.assertEqual(r['verdict'], vc.FAILED)
+
+    def test_oversized_and_non_json_responses_fail(self):
+        r = self.run_stub(huge_on='deployment')
+        self.assertEqual((r['verdict'], self.ev(r, 'deployment_endpoint')['error_class']), (vc.FAILED, 'RESPONSE_TOO_LARGE'))
+        r = self.run_stub(html_on='memory')
+        self.assertEqual(self.ev(r, 'project_memory')['error_class'], 'INVALID_JSON')
+
+    def test_unresolvable_or_private_targets_are_blocked(self):
+        from unittest import mock
+        origin = dv.validate_target('https://app-shayflys-projects.vercel.app', allowed_suffixes=('-shayflys-projects.vercel.app',))
+        with mock.patch.object(dv.socket, 'getaddrinfo', return_value=[(2, 1, 6, '', ('10.0.0.5', 443))]):
+            self.assertEqual(dv.resolve_public(origin), (False, 'NON_PUBLIC_ADDRESS'))
+        with mock.patch.object(dv.socket, 'getaddrinfo', return_value=[(2, 1, 6, '', ('169.254.169.254', 443))]):
+            r = dv.verify('https://app-shayflys-projects.vercel.app', expect_sha=SHA,
+                          allowed_suffixes=('-shayflys-projects.vercel.app',))
+        self.assertEqual((r['verdict'], r['checks'][0]['evidence']['error_class']), (vc.BLOCKED, 'NON_PUBLIC_ADDRESS'))
+        with mock.patch.object(dv.socket, 'getaddrinfo', side_effect=dv.socket.gaierror('nx')):
+            self.assertEqual(dv.resolve_public(origin), (False, 'DNS_FAILURE'))
+        with mock.patch.object(dv.socket, 'getaddrinfo', return_value=[(2, 1, 6, '', ('76.76.21.21', 443))]):
+            self.assertEqual(dv.resolve_public(origin), (True, 'NONE'))
+
+    # --- attacks: redirects, cookies, injection, token leakage --------------
+    def test_cross_origin_redirect_never_receives_secrets(self):
+        evil = _Stub()
+        try:
+            r = self.run_stub(bypass='synthetic-bypass', redirect_to=evil.url)
+        finally:
+            evil.close()
+        self.assertEqual(evil.seen, [])                                       # nothing reached the other origin
+        self.assertEqual((r['verdict'], self.ev(r, 'deployment_endpoint')['error_class']), (vc.BLOCKED, 'REDIRECT_BLOCKED'))
+        self.assertIn('not followed', r['checks'][0]['reason'])
+
+    def test_redirect_after_login_does_not_forward_the_bearer_token(self):
+        evil = _Stub()
+        victim = _Stub(redirect_to=evil.url, redirect_path='/api/v28/projects')
+        try:
+            r = self.run_stub(stub=victim, bypass='synthetic-bypass')
+        finally:
+            evil.close()
+        self.assertEqual(evil.seen, [])
+        self.assertEqual(self.ev(r, 'create_project')['error_class'], 'REDIRECT_BLOCKED')
+        self.assertEqual(r['verdict'], vc.FAILED)
+
+    def test_same_origin_redirect_is_not_followed(self):
+        stub = _Stub()
+        stub.f['redirect_to'] = stub.url
+        stub.f['redirect_path'] = '/api/v28/deployment'
+        r = self.run_stub(stub=stub)
+        self.assertEqual(self.ev(r, 'deployment_endpoint')['error_class'], 'REDIRECT_BLOCKED')
+        self.assertEqual(len([s for s in stub.seen if s['path'] == '/api/v28/deployment']), 1)
+
+    def test_cookies_are_never_stored_or_sent(self):
+        stub = _Stub(set_cookie=True)
+        r = self.run_stub(stub=stub)
+        self.assertEqual(r['verdict'], vc.VERIFIED)
+        self.assertTrue(all(s['cookie'] is None for s in stub.seen))
+
+    def test_secrets_only_go_to_the_target_and_never_into_evidence(self):
+        stub = _Stub(protected=True, conversation_status=500, echo_auth=True)
+        r = self.run_stub(stub=stub, bypass='synthetic-bypass')
         text = json.dumps(r)
-        self.assertNotIn('synthetic-bypass-value', text)
-        self.assertNotIn('tok0', text)
+        self.assertNotIn('synthetic-bypass', text)
+        self.assertNotIn('sess-', text)                                       # session tokens
+        self.assertNotIn('Bearer', text)                                      # echoed Authorization header
+        self.assertTrue(all(s['bypass'] == 'synthetic-bypass' for s in stub.seen))
+        anon = [s for s in stub.seen if s['auth'] is None and '/projects/' in s['path']]
+        self.assertTrue(anon)                                                 # anonymous probe really anonymous
+
+    def test_scrub_is_a_last_line_of_defence(self):
+        self.assertEqual(dv._scrub({'a': 'x-secret-y'}, ['secret']), {'a': 'x-[REDACTED]-y'})
+
+    def test_server_controlled_project_id_cannot_steer_requests(self):
+        stub = _Stub(project_id='../../admin')
+        r = self.run_stub(stub=stub)
+        self.assertEqual(self.ev(r, 'create_project')['error_class'], 'INVALID_RESPONSE_CONTRACT')
+        self.assertFalse(any('admin' in s['path'] for s in stub.seen))
+        self.assertEqual(r['verdict'], vc.FAILED)
+
+    def test_target_validation_rejects_ssrf_shapes(self):
+        ok_suffix = ('-shayflys-projects.vercel.app',)
+        bad = ['http://example.com', 'https://example.com', 'file:///etc/passwd', 'ftp://127.0.0.1:21',
+               'https://user:pw@x-shayflys-projects.vercel.app', 'https://x-shayflys-projects.vercel.app/path',
+               'https://x-shayflys-projects.vercel.app?q=1', 'https://x-shayflys-projects.vercel.app#f',
+               'https://10.0.0.1', 'https://169.254.169.254', 'https://[::ffff:10.0.0.1]', 'http://localhost',
+               'http://127.0.0.1:0', 'https://x-shayflys-projects.vercel.app\n', ' https://a', '',
+               'https://shayflys-projects.vercel.app', 'https://evilshayflys-projects.vercel.app.attacker.com',
+               'https://x-shayflys-projects.vercel.app@evil.com']
+        for url in bad:
+            with self.subTest(url=url), self.assertRaises(dv.TargetError):
+                dv.validate_target(url, allowed_suffixes=ok_suffix)
+        for suffix in ('vercel.app', 'shayflys-projects.vercel.app', '-', '.'):
+            with self.subTest(suffix=suffix), self.assertRaises(dv.TargetError):
+                dv.validate_target('https://a-shayflys-projects.vercel.app', allowed_suffixes=(suffix,))
+        self.assertEqual(dv.validate_target('https://ABC-shayflys-projects.vercel.app/', allowed_suffixes=ok_suffix),
+                         'https://abc-shayflys-projects.vercel.app')
+        self.assertEqual(dv.validate_target('https://exact.example.org', allowed_hosts=('exact.example.org',)),
+                         'https://exact.example.org')
+        self.assertEqual(dv.validate_target('http://127.0.0.1:8148'), 'http://127.0.0.1:8148')
+        with self.assertRaises(ValueError):
+            dv.Client('http://127.0.0.1:1', None).call('GET', '//evil.com/x')
+
+    def test_unsafe_resource_limits_rejected(self):
+        for kw in ({'timeout': 0}, {'timeout': 61}, {'deadline_seconds': 0}, {'deadline_seconds': 601}):
+            with self.subTest(**kw), self.assertRaises(dv.TargetError):
+                dv.verify('http://127.0.0.1:9', expect_sha=SHA, **kw)
+
+    # --- CLI ------------------------------------------------------------------
+    def test_cli_exit_codes_and_config_error_evidence(self):
+        import contextlib
+        import io
+        import tempfile
+        stub = _Stub()
+        try:
+            with tempfile.TemporaryDirectory() as d, contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                out = os.path.join(d, 'r.json')
+                self.assertEqual(dv.main([stub.url, '--expect-sha', SHA, '--out', out]), 0)
+                self.assertEqual(json.load(open(out))['verdict'], vc.VERIFIED)
+                self.assertEqual(dv.main([stub.url, '--out', out]), 2)                       # no SHA -> BLOCKED
+                stub.f['conversation_status'] = 500
+                self.assertEqual(dv.main([stub.url, '--expect-sha', SHA]), 1)               # FAILED
+                self.assertEqual(dv.main(['https://evil.example', '--expect-sha', SHA, '--out', out]), 3)
+                bad = json.load(open(out))
+                self.assertEqual((bad['verdict'], bad['target']), (vc.BLOCKED, '(rejected)'))
+                self.assertEqual(dv.main([stub.url, '--bypass-token-env', 'X;rm -rf /']), 3)
+        finally:
+            stub.close()
 
 
 class _FakeConn:

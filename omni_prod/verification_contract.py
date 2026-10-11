@@ -3,7 +3,8 @@
 One machine-readable result for every verification run, whatever produced it
 (build release policy, post-deployment smoke, replay). Rules:
 
-  * never VERIFIED by default: a result with no executed mandatory check is BLOCKED
+  * never VERIFIED by default: a result with no executed mandatory check is BLOCKED,
+    and so is one missing (or downgrading to optional) a declared required check
   * any mandatory check FAIL                         -> FAILED  (promotion stops)
   * any mandatory check NOT_RUN / UNKNOWN            -> BLOCKED (cannot be verified)
   * only optional (advisory) checks failed/skipped   -> VERIFIED_WITH_ADVISORIES
@@ -56,14 +57,21 @@ class CheckResult:
             raise ValueError(f'check {self.check!r} skipped without a reason')
 
 
-def decide(checks: list[CheckResult]) -> tuple[str, str]:
-    """(verdict, reason) under the rules in the module docstring."""
+def decide(checks: list[CheckResult], required: tuple[str, ...] = ()) -> tuple[str, str]:
+    """(verdict, reason) under the rules in the module docstring. `required`
+    names checks that must be present: a missing one blocks VERIFIED."""
+    missing = [n for n in required if n not in {c.check for c in checks}]
+    if missing:
+        return BLOCKED, 'required checks missing: ' + ', '.join(missing)
+    for name in required:
+        if not next(c for c in checks if c.check == name).mandatory:
+            return BLOCKED, f'required check {name} reported as optional'
     mandatory = [c for c in checks if c.mandatory]
-    if not any(c.status == PASS for c in mandatory):
-        return BLOCKED, 'no mandatory check passed (never verified by default)'
     failed = [c.check for c in mandatory if c.status == FAIL]
     if failed:
         return FAILED, 'failed: ' + ', '.join(failed)
+    if not any(c.status == PASS for c in mandatory):
+        return BLOCKED, 'no mandatory check passed (never verified by default)'
     unverified = [c.check for c in mandatory if c.status in (NOT_RUN, UNKNOWN)]
     if unverified:
         return BLOCKED, 'not verified: ' + ', '.join(unverified)
@@ -88,12 +96,13 @@ class VerificationResult:
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
     ttl_seconds: int = DEFAULT_TTL_SECONDS
+    required: tuple = ()                            # check names that must be present and mandatory
     verdict: str = PENDING
     reason: str = ''
 
     def finish(self) -> 'VerificationResult':
         self.finished_at = time.time()
-        self.verdict, self.reason = decide(self.checks)
+        self.verdict, self.reason = decide(self.checks, tuple(self.required))
         return self
 
     def to_dict(self) -> dict:
