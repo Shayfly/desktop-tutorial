@@ -1830,9 +1830,16 @@ class V28ConversationMessage(BaseModel):
 
 
 def _conversation_store():
-    from .conversation.store import PostgresConversationStore
+    from .conversation.store import PostgresConversationStore, schema_ready
     if _v28_pool is None:
         raise HTTPException(503, detail={'error': 'durable_backend_required'})
+    # Preview of 2026-10-11 00:22 UTC: a branch deployed before its migration
+    # crashed with UndefinedTable (HTTP 500). Missing schema is a known,
+    # explained state, never a server error.
+    if not schema_ready(_v28_pool):
+        raise HTTPException(503, detail={'error': 'conversation_not_ready', 'missing_migration': '036_intelligence_plane',
+                                         'message': 'The conversation is not installed on this server yet '
+                                                    '(database migration 036 pending). Guided questions still work.'})
     return PostgresConversationStore(_v28_pool)
 
 
@@ -1940,8 +1947,14 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     gated by feasibility. Deterministic and free; stored once per fingerprint."""
     from .intake import contract as C
     from .planning.architect import ChiefArchitect
+    from .conversation.store import schema_ready
     row = _brief_repo().latest(project_id)
     if row is None or row.fingerprint != brief_fingerprint:
+        return None
+    if not schema_ready(_v28_pool):
+        # Migration 036 not applied yet: the build proceeds exactly as before
+        # Wave A (reactive agent graph, no plan binding) instead of failing.
+        logging.getLogger(__name__).warning('execution plan not bound: migration 036 pending')
         return None
     store = _conversation_store()
     saved = store.plan_for(project_id, brief_fingerprint)

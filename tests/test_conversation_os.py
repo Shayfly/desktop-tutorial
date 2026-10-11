@@ -502,3 +502,30 @@ class LiveConversationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@unittest.skipIf(_live_skip(), _live_skip())
+class SchemaNotReadyTests(unittest.TestCase):
+    """Preview 2026-10-11 00:22 UTC: a deployment ahead of migration 036 answered
+    the conversation with HTTP 500 (UndefinedTable). It must report the state."""
+
+    def test_missing_tables_are_detected_not_crashed(self):
+        import psycopg
+        from omni_prod.conversation import store as S
+        from omni_prod.db import DatabasePool
+        name = f'w36_{uuid.uuid4().hex[:8]}'
+        admin = psycopg.connect(DATABASE_URL, autocommit=True)
+        admin.execute(f'CREATE DATABASE {name}')
+        try:
+            url = DATABASE_URL.rsplit('/', 1)[0] + '/' + name
+            pool = DatabasePool(url)
+            self.assertFalse(S.schema_ready(pool))                 # empty database: not ready, no exception
+            sql = open(os.path.join(os.path.dirname(__file__), '..', 'infra', 'postgres', '036_intelligence_plane.sql')).read()
+            with pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute(sql)
+            self.assertTrue(S.schema_ready(pool))                  # picked up without a restart
+            getattr(pool, 'close', lambda: None)()
+        finally:
+            admin.execute(f'DROP DATABASE IF EXISTS {name} WITH (FORCE)')
+            admin.close()

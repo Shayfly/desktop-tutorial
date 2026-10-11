@@ -14,6 +14,29 @@ import uuid
 from decimal import Decimal
 
 
+REQUIRED_TABLES = ('intake_messages', 'execution_plans', 'provider_health')
+
+
+class StorageNotReady(RuntimeError):
+    """The database does not have the conversation tables (migration 036)."""
+
+
+_READY: dict[int, bool] = {}
+
+
+def schema_ready(pool) -> bool:
+    """True once every Wave A table exists. Cached per pool only when True, so
+    applying the migration later is picked up without a redeploy."""
+    if _READY.get(id(pool)):
+        return True
+    with pool.connection() as conn:
+        missing = [t for t in REQUIRED_TABLES
+                   if conn.execute('SELECT to_regclass(%s)', (f'public.{t}',)).fetchone()[0] is None]
+    if not missing:
+        _READY[id(pool)] = True
+    return not missing
+
+
 class MemoryConversationStore:
     def __init__(self):
         self.messages: list[dict] = []

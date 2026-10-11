@@ -97,7 +97,7 @@ const T = {
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
-    delegateShort:'בחרו עבורי', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
+    delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'אפשר לבנות', f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'משימות הסוכנים (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
     ts_SUCCEEDED:'הושלם', ts_RUNNING:'רץ', ts_PENDING:'ממתין', ts_READY:'מוכן', ts_FAILED:'נכשל', ts_BLOCKED:'חסום', ts_CANCELLED:'לא בוצע', ts_REPAIRING:'בתיקון', ts_NOT_RECORDED:'לא נרשם',
@@ -194,7 +194,7 @@ const T = {
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
-    delegateShort:'Choose for me', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
+    delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Buildable', f_FEASIBLE_WITH_CONSTRAINTS:'Buildable with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Agent tasks (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
     ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
@@ -263,7 +263,8 @@ function explain(err) {
     case 404: return t('err404');
     case 409: return (err.detail && err.detail.message) || t('err409');
     case 422: return (err.detail && err.detail.message) || msg;
-    case 503: return t('err503') + msg;
+    case 503: return (err.detail && err.detail.error === 'conversation_not_ready') ? t('convNotReady')
+      : (err.detail && err.detail.message) || (t('err503') + msg);
     default: return err.status >= 500 ? t('err5xx') : msg;
   }
 }
@@ -424,8 +425,14 @@ async function sendAnswers(answers) {
   try {
     // Edits made in the requirements panel go through the same conversation,
     // so the project history records them (the brief stays the source of truth).
-    applyConversation(await api(`/api/v28/projects/${pid()}/conversation?lang=${S.lang}`, { method: 'POST',
-      body: { answers, request_key: newKey() } }));
+    if (S.chat && S.chat.fallback) {
+      S.disc = await api(`${discPath()}/answers?lang=${S.lang}`, { method: 'POST',
+        body: { revision: S.disc.brief.revision, answers, request_key: newKey() } });
+      renderChat();
+    } else {
+      applyConversation(await api(`/api/v28/projects/${pid()}/conversation?lang=${S.lang}`, { method: 'POST',
+        body: { answers, request_key: newKey() } }));
+    }
     S.editQ = null; S.plan = null; renderPlan();
     renderDiscovery();
     if (S.disc.complete) await requestBriefPlan();
@@ -494,7 +501,7 @@ function renderDiscovery() {
       h('div', { class: 'row' }, h('button', { type: 'submit' }, t('save')),
         h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = null; renderDiscovery(); } }, t('cancel'))));
     kids.push(form);
-  } else if (!d.complete && d.questions.length && !S.chat) {
+  } else if (!d.complete && d.questions.length && (!S.chat || S.chat.fallback)) {
     const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
       const { answers, missing } = collectAnswers(form);
       if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
@@ -1030,7 +1037,9 @@ function applyConversation(view) {
 async function restoreConversation() {
   try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
   catch (e) {
-    S.chat = { messages: [], unavailable: e.status === 503 ? explain(e) : null };
+    // Conversation storage missing (migration pending) or unreachable: say so and
+    // keep the guided questionnaire (the /discovery flow) working underneath.
+    S.chat = { messages: [], unavailable: explain(e), fallback: true };
     try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
     renderChat(); renderDiscovery(); renderTabs();
   }
@@ -1057,15 +1066,33 @@ function submitChat(e) {
   const text = $('chatInput').value.trim();
   if (!text) return;
   if (!S.projectId) { openNewProject(); return; }
+  if (S.chat && S.chat.fallback) { startGuidedFallback(text); return; }
   sendChat({ message: text }, text);
+}
+async function startGuidedFallback(text) {
+  // Only when the conversation API is not installed here: the existing guided
+  // discovery (brief revisions, approval, plan) takes the request instead.
+  $('composerMsg').textContent = '';
+  try {
+    S.disc = await api(`${discPath()}?lang=${S.lang}`, { method: 'POST', body: { prompt: text, mode: 'guided', request_key: newKey() } });
+    S.chat.messages = [...S.chat.messages, { role: 'customer', content: text },
+      { role: 'assistant', content: t('fallbackNote') }];
+    $('chatInput').value = '';
+    renderChat(); renderDiscovery(); openTab('req');
+    if (S.disc.complete) await requestBriefPlan(true);
+  } catch (e) { $('composerMsg').textContent = explain(e); }
+}
+function answerQuick(q, value, label) {
+  if (S.chat && S.chat.fallback) { sendAnswers({ [q.id]: value }); return; }   // guided flow (no conversation API here)
+  sendChat({ answers: { [q.id]: value } }, label);
 }
 function quickReplies(questions) {
   return h('div', { class: 'quick' }, questions.map(q => h('div', {},
     h('div', { class: 'qq' }, q.text),
     h('div', { class: 'opts' },
-      ...(q.kind === 'choice' ? q.options.map(o => h('button', { type: 'button', onclick: () => sendChat({ answers: { [q.id]: o.value } }, o.label) },
+      ...(q.kind === 'choice' ? q.options.map(o => h('button', { type: 'button', onclick: () => answerQuick(q, o.value, o.label) },
         o.label, q.suggested === o.value ? ' ✓' : '')) : []),
-      q.delegable ? h('button', { type: 'button', class: 'del', onclick: () => sendChat({ answers: { [q.id]: '__delegate__' } }, t('delegateShort')) }, t('delegateShort')) : null))));
+      q.delegable ? h('button', { type: 'button', class: 'del', onclick: () => answerQuick(q, '__delegate__', t('delegateShort')) }, t('delegateShort')) : null))));
 }
 function actionButtons(actions) {
   const out = [];
@@ -1084,6 +1111,7 @@ function renderChat() {
   const kids = [];
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
     S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
+  else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'who' }, m.role === 'customer' ? t('you') : t('assistant')), m.content);
