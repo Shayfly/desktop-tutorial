@@ -254,5 +254,44 @@ class BackupSchedulerTests(unittest.TestCase):
         self.assertIn('default branch אינו מוצע', readme)
 
 
+
+@unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'needs M4D2_DATABASE_URL')
+class ActiveJobGateTests(unittest.TestCase):
+    def test_a_running_job_blocks_and_queued_or_stale_work_does_not(self):
+        import psycopg
+        import uuid
+        from omni_prod import active_jobs as A
+        u = uuid.uuid4().hex[:8]
+        with psycopg.connect(os.environ['M4D2_DATABASE_URL']) as conn:
+            try:
+                conn.execute('DELETE FROM build_jobs')            # rolled back below; isolates the snapshot
+                conn.execute("UPDATE modification_requests SET status='CANCELLED' WHERE status IN ('QUEUED','RUNNING')")
+                conn.execute('INSERT INTO creator_accounts (id, email, password_hash, salt_b64) VALUES (%s,%s,%s,%s)', (f'a{u}', f'{u}@x.test', 'x', 'x'))
+                conn.execute('INSERT INTO creator_projects (id, owner_id, title) VALUES (%s,%s,%s)', (f'p{u}', f'a{u}', 't'))
+                self.assertFalse(A.snapshot(conn)['busy'])
+                conn.execute("INSERT INTO build_jobs (id, project_id, status) VALUES (%s,%s,'queued')", (f'bld_q{u}', f'p{u}'))
+                snap = A.snapshot(conn)
+                self.assertFalse(snap['busy'])                     # queued work waits for the new worker
+                self.assertEqual(snap['queued_builds'], [f'bld_q{u}'])
+                conn.execute("INSERT INTO build_jobs (id, project_id, status, heartbeat_at) VALUES (%s,%s,'running', now() - interval '2 hours')",
+                             (f'bld_s{u}', f'p{u}'))
+                snap = A.snapshot(conn)
+                self.assertFalse(snap['busy'])                     # a crashed worker's stale row never blocks forever
+                self.assertEqual(snap['stale_running_builds'], [f'bld_s{u}'])
+                conn.execute("INSERT INTO build_jobs (id, project_id, status, heartbeat_at) VALUES (%s,%s,'running', now())", (f'bld_r{u}', f'p{u}'))
+                snap = A.snapshot(conn)
+                self.assertTrue(snap['busy'])
+                self.assertEqual(snap['running_builds'], [f'bld_r{u}'])
+            finally:
+                conn.rollback()
+
+    def test_the_gate_runs_before_the_drain_in_the_workflow(self):
+        wf = yaml.safe_load((ROOT / '.github/workflows/deploy-worker.yml').read_text())
+        ids = [s.get('id') for s in wf['jobs']['deploy']['steps']]
+        self.assertLess(ids.index('idle'), ids.index('drain'))
+        step = wf['jobs']['deploy']['steps'][ids.index('idle')]
+        self.assertIn('omni_prod.active_jobs --wait-minutes', step['run'])
+
+
 if __name__ == '__main__':
     unittest.main()

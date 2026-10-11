@@ -70,6 +70,13 @@ jobs:
       # replaced (the sandbox runner a build depends on included). New jobs wait
       # in the queue and the new worker takes them. Past the deadline Docker
       # kills the job; that is reported, never hidden.
+      # Directive 2026-10-11: never start a drain while a customer job is RUNNING. Waits up to 20 minutes for it to
+      # finish (the drain itself would wait up to 25), then FAILS without touching anything. Read-only, no spend.
+      - name: Refuse to drain while a build or change is running
+        id: idle
+        working-directory: infra/worker-host
+        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20
+
       - name: Drain workers (finish running jobs before replacing anything)
         id: drain
         run: bash infra/worker-host/drain.sh
