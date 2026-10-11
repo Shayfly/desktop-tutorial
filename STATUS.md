@@ -1,5 +1,27 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~22:00 Asia/Jerusalem — deploy gate, rollback after 038, real-Docker rehearsal, evidence export, isolation (LOCAL ONLY, nothing pushed)
+
+Branch `claude/fix-static-site-acceptance-2026-10-11` (base a3cc9abc). Tested commit: **f419f58** (full suite below). Later commits only touch STATUS.md.
+
+**Implemented and independently verified (local, on this commit)**
+- Deploy gate fails closed (`omni_prod/active_jobs.py`, `drain.sh`): exit 2 when DB/Redis/URL/table/args cannot be verified, stale heartbeat still blocks (only `--acknowledge-stale <exact id>` releases, never passed by the workflow), intake (CLAIMED/EXECUTING even with an expired lease), STARTING previews, every RQ started-registry (incl. unregistered `omni-preview-host-*`) and busy RQ workers block; re-check immediately before and after the stop; a refusal before the stop leaves `not-stopped` so `recover.sh` touches nothing. Tests: `tests/test_worker_deploy_recovery.py` (GateInDrainTests, ActiveJobGateTests; the real-RQ test ran with a local Redis).
+- Code rollback after 038 without DROP/deleted attachments/hidden version: `python -m omni_prod.migrate --accept-newer 38` (exact versions, only newer than the package; unlisted version / gap / checksum drift still abort), `deploy-worker.yml` dispatch input `accept_newer_migrations`. Tests: `tests/test_migration_rollback_tolerance.py` (isolated throw-away PG; attachment row survives old->new round trip). The previous worker code (2a2bba6) was also run locally against a DB at 038: `migrate` fails (as before), the worker boots and listens.
+- Real Docker (engine 29.8.2 started in this sandbox, `docker compose` 5.5.1): `tests/test_real_docker_drain_recovery.py`, 8 scenarios against isolated PG + Redis, unmodified drain.sh/recover.sh: clean deploy, active job, Redis/DB/missing-URL failure, rollback-image save failure (fault injection around real docker, labelled), timeout->137, real OOM (engine OOMKilled flag), migration failure, startup failure; every scenario ends with all four services running the previous image. 8 passed.
+- Evidence export extended (generated files + `.omni/project.json`, failed checks with evidence, credit reservation, `--files-dir`), `omni_prod/failure_replay.py` (offline CRUD-requirement / missing-coverage / real-defect separation, SYNTHETIC test data only), `omni_prod/isolation_check.py` (non-secret identities, SHARED/ISOLATED/UNKNOWN).
+
+**Full suite on f419f58:** 1697 passed, 43 skipped, 0 failed, 288 subtests passed (551 s). Skips: 11 need a live Redis on 127.0.0.1:6379 (not provided; the new tests use `OMNI_TEST_REDIS_URL`), 4+3 live preview/sandbox hosts (`OMNI_RUN_LIVE_PREVIEW`/`LIVE_SANDBOX`), 4 migrated live Postgres, 3 `OMNI_RUN_LIVE_INTEGRATION`, 3 `omni-sandbox:latest` image absent (registry pulls blocked), the rest each name a missing credential/service (QStash, LLM, image provider, R2, Android/Xcode signing, clean-room DB, fixture URL) or are documented duplicates. None is counted as a pass.
+
+**Implemented but awaiting external live verification**
+- The same drain/recover scripts on the real Oracle host with the real images/compose/.env (the sandbox proves script logic on a real engine, not the host). NO-GO until the person approves a rehearsal when no build is running.
+- One-off evidence export of the exact "חגית" build (not run): needs the `bld_<hex>` and someone with worker-host access (or read-only DB + `OMNI_S3_*`). See docs/DEPLOY_RECOVERY_REHEARSAL_HE.md section 4.
+- Effective isolation check: needs `vercel env pull` files for preview/production and the worker `.env` produced by the owner. Known already (read-only Vercel API): `OMNI_DATABASE_URL`, `OMNI_REDIS_URL`, `OMNI_SECRET_KEY` are ONE record for production+preview => SHARED DB, SHARED Redis (=> shared queues). `OMNI_S3_*` are separate records, values unknown.
+
+**Blocked by a named credential/service**: live DB state (active jobs, "חגית" data), Vercel runtime logs, billing API (404), deployment-verify bypass secret, a new restore-verified backup (needs a dispatch on the milestone ref — approval).
+
+**Not implemented / open**: no route to roll back to code older than this branch through the workflow (only image-level `recover.sh`, no migration); no API-side pause of work intake (a job starting between the last gate check and SIGTERM and running past 25 min is cut off and reported); backup restore checks 14 tables and not `conversation_attachments`; scheduled backup still not installed; "חגית" is NOT shown fixed. No Mock/Replay presented as proof of a new build; no paid call made; no push, merge, deploy, migration or secret change.
+
+
 ## Update 2026-10-11 ~19:30 Asia/Jerusalem — project "חגית" failed build: content-only site acceptance (LOCAL ONLY, nothing pushed)
 
 Base: a3cc9abc (PR #17 head). Branch `claude/fix-static-site-acceptance-2026-10-11`. No push, merge, deploy, live migration, secret change or paid call was made; spend by this work: $0.
