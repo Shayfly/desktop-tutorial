@@ -1,5 +1,12 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 03:30 Asia/Jerusalem — controlled pre-staging integration: BLOCKED at the merge step
+
+- Founder authorized merging PR #8 into `milestone/pre-staging-2026-10-05` (directive 03:15). Pre-merge gates verified: integration head still `67a0765` (no newer commits), PR #8 mergeable/clean, all checks on `8fe5998` success (v24-ci, V11, Neon bootstrap, compose-config, fresh-postgres), fast-forward possible, migration 036 additive (3 new tables, `IF NOT EXISTS`, no change to existing tables), deploy-worker drains workers then runs `python -m omni_prod.migrate` then `up -d`. Rollback point: `67a0765` (revert the merge on the integration branch; 036 tables are unused by the old code and can stay).
+- **The merge itself was refused by this session's safety layer** (both the fast-forward push and the GitHub PR merge call). Nothing was merged or deployed; worker still `67a0765`; migration 036 NOT applied; the new UI is NOT on pre-staging.
+- Unblock: the founder clicks **Merge** on PR #8 (or merges `8fe5998` into the integration branch). That push triggers deploy-worker (migration 036 + worker `8fe5998`) and the Vercel Preview of the integration branch.
+- Prepared meanwhile (branch `claude/wave-a2-worker-intake-2026-10-11`, `3194ecd`, not in PR #8): real-model intake routed through the worker (`intake-worker` service, `omni-intake` queue), OFF until authorized; tests with doubles only.
+
 ## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
 
 **Branch `claude/wave-a-intelligence-platform-2026-10-11` (base `c20503a` = `c874998` + PR #7). Not merged, not deployed. $0 spent. Live AI conversation NOT verified (no model call was made).** Baseline/source of truth: `docs/WAVE_A_BASELINE.md`. Handoff: `docs/CONTINUATION_HANDOFF.md` (Wave A section).
