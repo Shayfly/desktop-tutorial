@@ -4,6 +4,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,7 +55,7 @@ sys.exit(0)
 '''
 
 
-def run(script, cfg):
+def run(script, cfg, extra_env=None):
     tmp = tempfile.mkdtemp()
     bindir = Path(tmp) / 'bin'
     bindir.mkdir()
@@ -66,7 +67,7 @@ def run(script, cfg):
     (state / 'cfg.json').write_text(json.dumps(cfg))
     deploy = Path(tmp) / 'deploy-state'
     env = {**os.environ, 'PATH': f'{bindir}:{os.environ["PATH"]}', 'FAKE_STATE': str(state),
-           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0'}
+           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0', **(extra_env or {})}
     return (subprocess.run(['bash', str(HOST / script)], env=env, capture_output=True, text=True, timeout=60),
             state / 'calls.log', deploy)
 
@@ -256,41 +257,220 @@ class BackupSchedulerTests(unittest.TestCase):
 
 
 @unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'needs M4D2_DATABASE_URL')
+def gate_stub(codes):
+    """A stand-in for the gate command: returns the exit codes in order (the last one repeats)."""
+    d = Path(tempfile.mkdtemp())
+    (d / 'codes').write_text(' '.join(str(c) for c in codes))
+    (d / 'n').write_text('0')
+    stub = d / 'gate.sh'
+    stub.write_text('#!/usr/bin/env bash\nn=$(cat "%s/n"); read -ra c < "%s/codes"\n'
+                    'echo $((n+1)) > "%s/n"; echo "$n $*" >> "%s/args"\n'
+                    'i=$n; [ "$i" -lt "${#c[@]}" ] || i=$((${#c[@]}-1)); exit "${c[$i]}"\n' % ((d,) * 4))
+    return f'bash {stub}', d
+
+
+class GateInDrainTests(unittest.TestCase):
+    """The race between the workflow's idle gate and the stop, and every way the gate can fail."""
+
+    def drain(self, codes, **cfg):
+        cmd, d = gate_stub(codes)
+        r, log, st = run('drain.sh', {'services': list(SERVICES), **cfg}, {'ACTIVE_JOBS_CMD': cmd})
+        return r, log, st, d
+
+    def test_quiet_before_and_after_is_a_clean_drain_that_checks_twice(self):
+        r, log, st, d = self.drain([0, 0])
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual((d / 'n').read_text().strip(), '2')                    # before AND after the stop
+        self.assertIn('--wait-minutes 0', (d / 'args').read_text())
+
+    def test_running_work_or_an_unverifiable_state_before_the_stop_refuses_without_stopping_anything(self):
+        for code, text in ((3, 'running work appeared'), (2, 'could not verify'), (1, 'could not verify'), (127, 'could not verify')):
+            r, log, st, d = self.drain([code])
+            self.assertEqual(r.returncode, 1, (code, r.stdout))
+            self.assertNotIn('compose stop', log.read_text())                   # nothing was stopped
+            self.assertIn(text, (st / 'drain-failed').read_text())
+            self.assertTrue((st / 'not-stopped').exists())
+            rr = recover(log, st)                                               # and recovery must not touch anything
+            self.assertEqual(rr.returncode, 0, rr.stdout)
+            self.assertNotIn(' up ', log.read_text())
+            self.assertIn('untouched', rr.stdout)
+
+    def test_work_that_starts_between_the_gate_and_the_stop_fails_the_deploy_and_recovery_restores_the_workers(self):
+        r, log, st, d = self.drain([0, 3])                                      # quiet at the check, running afterwards
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn('compose stop', log.read_text())
+        self.assertIn('still recorded as running', (st / 'drain-failed').read_text())
+        self.assertFalse((st / 'not-stopped').exists())
+        rr = recover(log, st)
+        self.assertEqual(rr.returncode, 0, rr.stdout)
+        self.assertIn(' up ', log.read_text())
+
+    def test_a_gate_that_cannot_verify_after_the_stop_also_fails_the_deploy(self):
+        r, log, st, d = self.drain([0, 2])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('could not verify', (st / 'drain-failed').read_text())
+
+
+class _Redis:
+    def __init__(self, fail=False):
+        self.fail = fail
+
+    def ping(self):
+        if self.fail:
+            raise ConnectionError('down')
+        return True
+
+
 class ActiveJobGateTests(unittest.TestCase):
-    def test_a_running_job_blocks_and_queued_or_stale_work_does_not(self):
+    def seed(self, conn, u):
+        conn.execute('DELETE FROM build_jobs')            # rolled back by the caller; isolates the snapshot
+        for f in ('014_real_running_preview.sql', '037_intake_budget_reservations.sql'):      # idempotent; rolled back too
+            conn.execute((ROOT / 'infra' / 'postgres' / f).read_text())
+        conn.execute("UPDATE modification_requests SET status='CANCELLED' WHERE status IN ('QUEUED','RUNNING')")
+        conn.execute("DELETE FROM intake_outbox"); conn.execute("DELETE FROM intake_reservation_events")
+        conn.execute("DELETE FROM intake_reservation_scopes"); conn.execute("DELETE FROM intake_reservations")
+        conn.execute("DELETE FROM project_previews")
+        conn.execute('INSERT INTO creator_accounts (id, email, password_hash, salt_b64) VALUES (%s,%s,%s,%s)', (f'a{u}', f'{u}@x.test', 'x', 'x'))
+        conn.execute('INSERT INTO creator_projects (id, owner_id, title) VALUES (%s,%s,%s)', (f'p{u}', f'a{u}', 't'))
+
+    def snap(self, conn, redis=None, **kw):
+        from omni_prod import active_jobs as A
+        return A.snapshot(conn, redis or _RqFree(), **kw)
+
+    def test_database_state_blocks_regardless_of_heartbeat_and_queued_work_does_not(self):
         import psycopg
         import uuid
-        from omni_prod import active_jobs as A
         u = uuid.uuid4().hex[:8]
         with psycopg.connect(os.environ['M4D2_DATABASE_URL']) as conn:
             try:
-                conn.execute('DELETE FROM build_jobs')            # rolled back below; isolates the snapshot
-                conn.execute("UPDATE modification_requests SET status='CANCELLED' WHERE status IN ('QUEUED','RUNNING')")
-                conn.execute('INSERT INTO creator_accounts (id, email, password_hash, salt_b64) VALUES (%s,%s,%s,%s)', (f'a{u}', f'{u}@x.test', 'x', 'x'))
-                conn.execute('INSERT INTO creator_projects (id, owner_id, title) VALUES (%s,%s,%s)', (f'p{u}', f'a{u}', 't'))
-                self.assertFalse(A.snapshot(conn)['busy'])
+                self.seed(conn, u)
+                self.assertTrue(self.snap(conn)['safe_to_drain'])
                 conn.execute("INSERT INTO build_jobs (id, project_id, status) VALUES (%s,%s,'queued')", (f'bld_q{u}', f'p{u}'))
-                snap = A.snapshot(conn)
-                self.assertFalse(snap['busy'])                     # queued work waits for the new worker
-                self.assertEqual(snap['queued_builds'], [f'bld_q{u}'])
+                s = self.snap(conn)
+                self.assertTrue(s['safe_to_drain'])                                 # queued work waits for the new worker
+                self.assertEqual(s['queued_builds'], [f'bld_q{u}'])
                 conn.execute("INSERT INTO build_jobs (id, project_id, status, heartbeat_at) VALUES (%s,%s,'running', now() - interval '2 hours')",
                              (f'bld_s{u}', f'p{u}'))
-                snap = A.snapshot(conn)
-                self.assertFalse(snap['busy'])                     # a crashed worker's stale row never blocks forever
-                self.assertEqual(snap['stale_running_builds'], [f'bld_s{u}'])
+                s = self.snap(conn)
+                self.assertTrue(s['busy'])                                          # an old heartbeat is NOT proof it ended
+                self.assertFalse(s['safe_to_drain'])
+                self.assertEqual(s['running_builds_with_old_heartbeat'], [f'bld_s{u}'])
+                # only an exact, explicit operator acknowledgement releases it
+                self.assertTrue(self.snap(conn, acknowledge_stale=[f'bld_s{u}'])['safe_to_drain'])
+                self.assertFalse(self.snap(conn, acknowledge_stale=['bld_other'])['safe_to_drain'])
                 conn.execute("INSERT INTO build_jobs (id, project_id, status, heartbeat_at) VALUES (%s,%s,'running', now())", (f'bld_r{u}', f'p{u}'))
-                snap = A.snapshot(conn)
-                self.assertTrue(snap['busy'])
-                self.assertEqual(snap['running_builds'], [f'bld_r{u}'])
+                s = self.snap(conn, acknowledge_stale=[f'bld_s{u}'])
+                self.assertEqual(s['running_builds'], [f'bld_r{u}'])
             finally:
                 conn.rollback()
 
-    def test_the_gate_runs_before_the_drain_in_the_workflow(self):
+    def test_intake_and_preview_consumers_are_covered(self):
+        import psycopg
+        import uuid
+        u = uuid.uuid4().hex[:8]
+        with psycopg.connect(os.environ['M4D2_DATABASE_URL']) as conn:
+            try:
+                self.seed(conn, u)
+                for state in ('CLAIMED', 'EXECUTING'):
+                    conn.execute('DELETE FROM intake_reservations')
+                    conn.execute("INSERT INTO intake_reservations (id, idempotency_key, account_id, project_id, lane, quoted_usd, quote, state, claim_token, lease_expires_at) "
+                                 "VALUES (%s,%s,%s,%s,'production',0.01,'{}'::jsonb,%s,'t', now() - interval '1 hour')",
+                                 (f'r{u}', f'k{u}', f'a{u}', f'p{u}', state))   # an EXPIRED lease still blocks
+                    s = self.snap(conn)
+                    self.assertEqual(s['running_intake'], [f'r{u}'], state)
+                    self.assertFalse(s['safe_to_drain'])
+                conn.execute('DELETE FROM intake_reservations')
+                conn.execute("INSERT INTO intake_reservations (id, idempotency_key, account_id, project_id, lane, quoted_usd, quote, state) "
+                             "VALUES (%s,%s,%s,%s,'production',0.01,'{}'::jsonb,'RESERVED')", (f'r{u}', f'k{u}', f'a{u}', f'p{u}'))
+                s = self.snap(conn)
+                self.assertTrue(s['safe_to_drain'])
+                self.assertEqual(s['queued_intake'], [f'r{u}'])
+                conn.execute("INSERT INTO project_previews (id, project_id, version_id, status, expires_at) VALUES (%s,%s,'v','STARTING', now() + interval '1 hour')", (f'pv{u}', f'p{u}'))
+                s = self.snap(conn)
+                self.assertEqual(s['starting_previews'], [f'pv{u}'])
+                self.assertFalse(s['safe_to_drain'])
+                conn.execute("UPDATE project_previews SET status='RUNNING'")
+                self.assertTrue(self.snap(conn)['safe_to_drain'])                  # a running preview container is not a consumer job
+            finally:
+                conn.rollback()
+
+    def test_missing_information_blocks_and_is_never_quiet(self):
+        import psycopg
+        from omni_prod import active_jobs as A
+        # no DB connection
+        s = A.snapshot(None, _RqFree())
+        self.assertFalse(s['safe_to_drain']); self.assertTrue(s['unverified'])
+        with psycopg.connect(os.environ['M4D2_DATABASE_URL']) as conn:
+            try:
+                for f in ('014_real_running_preview.sql', '037_intake_budget_reservations.sql'):
+                    conn.execute((ROOT / 'infra' / 'postgres' / f).read_text())
+                # no Redis URL / Redis down
+                s = A.snapshot(conn, None)
+                self.assertTrue(s['unverified']); self.assertFalse(s['safe_to_drain'])
+                self.assertTrue(any('OMNI_REDIS_URL' in e for e in s['errors']))
+                s = A.snapshot(conn, _Redis(fail=True))
+                self.assertTrue(s['unverified']); self.assertFalse(s['safe_to_drain'])
+                self.assertTrue(any(e.startswith('redis:') for e in s['errors']))
+                # a table that cannot be read (here: renamed inside the rolled-back transaction)
+                conn.execute('ALTER TABLE intake_reservations RENAME TO intake_reservations_x')
+                s = A.snapshot(conn, _RqFree())
+                self.assertTrue(s['unverified']); self.assertFalse(s['safe_to_drain'])
+                self.assertTrue(any('intake_reservations' in e for e in s['errors']))
+            finally:
+                conn.rollback()
+
+    def test_exit_codes_of_the_command(self):
+        env = {k: v for k, v in os.environ.items() if k not in ('OMNI_DATABASE_URL', 'OMNI_REDIS_URL')}
+        py = [sys.executable, '-m', 'omni_prod.active_jobs']
+        r = subprocess.run(py, env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)                 # nothing configured = cannot verify
+        self.assertIn('OMNI_DATABASE_URL', r.stdout)
+        env['OMNI_DATABASE_URL'] = 'postgresql://postgres@127.0.0.1:1/none'      # unreachable DB
+        r = subprocess.run(py, env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        r = subprocess.run(py + ['--wait-minutes', 'abc'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(r.returncode, 2)
+
+    @unittest.skipUnless(os.getenv('OMNI_TEST_REDIS_URL'), 'BLOCKED: OMNI_TEST_REDIS_URL (real Redis) not configured')
+    def test_real_rq_started_registry_busy_worker_and_host_queue_block(self):
+        from redis import Redis
+        from rq import Queue
+        from rq.registry import StartedJobRegistry
+        from omni_prod import active_jobs as A
+        r = Redis.from_url(os.environ['OMNI_TEST_REDIS_URL'])
+        r.flushdb()
+        try:
+            s = A.snapshot(None, r)
+            self.assertEqual(s['rq_started_jobs'], [])
+            for qname in ('omni-intake', 'omni-preview-host-h1', 'omni-builds'):
+                q = Queue(qname, connection=r)
+                reg = StartedJobRegistry(queue=q)
+                r.zadd(reg.key, {'job1': 9999999999})
+                s = A.snapshot(None, r)
+                self.assertIn(f'{qname}:job1', s['rq_started_jobs'], qname)    # the unregistered host queue is found too
+                self.assertTrue(s['busy'])
+                r.delete(reg.key)
+        finally:
+            r.flushdb()
+
+    def test_the_gate_runs_before_the_drain_in_the_workflow_and_again_inside_it(self):
         wf = yaml.safe_load((ROOT / '.github/workflows/deploy-worker.yml').read_text())
         ids = [s.get('id') for s in wf['jobs']['deploy']['steps']]
         self.assertLess(ids.index('idle'), ids.index('drain'))
         step = wf['jobs']['deploy']['steps'][ids.index('idle')]
         self.assertIn('omni_prod.active_jobs --wait-minutes', step['run'])
+        drain = (HOST / 'drain.sh').read_text()
+        self.assertEqual(drain.count('eval "$GATE_CMD'), 2)                      # before the stop and after it
+        self.assertLess(drain.index('eval "$GATE_CMD'), drain.index('docker compose stop'))
+
+
+class _RqFree:
+    """A Redis stand-in that answers ping and holds no RQ state (the RQ part is covered with a real Redis below)."""
+    def ping(self):
+        return True
+
+    def __getattr__(self, name):                       # rq calls: smembers/zrange/... -> empty
+        return lambda *a, **k: []
 
 
 if __name__ == '__main__':

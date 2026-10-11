@@ -9,6 +9,10 @@ set -uo pipefail
 cd "$(dirname "$0")"
 STATE="${DEPLOY_STATE_DIR:-${RUNNER_TEMP:-/tmp}/deploy-state}"
 LIST="$STATE/prev-images"
+if [ -e "$STATE/not-stopped" ]; then
+  echo "::notice title=recover::the drain refused before stopping anything; the running consumers are untouched and nothing is restarted"
+  exit 0
+fi
 if [ ! -s "$LIST" ]; then
   echo "::notice title=recover::nothing was drained or no previous consumer existed; nothing to restore"
   exit 0
