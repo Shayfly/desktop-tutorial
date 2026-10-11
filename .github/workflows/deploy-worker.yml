@@ -5,6 +5,11 @@ name: Deploy build worker
 # is written with mode 600 and only variable NAMES are printed.
 on:
   workflow_dispatch:
+    inputs:
+      accept_newer_migrations:
+        description: "Code ROLLBACK only: exact migration versions a newer release already applied, e.g. 38 (comma separated). Empty = normal strict check."
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths:
@@ -81,10 +86,21 @@ jobs:
         id: drain
         run: bash infra/worker-host/drain.sh
 
+      # A rollback to older code names the newer versions explicitly (workflow_dispatch input); nothing is dropped or
+      # hidden and every other migration check stays. A normal push passes nothing and stays strict.
       - name: Apply database migrations
         id: migrate
         working-directory: infra/worker-host
-        run: docker compose run --rm --no-deps worker python -m omni_prod.migrate
+        env:
+          ACCEPT_NEWER: ${{ github.event.inputs.accept_newer_migrations }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ACCEPT_NEWER:-}" ]; then
+            [[ "$ACCEPT_NEWER" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "::error::accept_newer_migrations must be exact versions like 38"; exit 2; }
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate --accept-newer "$ACCEPT_NEWER"
+          else
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate
+          fi
 
       - name: Start
         id: start
