@@ -9,6 +9,21 @@ from .change_policy import ChangeAssessment
 from .dependency_policy import GENERATION_CONSTRAINTS
 from .skills_runtime import guidance_for
 
+# Founder build "חגית" (2026-10-11): the generator only sees the ProductSpec, so a content-only requirement must be
+# explained to every model role, otherwise it still builds CRUD to satisfy a platform floor that does not apply.
+CONTENT_ONLY_RULES = (
+    'CONTENT-ONLY websites: when a requirement says "CONTENT-ONLY website", this overrides every instruction above '
+    'about JSON endpoints, databases, sign-in, roles and record creation. Build a static or server-rendered page with the '
+    'standard library only: GET / (also the health_path) returns the complete HTML (dir="rtl" for Hebrew) with the approved '
+    'content, prices, links and logo text exactly as given, a viewport meta tag and responsive CSS (media queries). '
+    'Do NOT add a database, login, forms that store anything, /api/* record endpoints or any create/update/delete behaviour, '
+    'and do not invent such features to satisfy a check. A WhatsApp contact is a plain https://wa.me/... link, not an integration. '
+    'In web_saas_acceptance list only the kinds data_read (GET / asserting real approved text with expect_text_contains), '
+    'responsive (GET / asserting the viewport meta) and api_smoke (GET on health_path expecting 200); omit auth, role, '
+    'data_create, data_update, data_delete and integration; every acceptance id must be attached to a step of one of those kinds '
+    'that really checks it (an id attached only to an omitted kind stays uncovered and fails the build). '
+)
+
 _ARCHITECT_SYSTEM = (
     "You are Omni Architect. Convert the user's product request to strict JSON. "
     "Return only JSON with title, summary, stack, requirements, acceptance. "
@@ -38,6 +53,7 @@ _ARCHITECT_SYSTEM = (
     'every acceptance requirement_id names an existing requirement id. '
     "Every mandatory requirement must have at least one acceptance criterion. Include explicit quality, security, data and deployment requirements when relevant. "
     "Design for international use, accessibility, responsive behavior, safe secrets, observability and testability rather than a toy demo."
+    + CONTENT_ONLY_RULES
     + guidance_for('architect')
 )
 _GENERATOR_SYSTEM = (
@@ -72,6 +88,7 @@ _GENERATOR_SYSTEM = (
     'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
     + GENERATION_CONSTRAINTS
+    + CONTENT_ONLY_RULES
     + guidance_for('generator')
 )
 _REPAIR_SYSTEM = (
@@ -89,6 +106,7 @@ _REPAIR_SYSTEM = (
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
     + GENERATION_CONSTRAINTS
+    + CONTENT_ONLY_RULES
     + guidance_for('repair')
 )
 

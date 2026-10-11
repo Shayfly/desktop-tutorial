@@ -196,5 +196,36 @@ class ConversationTests(unittest.TestCase):
         self.assertNotIn('SMS', r)
 
 
+class SpecAndPromptTests(unittest.TestCase):
+    """The generator sees only the ProductSpec: a content-only contract must not still demand CRUD of the model."""
+
+    def test_content_only_floor_spec_has_no_auth_rbac_or_data_requirement(self):
+        spec = compile_contract(approved_brief())['product_spec']
+        ids = {r['id'] for r in spec['requirements']}
+        self.assertIn('site-content', ids)
+        self.assertFalse(ids & {'platform-auth', 'platform-rbac', 'platform-data'})
+        self.assertTrue({'platform-responsive', 'platform-api'} <= ids)
+        self.assertTrue(any('CONTENT-ONLY' in r['text'] for r in spec['requirements']))
+
+    def test_every_other_contract_keeps_the_platform_floor(self):
+        for brief in (approved_brief(content_only='no'), approved_brief(personal='yes')):
+            ids = {r['id'] for r in compile_contract(brief)['product_spec']['requirements']}
+            self.assertTrue({'platform-auth', 'platform-rbac', 'platform-data'} <= ids)
+        ids = {r['id'] for r in ProductArchitect().compile(PROMPT, project_id='p', contract_version=1).to_dict()['product_spec']['requirements']}
+        self.assertIn('platform-data', ids)
+
+    def test_all_three_model_roles_are_told_what_a_content_only_site_is(self):
+        from omni_prod import autonomous_agents as A
+        for system in (A._ARCHITECT_SYSTEM, A._GENERATOR_SYSTEM, A._REPAIR_SYSTEM):
+            self.assertIn('CONTENT-ONLY website', system)
+            self.assertIn('do not invent such features', system.replace('and do not invent', 'do not invent'))
+        self.assertIn('omit auth, role, data_create', A._GENERATOR_SYSTEM)
+
+    def test_the_waived_kinds_match_what_the_prompt_tells_the_model_to_omit(self):
+        required, waived = acceptance_scope(compile_contract(approved_brief()))
+        self.assertEqual(set(required), {'data_read', 'responsive', 'api_smoke'})
+        self.assertTrue({'auth', 'role', 'data_create', 'data_update', 'data_delete', 'integration'} <= set(waived))
+
+
 if __name__ == '__main__':
     unittest.main()

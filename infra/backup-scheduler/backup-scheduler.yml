@@ -1,0 +1,53 @@
+# NOT ACTIVE here. GitHub only fires `schedule` triggers for workflows on the DEFAULT branch (main), so the cron in
+# .github/workflows/backup-restore.yml on the milestone branch has never run on its own (only workflow_dispatch runs).
+# This file is the proposed one-file addition for the default branch (see infra/backup-scheduler/README_HE.md).
+# It does no backup itself: it dispatches the real backup-and-restore-test workflow on the milestone branch and then
+# fails loudly if no successful backup is younger than MAX_AGE_HOURS, so a silent gap becomes a red run.
+name: Backup scheduler
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: backup-scheduler
+  cancel-in-progress: false
+
+env:
+  TARGET_REF: milestone/pre-staging-2026-10-05
+  TARGET_WORKFLOW: backup-restore.yml
+  MAX_AGE_HOURS: "30"
+
+jobs:
+  dispatch-and-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Freshness of the last successful backup (before dispatching)
+        id: fresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$TARGET_WORKFLOW" --branch "$TARGET_REF" \
+                  --status success --limit 1 --json createdAt --jq '.[0].createdAt // ""')
+          if [ -z "$last" ]; then echo "age=none" >> "$GITHUB_OUTPUT"; echo "::warning title=backup::no successful backup run found"; exit 0; fi
+          age=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s) ) / 3600 ))
+          echo "age=$age" >> "$GITHUB_OUTPUT"
+          echo "::notice title=backup::last successful backup ${age}h ago ($last)"
+
+      - name: Dispatch the backup-and-restore test on the milestone branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run "$TARGET_WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TARGET_REF"
+
+      - name: Fail when the backup is stale
+        if: ${{ steps.fresh.outputs.age == 'none' || steps.fresh.outputs.age > env.MAX_AGE_HOURS }}
+        run: |
+          echo "::error title=backup-stale::last successful backup is older than ${MAX_AGE_HOURS}h (age=${{ steps.fresh.outputs.age }}); a new run was dispatched, check it"
+          exit 1

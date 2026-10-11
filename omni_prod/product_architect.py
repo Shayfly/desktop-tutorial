@@ -165,7 +165,9 @@ class ProductArchitect:
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
-        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db)
+        no_login_early = no_login_requested(clean)
+        content_only = no_login_early and content_only_approved(clean)
+        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db, content_only=content_only)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -199,7 +201,7 @@ class ProductArchitect:
         integrations = self._infer_integrations(intent, capability_plan)
         questions = self._material_questions(intent, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
-        static_default = ["static_content_site"] if (no_login and content_only_approved(clean)) else []
+        static_default = ["static_content_site"] if content_only else []
         defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
         security = tuple(s for s in (
             "tenant_isolation",
@@ -275,8 +277,10 @@ class ProductArchitect:
         )
 
     @staticmethod
-    def _floor_spec(prompt: str, decision, *, self_contained: bool = False) -> ProductSpec:
+    def _floor_spec(prompt: str, decision, *, self_contained: bool = False, content_only: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
+        if content_only:
+            return ProductArchitect._content_only_spec(prompt, title)
         requirements: list[Requirement] = [
             Requirement("platform-auth", "Users authenticate through durable application sessions", "security"),
             Requirement("platform-rbac", "At least two application roles are enforced server-side", "security"),
@@ -317,6 +321,24 @@ class ProductArchitect:
             requirements=tuple(requirements),
             acceptance=acceptance,
         )
+
+    @staticmethod
+    def _content_only_spec(prompt: str, title: str) -> ProductSpec:
+        """Floor for an approved CONTENT-ONLY website: no sign-in, roles, database or record API to prove; the page
+        must show the approved content and work on mobile and desktop. Nothing here lets a build skip real checks."""
+        requirements = [
+            Requirement("site-content", "CONTENT-ONLY website: GET / serves the complete approved content, prices, links and "
+                        "logo text exactly as given; no sign-in, no stored visitor data, no record forms and no record API", "functional"),
+            Requirement("platform-responsive", "The page is usable on mobile and desktop web (viewport meta and responsive CSS)", "quality"),
+            Requirement("platform-api", "The server answers HTTP 200 on its health path; no /api/* record endpoint is required", "functional"),
+            Requirement("platform-observability", "Runtime errors and health are observable without secret leakage", "quality"),
+            Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
+            Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
+        ]
+        acceptance = tuple(AcceptanceCriterion(id="accept-" + r.id, requirement_id=r.id,
+                                               text=f"Automated acceptance proves: {r.text}") for r in requirements)
+        return ProductSpec(title=title, summary=f"Content-only Web site contract for: {prompt}",
+                           stack=_SELF_CONTAINED_STACK, requirements=tuple(requirements), acceptance=acceptance)
 
     @staticmethod
     def _merge_specs(floor: ProductSpec, model: ProductSpec | None) -> ProductSpec:

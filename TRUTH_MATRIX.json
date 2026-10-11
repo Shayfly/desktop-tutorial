@@ -18,9 +18,7 @@
    "tests": [
     "tests/test_brief_capability_detection.py"
    ],
-   "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
-   ],
+   "evidence": [],
    "cost": "$0",
    "status": "IMPLEMENTED",
    "shown_to_customer": true,
@@ -33,8 +31,8 @@
     },
     {
      "part": "skill:acceptance_criteria_generation",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
     }
    ]
   },
@@ -178,18 +176,16 @@
    ],
    "provider": "Gemini (catalog)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
-   ],
+   "evidence": [],
    "cost": "metered per call",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:file_create",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
     }
    ]
   },
@@ -273,7 +269,6 @@
     "tests/test_repair_stop_loss.py"
    ],
    "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
     "tests/test_repair_stop_loss.py"
    ],
    "cost": "metered per call",
@@ -283,8 +278,8 @@
    "parts": [
     {
      "part": "skill:repair_execution",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
     },
     {
      "part": "skill:retry_decision",
@@ -642,18 +637,16 @@
    ],
    "provider": "Gemini",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
-   ],
+   "evidence": [],
    "cost": "metered per call",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:file_modify",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
     }
    ]
   },
@@ -1157,8 +1150,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 3,
-  "REAL_SERVER_VERIFIED": 19,
+  "IMPLEMENTED": 5,
+  "REAL_SERVER_VERIFIED": 17,
   "UNIT_TESTED": 5,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,
@@ -1166,6 +1159,8 @@
  },
  "customer_visible_findings": [
   "shown to the customer but IMPLEMENTED: Describe the product in natural language (Hebrew/English)",
-  "shown to the customer but IMPLEMENTED: Clarifying questions only when needed"
+  "shown to the customer but IMPLEMENTED: Clarifying questions only when needed",
+  "shown to the customer but IMPLEMENTED: Generate the product code",
+  "shown to the customer but IMPLEMENTED: Change the product in natural language"
  ]
 }

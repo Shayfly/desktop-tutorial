@@ -22,7 +22,15 @@ Base: a3cc9abc (PR #17 head). Branch `claude/fix-static-site-acceptance-2026-10-
 - Job evidence export (authenticated project/job APIs / DB read), worker runtime SHA and flags, Preview/Production env isolation values, `VERCEL_AUTOMATION_BYPASS_SECRET` for deployment-verify (HTTP 401 PROTECTED), live migration 038.
 
 ### 4. Not implemented
-- Safe-deploy recovery changes (drain consumers, fail on 137/OOM, recover on migration/start failure), the daily-backup cron on the default branch, inspector activation, candidate-before-accept, durable resume, paid Golden E2E proof.
+- Inspector activation, candidate-before-accept, durable resume, paid Golden E2E proof; an actual reproduction of the "חגית" job.
+
+### Follow-up commit (same day, local only): spec/prompt support, worker drain/recovery, scheduled backup, evidence export
+- **Generator/ProductSpec:** the generator sees only the ProductSpec, so for an approved content-only contract the floor spec is now `site-content` + responsive + health (no platform-auth/rbac/data), and the Architect/Generator/Repair system prompts carry `CONTENT_ONLY_RULES` (static page, no DB/login/record API, plan limited to data_read/responsive/api_smoke, every acceptance id attached to a real check). Removing only the data_create check while still telling the model to build CRUD is thereby closed (offline tests; the model's behaviour itself is UNVERIFIED until one paid build).
+- **Deploy recovery (`infra/worker-host/drain.sh`, `recover.sh`, `deploy-worker.yml`):** drains all four consumers (worker, intake-worker, intake-maintain, preview-worker); fails the deploy BEFORE migrations on a failed stop, exit 137, OOM or a still-running container; records previous images; `recover.sh` restores the previous consumers on drain/migrate/start/listen failure without touching the DB or volumes. Verified only with a fake `docker` (8 tests incl. a mutation check); NOT run on the real host.
+- **Scheduled backup:** root cause confirmed by design (GitHub fires `schedule` only from the default branch). `infra/backup-scheduler/backup-scheduler.yml` (inactive here) dispatches `backup-restore.yml` on the milestone branch and fails if the last success is older than 30 h. Needs a file on `main` (Vercel builds Production from `main`: owner decision) and a later real-cron verification.
+- **Evidence export:** `omni_prod/evidence_export.py` + `.github/workflows/evidence-export.yml` + `docs/FAILED_BUILD_EVIDENCE_EXPORT_HE.md`; schema-tested against the local PostgreSQL. Not run against the failed build.
+- **Runtime facts re-read (Vercel API):** latest Preview `dpl_536b1wK6…` READY at `a3cc9abc`, target null (no Production change); worker last recorded deploy `2a2bba6` (Actions 38130249079, per the handoff); live DB version, live flags and the failed job's data: UNVERIFIED (no access).
+
 
 ## Update 2026-10-11 ~15:30 Asia/Jerusalem — Conversation UX, image attachments, Visual Edit, 3-pane workspace
 

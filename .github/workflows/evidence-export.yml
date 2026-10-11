@@ -1,0 +1,38 @@
+name: Evidence export (read-only)
+
+# Read-only, redacted export of ONE failed build for root-cause analysis (founder directive 2026-10-11).
+# Runs `python -m omni_prod.evidence_export` on the worker host: one READ ONLY transaction, no write, no model call,
+# no spend, allow-listed non-secret flags only. Output is published as annotations in parts (artifacts are not
+# readable from chat). Dispatch needs the owner's approval because it reads the production database.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Failed build id (bld_<hex>)
+        required: true
+
+concurrency:
+  group: evidence-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Export
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -euo pipefail
+          case "$BUILD_ID" in bld_[0-9a-f]*) ;; *) echo "::error::build_id must look like bld_<hex>"; exit 1;; esac
+          docker compose run --rm --no-deps -T worker python -m omni_prod.evidence_export "$BUILD_ID" > "$RUNNER_TEMP/evidence.json"
+          python3 - <<'PY'
+          import os
+          text = open(os.path.join(os.environ["RUNNER_TEMP"], "evidence.json"), encoding="utf-8").read()
+          parts = [text[i:i + 3300] for i in range(0, len(text), 3300)] or ["<empty>"]
+          for n, part in enumerate(parts, 1):
+              body = part.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::notice title=evidence {n}/{len(parts)}::{body}")
+          PY
