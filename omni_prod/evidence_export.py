@@ -1,6 +1,6 @@
 """Read-only, redacted evidence export of ONE build (founder directive 2026-10-11, failed build "חגית").
 
-    python -m omni_prod.evidence_export bld_<hex> [--out file.json]
+    python -m omni_prod.evidence_export bld_<hex> [--out file.json] [--files-dir DIR]
 
 ONE-OFF, with NO merge and NO worker deployment: the deployed image already contains psycopg and omni_prod, so the file
 itself can be piped in from a checkout of this branch on the worker host:
@@ -11,14 +11,23 @@ It opens a READ ONLY transaction, writes nothing, calls no model and prints no s
 redacted; flags come from an allow-list of non-secret names). It reports the approved brief revision/fingerprint and
 contract ONLY from an approval linked to exactly this build (a missing or ambiguous link is reported, never replaced by
 another approval), the product-spec acceptance ids, the acceptance outcome of every repair round, stop reason, model
-usage and spend, runtime commit, schema versions and flags.
+usage and spend, runtime commit, schema versions and flags. It also exports the generated files of the build (manifest
+`.omni/project.json`, file list with sizes and sha256, redacted text of the source files) read from the stored artifact
+with one S3 GET per build; `--files-dir DIR` additionally extracts the artifact UNREDACTED into DIR for offline
+reproduction (keep that directory private: generated code is not configuration but could contain secret-like text).
+The failed checks of every repair round are listed with their evidence (HTTP status, response excerpts) and the
+acceptance ids each check covers; the cost comes from the build row and its credit reservation.
 """
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 import os
 import re
 import sys
+import zipfile
+from pathlib import PurePosixPath
 from typing import Any
 
 NON_SECRET_FLAGS = (
@@ -69,7 +78,65 @@ def summarise_rounds(behavior: dict | None) -> list[dict]:
     return out
 
 
-def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
+TEXT_SUFFIXES = ('.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css', '.json', '.md', '.txt', '.sql', '.yml', '.yaml', '.toml',
+                 '.cfg', '.ini', '.sh', '.svg', '.env.example')
+
+
+def failed_checks(behavior: dict | None) -> list[dict]:
+    """Every failed check of every round with its evidence and the acceptance ids it was meant to cover."""
+    out = []
+    for i, r in enumerate((behavior or {}).get('rounds') or []):
+        for c in (r or {}).get('checks') or []:
+            if not c.get('passed'):
+                out.append({'round': i, **_clean(c, 700)})
+    return out[:80]
+
+
+def files_section(zip_bytes: bytes, files_dir: str | None = None, total_budget: int = 240_000, per_file: int = 24_000) -> dict:
+    z = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    names = sorted(n for n in z.namelist() if not n.endswith('/'))
+    manifest = None
+    if '.omni/project.json' in names:
+        try:
+            manifest = _json(z.read('.omni/project.json').decode('utf-8', 'replace'))
+        except Exception:
+            manifest = 'UNPARSEABLE: ' + redact(z.read('.omni/project.json').decode('utf-8', 'replace'))[:1500]
+    listing, texts, used = [], {}, 0
+    for n in names:
+        data = z.read(n)
+        listing.append({'path': n, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
+        if n.lower().endswith(TEXT_SUFFIXES) and used < total_budget:
+            txt = redact(data.decode('utf-8', 'replace'))
+            texts[n] = txt[:per_file] + (f'\n... [truncated, {len(txt)} characters]' if len(txt) > per_file else '')
+            used += len(texts[n])
+    out = {'manifest': manifest, 'files': listing, 'file_texts_redacted': texts,
+           'texts_omitted': [f['path'] for f in listing if f['path'] not in texts]}
+    if files_dir:
+        root = os.path.realpath(files_dir)
+        os.makedirs(root, exist_ok=True)
+        for n in names:
+            if PurePosixPath(n).is_absolute() or '..' in PurePosixPath(n).parts:
+                continue                                         # never write outside the target directory
+            dst = os.path.realpath(os.path.join(root, n))
+            if not dst.startswith(root + os.sep):
+                continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(dst, 'wb') as fh:
+                fh.write(z.read(n))
+        out['extracted_to'] = root
+    return out
+
+
+def _default_store(env):
+    keys = ('OMNI_S3_ENDPOINT', 'OMNI_S3_BUCKET', 'OMNI_S3_ACCESS_KEY', 'OMNI_S3_SECRET_KEY')
+    if not all(env.get(k) for k in keys):
+        return None
+    from omni_prod.storage import S3ArtifactStore
+    return S3ArtifactStore(endpoint=env['OMNI_S3_ENDPOINT'], bucket=env['OMNI_S3_BUCKET'],
+                           access_key=env['OMNI_S3_ACCESS_KEY'], secret_key=env['OMNI_S3_SECRET_KEY'])
+
+
+def export(conn, build_id: str, env: dict[str, str] | None = None, store: Any = None, files_dir: str | None = None) -> dict:
     try:
         from omni_prod.web_saas_acceptance import acceptance_scope  # the code deployed on this host
     except Exception:  # pragma: no cover - stdin use on an older image
@@ -77,10 +144,10 @@ def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
     conn.execute('SET TRANSACTION READ ONLY')
     row = conn.execute(
         'SELECT id, project_id, status, phase, error_code, error_message, repair_rounds, version_id, created_at, finished_at, '
-        'actual_provider_cost_usd, estimated_provider_cost_usd, evidence_json FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
+        'actual_provider_cost_usd, estimated_provider_cost_usd, evidence_json, artifact_key FROM build_jobs WHERE id = %s', (build_id,)).fetchone()
     if not row:
         raise SystemExit('build not found')
-    (bid, project_id, status, phase, code, message, rounds, version_id, created, finished, actual, estimated, ev) = row
+    (bid, project_id, status, phase, code, message, rounds, version_id, created, finished, actual, estimated, ev, artifact_key) = row
     ev = _json(ev)
     out: dict[str, Any] = {
         'build': {'id': bid, 'project_id': project_id, 'status': status, 'phase': phase, 'error_code': code,
@@ -98,7 +165,12 @@ def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
     }
     beh = ev.get('behavior_acceptance') or (ev.get('gates') or {}).get('behavior_acceptance')
     out['behavior_acceptance'] = {'last': _clean((beh or {}).get('last'), 900), 'per_round': _clean(summarise_rounds(beh))}
+    out['behavior_failed_checks'] = failed_checks(beh)
     out['verification_failures'] = _clean(((ev.get('gates') or {}).get('verification') or ev.get('verification') or {}).get('failures'), 900)
+    res = conn.execute('SELECT status, credits_reserved, estimated_provider_cost_usd, actual_provider_cost_usd, '
+                       'settled_provider_cost_usd, resolved_at FROM credit_reservations WHERE build_id = %s', (bid,)).fetchone()
+    out['spend']['credit_reservation'] = (dict(zip(('status', 'credits_reserved', 'estimated_usd', 'actual_usd', 'settled_usd', 'resolved_at'),
+                                                   map(str, res))) if res else 'MISSING: no credit reservation row for this build')
     out['approved_acceptance'] = _clean(ev.get('approved_acceptance'))
     # ONLY an approval whose used_by_build_id is exactly this build counts. No fallback to "the project's latest
     # approval": a different approval would describe a different brief/contract and mislead the analysis.
@@ -151,18 +223,38 @@ def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
         if s:
             out['product_spec_acceptance'] = _clean([{'id': a.get('id'), 'requirement_id': a.get('requirement_id'), 'text': a.get('text')}
                                                      for a in _json(s[0]).get('acceptance', [])], 500)
+    key = artifact_key
+    if not key and version_id:
+        v = conn.execute('SELECT artifact_key FROM project_versions WHERE id = %s', (version_id,)).fetchone()
+        key = v[0] if v else None
+    env_ = os.environ if env is None else env
+    if not key:
+        out['generated_files'] = ('MISSING: neither the build nor its version has a stored artifact (artifact_key empty), so the '
+                                  'generated files cannot be exported; only the evidence above exists')
+    else:
+        store = store or _default_store(env_)
+        if store is None:
+            out['generated_files'] = ('MISSING: OMNI_S3_ENDPOINT/BUCKET/ACCESS_KEY/SECRET_KEY are not set where this runs; run it '
+                                      'on the worker host (its .env has them) to export the files of artifact ' + redact(str(key)))
+        else:
+            try:
+                out['generated_files'] = files_section(store.get_bytes(key, verify=False), files_dir)
+                out['generated_files']['artifact_key'] = key
+            except Exception as exc:
+                out['generated_files'] = f'MISSING: the artifact could not be read ({type(exc).__name__})'
     out['schema_versions'] = [r[0] for r in conn.execute('SELECT version FROM schema_migrations ORDER BY version').fetchall()]
     return out
 
 
 def main(argv: list[str]) -> int:
     import psycopg
-    args = [a for a in argv if not a.startswith('--')]
+    skip = {argv[i + 1] for i, a in enumerate(argv[:-1]) if a in ('--out', '--files-dir')}
+    args = [a for a in argv if not a.startswith('--') and a not in skip]
     if not args or not re.fullmatch(r'bld_[0-9a-f]+', args[0]):
         print('usage: python -m omni_prod.evidence_export bld_<hex> [--out file.json]', file=sys.stderr)
         return 2
     with psycopg.connect(os.environ['OMNI_DATABASE_URL'], connect_timeout=10) as conn:
-        data = export(conn, args[0])
+        data = export(conn, args[0], files_dir=argv[argv.index('--files-dir') + 1] if '--files-dir' in argv else None)
     text = json.dumps(data, ensure_ascii=False, indent=2, default=str)
     if '--out' in argv:
         with open(argv[argv.index('--out') + 1], 'w', encoding='utf-8') as fh:

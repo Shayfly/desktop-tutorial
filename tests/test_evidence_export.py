@@ -139,6 +139,77 @@ class LiveSchemaTests(unittest.TestCase):
                 conn.rollback()
 
 
+class FilesExportTests(unittest.TestCase):
+    @staticmethod
+    def make_zip(extra=None):
+        import io
+        import zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            z.writestr('.omni/project.json', json.dumps({'start': ['app.py'], 'kind': 'web'}))
+            z.writestr('app.py', 'print("hi")\nDB_PASSWORD="supersecretvalue123"\n')
+            z.writestr('static/logo.png', b'\x89PNG\x00\x01')
+            for k, v in (extra or {}).items():
+                z.writestr(k, v)
+        return buf.getvalue()
+
+    def test_manifest_listing_hashes_and_redacted_text(self):
+        out = X.files_section(self.make_zip())
+        self.assertEqual(out['manifest']['start'], ['app.py'])
+        self.assertEqual({f['path'] for f in out['files']}, {'.omni/project.json', 'app.py', 'static/logo.png'})
+        self.assertTrue(all(len(f['sha256']) == 64 for f in out['files']))
+        self.assertIn('print("hi")', out['file_texts_redacted']['app.py'])
+        self.assertNotIn('supersecretvalue123', json.dumps(out))
+        self.assertIn('static/logo.png', out['texts_omitted'])               # binary content is listed, not dumped
+
+    def test_extraction_is_unredacted_and_never_escapes_the_directory(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        out = X.files_section(self.make_zip({'../evil.txt': 'x', '/abs.txt': 'x'}), d)
+        self.assertEqual(open(os.path.join(d, 'app.py')).read().count('supersecretvalue123'), 1)   # raw copy for offline replay
+        self.assertFalse(os.path.exists(os.path.join(os.path.dirname(d), 'evil.txt')))
+        self.assertFalse(os.path.exists('/abs.txt'))
+        self.assertEqual(out['extracted_to'], os.path.realpath(d))
+
+    def test_failed_checks_keep_their_http_evidence(self):
+        beh = {'rounds': [{'checks': [{'step_id': 's1', 'kind': 'data_create', 'acceptance_ids': ['A2'], 'passed': False,
+                                       'evidence': {'status': 404, 'body': 'Not Found'}},
+                                      {'step_id': 's2', 'kind': 'responsive', 'acceptance_ids': ['A5'], 'passed': True}]}]}
+        out = X.failed_checks(beh)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['evidence']['status'], 404)
+        self.assertEqual(out[0]['acceptance_ids'], ['A2'])
+
+    @unittest.skipUnless(URL, 'BLOCKED: M4D2_DATABASE_URL not configured')
+    def test_export_reads_the_artifact_of_exactly_this_build_and_reports_a_missing_one(self):
+        import psycopg
+        u = uuid.uuid4().hex[:10]
+        calls = []
+
+        class Store:
+            def get_bytes(self, key, verify=True):
+                calls.append(key)
+                return FilesExportTests.make_zip()
+
+        with psycopg.connect(URL) as conn:
+            try:
+                bid = LiveSchemaTests._seed(None, conn, u, 'f', 'self')
+                no_key = X.export(conn, bid, {}, store=Store())
+                self.assertTrue(no_key['generated_files'].startswith('MISSING: neither the build nor its version'))
+                self.assertEqual(calls, [])                                       # nothing was fetched without a key
+                conn.rollback()
+                bid = LiveSchemaTests._seed(None, conn, u, 'g', 'self')
+                conn.execute('UPDATE build_jobs SET artifact_key=%s WHERE id=%s', (f'artifacts/{bid}.zip', bid))
+                out = X.export(conn, bid, {}, store=Store())
+                self.assertEqual(calls, [f'artifacts/{bid}.zip'])
+                self.assertEqual(out['generated_files']['manifest']['start'], ['app.py'])
+                self.assertTrue(out['spend']['credit_reservation'].startswith('MISSING'))
+                no_store = X.export(conn, bid, {})                                # no S3 settings where it runs
+                self.assertTrue(no_store['generated_files'].startswith('MISSING: OMNI_S3_'))
+            finally:
+                conn.rollback()
+
+
 class OneOffRunTests(unittest.TestCase):
     def test_the_file_runs_from_stdin_so_no_merge_or_worker_deploy_is_needed(self):
         import pathlib
