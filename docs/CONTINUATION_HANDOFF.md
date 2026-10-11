@@ -1,5 +1,26 @@
 # 148AI — Continuation handoff (2026-10-10, Claude → ChatGPT / Copilot)
 
+## WAVE A (2026-10-11 03:05) — read this first
+
+- Branch: `claude/wave-a-intelligence-platform-2026-10-11` (pushed). Base `c20503a` = `c874998` + merge of PR #7 (`223206d`). Integration branch `milestone/pre-staging-2026-10-05` still at `67a0765` (untouched). Deployed worker `67a0765`. Vercel production target = old `main` `e8f2949`.
+- Commits: `17d246e` A1–A2 · `a138ccc` A3–A9 + UI · docs commit after it (see `git log`).
+- Status of each phase: `STATUS.md` (top section). Baseline/source of truth: `docs/WAVE_A_BASELINE.md`.
+- Where the code is: `omni_prod/intelligence/` (matrix, prices, lifecycle, governance, task_policy, health), `omni_prod/intake/`, `omni_prod/planning/`, `omni_prod/conversation/`, `omni_prod/agent_os/departments.py`, `PlanBoundRecorder` in `agent_os/recorder.py`, endpoints in `investor_app.py` (search `Wave A`), UI in `omni_prod/assets/{index.html,app.js,app.css}`, migration `infra/postgres/036_intelligence_plane.sql`.
+- Generated files (never hand-edit): `PROVIDER_MATRIX.json`, `docs/PROVIDER_MATRIX.md`, `DEPARTMENT_MATRIX.json`, `docs/DEPARTMENT_MATRIX.md` + the earlier registries. Regenerate:
+  ```bash
+  python -m omni_prod.registry_audit --write && python -m omni_prod.agent_os.audit --write
+  python -m omni_prod.agent_os.departments --write && python -m omni_prod.intelligence.matrix --write
+  python tools/generate_neon_bootstrap.py
+  ```
+- Tests: `python -m pytest tests/test_intelligence_plane.py tests/test_conversation_os.py tests/test_economics_report.py -q` (live PostgreSQL parts need `M4D2_DATABASE_URL`). UI: start the app with Postgres (migrations through 036), then `OMNI_UI_BASE=http://127.0.0.1:8148 python tools/ui_conversation_walkthrough.py <dir>`.
+
+### Exact next actions (in order)
+1. Check CI (`v24-ci`, `V11 Overlay CI`) for the branch head; fix any failure (local env cannot install from PyPI; CI is the authority).
+2. Open/refresh the PR `claude/wave-a-intelligence-platform-2026-10-11` → `milestone/pre-staging-2026-10-05` (do not push to the integration branch directly). PR #7 is already contained in this branch.
+3. Founder approval to merge → deploy-worker applies migration 036 and runs the free checks (`postdeploy-checks stage=free`); then the Vercel Preview of the integration branch serves the conversation UI for real testing.
+4. Live AI conversation: needs (a) a `GEMINI_API_KEY` on Vercel (founder adds; never in chat) or routing intake through the worker, (b) `OMNI_INTAKE_MODEL=1`, (c) an approved `OMNI_INTAKE_MODEL_BUDGET_USD`, (d) the paid benchmark `python -m omni_prod.intake.benchmark --model` with `OMNI_INTAKE_BENCH_BUDGET_USD`. Until then the conversation is deterministic and must be described as such.
+5. Remaining engineering: A6 typed department-handoff contract checks (backend API ↔ frontend), A8 media adapters (disabled by default, test doubles), modification-from-chat end-to-end test on the worker, `postdeploy_checks` stage for the conversation + plan-bound agent graph, paid 10-build Golden E2E gate after budget approval.
+
 ## Where the work is
 - Repository: `Shayfly/desktop-tutorial` (private). **The GitHub default branch `main` is old (2026-09-22) — do not use it.**
 - **Active branch: `milestone/pre-staging-2026-10-05`** — last merged + deployed code: `67a07658ae0b91b9e376fe7d44cbfe7395cf35b7`.
