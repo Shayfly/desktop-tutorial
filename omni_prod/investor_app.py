@@ -1987,7 +1987,10 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
                                          'findings': blocked or plan.get('graph_problems')})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
-            'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED'}
+            'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
+            # G3: the approved criteria travel with the plan; plan-governed builds test against them.
+            'acceptance_criteria': plan.get('acceptance_criteria') or [],
+            'requirements_fingerprint': plan.get('requirements_fingerprint')}
 
 
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}/plan')

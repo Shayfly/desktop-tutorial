@@ -157,6 +157,29 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
               'platform:behavior_acceptance (model-written steps, platform floor)', True, 'critical',
               str(beh.get('summary') or '')[:300]))
 
+    approved = ev.get('approved_acceptance')
+    if approved is not None:
+        # ADWv1 G3: the customer-approved criteria are the test basis of a
+        # plan-governed build. Each must be in the spec AND covered by a
+        # passing behavioural step; not run is not a pass.
+        ids = list(approved.get('ids') or [])
+        spec_ids = {getattr(a, 'id', None) for a in acceptance}
+        covered = set(beh.get('covered_acceptance_ids') or [])
+        not_in_spec = [i for i in ids if i not in spec_ids]
+        missing = [i for i in ids if i not in covered]
+        if not ids:
+            ap_status, ap_detail = FAIL, 'no approved acceptance criteria were bound'
+        elif not_in_spec:
+            ap_status, ap_detail = FAIL, 'approved criteria missing from the spec: ' + ','.join(not_in_spec)
+        elif not beh:
+            ap_status, ap_detail = NOT_RUN, 'behavioural acceptance did not run'
+        elif missing:
+            ap_status, ap_detail = FAIL, 'approved criteria without a passing step: ' + ','.join(missing)
+        else:
+            ap_status, ap_detail = PASS, f'{len(ids)} approved criteria covered by passing steps'
+        add(Check('acceptance', 'approved_criteria_covered', ap_status, True, 'platform:release_policy', True,
+                  'critical', ap_detail[:300]))
+
     probe = ev.get('browser_check') or {}
     add(Check('visual', 'browser_flow', FAIL if 'BROWSER' in failing_ids else _status_from(probe.get('status')),
               True, 'platform:browser_probe', True, 'high', str(probe.get('reason') or '')[:300]))

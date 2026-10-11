@@ -1,5 +1,38 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~17:00 Asia/Jerusalem — Master directive stages 1–4/6: plan-governed execution (G1), approved criteria as test basis (G3), escalated intake lane
+
+**Branch `claude/plan-driven-execution-2026-10-11` (from `2a2bba6`). Not merged. $0 spent: no paid model call, no paid flag, no secret change, no production deploy.** Full audit and Beta/Production blockers: `docs/SYSTEM_WIDE_GAP_AUDIT.md`.
+
+**Implemented and independently verified (real PostgreSQL 16 locally; real engine loop with local stub agents; no provider)**
+- G1 plan-governed execution behind `OMNI_PLAN_DRIVEN=1`:
+  - The approved ExecutionGraph (durable `agent_tasks`) admits every model call and every verification run; dependencies are checked under a row lock.
+  - Out-of-order, repeated, over-limit and over-budget steps stop the build with `plan_violation`.
+  - Spend is charged to its plan task (`AgentRuntime.charge`, metered or authorized worst case). Over budget → task BLOCKED.
+  - The plan's repair limit tightens the engine (never widens it).
+  - A superseded (lost) worker is refused.
+  - Violations are sticky, even if a caller swallows them.
+  - Legacy recording is unchanged without the flag. `build_control.py` is untouched, so no verified evidence was invalidated.
+- G3: approved `intake-requirements/1` acceptance criteria travel with the plan binding.
+  - In plan-governed builds they are merged into the spec as `APPROVED-AC*`, so behavioural acceptance must cover each one.
+  - New mandatory release check `acceptance/approved_criteria_covered`: FAIL or NOT_RUN blocks READY.
+- Stage 1: HIGH/RISKY intake turns escalate to task class `conversation_complex` (preferred 85, mandatory 70).
+  - The quote, the reservation payload and the worker call use the same task; a mismatch is released before execution.
+  - MEDIUM stays on the standard lane; LOW uses no model.
+- Stage 2: the plan states per-task `permissions`, the final `deliverable`, the preview's mandatory checks and `execution_mode`. The graph fingerprint is unchanged.
+- Tests:
+  - `tests/test_plan_driven_execution.py`: 30 tests (17 need real PostgreSQL), added to CI job `intake-budget-pg`, which applies migrations and fails on any skip.
+  - Updated lane test; new supervisor escalation test.
+  - Affected suites: 186 passed.
+  - Full suite: **1541 passed, 1 failed, 44 skipped**. The failure is `test_maintenance_live_postgres` (order-dependent; passes alone: 2 passed).
+  - Generators current: `omni_prod.agent_os.audit` (registry unchanged) and `omni_prod.intelligence.matrix --write` (new task class).
+
+**Implemented but awaiting external live verification**: all of the above on a real build (G2, about $0.15 per build, founder approval) and a real escalated intake turn (paid intake activation).
+
+**Blocked**: G2/G9/G10 (paid budget), G6 (`VERCEL_AUTOMATION_BYPASS_SECRET`), G5 (PR #11 merge approval).
+
+**Not implemented**: parallel dispatcher and resume from a task checkpoint (G1b; documented in `plan.execution_mode.not_yet`), G11, non-web families.
+
 ## Update 2026-10-11 ~15:30 Asia/Jerusalem — Issue #12: atomic intake budget reservations, complexity routing, requirements preservation
 
 **Branch `feature/intake-budget-complexity-router` (= PR #13 + Issue #12). Not merged. No paid model call, no paid flag enabled, no secret change, no production deploy.** Design, state machine, lock-order proof, migration/rollback: `docs/INTAKE_BUDGET_RESERVATIONS.md`.
