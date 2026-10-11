@@ -45,6 +45,13 @@ BLOCKING_CATEGORIES = (
     'migration_compatibility', 'mandatory_feature', 'core_journey', 'artifact', 'deployment_identity',
 )
 
+# Mandatory checks of a post-deployment verification (tools/deployment_verify.py).
+# The promotion gate takes required lists from code like this, never from evidence.
+DEPLOYMENT_REQUIRED_CHECKS = (
+    'deployment_endpoint', 'commit_sha', 'schema_compatible', 'register_synthetic_user', 'create_project',
+    'conversation_turn', 'conversation_persists', 'project_memory', 'unauthenticated_denied',
+    'cross_user_isolation')
+
 DEFAULT_TTL_SECONDS = 24 * 3600
 MAX_TTL_SECONDS = 7 * 24 * 3600
 CLOCK_SKEW_SECONDS = 60
@@ -89,7 +96,11 @@ def decide(checks: list[CheckResult], required: tuple[str, ...] = (), na_policy:
     """(verdict, reason) under the rules in the module docstring. `required`
     names checks that must be present: a missing one blocks VERIFIED.
     `na_policy` is the only way a mandatory NOT_APPLICABLE check can pass."""
-    missing = [n for n in required if n not in {c.check for c in checks}]
+    names = [c.check for c in checks]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        return BLOCKED, 'duplicate check names: ' + ', '.join(duplicates)
+    missing = [n for n in required if n not in set(names)]
     if missing:
         return BLOCKED, 'required checks missing: ' + ', '.join(missing)
     for name in required:
@@ -162,9 +173,16 @@ def _number(v) -> float | None:
     return float(v)
 
 
-def may_promote(result: dict, *, commit_sha: str | None = None, artifact_sha256: str | None = None,
+def may_promote(result: dict, *, required: tuple[str, ...], na_policy: dict | None = None,
+                commit_sha: str | None = None, artifact_sha256: str | None = None,
                 now: float | None = None) -> tuple[bool, str]:
-    """Promotion gate. Refuses unverified, unbound, forged, stale or mismatched evidence."""
+    """Promotion gate. Refuses unverified, unbound, forged, stale or mismatched evidence.
+
+    `required` and `na_policy` are the caller's trusted policy (e.g.
+    DEPLOYMENT_REQUIRED_CHECKS). The evidence's own `required` / `na_policy`
+    fields are never trusted: the verdict is recomputed under the caller's."""
+    if not isinstance(required, tuple) or not required or not all(isinstance(r, str) and r for r in required):
+        return False, 'caller must supply the trusted required-check list'
     if not isinstance(result, dict) or result.get('schema') != SCHEMA:
         return False, 'not a verification-result/1'
     if result.get('verdict') not in PROMOTABLE:
@@ -196,9 +214,11 @@ def may_promote(result: dict, *, commit_sha: str | None = None, artifact_sha256:
         checks = [CheckResult(check=c['check'], status=c['status'], mandatory=c['mandatory'] is True,
                               category=c.get('category', 'core_journey'), reason=c.get('reason') or '')
                   for c in result.get('checks') or []]
-        verdict, _ = decide(checks, tuple(result.get('required') or ()), result.get('na_policy'))
+        verdict, why = decide(checks, required, na_policy)
     except (KeyError, TypeError, ValueError):
         return False, 'evidence checks malformed'
+    if verdict not in PROMOTABLE:
+        return False, f'recomputed under the trusted policy: {verdict} ({why})'
     if verdict != result.get('verdict'):
         return False, f'stored verdict does not match its checks (recomputed {verdict})'
     return True, 'promotable'

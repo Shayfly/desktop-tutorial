@@ -48,3 +48,43 @@ Not adopted: separate package/`RunConfig` (kept in one tool + the existing canon
 - `*.vercel.app` names are claimable by other Vercel teams; the suffix `-shayflys-projects.vercel.app` relies on Vercel reserving the team slug in generated hostnames. The `vercel[bot]` creator gate means the URL comes from Vercel itself.
 - The app-reported SHA is self-reported; in CI the trusted binding is the GitHub deployment event (URL ↔ SHA from Vercel).
 - Synthetic users/projects are written to the shared pre-staging DB on every Preview verification (no cleanup yet).
+
+## Closure review (2026-10-11 ~11:00)
+
+### C1. Promotion-gate bypasses found and fixed (were live on `5ad2ccc`)
+
+Reproduced with hand-forged `verification-result/1` dicts (script equivalent to `ForgedEvidenceTests`):
+
+| Forgery | On `5ad2ccc` | Now |
+|---|---|---|
+| A: evidence declares `required: []` and contains one passing check | **promotable** | refused: recomputed BLOCKED (required checks missing) |
+| B: failing check marked NOT_APPLICABLE + evidence carries its own NA policy authorizing it | **promotable** | refused: the evidence's policy is ignored; only the caller's trusted policy counts |
+| C: duplicate check name (passing mandatory copy + failing optional copy) | **promotable** | refused: duplicate check names ⇒ BLOCKED |
+
+Fix: `may_promote(result, *, required, na_policy=None, …)` — `required` (a non-empty tuple, no default) and `na_policy` come from the caller's code (`DEPLOYMENT_REQUIRED_CHECKS`), never from the evidence; the verdict is recomputed under that policy and must be promotable **and** equal the stored verdict; `mandatory` must be literally `true`; duplicate names block. Tests: `ForgedEvidenceTests` (6) incl. a round trip of real tool output.
+
+### C2. GitHub deployment event — trust binding (verified on run 38121979644)
+
+| Source | Value |
+|---|---|
+| GitHub run (event `deployment_status`, actor `vercel[bot]`) | `head_sha` `5ad2cccc…26a6`, branch `claude/wave-a-fix-conversation-schema-2026-10-11` |
+| Vercel API (deployments for that SHA) | exactly one: `dpl_B6def4hWWTkGVtz8hsxbgZagciQB`, `148aiv28-8dvvs6l5s-shayflys-projects.vercel.app` (matches the allowed suffix) |
+| The deployment itself (`GET /api/v28/deployment`) | `source_commit` `5ad2cccc…26a6`, `environment` preview, schema COMPATIBLE (036) |
+
+The URL↔SHA binding the workflow uses comes from the GitHub deployment that the Vercel app created; the job only runs when `deployment.creator.login == 'vercel[bot]'`, so a URL from any other deployment creator is never contacted.
+
+### C3. Workflow permissions and secret boundaries
+
+- `GITHUB_TOKEN`: `permissions: contents: read` only; checkout now `persist-credentials: false`.
+- `VERCEL_AUTOMATION_BYPASS_SECRET` (not created yet): exposed only as an env var of the single "Verify deployment" step; sent only as a header to the validated origin (no redirects); never printed; result + annotations + uploaded artifact are scrubbed; GitHub log masking also applies.
+- **Boundary to understand (residual):** a `deployment_status` run executes the workflow file *at the deployed commit*. Anyone who can make Vercel deploy a commit of this repo (push access, or a fork PR that Vercel builds) could change the workflow in that commit and read repo secrets. Today this equals the existing push-trigger exposure (repo is private, `v24-ci` etc. already run on push). It widens only if Vercel builds fork PRs: keep Vercel **Git Fork Protection** on (default) — not verifiable from here (settings API blocked by the session proxy). Stronger option when the secret is created: store it in a GitHub **Environment** used only by this job, and keep the bypass token scoped to this project (Vercel bypass tokens are per-project and revocable).
+- Supply chain: actions are tag-pinned (`@v4`/`@v5`) like every other workflow in the repo; SHA pinning recommended repo-wide (could not resolve the action SHAs from this session).
+
+### C4. DNS rebinding — decision
+
+**Accepted residual risk for pre-staging**, not fixed in this PR. Reasoning: the target host must be a `*-shayflys-projects.vercel.app` name taken from a Vercel-created deployment; DNS for `vercel.app` is operated by Vercel; `resolve_public` refuses any non-public address at check time; the only secret at stake is a revocable, project-scoped bypass token for pre-staging Previews. Exploiting the gap requires control of `vercel.app` DNS.
+**Minimal fix (proposed, required before the verifier is pointed at production or customer-supplied hosts):** connect to the vetted IP instead of re-resolving — a small `HTTPSConnection` subclass whose `connect()` does `socket.create_connection((vetted_ip, 443))` and `ssl_context.wrap_socket(sock, server_hostname=host)` (certificate still verified against the hostname), installed through a custom `HTTPSHandler`. ~30 lines + a loopback TLS test with a self-signed CA.
+
+### C5. The single failing full-suite test
+
+`tests/test_m4_acceptance.py::AcceptanceW::test_W_every_non_fastapi_test_module_passes` fails identically on the unchanged base `4cc9b91` and on the head (same assertion). Direct run of its nested command on the base: **exit 0, `Ran 1303 tests … OK (skipped=20)`**. Cause: local live-PostgreSQL tests leave `psycopg_pool` shutdown warnings after the `OK` line; the test reads only the last 200 characters. Environment-specific; passes in CI. Evidence: `docs/evidence/verification/baseline_failure_m4_acceptance_W.json`.

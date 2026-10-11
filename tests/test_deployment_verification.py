@@ -42,6 +42,11 @@ def C(name, status, mandatory=True, reason=''):
                           reason=reason or ('skipped' if status in (vc.NOT_RUN, vc.NA) else ''))
 
 
+def promote(result, req=('a',), pol=None, **kw):
+    """may_promote under a trusted caller policy (default: check 'a' required, no NA exceptions)."""
+    return vc.may_promote(result, required=req, na_policy=pol, **kw)
+
+
 class VerdictTests(unittest.TestCase):
     def test_never_verified_by_default(self):
         self.assertEqual(vc.decide([])[0], vc.BLOCKED)
@@ -70,14 +75,14 @@ class VerdictTests(unittest.TestCase):
 
     def test_promotion_gate_refuses_stale_or_unverified_evidence(self):
         ok = self._ok()
-        self.assertEqual(vc.may_promote(ok, commit_sha=SHA), (True, 'promotable'))
-        self.assertFalse(vc.may_promote(ok, commit_sha='ffffffffffffffff')[0])          # code changed after verification
-        self.assertFalse(vc.may_promote(ok, now=time.time() + 2 * vc.DEFAULT_TTL_SECONDS)[0])  # expired
-        self.assertFalse(vc.may_promote(self._ok(artifact_sha256='a'), artifact_sha256='b')[0])
+        self.assertEqual(promote(ok, commit_sha=SHA), (True, 'promotable'))
+        self.assertFalse(promote(ok, commit_sha='ffffffffffffffff')[0])          # code changed after verification
+        self.assertFalse(promote(ok, now=time.time() + 2 * vc.DEFAULT_TTL_SECONDS)[0])  # expired
+        self.assertFalse(promote(self._ok(artifact_sha256='a'), artifact_sha256='b')[0])
         bad = vc.VerificationResult(kind='deployment', target='t', environment='preview', commit_sha=SHA,
                                     checks=[C('a', vc.PASS), C('b', vc.FAIL)]).finish().to_dict()
-        self.assertFalse(vc.may_promote(bad, commit_sha=SHA)[0])
-        self.assertFalse(vc.may_promote({'verdict': 'VERIFIED'})[0])                     # not the canonical schema
+        self.assertFalse(promote(bad, commit_sha=SHA)[0])
+        self.assertFalse(promote({'verdict': 'VERIFIED'})[0])                     # not the canonical schema
 
     def test_summary_lists_blockers_and_skips_with_reasons(self):
         d = vc.VerificationResult(kind='deployment', target='t', environment='preview', commit_sha=None,
@@ -116,19 +121,19 @@ class ReviewFindingTests(unittest.TestCase):
     # finding 1: exact full-SHA equality
     def test_forged_sha_prefixes_are_refused(self):
         ok = self.result()
-        self.assertTrue(vc.may_promote(ok, commit_sha=SHA)[0])
-        self.assertTrue(vc.may_promote(ok, commit_sha=SHA.upper())[0])               # case only
+        self.assertTrue(promote(ok, commit_sha=SHA)[0])
+        self.assertTrue(promote(ok, commit_sha=SHA.upper())[0])               # case only
         forged = SHA[:12] + 'f' * 28                                                     # same 12-char prefix
-        self.assertFalse(vc.may_promote(ok, commit_sha=forged)[0])
-        self.assertFalse(vc.may_promote(self.result(sha=forged), commit_sha=SHA)[0])
+        self.assertFalse(promote(ok, commit_sha=forged)[0])
+        self.assertFalse(promote(self.result(sha=forged), commit_sha=SHA)[0])
         for short in (SHA[:7], SHA[:12], SHA[:39], SHA + '0', '', ' ' + SHA, 'g' * 40):
             with self.subTest(short=short):
-                self.assertFalse(vc.may_promote(ok, commit_sha=short or None)[0])
-                self.assertFalse(vc.may_promote(self.result(sha=short or None), commit_sha=SHA)[0])
+                self.assertFalse(promote(ok, commit_sha=short or None)[0])
+                self.assertFalse(promote(self.result(sha=short or None), commit_sha=SHA)[0])
 
     def test_unbound_promotion_is_refused(self):
-        self.assertIn('not bound', vc.may_promote(self.result())[1])
-        self.assertTrue(vc.may_promote(self.result(artifact_sha256='d' * 64), artifact_sha256='d' * 64)[0])
+        self.assertIn('not bound', promote(self.result())[1])
+        self.assertTrue(promote(self.result(artifact_sha256='d' * 64), artifact_sha256='d' * 64)[0])
 
     # finding 2: timestamps and validity window
     def test_future_dated_and_malformed_timestamps_are_refused(self):
@@ -153,26 +158,30 @@ class ReviewFindingTests(unittest.TestCase):
         for name, patch in cases.items():
             with self.subTest(name):
                 r = {**self.result(), **patch}
-                self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=now)[0], name)
+                self.assertFalse(promote(r, commit_sha=SHA, now=now)[0], name)
         r = self.result()
-        self.assertTrue(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] + 30)[0])           # small skew ok
-        self.assertTrue(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] - 30)[0])
-        self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] - 3600)[0])       # clock behind
-        self.assertFalse(vc.may_promote(r, commit_sha=SHA, now=r['finished_at'] + vc.DEFAULT_TTL_SECONDS + 1)[0])
+        self.assertTrue(promote(r, commit_sha=SHA, now=r['finished_at'] + 30)[0])           # small skew ok
+        self.assertTrue(promote(r, commit_sha=SHA, now=r['finished_at'] - 30)[0])
+        self.assertFalse(promote(r, commit_sha=SHA, now=r['finished_at'] - 3600)[0])       # clock behind
+        self.assertFalse(promote(r, commit_sha=SHA, now=r['finished_at'] + vc.DEFAULT_TTL_SECONDS + 1)[0])
         short = self.result(ttl_seconds=60)
-        self.assertFalse(vc.may_promote(short, commit_sha=SHA, now=short['finished_at'] + 61)[0])
+        self.assertFalse(promote(short, commit_sha=SHA, now=short['finished_at'] + 61)[0])
 
     def test_forged_verdict_is_recomputed_and_refused(self):
         bad = self.result(checks=[C('a', vc.PASS), C('b', vc.FAIL)])
         self.assertEqual(bad['verdict'], vc.FAILED)
         forged = {**bad, 'verdict': vc.VERIFIED}
-        ok, why = vc.may_promote(forged, commit_sha=SHA)
+        ok, why = promote(forged, commit_sha=SHA)
         self.assertFalse(ok)
-        self.assertIn('does not match', why)
-        self.assertFalse(vc.may_promote({**self.result(), 'checks': [{'check': 'a'}]}, commit_sha=SHA)[0])
+        self.assertIn('recomputed', why)
+        # a stored FAILED cannot be upgraded either: verdict must equal the recomputation
+        weaker = {**self.result(), 'verdict': vc.VERIFIED_WITH_ADVISORIES}
+        self.assertIn('does not match', promote(weaker, commit_sha=SHA)[1])
+        self.assertFalse(promote({**self.result(), 'checks': [{'check': 'a'}]}, commit_sha=SHA)[0])
         dropped = {**self.result(checks=[C('a', vc.PASS), C('b', vc.PASS)], required=('a', 'b'))}
         dropped['checks'] = dropped['checks'][:1]                                      # required check removed
-        self.assertFalse(vc.may_promote(dropped, commit_sha=SHA)[0])
+        dropped['required'] = ['a']                                                    # ...and the list forged
+        self.assertFalse(promote(dropped, req=('a', 'b'), commit_sha=SHA)[0])
 
     # finding 3: mandatory NOT_APPLICABLE fails closed
     def test_mandatory_not_applicable_blocks_without_policy(self):
@@ -180,7 +189,7 @@ class ReviewFindingTests(unittest.TestCase):
         r = self.result(checks=checks)
         self.assertEqual(r['verdict'], vc.BLOCKED)
         self.assertIn('b', r['summary']['critical_blockers'])
-        self.assertFalse(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertFalse(promote(r, commit_sha=SHA)[0])
         self.assertEqual(vc.decide([C('b', vc.NA)], na_policy=POLICY)[0], vc.BLOCKED)    # NA alone never verifies
 
     def test_versioned_policy_authorizes_only_named_checks(self):
@@ -189,11 +198,11 @@ class ReviewFindingTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.VERIFIED_WITH_ADVISORIES)
         self.assertIn('na-exceptions/1', r['reason'])
         self.assertNotIn('b', r['summary']['critical_blockers'])
-        self.assertTrue(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertTrue(promote(r, pol=POLICY, commit_sha=SHA)[0])                    # caller trusts POLICY
         other = [C('a', vc.PASS), C('c', vc.NA, reason='x')]
         self.assertEqual(vc.decide(other, na_policy=POLICY)[0], vc.BLOCKED)              # not named -> blocked
-        # policy stripped from stored evidence -> recomputation blocks promotion
-        self.assertFalse(vc.may_promote({**r, 'na_policy': None}, commit_sha=SHA)[0])
+        # the evidence's own policy is never trusted: without the caller's policy it is refused
+        self.assertFalse(promote(r, commit_sha=SHA)[0])
 
     def test_malformed_policies_never_authorize(self):
         checks = [C('a', vc.PASS), C('b', vc.NA, reason='x')]
@@ -217,6 +226,71 @@ class ReviewFindingTests(unittest.TestCase):
         pol = {'version': 'na-exceptions/1', 'allowed': ['payments/checkout'], 'reason': 'family has no payments'}
         self.assertEqual(vc.from_quality_report(rep, environment='staging', na_policy=pol).verdict,
                          vc.VERIFIED_WITH_ADVISORIES)
+
+
+class ForgedEvidenceTests(unittest.TestCase):
+    """Closure review: the gate must not be bypassable by forged evidence fields.
+    Each case was a working bypass on 5ad2ccc (evidence-supplied policy trusted)."""
+
+    def base(self, checks, verdict, **extra):
+        now = time.time()
+        return {'schema': vc.SCHEMA, 'commit_sha': SHA, 'started_at': now - 5, 'finished_at': now - 1,
+                'ttl_seconds': 3600, 'verdict': verdict, 'checks': checks, **extra}
+
+    def gate(self, r, **kw):
+        return vc.may_promote(r, required=vc.DEPLOYMENT_REQUIRED_CHECKS, commit_sha=SHA, **kw)
+
+    def test_forged_empty_required_list(self):
+        r = self.base([{'check': 'deployment_endpoint', 'status': 'PASS', 'mandatory': True}], vc.VERIFIED,
+                      required=[], na_policy=None)
+        ok, why = self.gate(r)
+        self.assertFalse(ok)
+        self.assertIn('required checks missing', why)
+
+    def test_forged_self_authorizing_na_policy(self):
+        checks = [{'check': n, 'status': 'PASS', 'mandatory': True} for n in vc.DEPLOYMENT_REQUIRED_CHECKS]
+        checks[5] = {'check': 'conversation_turn', 'status': 'NOT_APPLICABLE', 'mandatory': True, 'reason': 'x'}
+        r = self.base(checks, vc.VERIFIED_WITH_ADVISORIES, required=list(vc.DEPLOYMENT_REQUIRED_CHECKS),
+                      na_policy={'version': 'forged/1', 'allowed': ['conversation_turn'], 'reason': 'trust me'})
+        ok, why = self.gate(r)
+        self.assertFalse(ok)
+        self.assertIn('not applicable without an authorizing NA policy', why)
+        # a trusted caller policy for a *different* check still does not authorize it
+        pol = {'version': 'na-exceptions/1', 'allowed': ['project_memory'], 'reason': 'n/a'}
+        self.assertFalse(self.gate(r, na_policy=pol)[0])
+
+    def test_duplicate_check_names(self):
+        checks = [{'check': n, 'status': 'PASS', 'mandatory': True} for n in vc.DEPLOYMENT_REQUIRED_CHECKS]
+        checks.append({'check': 'conversation_turn', 'status': 'FAIL', 'mandatory': False})
+        ok, why = self.gate(self.base(checks, vc.VERIFIED_WITH_ADVISORIES))
+        self.assertFalse(ok)
+        self.assertIn('duplicate', why)
+
+    def test_required_check_downgraded_or_mandatory_flag_not_true(self):
+        for bad in (False, 'true', 1, None):
+            checks = [{'check': n, 'status': 'PASS', 'mandatory': True} for n in vc.DEPLOYMENT_REQUIRED_CHECKS]
+            checks[2]['mandatory'] = bad
+            with self.subTest(mandatory=bad):
+                self.assertFalse(self.gate(self.base(checks, vc.VERIFIED))[0])
+
+    def test_caller_must_supply_policy(self):
+        checks = [{'check': n, 'status': 'PASS', 'mandatory': True} for n in vc.DEPLOYMENT_REQUIRED_CHECKS]
+        r = self.base(checks, vc.VERIFIED)
+        self.assertTrue(self.gate(r)[0])                                           # genuine evidence passes
+        for req in ((), [], None, ('',), list(vc.DEPLOYMENT_REQUIRED_CHECKS)):
+            with self.subTest(required=req):
+                self.assertFalse(vc.may_promote(r, required=req, commit_sha=SHA)[0])
+        with self.assertRaises(TypeError):
+            vc.may_promote(r, commit_sha=SHA)                                      # no default policy exists
+
+    def test_genuine_tool_output_round_trips_through_the_gate(self):
+        stub = _Stub()
+        try:
+            r = dv.verify(stub.url, expect_sha=SHA)
+        finally:
+            stub.close()
+        self.assertEqual(self.gate(r), (True, 'promotable'))
+        self.assertFalse(self.gate({**r, 'checks': r['checks'][:-1], 'required': r['required'][:-1]})[0])
 
 
 class _Stub:
@@ -344,7 +418,7 @@ class DeploymentVerifyTests(unittest.TestCase):
 
     def assert_not_promotable(self, r):
         self.assertNotIn(r['verdict'], vc.PROMOTABLE)
-        self.assertFalse(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertFalse(promote(r, req=vc.DEPLOYMENT_REQUIRED_CHECKS, commit_sha=SHA)[0])
 
     # --- journey and acceptance scenarios ---------------------------------
     def test_healthy_deployment_is_verified_and_promotable(self):
@@ -352,7 +426,7 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.VERIFIED, r['reason'])
         self.assertEqual(r['commit_sha'], SHA)
         self.assertEqual([c['check'] for c in r['checks']], list(dv.REQUIRED_CHECKS))
-        self.assertTrue(vc.may_promote(r, commit_sha=SHA)[0])
+        self.assertTrue(promote(r, req=vc.DEPLOYMENT_REQUIRED_CHECKS, commit_sha=SHA)[0])
 
     def test_scenario_a_conversation_500_is_linked_to_the_deployed_commit(self):
         r = self.run_stub(conversation_status=500)

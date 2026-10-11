@@ -55,12 +55,10 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from omni_prod.verification_contract import (  # noqa: E402
-    FAIL, FAILED, NOT_RUN, PASS, PROMOTABLE, CheckResult, VerificationResult)
+    DEPLOYMENT_REQUIRED_CHECKS, FAIL, FAILED, NOT_RUN, PASS, PROMOTABLE, CheckResult, VerificationResult)
 
 SUITE_VERSION = 'deployment-verify/3'
-REQUIRED_CHECKS = ('deployment_endpoint', 'commit_sha', 'schema_compatible', 'register_synthetic_user',
-                   'create_project', 'conversation_turn', 'conversation_persists', 'project_memory',
-                   'unauthenticated_denied', 'cross_user_isolation')
+REQUIRED_CHECKS = DEPLOYMENT_REQUIRED_CHECKS
 CATEGORY = {'deployment_endpoint': 'startup', 'commit_sha': 'deployment_identity',
             'schema_compatible': 'migration_compatibility', 'register_synthetic_user': 'critical_api',
             'create_project': 'core_journey', 'conversation_turn': 'core_journey',
