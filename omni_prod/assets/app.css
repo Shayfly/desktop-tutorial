@@ -186,7 +186,7 @@ dialog::backdrop{background:rgba(8,16,28,.45)}
 
 /* ============ Wave A: conversation-first workspace (sidebar | chat | preview) ============ */
 :root{--sb-w:272px;--stage-w:42%}
-body.signed-in{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+body.signed-in{height:100vh;height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 body.signed-in .topbar{display:none}
 body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .workspace{display:flex;flex:1;min-height:0}
@@ -218,7 +218,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .sbScrim{display:none}
 
 .chat{flex:1 1 auto;min-width:380px;display:flex;flex-direction:column;min-height:0;background:var(--paper)}
-.chatHead{display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;border-block-end:1px solid var(--rule);background:var(--surface)}
+.chatHead{display:flex;flex-shrink:0;align-items:center;gap:.5rem;padding:.55rem .9rem;border-block-end:1px solid var(--rule);background:var(--surface)}
 .chatTitle{flex:1;font-size:1rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chatHeadActions{display:flex;gap:.2rem}
 #sbOpen{display:none}
@@ -292,7 +292,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
   .workspace.sb-open .sidebar{margin-inline-start:0}
   .workspace.sb-open .sbScrim{display:block;position:fixed;inset:0;z-index:29;background:rgba(8,16,28,.35)}
   #sbOpen{display:inline-block}
-  #sbCollapse{display:none}
+  #sbCollapse{display:inline-block}
   .splitter{display:none}
   .stage{position:fixed;inset:0;z-index:35;max-width:none;padding:.5rem;background:var(--paper);display:none}
   [dir="rtl"] .stage{padding:.5rem}
@@ -364,7 +364,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
   .workspace[data-pane="edit"]>.editor{display:flex!important;border:0}
   #editSplitter{display:none}
   #editorClose{display:none}
-  .mobileTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+  .mobileTabs{display:grid;flex-shrink:0;grid-template-columns:auto repeat(3,1fr);gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
     background:var(--surface);border-block-start:1px solid var(--rule)}
   .mobileTabs button{background:transparent;color:var(--slate);border:1px solid transparent;font-weight:650;padding:.55rem .2rem}
   .mobileTabs button[aria-pressed="true"]{background:var(--sunk);color:var(--ink);border-color:var(--rule)}
