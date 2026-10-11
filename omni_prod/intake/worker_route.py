@@ -22,7 +22,7 @@ import uuid
 
 from . import budget as B
 from .interpreter import (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS, PROMPT_VERSION, SYSTEM, DeterministicInterpreter,
-                          Interpretation, merge, validate_model_output)
+                          Interpretation, merge, validate_model_output, contextual_user)
 
 INTAKE_QUEUE = 'omni-intake'
 JOB = 'omni_prod.intake.reservation_worker.rq_execute'
@@ -56,7 +56,7 @@ class ReservedWorkerInterpreter:
 
     def interpret(self, message: str, brief=None) -> Interpretation:
         base = self.fallback.interpret(message, brief)
-        user = message[:MAX_MESSAGE_CHARS]
+        user = contextual_user(message, brief, getattr(self, 'history', ()))
         try:
             quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task)
         except B.QuoteUnavailable as exc:

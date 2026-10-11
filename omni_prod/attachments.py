@@ -175,12 +175,16 @@ def public(row: dict) -> dict:
     return {'id': row['id'], 'kind': row['kind'], 'mime': row['mime'], 'size_bytes': row['size_bytes'],
             'width': row['width'], 'height': row['height'], 'annotation': row['annotation'] or {},
             'analysis': {**VISION_NOTE, 'state': row['analysis_state']},
-            'created_at': str(row['created_at'])}
+            'created_at': str(row['created_at']), 'sha256': row['sha256']}
 
 
 class AttachmentRepository:
     def __init__(self, pool, store):
         self.pool, self.store = pool, store
+
+    def schema_ready(self) -> bool:
+        with self.pool.connection() as conn:
+            return conn.execute("SELECT to_regclass('public.conversation_attachments')").fetchone()[0] is not None
 
     def _row(self, r) -> dict:
         d = dict(zip([c.strip() for c in _COLS.split(',')], r))

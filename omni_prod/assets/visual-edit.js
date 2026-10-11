@@ -122,7 +122,12 @@ const VE = (() => {
   async function uploadPending() {
     $('composerMsg').textContent = t('imgUploading');
     const ids = [];
-    for (const p of st.pending) ids.push((await upload(p.blob, 'image')).id);
+    for (const p of st.pending) {
+      // Retain successful uploads across a failed send/partial upload retry.
+      if(p.uploadedProject !== S.projectId){p.uploadedId=null;p.uploadedProject=S.projectId;}
+      if(!p.uploadedId)p.uploadedId=(await upload(p.blob,'image')).id;
+      ids.push(p.uploadedId);
+    }
     $('composerMsg').textContent = '';
     return ids;
   }
@@ -309,7 +314,7 @@ const VE = (() => {
   /* ---------- layout: panes, editor width, mobile tabs ---------- */
   function setPane(p) {
     st.pane = p; ws().dataset.pane = p;
-    document.querySelectorAll('#mobileTabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.pane === p ? 'true' : 'false'));
+    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pane === p ? 'true' : 'false'));
   }
   function setEditWidth(px) {
     const v = Math.max(240, Math.min(480, px));
@@ -426,9 +431,10 @@ const VE = (() => {
       // on screens narrower than 1600 px unless the person opened it before.
       if (window.innerWidth < 1600 && !localStorage.getItem('148ai_sb') && !localStorage.getItem('148ai_sb_open')) ws().classList.add('sb-collapsed');
     } catch { /* defaults */ }
+    syncSidebar();
     $('sbOpen').addEventListener('click', () => { try { localStorage.setItem('148ai_sb_open', '1'); } catch { /* */ } });
     // Mobile: Chat / Preview / Edit.
-    document.querySelectorAll('#mobileTabs button').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
+    document.querySelectorAll('#mobileTabs button[data-pane]').forEach(b => b.addEventListener('click', () => setPane(b.dataset.pane)));
     $('togglePreviewBtn').addEventListener('click', () => { if (mobile()) setPane(st.pane === 'preview' ? 'chat' : 'preview'); });
     $('closePreviewBtn').addEventListener('click', () => { if (mobile()) setPane('chat'); });
     setPane('chat');

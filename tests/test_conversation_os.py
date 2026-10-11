@@ -62,7 +62,7 @@ class InterpreterTests(unittest.TestCase):
         msg = 'מערכת תורים בלי התחברות בצבע ירוק'
         raw = {'language': 'he', 'product_family': 'web_app', 'proposals': [
             {'field': 'login', 'value': 'none', 'confidence': 'high', 'evidence': 'בלי התחברות'},
-            {'field': 'color', 'value': 'red', 'confidence': 'high', 'evidence': 'ירוק'},              # not an option
+            {'field': 'style', 'value': 'unknown-style', 'confidence': 'high', 'evidence': 'ירוק'},   # not an option (colour is now free text)
             {'field': 'audience', 'value': 'public', 'confidence': 'high', 'evidence': 'ללקוחות רבים'},  # quote not in message
             {'field': 'salary', 'value': '1', 'confidence': 'high', 'evidence': 'x'},                   # unknown field
         ]}

@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script defer src="/assets/app.js"></script>
 <script defer src="/assets/visual-edit.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600&family=Heebo:wght@400;600&family=Rubik:wght@400;600&display=swap">
 </head>
 <body class="signed-out">
 <a class="skip" href="#main" data-i18n="skip">דילוג לתוכן</a>
@@ -66,7 +67,7 @@
     <aside class="sidebar" id="sidebar" aria-label="148AI">
       <div class="sbHead">
         <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="26" height="26"><b>148AI</b></a>
-        <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">⟨⟩</button>
+        <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">×</button>
       </div>
       <button class="sbNew" id="newProjectTopBtn" type="button"><span aria-hidden="true">＋</span> <span data-i18n="newChat">שיחה חדשה · פרויקט חדש</span></button>
       <label class="sbSearch"><span class="sr" data-i18n="searchProjects">חיפוש פרויקטים</span>
@@ -97,6 +98,7 @@
       </header>
       <nav class="ctxTabs" id="ctxTabs" aria-label="Project"></nav>
       <div class="ctx" id="ctx">
+        <div class="ctxToolbar"><span id="ctxTitle">עריכת הבקשה</span><button id="ctxMinimize" type="button" class="ghost" aria-controls="ctx" data-i18n-label="minimizeContext">−</button></div>
         <div class="panel" id="emptyProjects" hidden>
           <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
           <form class="inline" id="firstProjectForm">
@@ -235,6 +237,7 @@
     </aside>
 
     <nav class="mobileTabs" id="mobileTabs" aria-label="Workspace">
+      <button type="button" id="mobileMenuBtn" aria-controls="sidebar" aria-expanded="false" data-i18n-label="showSidebar">☰</button>
       <button type="button" data-pane="chat" aria-pressed="true" data-i18n="paneChat">שיחה</button>
       <button type="button" data-pane="preview" aria-pressed="false" data-i18n="panePreview">תצוגה</button>
       <button type="button" data-pane="edit" aria-pressed="false" data-i18n="paneEdit">עריכה</button>

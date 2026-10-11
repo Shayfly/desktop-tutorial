@@ -140,7 +140,7 @@ class ModelCallBoundsTests(unittest.TestCase):
     def test_prompt_is_hebrew_first_and_calls_are_bounded(self):
         self.assertIn('Hebrew as the primary language', SYSTEM)
         self.assertIn('never translate', SYSTEM)
-        self.assertEqual(PROMPT_VERSION, 'intake-prompt/2-he-first')
+        self.assertEqual(PROMPT_VERSION, 'intake-prompt/3-contextual-reply')
 
         class Gateway:
             def __init__(self):
