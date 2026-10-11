@@ -1,6 +1,12 @@
 # 148AI — Continuation handoff (2026-10-10, Claude → ChatGPT / Copilot)
 
-## WAVE A (2026-10-11 03:05) — read this first
+## 2026-10-11 08:20 — Continuous Verification (read this first)
+- PR #8 merged (`4cc9b91`), worker deployed, migration 036 applied (verified via `/api/v28/deployment` on a real Preview).
+- Branch `claude/wave-a-fix-conversation-schema-2026-10-11` (on top of `4cc9b91`): P0.1–P0.4 (coverage map, `verification-result/1`, `/api/v28/deployment`, `tools/deployment_verify.py`, workflow `deployment-verify`). PR to the integration branch; do not merge without green CI + founder approval.
+- Run locally: `python tools/deployment_verify.py <url> --expect-sha <sha> [--bypass-token-env VERCEL_AUTOMATION_BYPASS_SECRET]`.
+- Next: founder adds the bypass secret → the workflow gives a real VERIFIED/FAILED per deployment; then P0.5+ (see STATUS "Not implemented"). Decide PR #9 (overlapping verifier).
+
+## WAVE A (2026-10-11 03:05)
 
 - Branch: `claude/wave-a-intelligence-platform-2026-10-11` (pushed). Base `c20503a` = `c874998` + merge of PR #7 (`223206d`). Integration branch `milestone/pre-staging-2026-10-05` still at `67a0765` (untouched). Deployed worker `67a0765`. Vercel production target = old `main` `e8f2949`.
 - Commits: `17d246e` A1–A2 · `a138ccc` A3–A9 + UI · docs commit after it (see `git log`).

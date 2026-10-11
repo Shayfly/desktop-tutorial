@@ -222,7 +222,9 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(self.status(self.run_stub(anon_ok=True), 'unauthenticated_denied'), vc.FAIL)
 
     def test_protected_or_unreachable_is_blocked_never_verified(self):
-        self.assertEqual(self.run_stub(protected=True)['verdict'], vc.BLOCKED)
+        prot = self.run_stub(protected=True)
+        self.assertEqual(prot['verdict'], vc.BLOCKED)
+        self.assertIn('protected (HTTP 401)', prot['summary']['skipped'][0]['reason'])
         self.assertEqual(self.run_stub(protected=True, bypass='synthetic-bypass')['verdict'], vc.VERIFIED)
         r = dv.verify('http://127.0.0.1:9', expect_sha=SHA)
         self.assertEqual(r['verdict'], vc.BLOCKED)

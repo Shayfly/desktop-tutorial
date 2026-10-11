@@ -1,5 +1,32 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 08:20 Asia/Jerusalem — Vercel "Server error" fixed + Continuous Verification P0.1–P0.4
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11`. $0 spent. No production deploy, no secret change, no model call.**
+
+Root cause of the red "Server error": `psycopg.errors.UndefinedTable: relation "execution_plans"/"intake_messages" does not exist` (Vercel runtime errors, deployment `dpl_42B7ngrpgoMCqxnLF2K4DUG3r5K8`, commit `8fe5998`): the branch Preview ran the Wave A API against the shared pre-staging DB before migration 036 was applied. Fix `b6a99c1` (503 `conversation_not_ready` + guided fallback, builds unaffected). The founder merged PR #8 (merge `4cc9b91`, 2026-10-11 01:10 UTC); deploy-worker run 38100955911 succeeded incl. "Apply database migrations".
+
+**Implemented and independently verified**
+- Migration 036 applied on the shared pre-staging DB — read from the real Vercel Preview `dpl_AcJCaecSiEBVCk6fz7vtawtVn2iE` (`19d76d7`): `GET /api/v28/deployment` → `schema.status=COMPATIBLE, applied_max=36, missing=[]`.
+- No runtime errors on Vercel after 2026-10-11 00:25 UTC (both error groups belong to the pre-036 deployment).
+- P0.1 coverage map: `docs/VERIFICATION_COVERAGE_MAP.md` (generated products well covered; the platform's own Vercel API had no post-deployment check — why the incident shipped).
+- P0.3 canonical verdict `verification-result/1` (`omni_prod/verification_contract.py`): never VERIFIED by default; FAIL→FAILED; NOT_RUN/UNKNOWN→BLOCKED; skips need reasons; promotion gate refuses wrong-commit/artifact or expired evidence; `quality-report/1` maps onto it.
+- P0.2/P0.4 deployment verification: `GET /api/v28/deployment` (commit, env, required vs applied migrations via `omni_prod/schema_manifest.py`, drift-tested) + `tools/deployment_verify.py` (SHA, schema, register→project→conversation→persistence→memory, anonymous denial, cross-user isolation; synthetic users) + workflow `deployment-verify` on every Vercel `deployment_status`.
+- Local real-server evidence (`docs/evidence/verification/`): VERIFIED with 036; FAILED on 035 DB (schema + conversation 503); FAILED on wrong SHA.
+- Tests: `tests/test_deployment_verification.py` 17 (scenarios A, E, J, auth bypass, leak, protected, unreachable, no token leakage). Full suite 1462 passed, 1 failed (`test_m4_acceptance` W, environment-only, also failing on base), 43 skipped.
+
+**Implemented but awaiting external live verification**
+- `deployment-verify` ran for real on GitHub (run 38113948928) against the Vercel Preview → **BLOCKED** (HTTP 401, Vercel deployment protection). Working as designed (never VERIFIED without evidence).
+
+**Blocked by a named credential/service**
+- Full journey on Vercel needs Vercel "Protection Bypass for Automation" stored as GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` (founder action; not created by me).
+- Gating Vercel promotion on the check needs Vercel Deployment Checks / branch protection (founder action).
+- Live AI conversation: OFF (needs approved budget + `OMNI_INTAKE_MODEL`).
+
+**Not implemented**: P0.5–P0.12 (repair loop over deployment failures, security gate expansion, visual QA on the platform UI, handoff contracts, requirement→test traceability, defect intelligence, dashboards, adversarial suite); paid Golden E2E (NOT RUN).
+
+Note: PR #9 (`chatgpt/pdv-001-candidate-2026-10-11` → this branch, "PDV-001" standalone post-deployment verifier, 37 loopback tests) overlaps with `tools/deployment_verify.py`; not merged, needs a decision on which verifier to keep (or merge its hardening — host allowlist, redirect blocking — into this one).
+
 ## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
 
 **Branch `claude/wave-a-intelligence-platform-2026-10-11` (base `c20503a` = `c874998` + PR #7). Not merged, not deployed. $0 spent. Live AI conversation NOT verified (no model call was made).** Baseline/source of truth: `docs/WAVE_A_BASELINE.md`. Handoff: `docs/CONTINUATION_HANDOFF.md` (Wave A section).

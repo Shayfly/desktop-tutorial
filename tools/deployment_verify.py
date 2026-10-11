@@ -96,8 +96,10 @@ def verify(base: str, *, expect_sha: str | None = None, bypass: str | None = Non
     except Exception as exc:  # DNS, TLS, refused
         skip('deployment_endpoint', 'startup', f'unreachable: {type(exc).__name__}')
         return result()
-    if st in (401, 403) and '_text' in (dep or {'_text': ''}):
-        skip('deployment_endpoint', 'startup', 'deployment is protected; provide a bypass token via --bypass-token-env')
+    if st in (401, 403):   # /api/v28/deployment is public in the app, so this is platform protection
+        skip('deployment_endpoint', 'startup',
+             'deployment is protected (HTTP %d); %s' % (st, 'bypass token rejected' if bypass else
+                                                       'provide a bypass token via --bypass-token-env'))
         return result()
     if not check('deployment_endpoint', st == 200, {'status': st}, 'startup'):
         return result()
