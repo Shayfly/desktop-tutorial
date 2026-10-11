@@ -11,11 +11,21 @@
 - `.github/workflows/evidence-export.yml` — מפעיל את זה על ה-worker (workflow_dispatch, קלט: `build_id`) ומפרסם את הפלט כ-annotations.
 - הקבצים שנוצרו: workflow ‏`build-evidence.yml` הקיים (קלט `version_id`, `file_path`) מפרסם קובץ מגרסה.
 
-## איך לייצא (דורש אישורך — זו קריאה מה-DB החי)
-1. מצא את ה-id של הבנייה (`bld_…`) במסך הפרויקט, או הרץ `build-evidence` בלי קלט (מציג את האחרונה).
-2. Actions → ‏Evidence export (read-only) → Run workflow על `milestone/pre-staging-2026-10-05` עם ה-`build_id`.
-   (הקובץ יהיה זמין להפעלה רק אחרי שהענף יידחף וימוזג — לכן זה תלוי באישור ה-push.)
-3. העתק את ה-annotations (`evidence 1/N`…) אליי. אין בהם סיסמאות; בריף/חוזה מכילים את טקסט הלקוח עצמו.
+## איך לייצא — חד-פעמי, בלי מיזוג ובלי פריסת worker
+דורש אישורך: זו קריאה מה-DB החי (READ ONLY, בלי כתיבה, בלי עלות). אני לא מריץ אותה.
+על מארח ה-worker, בתוך checkout של הענף הזה (או רק הקובץ `omni_prod/evidence_export.py` שהועתק), מתוך `infra/worker-host`:
+
+```
+docker compose run --rm --no-deps -T worker python - bld_<hex> < /path/to/omni_prod/evidence_export.py > evidence.json
+```
+התמונה שרצה כבר מכילה `psycopg` ו-`omni_prod`, והקובץ נקרא מ-stdin, לכן אין תלות במיזוג או בפריסה. ה-id של הבנייה נמצא במסך הפרויקט
+(או `build-evidence` בלי קלט מציג את האחרונה). אפשר להריץ עם משתמש DB לקריאה בלבד; הטרנזקציה בכל מקרה READ ONLY.
+העתק אליי את `evidence.json`. אין בו סודות (צנזור + רשימת דגלים לבנה); הבריף והחוזה מכילים את טקסט הלקוח.
+
+**אישור שייך לבנייה:** הייצוא משתמש רק באישור ש-`used_by_build_id` שלו הוא בדיוק הבנייה הזו. אם אין כזה — `approval_status: MISSING` והבריף/חוזה
+לא מדווחים (לא מוחלף באישור אחר); אם יש כמה — `AMBIGUOUS`. הקורא רואה את האישורים האחרים של הפרויקט בנפרד, לא בשימוש.
+
+(`.github/workflows/evidence-export.yml` הוא נוחות לעתיד, אחרי מיזוג; לא נדרש לייצוא הזה.)
 
 ## אחרי הייצוא — מה אפרק
 (a) היקף שגוי → `acceptance_scope_now` מול `defaults_applied`; (b) מיפוי חסר → `missing_acceptance_ids` מול `product_spec_acceptance` והצעדים הכשלים;

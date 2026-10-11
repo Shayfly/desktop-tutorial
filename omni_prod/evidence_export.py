@@ -2,12 +2,16 @@
 
     python -m omni_prod.evidence_export bld_<hex> [--out file.json]
 
-Run on the worker host (``docker compose run --rm --no-deps -T worker python -m omni_prod.evidence_export <id>``),
-it opens a READ ONLY transaction, writes nothing, calls no model and prints no secret (known secret shapes are
-redacted; flags are shown only from an allow-list of non-secret names). It gathers what the root-cause analysis
-needs: the approved brief revision/fingerprint, the approved contract (+ the acceptance scope computed from it),
-the product-spec acceptance ids, the acceptance plan outcome of every repair round, stop reason, model usage and
-spend, runtime commit, schema versions and active flags.
+ONE-OFF, with NO merge and NO worker deployment: the deployed image already contains psycopg and omni_prod, so the file
+itself can be piped in from a checkout of this branch on the worker host:
+
+    docker compose run --rm --no-deps -T worker python - bld_<hex> < omni_prod/evidence_export.py
+
+It opens a READ ONLY transaction, writes nothing, calls no model and prints no secret (known secret shapes are
+redacted; flags come from an allow-list of non-secret names). It reports the approved brief revision/fingerprint and
+contract ONLY from an approval linked to exactly this build (a missing or ambiguous link is reported, never replaced by
+another approval), the product-spec acceptance ids, the acceptance outcome of every repair round, stop reason, model
+usage and spend, runtime commit, schema versions and flags.
 """
 from __future__ import annotations
 
@@ -66,7 +70,10 @@ def summarise_rounds(behavior: dict | None) -> list[dict]:
 
 
 def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
-    from .web_saas_acceptance import acceptance_scope
+    try:
+        from omni_prod.web_saas_acceptance import acceptance_scope  # the code deployed on this host
+    except Exception:  # pragma: no cover - stdin use on an older image
+        acceptance_scope = None
     conn.execute('SET TRANSACTION READ ONLY')
     row = conn.execute(
         'SELECT id, project_id, status, phase, error_code, error_message, repair_rounds, version_id, created_at, finished_at, '
@@ -93,35 +100,52 @@ def export(conn, build_id: str, env: dict[str, str] | None = None) -> dict:
     out['behavior_acceptance'] = {'last': _clean((beh or {}).get('last'), 900), 'per_round': _clean(summarise_rounds(beh))}
     out['verification_failures'] = _clean(((ev.get('gates') or {}).get('verification') or ev.get('verification') or {}).get('failures'), 900)
     out['approved_acceptance'] = _clean(ev.get('approved_acceptance'))
+    # ONLY an approval whose used_by_build_id is exactly this build counts. No fallback to "the project's latest
+    # approval": a different approval would describe a different brief/contract and mislead the analysis.
     appr = conn.execute(
         'SELECT id, brief_revision, brief_fingerprint, build_contract_id, contract_fingerprint, status, created_at '
-        'FROM build_approvals WHERE used_by_build_id = %s OR (project_id = %s AND used_by_build_id IS NULL) '
-        'ORDER BY created_at DESC LIMIT 3', (bid, project_id)).fetchall()
-    out['approvals'] = [dict(zip(('id', 'brief_revision', 'brief_fingerprint', 'build_contract_id', 'contract_fingerprint', 'status', 'created_at'),
-                                 map(str, a))) for a in appr]
+        'FROM build_approvals WHERE used_by_build_id = %s AND project_id = %s ORDER BY created_at DESC', (bid, project_id)).fetchall()
+    keys = ('id', 'brief_revision', 'brief_fingerprint', 'build_contract_id', 'contract_fingerprint', 'status', 'created_at')
+    out['approvals'] = [dict(zip(keys, map(str, a))) for a in appr]
+    other = conn.execute('SELECT id, used_by_build_id, status, created_at FROM build_approvals WHERE project_id = %s '
+                         'AND (used_by_build_id IS DISTINCT FROM %s) ORDER BY created_at DESC LIMIT 5', (project_id, bid)).fetchall()
+    out['other_project_approvals_not_used'] = [dict(zip(('id', 'used_by_build_id', 'status', 'created_at'), map(str, o))) for o in other]
     briefs = conn.execute('SELECT revision, fingerprint, complete, created_at FROM project_briefs WHERE project_id = %s ORDER BY revision',
                           (project_id,)).fetchall()
     out['brief_revisions'] = [dict(zip(('revision', 'fingerprint', 'complete', 'created_at'), map(str, b))) for b in briefs]
-    used = next((a for a in appr if a[2]), None)
-    if used:
-        b = conn.execute('SELECT brief_json FROM project_briefs WHERE project_id = %s AND revision = %s', (project_id, used[1])).fetchone()
+    if len(appr) != 1:
+        out['approval_status'] = ('MISSING: no approval is linked to this build (used_by_build_id); the approved brief and contract '
+                                  'are NOT reported, and no other approval was substituted' if not appr else
+                                  f'AMBIGUOUS: {len(appr)} approvals are linked to this build; none was chosen')
+    else:
+        used = appr[0]
+        out['approval_status'] = 'EXACT'
+        b = conn.execute('SELECT brief_json FROM project_briefs WHERE project_id = %s AND revision = %s AND fingerprint = %s',
+                         (project_id, used[1], used[2])).fetchone()
         if b:
             bj = _json(b[0])
             out['approved_brief'] = {'prompt': _clean(bj.get('prompt'), 2000),
                                      'fields': {k: {'value': _clean(f.get('value'), 600), 'source': f.get('source')}
                                                 for k, f in (bj.get('fields') or {}).items()}}
-        c = conn.execute('SELECT contract_json, contract_fingerprint FROM m5_build_contracts WHERE id = %s AND project_id = %s',
-                         (used[3], project_id)).fetchone()
+        else:
+            out['approved_brief'] = 'MISSING: no brief row matches the approval revision and fingerprint'
+        c = conn.execute('SELECT contract_json, contract_fingerprint FROM m5_build_contracts WHERE id = %s AND project_id = %s '
+                         'AND contract_fingerprint = %s', (used[3], project_id, used[4])).fetchone()
         if c:
             cj = _json(c[0])
-            required, waived = acceptance_scope(cj)
+            scope = None
+            if acceptance_scope is not None:
+                required, waived = acceptance_scope(cj)
+                scope = {'required': list(required), 'not_required': list(waived)}
             out['approved_contract'] = {
                 'fingerprint': c[1], 'defaults_applied': cj.get('defaults_applied'), 'user_roles': cj.get('user_roles'),
                 'required_integrations': cj.get('required_integrations'),
                 'infrastructure_kinds': [i.get('kind') for i in cj.get('infrastructure') or []],
                 'prompt_tail': _clean((cj.get('prompt') or '')[-1200:], 1200),
                 'contract_acceptance': _clean(cj.get('acceptance'), 400),
-                'acceptance_scope_now': {'required': list(required), 'not_required': list(waived)}}
+                'acceptance_scope_by_deployed_code': scope}
+        else:
+            out['approved_contract'] = 'MISSING: no contract row matches the approval contract id and fingerprint'
     if version_id:
         s = conn.execute('SELECT spec_json FROM project_version_specs WHERE version_id = %s', (version_id,)).fetchone()
         if s:

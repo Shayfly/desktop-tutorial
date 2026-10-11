@@ -14,13 +14,27 @@ mkdir -p "$STATE"
 rm -f "$STATE/drain-failed"
 
 busy=0
+prep=()
 for s in "${SERVICES[@]}"; do
   cid=$(docker compose ps -q "$s" 2>/dev/null | head -n 1)
+  ps_rc=${PIPESTATUS[0]}
+  if [ "$ps_rc" -ne 0 ]; then prep+=("cannot list container of $s (exit $ps_rc)"); continue; fi
   [ -n "$cid" ] || continue
-  img=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null) || continue
-  docker tag "$img" "omni-rollback/$s:prev" >/dev/null 2>&1 && echo "$s $cid $img" >> "$STATE/prev-images"
+  # An existing consumer whose previous image cannot be read or preserved makes a rollback impossible: do not drain.
+  if ! img=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null) || [ -z "$img" ]; then
+    prep+=("cannot inspect the image of $s"); continue
+  fi
+  if ! docker tag "$img" "omni-rollback/$s:prev" >/dev/null 2>&1; then
+    prep+=("cannot save a rollback image for $s"); continue
+  fi
+  echo "$s $cid $img" >> "$STATE/prev-images"
   [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = "true" ] && busy=$((busy + 1))
 done
+if [ "${#prep[@]}" -gt 0 ]; then
+  printf '%s\n' "${prep[@]}" > "$STATE/drain-failed"
+  echo "::error title=drain::NOT draining, nothing was stopped: ${prep[*]}"
+  exit 1
+fi
 
 start=$(date +%s)
 docker compose stop -t "$DEADLINE" "${SERVICES[@]}"
