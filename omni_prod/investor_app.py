@@ -483,6 +483,10 @@ class V28PlanAdminRequest(BaseModel):
 class V28ModificationRequest(BaseModel):
     followup: str = Field(min_length=3,max_length=12000)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
+    # Visual edit (directive 2026-10-11): the element picked in the preview and,
+    # when locate() listed several, the candidate the person chose.
+    target: dict | None = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
 
 class V28ModificationAcceptRequest(BaseModel):
     force: bool = False
@@ -1021,6 +1025,9 @@ def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-
 
 @app.get('/assets/app.js')
 def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript')
+
+@app.get('/assets/visual-edit.js')
+def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript')
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -1827,6 +1834,17 @@ class V28ConversationMessage(BaseModel):
     message: str = Field(default='', max_length=8000)
     answers: dict[str, str] = Field(default_factory=dict)
     request_key: str | None = Field(default=None, max_length=80)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+
+
+class V28AttachmentUpload(BaseModel):
+    kind: str = Field(default='image', max_length=20)
+    data_base64: str = Field(min_length=8, max_length=4_300_000)
+    annotation: dict | None = None
+
+
+class V28LocateRequest(BaseModel):
+    selection: dict
 
 
 def _conversation_store():
@@ -1893,7 +1911,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
         'turn': turn.to_dict(lang) if turn is not None else None,
         'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
                       'intent': (m.get('interpretation') or {}).get('intent'),
-                      'actions': (m.get('interpretation') or {}).get('actions') or []}
+                      'actions': (m.get('interpretation') or {}).get('actions') or [],
+                      'attachments': (m.get('interpretation') or {}).get('attachments') or []}
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
@@ -1922,15 +1941,24 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
-    if not req.message.strip() and not req.answers:
+    if not req.message.strip() and not req.answers and not req.attachment_ids:
         raise HTTPException(422, detail={'error': 'empty_message'})
+    attached = []
+    if req.attachment_ids:
+        from .attachments import AttachmentError, public as _att_public
+        try:
+            attached = [_att_public(a) for a in _attachments().many(project_id=project_id, account_id=account.id,
+                                                                   ids=req.attachment_ids)]
+        except AttachmentError as exc:
+            raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
     lang = _lang(request) if request.query_params.get('lang') else None
     store = _conversation_store()
     if req.request_key and store.find_reply(project_id, req.request_key):
         return _conversation_view(project_id, lang or 'he')   # a retried send: no second turn
     try:
         turn = _supervisor(key).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                     answers=req.answers, request_key=req.request_key, lang=lang)
+                                     answers=req.answers, request_key=req.request_key, lang=lang,
+                                     attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
@@ -2571,6 +2599,11 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
     except SpecNotFound:
         raise HTTPException(422, 'this version predates spec tracking (M4B) and cannot be modified through this pipeline')
 
+    followup = req.followup
+    visual = None
+    if req.target or req.attachment_ids:
+        followup, visual = _visual_followup(project_id, account.id, key, version_id, req)
+
     modification_id = f"mod_{uuid.uuid4().hex}"
     mods = PostgresModificationRepository(_v28_pool)
     rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
@@ -2593,7 +2626,7 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
                     raise HTTPException(402, admission.reason)
                 mods.create(
                     cur, modification_id=modification_id, project_id=key, user_id=account.id,
-                    source_version_id=version_id, followup=req.followup,
+                    source_version_id=version_id, followup=followup,
                     target_markets=tuple(req.target_markets), rights_evidence=rights_evidence,
                 )
                 mods.create_outbox(cur, modification_id=modification_id)
@@ -2609,7 +2642,8 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
         # enqueued_at IS NULL, same as the build path above.
         dispatch = "deferred"
 
-    return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch})
+    return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch,
+                                                  **({'visual_edit': visual} if visual else {})})
 
 @app.get('/api/v28/projects/{project_id}/modifications/latest')
 def v28_modification_latest(project_id: str, request: Request) -> dict:
@@ -2719,6 +2753,125 @@ def v28_modification_reject(project_id: str, modification_id: str, req: V28Modif
     if not outcome['rejected']:
         return JSONResponse(status_code=422, content=outcome)
     return outcome
+
+# ---------------------------------------------------------------------------
+# Attachments + Visual Edit (founder directive 2026-10-11: Conversation UX +
+# Visual Editing). Reuses the workspace's artifact bucket, the modification
+# pipeline and its versions/verification/preview; no new build engine.
+
+def _attachments():
+    from .attachments import AttachmentRepository
+    store = getattr(_v28.engine.workspace, 'storage', None)
+    if _v28_pool is None or store is None:
+        raise HTTPException(503, detail={'error': 'attachments_unavailable',
+                                         'message': 'image attachments need PostgreSQL and durable object storage'})
+    return AttachmentRepository(_v28_pool, store)
+
+
+def _owner(project_id: str, request: Request):
+    token = _v28_bearer(request)
+    try:
+        return _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+
+@app.post('/api/v28/projects/{project_id}/attachments')
+def v28_attachment_upload(project_id: str, req: V28AttachmentUpload, request: Request) -> dict:
+    from .attachments import AttachmentError, decode_base64, public
+    account, _ = _owner(project_id, request)
+    repo = _attachments()
+    try:
+        row = repo.create(project_id=project_id, account_id=account.id, kind=req.kind,
+                          data=decode_base64(req.data_base64), annotation=req.annotation)
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+    return public(row)
+
+
+@app.get('/api/v28/projects/{project_id}/attachments')
+def v28_attachment_list(project_id: str, request: Request) -> dict:
+    from .attachments import public
+    account, _ = _owner(project_id, request)
+    return {'attachments': [public(r) for r in _attachments().list(project_id=project_id, account_id=account.id)]}
+
+
+@app.get('/api/v28/projects/{project_id}/attachments/{attachment_id}')
+def v28_attachment_get(project_id: str, attachment_id: str, request: Request):
+    from .attachments import AttachmentError
+    account, _ = _owner(project_id, request)
+    repo = _attachments()
+    try:
+        row = repo.get(project_id=project_id, account_id=account.id, attachment_id=attachment_id)
+        data = repo.read(row)
+    except KeyError:
+        raise HTTPException(404, 'attachment not found')
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code}) from exc
+    return Response(content=data, media_type=row['mime'], headers={
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox", 'Content-Disposition': 'inline',
+        'Cross-Origin-Resource-Policy': 'same-origin'})
+
+
+@app.delete('/api/v28/projects/{project_id}/attachments/{attachment_id}')
+def v28_attachment_delete(project_id: str, attachment_id: str, request: Request) -> dict:
+    from .attachments import AttachmentError
+    account, _ = _owner(project_id, request)
+    try:
+        return _attachments().delete(project_id=project_id, account_id=account.id, attachment_id=attachment_id)
+    except KeyError:
+        raise HTTPException(404, 'attachment not found')
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+
+
+def _version_repository(key: str, version_id: str) -> dict:
+    try:
+        return _v28.engine.workspace.get(project_id=key, version_id=version_id).repository()
+    except KeyError:
+        raise HTTPException(404, 'version not found')
+
+
+@app.post('/api/v28/projects/{project_id}/versions/{version_id}/visual-edit/locate')
+def v28_visual_locate(project_id: str, version_id: str, req: V28LocateRequest, request: Request) -> dict:
+    """Where is the element the person picked? Deterministic and free."""
+    from .visual_edit import SelectionInvalid, locate
+    _, key = _owner(project_id, request)
+    try:
+        return locate(_version_repository(key, version_id), req.selection)
+    except SelectionInvalid as exc:
+        raise HTTPException(422, detail={'error': 'selection_invalid', 'message': str(exc)}) from exc
+
+
+def _visual_followup(project_id: str, account_id: str, key: str, version_id: str, req) -> tuple[str, dict]:
+    from .attachments import AttachmentError, public
+    from .visual_edit import SelectionInvalid, choose, compose_followup, locate
+    target = selection = None
+    located = None
+    if req.target:
+        try:
+            located = locate(_version_repository(key, version_id), req.target.get('selection') or {})
+            target = choose(located, req.target.get('candidate'))
+            selection = located['selection']
+        except SelectionInvalid as exc:
+            # Never change a guessed element: the person picks a candidate or describes it.
+            raise HTTPException(409, detail={'error': 'target_ambiguous', 'message': str(exc),
+                                             'locate': {k: located[k] for k in ('status', 'candidates', 'anchor')}
+                                             if located else None}) from exc
+    attachments = []
+    if req.attachment_ids:
+        try:
+            attachments = [public(a) for a in _attachments().many(project_id=project_id, account_id=account_id,
+                                                                  ids=req.attachment_ids)]
+        except AttachmentError as exc:
+            raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+    followup = compose_followup(req.followup, target=target, selection=selection, attachments=attachments)
+    return followup, {'target': {'file': target['file'], 'line': target['line']} if target else None,
+                      'anchor': located['anchor'] if located else None,
+                      'attachments': [a['id'] for a in attachments],
+                      'image_analysis': 'NOT_ANALYZED' if attachments else None}
+
 
 @app.post('/api/v28/projects/{project_id}/rollback')
 def v28_rollback(project_id: str, req: V28RollbackRequest, request: Request) -> dict:

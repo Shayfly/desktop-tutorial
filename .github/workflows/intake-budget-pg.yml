@@ -45,7 +45,8 @@ jobs:
           python -m pytest -q -rs --junitxml=intake-pg.xml \
             tests/test_intake_budget_pg.py tests/test_intake_complexity.py \
             tests/test_intake_requirements_preservation.py tests/test_intake_worker_route.py \
-            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py
+            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py \
+            tests/test_visual_edit.py tests/test_conversation_ux.py
       - name: No test may be skipped
         if: always()
         run: |

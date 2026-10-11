@@ -1,5 +1,42 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~15:30 Asia/Jerusalem — Conversation UX, image attachments, Visual Edit, 3-pane workspace
+
+**Branch `claude/visual-edit-workspace-2026-10-11` (stacked on PR #16). Not merged. $0: no paid model call, no paid flag, no secret change, no production deploy.** Details and gap list: `docs/VISUAL_EDIT_AND_ATTACHMENTS.md`.
+
+**Vercel state checked first**:
+- Production = `main` @ `e8f2949` (2026-10-06, old code).
+- Integration Preview = `2a2bba6` (READY).
+- PR #11, #15 and #16 exist only as their own branch previews.
+
+**Implemented and independently verified (local; real FastAPI + PostgreSQL + real preview router over TLS; real Chromium desktop 1440×900 and mobile 390×844)**
+- **Conversation:** short decision names; values taken from the request are verified, not re-asked; "don't know"/"what?" gets the reason, then the options (never the same sentence twice). Approved requirements are still never changed silently.
+- **Image attachments** (migration 038 `conversation_attachments`, additive):
+  - PNG/JPEG/WebP decided from bytes; SVG refused (415); 3 MB / 8000 px / 6 per message / 40 per project.
+  - Owner-only (another account gets 403/404); `nosniff` + sandbox CSP; bytes deleted with the attachment.
+  - Shown in the thread; the reply says plainly that images are **not analyzed**.
+- **Visual Edit:**
+  - Pick an element in the live preview (mouse or touch); the preview inspector wraps the unchanged router, off unless `OMNI_PREVIEW_INSPECTOR=1`.
+  - The element is located in the stored source (file:line). Ambiguous → the person chooses, and the server refuses a guessed target (409).
+  - Screenshot with box/drawing marks.
+  - The change goes through the existing modifications pipeline; before/after comparison and undo use the existing previews and rollback.
+- **Layout:** desktop chat (right) | preview (centre) | edit tools (left), all resizable, project list as a drawer; mobile tabs Chat / Preview / Edit; "Agent tasks" moved under "Build progress" as collapsible technical details.
+- **Evidence:**
+  - `docs/evidence/visual_edit/walkthrough_result.json`: **23/23** checks, screenshots 01–16.
+  - The Wave A UI walkthrough still passes (two steps adapted to the drawer/tabs).
+  - Test-only substitutes: local-file object storage, a local process instead of a preview container, and a harness-written modification candidate (no model).
+- **Tests:**
+  - `tests/test_visual_edit.py` (real PostgreSQL) and `tests/test_conversation_ux.py`.
+  - The 036→037 upgrade test is now scoped to ≤ 037, because 038 exists.
+  - Neon bootstrap regenerated and verified on an empty PostgreSQL (34 migrations).
+  - Full suite: **1564 passed, 2 failed, 44 skipped** before that scoping. One failure was the upgrade test, now passing. The other was `test_m4_acceptance` W, whose nested run included that same failure; it passes when run alone after the fix.
+
+**Implemented but awaiting external live verification**: the inspector on the real preview host (env flags + worker deploy); one real targeted modification on the worker (paid); S3/R2 attachment storage on Vercel.
+
+**Blocked**: image analysis by a vision model (no vision route and no approved budget).
+
+**Not implemented**: preview of a candidate before accepting it; picking inside apps whose own CSP forbids `'self'` scripts (screenshot marking still works). After PR #11 merges, `schema_manifest.REQUIRED_MIGRATION` must become 38.
+
 ## Update 2026-10-11 ~17:00 Asia/Jerusalem — Master directive stages 1–4/6: plan-governed execution (G1), approved criteria as test basis (G3), escalated intake lane
 
 **Branch `claude/plan-driven-execution-2026-10-11` (from `2a2bba6`). Not merged. $0 spent: no paid model call, no paid flag, no secret change, no production deploy.** Full audit and Beta/Production blockers: `docs/SYSTEM_WIDE_GAP_AUDIT.md`.

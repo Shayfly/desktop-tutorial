@@ -112,7 +112,7 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual([(c['field'], c['current'], c['proposed'], c['origin']) for c in t2.interpretation['conflicts']],
                          [('login', 'none', 'roles', 'model')])
         self.assertIn('לא שיניתי', t2.reply)
-        self.assertEqual(t2.reply.count('האם צריך התחברות'), 2)                  # once per side, not duplicated
+        self.assertEqual(t2.reply.count('התחברות:'), 2)                          # once per side (short name), not duplicated
         self.assertEqual(self.briefs.latest('p').revision, 1)                    # nothing changed -> no new revision
         # Chief Architect input: the validated contract of the latest revision
         contract = C.build(brief)
