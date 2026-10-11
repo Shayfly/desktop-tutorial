@@ -1,5 +1,46 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~15:30 Asia/Jerusalem — Issue #12: atomic intake budget reservations, complexity routing, requirements preservation
+
+**Branch `feature/intake-budget-complexity-router` (= PR #13 + Issue #12). Not merged. No paid model call, no paid flag enabled, no secret change, no production deploy.** Design, state machine, lock-order proof, migration/rollback: `docs/INTAKE_BUDGET_RESERVATIONS.md`.
+
+**Implemented and independently verified (real PostgreSQL 16.15 + real Redis 8 / RQ 2.12 locally; provider = in-process transport behind the real RoutedModelGateway)**
+- Migration 037 (additive): reservations, budget scopes (lock anchors), reservation-scope links, transactional outbox, append-only events; `intake_messages.cost_usd` nullable (UNKNOWN). Neon bootstrap regenerated + verified on an empty PostgreSQL (33 migrations); 036→037 upgrade with data verified, idempotent.
+- `intake/budget.py`: QUOTE (full envelope: 1 call, 0 retries, 0 fallback, every allowed model, fail closed without price/catalog) → RESERVE (sorted anchor locks, settled + outstanding sums, project / rolling-24 h / campaign ≤ $10 caps, idempotency key) → CLAIM → EXECUTING marker (committed before the call) → SETTLE (CONFIRMED / CONFIRMED_ZERO / ESTIMATED, or UNKNOWN with NULL amount and the quote held) → RECONCILE (expired EXECUTING → UNKNOWN, never released; CLAIMED/stale RESERVED → RELEASED) → resolve_unknown only with billing evidence.
+- Worker execution (`intake/reservation_worker.py`) and `intake-maintain` service (outbox relay + reconcile). No unreserved paid path remains (legacy job refuses; direct API-host model calls refused).
+- Strict cost metering: timeouts / HTTP errors / missing usage → UNKNOWN (not $0); the silent `'0'` cost of the intake path removed.
+- Deterministic complexity classifier (LOW/MEDIUM/HIGH/RISKY with prior turns); LOW → no model; others → standard lane, floor 70 unchanged; low-risk sub-70 lane disabled (no qualification record).
+- Requirements preservation: confirmed values never overwritten by model output (or material fields by any output) — conflicts asked back; strict model-output type/size validation; contract to the Chief Architect unchanged (`intake-requirements/1`, fingerprint-bound); approvals stay server-bound.
+- Tests (all real, none mocked for DB concurrency): `tests/test_intake_budget_pg.py` 25 (60-way project saturation, 55-way daily, 60-way campaign, 110 mixed ops with `pg_stat_database.deadlocks` unchanged + a live deadlock negative control, rolling-24 h boundary, 50-way idempotency, double settlement, crash before/after provider, outbox crash/replay, 50 concurrent duplicate deliveries → 1 provider call, real RQ duplicate jobs → 1 call, timeout / 429 / 500 → UNKNOWN, verified zero, overrun flag, tenant isolation, end-to-end supervisor turns incl. 50 concurrent turns, migration path); `tests/test_intake_complexity.py` (129 contextual turns, 109 Hebrew/mixed, 71 sensitive, 0 false negatives); `tests/test_intake_requirements_preservation.py` 10; rewritten `tests/test_intake_worker_route.py`. Intake files 68 passed ×3 consecutive runs. Full suite: **1514 passed, 0 failed, 43 skipped** (base `73fc445` in the same environment: 1468 passed, 1 failed — the environment-only `test_m4_acceptance` W, which is flaky, not fixed).
+- New CI workflow `intake-budget-pg` runs these tests against PostgreSQL 16 + Redis service containers and fails if any is skipped.
+
+**Implemented but awaiting external live verification**: real Hebrew extraction quality, billed tokens vs quote bound (overrun flagged, not prevented), Vercel bundle including `model-catalog.json` (`vercel.json includeFiles`).
+
+**Blocked**: activation — founder budget approval + non-secret flags (`OMNI_INTAKE_MODEL`, `OMNI_INTAKE_VIA_WORKER`, caps, `OMNI_REDIS_URL` on Vercel); acceptance-campaign entry point not wired.
+
+**Not implemented**: change of the build pipeline's `_release_rejected` HTTP-error-is-free assumption (out of scope; intake does not rely on it).
+
+## Update 2026-10-11 11:40 Asia/Jerusalem — Hebrew-first live Intake Assistant (prepared, NOT activated)
+
+**Branch `claude/intake-assistant-he-2026-10-11` (from pre-staging `4cc9b91` + merge of `claude/wave-a2-worker-intake-2026-10-11`). Not merged. $0 — no model call made. Activation runbook: `docs/INTAKE_ASSISTANT_ACTIVATION.md`.**
+
+**Implemented and independently verified (test doubles; no provider calls)**
+- Worker-routed model intake (A2) on the current integration base: RQ `omni-intake`, `intake-worker` service, API-side re-validation, deterministic fallback on timeout/queue/provider error.
+- `omni_prod/intake/mode.py`: single fail-closed source of truth for whether a paid model may answer — switch + per-project cap + **new rolling-24 h cap across projects** + per-message reserve; a call starts only if spent + reserve ≤ cap (no overshoot); spend read lazily, unreadable spend ⇒ deterministic.
+- Truthful label: `/conversation` reported `interpreter: "model"` whenever the switch was on (even with zero budget) — now reports the mode that will actually answer.
+- Hebrew-first prompt `intake-prompt/2-he-first`; Hebrew-aware evidence matching (niqqud, bidi marks, gershayim/geresh, maqaf; letters and final forms untouched) — fabricated/empty quotes still dropped; calls bounded (4,000 chars in, 700 tokens out) on both API and worker paths.
+- Cost estimate from source-backed prices: gemini-3.1-flash-lite $0.0016/message upper bound; proposed acceptance test ≤ $0.05.
+- Tests: `tests/test_intake_assistant_he.py` + updated `tests/test_intake_worker_route.py` — targeted 91 passed; full suite 1468 passed, 1 failed (`test_m4_acceptance` W, environment-only, also on base), 43 skipped.
+
+**Blocked**: activation needs founder budget approval + non-secret flags on Vercel/worker. **Not verified**: any real Hebrew conversation with a model (no paid call made).
+
+## Update 2026-10-11 03:30 Asia/Jerusalem — controlled pre-staging integration: BLOCKED at the merge step
+
+- Founder authorized merging PR #8 into `milestone/pre-staging-2026-10-05` (directive 03:15). Pre-merge gates verified: integration head still `67a0765` (no newer commits), PR #8 mergeable/clean, all checks on `8fe5998` success (v24-ci, V11, Neon bootstrap, compose-config, fresh-postgres), fast-forward possible, migration 036 additive (3 new tables, `IF NOT EXISTS`, no change to existing tables), deploy-worker drains workers then runs `python -m omni_prod.migrate` then `up -d`. Rollback point: `67a0765` (revert the merge on the integration branch; 036 tables are unused by the old code and can stay).
+- **The merge itself was refused by this session's safety layer** (both the fast-forward push and the GitHub PR merge call). Nothing was merged or deployed; worker still `67a0765`; migration 036 NOT applied; the new UI is NOT on pre-staging.
+- Unblock: the founder clicks **Merge** on PR #8 (or merges `8fe5998` into the integration branch). That push triggers deploy-worker (migration 036 + worker `8fe5998`) and the Vercel Preview of the integration branch.
+- Prepared meanwhile (branch `claude/wave-a2-worker-intake-2026-10-11`, `3194ecd`, not in PR #8): real-model intake routed through the worker (`intake-worker` service, `omni-intake` queue), OFF until authorized; tests with doubles only.
+
 ## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
 
 **Branch `claude/wave-a-intelligence-platform-2026-10-11` (base `c20503a` = `c874998` + PR #7). Not merged, not deployed. $0 spent. Live AI conversation NOT verified (no model call was made).** Baseline/source of truth: `docs/WAVE_A_BASELINE.md`. Handoff: `docs/CONTINUATION_HANDOFF.md` (Wave A section).

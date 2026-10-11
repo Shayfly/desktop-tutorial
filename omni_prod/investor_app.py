@@ -1868,16 +1868,20 @@ def _project_context(key: str):
 
 
 def _supervisor(key: str):
+    """Paid intake runs only through durable reservations on the worker (Issue #12):
+    no model gateway is built on the API host."""
     from .conversation.supervisor import ConversationSupervisor
-    gateway = None
-    if os.getenv('OMNI_INTAKE_MODEL') == '1':
-        try:
-            gateway = _model_gateway_and_executor()[0]
-        except Exception:
-            gateway = None   # no model route here: the deterministic interpreter answers
-    return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=gateway,
+    reservations = enqueue = None
+    redis_url = os.getenv('OMNI_REDIS_URL', '').strip()
+    if os.getenv('OMNI_INTAKE_MODEL') == '1' and os.getenv('OMNI_INTAKE_VIA_WORKER') == '1' \
+            and _v28_pool is not None and redis_url:
+        from .intake.budget import ReservationService
+        from .intake.worker_route import rq_enqueue
+        reservations, enqueue = ReservationService(_v28_pool), rq_enqueue(redis_url)
+    return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=_M5_BUILD_CREDITS, context=_project_context(key),
-                                  budget_usd=Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50'))
+                                  budget_usd=Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50'),
+                                  reservations=reservations, enqueue=enqueue)
 
 
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
@@ -1893,8 +1897,18 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
-        'interpreter': 'model' if os.getenv('OMNI_INTAKE_MODEL') == '1' else 'deterministic',
+        # what will actually answer the next message (never 'model' just because a switch is on)
+        'interpreter': _intake_mode(project_id).mode,
     }
+
+
+def _intake_mode(project_id: str):
+    from .intake import mode as intake_mode
+
+    def spend():
+        store = _conversation_store()
+        return store.conversation_cost(project_id), store.daily_cost()
+    return intake_mode.resolve_with_spend(spend)
 
 
 @app.post('/api/v28/projects/{project_id}/conversation')
