@@ -205,7 +205,11 @@ class WorkflowWiringTests(unittest.TestCase):
         for sid in ('drain', 'migrate', 'start', 'listen'):
             self.assertIn(f"steps.{sid}.outcome == 'failure'", rec['if'])
         self.assertTrue(rec['if'].lstrip('${{ ').startswith('failure()'))
-        self.assertIn('DEPLOY_STATE_DIR', self.wf['jobs']['deploy']['env'])
+        # The `runner` context does not exist at job level (GitHub rejects the whole file); the scripts default to
+        # $RUNNER_TEMP/deploy-state, which every step of the job shares.
+        self.assertNotIn('runner.', str(self.wf['jobs']['deploy'].get('env', {})))
+        self.assertIn('RUNNER_TEMP', (HOST / 'drain.sh').read_text())
+        self.assertIn('RUNNER_TEMP', (HOST / 'recover.sh').read_text())
 
     def test_every_queue_consumer_service_is_drained(self):
         compose = yaml.safe_load((HOST / 'docker-compose.yml').read_text())['services']

@@ -31,8 +31,6 @@ jobs:
   deploy:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 60
-    env:
-      DEPLOY_STATE_DIR: ${{ runner.temp }}/deploy-state
     steps:
       - uses: actions/checkout@v4
 
