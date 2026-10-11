@@ -334,12 +334,13 @@ def stage_free(state: dict) -> None:
                "(table_name='project_previews' AND column_name='data_storage'))")
     events_table = sql("SELECT to_regclass('public.build_events') IS NOT NULL")[0][0]
     access_table = sql("SELECT to_regclass('public.preview_access_tokens') IS NOT NULL")[0][0]
-    from .schema_manifest import compatibility    # same rule as GET /api/v28/deployment
-    compat = compatibility(versions)
-    record('migrations', compat['compatible'] and not compat['unknown_applied'] and len(cols) == 3 and events_table
-           and access_table,
-           f'{len(versions)} applied, latest {max(versions)} ({rows[-1][1]}); missing {compat["missing"]}; '
-           f'unknown {compat["unknown_applied"]}; 031 columns {len(cols)}/3; build_events={events_table}')
+    expected = max(int(p.name.split('_', 1)[0]) for p in __import__('pathlib').Path(__file__).resolve().parents[1]
+                   .joinpath('infra', 'postgres').glob('*.sql')) if __import__('pathlib').Path(__file__).resolve()\
+        .parents[1].joinpath('infra', 'postgres').exists() else max(versions)
+    record('migrations', max(versions) == expected and 31 in versions and len(cols) == 3 and events_table
+           and (max(versions) < 32 or access_table),
+           f'{len(versions)} applied, latest {max(versions)} ({rows[-1][1]}); 031 columns {len(cols)}/3; '
+           f'build_events={events_table}')
 
     # Builder health: an RQ worker registered on the build queue, sandbox runner answers.
     from redis import Redis

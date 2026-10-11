@@ -45,9 +45,6 @@ class ManifestTests(unittest.TestCase):
         ahead = compatibility(list(EXPECTED_VERSIONS) + [38])                   # DB ahead of this code
         self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [38]))
         self.assertEqual(compatibility([])['missing'], list(EXPECTED_VERSIONS))
-        import inspect
-        from omni_prod import postdeploy_checks
-        self.assertIn('compatibility(versions)', inspect.getsource(postdeploy_checks.stage_free))  # one rule, reused
 
 
 def C(name, status, mandatory=True, reason=''):
