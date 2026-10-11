@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from .. import discovery as d
@@ -137,7 +138,30 @@ class DeterministicInterpreter:
 # ------------------------------------------------------------------ model path
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
-SYSTEM = ('You extract software-product requirements from a customer message (Hebrew or English). '
+PROMPT_VERSION = 'intake-prompt/2-he-first'
+MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
+MAX_OUTPUT_TOKENS = 700
+
+# Hebrew-aware normalization for evidence matching: the model may drop niqqud,
+# swap gershayim/geresh for ASCII quotes, or lose bidi marks; none of that
+# makes a quote fabricated. Letters (incl. final forms) are never changed.
+_HE_MARKS = re.compile('[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]')   # niqqud + cantillation
+_BIDI = re.compile('[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00AD]')       # zero-width, bidi, soft hyphen
+_QUOTES = str.maketrans({'\u05F4': '"', '\u201C': '"', '\u201D': '"', '\u2033': '"', '\u05F3': "'",
+                         '\u2018': "'", '\u2019': "'", '\u2032': "'", '\u05BE': '-', '\u2010': '-',
+                         '\u2013': '-', '\u2014': '-'})
+
+
+def normalize_for_evidence(text: str) -> str:
+    t = unicodedata.normalize('NFC', str(text or ''))
+    t = _BIDI.sub('', _HE_MARKS.sub('', t)).translate(_QUOTES)
+    return re.sub(r'\s+', ' ', t).strip().lower()
+
+
+SYSTEM = ('You extract software-product requirements from a customer message. Most customers write Hebrew '
+          '(often mixed with English product words, right-to-left, informal, with typos); treat Hebrew as the '
+          'primary language. Keep every "evidence" quote exactly as written in the message, in its original '
+          'script - never translate or transliterate it. Write "requirements" items in the customer\'s language. '
           'Return ONLY JSON: {"language":"he|en","product_family":"web_app|website|mobile_app|game|ai_agent|automation|'
           'api_integration|media|3d_experience","proposals":[{"field":F,"value":V,"confidence":"high|medium|low",'
           '"evidence":"exact words copied from the message"}],"delegate_rest":bool,"requirements":["..."]}. '
@@ -158,7 +182,7 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
     if fam not in FAMILIES:
         dropped.append(f'product_family {fam!r}')
     props = []
-    norm_msg = re.sub(r'\s+', ' ', message).lower()
+    norm_msg = normalize_for_evidence(message)
     for p in raw.get('proposals') or []:
         if not isinstance(p, dict):
             dropped.append('non-object proposal')
@@ -171,7 +195,8 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
         if kind == 'choice' and val not in opts:
             dropped.append(f'{fld}: value {val!r} not an option')
             continue
-        if not ev.strip() or re.sub(r'\s+', ' ', ev).lower() not in norm_msg:
+        norm_ev = normalize_for_evidence(ev)
+        if len(norm_ev) < 2 or norm_ev not in norm_msg:
             dropped.append(f'{fld}: evidence not found in the message')
             continue
         props.append(Proposal(fld, val[:2000], conf, ev[:120]))
@@ -182,7 +207,7 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
 class ModelInterpreter:
     name = 'model'
 
-    def __init__(self, gateway, *, fallback=None, max_tokens: int = 1200):
+    def __init__(self, gateway, *, fallback=None, max_tokens: int = MAX_OUTPUT_TOKENS):
         self.gateway = gateway
         self.fallback = fallback or DeterministicInterpreter()
         self.max_tokens = max_tokens
@@ -190,8 +215,8 @@ class ModelInterpreter:
     def interpret(self, message: str, brief: d.Brief | None = None) -> Interpretation:
         base = self.fallback.interpret(message, brief)
         try:
-            raw = self.gateway.complete_json(system=SYSTEM, user=message[:6000], max_tokens=self.max_tokens,
-                                             task='conversation')
+            raw = self.gateway.complete_json(system=SYSTEM, user=message[:MAX_MESSAGE_CHARS],
+                                             max_tokens=self.max_tokens, task='conversation')
         except Exception as exc:  # provider down / budget: the conversation continues deterministically
             base.dropped.append(f'model unavailable: {type(exc).__name__}')
             return base

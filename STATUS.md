@@ -1,5 +1,19 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 11:40 Asia/Jerusalem — Hebrew-first live Intake Assistant (prepared, NOT activated)
+
+**Branch `claude/intake-assistant-he-2026-10-11` (from pre-staging `4cc9b91` + merge of `claude/wave-a2-worker-intake-2026-10-11`). Not merged. $0 — no model call made. Activation runbook: `docs/INTAKE_ASSISTANT_ACTIVATION.md`.**
+
+**Implemented and independently verified (test doubles; no provider calls)**
+- Worker-routed model intake (A2) on the current integration base: RQ `omni-intake`, `intake-worker` service, API-side re-validation, deterministic fallback on timeout/queue/provider error.
+- `omni_prod/intake/mode.py`: single fail-closed source of truth for whether a paid model may answer — switch + per-project cap + **new rolling-24 h cap across projects** + per-message reserve; a call starts only if spent + reserve ≤ cap (no overshoot); spend read lazily, unreadable spend ⇒ deterministic.
+- Truthful label: `/conversation` reported `interpreter: "model"` whenever the switch was on (even with zero budget) — now reports the mode that will actually answer.
+- Hebrew-first prompt `intake-prompt/2-he-first`; Hebrew-aware evidence matching (niqqud, bidi marks, gershayim/geresh, maqaf; letters and final forms untouched) — fabricated/empty quotes still dropped; calls bounded (4,000 chars in, 700 tokens out) on both API and worker paths.
+- Cost estimate from source-backed prices: gemini-3.1-flash-lite $0.0016/message upper bound; proposed acceptance test ≤ $0.05.
+- Tests: `tests/test_intake_assistant_he.py` + updated `tests/test_intake_worker_route.py` — targeted 91 passed; full suite 1468 passed, 1 failed (`test_m4_acceptance` W, environment-only, also on base), 43 skipped.
+
+**Blocked**: activation needs founder budget approval + non-secret flags on Vercel/worker. **Not verified**: any real Hebrew conversation with a model (no paid call made).
+
 ## Update 2026-10-11 03:30 Asia/Jerusalem — controlled pre-staging integration: BLOCKED at the merge step
 
 - Founder authorized merging PR #8 into `milestone/pre-staging-2026-10-05` (directive 03:15). Pre-merge gates verified: integration head still `67a0765` (no newer commits), PR #8 mergeable/clean, all checks on `8fe5998` success (v24-ci, V11, Neon bootstrap, compose-config, fresh-postgres), fast-forward possible, migration 036 additive (3 new tables, `IF NOT EXISTS`, no change to existing tables), deploy-worker drains workers then runs `python -m omni_prod.migrate` then `up -d`. Rollback point: `67a0765` (revert the merge on the integration branch; 036 tables are unused by the old code and can stay).

@@ -44,15 +44,16 @@ def execute(message: str, *, gateway_factory=None) -> dict:
         gateway = RoutedModelGateway(ranked=cfg.catalog, routing_policy=cfg.routing, policy=policy)
     else:
         gateway = gateway_factory(cap)
-    from .interpreter import SYSTEM
+    from .interpreter import MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS, PROMPT_VERSION, SYSTEM
     try:
-        raw = gateway.complete_json(system=SYSTEM, user=message[:6000], max_tokens=1200, task='conversation')
+        raw = gateway.complete_json(system=SYSTEM, user=message[:MAX_MESSAGE_CHARS], max_tokens=MAX_OUTPUT_TOKENS,
+                                    task='conversation')
     except Exception as exc:
         return {'ok': False, 'error': f'{type(exc).__name__}: {str(exc)[:200]}'}
     usage = getattr(gateway, 'last_usage', None)
     records = getattr(getattr(gateway, 'recorder', None), 'records', []) or []
     metered = sum((r.metered_cost_usd or Decimal('0') for r in records), Decimal('0'))
-    return {'ok': True, 'raw': raw, 'cost_usd': str(metered),
+    return {'ok': True, 'raw': raw, 'cost_usd': str(metered), 'prompt_version': PROMPT_VERSION,
             'model': getattr(usage, 'model', None) or (records[-1].model if records else None)}
 
 

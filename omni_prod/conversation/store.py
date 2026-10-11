@@ -10,6 +10,7 @@ Writes are idempotent per request_key (a retried send never duplicates).
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from decimal import Decimal
 
@@ -49,7 +50,8 @@ class MemoryConversationStore:
                 return m
         row = {'id': len(self.messages) + 1, 'project_id': project_id, 'account_id': account_id, 'role': role,
                'content': content[:8000], 'brief_revision': brief_revision, 'interpretation': interpretation or {},
-               'interpreter': interpreter, 'cost_usd': str(cost_usd), 'request_key': request_key}
+               'interpreter': interpreter, 'cost_usd': str(cost_usd), 'request_key': request_key,
+               'created_at': time.time()}
         self.messages.append(row)
         return row
 
@@ -62,6 +64,11 @@ class MemoryConversationStore:
 
     def conversation_cost(self, project_id) -> Decimal:
         return sum((Decimal(m['cost_usd']) for m in self.messages if m['project_id'] == project_id), Decimal('0'))
+
+    def daily_cost(self, *, now: float | None = None) -> Decimal:
+        """Intake model spend across all projects in the last 24 hours."""
+        since = (time.time() if now is None else now) - 86400
+        return sum((Decimal(m['cost_usd']) for m in self.messages if m.get('created_at', 0) >= since), Decimal('0'))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
         key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'])
@@ -118,6 +125,13 @@ class PostgresConversationStore:
     def conversation_cost(self, project_id) -> Decimal:
         with self.pool.connection() as conn:
             v = conn.execute('SELECT COALESCE(sum(cost_usd), 0) FROM intake_messages WHERE project_id = %s', (project_id,)).fetchone()[0]
+        return Decimal(str(v))
+
+    def daily_cost(self, *, now: float | None = None) -> Decimal:
+        """Intake model spend across all projects in the last 24 hours."""
+        with self.pool.connection() as conn:
+            v = conn.execute("SELECT COALESCE(sum(cost_usd), 0) FROM intake_messages "
+                             "WHERE created_at >= now() - interval '24 hours'").fetchone()[0]
         return Decimal(str(v))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:

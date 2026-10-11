@@ -42,7 +42,7 @@ class WorkerSideTests(unittest.TestCase):
         self.assertTrue(out['ok'])
         self.assertEqual(seen['cap'], Decimal('0.004'))
         self.assertEqual(gw.calls[0]['task'], 'conversation')
-        self.assertEqual(gw.calls[0]['max_tokens'], 1200)
+        self.assertEqual(gw.calls[0]['max_tokens'], 700)        # intake-prompt/2 bound
 
     def test_provider_error_is_reported_not_raised(self):
         with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.004'}):
@@ -95,6 +95,10 @@ class ApiSideTests(unittest.TestCase):
             sup.turn(project_id='p', account_id='a', message='crm for my team')
         self.assertEqual(calls, [])                          # no budget -> never enqueued
         with mock.patch.dict(os.environ, {**env, 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05'}):
+            sup.turn(project_id='p', account_id='a', message='no daily cap')
+        self.assertEqual(calls, [])                          # no daily cap -> never enqueued
+        with mock.patch.dict(os.environ, {**env, 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
+                                          'OMNI_INTAKE_DAILY_BUDGET_USD': '0.50'}):
             sup.turn(project_id='p', account_id='a', message='blue please')
         self.assertEqual(calls, ['blue please'])
 

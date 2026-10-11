@@ -1893,8 +1893,24 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
-        'interpreter': 'model' if os.getenv('OMNI_INTAKE_MODEL') == '1' else 'deterministic',
+        # what will actually answer the next message (never 'model' just because a switch is on)
+        'interpreter': _intake_mode(project_id).mode,
     }
+
+
+def _intake_mode(project_id: str):
+    from .intake import mode as intake_mode
+    direct = False
+    if os.getenv('OMNI_INTAKE_MODEL') == '1' and os.getenv('OMNI_INTAKE_VIA_WORKER') != '1':
+        try:
+            direct = _model_gateway_and_executor()[0] is not None
+        except Exception:
+            direct = False
+
+    def spend():
+        store = _conversation_store()
+        return store.conversation_cost(project_id), store.daily_cost()
+    return intake_mode.resolve_with_spend(spend, has_direct_gateway=direct)
 
 
 @app.post('/api/v28/projects/{project_id}/conversation')
