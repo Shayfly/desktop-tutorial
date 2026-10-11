@@ -3,7 +3,7 @@ Verification P0.4 — the layer whose absence let a READY Vercel Preview answer
 the conversation with HTTP 500 on 2026-10-11).
 
     python tools/deployment_verify.py https://<deployment> --expect-sha <40-hex> \
-        --allowed-host-suffix -shayflys-projects.vercel.app \
+        --allowed-host-suffix=-shayflys-projects.vercel.app \
         [--trusted-observed-sha <40-hex>] [--bypass-token-env NAME] [--out result.json]
 
 Real HTTP against the real deployment, synthetic users only (never customer
@@ -422,7 +422,18 @@ def main(argv=None) -> int:
     ap.add_argument('--allow-production-writes', action='store_true')
     ap.add_argument('--timeout', type=float, default=15.0)
     ap.add_argument('--out')
-    args = ap.parse_args(argv)
+    def _arg_error(message):
+        raise TargetError(f'arguments: {message}')
+    ap.error = _arg_error   # a bad command line still yields a BLOCKED result file, never "no result"
+    argv = list(sys.argv[1:] if argv is None else argv)
+    try:
+        args = ap.parse_args(argv)
+    except TargetError as exc:
+        out = next((a.split('=', 1)[1] for a in argv if a.startswith('--out=')), None) or \
+            next((argv[i + 1] for i, a in enumerate(argv[:-1]) if a == '--out'), None)
+        args = argparse.Namespace(base='', out=out)
+        print(f'configuration error: {exc} (a value starting with "-" needs --option=value)', file=sys.stderr)
+        return _emit(config_error_result('', str(exc)), args.out, 3)
     code = 3
     try:
         if args.bypass_token_env and not re.fullmatch(r'[A-Z_][A-Z0-9_]{0,63}', args.bypass_token_env):
@@ -436,9 +447,13 @@ def main(argv=None) -> int:
     except TargetError as exc:
         print(f'configuration error: {exc}', file=sys.stderr)
         result = config_error_result(args.base, str(exc))
+    return _emit(result, args.out, code)
+
+
+def _emit(result: dict, out: str | None, code: int) -> int:
     text = json.dumps(result, indent=1, ensure_ascii=False)
-    if args.out:
-        with open(args.out, 'w', encoding='utf-8') as f:
+    if out:
+        with open(out, 'w', encoding='utf-8') as f:
             f.write(text + '\n')
     print(text)
     return code

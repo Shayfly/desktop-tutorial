@@ -465,6 +465,17 @@ class DeploymentVerifyTests(unittest.TestCase):
                 bad = json.load(open(out))
                 self.assertEqual((bad['verdict'], bad['target']), (vc.BLOCKED, '(rejected)'))
                 self.assertEqual(dv.main([stub.url, '--bypass-token-env', 'X;rm -rf /']), 3)
+                # real-run regression (run 38120874664): a dash-leading suffix as a separate argv
+                # made argparse exit before writing any result
+                os.remove(out)
+                self.assertEqual(dv.main(['https://a-shayflys-projects.vercel.app', '--expect-sha', SHA,
+                                          '--allowed-host-suffix', '-shayflys-projects.vercel.app', '--out', out]), 3)
+                self.assertEqual(json.load(open(out))['verdict'], vc.BLOCKED)
+                from unittest import mock
+                with mock.patch.object(dv.socket, 'getaddrinfo', side_effect=dv.socket.gaierror('offline')):
+                    self.assertEqual(dv.main(['https://a-shayflys-projects.vercel.app', '--expect-sha', SHA,
+                                              '--allowed-host-suffix=-shayflys-projects.vercel.app', '--out', out]), 2)
+                self.assertEqual(json.load(open(out))['checks'][0]['evidence']['error_class'], 'DNS_FAILURE')
         finally:
             stub.close()
 

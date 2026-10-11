@@ -21,6 +21,8 @@ Reviewer of record for the merge decision: independent (ChatGPT), per the founde
 | 10 | Low | Environment proxies honoured (secrets could transit an env-configured proxy). | Code inspection. | `ProxyHandler({})` |
 | 11 | Low | Workflow ran for any GitHub deployment event (anyone able to create a deployment could choose the URL). | Workflow inspection. | Runs only for `creator.login == 'vercel[bot]'` (confirmed on real run 38114225915) and the team suffix `-shayflys-projects.vercel.app` |
 
+| 12 | Medium | Found on the first real run (38120874664): argparse treated the dash-leading suffix as an option and exited with no result file. | Real GitHub run. | `--allowed-host-suffix=…` in the workflow; argument errors produce a BLOCKED result (exit 3); CLI regression test |
+
 ## Compared with PR #9 (PDV-001) — adopted / not adopted
 
 Adopted: no-redirect handler, origin-only URL validation, https-unless-loopback, IP-literal ban, exact host allowlist, no proxies, response cap, error classification (incl. nested FastAPI `detail.error = conversation_not_ready` → `MIGRATION_NOT_APPLIED`), full-SHA requirement, trusted-metadata SHA, "secrets never in output", CLI exit codes (0/1/2/3), test shapes 14–25 and 27–33.
