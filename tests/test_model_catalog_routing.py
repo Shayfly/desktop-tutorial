@@ -19,7 +19,11 @@ CATALOG = [
     {"name": "groq-mid", "provider": "groq", "base_url": "https://api.groq.com/openai/v1", "model": "g-model",
      "api_key_env": "GROQ_API_KEY", "quality": 80, "input_per_million": "0.15", "output_per_million": "0.60",
      "max_output_tokens": 2000},
-    {"name": "openai-top", "provider": "openai", "base_url": "https://api.openai.com/v1", "model": "o-model",
+    # Wave A: a real managed host (api.openai.com) requires a source-backed price
+    # for its model id (omni_prod.intelligence.governance); this fixture's
+    # invented "o-model" therefore uses a test host. Governance itself is
+    # covered in tests/test_intelligence_plane.py.
+    {"name": "openai-top", "provider": "openai", "base_url": "https://openai.example/v1", "model": "o-model",
      "api_key_env": "OPENAI_API_KEY", "quality": 95, "input_per_million": "2", "output_per_million": "8"},
     {"name": "gemini-nokey", "provider": "gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
      "model": "gem", "api_key_env": "GEMINI_API_KEY", "quality": 90, "input_per_million": "0.1", "output_per_million": "0.4"},

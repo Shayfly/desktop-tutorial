@@ -44,6 +44,20 @@ _SPECS = [
      ('requirement_extraction', 'functional_requirement_generation', 'acceptance_criteria_generation', 'scope_detection'),
      'requirements_traceability', ('omni_prod.discovery:requirements_text', 'omni_prod.product_architect:ProductArchitect'),
      (PAID, REHEARSAL_ACCEPT), {}),
+    # Wave A (2026-10-11): the conversational intake and the Chief Architect
+    # are their own agents with their own code; unit/integration evidence only
+    # until a real-server run uses them.
+    ('intake_agent', 'Intake Agent', 'management', 'one continuous customer conversation',
+     'interprets free Hebrew/English messages into brief updates under the confidence policy; asks only material questions',
+     ('intent_classification', 'requirement_extraction', 'ambiguity_detection', 'safe_default_selection'),
+     'requirements_agent', ('omni_prod.conversation.supervisor:ConversationSupervisor', 'omni_prod.intake.agent:apply',
+                            'omni_prod.intake.interpreter:DeterministicInterpreter'),
+     (U('tests/test_conversation_os.py'),), {}),
+    ('chief_architect', 'Chief Architect', 'software', 'requirements contract to executable plan',
+     'produces the architecture, the validated execution DAG and the feasibility verdict; assigns tasks to departments and agents',
+     ('stack_selection', 'data_model_design', 'api_contract_design'), 'quality_gate_agent',
+     ('omni_prod.planning.architect:ChiefArchitect', 'omni_prod.planning.graph:ExecutionGraph',
+      'omni_prod.planning.feasibility:assess'), (U('tests/test_conversation_os.py'),), {}),
     ('product_planner', 'Product Planner', 'management', 'plan and price the build',
      'compiles the build contract and the conservative quote', ('build_plan_generation', 'cost_estimation', 'capability_closure'),
      'cost_economics_agent', ('omni_prod.creator_plan:build_plan_preview', 'omni_prod.build_cost_plan:build_economics_quote'), (PAID,), {}),

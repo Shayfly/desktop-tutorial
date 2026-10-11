@@ -51,3 +51,33 @@ class EconomicsTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CostOfFailureTests(unittest.TestCase):
+    """Wave A §10: cost per verified success, with sample thresholds."""
+
+    def _data(self):
+        builds = [{'id': f'b{i}', 'status': 'ready' if i % 3 else 'failed'} for i in range(12)]
+        att = []
+        for i in range(12):
+            att.append({'build_id': f'b{i}', 'task_type': 'codegen', 'model': 'strong' if i < 10 else 'cheap',
+                        'outcome': 'ok', 'metered': '0.05', 'authorized': '0.2'})
+            att.append({'build_id': f'b{i}', 'task_type': 'repair', 'model': 'cheap', 'outcome': 'ok',
+                        'metered': '0.01', 'authorized': '0.04'})
+        return builds, att
+
+    def test_failed_builds_count_toward_the_cost_of_success(self):
+        from omni_prod.economics_report import compute
+        cof = compute(*self._data())['cost_of_failure']
+        strong = cof['by_codegen_model']['strong']
+        self.assertEqual((strong['builds'], strong['verified_successes']), (10, 6))
+        self.assertEqual(strong['cost_per_verified_success_usd'], '0.100000')   # 10 builds x $0.06 / 6 successes
+        self.assertEqual(strong['repair_cost_usd'], '0.10')
+
+    def test_small_samples_are_never_ranked(self):
+        from omni_prod.economics_report import compute
+        cof = compute(*self._data())['cost_of_failure']
+        self.assertTrue(cof['by_codegen_model']['cheap']['sample'].startswith('INSUFFICIENT_SAMPLE'))
+        self.assertEqual(cof['cheapest_verified_model'], 'strong')   # cheaper per success, but only 2 builds
+        lo, hi = cof['by_codegen_model']['cheap']['success_rate_95ci']
+        self.assertLess(lo, 0.5)                                      # 2/2 is not "100% proven"

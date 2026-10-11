@@ -18,7 +18,7 @@ from pathlib import Path
 from ..runtime_bindings import Evidence
 from .contracts import (BLOCKED, IMPLEMENTED, INTEGRATION_TESTED, LIVE, NOT_IMPLEMENTED, REAL_SERVER_VERIFIED,
                         UNIT_TESTED)
-from .evidence import FREE, GATE_REPLAY, PAID
+from .evidence import ECONOMICS, FREE, GATE_REPLAY, PAID, VERIFY_REPLAY
 
 ROOT = Path(__file__).resolve().parents[2]
 TRUTH_JSON = ROOT / 'TRUTH_MATRIX.json'
@@ -44,30 +44,31 @@ PLATFORM = {c.key: c for c in (
                                              'omni_prod.identity_lifecycle:IdentityService'),
                        (FREE, U('tests/test_m5_identity_lifecycle.py'))),
     PlatformCapability('contract_bound_approval', ('omni_prod.job_repository:PostgresBuildRepository.claim_contract_build',),
-                       (PAID,)),
+                       (PAID, FREE)),
     PlatformCapability('consistency_gate', ('omni_prod.consistency_gate:ConsistencyGateExecutor',),
                        (GATE_REPLAY, U('tests/test_consistency_gate.py'))),
-    PlatformCapability('release_policy', ('omni_prod.release_policy:build_report',), (U('tests/test_release_policy.py'),)),
+    PlatformCapability('release_policy', ('omni_prod.release_policy:build_report',),
+                       (VERIFY_REPLAY, U('tests/test_release_policy.py'))),
     PlatformCapability('round_snapshots_rollback', ('omni_prod.worker_tasks:install_round_snapshots',),
                        (U('tests/test_repair_stop_loss.py'),)),
     PlatformCapability('zip_export', ('omni_prod.v26_platform:V26UniversalPlatform.export', 'omni_prod.unified_engine:UnifiedOmniEngine.export_zip'),
-                       (U('tests/test_v25_unified_v10_parity.py'),)),
+                       (FREE, U('tests/test_v25_unified_v10_parity.py'))),
     PlatformCapability('version_rollback', ('omni_prod.modification_repository:PostgresModificationRepository.rollback',),
-                       (U('tests/test_m4_acceptance.py'),)),
+                       (FREE, U('tests/test_m4_acceptance.py'))),
     PlatformCapability('publish', (), blocked_by=''),
     PlatformCapability('invoice_reconciliation', ('omni_prod.qa_budget:qa_used_usd',),
                        blocked_by='needs the provider billing export (founder access to Google AI Studio / Cloud billing)'),
     PlatformCapability('second_model_provider', ('omni_prod.routed_gateway:RoutedModelGateway',),
                        blocked_by='OpenAI: no credits (HTTP 429); Anthropic: credit balance too low (HTTP 400)'),
     PlatformCapability('visual_qa_desktop_mobile', ('omni_prod.visual_qa:VisualQAExecutor',),
-                       (Evidence('integration', 'tests/test_visual_qa.py'),)),
+                       (VERIFY_REPLAY, Evidence('integration', 'tests/test_visual_qa.py'))),
     PlatformCapability('write_ahead_cost_ledger', ('omni_prod.attempt_ledger:persist_attempts',
                                                    'omni_prod.worker_tasks:prior_worker_metered_cost'),
                        (Evidence('integration', 'tests/test_actual_cost_settlement.py'),)),
     PlatformCapability('unit_economics_report', ('omni_prod.economics_report:compute',),
-                       (U('tests/test_economics_report.py'),)),
+                       (ECONOMICS, U('tests/test_economics_report.py'))),
     PlatformCapability('durable_stage_evidence', ('omni_prod.release_policy:persist',),
-                       (Evidence('integration', 'tests/test_release_policy.py'),)),
+                       (VERIFY_REPLAY, Evidence('integration', 'tests/test_release_policy.py'))),
     PlatformCapability('performance_budgets', ()),
 )}
 

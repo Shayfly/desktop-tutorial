@@ -96,16 +96,17 @@ class AgentRuntime:
                 conn.execute('UPDATE agent_runs SET finished_at = now(), outcome = %s WHERE id = %s', (outcome, run_id))
 
     # --------------------------------------------------------------- tasks
-    def add_task(self, run_id: str, agent_key: str, *, skills=(), depends_on=(), budget_usd: Decimal | None = None) -> str:
+    def add_task(self, run_id: str, agent_key: str, *, skills=(), depends_on=(), budget_usd: Decimal | None = None,
+                 evidence: dict | None = None) -> str:
         PermissionEngine.check(agent_key, skills)
         task_id = f'tsk_{uuid.uuid4().hex[:20]}'
         state = 'READY' if not depends_on else 'PENDING'
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('INSERT INTO agent_tasks(id, run_id, agent_key, skill_keys, state, depends_on, budget_usd) '
-                             'VALUES (%s, %s, %s, %s::jsonb, %s, %s::jsonb, %s)',
+                conn.execute('INSERT INTO agent_tasks(id, run_id, agent_key, skill_keys, state, depends_on, budget_usd, evidence) '
+                             'VALUES (%s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s::jsonb)',
                              (task_id, run_id, agent_key, json.dumps(list(skills)), state, json.dumps(list(depends_on)),
-                              budget_usd))
+                              budget_usd, json.dumps(evidence or {}, default=str)))
         return task_id
 
     def get(self, task_id: str) -> dict:
@@ -158,6 +159,14 @@ class AgentRuntime:
             'finished_at = CASE WHEN %s IN (\'SUCCEEDED\', \'FAILED\', \'CANCELLED\') THEN now() ELSE finished_at END '
             'WHERE id = %s',
             (target, new_cost, json.dumps(evidence or {}, default=str), target, target, task_id))
+        if target == 'FAILED':  # Wave A §6.2: a failure invalidates (only) its downstream tasks
+            frontier = [task_id]
+            while frontier:
+                rows = conn.execute(
+                    "UPDATE agent_tasks t SET state = 'BLOCKED', evidence = evidence || %s::jsonb "
+                    "WHERE t.run_id = %s AND t.state IN ('PENDING', 'READY') AND t.depends_on ?| %s::text[] RETURNING t.id",
+                    (json.dumps({'blocked': 'upstream task failed'}), run_id, frontier)).fetchall()
+                frontier = [r[0] for r in rows]
         if target == 'SUCCEEDED':  # dependents whose deps are all done become READY
             conn.execute(
                 "UPDATE agent_tasks t SET state = 'READY' WHERE t.run_id = %s AND t.state = 'PENDING' AND NOT EXISTS ("
@@ -215,6 +224,7 @@ class AgentRuntime:
     # --------------------------------------------------------------- reads
     def tasks(self, run_id: str) -> list[dict]:
         with self.pool.connection() as conn:
-            rows = conn.execute('SELECT id, agent_key, state, cost_usd, verified_by_task, attempt FROM agent_tasks '
+            rows = conn.execute('SELECT id, agent_key, state, cost_usd, verified_by_task, attempt, depends_on, evidence FROM agent_tasks '
                                 'WHERE run_id = %s ORDER BY created_at', (run_id,)).fetchall()
-        return [dict(zip(('id', 'agent_key', 'state', 'cost_usd', 'verified_by_task', 'attempt'), r)) for r in rows]
+        return [dict(zip(('id', 'agent_key', 'state', 'cost_usd', 'verified_by_task', 'attempt', 'depends_on', 'evidence'), r))
+                for r in rows]

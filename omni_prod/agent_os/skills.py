@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ..runtime_bindings import Evidence
 from .contracts import SkillContract
-from .evidence import BACKUP, CRASH, DEPLOY, FREE, PAID, REHEARSAL_ACCEPT
+from .evidence import BACKUP, CRASH, DEPLOY, ECONOMICS, FREE, PAID, REHEARSAL_ACCEPT, VERIFY_REPLAY
 
 TAXONOMY: dict[str, list[str]] = json.loads((Path(__file__).with_name('skills_taxonomy.json')).read_text(encoding='utf-8'))
 
@@ -138,10 +138,10 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'dependency_add': (('omni_prod.dependency_policy:DependencyGateExecutor',), (REHEARSAL_ACCEPT,), 'pinned allowlist only'),
     # QA
     'unit_test_generation': (('omni_prod.autonomous_agents:GeneratorAgent',), (REHEARSAL_ACCEPT,), ''),
-    'unit_test_execution': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor',), (REHEARSAL_ACCEPT, DEPLOY, U('tests/test_acceptance_coverage.py'), U('tests/test_release_policy.py')), ''),
-    'api_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor',), (REHEARSAL_ACCEPT,), ''),
-    'behavioral_acceptance_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor', 'omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner'), (REHEARSAL_ACCEPT,), ''),
-    'requirement_traceability_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (REHEARSAL_ACCEPT,), 'acceptance IDs -> steps'),
+    'unit_test_execution': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor',), (VERIFY_REPLAY, REHEARSAL_ACCEPT, DEPLOY, U('tests/test_acceptance_coverage.py'), U('tests/test_release_policy.py')), ''),
+    'api_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor',), (VERIFY_REPLAY, REHEARSAL_ACCEPT), ''),
+    'behavioral_acceptance_test': (('omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor', 'omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner'), (VERIFY_REPLAY, REHEARSAL_ACCEPT), ''),
+    'requirement_traceability_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (VERIFY_REPLAY, REHEARSAL_ACCEPT), 'acceptance IDs -> steps'),
     'persistence_test': (('omni_prod.preview_durability:selftest',), (DEPLOY, FREE), ''),
     'restart_test': (('omni_prod.preview_durability:selftest',), (DEPLOY, FREE), ''),
     'resume_test': (('omni_prod.maintenance:recover_lost_running',), (CRASH,), 'build restarts from the beginning'),
@@ -150,15 +150,15 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'regression_test': (('omni_prod.agent_os.meta:regression_guardian',), (U('tests/test_agent_os.py'),), ''),
     'migration_test': (('path:infra/staging/verify_neon_bootstrap.py',), (DEPLOY,), ''),
     'provider_failure_test': (('omni_prod.agent_os.meta:failure_injection',), (U('tests/test_failure_injection.py'),), 'simulated providers'),
-    'negative_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (REHEARSAL_ACCEPT,), ''),
+    'negative_test': (('omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner',), (VERIFY_REPLAY, REHEARSAL_ACCEPT), ''),
     # Browser
     'browser_launch': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, DEPLOY), ''),
-    'page_load_test': (('omni_prod.preview_smoke:PreviewReadyExecutor',), (PAID, U('tests/test_preview_smoke.py')), ''),
+    'page_load_test': (('omni_prod.preview_smoke:PreviewReadyExecutor',), (VERIFY_REPLAY, PAID, U('tests/test_preview_smoke.py')), ''),
     'form_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, DEPLOY), 'fills forms by field type'),
     'click_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID,), ''),
-    'javascript_error_detection': (('omni_prod.browser_probe:BrowserFlowExecutor',), (DEPLOY,), ''),
+    'javascript_error_detection': (('omni_prod.browser_probe:BrowserFlowExecutor',), (VERIFY_REPLAY, DEPLOY), ''),
     'network_error_detection': (('omni_prod.browser_probe:BrowserFlowExecutor',), (DEPLOY,), '5xx answers'),
-    'browser_acceptance_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (PAID, REHEARSAL_ACCEPT), ''),
+    'browser_acceptance_test': (('omni_prod.browser_probe:BrowserFlowExecutor',), (VERIFY_REPLAY, PAID, REHEARSAL_ACCEPT), ''),
     # Repair
     'failure_classification': (('omni_prod.attempt_ledger:classify_execution',), (REHEARSAL_ACCEPT,), ''),
     'minimal_patch_generation': (('omni_prod.autonomous_agents:RepairAgent',), (REHEARSAL_ACCEPT, U('tests/test_repair_sees_main_file.py')), ''),
@@ -166,7 +166,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'repair_verification': (('omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor', 'omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor'), (REHEARSAL_ACCEPT,), ''),
     'retry_decision': (('omni_prod.autonomous_core:AutonomousProductEngine',), (REHEARSAL_ACCEPT, U('tests/test_repair_stop_loss.py')), 'bounded rounds'),
     # Security
-    'secret_detection': (('omni_prod.security_testing:hostile_repository_scan',), (PAID, U('tests/test_m49_clean_room.py')), 'static'),
+    'secret_detection': (('omni_prod.security_testing:hostile_repository_scan',), (VERIFY_REPLAY, PAID, U('tests/test_m49_clean_room.py')), 'static'),
     'xss_check': (('omni_prod.skills_runtime:TEXT_LOCALE', 'omni_prod.product_review:ProductReviewExecutor'), (REHEARSAL_ACCEPT,), 'review + instruction, no dynamic XSS probe'),
     'preview_access_check': (('omni_prod.preview_access:PreviewAccess',), (FREE,), ''),
     'security_release_gate': (('omni_prod.worker_tasks:evaluate_release_gates',), (PAID, U('tests/test_release_policy.py')), ''),
@@ -196,7 +196,7 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'unused_reservation_release': (('omni_prod.subscription_store:PostgresSubscriptionService',), (FREE, CRASH), ''),
     'budget_guard': (('omni_prod.model_policy:authorize_model_call',), (PAID,), 'ceiling bound to the reservation'),
     'reconciliation': (('omni_prod.qa_budget:qa_used_usd',), (U('tests/test_golden_mod_path_live_postgres.py'),), 'QA ledger'),
-    'margin_calculation': (('omni_prod.economics_report:compute',), (U('tests/test_economics_report.py'),),
+    'margin_calculation': (('omni_prod.economics_report:compute',), (ECONOMICS, U('tests/test_economics_report.py')),
                            'margin UNKNOWN until revenue exists; costs from the ledger'),
     'agent_budget_assignment': (('omni_prod.agent_os.runtime:AgentRuntime',), (U('tests/test_agent_os.py'),), ''),
     # Infrastructure
@@ -244,12 +244,12 @@ IMPL: dict[str, tuple[tuple[str, ...], tuple, str]] = {
     'disaster_recovery_test': (('path:.github/workflows/backup-restore.yml',), (BACKUP,), 'restore drill only; no failover'),
     # Accessibility / Localization (instructions + review)
     # Measured by visual_qa in a real browser (shadow mode: recorded, not yet blocking).
-    'label_test': (('omni_prod.visual_qa:VisualQAExecutor', 'omni_prod.consistency_gate:scan'), (VQ,), 'unlabelled_field rule'),
-    'contrast_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'WCAG AA ratio, shadow mode'),
-    'touch_target_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'mobile 24x24 CSS px, shadow mode'),
-    'mobile_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), '390x844, shadow mode'),
-    'desktop_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), '1440x900, shadow mode'),
-    'responsive_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VQ,), 'overflow/offscreen/viewport, shadow mode'),
+    'label_test': (('omni_prod.visual_qa:VisualQAExecutor', 'omni_prod.consistency_gate:scan'), (VERIFY_REPLAY, VQ), 'unlabelled_field rule, advisory'),
+    'contrast_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VERIFY_REPLAY, VQ), 'WCAG AA ratio, advisory'),
+    'touch_target_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VERIFY_REPLAY, VQ), 'mobile 24x24 CSS px, advisory'),
+    'mobile_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VERIFY_REPLAY, VQ), '390x844; layout rules enforced'),
+    'desktop_view_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VERIFY_REPLAY, VQ), '1440x900; layout rules enforced'),
+    'responsive_test': (('omni_prod.visual_qa:VisualQAExecutor',), (VERIFY_REPLAY, VQ), 'overflow/offscreen/viewport; enforced'),
     'hebrew_localization': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),
     'rtl_layout': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),
     'locale_date': (('omni_prod.skills_runtime:TEXT_LOCALE',), (PAID,), ''),

@@ -122,16 +122,18 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [],
+   "evidence": [
+    "postdeploy-checks run 38083312245"
+   ],
    "cost": "$0",
-   "status": "IMPLEMENTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "platform:contract_bound_approval",
-     "status": "IMPLEMENTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -152,7 +154,7 @@
     "tests/test_m5_identity_lifecycle.py"
    ],
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -162,7 +164,7 @@
     {
      "part": "platform:platform_accounts",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -210,7 +212,7 @@
     "tests/test_consistency_gate.py"
    ],
    "evidence": [
-    "postdeploy-checks gate-replay run 38071513038"
+    "postdeploy-checks gate-replay run 38083647077"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -238,18 +240,18 @@
    "provider": "sandbox runner (no network)",
    "tests": [],
    "evidence": [
-    "tests/test_acceptance_coverage.py",
-    "tests/test_release_policy.py"
+    "deploy-worker run 38083162363",
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0 marginal",
-   "status": "UNIT_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": false,
    "note": "tests are written by the generating model",
    "parts": [
     {
      "part": "skill:unit_test_execution",
-     "status": "UNIT_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -313,17 +315,17 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "tests/test_preview_smoke.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0",
-   "status": "UNIT_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:page_load_test",
-     "status": "UNIT_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -342,7 +344,8 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -352,7 +355,7 @@
     {
      "part": "skill:behavioral_acceptance_test",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate"
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -371,9 +374,10 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "deploy-worker run 37960891900",
+    "deploy-worker run 38083162363",
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -383,12 +387,12 @@
     {
      "part": "skill:browser_acceptance_test",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "skill:javascript_error_detection",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge"
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -410,32 +414,32 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0",
-   "status": "INTEGRATION_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": false,
    "note": "shadow mode: measured and recorded, not yet blocking",
    "parts": [
     {
      "part": "skill:mobile_view_test",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "skill:desktop_view_test",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "skill:responsive_test",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "platform:visual_qa_desktop_mobile",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -455,22 +459,22 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
    "cost": "$0",
-   "status": "INTEGRATION_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:label_test",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "skill:contrast_test",
-     "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     }
    ]
   },
@@ -515,6 +519,7 @@
    "tests": [],
    "evidence": [
     "postdeploy-checks run 37961193099",
+    "postdeploy-checks verify-replay run 38083686082",
     "tests/test_release_policy.py"
    ],
    "cost": "$0",
@@ -525,7 +530,7 @@
     {
      "part": "skill:secret_detection",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
     },
     {
      "part": "skill:security_release_gate",
@@ -561,7 +566,7 @@
     {
      "part": "platform:release_policy",
      "status": "UNIT_TESTED",
-     "why": "unit tests only"
+     "why": "real-server evidence is stale; code changed since: omni_prod/release_policy.py"
     }
    ]
   },
@@ -582,7 +587,7 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -592,12 +597,12 @@
     {
      "part": "skill:preview_access_protect",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     },
     {
      "part": "skill:preview_token_revoke",
      "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link "
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -615,8 +620,8 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "deploy-worker run 37960891900",
-    "postdeploy-checks run 37962165888"
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
    ],
    "cost": "$0",
    "status": "REAL_SERVER_VERIFIED",
@@ -676,11 +681,10 @@
    "tests": [],
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888",
-    "tests/test_m4_acceptance.py"
+    "postdeploy-checks run 38083312245"
    ],
    "cost": "$0",
-   "status": "UNIT_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
@@ -691,8 +695,8 @@
     },
     {
      "part": "platform:version_rollback",
-     "status": "UNIT_TESTED",
-     "why": "unit tests only"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -711,17 +715,17 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "tests/test_v25_unified_v10_parity.py"
+    "postdeploy-checks run 38083312245"
    ],
    "cost": "$0",
-   "status": "UNIT_TESTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "platform:zip_export",
-     "status": "UNIT_TESTED",
-     "why": "unit tests only"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -770,16 +774,18 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [],
+   "evidence": [
+    "postdeploy-checks run 38083312245"
+   ],
    "cost": "$0",
-   "status": "IMPLEMENTED",
+   "status": "REAL_SERVER_VERIFIED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:job_cancel",
-     "status": "IMPLEMENTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
     }
    ]
   },
@@ -841,7 +847,7 @@
    "tests": [],
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 38083312245",
     "tests/test_actual_cost_settlement.py"
    ],
    "cost": "ledger",
@@ -897,12 +903,12 @@
     {
      "part": "skill:margin_calculation",
      "status": "UNIT_TESTED",
-     "why": "unit tests only"
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
     },
     {
      "part": "platform:unit_economics_report",
      "status": "UNIT_TESTED",
-     "why": "unit tests only"
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
     }
    ]
   },
@@ -930,7 +936,7 @@
     {
      "part": "platform:durable_stage_evidence",
      "status": "INTEGRATION_TESTED",
-     "why": "integration tests"
+     "why": "real-server evidence is stale; code changed since: omni_prod/release_policy.py"
     }
    ]
   },
@@ -1157,17 +1163,11 @@
   }
  ],
  "counts": {
-  "REAL_SERVER_VERIFIED": 14,
-  "IMPLEMENTED": 2,
-  "UNIT_TESTED": 9,
-  "INTEGRATION_TESTED": 3,
+  "REAL_SERVER_VERIFIED": 22,
+  "UNIT_TESTED": 5,
   "NOT_IMPLEMENTED": 5,
+  "INTEGRATION_TESTED": 1,
   "BLOCKED": 3
  },
- "customer_visible_findings": [
-  "shown to the customer but IMPLEMENTED: Approval binds the build to the approved contract",
-  "shown to the customer but UNIT_TESTED: Version history and rollback",
-  "shown to the customer but UNIT_TESTED: Download the product as ZIP",
-  "shown to the customer but IMPLEMENTED: Stop a build; live progress journal"
- ]
+ "customer_visible_findings": []
 }

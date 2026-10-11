@@ -31,8 +31,14 @@ class TaskRoutingTests(unittest.TestCase):
         self.assertEqual(self.order('codegen'), ['flash', 'lite'])
         self.assertEqual(self.order('repair'), ['flash', 'lite'])
 
-    def test_planning_stays_cost_first(self):
-        self.assertEqual(self.order('architecture'), ['lite', 'flash'])
+    def test_architecture_prefers_the_stronger_model(self):
+        # Wave A (founder directive 2026-10-11): architecture no longer goes to
+        # the cheapest model by default (its floor used to be undefined = 0).
+        self.assertEqual(self.order('architecture'), ['flash', 'lite'])
+
+    def test_cheap_task_classes_stay_cost_first(self):
+        for task in ('conversation', 'classification', 'general'):
+            self.assertEqual(self.order(task), ['lite', 'flash'], task)
 
     def test_env_override(self):
         with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"codegen": 0}'}):

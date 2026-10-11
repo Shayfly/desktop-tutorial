@@ -1,5 +1,41 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
+
+**Branch `claude/wave-a-intelligence-platform-2026-10-11` (base `c20503a` = `c874998` + PR #7). Not merged, not deployed. $0 spent. Live AI conversation NOT verified (no model call was made).** Baseline/source of truth: `docs/WAVE_A_BASELINE.md`. Handoff: `docs/CONTINUATION_HANDOFF.md` (Wave A section).
+
+Commits: `17d246e` (A1–A2), `a138ccc` (A3–A9 + UI), plus this docs commit.
+
+**Implemented and independently verified (local, real PostgreSQL / real Chromium; no provider calls)**
+- A1 Provider Matrix (`PROVIDER_MATRIX.json`, `docs/PROVIDER_MATRIX.md`, generated; `--check` fails on drift/inflation): 14 entries; REAL_EXECUTION_VERIFIED only gemini-3.8-flash / 3.1-flash-lite / 3.5-flash-lite (ledger ok calls > 0); OpenAI/Anthropic CONNECTION_TESTED + INSUFFICIENT_CREDIT; media candidates NOT_CONNECTED. Effective-dated, source-backed prices (3.8-flash doubles 2027-01-01, applied automatically by the catalog loader); managed models without a source-backed price fail closed; retired models never routed.
+- A2 Routing safety: explicit task classes; architecture now prefers the quality-85 model; mandatory floors (no silent downgrade); durable circuit breakers (migration 036 `provider_health`), CREDIT_EXHAUSTED/AUTH_INVALID skip the route across builds until reset or one half-open trial after 24 h.
+- A3 Intake: deterministic HE/EN interpreter + confidence policy + `intake-requirements/1` contract; model interpreter exists but is OFF (`OMNI_INTAKE_MODEL=1` and a per-project `OMNI_INTAKE_MODEL_BUDGET_USD` > 0 required) and tested only with test doubles. Benchmark 12 cases (6 HE / 6 EN, author-written fixtures — regression check, not proof of real-world understanding).
+- A4 Chief Architect + Execution Graph + feasibility gate + agent/skill router; web plan = 15 tasks bound to real engine stages; non-web families planned but non-executable (UNSUPPORTED); sign-in/payments BLOCKED until connected.
+- A5 18 departments (`DEPARTMENT_MATRIX.json`): READY 3 · PARTIAL 7 · IMPLEMENTED 5 · NOT_IMPLEMENTED 3 (computed). Agents 54 (+ intake_agent, chief_architect, UNIT_TESTED).
+- Conversation Supervisor + durable memory (intake_messages, execution_plans, 10-section memory view) + API (`/conversation`, `/memory`, `/builds/{id}/plan`); build admission binds the approved plan and refuses infeasible ones (409 `capability_not_feasible`).
+- Worker: `PlanBoundRecorder` pre-creates the DAG as durable agent_tasks and moves them with the real stages; failures block downstream tasks; unreached tasks end CANCELLED, never SUCCEEDED (live PostgreSQL tests).
+- A7: cost per verified success by codegen model, Wilson 95 % interval, minimum sample 10.
+- UI: conversation-first workspace (sidebar with projects/search/collapse/mobile drawer · one chat with quick replies and real actions · resizable / enlargeable / closable preview); old mode-choice composer removed. Real-browser walkthrough (`tools/ui_conversation_walkthrough.py`) against a real FastAPI + PostgreSQL server: multi-turn HE + EN, persistence across reload and project switch, drag 605→859 px, enlarge 1416 px, close/reopen, no mobile horizontal scroll. Screenshots: `docs/evidence/wave_a/`.
+
+**Tests:** targeted Wave A suites 130 passed. Full suite with the real web stack (fastapi/starlette/httpx/boto3 fetched from GitHub sources; PyPI unreachable here): base `c20503a` 3 failed (stale truth matrix — fixed by regeneration; nested `test_m4_acceptance` W subprocess — environment; `test_maintenance_live_postgres` — flaky locally, passes alone). Branch (`a138ccc`): **1444 passed, 1 failed, 43 skipped** — the one failure is the same nested `test_m4_acceptance` W environment failure as on the base; no new failure (base: 1372 passed, 3 failed). CI on the branch: check the runs for the head commit (pending at save time).
+
+**Not done / blocked:** migration 036 not applied to the shared pre-staging DB (happens only via the deploy-worker on the integration branch); therefore a Vercel Preview of this branch shows the new UI but the conversation API needs 036 → **not deployed/usable on Preview yet**. No LLM key on Vercel. A6 extra handoff contract checks and A8 multimodal adapters NOT_IMPLEMENTED (matrix entries only). Modification flow from chat reuses the existing pipeline (offer + confirm button) — not exercised end-to-end here (needs the worker). Paid 10-build gate NOT RUN.
+
+
+## Update 2026-10-11 01:20 Asia/Jerusalem — Production Assurance v2 (G0–G3, free work only) + handoff
+
+**Level: PRE_STAGING_READY candidate. Not PRIVATE_BETA_READY. $0 spent in this round. Handoff: `docs/CONTINUATION_HANDOFF.md`.**
+
+- Deployed code on pre-staging: `67a0765` (deploy-worker 38083162363, migration 035). Rollback point: `8ce71c0`.
+- **G0**: truth vocabulary in code; LIVE requires production → **0 LIVE**; agents 52 = REAL_SERVER_VERIFIED 23 · UNIT_TESTED 6 · IMPLEMENTED 8 · BLOCKED 4 · NOT_IMPLEMENTED 11; skills 427 = REAL_SERVER_VERIFIED 102 · UNIT_TESTED 24 · IMPLEMENTED 28 · BLOCKED 9 · NOT_IMPLEMENTED 264. Truth matrix 36 rows (`TRUTH_MATRIX.json`): 25 REAL_SERVER_VERIFIED, 3 UNIT_TESTED, 3 BLOCKED, 5 NOT_IMPLEMENTED; no customer-visible feature without real-server evidence. Audit: `docs/G0_AUDIT_2026-10-10.md` (7 findings fixed, 6 open).
+- **G1**: release policy (NOT_RUN ≠ PASS; mandatory checks block READY), durable stage rows (`build_stage_results`), forward-only phases, legacy/patch paths 410 on staging/production.
+- **G2**: visual QA desktop+mobile with screenshots; layout rules enforced (0 false positives on stored products); contrast/labels advisory (real WCAG defects in 3/5 working products — founder decision).
+- **G3**: write-ahead cost ledger (in-flight call = bounded unknown exposure), Gemini thinking metered, unit economics report.
+- Real-server evidence (free): free checks 18/18 (38083312245); gate-replay 0/55 blocking (38083647077); verify-replay policy agrees 12/12, 5/5 current products READY (38083686082); economics (38083624196).
+- Ledger economics (60 days): 32 builds, 11 READY (34%), cost per successful build $0.153, 53% of spend on failed builds, gemini-3.8-flash 41% call success.
+- **Not run**: 10-build paid Golden E2E acceptance gate (budget unverified until Gemini invoice reconciliation); crash and backup runs on the current code.
+- Tests: local 1167 passed, 9 failed + 14 errors = environment baseline (fastapi/boto3 absent); CI green up to `67a0765`.
+
 ## Update 2026-10-10 21:30 Asia/Jerusalem — Executive directive: task 0 (audit access) + P0 build reliability (deterministic part)
 
 **Level: unchanged — PRE_STAGING_READY candidate. Paid testing frozen: no verified budget remainder until the Gemini bill is reconciled (directive budget policy). No money spent in this section.**

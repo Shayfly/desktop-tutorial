@@ -1,0 +1,525 @@
+{
+ "schema": "department-matrix/1",
+ "summary": {
+  "IMPLEMENTED": 5,
+  "NOT_IMPLEMENTED": 3,
+  "PARTIAL": 7,
+  "READY": 3
+ },
+ "departments": [
+  {
+   "key": "D01",
+   "name": "Customer Discovery & Product Requirements",
+   "readiness": "PARTIAL",
+   "responsibilities": "intake conversation, requirements, ambiguity, approval",
+   "core_agents": {
+    "intake_agent": "UNIT_TESTED",
+    "discovery_agent": "REAL_SERVER_VERIFIED",
+    "requirements_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 7,
+    "REAL_SERVER_VERIFIED": 10,
+    "UNIT_TESTED": 1
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never approves for the customer; never starts a paid build",
+   "hands_off_to": [
+    "D02",
+    "D03"
+   ],
+   "outputs": "versioned brief + intake-requirements/1 contract",
+   "verification": "contract schema validation; customer approval bound to the brief fingerprint",
+   "cost_policy": "deterministic by default ($0); model interpretation only within the conversation budget"
+  },
+  {
+   "key": "D02",
+   "name": "Product Management & Planning",
+   "readiness": "PARTIAL",
+   "responsibilities": "scope, milestones, prioritisation, delivery constraints",
+   "core_agents": {
+    "product_planner": "REAL_SERVER_VERIFIED",
+    "executive_orchestrator": "IMPLEMENTED"
+   },
+   "support_agents": {
+    "product_evolution_agent": "IMPLEMENTED"
+   },
+   "skills": {
+    "NOT_IMPLEMENTED": 5,
+    "REAL_SERVER_VERIFIED": 2,
+    "UNIT_TESTED": 4
+   },
+   "missing_roles": [
+    "backlog_manager"
+   ],
+   "missing_adapters": [],
+   "forbidden": "never changes approved scope without a new approval",
+   "hands_off_to": [
+    "D03"
+   ],
+   "outputs": "build plan + quote",
+   "verification": "plan bound to the approved brief; quote reserved before work",
+   "cost_policy": "planning is deterministic ($0)"
+  },
+  {
+   "key": "D03",
+   "name": "Systems Architecture",
+   "readiness": "PARTIAL",
+   "responsibilities": "architecture, decisions, dependency graph, contracts",
+   "core_agents": {
+    "chief_architect": "UNIT_TESTED",
+    "architecture_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 12,
+    "REAL_SERVER_VERIFIED": 4
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never assigns work to unimplemented agents as executable",
+   "hands_off_to": [
+    "D05",
+    "D06",
+    "D07",
+    "D08"
+   ],
+   "outputs": "architecture plan + validated execution DAG",
+   "verification": "DAG validation (cycles, closure, budget); feasibility gate",
+   "cost_policy": "architecture model routed at quality floor 85"
+  },
+  {
+   "key": "D04",
+   "name": "UX Research & Product Design",
+   "readiness": "IMPLEMENTED",
+   "responsibilities": "user flows, usability, accessibility",
+   "core_agents": {
+    "accessibility_agent": "IMPLEMENTED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 4,
+    "REAL_SERVER_VERIFIED": 3
+   },
+   "missing_roles": [
+    "ux_research_agent"
+   ],
+   "missing_adapters": [],
+   "forbidden": "never ships a flow without a browser check",
+   "hands_off_to": [
+    "D05"
+   ],
+   "outputs": "flows, accessibility findings",
+   "verification": "visual QA accessibility rules (advisory until founder decision)",
+   "cost_policy": "$0 (deterministic checks)"
+  },
+  {
+   "key": "D05",
+   "name": "UI & Design Systems",
+   "readiness": "IMPLEMENTED",
+   "responsibilities": "responsive UI, components, RTL/LTR",
+   "core_agents": {
+    "ux_ui_design_agent": "IMPLEMENTED",
+    "localization_rtl_agent": "IMPLEMENTED"
+   },
+   "support_agents": {},
+   "skills": {
+    "IMPLEMENTED": 11,
+    "NOT_IMPLEMENTED": 14
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never hard-codes colours outside the design tokens",
+   "hands_off_to": [
+    "D06"
+   ],
+   "outputs": "design tokens from the brief",
+   "verification": "visual QA layout rules desktop + mobile",
+   "cost_policy": "inside the codegen call"
+  },
+  {
+   "key": "D06",
+   "name": "Frontend Engineering",
+   "readiness": "READY",
+   "responsibilities": "pages, state, routing, client tests",
+   "core_agents": {
+    "frontend_agent": "REAL_SERVER_VERIFIED",
+    "coding_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "seo_web_quality_agent": "NOT_IMPLEMENTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 2,
+    "NOT_IMPLEMENTED": 32,
+    "REAL_SERVER_VERIFIED": 8
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never verifies its own output; never spends outside the build reservation",
+   "hands_off_to": [
+    "D12"
+   ],
+   "outputs": "UI files in the repository",
+   "verification": "consistency gate, browser flow, visual QA",
+   "cost_policy": "codegen floor 85, within the reservation"
+  },
+  {
+   "key": "D07",
+   "name": "Backend & API Engineering",
+   "readiness": "PARTIAL",
+   "responsibilities": "services, business logic, API contracts, auth",
+   "core_agents": {
+    "backend_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "identity_auth_agent": "NOT_IMPLEMENTED"
+   },
+   "skills": {
+    "BLOCKED": 2,
+    "IMPLEMENTED": 1,
+    "NOT_IMPLEMENTED": 25,
+    "REAL_SERVER_VERIFIED": 3
+   },
+   "missing_roles": [],
+   "missing_adapters": [
+    "generated-app identity provider"
+   ],
+   "forbidden": "never verifies its own output; never spends outside the build reservation",
+   "hands_off_to": [
+    "D12"
+   ],
+   "outputs": "API files",
+   "verification": "sandbox tests, behavioural acceptance via HTTP",
+   "cost_policy": "inside the codegen call"
+  },
+  {
+   "key": "D08",
+   "name": "Database & Data Engineering",
+   "readiness": "READY",
+   "responsibilities": "schemas, persistence, integrity, migrations",
+   "core_agents": {
+    "database_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "migration_agent": "REAL_SERVER_VERIFIED",
+    "analytics_agent": "NOT_IMPLEMENTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 1,
+    "NOT_IMPLEMENTED": 16,
+    "REAL_SERVER_VERIFIED": 7
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never verifies its own output; never spends outside the build reservation",
+   "hands_off_to": [
+    "D07"
+   ],
+   "outputs": "schema + persistence",
+   "verification": "persistence across restart (preview data checks)",
+   "cost_policy": "inside the codegen call"
+  },
+  {
+   "key": "D09",
+   "name": "Integrations & Connectivity",
+   "readiness": "NOT_IMPLEMENTED",
+   "responsibilities": "external APIs, OAuth, webhooks, payments",
+   "core_agents": {
+    "integration_agent": "NOT_IMPLEMENTED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 12
+   },
+   "missing_roles": [
+    "payments_agent",
+    "messaging_agent"
+   ],
+   "missing_adapters": [
+    "payments adapter",
+    "email/SMS adapter",
+    "OAuth connector"
+   ],
+   "forbidden": "never stores raw secrets; references only",
+   "hands_off_to": [
+    "D07"
+   ],
+   "outputs": "connectors",
+   "verification": "contract tests + live credential checks",
+   "cost_policy": "per-integration quote (none connected)"
+  },
+  {
+   "key": "D10",
+   "name": "DevOps, Cloud & Infrastructure",
+   "readiness": "READY",
+   "responsibilities": "workers, sandboxes, previews, backups",
+   "core_agents": {
+    "infrastructure_agent": "REAL_SERVER_VERIFIED",
+    "deployment_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "backup_recovery_agent": "REAL_SERVER_VERIFIED"
+   },
+   "skills": {
+    "IMPLEMENTED": 1,
+    "NOT_IMPLEMENTED": 6,
+    "REAL_SERVER_VERIFIED": 25,
+    "UNIT_TESTED": 1
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never exposes the host Docker socket publicly",
+   "hands_off_to": [
+    "D17"
+   ],
+   "outputs": "running previews, healthy workers",
+   "verification": "deploy probes, preview data self-test",
+   "cost_policy": "free-tier infrastructure; no per-build allocation yet"
+  },
+  {
+   "key": "D11",
+   "name": "Security, Privacy & Compliance",
+   "readiness": "PARTIAL",
+   "responsibilities": "threats, permissions, secrets, IP",
+   "core_agents": {
+    "security_agent": "REAL_SERVER_VERIFIED",
+    "compliance_ip_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 16,
+    "REAL_SERVER_VERIFIED": 5,
+    "UNIT_TESTED": 4
+   },
+   "missing_roles": [
+    "privacy_reviewer"
+   ],
+   "missing_adapters": [],
+   "forbidden": "never certifies code it wrote",
+   "hands_off_to": [
+    "D17"
+   ],
+   "outputs": "security findings, rights assessment",
+   "verification": "static scan + preview access checks",
+   "cost_policy": "$0 (deterministic)"
+  },
+  {
+   "key": "D12",
+   "name": "QA & Test Engineering",
+   "readiness": "PARTIAL",
+   "responsibilities": "unit, integration, E2E, browser, regression",
+   "core_agents": {
+    "qa_agent": "REAL_SERVER_VERIFIED",
+    "behavioral_acceptance_agent": "REAL_SERVER_VERIFIED",
+    "browser_rehearsal_agent": "REAL_SERVER_VERIFIED",
+    "code_review_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "repair_agent": "REAL_SERVER_VERIFIED",
+    "performance_agent": "NOT_IMPLEMENTED",
+    "regression_guardian": "UNIT_TESTED",
+    "golden_path_verifier": "REAL_SERVER_VERIFIED",
+    "system_test_orchestrator": "UNIT_TESTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 2,
+    "NOT_IMPLEMENTED": 25,
+    "REAL_SERVER_VERIFIED": 23,
+    "UNIT_TESTED": 4
+   },
+   "missing_roles": [],
+   "missing_adapters": [
+    "load-test runner"
+   ],
+   "forbidden": "tests written by the coding agent are not independent evidence",
+   "hands_off_to": [
+    "D17"
+   ],
+   "outputs": "test results, repairs",
+   "verification": "release policy mandatory checks",
+   "cost_policy": "repair bounded by rounds and budget"
+  },
+  {
+   "key": "D13",
+   "name": "AI & Model Engineering",
+   "readiness": "IMPLEMENTED",
+   "responsibilities": "model routing, evaluations, inference economics",
+   "core_agents": {
+    "provider_router_agent": "IMPLEMENTED"
+   },
+   "support_agents": {
+    "failure_injection_agent": "UNIT_TESTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 5,
+    "NOT_IMPLEMENTED": 2,
+    "REAL_SERVER_VERIFIED": 1,
+    "UNIT_TESTED": 3
+   },
+   "missing_roles": [
+    "model_evaluation_agent"
+   ],
+   "missing_adapters": [],
+   "forbidden": "never routes below a task's mandatory quality floor",
+   "hands_off_to": [
+    "D18"
+   ],
+   "outputs": "routing decisions, provider health",
+   "verification": "provider matrix validation, circuit-breaker tests",
+   "cost_policy": "cost per verified success, not token price"
+  },
+  {
+   "key": "D14",
+   "name": "Game Development",
+   "readiness": "NOT_IMPLEMENTED",
+   "responsibilities": "engines, gameplay, physics, saves, multiplayer",
+   "core_agents": {
+    "game_designer_2d_agent": "NOT_IMPLEMENTED",
+    "level_designer_2d_agent": "NOT_IMPLEMENTED",
+    "game_engineering_2d_agent": "NOT_IMPLEMENTED",
+    "game_qa_2d_agent": "NOT_IMPLEMENTED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 41
+   },
+   "missing_roles": [
+    "multiplayer_engineer"
+   ],
+   "missing_adapters": [
+    "game engine runner",
+    "gameplay test harness"
+   ],
+   "forbidden": "never claims a playable game without a gameplay test",
+   "hands_off_to": [
+    "D12"
+   ],
+   "outputs": "games (not yet)",
+   "verification": "gameplay tests (not implemented)",
+   "cost_policy": "not priced"
+  },
+  {
+   "key": "D15",
+   "name": "Media & Creative Production",
+   "readiness": "IMPLEMENTED",
+   "responsibilities": "image, video, music, speech",
+   "core_agents": {
+    "media_orchestrator": "UNIT_TESTED",
+    "image_agent": "BLOCKED",
+    "video_agent": "BLOCKED",
+    "voice_speech_agent": "BLOCKED",
+    "audio_music_agent": "BLOCKED"
+   },
+   "support_agents": {},
+   "skills": {
+    "BLOCKED": 7,
+    "NOT_IMPLEMENTED": 27,
+    "UNIT_TESTED": 1
+   },
+   "missing_roles": [
+    "3d_asset_agent"
+   ],
+   "missing_adapters": [
+    "image adapter on the worker",
+    "video adapter",
+    "TTS adapter",
+    "music adapter"
+   ],
+   "forbidden": "never uses media without confirmed commercial rights",
+   "hands_off_to": [
+    "D06"
+   ],
+   "outputs": "assets (not yet)",
+   "verification": "artifact checks + rights metadata",
+   "cost_policy": "per-asset quote; disabled until authorized"
+  },
+  {
+   "key": "D16",
+   "name": "Automation & Agent Engineering",
+   "readiness": "NOT_IMPLEMENTED",
+   "responsibilities": "workflows, triggers, tool-use agents",
+   "core_agents": {
+    "automation_agent": "NOT_IMPLEMENTED"
+   },
+   "support_agents": {},
+   "skills": {
+    "NOT_IMPLEMENTED": 10
+   },
+   "missing_roles": [
+    "workflow_runner"
+   ],
+   "missing_adapters": [
+    "scheduler/trigger runtime"
+   ],
+   "forbidden": "never runs customer automations without a sandbox and budget",
+   "hands_off_to": [
+    "D12"
+   ],
+   "outputs": "automations (not yet)",
+   "verification": "workflow tests (not implemented)",
+   "cost_policy": "not priced"
+  },
+  {
+   "key": "D17",
+   "name": "Release, Reliability & Operations",
+   "readiness": "PARTIAL",
+   "responsibilities": "release gate, observability, incidents, rollback",
+   "core_agents": {
+    "release_agent": "IMPLEMENTED",
+    "quality_gate_agent": "UNIT_TESTED",
+    "observability_agent": "REAL_SERVER_VERIFIED",
+    "sre_reliability_agent": "REAL_SERVER_VERIFIED"
+   },
+   "support_agents": {
+    "diagnostic_agent": "REAL_SERVER_VERIFIED",
+    "platform_capability_auditor": "UNIT_TESTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 4,
+    "NOT_IMPLEMENTED": 7,
+    "REAL_SERVER_VERIFIED": 5,
+    "UNIT_TESTED": 2
+   },
+   "missing_roles": [],
+   "missing_adapters": [],
+   "forbidden": "never marks READY with a mandatory check FAIL/NOT_RUN/UNKNOWN",
+   "hands_off_to": [
+    "D18"
+   ],
+   "outputs": "versions, quality reports",
+   "verification": "release policy + stage evidence rows",
+   "cost_policy": "$0"
+  },
+  {
+   "key": "D18",
+   "name": "Commercial Economics & Customer Success",
+   "readiness": "IMPLEMENTED",
+   "responsibilities": "quotes, credits, settlement, unit economics, support",
+   "core_agents": {
+    "cost_economics_agent": "IMPLEMENTED"
+   },
+   "support_agents": {
+    "support_agent": "NOT_IMPLEMENTED"
+   },
+   "skills": {
+    "IMPLEMENTED": 2,
+    "NOT_IMPLEMENTED": 3,
+    "REAL_SERVER_VERIFIED": 4,
+    "UNIT_TESTED": 5
+   },
+   "missing_roles": [],
+   "missing_adapters": [
+    "invoice reconciliation export"
+   ],
+   "forbidden": "never treats an unknown cost as zero",
+   "hands_off_to": [],
+   "outputs": "quotes, settlements, economics report",
+   "verification": "ledger = settlement; reconciliation blocked on billing export",
+   "cost_policy": "reservation before work; settle at metered cost"
+  }
+ ],
+ "unassigned_agents": []
+}

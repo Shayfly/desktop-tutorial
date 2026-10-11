@@ -19,7 +19,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099",
@@ -78,6 +78,57 @@
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
+  },
+  {
+   "agent_key": "intake_agent",
+   "name": "Intake Agent",
+   "category": "management",
+   "verifier": "requirements_agent",
+   "allowed_skills": [
+    "intent_classification",
+    "requirement_extraction",
+    "ambiguity_detection",
+    "safe_default_selection"
+   ],
+   "implementation_location": [
+    "omni_prod.conversation.supervisor:ConversationSupervisor",
+    "omni_prod.intake.agent:apply",
+    "omni_prod.intake.interpreter:DeterministicInterpreter"
+   ],
+   "gap": "",
+   "missing_contract_fields": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_conversation_os.py"
+   ],
+   "last_verified_at": null,
+   "last_verified_commit": null
+  },
+  {
+   "agent_key": "chief_architect",
+   "name": "Chief Architect",
+   "category": "software",
+   "verifier": "quality_gate_agent",
+   "allowed_skills": [
+    "stack_selection",
+    "data_model_design",
+    "api_contract_design"
+   ],
+   "implementation_location": [
+    "omni_prod.planning.architect:ChiefArchitect",
+    "omni_prod.planning.graph:ExecutionGraph",
+    "omni_prod.planning.feasibility:assess"
+   ],
+   "gap": "",
+   "missing_contract_fields": [],
+   "status": "UNIT_TESTED",
+   "why": "unit tests only",
+   "evidence": [
+    "tests/test_conversation_os.py"
+   ],
+   "last_verified_at": null,
+   "last_verified_commit": null
   },
   {
    "agent_key": "product_planner",
@@ -216,10 +267,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a n",
+   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only ",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -322,15 +373,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "deploy-worker run 37960891900"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "evidence": [
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "browser_rehearsal_agent",
@@ -351,7 +400,7 @@
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "deploy-worker run 37960891900",
+    "deploy-worker run 38083162363",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -420,10 +469,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -524,7 +573,7 @@
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
    "last_verified_commit": "2b4bafd"
@@ -546,12 +595,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "release_agent",
@@ -595,15 +644,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888",
-    "postdeploy-checks run 37961193099"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "sre_reliability_agent",
@@ -624,7 +671,7 @@
    "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
    "last_verified_commit": "2b4bafd"
@@ -669,10 +716,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "performance_agent",
@@ -996,10 +1043,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "support_agent",
@@ -1075,16 +1122,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888",
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "system_test_orchestrator",
@@ -1767,12 +1811,12 @@
    "gap": "platform-level isolation of generated data",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "api_contract_design",
@@ -2625,10 +2669,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "index_design",
@@ -2735,13 +2779,13 @@
    "gap": "previews only",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
+   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner to",
    "evidence": [
-    "deploy-worker run 37960891900",
-    "postdeploy-checks run 37962165888"
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "data_isolation",
@@ -2754,13 +2798,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888",
-    "deploy-worker run 37960891900"
+    "postdeploy-checks run 38083312245",
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "scratch_database_generation",
@@ -2777,7 +2821,7 @@
    "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -3425,18 +3469,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "tests/test_acceptance_coverage.py",
-    "tests/test_release_policy.py"
+    "postdeploy-checks verify-replay run 38083686082",
+    "deploy-worker run 38083162363"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "deploy-worker run 37960891900"
-   ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "contract_test",
@@ -3532,12 +3572,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "edge_case_test",
@@ -3563,12 +3604,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "auth_test",
@@ -3607,13 +3649,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
+   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner to",
    "evidence": [
-    "deploy-worker run 37960891900",
-    "postdeploy-checks run 37962165888"
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "migration_test",
@@ -3628,10 +3670,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "rollback_test",
@@ -3696,13 +3738,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives previe",
+   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner to",
    "evidence": [
-    "deploy-worker run 37960891900",
-    "postdeploy-checks run 37962165888"
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "resume_test",
@@ -3732,14 +3774,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "behavioral_acceptance_test",
@@ -3753,12 +3794,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "requirement_traceability_test",
@@ -3771,12 +3813,13 @@
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "browser_launch",
@@ -3792,7 +3835,7 @@
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -3807,16 +3850,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_preview_smoke.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "stale_evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "click_test",
@@ -3850,7 +3890,7 @@
    "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser ",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -3876,15 +3916,15 @@
    "implementation_location": [
     "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "390x844, shadow mode",
+   "gap": "390x844; layout rules enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "desktop_view_test",
@@ -3894,15 +3934,15 @@
    "implementation_location": [
     "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "1440x900, shadow mode",
+   "gap": "1440x900; layout rules enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "responsive_test",
@@ -3912,15 +3952,15 @@
    "implementation_location": [
     "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "overflow/offscreen/viewport, shadow mode",
+   "gap": "overflow/offscreen/viewport; enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "javascript_error_detection",
@@ -3933,12 +3973,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "postdeploy-checks verify-replay run 38083686082",
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "network_error_detection",
@@ -3953,10 +3994,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "browser_persistence_test",
@@ -3995,13 +4036,14 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, p",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "failure_classification",
@@ -4162,12 +4204,13 @@
    "gap": "static",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, p",
    "evidence": [
+    "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "secret_exposure_check",
@@ -4334,12 +4377,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "security_release_gate",
@@ -4748,10 +4791,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -4816,9 +4859,10 @@
    ],
    "gap": "versioned catalog",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/model_catalog.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
    "last_verified_at": "2026-10-09T15:46Z",
@@ -4877,13 +4921,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 38083312245",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "margin_calculation",
@@ -4896,12 +4940,15 @@
    "gap": "margin UNKNOWN until revenue exists; costs from the ledger",
    "missing_contract_fields": [],
    "status": "UNIT_TESTED",
-   "why": "unit tests only",
+   "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py",
    "evidence": [
     "tests/test_economics_report.py"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "stale_evidence": [
+    "postdeploy-checks economics run 38083624196"
+   ],
+   "last_verified_at": "2026-10-10T20:23Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "cost_anomaly_detection",
@@ -4975,15 +5022,14 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888",
-    "deploy-worker run 37960891900"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245",
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "queue_health_check",
@@ -4998,10 +5044,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "storage_health_check",
@@ -5016,10 +5062,10 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
    "evidence": [
-    "deploy-worker run 37960891900"
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "database_health_check",
@@ -5031,14 +5077,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "environment_validation",
@@ -5050,14 +5095,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: infra/worker-host/write-env.sh",
-   "evidence": [],
-   "stale_evidence": [
-    "deploy-worker run 37960891900"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
+   "evidence": [
+    "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:41Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "runtime_validation",
@@ -5096,10 +5140,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -5133,14 +5177,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "job_timeout",
@@ -5190,12 +5233,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "preview_deploy",
@@ -5208,13 +5251,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 38083312245",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "preview_health_check",
@@ -5227,12 +5270,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "preview_access_protect",
@@ -5246,12 +5289,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "preview_token_issue",
@@ -5264,12 +5307,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "preview_token_revoke",
@@ -5282,12 +5325,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "production_prepare",
@@ -5367,14 +5410,13 @@
    ],
    "gap": "platform deploy",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks run 37962165888"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
+   "evidence": [
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "version_create",
@@ -5387,10 +5429,10 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; previ",
+   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
    "evidence": [
     "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
    "last_verified_commit": "039574f"
@@ -5519,13 +5561,13 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888",
+    "postdeploy-checks run 38083312245",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "agent_trace",
@@ -5652,12 +5694,12 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; queued build cancelled + reservation released; running build stops before any model call; journal resumes after refresh; cancel scoped ",
+   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
    "evidence": [
-    "postdeploy-checks run 37962165888"
+    "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:51Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "incident_creation",
@@ -5987,15 +6029,15 @@
     "omni_prod.visual_qa:VisualQAExecutor",
     "omni_prod.consistency_gate:scan"
    ],
-   "gap": "unlabelled_field rule",
+   "gap": "unlabelled_field rule, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "contrast_test",
@@ -6005,15 +6047,15 @@
    "implementation_location": [
     "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "WCAG AA ratio, shadow mode",
+   "gap": "WCAG AA ratio, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "touch_target_test",
@@ -6023,15 +6065,15 @@
    "implementation_location": [
     "omni_prod.visual_qa:VisualQAExecutor"
    ],
-   "gap": "mobile 24x24 CSS px, shadow mode",
+   "gap": "mobile 24x24 CSS px, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "integration tests",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 38083686082"
    ],
-   "last_verified_at": null,
-   "last_verified_commit": null
+   "last_verified_at": "2026-10-10T20:26Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "screen_reader_structure_test",
@@ -7520,23 +7562,23 @@
   }
  ],
  "summary": {
-  "agents_total": 52,
+  "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 11,
-   "UNIT_TESTED": 6,
+   "IMPLEMENTED": 8,
+   "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 20,
+   "REAL_SERVER_VERIFIED": 23,
    "LIVE": 0,
    "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 34,
-   "UNIT_TESTED": 27,
-   "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 87,
+   "IMPLEMENTED": 29,
+   "UNIT_TESTED": 25,
+   "INTEGRATION_TESTED": 0,
+   "REAL_SERVER_VERIFIED": 100,
    "LIVE": 0,
    "BLOCKED": 9
   }

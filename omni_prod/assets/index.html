@@ -14,15 +14,13 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script defer src="/assets/app.js"></script>
 </head>
-<body>
+<body class="signed-out">
 <a class="skip" href="#main" data-i18n="skip">דילוג לתוכן</a>
 <header class="topbar">
   <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="28" height="28"><b>148AI</b></a>
   <div class="projectbar" id="projectbar" hidden>
     <label class="sr" for="projectSelect" data-i18n="projects">פרויקטים</label>
     <select id="projectSelect"></select>
-    <button class="ghost" id="newProjectTopBtn" data-i18n="newProjectPlus">+ פרויקט חדש</button>
-    <button class="ghost" id="projectMenuBtn" aria-haspopup="true" aria-expanded="false" data-i18n="manage">ניהול</button>
   </div>
   <div class="topright">
     <button class="ghost" id="langBtn" lang="en">English</button>
@@ -62,89 +60,112 @@
     </form>
   </section>
 
-  <!-- signed in -->
+  <!-- signed in: sidebar | conversation | preview -->
   <div class="workspace" id="workspaceView" hidden>
-    <section class="flow" aria-label="Build">
-      <div class="panel" id="emptyProjects" hidden>
-        <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
-        <form class="inline" id="firstProjectForm">
-          <label class="grow"><span data-i18n="projectName">שם הפרויקט</span><input id="firstProjectName" maxlength="120" required></label>
-          <button type="submit" data-i18n="createProject">יצירת פרויקט</button>
-        </form>
+    <aside class="sidebar" id="sidebar" aria-label="148AI">
+      <div class="sbHead">
+        <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="26" height="26"><b>148AI</b></a>
+        <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">⟨⟩</button>
       </div>
-
-      <div class="panel built" id="builtPanel" hidden>
-        <h2 data-i18n="builtTitle">מה נבנה עד עכשיו</h2>
-        <p class="builtName" id="builtName"></p>
-        <p id="builtSummary"></p>
-        <ul class="features" id="builtFeatures"></ul>
-        <p class="meta" id="builtMeta"></p>
-      </div>
-
-      <div class="panel" id="modifyPanel" hidden>
-        <h2><label for="followup" data-i18n="modifyTitle">מה תרצו לשנות?</label></h2>
-        <textarea id="followup" rows="3" maxlength="12000"></textarea>
-        <div class="row"><button id="modifyBtn" data-i18n="modifySend">שליחת שינוי</button></div>
-        <div id="modifyState" aria-live="polite"></div>
-      </div>
-
-      <div class="row" id="newBuildRow" hidden>
-        <button class="ghost" id="newBuildBtn" data-i18n="newBuild">מוצר חדש בפרויקט חדש</button>
-      </div>
-
-      <div class="panel composer" id="composer">
-        <label for="prompt" class="composerLabel" data-i18n="request">מה תרצו לבנות?</label>
-        <textarea id="prompt" rows="6" maxlength="8000"></textarea>
-        <fieldset class="modes" id="modeChoice">
-          <legend data-i18n="modeLegend">איך תרצו להמשיך?</legend>
-          <label class="mode"><input type="radio" name="mode" value="guided" checked>
-            <span><b data-i18n="modeGuided">שיחת אפיון מודרכת</b><small data-i18n="modeGuidedHint">נשאל כמה שאלות קצרות — גם על צבעים, גופן וסגנון. אפשר לענות "אין לי העדפה".</small></span></label>
-          <label class="mode"><input type="radio" name="mode" value="recommend">
-            <span><b data-i18n="modeRecommend">המערכת תמליץ ותבחר</b><small data-i18n="modeRecommendHint">נבחר עבורכם לפי מה שכתבתם, ותראו הכול בסיכום לפני אישור.</small></span></label>
-        </fieldset>
+      <button class="sbNew" id="newProjectTopBtn" type="button"><span aria-hidden="true">＋</span> <span data-i18n="newChat">שיחה חדשה · פרויקט חדש</span></button>
+      <label class="sbSearch"><span class="sr" data-i18n="searchProjects">חיפוש פרויקטים</span>
+        <input id="sbSearch" type="search" autocomplete="off" data-i18n-placeholder="searchProjects"></label>
+      <nav class="sbSection" aria-labelledby="sbProjectsTitle">
+        <h3 id="sbProjectsTitle" data-i18n="projects">פרויקטים</h3>
+        <ul class="sbList" id="sbProjects"></ul>
+      </nav>
+      <div class="sbScope"><h3 data-i18n="canBuildTitle">מה אפשר לבנות היום</h3><p data-i18n="scope">כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.</p></div>
+      <div class="sbFoot">
+        <span class="email" id="sbEmail"></span>
         <div class="row">
-          <button id="planBtn" data-i18n="build">המשך</button>
-          <span class="hint" data-i18n="planHint">שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.</span>
+          <button class="ghost" id="langBtn2" type="button">English</button>
+          <button class="ghost" id="logoutBtn2" type="button" data-i18n="logout">התנתקות</button>
         </div>
-        <p class="msg" id="composerMsg" role="alert"></p>
       </div>
+    </aside>
+    <div class="sbScrim" id="sbScrim" hidden></div>
 
-      <div class="panel discovery" id="discoveryPanel" hidden aria-live="polite"></div>
-
-      <div class="panel plan" id="planPanel" hidden aria-live="polite"></div>
-
-      <div class="panel" id="progressPanel" hidden>
-        <h2 data-i18n="progress">התקדמות הבנייה</h2>
-        <ol class="track" id="track"></ol>
-        <div class="row" id="buildControls" hidden>
-          <button class="secondary danger" id="cancelBuildBtn" type="button" data-i18n="stopBuild">עצירת הבנייה</button>
-          <span class="hint" id="cancelHint"></span>
+    <section class="chat" id="chatCol" aria-label="Conversation">
+      <header class="chatHead">
+        <button class="icon ghost" id="sbOpen" type="button" aria-controls="sidebar" data-i18n-label="showSidebar">☰</button>
+        <h1 class="chatTitle" id="chatTitle"></h1>
+        <div class="chatHeadActions">
+          <button class="ghost" id="projectMenuBtn" type="button" aria-haspopup="dialog" data-i18n="manage">ניהול</button>
+          <button class="ghost" id="togglePreviewBtn" type="button" aria-controls="stage" aria-expanded="true" data-i18n="previewToggle">תצוגה</button>
         </div>
-        <details class="live-log" id="liveLog" hidden open>
-          <summary data-i18n="liveLog">מה קורה עכשיו</summary>
-          <ol id="liveLogList" aria-live="polite"></ol>
+      </header>
+      <nav class="ctxTabs" id="ctxTabs" aria-label="Project"></nav>
+      <div class="ctx" id="ctx">
+        <div class="panel" id="emptyProjects" hidden>
+          <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
+          <form class="inline" id="firstProjectForm">
+            <label class="grow"><span data-i18n="projectName">שם הפרויקט</span><input id="firstProjectName" maxlength="120" required></label>
+            <button type="submit" data-i18n="createProject">יצירת פרויקט</button>
+          </form>
+        </div>
+        <div class="panel built" id="builtPanel" hidden>
+          <h2 data-i18n="builtTitle">מה נבנה עד עכשיו</h2>
+          <p class="builtName" id="builtName"></p>
+          <p id="builtSummary"></p>
+          <ul class="features" id="builtFeatures"></ul>
+          <p class="meta" id="builtMeta"></p>
+        </div>
+        <div class="panel discovery" id="discoveryPanel" hidden aria-live="polite"></div>
+        <div class="panel arch" id="archPanel" hidden></div>
+        <div class="panel plan" id="planPanel" hidden aria-live="polite"></div>
+        <div class="panel" id="progressPanel" hidden>
+          <h2 data-i18n="progress">התקדמות הבנייה</h2>
+          <ol class="track" id="track"></ol>
+          <div id="taskBoard"></div>
+          <div class="row" id="buildControls" hidden>
+            <button class="secondary danger" id="cancelBuildBtn" type="button" data-i18n="stopBuild">עצירת הבנייה</button>
+            <span class="hint" id="cancelHint"></span>
+          </div>
+          <details class="live-log" id="liveLog" hidden open>
+            <summary data-i18n="liveLog">מה קורה עכשיו</summary>
+            <ol id="liveLogList" aria-live="polite"></ol>
+          </details>
+          <p class="msg" id="buildMsg" role="alert"></p>
+        </div>
+        <div class="panel" id="modifyPanel" hidden>
+          <h2><label for="followup" data-i18n="modifyTitle">מה תרצו לשנות?</label></h2>
+          <textarea id="followup" rows="3" maxlength="12000"></textarea>
+          <div class="row"><button id="modifyBtn" data-i18n="modifySend">שליחת שינוי</button></div>
+          <div id="modifyState" aria-live="polite"></div>
+        </div>
+        <div class="panel" id="versionsPanel" hidden>
+          <h2 data-i18n="versions">גרסאות</h2>
+          <ul class="versions" id="versionsList"></ul>
+        </div>
+        <details class="panel evidence" id="evidencePanel" hidden>
+          <summary data-i18n="evidence">פרטים טכניים ועדויות</summary>
+          <div id="evidenceBody"></div>
         </details>
-        <p class="msg" id="buildMsg" role="alert"></p>
+        <div class="row" id="newBuildRow" hidden>
+          <button class="ghost" id="newBuildBtn" data-i18n="newBuild">מוצר חדש בפרויקט חדש</button>
+        </div>
       </div>
-
-      <div class="panel" id="versionsPanel" hidden>
-        <h2 data-i18n="versions">גרסאות</h2>
-        <ul class="versions" id="versionsList"></ul>
-      </div>
-
-      <details class="panel evidence" id="evidencePanel" hidden>
-        <summary data-i18n="evidence">פרטים טכניים ועדויות</summary>
-        <div id="evidenceBody"></div>
-      </details>
+      <div class="thread" id="thread" role="log" aria-live="polite"></div>
+      <form class="composer" id="chatForm" novalidate>
+        <label class="sr" for="chatInput" data-i18n="request">מה תרצו לבנות?</label>
+        <textarea id="chatInput" rows="1" maxlength="8000"></textarea>
+        <button type="submit" id="chatSend" data-i18n-label="send"><span aria-hidden="true">↑</span></button>
+      </form>
+      <p class="hint composerHint" data-i18n="planHint">שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.</p>
+      <p class="msg" id="composerMsg" role="alert"></p>
     </section>
 
-    <section class="stage" aria-label="Preview">
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="stage" data-i18n-label="resizePreview"></div>
+
+    <section class="stage" id="stage" aria-label="Preview">
       <div class="browser">
         <div class="chrome">
           <span class="url" id="previewUrl" dir="ltr">—</span>
           <div class="chromeActions">
             <button class="ghost" id="refreshPreviewBtn" disabled data-i18n="refresh">רענון</button>
             <a class="ghost button" id="openPreviewLink" target="_blank" rel="noopener" aria-disabled="true" data-i18n="openTab">פתיחה בלשונית חדשה</a>
+            <button class="ghost icon" id="expandPreviewBtn" type="button" aria-pressed="false" data-i18n-label="expandPreview">⤢</button>
+            <button class="ghost icon" id="closePreviewBtn" type="button" data-i18n-label="hidePreview">✕</button>
           </div>
         </div>
         <p class="hint data-note" id="previewDataNote" hidden></p>

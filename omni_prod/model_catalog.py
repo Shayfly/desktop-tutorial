@@ -36,9 +36,19 @@ class CatalogModel:
     endpoint: ModelEndpoint | None
     max_output_tokens: int
     api_key_env: str
+    # Wave A governance (omni_prod.intelligence.governance): lifecycle and
+    # where the price in force comes from; notes carry warnings/replacements.
+    lifecycle: str = 'ACTIVE'
+    price_source: str = 'catalog'
+    governance_notes: tuple[str, ...] = ()
+    blocked_reason: str = ''   # set when a configured key is refused by governance
 
     @property
     def status(self) -> str:
+        if self.lifecycle == 'RETIRED':
+            return 'RETIRED'
+        if self.blocked_reason:
+            return self.blocked_reason
         return 'CONFIGURED' if self.endpoint is not None else 'NOT_CONFIGURED'
 
     def to_public_dict(self) -> dict:
@@ -50,6 +60,8 @@ class CatalogModel:
             'output_per_million_usd': str(o.output_per_million),
             'max_output_tokens': self.max_output_tokens,
             'api_key_env': self.api_key_env, 'status': self.status,
+            'lifecycle': self.lifecycle, 'price_source': self.price_source,
+            'governance_notes': list(self.governance_notes),
         }
 
 
@@ -72,7 +84,7 @@ def _https_base_url(value, name: str) -> str:
     return url.rstrip('/')
 
 
-def parse_model_catalog(raw: str, env: Mapping[str, str]) -> tuple[CatalogModel, ...]:
+def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple[CatalogModel, ...]:
     raw = (raw or '').strip()
     if not raw:
         return ()
@@ -131,6 +143,11 @@ def parse_model_catalog(raw: str, env: Mapping[str, str]) -> tuple[CatalogModel,
             raise ModelCatalogError(f'{name}: extra_body must be an object without core request fields')
         extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
         enabled = bool(item.get('enabled', True))
+        from .intelligence.governance import govern
+        gov = govern(model=model, base_url=base_url, input_per_million=input_price,
+                     output_per_million=output_price, when=when)
+        input_price, output_price = gov.input_per_million, gov.output_per_million
+        enabled = enabled and gov.routable
         key = (env.get(key_env) or '').strip()
         option = ModelOption(provider=provider, model=model, quality=quality, latency_ms=latency,
                              input_per_million=input_price, output_per_million=output_price,
@@ -141,7 +158,11 @@ def parse_model_catalog(raw: str, env: Mapping[str, str]) -> tuple[CatalogModel,
                                      timeout_seconds=timeout, external=True, api_style=api_style,
                                      extra_body=extra_body)
         out.append(CatalogModel(option=option, endpoint=endpoint, max_output_tokens=max_out,
-                                api_key_env=key_env))
+                                api_key_env=key_env, lifecycle=gov.lifecycle, price_source=gov.price_source,
+                                governance_notes=gov.notes,
+                                blocked_reason='PRICE_UNVERIFIED' if (key and bool(item.get('enabled', True))
+                                                                      and not gov.routable
+                                                                      and gov.lifecycle != 'RETIRED') else ''))
     return tuple(out)
 
 

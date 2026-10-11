@@ -16,7 +16,7 @@ from omni_prod.runtime_bindings import Evidence
 
 class CatalogTests(unittest.TestCase):
     def test_all_agents_and_skills_of_the_directive_exist_with_full_contracts(self):
-        self.assertEqual(len(AGENTS), 52)
+        self.assertEqual(len(AGENTS), 54)  # 52 of the directive + intake_agent, chief_architect (Wave A)
         self.assertEqual(len(SKILLS), sum(len(v) for v in TAXONOMY.values()))
         self.assertEqual(len(TAXONOMY), 33)
         self.assertEqual(UNKNOWN_IMPL_KEYS, [])
@@ -261,7 +261,7 @@ class TruthMatrixTests(unittest.TestCase):
     def test_model_instruction_alone_is_not_verified(self):
         result = {s['skill_key']: s['status'] for s in audit.audit()['skills']}
         self.assertEqual(result['rtl_design'], 'IMPLEMENTED')              # still only an instruction to the model
-        self.assertEqual(result['contrast_test'], 'INTEGRATION_TESTED')  # measured by visual_qa in a real browser
+        self.assertEqual(result['contrast_test'], 'REAL_SERVER_VERIFIED')  # measured by visual_qa on the real server (verify-replay)
         self.assertEqual(result['signup'], NOT_IMPLEMENTED)   # generated apps; platform accounts are separate
 
 if __name__ == '__main__':

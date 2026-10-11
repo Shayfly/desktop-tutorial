@@ -167,9 +167,13 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
     for vp in (vis.get('viewports') or {}).values():
         for k, n in (vp.get('counts') or {}).items():
             counts[k] = counts.get(k, 0) + n
-    # Advisory until replay proves the rules (shadow); enforced rules block
-    # inside the chain (VISUAL failures) and show up as a failed tests status.
-    add(Check('visual', 'visual_layout_desktop_mobile', vstat, False, 'platform:visual_qa', True, 'medium',
+    # The executor applies the configured enforced rule set. Its VISUAL
+    # failure is authoritative even if detail evidence is absent or stale.
+    # Other findings (e.g. advisory contrast/labels) must remain advisory.
+    enforced_visual_failure = 'VISUAL' in failing_ids
+    if enforced_visual_failure:
+        vstat = FAIL
+    add(Check('visual', 'visual_layout_desktop_mobile', vstat, enforced_visual_failure, 'platform:visual_qa', True, 'medium',
               ', '.join(f'{k} {n}' for k, n in sorted(counts.items()))[:300] or str(vis.get('reason') or '')))
 
     add(Check('quality', 'quality_score', PASS if quality.passed else FAIL, True, 'platform:quality_gate', True,

@@ -64,6 +64,7 @@ class RoutedModelGateway:
         recorder: AttemptRecorder | None = None,
         transient_retries: int | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        health=None,
     ):
         if primary is not None and primary.endpoint.external:
             raise ValueError('primary route must be local/self-hosted')
@@ -101,6 +102,10 @@ class RoutedModelGateway:
         # Routes that answered "quota spent" / "key rejected": skipped for the
         # rest of this gateway's life (one build or modification).
         self.unavailable: dict[str, str] = {}
+        # Wave A: durable provider health (intelligence.health). Without a
+        # store it is per-gateway memory, i.e. the previous behaviour.
+        from .intelligence.health import HealthBook
+        self.health = health if health is not None else HealthBook()
         # Which catalog routes served which task in this build, so the QA
         # reviewer can prefer a model other than the one that wrote the code.
         self.models_by_task: dict[str, set[str]] = {}
@@ -207,6 +212,8 @@ class RoutedModelGateway:
         self._fill(record, gateway, usage, option, elapsed)
         self._settle(route, record)
         record.outcome = 'ok'
+        if route.endpoint.external:
+            self.health.record_success(route.endpoint.name)
         self.models_by_task.setdefault(task or 'general', set()).add(route.endpoint.name)
         self._record(RouteEvent(route.endpoint.name, route.endpoint.external, True, elapsed,
                                 request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
@@ -270,14 +277,15 @@ class RoutedModelGateway:
         models stay available as escalation when it is unavailable.
         OMNI_MODEL_TASK_MIN_QUALITY (JSON object) overrides the defaults.
         """
-        floors = {'codegen': 85, 'repair': 85, 'modification': 85, 'review': 85}
+        from .intelligence.task_policy import TASK_CLASSES
+        floors = {k: t.preferred_floor for k, t in TASK_CLASSES.items()}
         raw = os.getenv('OMNI_MODEL_TASK_MIN_QUALITY', '').strip()
         if raw:
             try:
                 floors.update({str(k): int(v) for k, v in json.loads(raw).items()})
             except (ValueError, AttributeError, TypeError):
                 pass
-        return max(self.routing_policy.minimum_quality, floors.get(task, 0))
+        return max(self.routing_policy.minimum_quality, floors.get(task, floors['general']))
 
     def ranked_routes(self, kwargs: dict, task: str = 'general') -> list[tuple]:
         """Cheapest eligible catalog model first, with a conservative per-call cap.
@@ -297,6 +305,11 @@ class RoutedModelGateway:
         for model in self.ranked:
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
+                continue
+            # Wave A: below the task's MANDATORY floor a model is never used
+            # for it, not even as escalation (no silent downgrade).
+            from .intelligence.task_policy import eligible
+            if not eligible(task, model_id=option.model, quality=option.quality):
                 continue
             if policy.maximum_latency_ms is not None and option.latency_ms > policy.maximum_latency_ms:
                 continue
@@ -382,6 +395,14 @@ class RoutedModelGateway:
             if name in self.unavailable:
                 failures.append(f'{route.endpoint.model}: skipped ({self.unavailable[name]})')
                 continue
+            if route.endpoint.external:
+                admitted, why_not = self.health.admit(name)
+                if not admitted:
+                    self.unavailable[name] = why_not
+                    failures.append(f'{route.endpoint.model}: skipped (provider health: {why_not})')
+                    self._record(RouteEvent(name, True, False, 0, f'skipped: {why_not}'[:300],
+                                            **self._decision(route, method, 'circuit open')))
+                    continue
             for retry in range(self.transient_retries + 1):
                 try:
                     return self._attempt(route, method, call_kwargs,
@@ -416,6 +437,12 @@ class RoutedModelGateway:
                             failures.append(f'{route.endpoint.model}: does not fit the remaining budget')
                             break
                         raise
+                    if isinstance(exc, ModelHTTPError) and route.endpoint.external:
+                        from .intelligence import states as HS
+                        hs = self.health.classify(exc) if hasattr(self.health, 'classify') else None
+                        if hs in (HS.CREDIT_EXHAUSTED, HS.AUTH_INVALID, HS.UNAVAILABLE) or quota_exhausted(exc) \
+                                or (hs == HS.RATE_LIMITED and retry == self.transient_retries):
+                            self.health.record_failure(name, exc)
                     if quota_exhausted(exc):
                         self.unavailable[name] = f'HTTP {getattr(exc, "status", "?")}: quota or key'
                         failures.append(f'{route.endpoint.model}: {exc}')

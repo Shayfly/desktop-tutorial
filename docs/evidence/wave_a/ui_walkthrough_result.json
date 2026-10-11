@@ -1,0 +1,41 @@
+{
+ "shots": [
+  "01-desktop-first-project-he",
+  "02-desktop-empty-chat-he",
+  "03-desktop-chat-question-he",
+  "04-desktop-plan-ready-he",
+  "05-desktop-plan-tab-he",
+  "06-desktop-feasibility-cost-he",
+  "07-desktop-preview-resized",
+  "08-desktop-preview-enlarged",
+  "09-desktop-sidebar-collapsed",
+  "10-desktop-chat-en",
+  "11-mobile-chat-he",
+  "12-mobile-sidebar-he",
+  "13-mobile-preview-he"
+ ],
+ "tabs": [
+  "דרישות",
+  "תוכנית ועלות",
+  "בנייה",
+  "גרסאות"
+ ],
+ "stage_width_before": 604.796875,
+ "after_drag": 858.796875,
+ "enlarged": 1416,
+ "closed_display": "none",
+ "reopened_display": "flex",
+ "bubbles_after_reload": 10,
+ "projects": [
+  "Equipment loans",
+  "מספרה של דני"
+ ],
+ "search_filtered": [
+  "מספרה של דני"
+ ],
+ "first_project_bubbles_after_switch": 10,
+ "mobile_horizontal_scroll": false,
+ "console_errors": [
+  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+ ]
+}
