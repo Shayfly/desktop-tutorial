@@ -71,7 +71,7 @@ class DiscoveryEndpointTests(unittest.TestCase):
     def test_invalid_answer_is_422_and_recommend_mode_completes_with_summary(self):
         investor_app.v28_discovery_start('prj_1', investor_app.V28DiscoveryStart(prompt='מערכת לניהול משימות לצוות'), self.req)
         with self.assertRaises(investor_app.HTTPException) as ctx:
-            investor_app.v28_discovery_answer('prj_1', investor_app.V28DiscoveryAnswers(revision=1, answers={'color': 'x'}), self.req)
+            investor_app.v28_discovery_answer('prj_1', investor_app.V28DiscoveryAnswers(revision=1, answers={'style': 'x'}), self.req)
         self.assertEqual(ctx.exception.status_code, 422)
         view = investor_app.v28_discovery_start('prj_1', investor_app.V28DiscoveryStart(
             prompt='מערכת לניהול משימות לצוות', mode='recommend'), self.req)

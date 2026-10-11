@@ -51,6 +51,12 @@ class AutonomousProductEngine:
         from .modifier_engine import repo_summary
         return repo_summary(repo, failures)
 
+    def _repair_summary(self, repo, failures=()):
+        transform = getattr(self, 'repository_transform', None)
+        if transform is not None and hasattr(transform, 'redact'):
+            repo = transform.redact(repo)
+        return self._summary(repo, failures)
+
     @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
         return hashlib.sha256(json.dumps(sorted(repo.items())).encode('utf-8')).hexdigest()
@@ -114,6 +120,8 @@ class AutonomousProductEngine:
         spec = self.architect.create_spec(prompt)
         initial = self.generator.generate(spec)
         repo = apply_patch({}, initial)
+        if getattr(self,'repository_transform',None):
+            repo = self.repository_transform(repo)
         report = self.executor.execute(repository=repo, spec=spec)
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
@@ -131,12 +139,18 @@ class AutonomousProductEngine:
             if discarded_note:
                 failures = failures + [discarded_note]
                 discarded_note = None
+            transform = getattr(self, 'repository_transform', None)
+            if transform is not None and hasattr(transform, 'redact_text'):
+                failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
+                             for k, v in f.items()} for f in failures]
             patch = self.repairer.repair(
                 spec=spec,
-                repo_summary=self._summary(repo, failures),
+                repo_summary=self._repair_summary(repo, failures),
                 failures=failures,
             )
             candidate = apply_patch(repo, patch)
+            if getattr(self,'repository_transform',None):
+                candidate = self.repository_transform(candidate)
             self.trace.append({
                 'round': rounds,
                 'failing': sorted({f['acceptance_id'] for f in failures}),

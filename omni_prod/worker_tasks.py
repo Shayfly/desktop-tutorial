@@ -633,6 +633,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             synthetic_person_media=bool(brain.rights.required_disclosures),
         )
         engine, gateway = components_factory()
+        from .uploaded_assets import install as install_uploaded_assets
+        install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
+                                project_id=request.get('public_project_id'),account_id=str(request['user_id']))
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)

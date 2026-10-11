@@ -291,6 +291,20 @@ class ConversationSupervisor:
                                    if attachments else None)
         intent = 'answer' if answers else classify_intent(message, has_version=bool(ctx.get('latest_version_id')),
                                                           has_brief=row is not None)
+        if intent == 'recommend' and self.intake_mode(project_id,account_id).paid:
+            intent='requirements'
+        # An explicit withdrawal refers only to a uniquely identified blocker
+        # in the previous reply. Never guess which of several requirements to drop.
+        if row and not answers and re.fullmatch(r'(?:אז\s+)?(?:תוותר|וותר|תוריד)\s+(?:על\s+)?זה(?:\s+כרגע)?[.!? ]*|'
+                                               r'(?:skip|remove|drop)\s+(?:that|it)(?:\s+for now)?[.!? ]*', message, re.I):
+            previous = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
+            last_plan_id = (previous[-1].get('interpretation') or {}).get('plan_id') if previous else None
+            plan, _, _ = self._plan(project_id, row)
+            blockers = [f for f in (plan or {}).get('feasibility', {}).get('findings', [])
+                        if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+            if last_plan_id and len(blockers) == 1 and blockers[0]['item'].startswith('sign-in'):
+                answers = {'login': 'none'}
+                intent = 'answer'
         if attachments and not message and not answers:
             intent = 'attachment'
         turn = Turn(intent, lang, '')
@@ -298,7 +312,7 @@ class ConversationSupervisor:
             turn.brief_row = row
             turn.reply = T['attached_only'].format(n=T['images'](len(attachments)))
         elif intent in ('answer', 'requirements'):
-            turn = self._requirements(project_id, account_id, row, message, answers or {}, request_key, lang, T)
+            turn = self._requirements(project_id, account_id, row, message, answers or {}, request_key, lang, T, attachments)
         else:
             turn.brief_row = row
             if row is not None:
@@ -315,6 +329,11 @@ class ConversationSupervisor:
                                                     infer_defaults=False).asked if intent == 'missing' else []
         if attachments and intent != 'attachment':
             turn.reply = (turn.reply + ' ' + T['attached_note'].format(n=T['images'](len(attachments)))).strip()
+        if turn.brief_row and not (turn.plan or {}).get('executable', True):
+            for action in ({'type': 'show_plan', 'brief_revision': turn.brief_row.revision},
+                           {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
+                if not any(a['type'] == action['type'] for a in turn.actions):
+                    turn.actions.append(action)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
@@ -339,13 +358,14 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
-    def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T) -> Turn:
+    def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
             source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
+            source.history = self.store.messages_for(project_id, limit=5)[:-1]
             interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():
@@ -358,6 +378,11 @@ class ConversationSupervisor:
         if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
                 and not answers and _CONTENT_RX.search(message)):
             new_brief, recorded = _record_content(new_brief, message), True
+        if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
+            a = attachments[0]
+            if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
+                new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
+                new_brief = d.answer(new_brief, {'logo':'later'})
         expected = row.revision if row else 0
         if row is None or new_brief.fingerprint() != row.fingerprint:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
@@ -371,6 +396,10 @@ class ConversationSupervisor:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         parts = []
+        # The model's conversational advice is not an action: the authoritative
+        # questions, changes, blockers and approval controls below still apply.
+        if interp is not None and interp.reply and not res.conflicts:
+            parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
@@ -401,7 +430,7 @@ class ConversationSupervisor:
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 parts.append(T['blocked'] + ': ' + '; '.join(
-                    f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '') for f in blocked[:3]))
+                    self._finding_message(f, lang, T) for f in blocked[:3]))
         elif res.asked:
             self._last_reply_was_why = False
             repeated = self._repeats(project_id, res.asked)
@@ -412,6 +441,12 @@ class ConversationSupervisor:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
         return turn
+
+    @staticmethod
+    def _finding_message(f, lang, T):
+        if lang == 'he' and f['item'].startswith('sign-in'):
+            return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את דרישת ההתחברות או להשאיר אותה להמשך'
+        return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
 
     _last_reply_was_why = False
 

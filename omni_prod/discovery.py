@@ -145,9 +145,9 @@ QUESTIONS: tuple[Question, ...] = (
              options=(_o('clean', 'נקי ומודרני', 'Clean and modern'), _o('warm', 'חם ומזמין', 'Warm and friendly'),
                       _o('formal', 'עסקי ורשמי', 'Formal business'), _o('playful', 'צבעוני ושמח', 'Playful and colourful')),
              recommended='clean'),
-    Question('color', 'color', 'design', 'איזה צבע ראשי?', 'Main colour?',
+    Question('color', 'color', 'design', 'אילו צבעים תרצו? אפשר לתאר במילים', 'Which colours? Describe them in your own words',
              'הצבע הראשי משמש לכפתורים ולכותרות; הטקסט תמיד יישאר קריא.', 'Used for buttons and headings; text stays readable.',
-             options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
+             kind='text', options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
                       _o('orange', 'כתום', 'Orange'), _o('teal', 'טורקיז', 'Teal'), _o('neutral', 'אפור/שחור', 'Neutral')),
              recommended='blue'),
     Question('font', 'font', 'design', 'איזה גופן?', 'Which font?',
@@ -211,18 +211,22 @@ class Brief:
     fields: dict[str, dict] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)  # questions the user chose to skip (no preference recorded)
     hints: dict[str, str] = field(default_factory=dict)  # suggested answers read from the request (pre-selected, still asked)
+    assets: dict[str, dict] = field(default_factory=dict)  # owner-checked attachment id + digest, never bytes/secrets
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
 
     def to_dict(self) -> dict:
-        return {'prompt': self.prompt, 'mode': self.mode, 'fields': self.fields, 'skipped': list(self.skipped),
-                'hints': dict(self.hints)}
+        out = {'prompt': self.prompt, 'mode': self.mode, 'fields': self.fields, 'skipped': list(self.skipped),
+               'hints': dict(self.hints)}
+        if self.assets:
+            out['assets'] = self.assets
+        return out
 
     @classmethod
     def from_dict(cls, d: Mapping) -> 'Brief':
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
-                   dict(d.get('hints') or {}))
+                   dict(d.get('hints') or {}), dict(d.get('assets') or {}))
 
     def fingerprint(self) -> str:
         return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -320,6 +324,8 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         if qid in new.skipped:
             new.skipped.remove(qid)
     _drop_inapplicable(new)
+    if 'logo' in answers and new.values().get('logo') != 'later':
+        new.assets.pop('logo', None)
     return new
 
 
@@ -439,6 +445,11 @@ def requirements_text(brief: Brief) -> str:
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':
         lines.append('Logo: a text logo with the product name in the header.')
+    logo = brief.assets.get('logo')
+    if logo:
+        lines.append(f'Uploaded logo attachment: {logo["id"]}; sha256={logo["sha256"]}. '
+                     'Use the original uploaded logo in a visible img element with src="148ai-asset://logo". '
+                     'The worker replaces this marker with the verified image bytes before tests; do not recreate the logo.')
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')

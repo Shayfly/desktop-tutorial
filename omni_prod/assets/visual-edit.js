@@ -122,7 +122,12 @@ const VE = (() => {
   async function uploadPending() {
     $('composerMsg').textContent = t('imgUploading');
     const ids = [];
-    for (const p of st.pending) ids.push((await upload(p.blob, 'image')).id);
+    for (const p of st.pending) {
+      // Retain successful uploads across a failed send/partial upload retry.
+      if(p.uploadedProject !== S.projectId){p.uploadedId=null;p.uploadedProject=S.projectId;}
+      if(!p.uploadedId)p.uploadedId=(await upload(p.blob,'image')).id;
+      ids.push(p.uploadedId);
+    }
     $('composerMsg').textContent = '';
     return ids;
   }

@@ -1835,6 +1835,7 @@ class V28ConversationMessage(BaseModel):
     answers: dict[str, str] = Field(default_factory=dict)
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    brief_revision: int | None = Field(default=None, ge=1)
 
 
 class V28AttachmentUpload(BaseModel):
@@ -1955,6 +1956,10 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
     store = _conversation_store()
     if req.request_key and store.find_reply(project_id, req.request_key):
         return _conversation_view(project_id, lang or 'he')   # a retried send: no second turn
+    if req.brief_revision is not None:
+        latest = _brief_repo().latest(project_id)
+        if latest is None or latest.revision != req.brief_revision:
+            raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
         turn = _supervisor(key).turn(project_id=project_id, account_id=account.id, message=req.message,
                                      answers=req.answers, request_key=req.request_key, lang=lang,
@@ -2765,7 +2770,11 @@ def _attachments():
     if _v28_pool is None or store is None:
         raise HTTPException(503, detail={'error': 'attachments_unavailable',
                                          'message': 'image attachments need PostgreSQL and durable object storage'})
-    return AttachmentRepository(_v28_pool, store)
+    repo = AttachmentRepository(_v28_pool, store)
+    if not repo.schema_ready():
+        raise HTTPException(503, detail={'error':'attachments_not_ready','missing_migration':'038_conversation_attachments',
+                                         'message':'Image attachments require database migration 038 on this deployment.'})
+    return repo
 
 
 def _owner(project_id: str, request: Request):

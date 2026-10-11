@@ -208,6 +208,14 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
+Object.assign(T.he, { updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+  colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
+  guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
+  attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
+Object.assign(T.en, { updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+  colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
+  guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
+  attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
 
 const $ = id => document.getElementById(id);
 const t = key => (T[S.lang] && T[S.lang][key]) ?? T.en[key] ?? key;
@@ -255,6 +263,7 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -392,7 +401,7 @@ async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
   S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
-  S.disc = null; S.editQ = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
+  S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
@@ -423,26 +432,39 @@ const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now(
 const discPath = () => `/api/v28/projects/${pid()}/discovery`;
 /* The old "describe + choose a mode" composer is replaced by the conversation
    (Unified Conversation OS): the supervisor decides how many questions to ask. */
-async function sendAnswers(answers) {
+async function sendAnswers(answers, { editing = false } = {}) {
+  if(S.updatingAnswers)return;
+  const retrySignature=JSON.stringify([S.projectId,S.disc.brief.revision,answers]);
+  if(!S.answerRetry || S.answerRetry.signature!==retrySignature)S.answerRetry={signature:retrySignature,key:newKey()};
   const msg = $('discMsg'); if (msg) msg.textContent = '';
   try {
+    S.updatingAnswers = true;
+    if($('updateBriefBtn'))$('updateBriefBtn').disabled=true;
     // Edits made in the requirements panel go through the same conversation,
     // so the project history records them (the brief stays the source of truth).
     if (S.chat && S.chat.fallback) {
       S.disc = await api(`${discPath()}/answers?lang=${S.lang}`, { method: 'POST',
-        body: { revision: S.disc.brief.revision, answers, request_key: newKey() } });
+        body: { revision: S.disc.brief.revision, answers, request_key: S.answerRetry.key } });
       renderChat();
     } else {
       applyConversation(await api(`/api/v28/projects/${pid()}/conversation?lang=${S.lang}`, { method: 'POST',
-        body: { answers, request_key: newKey() } }));
+        body: { answers, brief_revision:S.disc.brief.revision, request_key: S.answerRetry.key } }));
     }
-    S.editQ = null; S.plan = null; renderPlan();
+    S.answerRetry=null;
+    S.editQ = null; if (editing) S.editDraft = null; S.plan = null; renderPlan();
     renderDiscovery();
     if (S.disc.complete) await requestBriefPlan();
+    else openTab('req');
   } catch (e) {
     if (e.status === 409) { try { S.disc = await api(`${discPath()}?lang=${S.lang}`); renderDiscovery(); } catch { /* keep message */ } }
     const m = $('discMsg'); if (m) m.textContent = explain(e);
-  }
+  } finally { S.updatingAnswers = false; if($('updateBriefBtn'))$('updateBriefBtn').disabled=false; }
+}
+function beginBriefEdit() {
+  if (!S.disc) return;
+  S.editDraft = S.editDraft || {};
+  S.editQ = null;
+  renderDiscovery(); openTab('req');
 }
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
@@ -456,17 +478,32 @@ function questionCard(q, current) {
   const name = `q_${q.id}`;
   const chosen = current !== undefined ? current : (q.suggested || '');
   const kids = [h('legend', {}, q.text), h('p', { class: 'hint' }, t('why') + q.why)];
-  if (q.kind === 'choice') {
+  if (q.id === 'font') {
+    const fonts = {heebo:'Heebo', assistant:'Assistant', rubik:'Rubik', system:'system-ui'};
+    const picker = h('details', {class:'fontPicker'}, h('summary', {}, (q.options.find(o => o.value === chosen) || {}).label || t('delegate')));
+    const list = h('div', {class:'fontOptions'});
+    for (const o of q.options) {
+      const sample = h('span', {class:`fontSample font-${o.value}`}, t('fontSample'));
+      const note = h('small', {class:'hint'}, o.value === 'system' ? '' : t('fontUnavailable'));
+      const input = h('input', {type:'radio',name,value:o.value,checked:o.value===chosen,
+        onchange:()=>{picker.querySelector('summary').textContent=o.label;}});
+      list.append(h('label', {class:'opt fontOption'}, input, h('span', {}, o.label, sample, note)));
+      if (o.value !== 'system' && document.fonts) document.fonts.load(`16px "${fonts[o.value]}"`).then(loaded=>{
+        if(loaded.length){note.textContent='';sample.classList.add('loaded');}
+      }).catch(()=>{});
+    }
+    picker.append(list); kids.push(picker);
+  } else if (q.kind === 'choice') {
     for (const o of q.options) {
       kids.push(h('label', { class: 'opt' }, h('input', { type: 'radio', name, value: o.value, checked: o.value === chosen }),
         h('span', {}, o.label, (q.suggested === o.value && current === undefined) ? h('small', {}, ' ' + t('suggestedFromRequest')) : null)));
     }
   } else {
-    kids.push(h('textarea', { name, rows: 2, maxlength: 2000, placeholder: q.recommended || '' }, current && current !== '__delegate__' ? current : ''));
+    kids.push(h('textarea', { name, rows: 2, maxlength: 2000, placeholder: q.id === 'color' ? t('colourExample') : q.recommended || '' }, chosen && chosen !== '__delegate__' ? chosen : ''));
   }
   if (q.delegable) {
     const rec = q.kind === 'choice' ? ((q.options.find(o => o.value === q.recommended) || {}).label || '') : (q.recommended || '');
-    kids.push(h('label', { class: 'opt delegate' }, h('input', { type: 'radio', name: q.kind === 'choice' ? name : `${name}_d`, value: '__delegate__' }),
+    kids.push(h('label', { class: 'opt delegate' }, h('input', { type: 'radio', name: q.kind === 'choice' ? name : `${name}_d`, value: '__delegate__', checked:chosen==='__delegate__' }),
       h('span', {}, t('delegate'), rec ? h('small', {}, ' ' + t('delegateWill')(rec)) : null)));
   }
   return h('fieldset', { class: 'question', 'data-q': q.id, 'data-kind': q.kind, 'data-delegable': q.delegable ? '1' : '' }, kids);
@@ -494,15 +531,22 @@ function renderDiscovery() {
   panel.hidden = false;
   const kids = [h('h2', {}, t('discTitle')),
     h('p', { class: 'hint' }, t('discProgress')(d.progress.answered, d.progress.remaining))];
-  const editing = S.editQ && d.answered.find(a => a.id === S.editQ);
+  const editing = S.editDraft !== null && S.editDraft !== undefined;
   if (editing) {
     const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
       const { answers, missing } = collectAnswers(form);
       if (missing.length) { $('discMsg').textContent = t('needAnswer')(missing[0]); return; }
-      sendAnswers(answers); } },
-      questionCard(editing, editing.source === 'delegated' ? undefined : editing.value),
-      h('div', { class: 'row' }, h('button', { type: 'submit' }, t('save')),
-        h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = null; renderDiscovery(); } }, t('cancel'))));
+      const changes=Object.fromEntries(Object.entries(answers).filter(([k,v])=>{
+        const old=d.answered.find(a=>a.id===k);return !old || v!==old.value;
+      }));
+      if(Object.keys(changes).length) sendAnswers(changes,{editing:true});
+      else {S.editDraft=null;renderDiscovery();requestBriefPlan(true);} } },
+      h('p', {class:'hint'}, t('draftNote')),
+      ...d.answered.map(a=>questionCard(a, Object.hasOwn(S.editDraft,a.id)?S.editDraft[a.id]:a.value)),
+      h('div', { class: 'row draftActions' }, h('button', { id:'updateBriefBtn',type: 'submit' }, t('updateDraft')),
+        h('button', { type: 'button', class: 'ghost', onclick: () => { S.editDraft = null; renderDiscovery(); openTab(S.plan?'plan':'req'); } }, t('cancel'))));
+    const remember=()=>{S.editDraft=collectAnswers(form).answers;};
+    form.addEventListener('input',remember);form.addEventListener('change',remember);
     kids.push(form);
   } else if (!d.complete && d.questions.length && (!S.chat || S.chat.fallback)) {
     const form = h('form', { class: 'qgroup', onsubmit: e => { e.preventDefault();
@@ -526,8 +570,7 @@ function renderDiscovery() {
       h('ul', { class: 'answers' }, d.answered.map(a => h('li', {},
         h('span', { class: 'q' }, a.text), h('b', {}, a.value_label),
         h('span', { class: `pill ${a.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${a.source}`)),
-        h('button', { type: 'button', class: 'ghost', onclick: () => { S.editQ = a.id; renderDiscovery();
-          openTab('req'); } }, t('change')))))));
+        h('button', { type: 'button', class: 'ghost', onclick: beginBriefEdit }, t('change')))))));
   }
   kids.push(h('p', { class: 'msg', id: 'discMsg', role: 'alert' }));
   panel.replaceChildren(...kids);
@@ -597,7 +640,7 @@ function renderPlan() {
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
       p.brief_revision ? t('approveBuild') : t('confirm')),
     h('button', { class: 'secondary', onclick: () => {
-      if (S.disc) { const det = document.querySelector('#discoveryPanel details.decided'); if (det) det.open = true; openTab('req'); }
+      if (S.disc) { beginBriefEdit(); }
       else $('chatInput').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
   panel.replaceChildren(...kids);
 }
@@ -1043,13 +1086,14 @@ async function dialogAction(fn, okKey) {
 /* ---------- conversation (Unified Conversation OS) ---------- */
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
 function applyConversation(view) {
+  if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
   S.chat = view;
   if (view.discovery) S.disc = view.discovery;
   S.arch = view.plan || null;
   renderChat(); renderDiscovery(); renderArch(); renderTabs();
   const acts = (view.turn && view.turn.actions) || [];
   // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
-  if (acts.some(a => a.type === 'show_plan' || a.type === 'approve_build') && S.disc && S.disc.complete && !S.plan) requestBriefPlan(false);
+  if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
 async function restoreConversation() {
   try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
@@ -1064,18 +1108,23 @@ async function restoreConversation() {
 let chatBusy = false;
 async function sendChat(body, shownText) {
   if (chatBusy || !S.projectId) return;
+  const retrySignature=JSON.stringify([S.projectId,body]);
+  if(!S.chatRetry || S.chatRetry.signature!==retrySignature)S.chatRetry={signature:retrySignature,key:newKey()};
   chatBusy = true; $('chatSend').disabled = true; $('composerMsg').textContent = '';
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: newKey() } });
+    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
     if (body.message) $('chatInput').value = '';
     autoGrow();
+    return true;
   } catch (e) {
     if (pending) { S.chat.messages = S.chat.messages.filter(m => m !== pending); renderChat(); }
     $('composerMsg').textContent = explain(e);
+    return false;
   } finally { chatBusy = false; $('chatSend').disabled = false; }
 }
 async function submitChat(e) {
@@ -1090,8 +1139,8 @@ async function submitChat(e) {
     try { ids = await VE.uploadPending(); }
     catch (err) { $('composerMsg').textContent = explain(err); return; }
   }
-  await sendChat({ message: text, ...(ids.length ? { attachment_ids: ids } : {}) }, text || `📎 ${ids.length}`);
-  if (ids.length && window.VE) VE.clearPending();
+  const sent=await sendChat({ message: text, ...(ids.length ? { attachment_ids: ids } : {}) }, text || `📎 ${ids.length}`);
+  if (sent && ids.length && window.VE) VE.clearPending();
 }
 async function startGuidedFallback(text) {
   // Only when the conversation API is not installed here: the existing guided
@@ -1121,6 +1170,7 @@ function quickReplies(questions) {
 function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
+    if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
@@ -1133,6 +1183,8 @@ function renderChat() {
   if (!S.projectId) { box.replaceChildren(); return; }
   const msgs = (S.chat && S.chat.messages) || [];
   const kids = [];
+  if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
+    S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
     S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
@@ -1178,9 +1230,20 @@ function renderArch() {
   panel.replaceChildren(h('h2', {}, t('archTitle')),
     h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, t(`f_${f.outcome}`) || f.outcome)),
     limits.length ? h('details', {}, h('summary', {}, `${t('constraints')} (${limits.length})`),
-      h('ul', {}, limits.map(x => h('li', {}, `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : '')))) : null,
+      h('ul', {}, limits.map(x => h('li', {}, findingLabel(x),
+        h('details', {}, h('summary', {}, S.lang==='he'?'פרטים טכניים':'Technical details'),
+          `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : ''))))) : null,
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
+}
+function findingLabel(x) {
+  if(S.lang!=='he')return `${x.item}: ${x.reason}`;
+  if(x.item.startsWith('sign-in'))return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את הדרישה או להשאיר אותה להמשך.';
+  if(x.item==='publishing')return 'פרסום בכתובת קבועה עדיין אינו זמין. קיימות תצוגה פרטית והורדת קוד.';
+  if(x.item==='independent model review')return 'מודל הביקורת עשוי להיות מאותו ספק של מודל הכתיבה. בדיקות הקוד עדיין נדרשות לפני שחרור.';
+  const names={'code generation':'יצירת קוד','behavioural acceptance':'בדיקות התנהגות','release policy':'מדיניות שחרור'};
+  if(names[x.item])return `${names[x.item]}: ${x.outcome==='FEASIBLE_WITH_CONSTRAINTS'?'קיימות מגבלות שיש לבדוק':'דרושה בדיקה נוספת'}`;
+  return `${x.item}: ${x.reason}`;
 }
 const TT = {
   he: { requirements:'דרישות', plan_and_quote:'תוכנית והצעת מחיר', architecture:'ארכיטקטורה', implementation:'כתיבת הקוד',
@@ -1289,6 +1352,7 @@ function wireWorkspace() {
 
 /* ---------- wiring ---------- */
 function wire() {
+  $('ctxMinimize').addEventListener('click',()=>openTab(null));
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
