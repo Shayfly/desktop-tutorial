@@ -9,9 +9,12 @@ A model (paid) runs only when ALL of these hold:
   OMNI_INTAKE_CALL_BUDGET_USD   > 0         per-message reserve (default 0.005)
   project spent + reserve <= project cap   (a call can never overshoot the cap)
   24 h spent    + reserve <= daily cap
-Route: OMNI_INTAKE_VIA_WORKER=1 (recommended: the worker already holds the
-provider key, nothing is copied to Vercel); a direct gateway needs a provider
-key on the API host and is reported as such.
+Route: OMNI_INTAKE_VIA_WORKER=1 only. Every paid call is reserved durably
+before execution (intake.budget, Issue #12) and runs on the worker, which
+holds the provider key. A direct gateway on the API host would bypass the
+reservation, so it is refused (deterministic) even when configured.
+The spend values here are a cheap pre-check; the hard, concurrency-safe cap
+check is the reservation transaction itself.
 """
 from __future__ import annotations
 
@@ -75,7 +78,8 @@ def resolve(*, project_spent: Decimal = Decimal('0'), daily_spent: Decimal = Dec
     if os.getenv('OMNI_INTAKE_VIA_WORKER') == '1':
         return IntakeMode(MODEL_WORKER, 'authorized; routed through the worker', **caps)
     if has_direct_gateway:
-        return IntakeMode(MODEL_DIRECT, 'authorized; direct gateway on the API host', **caps)
+        return IntakeMode(DETERMINISTIC, 'direct model calls are disabled: paid calls run only through '
+                                         'reservations on the worker (set OMNI_INTAKE_VIA_WORKER=1)', **caps)
     return IntakeMode(DETERMINISTIC, 'no model route (set OMNI_INTAKE_VIA_WORKER=1)', **caps)
 
 

@@ -48,7 +48,9 @@ class ModeTests(unittest.TestCase):
     def test_route_selection(self):
         no_worker = {**ALL, 'OMNI_INTAKE_VIA_WORKER': ''}
         self.assertEqual(resolve(no_worker).mode, M.DETERMINISTIC)                    # no route at all
-        self.assertEqual(resolve(no_worker, has_direct_gateway=True).mode, M.MODEL_DIRECT)
+        m = resolve(no_worker, has_direct_gateway=True)                             # would bypass reservations
+        self.assertEqual(m.mode, M.DETERMINISTIC)
+        self.assertIn('reservations', m.reason)
 
     def test_cost_estimate_uses_the_source_backed_price(self):
         est = M.estimate_message_cost()
@@ -68,11 +70,16 @@ class SupervisorBudgetTests(unittest.TestCase):
     def setUp(self):
         from omni_prod.conversation.store import MemoryConversationStore
         from omni_prod.conversation.supervisor import ConversationSupervisor
-        from omni_prod.intake import worker_route as W
+        from omni_prod.intake.interpreter import DeterministicInterpreter
         from tests.test_conversation_os import MemoryBriefs
         self.calls = []
-        fake = W.WorkerInterpreter(lambda m: self.calls.append(m) or 'j', lambda j: {'ok': False, 'error': 'x'},
-                                   wait_seconds=0)
+        calls = self.calls
+
+        class FakeModel:
+            def interpret(self, message, brief=None):
+                calls.append(message)
+                return DeterministicInterpreter().interpret(message, brief)
+        fake = FakeModel()
         self.store = MemoryConversationStore()
         self.sup = ConversationSupervisor(briefs=MemoryBriefs(), store=self.store, worker_interpreter=fake)
 
@@ -148,21 +155,17 @@ class ModelCallBoundsTests(unittest.TestCase):
         self.assertEqual(g.seen['max_tokens'], MAX_OUTPUT_TOKENS)
         self.assertEqual(g.seen['task'], 'conversation')
 
-    def test_worker_side_uses_the_same_bounds(self):
-        from omni_prod.intake import worker_route as W
-        seen = {}
-
-        class G:
-            last_usage = None
-            recorder = None
-
-            def complete_json(self, **kw):
-                seen.update(kw)
-                return {}
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.005'}):
-            out = W.execute('ב' * 9000, gateway_factory=lambda cap: G())
-        self.assertEqual((len(seen['user']), seen['max_tokens']), (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS))
-        self.assertEqual(out['prompt_version'], PROMPT_VERSION)
+    def test_reserved_worker_call_carries_the_same_bounds(self):
+        from omni_prod.intake import budget as B
+        from tests.test_intake_worker_route import FakeService, interp
+        svc = FakeService(never_settles=True)
+        interp(svc, wait=0.2).interpret('ב' * 9000)
+        payload = svc.reserved[0]['payload']
+        self.assertEqual((len(payload['user']), payload['max_tokens']), (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS))
+        self.assertEqual((payload['system'], payload['prompt_version']), (SYSTEM, PROMPT_VERSION))
+        quote = svc.reserved[0]['quote_']
+        self.assertEqual(quote.envelope['models'][0]['output_tokens_bound'], MAX_OUTPUT_TOKENS)
+        self.assertIsInstance(quote, B.Quote)
 
 
 class TruthfulLabelTests(unittest.TestCase):

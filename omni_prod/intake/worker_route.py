@@ -1,117 +1,118 @@
-"""Real-model intake interpretation routed through the worker (founder
-directive 2026-10-11 §4: the worker already holds the Gemini credential, so no
-API key is copied to Vercel).
+"""Real-model intake interpretation routed through the worker, with a durable
+budget reservation before any provider contact (Issue #12).
 
-    API (Vercel)                         worker host (intake-worker service)
-    WorkerInterpreter.interpret()  ->    RQ queue 'omni-intake'  ->  execute_intake_interpretation()
-      waits <= OMNI_INTAKE_WAIT_SECONDS        ModelInterpreter over the routed gateway,
-      validates the result AGAIN               task class 'conversation', per-call budget cap
-      falls back to deterministic              returns the interpretation dict + metered cost
+    API (Vercel)                                  worker host (intake-worker)
+    ReservedWorkerInterpreter.interpret()
+      QUOTE   worst case of the bounded call
+      RESERVE reservation + outbox row (1 txn)  ->  RQ 'omni-intake', job id = reservation id
+      enqueue (fast path; relay is the backstop)    reservation_worker.execute_reservation():
+      wait <= OMNI_INTAKE_WAIT_SECONDS                claim -> EXECUTING -> one call -> settle
+      validate the stored result AGAIN against
+      the message; deterministic fallback otherwise
 
-Everything is OFF unless all of these are set (founder authorization):
-  API:    OMNI_INTAKE_MODEL=1, OMNI_INTAKE_VIA_WORKER=1, OMNI_INTAKE_MODEL_BUDGET_USD>0 (per project)
-  worker: OMNI_INTAKE_MODEL=1, OMNI_INTAKE_CALL_BUDGET_USD>0 (per message)
-The intake queue is separate from builds, so a running build never delays a
-customer's reply; the intake worker has no Docker socket and no sandbox.
+The worker holds the provider key; nothing is copied to Vercel. There is no
+unreserved path: the legacy message-only job refuses to run.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import time
-from decimal import Decimal
+import uuid
 
-from .interpreter import DeterministicInterpreter, Interpretation, ModelInterpreter, Proposal, validate_model_output
+from . import budget as B
+from .interpreter import (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS, PROMPT_VERSION, SYSTEM, DeterministicInterpreter,
+                          Interpretation, merge, validate_model_output)
 
 INTAKE_QUEUE = 'omni-intake'
-JOB = 'omni_prod.worker_tasks.execute_intake_interpretation'
+JOB = 'omni_prod.intake.reservation_worker.rq_execute'
+LEGACY_JOB = 'omni_prod.worker_tasks.execute_intake_interpretation'
 
 
-def execute(message: str, *, gateway_factory=None) -> dict:
-    """Worker side. Returns {'ok', 'raw', 'cost_usd', 'model', 'error'} -- the
-    raw model JSON is returned so the API validates it against the message."""
-    if os.getenv('OMNI_INTAKE_MODEL') != '1':
-        return {'ok': False, 'error': 'intake model disabled on the worker'}
-    cap = Decimal(os.getenv('OMNI_INTAKE_CALL_BUDGET_USD', '0') or '0')
-    if cap <= 0:
-        return {'ok': False, 'error': 'no per-message intake budget configured'}
-    if gateway_factory is None:
-        from ..model_policy import ModelUsePolicy
-        from ..model_runtime_config import ModelRuntimeConfig
-        from ..routed_gateway import RoutedModelGateway
-        cfg = ModelRuntimeConfig.from_env()
-        policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True, external_budget_usd=cap,
-                                max_external_calls_per_build=2)
-        gateway = RoutedModelGateway(ranked=cfg.catalog, routing_policy=cfg.routing, policy=policy)
-    else:
-        gateway = gateway_factory(cap)
-    from .interpreter import MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS, PROMPT_VERSION, SYSTEM
-    try:
-        raw = gateway.complete_json(system=SYSTEM, user=message[:MAX_MESSAGE_CHARS], max_tokens=MAX_OUTPUT_TOKENS,
-                                    task='conversation')
-    except Exception as exc:
-        return {'ok': False, 'error': f'{type(exc).__name__}: {str(exc)[:200]}'}
-    usage = getattr(gateway, 'last_usage', None)
-    records = getattr(getattr(gateway, 'recorder', None), 'records', []) or []
-    metered = sum((r.metered_cost_usd or Decimal('0') for r in records), Decimal('0'))
-    return {'ok': True, 'raw': raw, 'cost_usd': str(metered), 'prompt_version': PROMPT_VERSION,
-            'model': getattr(usage, 'model', None) or (records[-1].model if records else None)}
+def execute(message: str, **_ignored) -> dict:
+    """Legacy unreserved job (Wave A2). Refuses: every paid call needs a reservation."""
+    return {'ok': False, 'error': 'unreserved intake model calls are disabled (Issue #12); use reservations'}
 
 
-class WorkerInterpreter:
+class ReservedWorkerInterpreter:
     name = 'model-via-worker'
 
-    def __init__(self, enqueue, fetch, *, wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic):
-        self.enqueue, self.fetch = enqueue, fetch          # injected: RQ in production, doubles in tests
+    def __init__(self, service: B.ReservationService, enqueue, *, account_id: str, project_id: str,
+                 request_key: str | None, caps: B.Caps, lane: str = B.PRODUCTION, campaign_id: str | None = None,
+                 wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic):
+        self.svc, self.enqueue = service, enqueue
+        self.account_id, self.project_id, self.request_key = account_id, project_id, request_key
+        self.caps, self.lane, self.campaign_id = caps, lane, campaign_id
         self.wait = float(os.getenv('OMNI_INTAKE_WAIT_SECONDS', '8')) if wait_seconds is None else wait_seconds
         self.sleep, self.clock = sleep, clock
         self.fallback = DeterministicInterpreter()
 
+    def _key(self, message: str) -> str:
+        digest = hashlib.sha256(message.encode('utf-8')).hexdigest()[:24]
+        tail = self.request_key or uuid.uuid4().hex
+        return f'intake:{self.account_id}:{self.project_id}:{tail}:{digest}'[:300]
+
     def interpret(self, message: str, brief=None) -> Interpretation:
         base = self.fallback.interpret(message, brief)
+        user = message[:MAX_MESSAGE_CHARS]
         try:
-            job_id = self.enqueue(message)
-        except Exception as exc:
-            base.dropped.append(f'intake queue unavailable: {type(exc).__name__}')
+            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS)
+        except B.QuoteUnavailable as exc:
+            base.dropped.append(f'model not used: {exc}')
             return base
+        try:
+            r = self.svc.reserve(idempotency_key=self._key(message), account_id=self.account_id,
+                                 project_id=self.project_id, quote_=quote, caps=self.caps, lane=self.lane,
+                                 campaign_id=self.campaign_id,
+                                 payload={'system': SYSTEM, 'user': user, 'max_tokens': MAX_OUTPUT_TOKENS,
+                                          'prompt_version': PROMPT_VERSION})
+        except B.BudgetExceeded as exc:
+            base.dropped.append(f'model not used: budget {exc.scope.split(":")[0]} exhausted')
+            return base
+        except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
+            base.dropped.append(f'model not used: {type(exc).__name__}')
+            return base
+        if r.state == B.RESERVED:
+            try:
+                self.enqueue(r.id)
+                self.svc.mark_enqueued(r.id)
+            except Exception as exc:    # queue down: nothing was sent, so give the money back now
+                self.svc.release(r.id, reason=f'enqueue failed: {type(exc).__name__}')
+                base.dropped.append('model not used: intake queue unavailable')
+                base.reservation_id = r.id
+                return base
         deadline = self.clock() + self.wait
-        result = None
-        while self.clock() < deadline:
-            result = self.fetch(job_id)
-            if result is not None:
-                break
-            self.sleep(0.4)
-        if not result or not result.get('ok'):
-            base.dropped.append('model reply not available: ' + (result or {}).get('error', 'timeout'))
+        current = self.svc.get(r.id, account_id=self.account_id)
+        while current is not None and current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED) and \
+                self.clock() < deadline:
+            self.sleep(0.3)
+            current = self.svc.get(r.id, account_id=self.account_id)
+        base.reservation_id = r.id
+        if current is None or current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED):
+            base.dropped.append('model reply not available in time; cost settles on the reservation')
+            base.cost_usd, base.cost_state = None, 'PENDING'
             return base
-        model, dropped = validate_model_output(result.get('raw'), message)
+        if current.state == B.RELEASED:
+            base.dropped.append('model not used: ' + (current.failure_reason or 'released'))
+            return base
+        cost = None if current.actual_usd is None else str(current.actual_usd)
+        result = current.result or {}
+        if current.state == B.UNKNOWN or not result.get('ok'):
+            base.dropped.append('model reply not available: ' + str(result.get('error') or current.failure_reason)[:200])
+            base.cost_usd, base.cost_state = cost, current.cost_state
+            return base
+        model, _ = validate_model_output(result.get('raw'), message)
         if model is None:
             base.dropped.append('model output malformed; deterministic result used')
+            base.cost_usd, base.cost_state = cost, current.cost_state
             return base
-        merged = {p.field: p for p in model.proposals}
-        for p in base.proposals:
-            m = merged.get(p.field)
-            if m is None or (p.confidence == 'high' and m.value != p.value):
-                merged[p.field] = p
-        return Interpretation(model.language, model.product_family, list(merged.values()),
-                              model.delegate_rest or base.delegate_rest, model.requirements or base.requirements,
-                              f'model:{result.get("model") or "?"}+deterministic', dropped, str(result.get('cost_usd') or '0'))
+        return merge(base, model, interpreter=f'model:{current.model or "?"}+deterministic', cost_usd=current.actual_usd,
+                     cost_state=current.cost_state, reservation_id=r.id)
 
 
-def rq_worker_interpreter(redis_url: str) -> WorkerInterpreter:
-    from ..queueing import queue
-    q = queue(redis_url, INTAKE_QUEUE)
+def rq_enqueue(redis_url: str):
+    from ..queueing import enqueue_build
 
-    def enqueue(message):
-        return q.enqueue(JOB, message, job_timeout=60, result_ttl=300, failure_ttl=300).id
-
-    def fetch(job_id):
-        from rq.job import Job
-        job = Job.fetch(job_id, connection=q.connection)
-        status = job.get_status(refresh=True)
-        if status == 'finished':
-            return job.return_value()
-        if status in ('failed', 'stopped', 'canceled'):
-            return {'ok': False, 'error': f'job {status}'}
-        return None
-
-    return WorkerInterpreter(enqueue, fetch)
+    def enqueue(reservation_id: str):
+        enqueue_build(redis_url, JOB, reservation_id, job_id=reservation_id, queue_name=INTAKE_QUEUE, timeout=120)
+    return enqueue

@@ -1,106 +1,114 @@
-"""Real-model intake routed through the worker -- TEST DOUBLES ONLY.
-
-No provider is called here. These tests prove the wiring, the fail-closed
-switches, the re-validation on the API side and the fallback; they are not
-evidence of a live AI conversation."""
+"""Worker-routed intake (Issue #12): no unreserved path exists; the API-side
+interpreter reserves before enqueueing and degrades to deterministic on every
+failure. Unit level with a fake reservation service -- real PostgreSQL
+end-to-end coverage is in tests/test_intake_budget_pg.py. No provider calls."""
 import os
 import unittest
 from decimal import Decimal
 from unittest import mock
 
+from omni_prod.intake import budget as B
 from omni_prod.intake import worker_route as W
 
-
-class _Gateway:
-    def __init__(self, out):
-        self.out, self.calls = out, []
-        self.recorder = type('R', (), {'records': []})()
-        self.last_usage = None
-
-    def complete_json(self, **kw):
-        self.calls.append(kw)
-        if isinstance(self.out, Exception):
-            raise self.out
-        return self.out
+MSG = 'אני צריך אתר תורים בלי התחברות'
 
 
-class WorkerSideTests(unittest.TestCase):
-    def test_disabled_without_flag_or_budget(self):
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '0'}):
-            self.assertFalse(W.execute('x', gateway_factory=lambda cap: _Gateway({}))['ok'])
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '0'}):
-            self.assertIn('budget', W.execute('x', gateway_factory=lambda cap: _Gateway({}))['error'])
-
-    def test_uses_the_conversation_task_class_within_the_cap(self):
-        seen = {}
-        def factory(cap):
-            seen['cap'] = cap
-            return gw
-        gw = _Gateway({'language': 'en', 'product_family': 'web_app', 'proposals': []})
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.004'}):
-            out = W.execute('a booking site', gateway_factory=factory)
-        self.assertTrue(out['ok'])
-        self.assertEqual(seen['cap'], Decimal('0.004'))
-        self.assertEqual(gw.calls[0]['task'], 'conversation')
-        self.assertEqual(gw.calls[0]['max_tokens'], 700)        # intake-prompt/2 bound
-
-    def test_provider_error_is_reported_not_raised(self):
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.004'}):
-            out = W.execute('x', gateway_factory=lambda cap: _Gateway(RuntimeError('quota')))
+class LegacyPathTests(unittest.TestCase):
+    def test_unreserved_execution_is_refused_whatever_the_env(self):
+        env = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_CALL_BUDGET_USD': '1'}
+        with mock.patch.dict(os.environ, env):
+            out = W.execute(MSG, gateway_factory=lambda cap: self.fail('gateway must not be built'))
         self.assertFalse(out['ok'])
-        self.assertIn('quota', out['error'])
+        self.assertIn('reservation', out['error'])
+        from omni_prod import worker_tasks
+        with mock.patch.dict(os.environ, env):
+            self.assertFalse(worker_tasks.execute_intake_interpretation(MSG)['ok'])
+
+
+class FakeService:
+    def __init__(self, *, reserve_exc=None, final=None, never_settles=False):
+        self.reserve_exc, self.final, self.never = reserve_exc, final, never_settles
+        self.released, self.enqueued, self.reserved = [], [], []
+
+    def reserve(self, **kw):
+        if self.reserve_exc:
+            raise self.reserve_exc
+        self.reserved.append(kw)
+        return B.Reservation('irs_1', kw['idempotency_key'], kw['account_id'], kw['project_id'], kw['lane'], None,
+                             kw['quote_'].amount_usd, B.RESERVED)
+
+    def mark_enqueued(self, rid):
+        self.enqueued.append(rid)
+
+    def release(self, rid, *, reason):
+        self.released.append((rid, reason))
+        return True
+
+    def get(self, rid, account_id=None):
+        if self.never or self.final is None:
+            return B.Reservation(rid, 'k', 'acct', 'p', 'production', None, Decimal('0.004'), B.EXECUTING)
+        return self.final
+
+
+def interp(service, enqueue=lambda rid: None, wait=1.0):
+    ticks = iter([0.0] + [0.1 * i for i in range(1, 200)])
+    return W.ReservedWorkerInterpreter(service, enqueue, account_id='acct', project_id='p', request_key='rk',
+                                       caps=B.Caps(Decimal('1'), Decimal('1')), wait_seconds=wait,
+                                       sleep=lambda s: None, clock=lambda: next(ticks))
+
+
+def settled(state, cost_state, actual, result, model='gemini-3.1-flash-lite'):
+    return B.Reservation('irs_1', 'k', 'acct', 'p', 'production', None, Decimal('0.004'), state, cost_state, actual,
+                         None if state != B.UNKNOWN else 'timeout', None, 'gemini', model, result)
 
 
 class ApiSideTests(unittest.TestCase):
-    MSG = 'אני צריך אתר תורים בלי התחברות'
+    RAW = {'language': 'he', 'product_family': 'web_app', 'proposals': [
+        {'field': 'login', 'value': 'none', 'confidence': 'high', 'evidence': 'בלי התחברות'},
+        {'field': 'login_methods', 'value': 'email', 'confidence': 'high', 'evidence': 'מייל'}]}   # not in message
 
-    def _interp(self, result, wait=1.0):
-        clock = iter([0.0, 0.1, 0.2, 5.0, 9.0, 20.0])
-        return W.WorkerInterpreter(lambda m: 'job1', lambda j: result, wait_seconds=wait, sleep=lambda s: None,
-                                   clock=lambda: next(clock))
+    def test_settled_result_is_revalidated_merged_and_costed(self):
+        svc = FakeService(final=settled(B.SETTLED, B.ESTIMATED, Decimal('0.0012'), {'ok': True, 'raw': self.RAW}))
+        it = interp(svc).interpret(MSG)
+        self.assertEqual(svc.enqueued, ['irs_1'])
+        self.assertIn('login', {p.field for p in it.proposals})
+        self.assertNotIn('login_methods', {p.field for p in it.proposals})   # hallucinated evidence dropped
+        self.assertEqual((it.cost_usd, it.cost_state, it.reservation_id), ('0.0012', 'ESTIMATED', 'irs_1'))
+        self.assertTrue(it.interpreter.startswith('model:gemini-3.1-flash-lite'))
+        self.assertTrue(svc.reserved[0]['idempotency_key'].startswith('intake:acct:p:rk:'))
 
-    def test_valid_model_result_is_revalidated_and_merged(self):
-        raw = {'language': 'he', 'product_family': 'web_app', 'proposals': [
-            {'field': 'login', 'value': 'none', 'confidence': 'high', 'evidence': 'בלי התחברות'},
-            {'field': 'color', 'value': 'green', 'confidence': 'high', 'evidence': 'ירוק'}]}  # not in the message
-        it = self._interp({'ok': True, 'raw': raw, 'cost_usd': '0.0009', 'model': 'gemini-3.1-flash-lite'}).interpret(self.MSG)
-        fields = {p.field for p in it.proposals}
-        self.assertIn('login', fields)
-        self.assertNotIn('color', fields)                    # hallucinated evidence dropped on the API side
-        self.assertEqual(it.interpreter, 'model:gemini-3.1-flash-lite+deterministic')
-        self.assertEqual(it.cost_usd, '0.0009')
+    def test_unknown_cost_is_never_zero(self):
+        svc = FakeService(final=settled(B.UNKNOWN, B.COST_UNKNOWN, None, {'ok': False, 'error': 'TimeoutError'}))
+        it = interp(svc).interpret(MSG)
+        self.assertEqual((it.cost_usd, it.cost_state, it.interpreter), (None, 'UNKNOWN', 'deterministic'))
 
-    def test_timeout_or_failure_falls_back_to_deterministic(self):
-        it = self._interp(None).interpret(self.MSG)
-        self.assertEqual(it.interpreter, 'deterministic')
-        self.assertIn('timeout', it.dropped[-1])
-        it = self._interp({'ok': False, 'error': 'disabled'}).interpret(self.MSG)
-        self.assertIn('disabled', it.dropped[-1])
+    def test_timeout_leaves_cost_pending_on_the_reservation(self):
+        it = interp(FakeService(never_settles=True), wait=0.5).interpret(MSG)
+        self.assertEqual((it.cost_usd, it.cost_state, it.reservation_id), (None, 'PENDING', 'irs_1'))
 
-    def test_queue_down_falls_back(self):
-        def boom(m):
+    def test_enqueue_failure_releases_immediately(self):
+        def down(rid):
             raise ConnectionError('redis down')
-        it = W.WorkerInterpreter(boom, lambda j: None, wait_seconds=1).interpret(self.MSG)
-        self.assertEqual(it.interpreter, 'deterministic')
+        svc = FakeService()
+        it = interp(svc, enqueue=down).interpret(MSG)
+        self.assertEqual(svc.released[0][0], 'irs_1')
+        self.assertEqual((it.interpreter, it.cost_state), ('deterministic', 'CONFIRMED_ZERO'))
 
-    def test_supervisor_routes_to_worker_only_when_fully_authorized(self):
-        from omni_prod.conversation.store import MemoryConversationStore
-        from omni_prod.conversation.supervisor import ConversationSupervisor
-        from tests.test_conversation_os import MemoryBriefs
-        calls = []
-        fake = W.WorkerInterpreter(lambda m: calls.append(m) or 'j', lambda j: {'ok': False, 'error': 'x'}, wait_seconds=0)
-        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore(), worker_interpreter=fake)
-        env = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0'}
-        with mock.patch.dict(os.environ, env):
-            sup.turn(project_id='p', account_id='a', message='crm for my team')
-        self.assertEqual(calls, [])                          # no budget -> never enqueued
-        with mock.patch.dict(os.environ, {**env, 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05'}):
-            sup.turn(project_id='p', account_id='a', message='no daily cap')
-        self.assertEqual(calls, [])                          # no daily cap -> never enqueued
-        with mock.patch.dict(os.environ, {**env, 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
-                                          'OMNI_INTAKE_DAILY_BUDGET_USD': '0.50'}):
-            sup.turn(project_id='p', account_id='a', message='blue please')
-        self.assertEqual(calls, ['blue please'])
+    def test_budget_quote_and_db_failures_fall_back(self):
+        for exc in (B.BudgetExceeded('daily:global', Decimal('1'), Decimal('1'), Decimal('0.004')),
+                    B.IdempotencyConflict('x'), RuntimeError('relation "intake_reservations" does not exist')):
+            with self.subTest(exc=type(exc).__name__):
+                it = interp(FakeService(reserve_exc=exc)).interpret(MSG)
+                self.assertEqual(it.interpreter, 'deterministic')
+                self.assertTrue(any('model not used' in x for x in it.dropped))
+        with mock.patch.object(B, 'quote', side_effect=B.QuoteUnavailable('no price')):
+            it = interp(FakeService()).interpret(MSG)
+        self.assertIn('model not used: no price', it.dropped)
+
+    def test_malformed_model_output_falls_back_but_keeps_cost(self):
+        bad = {'ok': True, 'raw': {'proposals': 'not a list'}}
+        it = interp(FakeService(final=settled(B.SETTLED, B.CONFIRMED, Decimal('0.0009'), bad))).interpret(MSG)
+        self.assertEqual((it.interpreter, it.cost_usd, it.cost_state), ('deterministic', '0.0009', 'CONFIRMED'))
 
 
 if __name__ == '__main__':

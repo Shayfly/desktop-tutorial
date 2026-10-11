@@ -81,7 +81,9 @@ class Turn:
     plan_id: str | None = None
     contract: dict | None = None
     interpretation: dict | None = None
-    cost_usd: Decimal = Decimal('0')
+    cost_usd: Decimal | None = Decimal('0')       # None = UNKNOWN / PENDING (see cost_state)
+    cost_state: str = 'CONFIRMED_ZERO'
+    reservation_id: str | None = None
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -107,6 +109,9 @@ _TXT = {
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
+           'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
+           'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
+           'corrected': 'עדכנתי',
            'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
            'cost_unknown': 'אחשב עלות אחרי שהדרישות יהיו מלאות.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
@@ -120,6 +125,9 @@ _TXT = {
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
+           'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
+           'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
+           'corrected': 'Updated',
            'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
            'cost_unknown': 'I will calculate the cost once the requirements are complete.',
            'approve': 'To start, approve the summary and cost with "Approve and start building".',
@@ -139,7 +147,8 @@ def _label(field_: str, value, lang: str) -> str:
 
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
-                 budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None):
+                 budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
+                 reservations=None, enqueue=None):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
@@ -147,26 +156,37 @@ class ConversationSupervisor:
         self.credits = credits
         self.budget_usd = budget_usd
         self.context = context or (lambda project_id: {})   # durable build/version state (read-only)
-        self.worker_interpreter = worker_interpreter           # injected in tests; RQ in production
+        self.worker_interpreter = worker_interpreter           # injected in tests
+        self.reservations = reservations                       # intake.budget.ReservationService (migration 037)
+        self.enqueue = enqueue                                 # RQ enqueue of a reservation id
 
     # ------------------------------------------------------------------ helpers
-    def intake_mode(self, project_id):
+    def intake_mode(self, project_id, account_id=None):
+        from ..intake import budget as B
         from ..intake import mode as intake_mode
-        return intake_mode.resolve_with_spend(          # spend is read only when a model could run
-            lambda: (self.store.conversation_cost(project_id), self.store.daily_cost()),
-            has_direct_gateway=self.gateway is not None)
 
-    def _interpreter(self, project_id):
+        def spend():
+            if self.reservations is not None and account_id:
+                return (self.reservations.counted(f'project:{account_id}:{project_id}'),
+                        self.reservations.counted(B.DAILY_SCOPE))
+            return self.store.conversation_cost(project_id), self.store.daily_cost()
+        return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None)
+
+    def _interpreter(self, project_id, account_id=None, request_key=None):
+        """Every paid call goes through a durable reservation (Issue #12); without
+        the reservation service, authorization or budget the answer is deterministic."""
+        from ..intake import budget as B
         from ..intake import mode as intake_mode
-        m = self.intake_mode(project_id)
-        if m.mode == intake_mode.MODEL_WORKER:
-            if self.worker_interpreter is not None:
-                return self.worker_interpreter
-            from ..intake.worker_route import rq_worker_interpreter
-            return rq_worker_interpreter(os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0'))
-        if m.mode == intake_mode.MODEL_DIRECT:
-            return interpreter_from_env(self.gateway)
-        return DeterministicInterpreter()                  # fail closed: no authorization/budget -> $0
+        m = self.intake_mode(project_id, account_id)
+        if m.mode != intake_mode.MODEL_WORKER:
+            return DeterministicInterpreter()
+        if self.worker_interpreter is not None:
+            return self.worker_interpreter
+        if self.reservations is None or self.enqueue is None or not account_id:
+            return DeterministicInterpreter()
+        from ..intake.worker_route import ReservedWorkerInterpreter
+        return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
+                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env())
 
     def _plan(self, project_id, row):
         try:
@@ -211,20 +231,41 @@ class ConversationSupervisor:
             if row is not None:
                 turn.questions = intake_agent.apply(row.brief, DeterministicInterpreter().interpret('', row.brief),
                                                     infer_defaults=False).asked if intent == 'missing' else []
+        paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
                                                'actions': turn.actions, 'plan_id': turn.plan_id},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
-                               cost_usd=turn.cost_usd, request_key=request_key)
+                               cost_usd=turn.cost_usd, request_key=request_key,
+                               cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
         return turn
 
+    def _classify(self, project_id, row, message):
+        from ..intake import complexity, lanes
+        history = [m for m in self.store.messages_for(project_id, limit=9)]
+        if history and history[-1].get('role') == 'customer':
+            history = history[:-1]                        # the current message was stored at turn start
+        confirmed = {k: f['value'] for k, f in (row.brief.fields.items() if row else ())
+                     if f.get('source') in intake_agent.CONFIRMED_SOURCES}
+        det = DeterministicInterpreter().interpret(message, row.brief if row else None)
+        proposed = {p.field: p.value for p in det.proposals if p.confidence == 'high'}
+        c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
+        return c, lanes.choose(c.level)
+
     def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T) -> Turn:
-        interp = self._interpreter(project_id).interpret(message, row.brief if row else None) if message else None
+        from ..intake import lanes
+        cls, lane = (self._classify(project_id, row, message) if message else (None, None))
+        interp = None
+        if message:
+            source = (self._interpreter(project_id, account_id, request_key) if lane['lane'] == lanes.STANDARD
+                      else DeterministicInterpreter())
+            interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():
             brief = intake_agent.answer_question(brief, qid, value)
-        res = intake_agent.apply(brief, interp) if interp else intake_agent.apply(
+        sensitive = bool(lane and lane.get('requires_explicit_confirmation'))
+        res = intake_agent.apply(brief, interp, require_confirmation=sensitive) if interp else intake_agent.apply(
             brief, DeterministicInterpreter().interpret('', brief))
         new_brief = res.brief
         expected = row.revision if row else 0
@@ -233,11 +274,25 @@ class ConversationSupervisor:
                                    expected_revision=expected, request_key=request_key)
         turn = Turn('answer' if answers and not message else 'requirements', lang, '', row, res.asked)
         turn.interpretation = interp.to_dict() if interp else None
-        turn.cost_usd = Decimal(str(interp.cost_usd)) if interp else Decimal('0')
+        if turn.interpretation is not None:
+            turn.interpretation.update(complexity=cls.to_dict() if cls else None, lane=lane,
+                                       conflicts=res.conflicts, corrected=res.corrected)
+        if interp is not None:
+            turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
+            turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         parts = []
-        stated = [x for x in res.applied]
+        stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
+        if res.corrected:
+            parts.append(f'{T["corrected"]}: ' + '; '.join(_label(c['field'], c['new'], lang) for c in res.corrected[:4]) + '.')
+        for c in res.conflicts[:3]:
+            name = (d.BY_ID[c['field']].he if lang == 'he' else d.BY_ID[c['field']].en) if c['field'] in d.BY_ID else c['field']
+            if c['current'] is None:
+                parts.append(T['confirm_sensitive'].format(field=name))
+            else:
+                parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
+                                                  proposed=_label(c['field'], c['proposed'], lang)))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
         if short:
             more = len(res.assumed) - len(short[:3])

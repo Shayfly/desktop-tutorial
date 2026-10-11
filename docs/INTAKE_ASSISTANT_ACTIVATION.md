@@ -9,6 +9,14 @@ Status: implemented and tested with test doubles only. **No paid model call has 
 - Bounds per call: message truncated to 4,000 characters, reply ≤ 700 tokens.
 - The model never writes the brief or approves anything; the Supervisor's confidence policy still asks for login / personal data / access scope.
 
+## Issue #12 update — every paid call is a durable reservation
+
+Since Issue #12 a paid intake call happens only after a durable reservation. The flow is QUOTE → RESERVE → CLAIM → EXECUTE → SETTLE; see `docs/INTAKE_BUDGET_RESERVATIONS.md`. The reservation transaction is the hard cap check, and the table below is only a pre-check:
+- Greetings (LOW turns) never use a model.
+- The API additionally needs `OMNI_REDIS_URL` and the database; the worker needs `OMNI_DATABASE_URL`.
+- The `intake-maintain` service must run (outbox relay + lease reconciliation).
+- `OMNI_INTAKE_CALL_BUDGET_USD` is no longer what bounds a call: the quote is computed per message from the catalog and the source-backed prices (about $0.002–$0.0046 per message).
+
 ## Budget controls (all fail closed — `omni_prod/intake/mode.py`)
 | Variable | Where | Proposed value | Effect |
 |---|---|---|---|
