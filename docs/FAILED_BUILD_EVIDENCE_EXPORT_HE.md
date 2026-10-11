@@ -31,3 +31,7 @@ docker compose run --rm --no-deps -T worker python - bld_<hex> < /path/to/omni_p
 (a) היקף שגוי → `acceptance_scope_now` מול `defaults_applied`; (b) מיפוי חסר → `missing_acceptance_ids` מול `product_spec_acceptance` והצעדים הכשלים;
 (c) באג נתונים/HTTP → `verification_failures` ו-`failed_steps`; (d) responsive → האם הצעד נכשל או שלא נכתב;
 (e) תקיעה → האם `failed_steps` זהה בין הסבבים. רק אז תוצג מסקנה.
+
+## עדכון 2026-10-11 (שלב ב)
+הייצוא כולל עכשיו גם: הקבצים שנוצרו (`.omni/project.json`, רשימה עם sha256, טקסט מצונזר; `--files-dir` לחילוץ גולמי), הצעדים שנכשלו עם הראיות, שריון הקרדיט. ניתוח לא מקוון: `python -m omni_prod.failure_replay`.
+פירוט ומה שחסר להרצה: `docs/DEPLOY_RECOVERY_REHEARSAL_HE.md` סעיף 4.
