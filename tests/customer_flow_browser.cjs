@@ -11,6 +11,7 @@ const path=require('path');
    const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'customer_flow_fixture.json'),'utf8'));
    const calls=[];
    let failSend=false;
+   let blockedBuild=false,buildCalls=0;
    await page.route('**/*',async route=>{
     const u=new URL(route.request().url());
     if(u.pathname==='/api/v28/me')return route.fulfill({status:401,contentType:'application/json',body:'{}'});
@@ -19,7 +20,9 @@ const path=require('path');
      if(failSend){failSend=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:{error:'attachments_not_ready'}})});}
      return route.fulfill({contentType:'application/json',body:JSON.stringify({messages:[],discovery:fixture,turn:{actions:[]}})});
     }
-    if(u.pathname.includes('/build-contracts'))return route.fulfill({contentType:'application/json',body:JSON.stringify({can_build:true,brief_revision:1,capabilities:[],infrastructure:[],product:{},blockers:[],clarification_questions:[]})});
+    if(u.pathname.includes('/approvals')){blockedBuild=true;return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:{error:'capability_not_feasible',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}})});}
+    if(u.pathname.endsWith('/builds')){buildCalls++;return route.fulfill({status:500,body:'{}'});}
+    if(u.pathname.includes('/build-contracts'))return route.fulfill({contentType:'application/json',body:JSON.stringify({can_build:!blockedBuild,brief_revision:1,capabilities:[],infrastructure:[],product:{},blockers:blockedBuild?[{code:'capability_not_feasible',message:'unsupported',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}]:[],clarification_questions:[]})});
     if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:fs.readFileSync(process.env.BASELINE_HTML||path.join(__dirname,'../omni_prod/assets/index.html'),'utf8')});
     if(u.pathname==='/assets/app.js' && process.env.BASELINE_APP)return route.fulfill({path:process.env.BASELINE_APP});
     if(u.pathname.startsWith('/assets/'))return route.fulfill({path:path.join(__dirname,'../omni_prod',u.pathname)});
@@ -50,6 +53,13 @@ const path=require('path');
    assert.equal(await page.locator('#chatInput').inputValue(),'תשתמש בזה כלוגו','failed send retains customer text');
    await page.evaluate(async()=>{await sendChat({message:'תשתמש בזה כלוגו',attachment_ids:['att_fixture']},'תשתמש בזה כלוגו');});
    assert.equal(calls[1].request_key,calls[2].request_key,'retry cannot create a second paid turn');
+   await page.locator('#confirmBtn').click();
+   await page.waitForFunction(()=>!buildStarting&&S.plan&&!S.plan.can_build);
+   assert.equal(buildCalls,0,'blocked approval starts no build');
+   assert.equal(await page.locator('#progressPanel').evaluate(el=>el.hidden),true,'no fake build progress');
+   assert.equal(await page.locator('#confirmBtn').isDisabled(),true,'fresh quote blocks approval');
+   assert.match(await page.locator('#planMsg').textContent(),/הבנייה לא התחילה/);
+   assert.match(await page.locator('#planPanel').textContent(),/התחברות והרשאות/);
    if(width===390){
     await page.evaluate(()=>{S.projects=[{id:'p',title:'פרויקט בדיקה'},{id:'other',title:'פרויקט נוסף'}];renderProjects();});
     for(const pane of ['chat','preview','edit']){

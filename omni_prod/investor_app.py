@@ -2073,6 +2073,21 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
+    """Expose the build-admission gate before showing an approval button.
+    Deterministic/free; does not reserve credits or start a build."""
+    try:
+        _bind_execution_plan(project_id, row.fingerprint)
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid'}:
+            raise
+        preview['can_build'] = False
+        preview['blockers'].append({'code': detail['error'],
+                                    'message': 'The approved requirements cannot be built yet. Review the unsupported requirements.',
+                                    'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})
+
+
 @app.post('/api/v28/projects/{project_id}/approvals')
 def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Request) -> dict:
     """"Approve and start building": binds user, project, brief revision +
@@ -2081,6 +2096,7 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     from .brief_repository import ApprovalError
     account = _discovery_account(request, project_id)
     _, row = _brief_prompt(project_id, req.brief_revision)
+    _bind_execution_plan(project_id, row.fingerprint)
     contracts = PostgresBuildContractRepository(_v28_pool)
     try:
         contract = contracts.get(req.build_contract_id, project_id=project_id)
@@ -2136,8 +2152,9 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         return quote
 
     prompt = req.prompt
+    brief_row = None
     if req.brief_revision is not None:
-        prompt, _ = _brief_prompt(project_id, req.brief_revision)
+        prompt, brief_row = _brief_prompt(project_id, req.brief_revision)
     preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
         economics=economics,
@@ -2148,6 +2165,8 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['credits_required'] = _M5_BUILD_CREDITS
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
+    if brief_row is not None:
+        _apply_execution_plan_gate(preview, project_id, brief_row)
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')

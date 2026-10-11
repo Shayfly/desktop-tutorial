@@ -92,6 +92,31 @@ class DiscoveryEndpointTests(unittest.TestCase):
         self.assertIn(row.fingerprint[:16], prompt)
         self.assertIn('Sign-in: NONE', prompt)
 
+    def test_quote_exposes_the_same_capability_block_as_build_admission(self):
+        preview={'can_build':True,'blockers':[]}
+        error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
+        with patch.object(investor_app,'_bind_execution_plan',side_effect=error):
+            investor_app._apply_execution_plan_gate(preview,'prj_1',SimpleNamespace(fingerprint='fp'))
+        self.assertFalse(preview['can_build'])
+        self.assertEqual(preview['blockers'][0]['code'],'capability_not_feasible')
+        self.assertEqual(preview['blockers'][0]['findings'][0]['item'],'sign-in (roles)')
+
+    def test_execution_gate_does_not_turn_server_errors_into_customer_blockers(self):
+        with patch.object(investor_app,'_bind_execution_plan',side_effect=investor_app.HTTPException(503,'storage')):
+            with self.assertRaises(investor_app.HTTPException) as ctx:
+                investor_app._apply_execution_plan_gate({'can_build':True,'blockers':[]},'prj_1',SimpleNamespace(fingerprint='fp'))
+        self.assertEqual(ctx.exception.status_code,503)
+
+    def test_real_quote_endpoint_blocks_unsupported_execution_before_approval(self):
+        investor_app.v28_discovery_start('prj_1',investor_app.V28DiscoveryStart(prompt='מערכת משימות',mode='recommend'),self.req)
+        error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
+        with patch.object(investor_app,'_bind_execution_plan',side_effect=error), \
+             patch.object(investor_app,'_internal_qa_funding',return_value=(None,False)), \
+             patch.object(investor_app,'build_plan_preview',return_value={'can_build':True,'blockers':[]}):
+            view=investor_app.v28_build_contract_preview('prj_1',investor_app.V28PlanRequest(prompt='מערכת משימות',brief_revision=1),self.req)
+        self.assertFalse(view['can_build'])
+        self.assertEqual(view['blockers'][0]['code'],'capability_not_feasible')
+
 
 if __name__ == '__main__':
     unittest.main()

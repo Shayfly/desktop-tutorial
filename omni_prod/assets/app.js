@@ -264,6 +264,9 @@ function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
+  if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
+    ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
+    : 'The build did not start: a requirement is not supported yet. Review the plan blockers or edit the request.';
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -401,7 +404,7 @@ async function submitNewProject(e) {
 async function selectProject(id) {
   Object.values(S.timers).forEach(clearTimeout); S.timers = {};
   S.projectId = id || ''; localStorage.setItem('148ai_project', S.projectId);
-  S.plan = null; S.build = null; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
+  S.plan = null; S.build = null; S.buildAdmissionError = ''; S.preview = null; S.previewId = null; S.mod = null; S.versions = []; S.newBuildOpen = false;
   S.disc = null; S.editQ = null; S.editDraft = null; S.chatRetry = null; S.answerRetry = null; S.chat = null; S.arch = null; S.tasks = null; S.tab = null;
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
@@ -625,6 +628,8 @@ function renderPlan() {
   }
   if (p.blockers.length) {
     const title = b => {
+      if(b.code==='capability_not_feasible')return S.lang==='he'?'אחת הדרישות עדיין אינה נתמכת. יש לערוך אותה או להמתין להשלמת היכולת.':'A requirement is not supported yet. Edit it or wait for support.';
+      if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
       if (b.code.startsWith('infrastructure_')) {
         const kind = (p.infrastructure.find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
         return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
@@ -634,6 +639,7 @@ function renderPlan() {
     };
     const titles = [...new Set(p.blockers.map(title))];
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
+      ...p.blockers.flatMap(b=>(b.findings||[]).filter(f=>f&&typeof f.item==='string').map(f=>h('p',{},findingLabel(f)))),
       h('details', { class: 'tech' }, h('summary', {}, t('operatorDetails')),
         h('ul', { dir: 'ltr' }, p.blockers.map(b => h('li', {}, h('code', {}, b.code), ': ', b.message)))));
   }
@@ -643,6 +649,7 @@ function renderPlan() {
     h('button', { class: 'secondary', onclick: () => {
       if (S.disc) { beginBriefEdit(); }
       else $('chatInput').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
+  kids.push(h('p',{id:'planMsg',class:'msg',role:'alert'},S.buildAdmissionError||''));
   panel.replaceChildren(...kids);
 }
 
@@ -654,6 +661,7 @@ async function startBuild() {
   // One click = one request; the server also returns the existing build for
   // an already-approved plan instead of starting a second one.
   buildStarting = true;
+  S.buildAdmissionError='';
   $('buildMsg').textContent = '';
   try {
     // Directive 2026-10-09 §5: the server binds this approval to the user,
@@ -671,7 +679,11 @@ async function startBuild() {
     renderPlan(); renderTrack(); renderBuilt(); openTab('build'); pollBuild();
     if (d.duplicate) $('buildMsg').textContent = t('duplicateBuild');
   } catch (e) {
-    $('progressPanel').hidden = false; $('buildMsg').textContent = explain(e);
+    if(!S.build){
+      S.buildAdmissionError=explain(e);
+      if(e.status===409)await requestBriefPlan(false);
+      renderPlan();renderTrack();openTab('plan');
+    }else $('buildMsg').textContent=explain(e);
   } finally {
     buildStarting = false;
   }
@@ -736,7 +748,7 @@ async function cancelBuild() {
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
   const panel = $('progressPanel');
-  if (!S.plan && !S.build) { panel.hidden = true; return; }
+  if (!S.build) { panel.hidden = true; return; }
   panel.hidden = false;
   const b = S.build; const ev = (b && b.evidence) || {};
   const status = b ? String(b.status).toLowerCase() : null;
@@ -1276,6 +1288,7 @@ const TABS = [['built', ['builtPanel', 'newBuildRow']], ['req', ['discoveryPanel
   ['build', ['progressPanel']], ['change', ['modifyPanel']], ['versions', ['versionsPanel']], ['details', ['evidencePanel']]];
 function renderTabs() {
   const nav = $('ctxTabs'); if (!nav) return;
+  $('ctxTitle').textContent=S.tab==='req'?t('editAll'):S.tab?t(`tab_${S.tab}`):t('editAll');
   const avail = TABS.filter(([, ids]) => ids.some(id => $(id) && !$(id).hidden));
   if (S.tab && !avail.find(([k]) => k === S.tab)) S.tab = null;
   nav.replaceChildren(...avail.map(([k]) => h('button', { type: 'button', 'aria-selected': S.tab === k ? 'true' : 'false',
