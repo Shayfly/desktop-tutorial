@@ -1,0 +1,155 @@
+{
+ "kind": "deployment",
+ "target": "http://127.0.0.1:8149",
+ "environment": "development",
+ "commit_sha": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+ "checks": [
+  {
+   "check": "deployment_endpoint",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "startup",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "commit_sha",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "deployment_identity",
+   "evidence": {
+    "source_commit": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+    "expected": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+    "branch": null
+   },
+   "reason": ""
+  },
+  {
+   "check": "schema_compatible",
+   "status": "FAIL",
+   "mandatory": true,
+   "category": "migration_compatibility",
+   "evidence": {
+    "required": 36,
+    "required_name": "036_intelligence_plane",
+    "applied_max": 35,
+    "missing": [
+     36
+    ],
+    "status": "MIGRATIONS_PENDING",
+    "compatible": false
+   },
+   "reason": ""
+  },
+  {
+   "check": "register_synthetic_user",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "critical_api",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "create_project",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "conversation_turn",
+   "status": "FAIL",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 503,
+    "error": {
+     "error": "conversation_not_ready",
+     "missing_migration": "036_intelligence_plane",
+     "message": "The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work."
+    }
+   },
+   "reason": ""
+  },
+  {
+   "check": "conversation_persists",
+   "status": "FAIL",
+   "mandatory": true,
+   "category": "data_integrity",
+   "evidence": {
+    "status": 503,
+    "messages": 0
+   },
+   "reason": ""
+  },
+  {
+   "check": "project_memory",
+   "status": "FAIL",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 503
+   },
+   "reason": ""
+  },
+  {
+   "check": "unauthenticated_denied",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "auth_bypass",
+   "evidence": {
+    "status": 401
+   },
+   "reason": ""
+  },
+  {
+   "check": "cross_user_isolation",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "cross_user_exposure",
+   "evidence": {
+    "other_user_status": 403
+   },
+   "reason": ""
+  }
+ ],
+ "artifact_sha256": null,
+ "build_id": null,
+ "project_id": null,
+ "suites": {
+  "deployment_verify": "deployment-verify/2"
+ },
+ "cost_usd": "0",
+ "started_at": 1791695402.917683,
+ "finished_at": 1791695402.917687,
+ "ttl_seconds": 86400,
+ "verdict": "FAILED",
+ "reason": "failed: schema_compatible, conversation_turn, conversation_persists, project_memory",
+ "schema": "verification-result/1",
+ "policy_version": "verification-policy/1",
+ "summary": {
+  "executed": 10,
+  "passed": 6,
+  "failed": [
+   "schema_compatible",
+   "conversation_turn",
+   "conversation_persists",
+   "project_memory"
+  ],
+  "skipped": [],
+  "critical_blockers": [
+   "schema_compatible",
+   "conversation_turn",
+   "conversation_persists",
+   "project_memory"
+  ],
+  "warnings": []
+ }
+}

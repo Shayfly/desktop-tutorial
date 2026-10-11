@@ -1,0 +1,143 @@
+{
+ "kind": "deployment",
+ "target": "http://127.0.0.1:8148",
+ "environment": "development",
+ "commit_sha": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+ "checks": [
+  {
+   "check": "deployment_endpoint",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "startup",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "commit_sha",
+   "status": "FAIL",
+   "mandatory": true,
+   "category": "deployment_identity",
+   "evidence": {
+    "source_commit": "0b666817b88bb6abca896aba3132e5f5c1c3e05c",
+    "expected": "67a0765",
+    "branch": null
+   },
+   "reason": ""
+  },
+  {
+   "check": "schema_compatible",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "migration_compatibility",
+   "evidence": {
+    "required": 36,
+    "required_name": "036_intelligence_plane",
+    "applied_max": 36,
+    "missing": [],
+    "status": "COMPATIBLE",
+    "compatible": true
+   },
+   "reason": ""
+  },
+  {
+   "check": "register_synthetic_user",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "critical_api",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "create_project",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "conversation_turn",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 200,
+    "error": null
+   },
+   "reason": ""
+  },
+  {
+   "check": "conversation_persists",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "data_integrity",
+   "evidence": {
+    "status": 200,
+    "messages": 2
+   },
+   "reason": ""
+  },
+  {
+   "check": "project_memory",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "core_journey",
+   "evidence": {
+    "status": 200
+   },
+   "reason": ""
+  },
+  {
+   "check": "unauthenticated_denied",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "auth_bypass",
+   "evidence": {
+    "status": 401
+   },
+   "reason": ""
+  },
+  {
+   "check": "cross_user_isolation",
+   "status": "PASS",
+   "mandatory": true,
+   "category": "cross_user_exposure",
+   "evidence": {
+    "other_user_status": 403
+   },
+   "reason": ""
+  }
+ ],
+ "artifact_sha256": null,
+ "build_id": null,
+ "project_id": null,
+ "suites": {
+  "deployment_verify": "deployment-verify/2"
+ },
+ "cost_usd": "0",
+ "started_at": 1791695403.416419,
+ "finished_at": 1791695403.4164224,
+ "ttl_seconds": 86400,
+ "verdict": "FAILED",
+ "reason": "failed: commit_sha",
+ "schema": "verification-result/1",
+ "policy_version": "verification-policy/1",
+ "summary": {
+  "executed": 10,
+  "passed": 9,
+  "failed": [
+   "commit_sha"
+  ],
+  "skipped": [],
+  "critical_blockers": [
+   "commit_sha"
+  ],
+  "warnings": []
+ }
+}
