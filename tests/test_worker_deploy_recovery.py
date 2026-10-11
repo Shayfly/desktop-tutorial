@@ -260,7 +260,6 @@ class BackupSchedulerTests(unittest.TestCase):
 
 
 
-@unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'needs M4D2_DATABASE_URL')
 def gate_stub(codes):
     """A stand-in for the gate command: returns the exit codes in order (the last one repeats)."""
     d = Path(tempfile.mkdtemp())
@@ -341,6 +340,7 @@ class ActiveJobGateTests(unittest.TestCase):
         from omni_prod import active_jobs as A
         return A.snapshot(conn, redis or _RqFree(), **kw)
 
+    @unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
     def test_database_state_blocks_regardless_of_heartbeat_and_queued_work_does_not(self):
         import psycopg
         import uuid
@@ -368,6 +368,7 @@ class ActiveJobGateTests(unittest.TestCase):
             finally:
                 conn.rollback()
 
+    @unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
     def test_intake_and_preview_consumers_are_covered(self):
         import psycopg
         import uuid
@@ -398,6 +399,7 @@ class ActiveJobGateTests(unittest.TestCase):
             finally:
                 conn.rollback()
 
+    @unittest.skipUnless(os.environ.get('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
     def test_missing_information_blocks_and_is_never_quiet(self):
         import psycopg
         from omni_prod import active_jobs as A
