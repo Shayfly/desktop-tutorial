@@ -20,6 +20,10 @@
   ```
 - Tests: `python -m pytest tests/test_intelligence_plane.py tests/test_conversation_os.py tests/test_economics_report.py -q` (live PostgreSQL parts need `M4D2_DATABASE_URL`). UI: start the app with Postgres (migrations through 036), then `OMNI_UI_BASE=http://127.0.0.1:8148 python tools/ui_conversation_walkthrough.py <dir>`.
 
+### 03:30 update — merge blocked here, first-AI-test procedure
+- PR #8 verified mergeable, CI green on `8fe5998`, integration head `67a0765`; the merge/fast-forward was refused by this session's safety layer. **The founder merges PR #8** (button on GitHub). Then: watch deploy-worker on the integration branch (migration 036, worker SHA in the annotations), run `postdeploy-checks stage=free`, open the Vercel Preview of `milestone/pre-staging-2026-10-05` and run `tools/ui_conversation_walkthrough.py` against it (OMNI_UI_BASE + a protection-bypass link).
+- Real AI conversation (branch `claude/wave-a2-worker-intake-2026-10-11`, `3194ecd`): merge after PR #8; then the founder sets in `WORKER_ENV_OVERRIDES`: `OMNI_INTAKE_MODEL=1`, `OMNI_INTAKE_CALL_BUDGET_USD=0.004`; on Vercel Preview (plain, non-secret): `OMNI_INTAKE_MODEL=1`, `OMNI_INTAKE_VIA_WORKER=1`, `OMNI_INTAKE_MODEL_BUDGET_USD=0.05`. Cost per message (cheapest eligible: gemini-3.1-flash-lite $0.25/$1.50 per 1M): ~1,000 input + ~300 output tokens ≈ $0.0007; hard max (1,200 output tokens) ≈ $0.0021; a 10-message test ≈ $0.01 (max ≈ $0.03); the 12-case benchmark ≈ $0.01.
+
 ### Exact next actions (in order)
 1. Check CI (`v24-ci`, `V11 Overlay CI`) for the branch head; fix any failure (local env cannot install from PyPI; CI is the authority).
 2. Open/refresh the PR `claude/wave-a-intelligence-platform-2026-10-11` → `milestone/pre-staging-2026-10-05` (do not push to the integration branch directly). PR #7 is already contained in this branch.

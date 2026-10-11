@@ -48,7 +48,8 @@ BLOCKING_CATEGORIES = (
 # Mandatory checks of a post-deployment verification (tools/deployment_verify.py).
 # The promotion gate takes required lists from code like this, never from evidence.
 DEPLOYMENT_REQUIRED_CHECKS = (
-    'deployment_endpoint', 'commit_sha', 'schema_compatible', 'register_synthetic_user', 'create_project',
+    'deployment_endpoint', 'commit_sha', 'schema_compatible', 'register_synthetic_user', 'session_identity',
+    'create_project',
     'conversation_turn', 'conversation_persists', 'project_memory', 'unauthenticated_denied',
     'cross_user_isolation')
 

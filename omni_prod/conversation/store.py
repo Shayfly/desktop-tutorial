@@ -10,6 +10,7 @@ Writes are idempotent per request_key (a retried send never duplicates).
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from decimal import Decimal
 
@@ -43,13 +44,16 @@ class MemoryConversationStore:
         self.plans: dict[tuple[str, str], dict] = {}
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
-                    interpreter='deterministic', cost_usd=Decimal('0'), request_key=None) -> dict:
+                    interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
+                    reservation_id=None) -> dict:
         for m in self.messages:
             if request_key and m['project_id'] == project_id and m['request_key'] == request_key and m['role'] == role:
                 return m
         row = {'id': len(self.messages) + 1, 'project_id': project_id, 'account_id': account_id, 'role': role,
                'content': content[:8000], 'brief_revision': brief_revision, 'interpretation': interpretation or {},
-               'interpreter': interpreter, 'cost_usd': str(cost_usd), 'request_key': request_key}
+               'interpreter': interpreter, 'cost_usd': None if cost_usd is None else str(cost_usd),
+               'request_key': request_key, 'created_at': time.time(), 'cost_state': cost_state,
+               'reservation_id': reservation_id}
         self.messages.append(row)
         return row
 
@@ -61,7 +65,14 @@ class MemoryConversationStore:
                      and m['role'] == 'assistant'), None)
 
     def conversation_cost(self, project_id) -> Decimal:
-        return sum((Decimal(m['cost_usd']) for m in self.messages if m['project_id'] == project_id), Decimal('0'))
+        return sum((Decimal(m['cost_usd']) for m in self.messages if m['project_id'] == project_id
+                    and m['cost_usd'] is not None), Decimal('0'))
+
+    def daily_cost(self, *, now: float | None = None) -> Decimal:
+        """Intake model spend across all projects in the last 24 hours."""
+        since = (time.time() if now is None else now) - 86400
+        return sum((Decimal(m['cost_usd']) for m in self.messages if m.get('created_at', 0) >= since
+                    and m['cost_usd'] is not None), Decimal('0'))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
         key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'])
@@ -83,19 +94,26 @@ class PostgresConversationStore:
 
     def _row(self, r) -> dict:
         d = dict(zip([c.strip() for c in self._MSG.split(',')], r))
-        d['cost_usd'] = str(d['cost_usd'])
+        d['cost_usd'] = None if d['cost_usd'] is None else str(d['cost_usd'])
         return d
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
-                    interpreter='deterministic', cost_usd=Decimal('0'), request_key=None) -> dict:
+                    interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
+                    reservation_id=None) -> dict:
+        # The reservation columns (migration 037) are written only for paid turns, which
+        # cannot happen without 037; deterministic turns stay compatible with a 036 schema.
+        extra_cols, extra_vals = '', ()
+        if cost_state is not None or reservation_id is not None:
+            extra_cols, extra_vals = ', cost_state, reservation_id', (cost_state, reservation_id)
         with self.pool.connection() as conn:
             with conn.transaction():
                 r = conn.execute(
                     f'INSERT INTO intake_messages (project_id, account_id, role, content, brief_revision, interpretation, '
-                    f'interpreter, cost_usd, request_key) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s) '
+                    f'interpreter, cost_usd, request_key{extra_cols}) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s'
+                    f'{", %s, %s" if extra_cols else ""}) '
                     f'ON CONFLICT (project_id, request_key, role) WHERE request_key IS NOT NULL DO NOTHING RETURNING {self._MSG}',
                     (project_id, account_id, role, content[:8000], brief_revision, json.dumps(interpretation or {}, default=str),
-                     interpreter, cost_usd, request_key)).fetchone()
+                     interpreter, cost_usd, request_key) + extra_vals).fetchone()
                 if r is None:
                     r = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND request_key = %s AND role = %s',
                                      (project_id, request_key, role)).fetchone()
@@ -118,6 +136,13 @@ class PostgresConversationStore:
     def conversation_cost(self, project_id) -> Decimal:
         with self.pool.connection() as conn:
             v = conn.execute('SELECT COALESCE(sum(cost_usd), 0) FROM intake_messages WHERE project_id = %s', (project_id,)).fetchone()[0]
+        return Decimal(str(v))
+
+    def daily_cost(self, *, now: float | None = None) -> Decimal:
+        """Intake model spend across all projects in the last 24 hours."""
+        with self.pool.connection() as conn:
+            v = conn.execute("SELECT COALESCE(sum(cost_usd), 0) FROM intake_messages "
+                             "WHERE created_at >= now() - interval '24 hours'").fetchone()[0]
         return Decimal(str(v))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:

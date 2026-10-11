@@ -36,6 +36,19 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(found, EXPECTED_VERSIONS, 'update omni_prod/schema_manifest.py with the new migration')
         self.assertEqual(REQUIRED_MIGRATION, max(found))
 
+    def test_single_compatibility_rule(self):
+        from omni_prod.schema_manifest import compatibility
+        full = compatibility(EXPECTED_VERSIONS)
+        self.assertEqual((full['status'], full['missing'], full['unknown_applied']), ('COMPATIBLE', [], []))
+        pending = compatibility([v for v in EXPECTED_VERSIONS if v != 37])     # deployed code ahead of the DB
+        self.assertEqual((pending['compatible'], pending['missing']), (False, [37]))
+        ahead = compatibility(list(EXPECTED_VERSIONS) + [38])                   # DB ahead of this code
+        self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [38]))
+        self.assertEqual(compatibility([])['missing'], list(EXPECTED_VERSIONS))
+        import inspect
+        from omni_prod import postdeploy_checks
+        self.assertIn('compatibility(versions)', inspect.getsource(postdeploy_checks.stage_free))  # one rule, reused
+
 
 def C(name, status, mandatory=True, reason=''):
     return vc.CheckResult(check=name, status=status, mandatory=mandatory,
@@ -249,7 +262,8 @@ class ForgedEvidenceTests(unittest.TestCase):
 
     def test_forged_self_authorizing_na_policy(self):
         checks = [{'check': n, 'status': 'PASS', 'mandatory': True} for n in vc.DEPLOYMENT_REQUIRED_CHECKS]
-        checks[5] = {'check': 'conversation_turn', 'status': 'NOT_APPLICABLE', 'mandatory': True, 'reason': 'x'}
+        i = vc.DEPLOYMENT_REQUIRED_CHECKS.index('conversation_turn')       # by name, not position
+        checks[i] = {'check': 'conversation_turn', 'status': 'NOT_APPLICABLE', 'mandatory': True, 'reason': 'x'}
         r = self.base(checks, vc.VERIFIED_WITH_ADVISORIES, required=list(vc.DEPLOYMENT_REQUIRED_CHECKS),
                       na_policy={'version': 'forged/1', 'allowed': ['conversation_turn'], 'reason': 'trust me'})
         ok, why = self.gate(r)
@@ -301,7 +315,8 @@ class _Stub:
         self.f = {'sha': SHA, 'env': 'preview', 'compatible': True, 'conversation_status': 200, 'leak': False,
                   'protected': False, 'bypass_ok': 'synthetic-bypass', 'anon_ok': False, 'redirect_to': None,
                   'set_cookie': False, 'sleep_on': None, 'drop_on': None, 'huge_on': None, 'html_on': None,
-                  'no_token': False, 'reject_tokens': False, 'project_id': None, 'echo_auth': False, **faults}
+                  'no_token': False, 'reject_tokens': False, 'project_id': None, 'echo_auth': False,
+                  'me_wrong_user': False, 'bad_contract': False, **faults}
         self.tokens, self.owner, self.messages, self.seen = {}, {}, {}, []
         stub = self
 
@@ -358,6 +373,12 @@ class _Stub:
                     stub.tokens[tok] = body['email']
                     return self._send(200, {} if stub.f['no_token'] else {'token': tok}, extra=cookie)
                 user = self._user()
+                if path == '/api/v28/me':
+                    if not user:
+                        return self._send(401, {'detail': 'authentication required'})
+                    if stub.f['me_wrong_user']:
+                        user = 'someone-else@example.com'
+                    return self._send(200, {'id': 'u1', 'email': user, 'created_at': 't', 'subscription': {}})
                 if path == '/api/v28/projects':
                     if not user:
                         return self._send(401, {'detail': 'authentication required'})
@@ -380,7 +401,11 @@ class _Stub:
                     if method == 'POST':
                         stub.messages.setdefault(pid, []).extend(['u', 'a'])
                         return self._send(200, {'turn': {'reply': 'ok'}})
-                    return self._send(200, {'messages': stub.messages.get(pid, [])})
+                    body = {'messages': stub.messages.get(pid, []), 'discovery': None, 'plan': None, 'plan_id': None,
+                            'interpreter': 'deterministic'}
+                    if stub.f['bad_contract']:
+                        body.pop('interpreter')
+                    return self._send(200, body)
                 if path.endswith('/memory'):
                     return self._send(200, {'schema': 'project-memory/1'})
                 return self._send(404, {})
@@ -476,6 +501,13 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assert_not_promotable(r)
 
     # --- access control and credentials -----------------------------------
+    def test_pr9_contracts_session_identity_and_conversation_shape(self):
+        r = self.run_stub(me_wrong_user=True)                       # session resolves to someone else
+        self.assertEqual((r['verdict'], self.status(r, 'session_identity')), (vc.FAILED, vc.FAIL))
+        r = self.run_stub(bad_contract=True)                        # 200 with a broken response shape
+        self.assertEqual((r['verdict'], self.status(r, 'conversation_persists')), (vc.FAILED, vc.FAIL))
+        self.assertFalse(self.ev(r, 'conversation_persists')['contract_ok'])
+
     def test_cross_user_exposure_and_auth_bypass_fail(self):
         self.assertEqual(self.status(self.run_stub(leak=True), 'cross_user_isolation'), vc.FAIL)
         self.assertEqual(self.status(self.run_stub(anon_ok=True), 'unauthenticated_denied'), vc.FAIL)

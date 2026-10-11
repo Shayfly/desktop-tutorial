@@ -1470,3 +1470,11 @@ def stop_preview_task(preview_id: str) -> None:
         provider=DockerPreviewProvider(workspace=_v28.engine.workspace),
         this_host=preview_runtime_host(),
     )
+
+
+def execute_intake_interpretation(message: str) -> dict:
+    """RQ entrypoint on the 'omni-intake' queue (intake-worker service).
+    Disabled unless the worker has OMNI_INTAKE_MODEL=1 and a per-message
+    OMNI_INTAKE_CALL_BUDGET_USD; see omni_prod.intake.worker_route."""
+    from .intake.worker_route import execute
+    return execute(message)

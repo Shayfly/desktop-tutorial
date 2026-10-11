@@ -9,7 +9,7 @@ the conversation with HTTP 500 on 2026-10-11).
 Real HTTP against the real deployment, synthetic users only (never customer
 data), $0 (no build, no model call). Checks (all mandatory, always reported):
   deployment_endpoint, commit_sha, schema_compatible, register_synthetic_user,
-  create_project, conversation_turn, conversation_persists, project_memory,
+  session_identity, create_project, conversation_turn, conversation_persists, project_memory,
   unauthenticated_denied, cross_user_isolation
 Output: canonical verification-result/1 (omni_prod/verification_contract).
 A mandatory check that did not run is NOT_RUN with a reason and makes the
@@ -61,6 +61,7 @@ SUITE_VERSION = 'deployment-verify/3'
 REQUIRED_CHECKS = DEPLOYMENT_REQUIRED_CHECKS
 CATEGORY = {'deployment_endpoint': 'startup', 'commit_sha': 'deployment_identity',
             'schema_compatible': 'migration_compatibility', 'register_synthetic_user': 'critical_api',
+            'session_identity': 'auth_bypass',
             'create_project': 'core_journey', 'conversation_turn': 'core_journey',
             'conversation_persists': 'data_integrity', 'project_memory': 'core_journey',
             'unauthenticated_denied': 'auth_bypass', 'cross_user_isolation': 'cross_user_exposure'}
@@ -162,6 +163,7 @@ class Client:
         self.origin = origin
         self.bypass = bypass
         self.token: str | None = None
+        self.email: str | None = None
         self.timeout = timeout
         self.deadline = deadline
         self.opener = urllib.request.build_opener(
@@ -219,7 +221,8 @@ class Client:
         return Outcome(status, data, 'NONE')
 
     def register(self) -> Outcome:
-        out = self.call('POST', '/api/v28/auth/register', {'email': f'verify-{uuid.uuid4().hex[:10]}@example.com',
+        self.email = f'verify-{uuid.uuid4().hex[:10]}@example.com'
+        out = self.call('POST', '/api/v28/auth/register', {'email': self.email,
                                                            'password': 'synthetic-' + uuid.uuid4().hex[:16]})
         tok = out.data.get('token') if isinstance(out.data, dict) else None
         if out.status in (200, 201) and isinstance(tok, str) and 0 < len(tok) <= 4096 and tok.isprintable():
@@ -370,6 +373,11 @@ def verify(base: str, *, expect_sha: str | None = None, bypass: str | None = Non
     o = a.register()
     if not check('register_synthetic_user', o.status in (200, 201) and a.token is not None, _http_evidence(o)):
         return result()
+    # PR #9 (PDV-001) contract: the session must resolve to exactly the synthetic identity
+    o = a.call('GET', '/api/v28/me')
+    me = o.data if isinstance(o.data, dict) else {}
+    check('session_identity', o.status == 200 and {'id', 'email', 'created_at', 'subscription'} <= set(me)
+          and me.get('email') == a.email, {**_http_evidence(o), 'keys_ok': {'id', 'email', 'created_at', 'subscription'} <= set(me)})
     o = a.call('POST', '/api/v28/projects', {'title': 'deployment verification'})
     pid = o.data.get('id') if isinstance(o.data, dict) else None
     ev = _http_evidence(o)
@@ -385,7 +393,9 @@ def verify(base: str, *, expect_sha: str | None = None, bypass: str | None = Non
     o = a.call('GET', f'/api/v28/projects/{pid}/conversation?lang=en')
     msgs = o.data.get('messages') if isinstance(o.data, dict) else None
     n = len(msgs) if isinstance(msgs, list) else 0
-    check('conversation_persists', o.status == 200 and n >= 2, {**_http_evidence(o), 'messages': n})
+    contract_ok = isinstance(o.data, dict) and {'messages', 'discovery', 'plan', 'plan_id', 'interpreter'} <= set(o.data)
+    check('conversation_persists', o.status == 200 and n >= 2 and contract_ok,      # PR #9 response contract
+          {**_http_evidence(o), 'messages': n, 'contract_ok': contract_ok})
     o = a.call('GET', f'/api/v28/projects/{pid}/memory')
     check('project_memory', o.status == 200 and isinstance(o.data, dict) and o.data.get('schema') == 'project-memory/1',
           _http_evidence(o))

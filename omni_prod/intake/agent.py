@@ -16,6 +16,14 @@ Non-material open questions are filled with their recommended defaults
 questions and contradictions are always asked; `access_scope` can never be
 defaulted. The agent never approves, never plans and never starts a build:
 it returns a new Brief (a new immutable revision when stored).
+
+Requirements preservation (Issue #12): a value the customer confirmed (source
+'answer' or 'message') is never silently overwritten. A differing proposal is
+applied only when it comes from the customer's own words in this turn
+(deterministic origin) AND the field is not material; otherwise it becomes a
+conflict that is asked back ("earlier X, now Y?") and the confirmed value
+stays. With `require_confirmation` (RISKY turns) no model proposal is applied
+to a material field at all -- it is only pre-selected and asked.
 """
 from __future__ import annotations
 
@@ -44,13 +52,18 @@ class TurnResult:
     corrected: list[dict] = field(default_factory=list)     # {field, old, new}
     asked: list[d.Question] = field(default_factory=list)
     contradictions: list[str] = field(default_factory=list)
+    conflicts: list[dict] = field(default_factory=list)     # {field, current, proposed, origin, reason}
 
 
 def _copy(b: d.Brief) -> d.Brief:
     return d.Brief.from_dict(json.loads(json.dumps(b.to_dict())))
 
 
-def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True) -> TurnResult:
+CONFIRMED_SOURCES = ('answer', 'message')
+
+
+def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True,
+          require_confirmation: bool = False) -> TurnResult:
     new = _copy(brief)
     res = TurnResult(new)
     for p in interp.proposals:
@@ -58,6 +71,18 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
         if q is None:
             continue
         old = new.fields.get(p.field)
+        origin = getattr(p, 'origin', 'deterministic')
+        if origin == 'model' and require_confirmation and material(p.field, new.values()) and \
+                (not old or old['value'] != p.value):
+            new.hints[p.field] = p.value      # sensitive turn: pre-select and ask, never apply
+            res.conflicts.append({'field': p.field, 'current': (old or {}).get('value'), 'proposed': p.value,
+                                  'origin': origin, 'reason': 'sensitive turn: needs explicit confirmation'})
+            continue
+        if old and old.get('source') in CONFIRMED_SOURCES and old['value'] != p.value and \
+                p.confidence in (HIGH, MEDIUM) and (origin == 'model' or material(p.field, new.values())):
+            res.conflicts.append({'field': p.field, 'current': old['value'], 'proposed': p.value, 'origin': origin,
+                                  'reason': 'differs from a confirmed requirement'})
+            continue                          # the confirmed value stays until the customer chooses
         if p.confidence == HIGH:
             if old and old['value'] != p.value:
                 res.corrected.append({'field': p.field, 'old': old['value'], 'new': p.value})
@@ -98,9 +123,15 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
                     changed = True
             d._drop_inapplicable(new)
     pend = d.pending(new)
+    conflict_qs = [d.BY_ID[c['field']] for c in res.conflicts if c['field'] in d.BY_ID]
     urgent = [q for q in pend if q.id == 'access_scope']
     rest = [q for q in pend if q.id != 'access_scope']
-    res.asked = (urgent + rest)[:ASK_PER_TURN]
+    seen, asked = set(), []
+    for q in conflict_qs + urgent + rest:     # conflicts are asked first, never dropped
+        if q.id not in seen:
+            seen.add(q.id)
+            asked.append(q)
+    res.asked = asked[:max(ASK_PER_TURN, len(conflict_qs))]
     res.contradictions = d.contradictions(new)
     res.brief = new
     return res
