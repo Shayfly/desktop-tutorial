@@ -129,14 +129,12 @@ class DeterministicInterpreter:
             cur = best.get(fld)
             if cur is None or (cur.confidence != HIGH and conf == HIGH):
                 best[fld] = Proposal(fld, value, conf, m.group(0)[:120])
-        # Preserve combinations and shades instead of picking the first match.
-        colour_words = re.findall(r'כחול|ירוק|סגול|כתום|טורקיז|ורוד|שמנת|זהב|לבן|שחור|אפור|אדום|צהוב|'
-                                  r'\b(?:blue|green|purple|orange|teal|pink|cream|gold|white|black|red|yellow)\b', text, re.I)
-        if len(set(colour_words)) > 1 or (colour_words and re.search(r'כהה|בהיר|עדין|פסטל|dark|light|pastel', text, re.I)):
-            clauses = re.split(r'[.!?\n;]', message)
-            clause = next((s.strip() for s in clauses if re.search(re.escape(colour_words[0]), s, re.I)), '')
-            if clause:
-                best['color'] = Proposal('color', clause[:500], HIGH, clause[:120])
+        # Extract colour words, never copy an entire product brief into a CSS value.
+        colour_words = re.findall(r'כחול|ירוק|סגול|כתום|טורקיז|ורוד|שמנת|זהב|לבן|שחור|אפור|אדום|צהוב|\\b(?:blue|green|purple|orange|teal|pink|cream|gold|white|black|red|yellow)\\b', text, re.I)
+        unique_colours = list(dict.fromkeys(word.lower() for word in colour_words))
+        if len(unique_colours) > 1:
+            palette = ', '.join(unique_colours[:6])
+            best['color'] = Proposal('color', palette, HIGH, palette[:120])
         # "רק לי" + customers in the same message = both audiences, ask.
         if 'audience' in best and re.search(r'(לקוחות|customers)', text, re.I) and re.search(r'(צוות|עובדים|staff|employees)', text, re.I):
             best['audience'] = Proposal('audience', 'both', MEDIUM, 'customers + staff')
