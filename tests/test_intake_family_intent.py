@@ -1,1 +1,47 @@
-IiIiRXhwbGljaXQgcHJvZHVjdCBpbnRlbnQgbXVzdCBzdXJ2aXZlIGluY2lkZW50YWwgZmVhdHVyZSBrZXl3b3Jkcy4iIiIKaW1wb3J0IHVuaXR0ZXN0Cgpmcm9tIG9tbmlfcHJvZC5pbnRha2UuZmFtaWxpZXMgaW1wb3J0IGNsYXNzaWZ5X2ZhbWlseSwgZXhlY3V0YWJsZQoKCmNsYXNzIFByb2R1Y3RJbnRlbnRUZXN0cyh1bml0dGVzdC5UZXN0Q2FzZSk6CiAgICBkZWYgdGVzdF9leHBsaWNpdF9wcm9kdWN0X3dpbnNfb3Zlcl9mZWF0dXJlcyhzZWxmKToKICAgICAgICBjYXNlcyA9IFsKICAgICAgICAgICAgKCdCdWlsZCBhIHdlYnNpdGUgd2l0aCB2aWRlbyBhbmQgYSBjaGF0Ym90JywgJ3dlYnNpdGUnKSwKICAgICAgICAgICAgKCdCdWlsZCBhIHJlc3BvbnNpdmUgd2Vic2l0ZSB3aXRoIHZpZGVvIGFuZCBhIGNoYXRib3QnLCAnd2Vic2l0ZScpLAogICAgICAgICAgICAoJ0NyZWF0ZSBhIG5ldyB3ZWIgYXBwIHdpdGggdmlkZW8gdXBsb2FkcycsICd3ZWJfYXBwJyksCiAgICAgICAgICAgICgnRG8gbm90IGJ1aWxkIGEgd2Vic2l0ZTsgY3JlYXRlIGEgbW9iaWxlIGFwcCcsICdtb2JpbGVfYXBwJyksCiAgICAgICAgICAgICgnSSBkbyBub3Qgd2FudCBhIHdlYnNpdGU7IGJ1aWxkIGEgZ2FtZSB3aXRoIHZpZGVvIGN1dHNjZW5lcycsICdnYW1lJyksCiAgICAgICAgICAgICgnQ3JlYXRlIGEgbGFuZGluZyBwYWdlIGZvciBhIGdhbWUgc3R1ZGlvJywgJ3dlYnNpdGUnKSwKICAgICAgICAgICAgKCdJIHdhbnQgYSB3ZWJzaXRlIGZvciBhdXRvbWF0aW9uIGNvbnN1bHRhbnRzJywgJ3dlYnNpdGUnKSwKICAgICAgICAgICAgKCdDcmVhdGUgYSB3ZWIgYXBwIHdpdGggdmlkZW8gdXBsb2FkcyBhbmQgYSB3ZWJob29rJywgJ3dlYl9hcHAnKSwKICAgICAgICAgICAgKCdCdWlsZCBhIG1vYmlsZSBhcHAgd2l0aCBhIGNoYXRib3QgYW5kIHZpZGVvcycsICdtb2JpbGVfYXBwJyksCiAgICAgICAgICAgICgnQ3JlYXRlIGFuIEFuZHJvaWQgYXBwIHdpdGggYSBnYW1lIGNhdGFsb2d1ZScsICdtb2JpbGVfYXBwJyksCiAgICAgICAgICAgICgnQnVpbGQgYW4gQUkgYWdlbnQgdGhhdCBjYWxscyBhIHdlYmhvb2snLCAnYWlfYWdlbnQnKSwKICAgICAgICAgICAgKCdDcmVhdGUgYW4gYXV0b21hdGlvbiB0aGF0IGNhbGxzIGFuIEFQSScsICdhdXRvbWF0aW9uJyksCiAgICAgICAgICAgICgnQ3JlYXRlIGFuIEFQSSBpbnRlZ3JhdGlvbiBmb3IgYSBnYW1lIGNhdGFsb2d1ZScsICdhcGlfaW50ZWdyYXRpb24nKSwKICAgICAgICAgICAgKCdDcmVhdGUgYSB2aWRlbyBhYm91dCBhIGdhbWUnLCAnbWVkaWEnKSwKICAgICAgICAgICAgKCdDcmVhdGUgYSAzRCBzY2VuZSBmb3IgYSBnYW1lIHN0dWRpbycsICczZF9leHBlcmllbmNlJyksCiAgICAgICAgICAgICgnQnVpbGQgYSBnYW1lIHdpdGggdmlkZW8gY3V0c2NlbmVzJywgJ2dhbWUnKSwKICAgICAgICAgICAgKCfXkNeg15kg16jXldem15Qg15zXkdeg15XXqiDXkNeq16gg15zXl9eR16jXqiDXoNeh15nXoteV16og15HXqdedIFRlc3QgVHJhdmVsJywgJ3dlYnNpdGUnKSwKICAgICAgICAgICAgKCfXkdeg15Qg15DXqteoINei150g16HXqNeY15XXnyDXldeh15XXm9efIEFJJywgJ3dlYnNpdGUnKSwKICAgICAgICAgICAgKCfXpteV16gg16HXldeb158gQUkg16LXnSB3ZWJob29rJywgJ2FpX2FnZW50JyksCiAgICAgICAgICAgICgn15HXoNeUINeQ16TXnNeZ16fXpteZ15Qg15zXoNeZ15nXkyDXotedINeh16jXmNeV16DXmdedJywgJ21vYmlsZV9hcHAnKSwKICAgICAgICAgICAgKCfXpteV16gg15DXldeY15XXntem15nXlCDXotedIEFQSScsICdhdXRvbWF0aW9uJyksCiAgICAgICAgICAgICgn16bXldeoINeh16jXmNeV158g16LXnCDXntep15fXpycsICdtZWRpYScpLAogICAgICAgIF0KICAgICAgICBmb3IgcHJvbXB0LCBmYW1pbHkgaW4gY2FzZXM6CiAgICAgICAgICAgIHdpdGggc2VsZi5zdWJUZXN0KHByb21wdD1wcm9tcHQpOgogICAgICAgICAgICAgICAgc2VsZi5hc3NlcnRFcXVhbChjbGFzc2lmeV9mYW1pbHkocHJvbXB0KSwgZmFtaWx5KQoKICAgIGRlZiB0ZXN0X3JlY29nbml0aW9uX2RvZXNfbm90X2VuYWJsZV91bnN1cHBvcnRlZF9lbmdpbmVzKHNlbGYpOgogICAgICAgIGZvciBmYW1pbHkgaW4gKCdtb2JpbGVfYXBwJywgJ2dhbWUnLCAnYWlfYWdlbnQnLCAnYXV0b21hdGlvbicsCiAgICAgICAgICAgICAgICAgICAgICAgJ2FwaV9pbnRlZ3JhdGlvbicsICdtZWRpYScsICczZF9leHBlcmllbmNlJyk6CiAgICAgICAgICAgIHdpdGggc2VsZi5zdWJUZXN0KGZhbWlseT1mYW1pbHkpOgogICAgICAgICAgICAgICAgc2VsZi5hc3NlcnRGYWxzZShleGVjdXRhYmxlKGZhbWlseSkpCgoKaWYgX19uYW1lX18gPT0gJ19fbWFpbl9fJzoKICAgIHVuaXR0ZXN0Lm1haW4oKQo=
+"""Explicit product intent must survive incidental feature keywords."""
+import unittest
+
+from omni_prod.intake.families import classify_family, executable
+
+
+class ProductIntentTests(unittest.TestCase):
+    def test_explicit_product_wins_over_features(self):
+        cases = [
+            ('Build a website with video and a chatbot', 'website'),
+            ('Build a responsive website with video and a chatbot', 'website'),
+            ('Create a new web app with video uploads', 'web_app'),
+            ('Do not build a website; create a mobile app', 'mobile_app'),
+            ('I do not want a website; build a game with video cutscenes', 'game'),
+            ("I don't want a game and I want a website with video", 'website'),
+            ('Do not create a game and build a website with video', 'website'),
+            ('Create a landing page for a game studio', 'website'),
+            ('I want a website for automation consultants', 'website'),
+            ('Create a web app with video uploads and a webhook', 'web_app'),
+            ('Build a mobile app with a chatbot and videos', 'mobile_app'),
+            ('Create an Android app with a game catalogue', 'mobile_app'),
+            ('Build an AI agent that calls a webhook', 'ai_agent'),
+            ('Create an automation that calls an API', 'automation'),
+            ('Create an API integration for a game catalogue', 'api_integration'),
+            ('Create a video about a game', 'media'),
+            ('Create a 3D scene for a game studio', '3d_experience'),
+            ('Build a game with video cutscenes', 'game'),
+            ('אני רוצה לבנות אתר לחברת נסיעות בשם Test Travel', 'website'),
+            ('בנה אתר עם סרטון וסוכן AI', 'website'),
+            ('צור סוכן AI עם webhook', 'ai_agent'),
+            ('בנה אפליקציה לנייד עם סרטונים', 'mobile_app'),
+            ('צור אוטומציה עם API', 'automation'),
+            ('צור סרטון על משחק', 'media'),
+        ]
+        for prompt, family in cases:
+            with self.subTest(prompt=prompt):
+                self.assertEqual(classify_family(prompt), family)
+
+    def test_recognition_does_not_enable_unsupported_engines(self):
+        for family in ('mobile_app', 'game', 'ai_agent', 'automation',
+                       'api_integration', 'media', '3d_experience'):
+            with self.subTest(family=family):
+                self.assertFalse(executable(family))
+
+
+if __name__ == '__main__':
+    unittest.main()
