@@ -177,7 +177,10 @@ class RealDockerDrainRecovery(unittest.TestCase):
         return self.wait_running(SERVICES, 20)
 
     def drain(self, **extra):
-        return sh('bash', str(self.host / 'drain.sh'), env=self.env(DRAIN_DEADLINE_SECONDS='4', **extra), cwd=self.host, timeout=300)
+        # Tests may select a distinct deadline; do not pass the same keyword
+        # twice into env(). The normal drain deadline remains four seconds.
+        deadline = extra.pop('DRAIN_DEADLINE_SECONDS', '4')
+        return sh('bash', str(self.host / 'drain.sh'), env=self.env(DRAIN_DEADLINE_SECONDS=deadline, **extra), cwd=self.host, timeout=300)
 
     def recover(self):
         return sh('bash', str(self.host / 'recover.sh'), env=self.env(), cwd=self.host, timeout=300)
