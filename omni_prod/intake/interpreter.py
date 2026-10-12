@@ -130,11 +130,10 @@ class DeterministicInterpreter:
             if cur is None or (cur.confidence != HIGH and conf == HIGH):
                 best[fld] = Proposal(fld, value, conf, m.group(0)[:120])
         # Extract colour words, never copy an entire product brief into a CSS value.
-        colour_words = re.findall(r'כחול|ירוק|סגול|כתום|טורקיז|ורוד|שמנת|זהב|לבן|שחור|אפור|אדום|צהוב|\b(?:blue|green|purple|orange|teal|pink|cream|gold|white|black|red|yellow)\b', text, re.I)
-        unique_colours = list(dict.fromkeys(word.lower() for word in colour_words))
+        unique_colours = d.colour_palette(text)
         if len(unique_colours) > 1:
             palette = ', '.join(unique_colours[:6])
-            best['color'] = Proposal('color', palette, HIGH, palette[:120])
+            best['color'] = Proposal('color', palette, HIGH, message[:120])
         # "רק לי" + customers in the same message = both audiences, ask.
         if 'audience' in best and re.search(r'(לקוחות|customers)', text, re.I) and re.search(r'(צוות|עובדים|staff|employees)', text, re.I):
             best['audience'] = Proposal('audience', 'both', MEDIUM, 'customers + staff')
@@ -327,3 +326,4 @@ def interpreter_from_env(gateway=None):
     if os.getenv('OMNI_INTAKE_MODEL') == '1' and gateway is not None:
         return ModelInterpreter(gateway)
     return DeterministicInterpreter()
+
