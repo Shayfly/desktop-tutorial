@@ -167,7 +167,7 @@ class ChiefArchitect:
         problems = graph.problems(agents=R.allowed_skills() if R.snapshot()['loaded'] else None,
                                   skills=R.skill_keys() if R.snapshot()['loaded'] else None)
         assignments = [self.router.assign(t) for t in graph.tasks]
-        entities = _entities(contract)
+        entities = [] if fam == 'website' else _entities(contract)
         auth = contract.authentication_requirements['mode']
         plan = {
             'schema': SCHEMA, 'status': status, 'brief_fingerprint': contract.brief_fingerprint,
