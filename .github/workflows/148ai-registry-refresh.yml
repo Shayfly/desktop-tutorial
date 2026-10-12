@@ -51,7 +51,7 @@ jobs:
           # A generated evidence refresh must never include executable source.
           while IFS= read -r p; do
             case "$p" in
-              AGENT_OS_REGISTRY.json|docs/*|omni_prod/registry_evidence_lock.json) ;;
+              AGENT_OS_REGISTRY.json|PLATFORM_*_MATRIX.json|TRUTH_MATRIX.json|docs/AGENT_OS_REGISTRY.md|docs/TRUTH_MATRIX.md|omni_prod/registry_evidence_lock.json) ;;
               *) echo "::error title=unsafe-output::unexpected generated change: $p"; exit 1 ;;
             esac
           done < <(git diff --cached --name-only)
