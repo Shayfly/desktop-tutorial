@@ -63,6 +63,14 @@ jobs:
           publish "ssh service" systemctl is-active ssh
           publish "ssh port listener" sh -c 'ss -ltn | grep -E "(^State|:22[[:space:]])" || true'
           publish "default IPv4 route" ip -4 route show default
+          # External SSH still times out; inspect host firewall and sshd without altering rules.
+          publish "ssh service details" sh -c 'systemctl show ssh --property=ActiveState,SubState,UnitFileState --no-pager'
+          publish "ssh local handshake" sh -c 'timeout 4 bash -c "echo >/dev/tcp/127.0.0.1/22" && echo TCP_LOCAL_22_OK || echo TCP_LOCAL_22_FAILED'
+          publish "ufw status" sh -c 'sudo -n ufw status verbose 2>&1 || true'
+          publish "iptables INPUT" sh -c 'sudo -n iptables -nvL INPUT --line-numbers 2>&1 | head -60'
+          publish "iptables INPUT rules" sh -c 'sudo -n iptables -S INPUT 2>&1 | head -60'
+          publish "nft input policies" sh -c 'sudo -n nft -a list ruleset 2>&1 | grep -Ei "(hook input|policy |tcp dport 22|drop|reject)" | head -65'
+          publish "sshd recent journal" sh -c 'sudo -n journalctl -u ssh --since "-20 min" --no-pager -n 25 2>&1 | sed -E "s/([0-9]{1,3}\\.){3}[0-9]{1,3}/[ip]/g"'
           publish "redis connectivity from worker" docker exec omni-worker-worker-1 python -c 'import os; from redis import Redis; r=Redis.from_url(os.environ["OMNI_REDIS_URL"], socket_connect_timeout=3, socket_timeout=3); print("PONG" if r.ping() else "NO_PONG")'
           publish "sandbox HTTP health from worker" docker exec omni-worker-worker-1 python -c 'import urllib.request; print("HTTP", urllib.request.urlopen("http://sandbox-runner:8010/health", timeout=3).status)'
           publish "restarts" docker inspect -f '{{.Name}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' omni-worker-worker-1 omni-worker-sandbox-runner-1
