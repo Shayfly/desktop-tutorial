@@ -31,16 +31,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pin=2a2bba6645bb05f4889420760f11127441a0d253
+          # A container's OMNI_SOURCE_COMMIT environment can differ from the
+          # actual source after an env-only recreation. Verify shipped BYTES.
           for s in worker intake-worker intake-maintain preview-worker; do
             cid=$(docker ps -q -f "name=^/omni-worker-${s}-1$")
             [ -n "$cid" ] || { echo "::error title=rollback::$s is not running"; exit 1; }
-            current=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$cid" |
-                      sed -n 's/^OMNI_SOURCE_COMMIT=//p' | head -1)
-            [ "$current" = "$pin" ] || {
-              echo "::error title=rollback::$s source commit does not equal pinned historic revision; refusing wrong backup"; exit 1; }
+            for p in omni_prod/worker_tasks.py omni_prod/model_gateway.py omni_prod/preview_router.py; do
+              expected=$(sha256sum "rollback-source/$p" | cut -d' ' -f1)
+              actual=$(docker exec "$cid" python -c 'import hashlib,sys;from pathlib import Path;print(hashlib.sha256(Path("/app",sys.argv[1]).read_bytes()).hexdigest())' "$p" 2>/dev/null) || {
+                echo "::error title=rollback::$s cannot inspect $p"; exit 1; }
+              [ "$actual" = "$expected" ] || {
+                echo "::error title=rollback::$s has different actual image source file $p than pinned history; cannot reconstruct safe rollback"; exit 1; }
+            done
           done
-          echo "::notice title=rollback::all four existing running consumers match the pinned source commit"
+          echo "::notice title=rollback::all consumer code file hashes match pinned original revision (environment metadata is not trusted)"
       - name: Rebuild previous source as a separate image (no credentials embedded)
         shell: bash
         run: |
