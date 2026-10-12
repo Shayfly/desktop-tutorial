@@ -1,0 +1,69 @@
+name: One-time founder staging QA entitlement
+
+# One-time, scoped founder prototype authorization (not a customer-plan override).
+# The founder account is selected by comparing SHA-256 of the verified account
+# email stored in PostgreSQL; neither the email nor secrets are logged.
+# Never runs in production. Existing grant is reused; no spend occurs here.
+on:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/148ai-founder-qa-grant-2026-10-13.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  founder-qa:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Grant one auditable INTERNAL_QA entitlement only for founder account
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i omni-worker-worker-1 python - <<'PY'
+          import hashlib
+          import os
+          from uuid import uuid4
+          import psycopg
+
+          # Confirmed founder login displayed by the authenticated preview.
+          target_digest = "cfa6b12580e283432d57669d105ea4fd819055ba593dc94432854dd9e4925e9d"
+          # A developer must explicitly enable staging in the Vercel preview;
+          # the self-hosted worker must also be pointed at a non-production DB.
+          environment = os.getenv("OMNI_ENV", "").strip().lower()
+          if environment != "staging":
+              raise SystemExit("DENIED: worker OMNI_ENV must equal staging (no grant performed)")
+          if not os.getenv("OMNI_DATABASE_URL"):
+              raise SystemExit("DENIED: no database configured")
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"]) as conn:
+              with conn.transaction():
+                  with conn.cursor() as cur:
+                      cur.execute("SELECT id, email FROM creator_accounts")
+                      matched = [account_id for account_id, email in cur.fetchall()
+                                 if email and hashlib.sha256(email.strip().casefold().encode()).hexdigest() == target_digest]
+                      if len(matched) != 1:
+                          raise SystemExit(f"DENIED: exact founder account match count={len(matched)} (expected 1)")
+                      account_id = matched[0]
+                      cur.execute("SELECT id FROM internal_entitlements WHERE account_id = %s "
+                                  "AND entitlement = 'INTERNAL_QA' AND environment = 'staging' "
+                                  "AND revoked_at IS NULL", (account_id,))
+                      found = cur.fetchone()
+                      if found:
+                          print("INTERNAL_QA staging grant: already active. No write needed.")
+                      else:
+                          cur.execute("INSERT INTO internal_entitlements "
+                                      "(id, account_id, entitlement, environment, reason, granted_by) "
+                                      "VALUES (%s, %s, 'INTERNAL_QA', 'staging', %s, %s)",
+                                      (f"ent_{uuid4().hex}", account_id,
+                                       "Founder-only private 148AI prototype builds; "
+                                       "shared QA max $10 USD; per-build cap $0.50 USD. "
+                                       "Real provider balances are not guaranteed.",
+                                       "github-actions-founder-qa-2026-10-13"))
+                          print("INTERNAL_QA staging grant: inserted with reason + actor. No provider called.")
+                      cur.execute("SELECT COUNT(*) FROM internal_entitlements WHERE account_id = %s "
+                                  "AND entitlement = 'INTERNAL_QA' AND environment = 'staging' "
+                                  "AND revoked_at IS NULL", (account_id,))
+                      assert cur.fetchone()[0] == 1, "founder QA grant postcondition failed"
+          print("Founder QA entitlement verification: OK")
+          PY
