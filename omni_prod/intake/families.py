@@ -1,1 +1,76 @@
-IiIiUHJvZHVjdCBmYW1pbGllcyBhbmQgd2hpY2ggb25lcyB0aGUgYnVpbGQgZW5naW5lIGNhbiBleGVjdXRlIHRvZGF5LgoKVGhlIGNsYXNzaWZpZXIgaXMgZGV0ZXJtaW5pc3RpYyAoa2V5d29yZHMgaW4gSGVicmV3IGFuZCBFbmdsaXNoLCB0b2xlcmFudCBvZgpjb21tb24gbWlzc3BlbGxpbmdzKS4gYEVYRUNVVEFCTEVgIGlzIHRoZSB0cnV0aCBhYm91dCB0aGUgZW5naW5lOiBvbmx5IHdlYgphcHBsaWNhdGlvbnMvd2Vic2l0ZXMgaGF2ZSBhIHZlcmlmaWVkIGV4ZWN1dGlvbiBwYXRoIChHb2xkZW4gRTJFKS4gRXZlcnkgb3RoZXIKZmFtaWx5IGlzIHJlY29nbml6ZWQgYW5kIHBsYW5uZWQsIGFuZCBpdHMgcGxhbiByZXBvcnRzIHRoZSBjYXBhYmlsaXR5IGdhcAppbnN0ZWFkIG9mIHByZXRlbmRpbmcgdG8gYnVpbGQgaXQuCiIiIgpmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zCgppbXBvcnQgcmUKCkZBTUlMSUVTID0gKCd3ZWJfYXBwJywgJ3dlYnNpdGUnLCAnbW9iaWxlX2FwcCcsICdnYW1lJywgJ2FpX2FnZW50JywgJ2F1dG9tYXRpb24nLCAnYXBpX2ludGVncmF0aW9uJywgJ21lZGlhJywKICAgICAgICAgICAgJzNkX2V4cGVyaWVuY2UnKQpFWEVDVVRBQkxFID0geyd3ZWJfYXBwJywgJ3dlYnNpdGUnfQoKX1JVTEVTID0gKAogICAgKCdnYW1lJywgcico157XqdeX16d815LXmdeZ1518Z2FtZVxifGdhbWVzXGJ8cGxhdGZvcm1lcnxtdWx0aXBsYXllcnzXnteV15zXmNeZ16TXnNeZ15nXqHzXqdec15HXmdedINeR157XqdeX16cpJyksCiAgICAoJzNkX2V4cGVyaWVuY2UnLCByJyjXqtec16pbLSBdP9ee15nXnteTfFxiM2RcYnx0aHJlZVwuP2pzfNee15XXk9ecINeq15zXqiknKSwKICAgICgnbW9iaWxlX2FwcCcsIHInKNeQ16TXnNeZ16fXpteZ15QgKD8615zXoNeZ15nXk3zXnNeY15zXpNeV159815zXkNeZ15nXpNeV159815zXkNeg15PXqNeV15DXmdeTKXzXkNek15zXmden16bXmVvXlNeqXSDXnteV15HXmdeZ15x8XGJpb3NcYnxhbmRyb2lkfNeQ16DXk9eo15XXkNeZ15N8YXBwIHN0b3JlfHBsYXkgc3RvcmV8bW9iaWxlIGFwcCknKSwKICAgICgnbWVkaWEnLCByJyjXodeo15jXlVvXn9egXXzXldeZ15PXkNeVfNeV15nXk9eZ15DXlXx2aWRlb3zXpNeV15PXp9eQ16HXmHxwb2RjYXN0fNee15XXlteZ16fXlHzXqdeZ16hcYnxtdXNpY3zXp9eo15nXmdeg15XXqnx2b2ljZSA/b3ZlciknKSwKICAgICgnYXV0b21hdGlvbicsIHInKNeQ15XXmNeV157XpteZfGF1dG9tYXRpb258d29ya2Zsb3d815bXqNeZ157XqiDXoteR15XXk9eUfNeq15bXnteV158g15DXldeY15XXnteY15l8emFwaWVyfG44bnzXm9ecINeR15XXp9eoINep15zXlyknKSwKICAgICgnYWlfYWdlbnQnLCByJyjXodeV15vXnyBhaXxhaSBhZ2VudHzXplwnP9eQ15jXkdeV15h8Y2hhdGJvdHzXkdeV15gg16nXoteV16DXlHxhc3Npc3RhbnQgYm90KScpLAogICAgKCdhcGlfaW50ZWdyYXRpb24nLCByJyhcYmFwaVxiKD8hIGtleSl8d2ViaG9va3zXkNeZ16DXmNeS16jXpteZ15R8aW50ZWdyYXRpb24gd2l0aHzXnNeX15HXqCDXnCknKSwKICAgICgnd2Vic2l0ZScsIHInKNeT16Mg16DXl9eZ16rXlHxsYW5kaW5nIHBhZ2V815DXqteoINeq15PXnteZ16p815DXqteoINeQ15nXoNeY16jXoNeYfNeQ16rXqCDXnNeX15HXqNeqfNeQ16rXqCDXqdecINeX15HXqNeqfNeQ16rXqCDXnNei16HXp3zXkNeq16gg15zXl9eg15XXqnxwb3J0Zm9saW9816rXmdenINei15HXldeT15XXqnzXkdec15XXknxibG9nfHdlYnNpdGUpJyksCikKCiMgTWF0Y2ggdGhlIHJlcXVlc3RlZCBkZWxpdmVyYWJsZSBpbW1lZGlhdGVseSBhZnRlciBhIGNyZWF0aW9uL3JlcXVlc3QgdmVyYi4KIyBGZWF0dXJlIGtleXdvcmRzIGxhdGVyIGluIHRoZSBzZW50ZW5jZSBjYW5ub3QgY2hhbmdlIHRoaXMgcHJvZHVjdCBmYW1pbHkuCl9SRVFVRVNUID0gKHInKD86XGIoPzpidWlsZHxjcmVhdGV8bWFrZXxnZW5lcmF0ZXxkZXZlbG9wKVxifCcKICAgICAgICAgICAgcidcYig/OmlccyspP3dhbnQoPzpccyt0b1xzKyg/OmJ1aWxkfGNyZWF0ZXxtYWtlfGdlbmVyYXRlfGRldmVsb3ApKT9cYnwnCiAgICAgICAgICAgIHIn15DXoNeZINeo15XXpteUKD86XHMrKD8615zXkdeg15XXqnzXnNeZ16bXldeoKSk/fNec15HXoNeV16p815zXmdem15XXqHzXkdeg15R815HXoNeZfNem15XXqHzXpteo15kpJwogICAgICAgICAgICByJ1xzKyg/Oig/Om1lfGF8YW58dGhlfG5ld3xyZXNwb25zaXZlfHNpbXBsZXxtb2Rlcm58cHVibGljfGludGVybmFsfHN0YXRpY3zXnNeZKVxzKykqJykKX1BST0RVQ1RTID0gKAogICAgKCdnYW1lJywgcicoPzooPzoyZHwzZClccyspP2dhbWVzP1xifNee16nXl9enJyksCiAgICAoJ3dlYnNpdGUnLCByJ3dlYnNpdGVzP1xifHNpdGVcYnxsYW5kaW5nIHBhZ2VcYnxwb3J0Zm9saW9cYnxibG9nXGJ815DXqteofNeT16Mg16DXl9eZ16rXlHzXqteZ16cg16LXkdeV15PXldeqfNeR15zXldeSJyksCiAgICAoJ3dlYl9hcHAnLCByJ3dlYiAoPzphcHAoPzpsaWNhdGlvbik/fGRhc2hib2FyZClcYnxzYWFzXGJ815DXpNec15nXp9em15nXmdeqINeV15XXkXzXmdeZ16nXldedINeV15XXkScpLAogICAgKCdtb2JpbGVfYXBwJywgcicoPzptb2JpbGV8bmF0aXZlfGlvc3xhbmRyb2lkKVxzK2FwcCg/OmxpY2F0aW9uKT9cYnwnCiAgICAgICAgICAgICAgICAgICByJ9eQ16TXnNeZ16fXpteZ15QgKD8615zXoNeZ15nXk3zXnNeY15zXpNeV159815zXkNeZ15nXpNeV159815zXkNeg15PXqNeV15DXmdeTKXzXkNek15zXmden16bXmdeZ16og157XldeR15nXmdecJyksCiAgICAoJ2FpX2FnZW50JywgcidhaSBhZ2VudFxifGNoYXRib3RcYnxhc3Npc3RhbnQgYm90XGJ816HXldeb159ccythaXzXplwnP9eQ15jXkdeV15gnKSwKICAgICgnYXV0b21hdGlvbicsIHInYXV0b21hdGlvblxifHdvcmtmbG93XGJ815DXldeY15XXntem15nXlHzXlteo15nXnteqINei15HXldeT15QnKSwKICAgICgnYXBpX2ludGVncmF0aW9uJywgcicoPzphcGlccyspP2ludGVncmF0aW9uXGJ8d2ViaG9va1xifNeQ15nXoNeY15LXqNem15nXlCcpLAogICAgKCdtZWRpYScsIHIndmlkZW9cYnxwb2RjYXN0XGJ8bXVzaWNcYnxpbWFnZVxifHRleHR1cmVcYnxhdWRpb1xifHZvaWNlID9vdmVyXGJ8JwogICAgICAgICAgICAgIHIn16HXqNeY15XXn3zXldeZ15PXkNeVfNeV15nXk9eZ15DXlXzXpNeV15PXp9eQ16HXmHzXnteV15bXmden15R816nXmdeofNeq157Xldeg15R815jXp9eh15jXldeo15R816fXqNeZ15nXoNeV16onKSwKICAgICgnM2RfZXhwZXJpZW5jZScsIHInM2RccysoPzpzY2VuZXxtb2RlbHxleHBlcmllbmNlfG1lc2gpXGJ8JwogICAgICAgICAgICAgICAgICAgICAgcicoPzrXnteV15PXnHzXodem16DXlHzXl9eV15XXmdeUKVxzK9eq15zXqlstIF0/157Xmdee15MnKSwKKQoKCmRlZiBfbm9ybSh0ZXh0OiBzdHIpIC0+IHN0cjoKICAgIHQgPSAodGV4dCBvciAnJykubG93ZXIoKQogICAgdCA9IHJlLnN1YihyJyguKVwxezIsfScsIHInXDFcMScsIHQpICAgICAgICAgICMgIteh16jXmNeV15/Xn9efIiAtPiAi16HXqNeY15XXn9efIgogICAgcmV0dXJuIHQucmVwbGFjZSgn15DXpNec16fXpteZ15QnLCAn15DXpNec15nXp9em15nXlCcpLnJlcGxhY2UoJ9eQ16TXnNeZ16fXpteZ15AnLCAn15DXpNec15nXp9em15nXlCcpLnJlcGxhY2UoJ9ee16nXl9eoJywgJ9ee16nXl9enJykKCgpkZWYgY2xhc3NpZnlfZmFtaWx5KHRleHQ6IHN0cikgLT4gc3RyOgogICAgdCA9IF9ub3JtKHRleHQpCiAgICAjIEV4cGxpY2l0IHJlcXVlc3RlZCBwcm9kdWN0IHdpbnMgb3ZlciBpbmNpZGVudGFsIGZlYXR1cmUga2V5d29yZHMuCiAgICBleHBsaWNpdCA9IFtdCiAgICBmb3IgZmFtaWx5LCBwcm9kdWN0IGluIF9QUk9EVUNUUzoKICAgICAgICBmb3IgbWF0Y2ggaW4gcmUuZmluZGl0ZXIoX1JFUVVFU1QgKyAnKD86JyArIHByb2R1Y3QgKyAnKScsIHQsIHJlLkkpOgogICAgICAgICAgICBjbGF1c2UgPSByZS5zcGxpdChyJ1suOyE/XG4sXXxcYig/OmJ1dHxpbnN0ZWFkKVxifNeQ15HXnHzXkNec15AnLCB0WzptYXRjaC5zdGFydCgpXSlbLTFdCiAgICAgICAgICAgIGlmIHJlLnNlYXJjaChyIlxiKD86bm90fG5ldmVyfGRvbid0fGRvbnQpXGJ8KD86XnxccykoPzrXnNeQfNeQ15wpKD86XHN8JCkiLCBjbGF1c2UpOgogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgZXhwbGljaXQuYXBwZW5kKChtYXRjaC5zdGFydCgpLCBmYW1pbHkpKQogICAgaWYgZXhwbGljaXQ6CiAgICAgICAgcmV0dXJuIG1pbihleHBsaWNpdCwga2V5PWxhbWJkYSBtYXRjaDogbWF0Y2hbMF0pWzFdCiAgICBmb3IgZmFtaWx5LCBwYXR0ZXJuIGluIF9SVUxFUzoKICAgICAgICBpZiByZS5zZWFyY2gocGF0dGVybiwgdCwgcmUuSSk6CiAgICAgICAgICAgIHJldHVybiBmYW1pbHkKICAgIHJldHVybiAnd2ViX2FwcCcKCgpkZWYgZXhlY3V0YWJsZShmYW1pbHk6IHN0cikgLT4gYm9vbDoKICAgIHJldHVybiBmYW1pbHkgaW4gRVhFQ1VUQUJMRQoK
+"""Product families and which ones the build engine can execute today.
+
+The classifier is deterministic (keywords in Hebrew and English, tolerant of
+common misspellings). `EXECUTABLE` is the truth about the engine: only web
+applications/websites have a verified execution path (Golden E2E). Every other
+family is recognized and planned, and its plan reports the capability gap
+instead of pretending to build it.
+"""
+from __future__ import annotations
+
+import re
+
+FAMILIES = ('web_app', 'website', 'mobile_app', 'game', 'ai_agent', 'automation', 'api_integration', 'media',
+            '3d_experience')
+EXECUTABLE = {'web_app', 'website'}
+
+_RULES = (
+    ('game', r'(משחק|גיים|game\b|games\b|platformer|multiplayer|מולטיפלייר|שלבים במשחק)'),
+    ('3d_experience', r'(תלת[- ]?מימד|\b3d\b|three\.?js|מודל תלת)'),
+    ('mobile_app', r'(אפליקציה (?:לנייד|לטלפון|לאייפון|לאנדרואיד)|אפליקצי[הת] מובייל|\bios\b|android|אנדרואיד|app store|play store|mobile app)'),
+    ('media', r'(סרטו[ןנ]|וידאו|וידיאו|video|פודקאסט|podcast|מוזיקה|שיר\b|music|קריינות|voice ?over)'),
+    ('automation', r'(אוטומצי|automation|workflow|זרימת עבודה|תזמון אוטומטי|zapier|n8n|כל בוקר שלח)'),
+    ('ai_agent', r'(סוכן ai|ai agent|צ\'?אטבוט|chatbot|בוט שעונה|assistant bot)'),
+    ('api_integration', r'(\bapi\b(?! key)|webhook|אינטגרציה|integration with|לחבר ל)'),
+    ('website', r'(דף נחיתה|landing page|אתר תדמית|אתר אינטרנט|אתר לחברת|אתר של חברת|אתר לעסק|אתר לחנות|portfolio|תיק עבודות|בלוג|blog|website)'),
+)
+
+# Match the requested deliverable immediately after a creation/request verb.
+# Feature keywords later in the sentence cannot change this product family.
+_REQUEST = (r'(?:\b(?:build|create|make|generate|develop)\b|'
+            r'\b(?:i\s+)?want(?:\s+to\s+(?:build|create|make|generate|develop))?\b|'
+            r'אני רוצה(?:\s+(?:לבנות|ליצור))?|לבנות|ליצור|בנה|בני|צור|צרי)'
+            r'\s+(?:(?:me|a|an|the|new|responsive|simple|modern|public|internal|static|לי)\s+)*')
+_PRODUCTS = (
+    ('game', r'(?:(?:2d|3d)\s+)?games?\b|משחק'),
+    ('website', r'websites?\b|site\b|landing page\b|portfolio\b|blog\b|אתר|דף נחיתה|תיק עבודות|בלוג'),
+    ('web_app', r'web (?:app(?:lication)?|dashboard)\b|saas\b|אפליקציית ווב|יישום ווב'),
+    ('mobile_app', r'(?:mobile|native|ios|android)\s+app(?:lication)?\b|'
+                   r'אפליקציה (?:לנייד|לטלפון|לאייפון|לאנדרואיד)|אפליקציית מובייל'),
+    ('ai_agent', r'ai agent\b|chatbot\b|assistant bot\b|סוכן\s+ai|צ\'?אטבוט'),
+    ('automation', r'automation\b|workflow\b|אוטומציה|זרימת עבודה'),
+    ('api_integration', r'(?:api\s+)?integration\b|webhook\b|אינטגרציה'),
+    ('media', r'video\b|podcast\b|music\b|image\b|texture\b|audio\b|voice ?over\b|'
+              r'סרטון|וידאו|וידיאו|פודקאסט|מוזיקה|שיר|תמונה|טקסטורה|קריינות'),
+    ('3d_experience', r'3d\s+(?:scene|model|experience|mesh)\b|'
+                      r'(?:מודל|סצנה|חוויה)\s+תלת[- ]?מימד'),
+)
+
+
+def _norm(text: str) -> str:
+    t = (text or '').lower()
+    t = re.sub(r'(.)\1{2,}', r'\1\1', t)          # "סרטוןןן" -> "סרטוןן"
+    return t.replace('אפלקציה', 'אפליקציה').replace('אפליקציא', 'אפליקציה').replace('משחר', 'משחק')
+
+
+def classify_family(text: str) -> str:
+    t = _norm(text)
+    # Explicit requested product wins over incidental feature keywords.
+    explicit = []
+    for family, product in _PRODUCTS:
+        for match in re.finditer(_REQUEST + '(?:' + product + ')', t, re.I):
+            clause = re.split(r'[.;!?\n,]|\b(?:and|but|instead)\b|אבל|אלא', t[:match.start()])[-1]
+            if re.search(r"\b(?:not|never|don't|dont)\b|(?:^|\s)(?:לא|אל)(?:\s|$)", clause):
+                continue
+            explicit.append((match.start(), family))
+    if explicit:
+        return min(explicit, key=lambda match: match[0])[1]
+    for family, pattern in _RULES:
+        if re.search(pattern, t, re.I):
+            return family
+    return 'web_app'
+
+
+def executable(family: str) -> bool:
+    return family in EXECUTABLE
+
