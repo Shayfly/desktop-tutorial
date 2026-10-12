@@ -2280,7 +2280,11 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                     cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
                             except QABudgetDenied as exc:
                                 logging.getLogger(__name__).warning('internal QA build refused: %s', exc)
-                                raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
+                                raise HTTPException(402, detail={
+                                    'error': 'qa_budget_denied',
+                                    # Only scoped QA spend/cap reason, no account/token data.
+                                    'message': str(exc)[:300],
+                                }) from exc
                         else:
                             economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
                         decision = _v28.subscriptions.reserve(

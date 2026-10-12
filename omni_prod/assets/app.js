@@ -60,6 +60,7 @@ const T = {
       worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
       model_budget_exhausted:'הבנייה הגיעה לתקרת העלות שנקבעה לה ונעצרה לפני שהושלמה. אפשר לנסות שוב.',
       model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
+      provider_quota_exhausted:'לפחות ספק AI אחד דיווח שנגמרה המכסה או יתרת הקרדיטים. אין כרגע ספק חלופי שהשלים את הבקשה. בדקו את הספק שמופיע בהמשך.',
       model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
       capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.'},
     techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
@@ -160,6 +161,7 @@ const T = {
       worker_exception:'An internal error occurred during the build. The details were recorded.',
       model_budget_exhausted:'The build reached its cost ceiling and stopped before it was finished. You can try again.',
       model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
+      provider_quota_exhausted:'An AI provider reported exhausted quota/credits, and no fallback completed. Check the named provider below.',
       model_policy_blocked:'The model usage policy did not allow this build in this environment.',
       capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.'},
     techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
@@ -774,7 +776,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
-    worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];
@@ -798,7 +800,7 @@ function renderTrack() {
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
   backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
-  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'model_policy_blocked', 'verification_failed'], repairNote);
+  backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
   let pState = (!preview && (status === 'cancelled' || status === 'failed')) ? 'skipped' : 'pending', pNote = null;
   if (preview) {
@@ -914,6 +916,12 @@ function renderSharing(p) {
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
+  if (b.error_code === 'provider_quota_exhausted') {
+    // Show the named route only when the server reported a quota response.
+    // This is NOT a provider billing balance; it can also be a rate/usage quota.
+    const match = String(b.error_message || '').match(/AI provider quota\\/credits unavailable:\\s*([^;]+)/);
+    return known + (match && match[1] ? ' — ' + match[1] : '');
+  }
   return known || b.error_message || b.error_code || '';
 }
 

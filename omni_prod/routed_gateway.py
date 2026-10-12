@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import Callable, Any
 import time
 
-from .model_gateway import ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError, ModelHTTPError, quota_exhausted
+from .model_gateway import (ModelEndpoint, OpenAICompatibleGateway, ModelGatewayError, ModelHTTPError,
+                            ProviderQuotaUnavailable, quota_exhausted, provider_quota_depleted)
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
 from .model_router import RoutingPolicy, estimated_cost
@@ -102,6 +103,7 @@ class RoutedModelGateway:
         # Routes that answered "quota spent" / "key rejected": skipped for the
         # rest of this gateway's life (one build or modification).
         self.unavailable: dict[str, str] = {}
+        self.depleted_routes: set[str] = set()  # Named, provider-confirmed quota/credit failures.
         # Wave A: durable provider health (intelligence.health). Without a
         # store it is per-gateway memory, i.e. the previous behaviour.
         from .intelligence.health import HealthBook
@@ -431,6 +433,8 @@ class RoutedModelGateway:
                                         raise
                                     if quota_exhausted(fitted_exc):
                                         self.unavailable[name] = f'HTTP {getattr(fitted_exc, "status", "?")}: quota or key'
+                                        if provider_quota_depleted(fitted_exc):
+                                            self.depleted_routes.add(name)
                                     failures.append(f'{route.endpoint.model} (fitted output): {fitted_exc}')
                                     break
                             budget_skips += 1
@@ -445,6 +449,8 @@ class RoutedModelGateway:
                             self.health.record_failure(name, exc)
                     if quota_exhausted(exc):
                         self.unavailable[name] = f'HTTP {getattr(exc, "status", "?")}: quota or key'
+                        if provider_quota_depleted(exc):
+                            self.depleted_routes.add(name)
                         failures.append(f'{route.endpoint.model}: {exc}')
                         break
                     transient = isinstance(exc, ModelHTTPError) and exc.transient
@@ -457,6 +463,10 @@ class RoutedModelGateway:
                     self.sleep(min(self.max_retry_delay, hint if hint is not None else delay))
         if budget_skips and all('remaining budget' in f or 'skipped' in f for f in failures):
             raise ModelPolicyViolation('external model budget exceeded')
+        if self.depleted_routes:
+            # This is emitted only when no route served the request. A quota
+            # failure in one provider does NOT prevent a valid fallback.
+            raise ProviderQuotaUnavailable(self.depleted_routes)
         detail = '; '.join(failures[-4:]) if failures else str(last_error)
         raise ModelGatewayError(f'all model routes failed: {detail}')
 

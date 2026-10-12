@@ -272,12 +272,14 @@ def failure_code(exc: BaseException) -> str:
 
     bld_ccd38bd0 (2026-10-08) stopped on 'external model budget exceeded' and
     was reported as the generic worker_exception ("internal error")."""
-    from .model_gateway import ModelGatewayError
+    from .model_gateway import ModelGatewayError, ProviderQuotaUnavailable
     from .model_policy import ModelPolicyViolation
     from .agent_os.recorder import PlanViolation
     text = str(exc)
     if isinstance(exc, PlanViolation):
         return 'plan_violation'
+    if isinstance(exc, ProviderQuotaUnavailable):
+        return 'provider_quota_exhausted'
     if isinstance(exc, ModelPolicyViolation):
         if 'budget exceeded' in text or 'call limit' in text:
             return 'model_budget_exhausted'

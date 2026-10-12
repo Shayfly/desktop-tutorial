@@ -77,6 +77,33 @@ def quota_exhausted(exc) -> bool:
     return any(k in text for k in ('quota', 'billing', 'insufficient', 'credit balance', 'resource_exhausted'))
 
 
+def provider_quota_depleted(exc) -> bool:
+    """Provider explicitly reported exhausted quota/credits, not generic 401 or rate-limit.
+
+    A quota signal is not a verified account balance; only the provider's own
+    billing API can provide that. For 148AI user-facing notices, do not infer
+    that invalid credentials or a transient throttle mean money ran out.
+    """
+    status = getattr(exc, 'status', None)
+    message = str(exc).lower()
+    if status == 402:
+        return True
+    signals = ('credit balance', 'insufficient_quota', 'insufficient quota',
+               'exceeded your current quota', 'quota exhausted', 'quota exceeded',
+               'no credits remaining', 'out of credits', 'billing hard limit',
+               'resource_exhausted')
+    return status in (400, 403, 429) and any(s in message for s in signals)
+
+
+class ProviderQuotaUnavailable(ModelGatewayError):
+    """Provider(s) reported quota/credit exhaustion and no fallback succeeded."""
+    def __init__(self, providers):
+        names = tuple(sorted(set(str(p)[:64] for p in providers if p)))
+        self.providers = names
+        super().__init__('AI provider quota/credits unavailable: ' + ', '.join(names) +
+                         '; no eligible model fallback completed')
+
+
 @dataclass(frozen=True)
 class ModelEndpoint:
     name: str
