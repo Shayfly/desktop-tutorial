@@ -148,9 +148,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1524,9 +1525,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7616,20 +7618,20 @@
   "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 19,
+   "IMPLEMENTED": 20,
    "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 12,
+   "REAL_SERVER_VERIFIED": 11,
    "LIVE": 0,
    "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 60,
+   "IMPLEMENTED": 61,
    "UNIT_TESTED": 28,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 66,
+   "REAL_SERVER_VERIFIED": 65,
    "LIVE": 0,
    "BLOCKED": 9
   }

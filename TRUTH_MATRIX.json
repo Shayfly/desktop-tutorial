@@ -88,14 +88,14 @@
     "postdeploy-checks run 37961193099"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:build_plan_generation",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py"
     },
     {
      "part": "skill:build_quote",
@@ -1150,8 +1150,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 5,
-  "REAL_SERVER_VERIFIED": 17,
+  "IMPLEMENTED": 6,
+  "REAL_SERVER_VERIFIED": 16,
   "UNIT_TESTED": 5,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,
@@ -1160,6 +1160,7 @@
  "customer_visible_findings": [
   "shown to the customer but IMPLEMENTED: Describe the product in natural language (Hebrew/English)",
   "shown to the customer but IMPLEMENTED: Clarifying questions only when needed",
+  "shown to the customer but IMPLEMENTED: Plan and cost quote before the build",
   "shown to the customer but IMPLEMENTED: Generate the product code",
   "shown to the customer but IMPLEMENTED: Change the product in natural language"
  ]

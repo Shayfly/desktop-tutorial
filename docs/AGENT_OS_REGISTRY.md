@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 19, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 12, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 60, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 66, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 20, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 11, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 61, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 65, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -16,7 +16,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 60, UNIT_TESTED 28, INTEGRATION
 | Requirements Agent (`requirements_agent`) | management | **IMPLEMENTED** | requirements_traceability | real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py |  |
 | Intake Agent (`intake_agent`) | management | **UNIT_TESTED** | requirements_agent | unit tests only — tests/test_conversation_os.py |  |
 | Chief Architect (`chief_architect`) | software | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_conversation_os.py |  |
-| Product Planner (`product_planner`) | management | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
+| Product Planner (`product_planner`) | management | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
 | Architecture Agent (`architecture_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | UX/UI Design Agent (`ux_ui_design_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | model instruction only; no platform check verifies the result |  |
 | Frontend Agent (`frontend_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
@@ -88,7 +88,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 60, UNIT_TESTED 28, INTEGRATION
 | `risk_identification` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `constraint_extraction` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py |  |
 | `dependency_analysis` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `build_plan_generation` | Planning | **REAL_SERVER_VERIFIED** | product_planner | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `build_plan_generation` | Planning | **IMPLEMENTED** | product_planner | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
 | `milestone_generation` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
 | `task_decomposition` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
 | `task_dependency_generation` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
