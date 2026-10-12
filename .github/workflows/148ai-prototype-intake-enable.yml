@@ -38,13 +38,22 @@ jobs:
           assert os.getenv("OMNI_DATABASE_URL") and os.getenv("OMNI_REDIS_URL"), "No durable services"
           print("INTAKE_GATE=STAGING_WITH_CONFIGURED_MODEL_AND_PERSISTENCE")
           PY
+      - name: Restore the protected worker environment after checkout
+        # checkout cleans untracked files on this runner: .env must ALWAYS be
+        # reconstituted from GitHub secrets before any compose operation.
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bash infra/worker-host/write-env.sh
       - name: Recreate only the dedicated intake worker with the scoped override
         shell: bash
         env:
           OVERRIDE: ${{ github.workspace }}/infra/worker-host/docker-compose.prototype-intake.yml
         run: |
           set -euo pipefail
-          cd /opt/148ai/infra/worker-host
+          cd "$GITHUB_WORKSPACE/infra/worker-host"
           test -f docker-compose.yml && test -f .env
           docker compose -f docker-compose.yml -f "$OVERRIDE" config --services | grep -qx 'intake-worker'
           docker compose -f docker-compose.yml -f "$OVERRIDE" up -d --no-deps --no-build --force-recreate intake-worker
