@@ -77,7 +77,7 @@ class EngineTests(unittest.TestCase):
 
     def test_invalid_option_is_rejected(self):
         with self.assertRaises(ValueError):
-            d.answer(d.start('מערכת לניהול משימות לצוות'), {'color': 'rainbow'})
+            d.answer(d.start('מערכת לניהול משימות לצוות'), {'style': 'unknown-style'})
 
 
 DATABASE_URL = os.environ.get('M4D2_DATABASE_URL', 'postgresql://postgres:m4d2pass@127.0.0.1:5432/m4d2_test')

@@ -1,5 +1,131 @@
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
+## Update 2026-10-11 ~22:00 Asia/Jerusalem — deploy gate, rollback after 038, real-Docker rehearsal, evidence export, isolation (LOCAL ONLY, nothing pushed)
+
+Branch `claude/fix-static-site-acceptance-2026-10-11` (base a3cc9abc). Tested commit: **f419f58** (full suite below). Later commits only touch STATUS.md.
+
+**Implemented and independently verified (local, on this commit)**
+- Deploy gate fails closed (`omni_prod/active_jobs.py`, `drain.sh`): exit 2 when DB/Redis/URL/table/args cannot be verified, stale heartbeat still blocks (only `--acknowledge-stale <exact id>` releases, never passed by the workflow), intake (CLAIMED/EXECUTING even with an expired lease), STARTING previews, every RQ started-registry (incl. unregistered `omni-preview-host-*`) and busy RQ workers block; re-check immediately before and after the stop; a refusal before the stop leaves `not-stopped` so `recover.sh` touches nothing. Tests: `tests/test_worker_deploy_recovery.py` (GateInDrainTests, ActiveJobGateTests; the real-RQ test ran with a local Redis).
+- Code rollback after 038 without DROP/deleted attachments/hidden version: `python -m omni_prod.migrate --accept-newer 38` (exact versions, only newer than the package; unlisted version / gap / checksum drift still abort), `deploy-worker.yml` dispatch input `accept_newer_migrations`. Tests: `tests/test_migration_rollback_tolerance.py` (isolated throw-away PG; attachment row survives old->new round trip). The previous worker code (2a2bba6) was also run locally against a DB at 038: `migrate` fails (as before), the worker boots and listens.
+- Real Docker (engine 29.8.2 started in this sandbox, `docker compose` 5.5.1): `tests/test_real_docker_drain_recovery.py`, 8 scenarios against isolated PG + Redis, unmodified drain.sh/recover.sh: clean deploy, active job, Redis/DB/missing-URL failure, rollback-image save failure (fault injection around real docker, labelled), timeout->137, real OOM (engine OOMKilled flag), migration failure, startup failure; every scenario ends with all four services running the previous image. 8 passed.
+- Evidence export extended (generated files + `.omni/project.json`, failed checks with evidence, credit reservation, `--files-dir`), `omni_prod/failure_replay.py` (offline CRUD-requirement / missing-coverage / real-defect separation, SYNTHETIC test data only), `omni_prod/isolation_check.py` (non-secret identities, SHARED/ISOLATED/UNKNOWN).
+
+**Full suite on f419f58:** 1697 passed, 43 skipped, 0 failed, 288 subtests passed (551 s). Skips: 11 need a live Redis on 127.0.0.1:6379 (not provided; the new tests use `OMNI_TEST_REDIS_URL`), 4+3 live preview/sandbox hosts (`OMNI_RUN_LIVE_PREVIEW`/`LIVE_SANDBOX`), 4 migrated live Postgres, 3 `OMNI_RUN_LIVE_INTEGRATION`, 3 `omni-sandbox:latest` image absent (registry pulls blocked), the rest each name a missing credential/service (QStash, LLM, image provider, R2, Android/Xcode signing, clean-room DB, fixture URL) or are documented duplicates. None is counted as a pass.
+
+**Implemented but awaiting external live verification**
+- The same drain/recover scripts on the real Oracle host with the real images/compose/.env (the sandbox proves script logic on a real engine, not the host). NO-GO until the person approves a rehearsal when no build is running.
+- One-off evidence export of the exact "חגית" build (not run): needs the `bld_<hex>` and someone with worker-host access (or read-only DB + `OMNI_S3_*`). See docs/DEPLOY_RECOVERY_REHEARSAL_HE.md section 4.
+- Effective isolation check: needs `vercel env pull` files for preview/production and the worker `.env` produced by the owner. Known already (read-only Vercel API): `OMNI_DATABASE_URL`, `OMNI_REDIS_URL`, `OMNI_SECRET_KEY` are ONE record for production+preview => SHARED DB, SHARED Redis (=> shared queues). `OMNI_S3_*` are separate records, values unknown.
+
+**Blocked by a named credential/service**: live DB state (active jobs, "חגית" data), Vercel runtime logs, billing API (404), deployment-verify bypass secret, a new restore-verified backup (needs a dispatch on the milestone ref — approval).
+
+**Not implemented / open**: no route to roll back to code older than this branch through the workflow (only image-level `recover.sh`, no migration); no API-side pause of work intake (a job starting between the last gate check and SIGTERM and running past 25 min is cut off and reported); backup restore checks 14 tables and not `conversation_attachments`; scheduled backup still not installed; "חגית" is NOT shown fixed. No Mock/Replay presented as proof of a new build; no paid call made; no push, merge, deploy, migration or secret change.
+
+
+## Update 2026-10-11 ~19:30 Asia/Jerusalem — project "חגית" failed build: content-only site acceptance (LOCAL ONLY, nothing pushed)
+
+Base: a3cc9abc (PR #17 head). Branch `claude/fix-static-site-acceptance-2026-10-11`. No push, merge, deploy, live migration, secret change or paid call was made; spend by this work: $0.
+
+**Customer failure (from the founder's screenshot, not from job evidence):** `BEHAVIOR: ... 2 failed check(s); missing acceptance coverage: A2,A4,A5; missing required behavior kinds: data_create,responsive`.
+
+### 1. Implemented and independently verified (offline, this commit)
+- Structured content-only handling: a new non-delegable question `content_only`; the binding brief block gets `Product kind: CONTENT-ONLY website` only after an explicit "yes" with sign-in NONE and no personal data; `ProductArchitect.compile` records `static_content_site` only from that approved block (free text never qualifies); `acceptance_scope` then waives **data_create only**. data_read, responsive and api_smoke stay required; missing/unknown contract, any login/role, personal data, external integration, storage/scheduled/outbound infra, or a CRUD product keep the full floor.
+- "No personal data" in Hebrew/English is read from the request; delegation never decides `content_only`.
+- A WhatsApp *link* (wa.me, "קישור/כפתור וואטסאפ") is no longer inferred as an SMS/messaging integration (architect, intake contract, feasibility answer).
+- Conversation: a bare "תתחיל/בוא נתחיל/go" with an existing brief returns the `approve_build` action (no auto-approval); content added after the brief is complete (prices, texts, links) is recorded verbatim in the brief `content` field as a new revision, which invalidates any earlier approval via the fingerprint; the "ready" sentence is not repeated.
+- Repair feedback now states which kinds are NOT_REQUIRED and that criteria mapped only to them stay uncovered (target of the "A2,A4,A5 missing" loop).
+- Tests: `tests/test_content_only_site.py` (13) fail without the fix (collection error) and pass with it, including a real local HTTP run of `WebSaaSAcceptanceRunner`.
+- Full suite on the fix: 1627 passed, 44 skipped, 3 failed → the 3 were registry/department files made stale by the code change; regenerated with the canonical generators (`python -m omni_prod.agent_os.audit --write`, `python -m omni_prod.agent_os.departments --write`) and re-run green. **Side effect: real-server evidence for discovery requirement_extraction / smart_question_generation / safe_default_selection is now STALE (REAL_SERVER_VERIFIED → IMPLEMENTED; Truth Matrix 22 → 19) until re-verified on a real server.**
+
+### 2. Implemented, awaiting external live verification
+- Everything above on the real worker/Preview. The failed job itself has NOT been reproduced: its approved brief/contract, A2/A4/A5 definitions, generated files, `.omni/project.json`, per-round failures and spend are not accessible from here (UNVERIFIED which of scope / mapping / data defect / responsive defect / stagnation applies).
+
+### 3. Blocked by a named credential/service
+- Job evidence export (authenticated project/job APIs / DB read), worker runtime SHA and flags, Preview/Production env isolation values, `VERCEL_AUTOMATION_BYPASS_SECRET` for deployment-verify (HTTP 401 PROTECTED), live migration 038.
+
+### 4. Not implemented
+- Inspector activation, candidate-before-accept, durable resume, paid Golden E2E proof; an actual reproduction of the "חגית" job.
+
+### Follow-up commit (same day, local only): spec/prompt support, worker drain/recovery, scheduled backup, evidence export
+- **Generator/ProductSpec:** the generator sees only the ProductSpec, so for an approved content-only contract the floor spec is now `site-content` + responsive + health (no platform-auth/rbac/data), and the Architect/Generator/Repair system prompts carry `CONTENT_ONLY_RULES` (static page, no DB/login/record API, plan limited to data_read/responsive/api_smoke, every acceptance id attached to a real check). Removing only the data_create check while still telling the model to build CRUD is thereby closed (offline tests; the model's behaviour itself is UNVERIFIED until one paid build).
+- **Deploy recovery (`infra/worker-host/drain.sh`, `recover.sh`, `deploy-worker.yml`):** drains all four consumers (worker, intake-worker, intake-maintain, preview-worker); fails the deploy BEFORE migrations on a failed stop, exit 137, OOM or a still-running container; records previous images; `recover.sh` restores the previous consumers on drain/migrate/start/listen failure without touching the DB or volumes. Verified only with a fake `docker` (8 tests incl. a mutation check); NOT run on the real host.
+- **Scheduled backup:** root cause confirmed by design (GitHub fires `schedule` only from the default branch). `infra/backup-scheduler/backup-scheduler.yml` (inactive here) dispatches `backup-restore.yml` on the milestone branch and fails if the last success is older than 30 h. Needs a one-file PR on `main` (Vercel builds Production from `main`: owner decision; changing the default branch is NOT proposed) and a later real-cron verification.
+- **Evidence export:** `omni_prod/evidence_export.py` (one-off via stdin into the already-deployed worker image: no merge, no worker deploy) + `docs/FAILED_BUILD_EVIDENCE_EXPORT_HE.md` (+ a later-convenience workflow); schema-tested against the local PostgreSQL. Not run against the failed build.
+- **Review fixes (2026-10-11, second round):** (1) drain is blocked when an existing consumer's image cannot be inspected/tagged or listed; (2) `recover.sh` fails when a recorded service has no rollback image, `up` fails, a service is not running afterwards or the worker is not listening; (3) the export uses only the approval whose `used_by_build_id` is exactly the build (and a matching brief/contract fingerprint) and reports MISSING/AMBIGUOUS instead of substituting; (4) the backup scheduler now separates DISPATCHED / STARTED / SUCCEEDED and is green only when the NEW run succeeds; it is NOT installed or active, the default branch is not to be changed, and a real cron run must still be verified after an approved install. Regression tests fail on the previous code (6 recovery/scheduler + 4 export).
+- **Pre-merge safety assessment (2026-10-11 ~20:00):** `omni_prod/active_jobs.py` + a gate step before the drain (waits up to 20 min for RUNNING builds/changes, then fails WITHOUT draining; queued work is not interrupted; stale heartbeats are reported, not blocking). Simulation (fresh local DB, old code 2a2bba6 → 037, data, new code → 038): data preserved; **old code's `omni_prod.migrate` ABORTS on a DB at 038 ("applied migration missing from package: 38")**, so rolling back by redeploying old code through deploy-worker needs the manual 038 rollback first (`DROP TABLE conversation_attachments` + `DELETE FROM schema_migrations WHERE version=38`, simulated: other tables untouched, old migrate clean, 038 re-applies). Live facts read today: Preview `/api/v28/deployment` = a3cc9abc, applied_max 37, 038 missing (MIGRATIONS_PENDING); last backup 20261011T123608Z restore-verified (55 versions rebuilt, 14 tables, migrations 37); Vercel DB/Redis variables are ONE record shared by Preview and Production.
+- **Runtime facts re-read (Vercel API):** latest Preview `dpl_536b1wK6…` READY at `a3cc9abc`, target null (no Production change); worker last recorded deploy `2a2bba6` (Actions 38130249079, per the handoff); live DB version, live flags and the failed job's data: UNVERIFIED (no access).
+
+
+## Update 2026-10-11 ~15:30 Asia/Jerusalem — Conversation UX, image attachments, Visual Edit, 3-pane workspace
+
+**Branch `claude/visual-edit-workspace-2026-10-11` (stacked on PR #16). Not merged. $0: no paid model call, no paid flag, no secret change, no production deploy.** Details and gap list: `docs/VISUAL_EDIT_AND_ATTACHMENTS.md`.
+
+**Vercel state checked first**:
+- Production = `main` @ `e8f2949` (2026-10-06, old code).
+- Integration Preview = `2a2bba6` (READY).
+- PR #11, #15 and #16 exist only as their own branch previews.
+
+**Implemented and independently verified (local; real FastAPI + PostgreSQL + real preview router over TLS; real Chromium desktop 1440×900 and mobile 390×844)**
+- **Conversation:** short decision names; values taken from the request are verified, not re-asked; "don't know"/"what?" gets the reason, then the options (never the same sentence twice). Approved requirements are still never changed silently.
+- **Image attachments** (migration 038 `conversation_attachments`, additive):
+  - PNG/JPEG/WebP decided from bytes; SVG refused (415); 3 MB / 8000 px / 6 per message / 40 per project.
+  - Owner-only (another account gets 403/404); `nosniff` + sandbox CSP; bytes deleted with the attachment.
+  - Shown in the thread; the reply says plainly that images are **not analyzed**.
+- **Visual Edit:**
+  - Pick an element in the live preview (mouse or touch); the preview inspector wraps the unchanged router, off unless `OMNI_PREVIEW_INSPECTOR=1`.
+  - The element is located in the stored source (file:line). Ambiguous → the person chooses, and the server refuses a guessed target (409).
+  - Screenshot with box/drawing marks.
+  - The change goes through the existing modifications pipeline; before/after comparison and undo use the existing previews and rollback.
+- **Layout:** desktop chat (right) | preview (centre) | edit tools (left), all resizable, project list as a drawer; mobile tabs Chat / Preview / Edit; "Agent tasks" moved under "Build progress" as collapsible technical details.
+- **Evidence:**
+  - `docs/evidence/visual_edit/walkthrough_result.json`: **23/23** checks, screenshots 01–16.
+  - The Wave A UI walkthrough still passes (two steps adapted to the drawer/tabs).
+  - Test-only substitutes: local-file object storage, a local process instead of a preview container, and a harness-written modification candidate (no model).
+- **Tests:**
+  - `tests/test_visual_edit.py` (real PostgreSQL) and `tests/test_conversation_ux.py`.
+  - The 036→037 upgrade test is now scoped to ≤ 037, because 038 exists.
+  - Neon bootstrap regenerated and verified on an empty PostgreSQL (34 migrations).
+  - Full suite: **1564 passed, 2 failed, 44 skipped** before that scoping. One failure was the upgrade test, now passing. The other was `test_m4_acceptance` W, whose nested run included that same failure; it passes when run alone after the fix.
+
+**Implemented but awaiting external live verification**: the inspector on the real preview host (env flags + worker deploy); one real targeted modification on the worker (paid); S3/R2 attachment storage on Vercel.
+
+**Blocked**: image analysis by a vision model (no vision route and no approved budget).
+
+**Not implemented**: preview of a candidate before accepting it; picking inside apps whose own CSP forbids `'self'` scripts (screenshot marking still works). After PR #11 merges, `schema_manifest.REQUIRED_MIGRATION` must become 38.
+
+## Update 2026-10-11 ~17:00 Asia/Jerusalem — Master directive stages 1–4/6: plan-governed execution (G1), approved criteria as test basis (G3), escalated intake lane
+
+**Branch `claude/plan-driven-execution-2026-10-11` (from `2a2bba6`). Not merged. $0 spent: no paid model call, no paid flag, no secret change, no production deploy.** Full audit and Beta/Production blockers: `docs/SYSTEM_WIDE_GAP_AUDIT.md`.
+
+**Implemented and independently verified (real PostgreSQL 16 locally; real engine loop with local stub agents; no provider)**
+- G1 plan-governed execution behind `OMNI_PLAN_DRIVEN=1`:
+  - The approved ExecutionGraph (durable `agent_tasks`) admits every model call and every verification run; dependencies are checked under a row lock.
+  - Out-of-order, repeated, over-limit and over-budget steps stop the build with `plan_violation`.
+  - Spend is charged to its plan task (`AgentRuntime.charge`, metered or authorized worst case). Over budget → task BLOCKED.
+  - The plan's repair limit tightens the engine (never widens it).
+  - A superseded (lost) worker is refused.
+  - Violations are sticky, even if a caller swallows them.
+  - Legacy recording is unchanged without the flag. `build_control.py` is untouched, so no verified evidence was invalidated.
+- G3: approved `intake-requirements/1` acceptance criteria travel with the plan binding.
+  - In plan-governed builds they are merged into the spec as `APPROVED-AC*`, so behavioural acceptance must cover each one.
+  - New mandatory release check `acceptance/approved_criteria_covered`: FAIL or NOT_RUN blocks READY.
+- Stage 1: HIGH/RISKY intake turns escalate to task class `conversation_complex` (preferred 85, mandatory 70).
+  - The quote, the reservation payload and the worker call use the same task; a mismatch is released before execution.
+  - MEDIUM stays on the standard lane; LOW uses no model.
+- Stage 2: the plan states per-task `permissions`, the final `deliverable`, the preview's mandatory checks and `execution_mode`. The graph fingerprint is unchanged.
+- Tests:
+  - `tests/test_plan_driven_execution.py`: 30 tests (17 need real PostgreSQL), added to CI job `intake-budget-pg`, which applies migrations and fails on any skip.
+  - Updated lane test; new supervisor escalation test.
+  - Affected suites: 186 passed.
+  - Full suite: **1541 passed, 1 failed, 44 skipped**. The failure is `test_maintenance_live_postgres` (order-dependent; passes alone: 2 passed).
+  - Generators current: `omni_prod.agent_os.audit` (registry unchanged) and `omni_prod.intelligence.matrix --write` (new task class).
+
+**Implemented but awaiting external live verification**: all of the above on a real build (G2, about $0.15 per build, founder approval) and a real escalated intake turn (paid intake activation).
+
+**Blocked**: G2/G9/G10 (paid budget), G6 (`VERCEL_AUTOMATION_BYPASS_SECRET`), G5 (PR #11 merge approval).
+
+**Not implemented**: parallel dispatcher and resume from a task checkpoint (G1b; documented in `plan.execution_mode.not_yet`), G11, non-web families.
+
 ## Update 2026-10-11 ~15:30 Asia/Jerusalem — Issue #12: atomic intake budget reservations, complexity routing, requirements preservation
 
 **Branch `feature/intake-budget-complexity-router` (= PR #13 + Issue #12). Not merged. No paid model call, no paid flag enabled, no secret change, no production deploy.** Design, state machine, lock-order proof, migration/rollback: `docs/INTAKE_BUDGET_RESERVATIONS.md`.
@@ -40,6 +166,63 @@
 - **The merge itself was refused by this session's safety layer** (both the fast-forward push and the GitHub PR merge call). Nothing was merged or deployed; worker still `67a0765`; migration 036 NOT applied; the new UI is NOT on pre-staging.
 - Unblock: the founder clicks **Merge** on PR #8 (or merges `8fe5998` into the integration branch). That push triggers deploy-worker (migration 036 + worker `8fe5998`) and the Vercel Preview of the integration branch.
 - Prepared meanwhile (branch `claude/wave-a2-worker-intake-2026-10-11`, `3194ecd`, not in PR #8): real-model intake routed through the worker (`intake-worker` service, `omni-intake` queue), OFF until authorized; tests with doubles only.
+
+## Update 2026-10-11 10:45 Asia/Jerusalem — PR #11 security hardening of the deployment verifier (implementation: Claude; independent review: ChatGPT)
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11` (PR #11). Not merged. No production deploy, no secret change, $0.** Review: `docs/DEPLOYMENT_VERIFY_SECURITY_REVIEW.md`.
+
+**Implemented and independently verified (local, real HTTP over loopback; real FastAPI + PostgreSQL)**
+- High: secret leak on redirect **reproduced** (Bearer token + bypass secret delivered to a second host after a 302) and fixed — redirects never followed; secrets only sent to the validated origin.
+- High: SSRF — origin-only target, https except loopback, no IP literals/credentials/path/query, exact host or anchored suffix allowlist, all resolved addresses must be public.
+- No cookie jar, no env proxies, 1 MiB response cap, per-request timeout + overall deadline, classified network failures (no crash), evidence without bodies/tokens + final scrub, full 40-hex SHA (+ optional trusted deployment-metadata SHA), production writes refused without explicit flag, server-controlled ids validated.
+- Canonical contract: declared required checks; a missing/downgraded/NOT_RUN mandatory check ⇒ BLOCKED; FAIL ⇒ FAILED (takes precedence).
+- PR #9 compared; its hardening and test shapes merged into PR #11 (PR #9 itself not merged).
+- Tests `tests/test_deployment_verification.py`: 35 passed (+27 subtests) — attacks (cross/same-origin redirect, post-login redirect, cookies, echoed Authorization, path-steering id, 19 SSRF URL shapes, private/metadata DNS), network failures (refused, reset mid-journey, timeout, oversize, non-JSON), wrong credentials (bad bypass, no token, rejected token), SHA (short, malformed, mismatch, trusted mismatch, missing), schema mismatch, production guard, CLI exit codes 0/1/2/3.
+- Full suite: 1479 passed, 1 failed (`test_m4_acceptance` W — environment-only, also failing on base), 43 skipped.
+- Real local servers (`docs/evidence/verification/`): 036 DB → VERIFIED (exit 0); 035 DB → FAILED schema_compatible + conversation (exit 1); wrong SHA → FAILED (exit 1); `https://evil.example` → configuration error (exit 3).
+
+**Implemented but awaiting external live verification**
+- Workflow now runs only for `vercel[bot]` deployments (creator confirmed on real run 38114225915), non-Production, host suffix `-shayflys-projects.vercel.app`. Verdict on the protected Preview will remain BLOCKED until the bypass secret exists.
+
+**Blocked by a named credential/service**
+- `VERCEL_AUTOMATION_BYPASS_SECRET` (GitHub secret, from Vercel "Protection Bypass for Automation") — founder action.
+- Promotion gating on the check (Vercel Deployment Checks / branch protection) — founder action.
+- Merge decision — independent review (ChatGPT) + founder.
+
+- Real-run regression found and fixed: run 38120874664 produced no result because argparse took the dash-leading host suffix for an option; the workflow now uses `--allowed-host-suffix=…` and a bad command line still writes a BLOCKED result (exit 3).
+
+- Independent review findings R1–R3 fixed in `verification_contract.py`: exact full-SHA promotion binding (no prefixes, unbound promotion refused); timestamp/TTL validity window (future-dated, missing, non-finite, inverted, invalid TTL refused); mandatory NOT_APPLICABLE fails closed unless a versioned NA policy names the check; plus verdict recomputation at promotion (forged verdicts refused). `tests/test_deployment_verification.py`: 43 passed (+58 subtests). Full suite 1488 passed, 1 failed (`test_m4_acceptance` W, environment-only, also on base), 43 skipped.
+
+- Closure review (`docs/DEPLOYMENT_VERIFY_SECURITY_REVIEW.md` §C1–C5): three promotion-gate bypasses found on `5ad2ccc` (forged empty required list, self-authorizing NA policy in the evidence, duplicate check names) — **fixed**: `may_promote` takes `required` / `na_policy` from the caller (`DEPLOYMENT_REQUIRED_CHECKS`), never from evidence; duplicates block; `ForgedEvidenceTests` 6. Deployment binding verified three ways for `5ad2ccc` (GitHub run head_sha = Vercel deployment `dpl_B6def4hWWTkGVtz8hsxbgZagciQB` = app-reported SHA, schema COMPATIBLE). Checkout `persist-credentials: false`. DNS rebinding: accepted residual risk for pre-staging, IP-pinning fix specified. `test_m4_acceptance` W: fails identically on unchanged base `4cc9b91`; its nested suite passes there (exit 0, 1303 tests OK) — log-tail check artefact of local live-PG warnings (`docs/evidence/verification/baseline_failure_m4_acceptance_W.json`). Full suite: 1493 passed, 2 failed (the W test above; `test_maintenance_live_postgres` order-dependent locally, 3/3 pass alone), 43 skipped. `tests/test_deployment_verification.py`: 49 passed (+67 subtests).
+
+**Residual risks (not fixed)**: DNS rebinding between the address check and connect; `vercel.app` suffix trust relies on Vercel team-slug hostnames (mitigated by the `vercel[bot]` gate); app-reported SHA is self-reported; synthetic rows accumulate in the shared pre-staging DB.
+
+## Update 2026-10-11 08:20 Asia/Jerusalem — Vercel "Server error" fixed + Continuous Verification P0.1–P0.4
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11`. $0 spent. No production deploy, no secret change, no model call.**
+
+Root cause of the red "Server error": `psycopg.errors.UndefinedTable: relation "execution_plans"/"intake_messages" does not exist` (Vercel runtime errors, deployment `dpl_42B7ngrpgoMCqxnLF2K4DUG3r5K8`, commit `8fe5998`): the branch Preview ran the Wave A API against the shared pre-staging DB before migration 036 was applied. Fix `b6a99c1` (503 `conversation_not_ready` + guided fallback, builds unaffected). The founder merged PR #8 (merge `4cc9b91`, 2026-10-11 01:10 UTC); deploy-worker run 38100955911 succeeded incl. "Apply database migrations".
+
+**Implemented and independently verified**
+- Migration 036 applied on the shared pre-staging DB — read from the real Vercel Preview `dpl_AcJCaecSiEBVCk6fz7vtawtVn2iE` (`19d76d7`): `GET /api/v28/deployment` → `schema.status=COMPATIBLE, applied_max=36, missing=[]`.
+- No runtime errors on Vercel after 2026-10-11 00:25 UTC (both error groups belong to the pre-036 deployment).
+- P0.1 coverage map: `docs/VERIFICATION_COVERAGE_MAP.md` (generated products well covered; the platform's own Vercel API had no post-deployment check — why the incident shipped).
+- P0.3 canonical verdict `verification-result/1` (`omni_prod/verification_contract.py`): never VERIFIED by default; FAIL→FAILED; NOT_RUN/UNKNOWN→BLOCKED; skips need reasons; promotion gate refuses wrong-commit/artifact or expired evidence; `quality-report/1` maps onto it.
+- P0.2/P0.4 deployment verification: `GET /api/v28/deployment` (commit, env, required vs applied migrations via `omni_prod/schema_manifest.py`, drift-tested) + `tools/deployment_verify.py` (SHA, schema, register→project→conversation→persistence→memory, anonymous denial, cross-user isolation; synthetic users) + workflow `deployment-verify` on every Vercel `deployment_status`.
+- Local real-server evidence (`docs/evidence/verification/`): VERIFIED with 036; FAILED on 035 DB (schema + conversation 503); FAILED on wrong SHA.
+- Tests: `tests/test_deployment_verification.py` 17 (scenarios A, E, J, auth bypass, leak, protected, unreachable, no token leakage). Full suite 1462 passed, 1 failed (`test_m4_acceptance` W, environment-only, also failing on base), 43 skipped.
+
+**Implemented but awaiting external live verification**
+- `deployment-verify` ran for real on GitHub (run 38113948928) against the Vercel Preview → **BLOCKED** (HTTP 401, Vercel deployment protection). Working as designed (never VERIFIED without evidence).
+
+**Blocked by a named credential/service**
+- Full journey on Vercel needs Vercel "Protection Bypass for Automation" stored as GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` (founder action; not created by me).
+- Gating Vercel promotion on the check needs Vercel Deployment Checks / branch protection (founder action).
+- Live AI conversation: OFF (needs approved budget + `OMNI_INTAKE_MODEL`).
+
+**Not implemented**: P0.5–P0.12 (repair loop over deployment failures, security gate expansion, visual QA on the platform UI, handoff contracts, requirement→test traceability, defect intelligence, dashboards, adversarial suite); paid Golden E2E (NOT RUN).
+
+Note: PR #9 (`chatgpt/pdv-001-candidate-2026-10-11` → this branch, "PDV-001" standalone post-deployment verifier, 37 loopback tests) overlaps with `tools/deployment_verify.py`; not merged, needs a decision on which verifier to keep (or merge its hardening — host allowlist, redirect blocking — into this one).
 
 ## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
 
@@ -2146,3 +2329,8 @@ Live latest redeploy rchseos0u still reports write SignatureDoesNotMatch. Root c
 Independently reproduced locally with real pinned boto3 1.43.94/botocore 1.43.108 and synthetic credentials: before-send capture (no network) shows x-amz-sdk-checksum-algorithm, aws-chunked encoding, STREAMING signature. Official R2 compatibility table lists the optional checksum algorithm header unsupported for PutObject. R2-only client now uses SigV4, region auto, path addressing and checksum calculation/validation when_required. Standard S3 unchanged; private SHA256 storage verification retained.
 Verification: python -m pytest tests/test_r2_storage_signing.py tests/test_replicate_image_test.py tests/test_replicate_connection.py tests/test_database_pool_health.py -q -p no:cacheprovider — 22 passed. New regression captures actual signed request before transmission and confirms unsupported trailers absent, SigV4 present, SHA256 metadata retained; AWS region/defaults preserved.
 Awaiting live storage probe on new Preview. No claim that SignatureDoesNotMatch is fixed live and no paid image proof.
+
+
+## 2026-10-11: PR17 branch reconciliation with PR11
+
+PR11 is integrated into the PR17 branch only. Schema compatibility now requires migration 038, matching the attachment migration already present in PR17. Existing drift checks remain intact. This branch push is authorized to trigger Preview; no milestone/main merge, worker deployment, live migration, or secret change is authorized by this reconciliation. Local verification covers 48 deployment verification tests; full application and PostgreSQL validation must be confirmed by CI on the resulting commit. Preview protection, unscheduled default-branch backups, and worker recovery/drain risks remain release blockers; this entry does not claim production readiness.

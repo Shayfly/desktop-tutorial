@@ -1,0 +1,19 @@
+{
+ "schema": "baseline-failure-evidence/1",
+ "test": "tests/test_m4_acceptance.py::AcceptanceW::test_W_every_non_fastapi_test_module_passes",
+ "base_commit": "4cc9b9179ef9a5b5b8d03205288202a975ff4358 (origin/milestone/pre-staging-2026-10-05, PR #11 base, unchanged)",
+ "head_commit": "working tree on top of 5ad2cccc5713d60b45dd7e8f8001ae52fc2e26a6",
+ "result_base": "FAILED (pytest exit 1, 183 s)",
+ "result_head": "FAILED (pytest exit 1, 201 s)",
+ "identical_assertion": "expected a unittest OK summary (tests/test_m4_acceptance.py:676) - same text on base and head",
+ "nested_run_direct_on_base": {
+  "command": "OMNI_M4_ACCEPTANCE_W_NESTED=1 python3 -m unittest <_NON_FASTAPI_TEST_MODULES>",
+  "exit": 0,
+  "summary": "Ran 1303 tests ... OK (skipped=20)"
+ },
+ "root_cause": "the nested suite passes, but live-PostgreSQL tests (M4D2_DATABASE_URL set locally, pure-python psycopg) leave psycopg_pool thread-shutdown warnings on stderr after the OK line; the test inspects only the last 200 characters of stderr+stdout and misses OK. Environment-specific; CI (v24-ci) passes this test on every commit of PR #11.",
+ "reproduce": [
+  "git worktree add --detach /tmp/basewt 4cc9b9179ef9a5b5b8d03205288202a975ff4358",
+  "cd /tmp/basewt && M4D2_DATABASE_URL=postgresql://... python3 -m pytest tests/test_m4_acceptance.py::AcceptanceW -q"
+ ]
+}

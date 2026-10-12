@@ -26,6 +26,17 @@ RQ_JOB = 'omni_prod.intake.reservation_worker.rq_execute'
 INTAKE_QUEUE = 'omni-intake'
 
 
+
+RESERVED_TASKS = ('conversation', 'conversation_complex')
+
+
+def _reserved_task(payload: dict, quote: dict) -> str:
+    """The task the reservation was QUOTED for -- never a different (pricier) one."""
+    task = (quote or {}).get('task') or 'conversation'
+    if task not in RESERVED_TASKS or payload.get('task', task) != task:
+        raise ValueError(f'reserved task mismatch: quote {task!r}, payload {payload.get("task")!r}')
+    return task
+
 def build_gateway(quoted_usd: Decimal, models: tuple[str, ...]):
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
@@ -85,6 +96,11 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
         return {'ok': False, 'skipped': True, 'state': getattr(current, 'state', None)}
     payload = svc.payload(r.id)
     models = tuple(r.quote.get('allowed_models') or B.allowed_models())
+    try:
+        task = _reserved_task(payload, r.quote)
+    except ValueError as exc:   # never call a task the quote did not price
+        svc.release(r.id, reason=str(exc)[:200])
+        return {'ok': False, 'error': 'reserved task mismatch', 'state': B.RELEASED}
     try:   # building the gateway never contacts a provider
         gateway = (gateway_factory or build_gateway)(r.quoted_usd, models)
     except Exception as exc:
@@ -95,7 +111,8 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
     raw, error = None, None
     try:   # no database transaction is open here
         raw = gateway.complete_json(system=payload['system'], user=payload['user'],
-                                    max_tokens=int(payload['max_tokens']), task='conversation')
+                                    max_tokens=int(payload['max_tokens']),
+                                    task=task)
     except Exception as exc:
         error = f'{type(exc).__name__}: {str(exc)[:300]}'
     m = meter(gateway, r.quote)

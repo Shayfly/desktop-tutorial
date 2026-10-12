@@ -7,6 +7,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 
 from omni_prod import worker_tasks
@@ -53,12 +54,16 @@ class ProviderTests(unittest.TestCase):
         return DockerPreviewProvider(workspace=None, runner=runner, data_root=root), calls
 
     def test_persistent_start_creates_the_project_directory(self):
-        with tempfile.TemporaryDirectory() as root:
+        # Docker is faked here; verify the ownership request without requiring
+        # a host UID mapping. The real-container proof remains a deploy gate.
+        with tempfile.TemporaryDirectory() as root, patch('omni_prod.preview_runtime.os.chown') as chown:
             provider, calls = self._provider(root)
             self.assertTrue(provider.persistent_data)
             s = provider.start(preview_id='prv_1', project_id='tenant_a', version_id='v', repository=REPO)
             self.assertEqual(s.data_dir, project_data_dir(root, 'tenant_a'))
             self.assertTrue(os.path.isdir(s.data_dir))
+            from omni_prod.preview_runtime import PREVIEW_UID
+            chown.assert_called_once_with(s.data_dir, PREVIEW_UID, PREVIEW_UID)
             self.assertIn(f'type=bind,src={s.data_dir},dst=/data', calls[0])
             provider.remove_workdir(s.workdir)
             self.assertTrue(os.path.isdir(s.data_dir))  # stopping a preview never deletes product data

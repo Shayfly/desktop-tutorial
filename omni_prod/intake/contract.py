@@ -176,11 +176,16 @@ def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
     if personal:
         nfr.append(Requirement('S1', 'Personal details are visible only to authorized people', 'security',
                                origin('personal_data'), confidence('personal_data')))
+    from ..product_architect import strip_whatsapp_links  # a WhatsApp link is a hyperlink, not an SMS integration
+    integ_text = strip_whatsapp_links(text_all)
     integrations = [{'kind': k, 'detected_from': 'request text', 'status': 'requires capability check'}
-                    for k, pat in _INTEGRATION_WORDS if re.search(pat, text_all, re.I)]
+                    for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)]
     reqs = fr + nfr
+    content_only = d._content_only(v, login)
     ac = [{'id': 'AC1', 'covers': 'F1',
-           'given_when_then': f'Given the product is open, when the user performs the main action, then it succeeds and persists'}]
+           'given_when_then': ('Given the site is open, when a visitor views it, then the approved content, prices and links '
+                               'are shown and nothing is stored' if content_only else
+                               'Given the product is open, when the user performs the main action, then it succeeds and persists')}]
     n = 2
     for r in reqs[1:]:
         ac.append({'id': f'AC{n}', 'covers': r.id, 'given_when_then': f'Verified: {r.text[:200]}'})

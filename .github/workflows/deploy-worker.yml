@@ -5,6 +5,11 @@ name: Deploy build worker
 # is written with mode 600 and only variable NAMES are printed.
 on:
   workflow_dispatch:
+    inputs:
+      accept_newer_migrations:
+        description: "Code ROLLBACK only: exact migration versions a newer release already applied, e.g. 38 (comma separated). Empty = normal strict check."
+        required: false
+        default: ""
   push:
     branches: [milestone/pre-staging-2026-10-05]
     paths:
@@ -68,27 +73,40 @@ jobs:
       # replaced (the sandbox runner a build depends on included). New jobs wait
       # in the queue and the new worker takes them. Past the deadline Docker
       # kills the job; that is reported, never hidden.
-      - name: Drain workers (finish running jobs before replacing anything)
+      # Directive 2026-10-11: never start a drain while a customer job is RUNNING. Waits up to 20 minutes for it to
+      # finish (the drain itself would wait up to 25), then FAILS without touching anything. Read-only, no spend.
+      - name: Refuse to drain while a build or change is running
+        id: idle
         working-directory: infra/worker-host
-        run: |
-          set -uo pipefail
-          busy=$(docker ps -q -f name=omni-worker-worker-1 -f status=running | wc -l)
-          start=$(date +%s)
-          docker compose stop -t 1500 worker preview-worker
-          waited=$(( $(date +%s) - start ))
-          state=$(docker inspect -f '{{.State.ExitCode}} oom={{.State.OOMKilled}}' omni-worker-worker-1 2>/dev/null || echo "absent")
-          echo "::notice title=drain::workers stopped after ${waited}s (worker was running: ${busy}; exit ${state}). 137 means the 25-minute deadline killed a job."
-          docker logs --tail 5 omni-worker-worker-1 2>&1 | sed 's/^/worker: /' || true
+        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20
 
+      - name: Drain workers (finish running jobs before replacing anything)
+        id: drain
+        run: bash infra/worker-host/drain.sh
+
+      # A rollback to older code names the newer versions explicitly (workflow_dispatch input); nothing is dropped or
+      # hidden and every other migration check stays. A normal push passes nothing and stays strict.
       - name: Apply database migrations
+        id: migrate
         working-directory: infra/worker-host
-        run: docker compose run --rm --no-deps worker python -m omni_prod.migrate
+        env:
+          ACCEPT_NEWER: ${{ github.event.inputs.accept_newer_migrations }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ACCEPT_NEWER:-}" ]; then
+            [[ "$ACCEPT_NEWER" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "::error::accept_newer_migrations must be exact versions like 38"; exit 2; }
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate --accept-newer "$ACCEPT_NEWER"
+          else
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate
+          fi
 
       - name: Start
+        id: start
         working-directory: infra/worker-host
         run: docker compose up -d --remove-orphans
 
       - name: Verify worker is consuming the build queue
+        id: listen
         working-directory: infra/worker-host
         run: |
           set -euo pipefail
@@ -104,6 +122,13 @@ jobs:
           docker compose logs --tail 80 worker
           echo "::error::worker did not start listening on its queue"
           exit 1
+
+      # Directive 2026-10-11: a failed drain, migration, start or queue check must not leave customers without a
+      # worker. Restores the PREVIOUS consumers from the recorded images; never touches the database or volumes
+      # (migrations are additive, so the old code runs against the newer schema). The run stays red.
+      - name: Recover previous workers after a failed drain, migration or start
+        if: ${{ failure() && (steps.drain.outcome == 'failure' || steps.migrate.outcome == 'failure' || steps.start.outcome == 'failure' || steps.listen.outcome == 'failure') }}
+        run: bash infra/worker-host/recover.sh
 
       # The sandbox runner reporting healthy did not mean it could run code
       # (its image had no docker client; every build got HTTP 500). This runs

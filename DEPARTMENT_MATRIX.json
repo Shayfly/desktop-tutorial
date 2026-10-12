@@ -1,27 +1,28 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 5,
+  "IMPLEMENTED": 10,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 7,
-  "READY": 3
+  "PARTIAL": 4,
+  "READY": 1
  },
  "departments": [
   {
    "key": "D01",
    "name": "Customer Discovery & Product Requirements",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "intake conversation, requirements, ambiguity, approval",
    "core_agents": {
     "intake_agent": "UNIT_TESTED",
-    "discovery_agent": "REAL_SERVER_VERIFIED",
-    "requirements_agent": "REAL_SERVER_VERIFIED"
+    "discovery_agent": "IMPLEMENTED",
+    "requirements_agent": "IMPLEMENTED"
    },
    "support_agents": {},
    "skills": {
+    "IMPLEMENTED": 8,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 10,
-    "UNIT_TESTED": 1
+    "REAL_SERVER_VERIFIED": 1,
+    "UNIT_TESTED": 2
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -66,16 +67,17 @@
   {
    "key": "D03",
    "name": "Systems Architecture",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "architecture, decisions, dependency graph, contracts",
    "core_agents": {
     "chief_architect": "UNIT_TESTED",
-    "architecture_agent": "REAL_SERVER_VERIFIED"
+    "architecture_agent": "IMPLEMENTED"
    },
    "support_agents": {},
    "skills": {
+    "IMPLEMENTED": 3,
     "NOT_IMPLEMENTED": 12,
-    "REAL_SERVER_VERIFIED": 4
+    "REAL_SERVER_VERIFIED": 1
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -142,19 +144,19 @@
   {
    "key": "D06",
    "name": "Frontend Engineering",
-   "readiness": "READY",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "pages, state, routing, client tests",
    "core_agents": {
-    "frontend_agent": "REAL_SERVER_VERIFIED",
-    "coding_agent": "REAL_SERVER_VERIFIED"
+    "frontend_agent": "IMPLEMENTED",
+    "coding_agent": "IMPLEMENTED"
    },
    "support_agents": {
     "seo_web_quality_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 2,
+    "IMPLEMENTED": 8,
     "NOT_IMPLEMENTED": 32,
-    "REAL_SERVER_VERIFIED": 8
+    "REAL_SERVER_VERIFIED": 2
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -169,19 +171,18 @@
   {
    "key": "D07",
    "name": "Backend & API Engineering",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "services, business logic, API contracts, auth",
    "core_agents": {
-    "backend_agent": "REAL_SERVER_VERIFIED"
+    "backend_agent": "IMPLEMENTED"
    },
    "support_agents": {
     "identity_auth_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
     "BLOCKED": 2,
-    "IMPLEMENTED": 1,
-    "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 3
+    "IMPLEMENTED": 4,
+    "NOT_IMPLEMENTED": 25
    },
    "missing_roles": [],
    "missing_adapters": [
@@ -198,19 +199,19 @@
   {
    "key": "D08",
    "name": "Database & Data Engineering",
-   "readiness": "READY",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "schemas, persistence, integrity, migrations",
    "core_agents": {
-    "database_agent": "REAL_SERVER_VERIFIED"
+    "database_agent": "IMPLEMENTED"
    },
    "support_agents": {
-    "migration_agent": "REAL_SERVER_VERIFIED",
+    "migration_agent": "IMPLEMENTED",
     "analytics_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 4,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 7
+    "REAL_SERVER_VERIFIED": 4
    },
    "missing_roles": [],
    "missing_adapters": [],
@@ -264,9 +265,9 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 1,
+    "IMPLEMENTED": 3,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 25,
+    "REAL_SERVER_VERIFIED": 23,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],
@@ -313,22 +314,22 @@
    "responsibilities": "unit, integration, E2E, browser, regression",
    "core_agents": {
     "qa_agent": "REAL_SERVER_VERIFIED",
-    "behavioral_acceptance_agent": "REAL_SERVER_VERIFIED",
+    "behavioral_acceptance_agent": "IMPLEMENTED",
     "browser_rehearsal_agent": "REAL_SERVER_VERIFIED",
     "code_review_agent": "REAL_SERVER_VERIFIED"
    },
    "support_agents": {
-    "repair_agent": "REAL_SERVER_VERIFIED",
+    "repair_agent": "IMPLEMENTED",
     "performance_agent": "NOT_IMPLEMENTED",
     "regression_guardian": "UNIT_TESTED",
     "golden_path_verifier": "REAL_SERVER_VERIFIED",
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 2,
+    "IMPLEMENTED": 7,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 23,
-    "UNIT_TESTED": 4
+    "REAL_SERVER_VERIFIED": 16,
+    "UNIT_TESTED": 6
    },
    "missing_roles": [],
    "missing_adapters": [
@@ -471,16 +472,16 @@
     "release_agent": "IMPLEMENTED",
     "quality_gate_agent": "UNIT_TESTED",
     "observability_agent": "REAL_SERVER_VERIFIED",
-    "sre_reliability_agent": "REAL_SERVER_VERIFIED"
+    "sre_reliability_agent": "IMPLEMENTED"
    },
    "support_agents": {
     "diagnostic_agent": "REAL_SERVER_VERIFIED",
     "platform_capability_auditor": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 4,
+    "IMPLEMENTED": 5,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 5,
+    "REAL_SERVER_VERIFIED": 4,
     "UNIT_TESTED": 2
    },
    "missing_roles": [],

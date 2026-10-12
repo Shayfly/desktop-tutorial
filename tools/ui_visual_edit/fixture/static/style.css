@@ -1,0 +1,8 @@
+body{margin:0;font:16px/1.5 system-ui,"Noto Sans Hebrew",Arial,sans-serif;background:#f4f6f8;color:#14202e}
+.top{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;background:#fff;border-bottom:1px solid #d8dee4}
+.title{margin:0;font-size:1.4rem}.link{color:#1f5fa8}
+main{max-width:46rem;margin:1rem auto;padding:0 1rem;display:grid;gap:1rem}
+.card{background:#fff;border:1px solid #d8dee4;border-radius:12px;padding:1rem 1.2rem}
+label{display:block;margin:.5rem 0}input{display:block;width:100%;box-sizing:border-box;padding:.5rem;border:1px solid #c3ccd5;border-radius:8px;font:inherit}
+.actions{display:flex;gap:.5rem;margin-top:.8rem}.btn{font:inherit;padding:.5rem 1rem;border-radius:8px;border:1px solid #9aa7b4;background:#fff}
+.btn.primary{background:#1f5fa8;border-color:#1f5fa8;color:#fff}.list{margin:0;padding-inline-start:1.2rem}

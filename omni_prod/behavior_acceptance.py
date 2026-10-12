@@ -101,6 +101,11 @@ def _failure_text(report: dict) -> tuple[str, str]:
         missing.append('acceptance criteria not covered by a passing step: ' + ','.join(report['missing_acceptance_ids']))
     if report.get('missing_kinds'):
         missing.append('behaviours that must be shown working: ' + ','.join(report['missing_kinds']))
+    waived = [str(k) for k in (report.get('not_required_kinds') or ())]
+    if waived and report.get('missing_acceptance_ids'):
+        missing.append('kinds NOT_REQUIRED for this approved product (never run, never counted as coverage): '
+                       + ','.join(waived) + '. A criterion whose only step has such a kind stays uncovered: attach it to a '
+                       'step of a required kind that really checks it (e.g. a GET of the page asserting the approved text).')
     message = 'behavioural acceptance failed: ' + str(report.get('summary', ''))[:300]
     detail = ('The real app was started and the acceptance plan was run against it over HTTP.\n'
               + '\n'.join(lines + missing)
