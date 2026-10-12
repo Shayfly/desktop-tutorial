@@ -68,6 +68,19 @@ jobs:
           publish "ssh local handshake" sh -c 'timeout 4 bash -c "echo >/dev/tcp/127.0.0.1/22" && echo TCP_LOCAL_22_OK || echo TCP_LOCAL_22_FAILED'
           publish "ufw status" sh -c 'sudo -n ufw status verbose 2>&1 || true'
           publish "iptables INPUT" sh -c 'sudo -n iptables -nvL INPUT --line-numbers 2>&1 | head -60'
+          # Run root-level READ-ONLY host firewall queries using the previously
+          # proven privileged host namespace entry; the Actions runner's user
+          # does not have passwordless sudo.
+          host_firewall() {
+            docker run --rm --privileged --pid=host --network=host -v /:/host alpine:3 \
+              chroot /host /usr/bin/nsenter --target 1 --mount --uts --ipc --net --pid \
+              /bin/sh -c 'echo --- UFW ---; ufw status verbose 2>&1 | head -25;
+                echo --- IPTABLES INPUT ---; iptables -nvL INPUT --line-numbers 2>&1 | head -60;
+                echo --- IPTABLES SSH RULES ---; iptables -S INPUT 2>&1 | head -60;
+                echo --- NFT INPUT ---; nft list ruleset 2>&1 | grep -Ei "(hook input|policy |tcp dport 22|drop|reject)" | head -55;
+                echo --- SSHD PROC ---; ss -ltnp 2>&1 | grep -E "(State|:22[[:space:]])"'
+          }
+          publish "host root firewall and SSH" host_firewall
           publish "iptables INPUT rules" sh -c 'sudo -n iptables -S INPUT 2>&1 | head -60'
           publish "nft input policies" sh -c 'sudo -n nft -a list ruleset 2>&1 | grep -Ei "(hook input|policy |tcp dport 22|drop|reject)" | head -65'
           publish "sshd recent journal" sh -c 'sudo -n journalctl -u ssh --since "-20 min" --no-pager -n 25 2>&1 | sed -E "s/([0-9]{1,3}\\.){3}[0-9]{1,3}/[ip]/g"'
