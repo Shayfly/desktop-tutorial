@@ -1,9 +1,9 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 10,
+  "IMPLEMENTED": 11,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 4,
+  "PARTIAL": 3,
   "READY": 1
  },
  "departments": [
@@ -38,18 +38,19 @@
   {
    "key": "D02",
    "name": "Product Management & Planning",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "scope, milestones, prioritisation, delivery constraints",
    "core_agents": {
-    "product_planner": "REAL_SERVER_VERIFIED",
+    "product_planner": "IMPLEMENTED",
     "executive_orchestrator": "IMPLEMENTED"
    },
    "support_agents": {
     "product_evolution_agent": "IMPLEMENTED"
    },
    "skills": {
+    "IMPLEMENTED": 1,
     "NOT_IMPLEMENTED": 5,
-    "REAL_SERVER_VERIFIED": 2,
+    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 4
    },
    "missing_roles": [
