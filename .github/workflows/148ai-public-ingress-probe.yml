@@ -1,0 +1,33 @@
+name: One-time external public ingress probe
+
+# Issue #22: read-only probe from GitHub-hosted infrastructure.
+# Port 22 is intentionally allowlisted to the founder, so a hosted runner should
+# NOT be able to connect to port 22. Ports 80/443 are opened in the OCI
+# security list/UFW and can establish if *any* traffic arrives from the internet.
+on:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/148ai-public-ingress-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe TCP connectivity only (no HTTP requests)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import socket
+          host = "151.145.89.132"
+          for port in (80, 443, 22):
+              try:
+                  with socket.create_connection((host, port), timeout=6):
+                      print(f"TCP {host}:{port} OPEN")
+              except OSError as e:
+                  print(f"TCP {host}:{port} FAILED ({type(e).__name__}: {e})")
+          print("NOTE: TCP/22 failure from this source is expected because OCI allows only the founder's public IP.")
+          PY
