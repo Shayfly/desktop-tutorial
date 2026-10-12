@@ -2148,7 +2148,7 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
                                       max_cost_usd=quote.total_authorized_variable_usd)
             except QABudgetDenied as exc:
                 logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
-                raise PermissionError('internal QA funding would refuse this build') from exc
+                raise  # Preserve QA budget blocker, not a false customer-plan error.
         return quote
 
     prompt = req.prompt
@@ -2165,6 +2165,20 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['credits_required'] = _M5_BUILD_CREDITS
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
+    if internal_qa:
+        # Founder-only prototype diagnostics. Advisory information only: the
+        # live reserve transaction RECHECKS this budget under a DB lock.
+        from .qa_budget import qa_used_usd
+        with _v28_pool.connection() as conn:
+            with conn.cursor() as cur:
+                qa_used = qa_used_usd(cur, qa_policy.since)
+        preview['prototype_qa_budget'] = {
+            'mode': 'INTERNAL_QA', 'total_usd': str(qa_policy.total_usd),
+            'used_usd': str(qa_used),
+            'remaining_usd': str(max(Decimal('0'), qa_policy.total_usd - qa_used)),
+            'per_build_max_usd': str(qa_policy.build_max_usd),
+            'balance_is_provider_reported': False,
+        }
     if brief_row is not None:
         _apply_execution_plan_gate(preview, project_id, brief_row)
     return preview
