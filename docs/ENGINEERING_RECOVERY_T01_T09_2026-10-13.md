@@ -52,6 +52,26 @@
 - Repository provides `qa_budget.py`, `entitlements.py`, `build_cost_plan.py`, `creator_plan.py`, `conversation/`, `agent_os/`, `model_gateway.py`, `preview_router.py`, `worker_tasks.py`, `remote_sandbox.py`, etc. Presence is not proof of runtime functionality. Intake model requires explicit environment switches, budget caps and worker queue route; default can be deterministic. Verify all route wiring and secrets names, **not secret values**.
 - Full authoritative Neon migration state, full API route catalog, exact browser E2E and per-provider balances remain **NOT VERIFIED** in this initial T01 snapshot. Do not claim T01 DONE.
 
+## T01 follow-up execution evidence — October 13, 2026
+
+- Implementation PR [#25](https://github.com/Shayfly/desktop-tutorial/pull/25) was opened on isolated branch `fix/148ai-t01-ci-recovery-2026-10-13`. Genuine Docker OOM/recovery test deadline was separated from an unrelated four-second global deadline: the OOM flag assertion remains mandatory; final real-Docker CI still required.
+- Existing offline self-hosted regeneration ran successfully in [Actions run 38323026110](https://github.com/Shayfly/desktop-tutorial/actions/runs/38323026110), creating registry-evidence commit `209db23c7b665b15954d551972a0184a72f723d8`; this is generated truth **not promotion to verified**. One subsequent V11 Overlay CI job already passed on the recovery branch; final exact-SHA full CI awaits completed runs.
+- [Read-only founder staging DB audit 38323104154](https://github.com/Shayfly/desktop-tutorial/actions/runs/38323104154): `creator_projects`, `project_briefs`, `m5_build_contracts`, `build_jobs`, `schema_migrations` present; latest applied migration **37**. Latest six founder-associated stored build contracts are all `READY`, requiring only native build capabilities; no founder build_jobs in that DB. This does **not** reproduce the founder's earlier `cost_quote_unknown` screenshot, so do not assert the live error is fixed. Trace whether the affected request predates these contracts, uses another project, or was evaluated against a different deployment/configuration.
+- Source tree currently contains additive **migration 038** (`infra/postgres/038_conversation_attachments.sql`), which is **not** present in audited running DB. Image/screenshot attachment persistence is therefore not verified on that staging DB. Perform verified backup+restore and code/DB deployment parity checks before any migration.
+- Source code inventory found **178** `@app` route decorators in `omni_prod/investor_app.py` including the creator conversation, approvals, plans, durable builds, preview, versions and modifications. Decorator presence is **NOT** a passing HTTP or permission verification.
+- Vercel protected preview verification remains HTTP 401 `PROTECTED`; neither this issue nor PR #25 removes authentication. A CI bypass requires scoped secret management; no token value is to be committed or exposed.
+
+### Immediate blocker classification
+
+| Gate | Observed | Next proof |
+|---|---|---|
+| Founder screenshot: quote unknown for five capabilities | **BROKEN UI admission** | Reproduce original request on same approved brief revision; capture required/optional capability DAG and provider quotes. |
+| Agent OS generated registry mismatch | **ROOT CAUSE IDENTIFIED / GENERATED OUTPUT REFRESHED** | Full exact-SHA v24 + V11 CI green after report update. |
+| Worker recovery OOM vs global timeout | **TEST BUG PATCHED** | Real Docker + ephemeral Postgres CI completes and proves OOMKilled, recovery. |
+| Staging schema 37 vs source migration 038 | **VERSION DRIFT** | Backup/restore; preview staging migration + integrity/rollback checks. |
+| Protected Preview automation | **BLOCKED** | Authorized bypass, pinned-SHA live HTTP/browser smoke without public exposure. |
+| Product Golden E2E | **NOT VERIFIED** | Two billable opt-in QA test builds after gates, reconcile actual provider spend. |
+
 ## Initial reproducibility / release gates
 
 1. Pin Git branch and deployment SHA, capture `/api/status` and user-facing `/api/v28/m5/status` authenticated or via approved private automation access. Capture server identity/build version so Preview requests cannot land on wrong SHA.
