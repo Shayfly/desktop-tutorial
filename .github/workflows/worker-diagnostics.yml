@@ -59,6 +59,12 @@ jobs:
             echo "::notice title=${title}::${body:-<empty>}"
           }
           publish "containers" docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}'
+          # Issue #22: all probes are read-only. No service restart, deployment, or provider call.
+          publish "ssh service" systemctl is-active ssh
+          publish "ssh port listener" sh -c 'ss -ltn | grep -E "(^State|:22[[:space:]])" || true'
+          publish "default IPv4 route" ip -4 route show default
+          publish "redis connectivity from worker" docker exec omni-worker-worker-1 python -c 'import os; from redis import Redis; r=Redis.from_url(os.environ["OMNI_REDIS_URL"], socket_connect_timeout=3, socket_timeout=3); print("PONG" if r.ping() else "NO_PONG")'
+          publish "sandbox HTTP health from worker" docker exec omni-worker-worker-1 python -c 'import urllib.request; print("HTTP", urllib.request.urlopen("http://sandbox-runner:8010/health", timeout=3).status)'
           publish "restarts" docker inspect -f '{{.Name}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' omni-worker-worker-1 omni-worker-sandbox-runner-1
           publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
           publish "worker log" docker logs --tail "$n" omni-worker-worker-1
