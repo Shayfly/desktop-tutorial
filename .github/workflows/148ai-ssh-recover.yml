@@ -1,0 +1,65 @@
+name: One-time 148AI SSH service recovery
+
+# Issue #22. Recover only the host OpenSSH service on the existing Oracle worker.
+# Do not modify cloud ACLs, restart Docker, run builds, deploy images, or print secrets.
+# One-time automatic trigger on initial commit to the milestone branch.
+on:
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/148ai-ssh-recover.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 148ai-ssh-recovery
+  cancel-in-progress: false
+
+jobs:
+  repair-ssh:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 8
+    steps:
+      - name: Record host SSH status before recovery
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "Host: $(hostname)"
+          echo "SSH unit: $(systemctl is-active ssh 2>&1 || true)"
+          echo "SSH enabled: $(systemctl is-enabled ssh 2>&1 || true)"
+          echo "SSH listen sockets:"
+          ss -ltn | grep -E '(^State|:22[[:space:]])' || true
+          if [ ! -x /usr/sbin/sshd ]; then
+            echo "::error title=sshd-not-installed::/usr/sbin/sshd is absent; not attempting installation"
+            exit 1
+          fi
+          echo "OpenSSH binary exists."
+      - name: Restore only ssh.service (no other services)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if systemctl is-active --quiet ssh && ss -ltn | grep -Eq ':22[[:space:]]'; then
+            echo "::notice title=SSH already running::No changes necessary"
+            exit 0
+          fi
+          if sudo -n true >/dev/null 2>&1; then
+            sudo -n systemctl enable --now ssh
+          else
+            # The runner already has Docker access. Enter the HOST's mount/PID
+            # namespaces, execute only systemctl enable --now ssh; no package
+            # installs, no firewall changes and no restarts of other services.
+            docker run --rm --privileged --pid=host --network=host -v /:/host alpine:3 \
+              chroot /host /usr/bin/nsenter --target 1 --mount --uts --ipc --net --pid \
+              /usr/bin/systemctl enable --now ssh
+          fi
+          sleep 2
+          systemctl is-active --quiet ssh
+          ss -ltn | grep -Eq ':22[[:space:]]'
+          echo "::notice title=SSH RECOVERED::ssh.service is active and port 22 is listening locally. External OCI path remains separately unverified."
+      - name: Report current service status
+        if: always()
+        shell: bash
+        run: |
+          echo "ssh-active=$(systemctl is-active ssh 2>&1 || true)"
+          echo "ssh-enabled=$(systemctl is-enabled ssh 2>&1 || true)"
+          ss -ltn | grep -E '(^State|:22[[:space:]])' || true
