@@ -49,6 +49,7 @@ const T = {
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
+    checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
     errCodes:{verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
       release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
@@ -150,6 +151,7 @@ const T = {
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
+    checkingApproval:'Checking approval and budget — no build has started yet.',
     errCodes:{verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
       release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
@@ -679,7 +681,11 @@ async function startBuild() {
   // an already-approved plan instead of starting a second one.
   buildStarting = true;
   S.buildAdmissionError='';
-  $('buildMsg').textContent = '';
+  // Show approval progress immediately, without inventing a build ID or task.
+  $('progressPanel').hidden = false;
+  $('track').replaceChildren();
+  $('buildMsg').textContent = t('checkingApproval');
+  openTab('build');
   try {
     // Directive 2026-10-09 §5: the server binds this approval to the user,
     // the brief revision, the plan and the price; the build consumes it once.
@@ -699,6 +705,7 @@ async function startBuild() {
     if(!S.build){
       S.buildAdmissionError=explain(e);
       if(e.status===409)await requestBriefPlan(false);
+      $('progressPanel').hidden = true;
       renderPlan();renderTrack();openTab('plan');
     }else $('buildMsg').textContent=explain(e);
   } finally {
@@ -919,7 +926,7 @@ function friendlyError(b) {
   if (b.error_code === 'provider_quota_exhausted') {
     // Show the named route only when the server reported a quota response.
     // This is NOT a provider billing balance; it can also be a rate/usage quota.
-    const match = String(b.error_message || '').match(/AI provider quota\\/credits unavailable:\\s*([^;]+)/);
+    const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
     return known + (match && match[1] ? ' — ' + match[1] : '');
   }
   return known || b.error_message || b.error_code || '';

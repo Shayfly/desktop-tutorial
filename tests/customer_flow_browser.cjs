@@ -20,7 +20,7 @@ const path=require('path');
      if(failSend){failSend=false;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:{error:'attachments_not_ready'}})});}
      return route.fulfill({contentType:'application/json',body:JSON.stringify({messages:[],discovery:fixture,turn:{actions:[]}})});
     }
-    if(u.pathname.includes('/approvals')){blockedBuild=true;return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:{error:'capability_not_feasible',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}})});}
+    if(u.pathname.includes('/approvals')){blockedBuild=true;await new Promise(r=>setTimeout(r,150));return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({detail:{error:'capability_not_feasible',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}})});}
     if(u.pathname.endsWith('/builds')){buildCalls++;return route.fulfill({status:500,body:'{}'});}
     if(u.pathname.includes('/build-contracts'))return route.fulfill({contentType:'application/json',body:JSON.stringify({can_build:!blockedBuild,brief_revision:1,capabilities:[],infrastructure:[],product:{},blockers:blockedBuild?[{code:'capability_not_feasible',message:'unsupported',findings:[{item:'sign-in (roles)',outcome:'BLOCKED'}]}]:[],clarification_questions:[]})});
     if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:fs.readFileSync(process.env.BASELINE_HTML||path.join(__dirname,'../omni_prod/assets/index.html'),'utf8')});
@@ -54,6 +54,11 @@ const path=require('path');
    await page.evaluate(async()=>{await sendChat({message:'תשתמש בזה כלוגו',attachment_ids:['att_fixture']},'תשתמש בזה כלוגו');});
    assert.equal(calls[1].request_key,calls[2].request_key,'retry cannot create a second paid turn');
    await page.locator('#confirmBtn').click();
+   // Authorization is asynchronous; jump immediately to a truthful pending
+   // screen without showing an imaginary started build.
+   await page.waitForFunction(()=>buildStarting);
+   assert.equal(await page.locator('#ctxTitle').textContent(),'בנייה');
+   assert.match(await page.locator('#buildMsg').textContent(),/מאמתים אישור/);
    await page.waitForFunction(()=>!buildStarting&&S.plan&&!S.plan.can_build);
    assert.equal(buildCalls,0,'blocked approval starts no build');
    assert.equal(await page.locator('#progressPanel').evaluate(el=>el.hidden),true,'no fake build progress');
