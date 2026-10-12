@@ -353,13 +353,6 @@ def contradictions(brief: Brief) -> list[str]:
     if v.get('login') == 'none' and v.get('personal_data') == 'yes' and v.get('audience') in ('public', 'both') \
             and v.get('access_scope') is None:
         out.append('no sign-in + personal data + outside users: decide internal tool vs public site')
-    # A contact form may collect visitor identifiers even when storage is disabled.
-    # Require an explicit delivery/retention decision rather than silently dropping it.
-    if v.get('personal_data') == 'no' and re.search(
-        r'(טופס יצירת קשר|טופס צור קשר|contact form|contact us form)', brief.prompt, re.I
-    ):
-        if not re.search(r'(ללא שליחה|בלי שליחה|תצוגה בלבד|ללא איסוף|no submission|display only)', brief.prompt, re.I):
-            out.append('contact form + no stored personal data: clarify submission destination, delivery and retention')
     return out
 
 
