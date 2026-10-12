@@ -88,6 +88,9 @@ const T = {
     b_durable_backend_not_configured:'הבנייה דורשת שרת עם PostgreSQL ואחסון S3.',
     b_infrastructure:k=>`התשתית של האפליקציה לא מוכנה: ${k}`, b_image_provider:'יצירת אייקון ותמונות לא מוגדרת.',
     b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',
+    b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
+    qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
+    qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
     b_cost_quote_unknown:'חלק מהעלויות של הבנייה לא ידועות, ולכן אי אפשר לאשר אותה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
@@ -185,6 +188,9 @@ const T = {
     b_durable_backend_not_configured:'Building needs a server with PostgreSQL and S3 storage.',
     b_infrastructure:k=>`App infrastructure is not ready: ${k}`, b_image_provider:'Icon and image generation is not configured.',
     b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
+    b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
+    qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
+    qaBudgetLimit:'Authorization cap per build', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
     b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
@@ -623,6 +629,15 @@ function renderPlan() {
         h('b', {}, (p.allowance && p.allowance.credits_remaining != null) ? p.allowance.credits_remaining : '—')),
       h('div', {}, h('span', {}, t('quoteStatus')), pill(p.build_authorization || 'UNKNOWN'))),
   ];
+  if (p.prototype_qa_budget) {
+    const qa = p.prototype_qa_budget;
+    kids.push(h('section', { class: 'prototype-budget', 'aria-label': t('qaBudgetTitle') },
+      h('h3', {}, t('qaBudgetTitle')),
+      h('div', { class: 'cost' },
+        h('div', {}, h('span', {}, t('qaBudgetRemaining')), h('b', {}, money(qa.remaining_usd))),
+        h('div', {}, h('span', {}, t('qaBudgetLimit')), h('b', {}, money(qa.per_build_max_usd)))),
+      h('p', { class: 'meta' }, t('qaBudgetActual'))));
+  }
   if (p.clarification_questions.length) {
     kids.push(h('h3', {}, t('questions')), h('ul', { class: 'checklist' }, p.clarification_questions.map(q => h('li', {}, q.question))));
   }
