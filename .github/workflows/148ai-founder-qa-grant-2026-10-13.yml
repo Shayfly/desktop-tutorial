@@ -67,3 +67,22 @@ jobs:
                       assert cur.fetchone()[0] == 1, "founder QA grant postcondition failed"
           print("Founder QA entitlement verification: OK")
           PY
+      - name: Read existing total QA spend and remaining authorization (no writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i omni-worker-worker-1 python - <<'PY'
+          import os
+          import psycopg
+          from decimal import Decimal
+          from omni_prod.qa_budget import qa_used_usd, QABudgetPolicy
+          policy = QABudgetPolicy.from_env({"OMNI_ENV": "staging", "OMNI_QA_BUILD_MAX_USD": "0.50",
+                                             "OMNI_QA_BUDGET_TOTAL_USD": "10"})
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"]) as conn:
+              with conn.cursor() as cur:
+                  used = qa_used_usd(cur)
+          remaining = max(Decimal("0"), Decimal("10") - used)
+          print(f"QA_AGGREGATE_USED_USD={used:.4f}")
+          print(f"QA_AGGREGATE_REMAINING_USD={remaining:.4f}")
+          print("Budget is shared across providers, not per-provider bank balances.")
+          PY
