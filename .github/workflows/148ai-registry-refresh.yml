@@ -35,6 +35,12 @@ jobs:
             -e PYTHONPATH=/workspace -e PYTHONDONTWRITEBYTECODE=1 \
             -v "$GITHUB_WORKSPACE:/workspace:rw" -w /workspace \
             "$img" python -m omni_prod.agent_os.audit --write
+          # Department matrix is derived from the registry just regenerated.
+          docker run --rm --network none --read-only --tmpfs /tmp:rw \
+            --user "$(id -u):$(id -g)" \
+            -e PYTHONPATH=/workspace -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "$GITHUB_WORKSPACE:/workspace:rw" -w /workspace \
+            "$img" python -m omni_prod.agent_os.departments --write
       - name: Commit only computed evidence files (no application code or secrets)
         shell: bash
         run: |
@@ -51,7 +57,7 @@ jobs:
           # A generated evidence refresh must never include executable source.
           while IFS= read -r p; do
             case "$p" in
-              AGENT_OS_REGISTRY.json|PLATFORM_*_MATRIX.json|TRUTH_MATRIX.json|docs/AGENT_OS_REGISTRY.md|docs/TRUTH_MATRIX.md|omni_prod/registry_evidence_lock.json) ;;
+              AGENT_OS_REGISTRY.json|PLATFORM_*_MATRIX.json|TRUTH_MATRIX.json|DEPARTMENT_MATRIX.json|docs/AGENT_OS_REGISTRY.md|docs/TRUTH_MATRIX.md|docs/DEPARTMENT_MATRIX.md|omni_prod/registry_evidence_lock.json) ;;
               *) echo "::error title=unsafe-output::unexpected generated change: $p"; exit 1 ;;
             esac
           done < <(git diff --cached --name-only)
