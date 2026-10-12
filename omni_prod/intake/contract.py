@@ -201,7 +201,8 @@ def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
         functional_requirements=fr, nonfunctional_requirements=nfr,
         supported_platforms=['web', 'mobile_web'],
         languages=['he', 'en'] if lang == 'he_en' else [lang if lang in LANGS else 'he'],
-        design_preferences={k: v[k] for k in ('style', 'color', 'font', 'logo', 'references') if k in v},
+        design_preferences={**{k: v[k] for k in ('style', 'color', 'font', 'logo', 'references') if k in v},
+                            'palette_css': d.palette_css(v.get('color', ''))},
         integrations=integrations,
         authentication_requirements={'mode': login if login in ('none', 'simple', 'roles') else 'none',
                                      'source': origin('login')},
@@ -224,3 +225,4 @@ def build(brief: d.Brief, **kw) -> RequirementsContract:
     if problems:
         raise ContractInvalid(problems)
     return c
+
