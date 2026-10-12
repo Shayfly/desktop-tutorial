@@ -28,6 +28,14 @@ class PalettePreservationTests(unittest.TestCase):
         self.assertIn('palette #1d4ed8, #ffffff', text)
         self.assertNotIn('primary colour כחול ולבן', text)
 
+    def test_single_and_repeated_hex_colours_survive_conversation(self):
+        for text, expected in [('Use white', 'white'), ('Use black', 'black'),
+                               ('Use #123456', '#123456'),
+                               ('Use #ffffff and blue', '#ffffff, blue')]:
+            with self.subTest(text=text):
+                proposals = DeterministicInterpreter().interpret(text).proposals
+                self.assertEqual(next((p.value for p in proposals if p.field == 'color'), None), expected)
+
 
 if __name__ == '__main__':
     unittest.main()

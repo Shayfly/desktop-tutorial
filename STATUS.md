@@ -1,3 +1,7 @@
+# 2026-10-12 — P0 session evidence (partial verification)
+
+Read [the current evidence and gap report](docs/evidence/148ai_p0_2026-10-12.md) before interpreting historical status entries below. Final local focused regressions: 23 pass. Earlier exact-revision CI passed full pytest with 1607 passed / 172 skipped; palette changes require new CI. Golden AI/build/preview E2E is NOT_VERIFIED. Draft PR #21; no merge/Production/live migration/paid provider authorization.
+
 # STATUS — M1 async builds / M3 running preview / M4 natural-language modification
 
 ## Update 2026-10-11 ~22:00 Asia/Jerusalem — deploy gate, rollback after 038, real-Docker rehearsal, evidence export, isolation (LOCAL ONLY, nothing pushed)
