@@ -5,6 +5,10 @@ on:
   push:
     branches: [codex/148ai-verified-intake-2026-10-12]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

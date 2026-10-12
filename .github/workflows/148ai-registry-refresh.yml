@@ -1,0 +1,60 @@
+name: One-time regenerate computed Agent OS evidence
+
+# Source-of-truth registry refresh. Code changes make old live evidence stale;
+# the honest outcome is to downgrade status until reverified, not claim LIVE.
+# Git push uses the ephemeral GITHUB_TOKEN; only the feature branch is touched.
+# The existing worker *image* runs the compiler with network disabled;
+# no provider credentials are passed and no provider API call occurs.
+on:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+    paths: [.github/workflows/148ai-registry-refresh.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-148ai-registry-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Compute truthful registry and evidence matrices offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          img=$(docker inspect -f '{{.Config.Image}}' omni-worker-worker-1)
+          docker run --rm --network none --read-only --tmpfs /tmp:rw \
+            --user "$(id -u):$(id -g)" \
+            -e PYTHONPATH=/workspace -e PYTHONDONTWRITEBYTECODE=1 \
+            -v "$GITHUB_WORKSPACE:/workspace:rw" -w /workspace \
+            "$img" python -m omni_prod.agent_os.audit --write
+      - name: Commit only computed evidence files (no application code or secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          # Fresh checkout; this stages tracked changed evidence only, not .env.
+          git add -u
+          if git diff --cached --quiet; then
+            echo "::notice title=registry::Computed evidence was already current"
+            exit 0
+          fi
+          echo "Evidence outputs updated:"
+          git diff --cached --name-only
+          # A generated evidence refresh must never include executable source.
+          while IFS= read -r p; do
+            case "$p" in
+              AGENT_OS_REGISTRY.json|docs/*|omni_prod/registry_evidence_lock.json) ;;
+              *) echo "::error title=unsafe-output::unexpected generated change: $p"; exit 1 ;;
+            esac
+          done < <(git diff --cached --name-only)
+          git -c user.name='148AI registry bot' -c user.email='148ai-registry[bot]@users.noreply.github.com' \
+            commit -m "chore(agent-os): refresh computed prototype evidence without promoting unverified skills"
+          git push origin HEAD:refs/heads/codex/148ai-verified-intake-2026-10-12

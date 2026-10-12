@@ -6,6 +6,10 @@ name: intake-budget-pg
 # concurrency test must never look like a pass. No secrets, no provider calls.
 on: [push, pull_request]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

@@ -194,7 +194,7 @@ const T = {
     b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
-    qaBudgetLimit:'Authorization cap per build', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
+    qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
     b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
