@@ -120,7 +120,7 @@ QUESTIONS: tuple[Question, ...] = (
     Question('screens', 'screens', 'content', 'אילו מסכים או אזורים צריכים להיות?', 'Which screens or areas are needed?',
              'כל מסך שתכתבו ייבנה ויקבל בדיקה. אם לא תכתבו — נציע לפי הבקשה.',
              'Every screen you list is built and tested. Leave it to us and we propose from the request.',
-             kind='text', recommended='לפי הבקשה: מסך ראשי עם רשימה, טופס הוספה ופעולות על כל פריט'),
+             kind='text', recommended='__from_request__'),
     Question('languages', 'languages', 'content', 'באיזו שפה יהיה המוצר?', 'Which language?',
              'קובע כיוון כתיבה (ימין-לשמאל), פורמט תאריכים וניסוח.', 'Sets direction (RTL), date format and wording.',
              options=(_o('he', 'עברית', 'Hebrew'), _o('he_en', 'עברית ואנגלית', 'Hebrew and English'), _o('en', 'אנגלית', 'English')),
