@@ -22,7 +22,7 @@ _RULES = (
     ('automation', r'(אוטומצי|automation|workflow|זרימת עבודה|תזמון אוטומטי|zapier|n8n|כל בוקר שלח)'),
     ('ai_agent', r'(סוכן ai|ai agent|צ\'?אטבוט|chatbot|בוט שעונה|assistant bot)'),
     ('api_integration', r'(\bapi\b(?! key)|webhook|אינטגרציה|integration with|לחבר ל)'),
-    ('website', r'(דף נחיתה|landing page|אתר תדמית|אתר אינטרנט|portfolio|תיק עבודות|בלוג|blog|website)'),
+    ('website', r'(דף נחיתה|landing page|אתר תדמית|אתר אינטרנט|אתר לחברת|אתר של חברת|אתר לעסק|אתר לחנות|portfolio|תיק עבודות|בלוג|blog|website)'),
 )
 
 
