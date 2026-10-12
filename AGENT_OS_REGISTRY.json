@@ -45,9 +45,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -70,9 +71,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
@@ -146,9 +148,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -169,9 +172,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -218,9 +222,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -241,9 +246,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -266,14 +272,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only ",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
     "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "identity_auth_agent",
@@ -327,9 +334,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -421,9 +429,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -444,9 +453,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -667,14 +677,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
     "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T15:46Z",
-   "last_verified_commit": "2b4bafd"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "agent_key": "backup_recovery_agent",
@@ -713,9 +724,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/migrate.py",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -1210,9 +1222,10 @@
    ],
    "gap": "keyword families, no model",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1229,9 +1242,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
@@ -1248,9 +1262,10 @@
    ],
    "gap": "fixed question set",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1266,9 +1281,10 @@
    ],
    "gap": "deterministic questions, not generated",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1284,9 +1300,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/discovery.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1354,9 +1371,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1385,9 +1403,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1403,9 +1422,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
    "evidence": [
+    "tests/test_demand_driven_infrastructure.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1466,9 +1488,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1502,9 +1525,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1675,9 +1699,10 @@
    ],
    "gap": "one self-contained web stack",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_architect.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1828,9 +1853,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -1846,9 +1872,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2135,9 +2162,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2166,9 +2194,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2213,9 +2242,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2312,9 +2342,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2395,9 +2426,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2429,9 +2461,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2538,9 +2571,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2634,9 +2668,10 @@
    ],
    "gap": "SQLite in DATA_DIR",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -2666,9 +2701,10 @@
    ],
    "gap": "platform migrations only",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/migrate.py",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -2817,14 +2853,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
     "deploy-worker run 38083162363"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "data_upgrade",
@@ -3236,9 +3273,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3254,9 +3292,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3451,9 +3490,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3571,14 +3611,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "edge_case_test",
@@ -3603,14 +3644,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "auth_test",
@@ -3793,14 +3835,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "requirement_traceability_test",
@@ -3812,14 +3855,15 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks verify-replay run 38083686082",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "browser_launch",
@@ -4100,9 +4144,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
    "evidence": [
+    "tests/test_repair_sees_main_file.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4118,9 +4165,12 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
    "evidence": [
+    "tests/test_repair_stop_loss.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -4138,7 +4188,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/remote_sandbox.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
@@ -5041,9 +5091,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -5059,9 +5110,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -5649,9 +5701,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7565,20 +7618,20 @@
   "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 8,
+   "IMPLEMENTED": 20,
    "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 23,
+   "REAL_SERVER_VERIFIED": 11,
    "LIVE": 0,
    "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 29,
-   "UNIT_TESTED": 25,
+   "IMPLEMENTED": 61,
+   "UNIT_TESTED": 28,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 100,
+   "REAL_SERVER_VERIFIED": 65,
    "LIVE": 0,
    "BLOCKED": 9
   }

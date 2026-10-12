@@ -22,7 +22,7 @@ import uuid
 
 from . import budget as B
 from .interpreter import (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS, PROMPT_VERSION, SYSTEM, DeterministicInterpreter,
-                          Interpretation, merge, validate_model_output)
+                          Interpretation, merge, validate_model_output, contextual_user)
 
 INTAKE_QUEUE = 'omni-intake'
 JOB = 'omni_prod.intake.reservation_worker.rq_execute'
@@ -39,8 +39,10 @@ class ReservedWorkerInterpreter:
 
     def __init__(self, service: B.ReservationService, enqueue, *, account_id: str, project_id: str,
                  request_key: str | None, caps: B.Caps, lane: str = B.PRODUCTION, campaign_id: str | None = None,
-                 wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic):
+                 wait_seconds: float | None = None, sleep=time.sleep, clock=time.monotonic,
+                 task: str = 'conversation'):
         self.svc, self.enqueue = service, enqueue
+        self.task = task          # 'conversation' or the escalated 'conversation_complex' (lanes.choose)
         self.account_id, self.project_id, self.request_key = account_id, project_id, request_key
         self.caps, self.lane, self.campaign_id = caps, lane, campaign_id
         self.wait = float(os.getenv('OMNI_INTAKE_WAIT_SECONDS', '8')) if wait_seconds is None else wait_seconds
@@ -54,9 +56,9 @@ class ReservedWorkerInterpreter:
 
     def interpret(self, message: str, brief=None) -> Interpretation:
         base = self.fallback.interpret(message, brief)
-        user = message[:MAX_MESSAGE_CHARS]
+        user = contextual_user(message, brief, getattr(self, 'history', ()))
         try:
-            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS)
+            quote = B.quote(system=SYSTEM, user=user, max_tokens=MAX_OUTPUT_TOKENS, task=self.task)
         except B.QuoteUnavailable as exc:
             base.dropped.append(f'model not used: {exc}')
             return base
@@ -65,6 +67,7 @@ class ReservedWorkerInterpreter:
                                  project_id=self.project_id, quote_=quote, caps=self.caps, lane=self.lane,
                                  campaign_id=self.campaign_id,
                                  payload={'system': SYSTEM, 'user': user, 'max_tokens': MAX_OUTPUT_TOKENS,
+                                          'task': self.task,
                                           'prompt_version': PROMPT_VERSION})
         except B.BudgetExceeded as exc:
             base.dropped.append(f'model not used: budget {exc.scope.split(":")[0]} exhausted')

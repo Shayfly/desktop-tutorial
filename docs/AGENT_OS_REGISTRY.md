@@ -4,32 +4,32 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 8, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 23, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 100, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 20, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 11, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 61, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 65, LIVE 0, BLOCKED 9
 
 ## Agents
 
 | Agent | Category | Status | Verifier | Why / evidence | Gap |
 |---|---|---|---|---|---|
 | Executive Orchestrator (`executive_orchestrator`) | management | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/agent_os/runtime.py, omni_prod/autonomous_core.py, omni_prod/worker_tasks.py |  |
-| Discovery Agent (`discovery_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
-| Requirements Agent (`requirements_agent`) | management | **REAL_SERVER_VERIFIED** | requirements_traceability | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Discovery Agent (`discovery_agent`) | management | **IMPLEMENTED** | requirements_traceability | real-server evidence is stale; code changed since: omni_prod/discovery.py |  |
+| Requirements Agent (`requirements_agent`) | management | **IMPLEMENTED** | requirements_traceability | real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py |  |
 | Intake Agent (`intake_agent`) | management | **UNIT_TESTED** | requirements_agent | unit tests only — tests/test_conversation_os.py |  |
 | Chief Architect (`chief_architect`) | software | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_conversation_os.py |  |
-| Product Planner (`product_planner`) | management | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
-| Architecture Agent (`architecture_agent`) | software | **REAL_SERVER_VERIFIED** | code_review_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Product Planner (`product_planner`) | management | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
+| Architecture Agent (`architecture_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | UX/UI Design Agent (`ux_ui_design_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | model instruction only; no platform check verifies the result |  |
-| Frontend Agent (`frontend_agent`) | software | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
-| Backend Agent (`backend_agent`) | software | **REAL_SERVER_VERIFIED** | behavioral_acceptance_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
-| Database Agent (`database_agent`) | software | **REAL_SERVER_VERIFIED** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate; migrations applied; — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098), postdeploy-checks run 38083312245 |  |
+| Frontend Agent (`frontend_agent`) | software | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| Backend Agent (`backend_agent`) | software | **IMPLEMENTED** | behavioral_acceptance_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| Database Agent (`database_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Identity & Authentication Agent (`identity_auth_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | generated-app auth is not generated or verified; platform identity only |
 | Integration Agent (`integration_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | no generated-app integration path |
-| Coding Agent (`coding_agent`) | software | **REAL_SERVER_VERIFIED** | code_review_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Coding Agent (`coding_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Code Review Agent (`code_review_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
 | QA Agent (`qa_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
 | Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, deploy-worker run 38083162363, postdeploy-checks run 37961193099 (attempt ledger via  |  |
-| Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
-| Repair Agent (`repair_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate — postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
+| Repair Agent (`repair_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Security Agent (`security_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 38083312245 |  |
 | Compliance & IP Agent (`compliance_ip_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Provider Router Agent (`provider_router_agent`) | platform | **IMPLEMENTED** | compliance_ip_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
@@ -38,9 +38,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | Deployment Agent (`deployment_agent`) | platform | **REAL_SERVER_VERIFIED** | release_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
 | Release Agent (`release_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py | no publishing to a live customer domain |
 | Observability Agent (`observability_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
-| SRE / Reliability Agent (`sre_reliability_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before repl — postdeploy-checks run 37954236866 (+ inspect 37955419872), deploy-worker run 38083162363 |  |
+| SRE / Reliability Agent (`sre_reliability_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | Backup & Recovery Agent (`backup_recovery_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune — backup-restore run 37962179844 |  |
-| Migration Agent (`migration_agent`) | platform | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
+| Migration Agent (`migration_agent`) | platform | **IMPLEMENTED** | backup_recovery_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py |  |
 | Performance Agent (`performance_agent`) | quality | **NOT_IMPLEMENTED** | quality_gate_agent | no implementation | not implemented |
 | Accessibility Agent (`accessibility_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result | instructions + review only; no automated a11y test |
 | Localization / RTL Agent (`localization_rtl_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result |  |
@@ -70,25 +70,25 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 
 | Skill | Category | Status | Primary agent | Why | Gap |
 |---|---|---|---|---|---|
-| `intent_classification` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | keyword families, no model |
-| `requirement_extraction` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `ambiguity_detection` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | fixed question set |
-| `smart_question_generation` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | deterministic questions, not generated |
-| `safe_default_selection` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `intent_classification` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py | keyword families, no model |
+| `requirement_extraction` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/discovery.py, omni_prod/product_architect.py |  |
+| `ambiguity_detection` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/discovery.py | fixed question set |
+| `smart_question_generation` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/discovery.py | deterministic questions, not generated |
+| `safe_default_selection` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/discovery.py |  |
 | `confidence_scoring` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `persona_definition` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `target_user_definition` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `product_goal_definition` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
-| `functional_requirement_generation` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `functional_requirement_generation` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py |  |
 | `nonfunctional_requirement_generation` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
-| `acceptance_criteria_generation` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `acceptance_contract_generation` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `acceptance_criteria_generation` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| `acceptance_contract_generation` | Discovery / Requirements | **UNIT_TESTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
 | `scope_detection` | Discovery / Requirements | **UNIT_TESTED** | discovery_agent | unit tests only |  |
 | `feature_prioritization` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `risk_identification` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
-| `constraint_extraction` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `constraint_extraction` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py |  |
 | `dependency_analysis` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `build_plan_generation` | Planning | **REAL_SERVER_VERIFIED** | product_planner | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `build_plan_generation` | Planning | **IMPLEMENTED** | product_planner | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
 | `milestone_generation` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
 | `task_decomposition` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
 | `task_dependency_generation` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
@@ -99,7 +99,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `agent_assignment` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
 | `parallelization_planning` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
 | `risk_adjusted_planning` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
-| `stack_selection` | Architecture | **REAL_SERVER_VERIFIED** | architecture_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | one self-contained web stack |
+| `stack_selection` | Architecture | **IMPLEMENTED** | architecture_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py | one self-contained web stack |
 | `frontend_architecture` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `backend_architecture` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `database_architecture` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
@@ -110,8 +110,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `cache_architecture` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `deployment_architecture` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `multi_tenant_architecture` | Architecture | **REAL_SERVER_VERIFIED** | architecture_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host | platform-level isolation of generated data |
-| `api_contract_design` | Architecture | **REAL_SERVER_VERIFIED** | architecture_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `data_model_design` | Architecture | **REAL_SERVER_VERIFIED** | architecture_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `api_contract_design` | Architecture | **IMPLEMENTED** | architecture_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| `data_model_design` | Architecture | **IMPLEMENTED** | architecture_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `event_model_design` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `scalability_design` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
 | `failure_mode_design` | Architecture | **NOT_IMPLEMENTED** | architecture_agent | no implementation | not implemented |
@@ -131,27 +131,27 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `dashboard_design` | UX/UI | **NOT_IMPLEMENTED** | ux_ui_design_agent | no implementation | not implemented |
 | `accessibility_design` | UX/UI | **NOT_IMPLEMENTED** | ux_ui_design_agent | no implementation | not implemented |
 | `rtl_design` | UX/UI | **IMPLEMENTED** | ux_ui_design_agent | model instruction only; no platform check verifies the result |  |
-| `page_generation` | Frontend | **REAL_SERVER_VERIFIED** | frontend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `page_generation` | Frontend | **IMPLEMENTED** | frontend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `component_generation` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
-| `form_generation` | Frontend | **REAL_SERVER_VERIFIED** | frontend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `form_generation` | Frontend | **IMPLEMENTED** | frontend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `client_validation` | Frontend | **IMPLEMENTED** | frontend_agent | model instruction only; no platform check verifies the result |  |
 | `state_management` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
-| `api_binding` | Frontend | **REAL_SERVER_VERIFIED** | frontend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `api_binding` | Frontend | **IMPLEMENTED** | frontend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `auth_ui` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `responsive_implementation` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `rtl_implementation` | Frontend | **IMPLEMENTED** | frontend_agent | model instruction only; no platform check verifies the result |  |
 | `loading_ui` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `error_ui` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `navigation_implementation` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
-| `table_generation` | Frontend | **REAL_SERVER_VERIFIED** | frontend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `table_generation` | Frontend | **IMPLEMENTED** | frontend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `dashboard_generation` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `file_upload_ui` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `frontend_error_boundary` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `browser_storage` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
 | `frontend_test_generation` | Frontend | **NOT_IMPLEMENTED** | frontend_agent | no implementation | not implemented |
-| `api_endpoint_generation` | Backend | **REAL_SERVER_VERIFIED** | backend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `api_endpoint_generation` | Backend | **IMPLEMENTED** | backend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `request_validation` | Backend | **IMPLEMENTED** | backend_agent | model instruction only; no platform check verifies the result |  |
-| `business_logic_generation` | Backend | **REAL_SERVER_VERIFIED** | backend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `business_logic_generation` | Backend | **IMPLEMENTED** | backend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `service_layer_generation` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `repository_layer_generation` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `authorization_enforcement` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
@@ -159,16 +159,16 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `webhook_receiver` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `webhook_sender` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `rate_limit_enforcement` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
-| `server_error_handling` | Backend | **REAL_SERVER_VERIFIED** | backend_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `server_error_handling` | Backend | **IMPLEMENTED** | backend_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `idempotency` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `transaction_handling` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `pagination` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `filtering` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `search_backend` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `file_upload_backend` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
-| `schema_generation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | SQLite in DATA_DIR |
+| `schema_generation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py | SQLite in DATA_DIR |
 | `migration_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
-| `migration_validation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both | platform migrations only |
+| `migration_validation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py | platform migrations only |
 | `index_design` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_optimization` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
@@ -178,7 +178,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `seed_data_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `persistence_verification` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both | previews only |
 | `data_isolation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `scratch_database_generation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `scratch_database_generation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | `data_upgrade` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `data_rollback` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `backup_generation` | Database | **REAL_SERVER_VERIFIED** | database_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
@@ -209,8 +209,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `provider_fallback` | Integration | **NOT_IMPLEMENTED** | integration_agent | no implementation | generated-app integrations not implemented; model fallback is platform routing |
 | `payload_mapping` | Integration | **NOT_IMPLEMENTED** | integration_agent | no implementation | not implemented |
 | `external_error_normalization` | Integration | **NOT_IMPLEMENTED** | integration_agent | no implementation | generated-app integrations not implemented |
-| `file_create` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `file_modify` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `file_create` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| `file_modify` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `safe_refactor` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `dependency_add` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | pinned allowlist only |
 | `dependency_remove` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
@@ -224,7 +224,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `duplicate_code_detection` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `repository_diff_generation` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `repository_patch_application` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `unit_test_generation` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `unit_test_generation` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `unit_test_execution` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
 | `contract_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
@@ -232,9 +232,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `e2e_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `e2e_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `regression_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only |  |
-| `negative_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `negative_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
 | `edge_case_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
-| `api_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `api_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | `auth_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `permission_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `persistence_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
@@ -245,8 +245,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `resume_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | build restarts from the beginning |
 | `cancellation_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `behavioral_acceptance_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
-| `requirement_traceability_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | acceptance IDs -> steps |
+| `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
+| `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
 | `click_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
@@ -263,9 +263,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `failure_classification` | Repair | **IMPLEMENTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `root_cause_analysis` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `repair_plan_generation` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
-| `minimal_patch_generation` | Repair | **REAL_SERVER_VERIFIED** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `repair_execution` | Repair | **REAL_SERVER_VERIFIED** | repair_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
-| `repair_verification` | Repair | **IMPLEMENTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
+| `minimal_patch_generation` | Repair | **UNIT_TESTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| `repair_execution` | Repair | **UNIT_TESTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| `repair_verification` | Repair | **IMPLEMENTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/remote_sandbox.py |  |
 | `regression_after_repair` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `retry_decision` | Repair | **UNIT_TESTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_core.py | bounded rounds |
 | `escalation_decision` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
@@ -320,8 +320,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `reconciliation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only | QA ledger |
 | `worker_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `queue_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `storage_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
+| `queue_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
+| `storage_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | `database_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
 | `environment_validation` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
@@ -356,7 +356,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 29, UNIT_TESTED 25, INTEGRATION
 | `skill_trace` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `provider_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `cost_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `failure_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
+| `failure_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | `latency_measurement` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `health_metric` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `structured_logging` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |

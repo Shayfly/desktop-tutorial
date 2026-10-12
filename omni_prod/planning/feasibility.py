@@ -63,6 +63,8 @@ def assess(contract) -> Feasibility:
     if not snap['loaded']:
         return Feasibility(UNKNOWN, [Finding('registries', UNKNOWN, 'generated registries are not readable here')])
     f: list[Finding] = []
+    for question in contract.unresolved_questions:
+        f.append(Finding('unresolved requirement', BLOCKED, question))
     fam = contract.product_family
     if fam not in EXECUTABLE:
         f.append(Finding(f'product family {fam}', UNSUPPORTED,
@@ -103,3 +105,4 @@ def assess(contract) -> Feasibility:
                          'anyone with the link can see the data; the customer decided this explicitly'))
     outcome = max((x.outcome for x in f), key=lambda o: _RANK[o], default=FEASIBLE)
     return Feasibility(outcome, f)
+

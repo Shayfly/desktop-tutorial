@@ -119,6 +119,13 @@ class EndpointParityTests(unittest.TestCase):
         self.assertIn("funding='internal_qa' if internal_qa else None", plan)
         self.assertIn("preauthorize_qa_build(", plan)
 
+    def test_plan_exposes_prototype_remaining_from_same_spend_ledger(self):
+        plan = self.funcs["v28_build_contract_preview"]
+        self.assertIn("prototype_qa_budget", plan)
+        self.assertIn("qa_used_usd", plan)
+        # It remains display-only; the actual lock occurs during admission.
+        self.assertIn("preauthorize_qa_build(", plan)
+
     def test_admission_still_authorizes_under_lock(self):
         self.assertIn("authorize_qa_build(cur, qa_policy", self.funcs["v28_build_async"])
 

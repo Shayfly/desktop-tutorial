@@ -13,6 +13,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/assets/app.css">
 <script defer src="/assets/app.js"></script>
+<script defer src="/assets/visual-edit.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600&family=Heebo:wght@400;600&family=Rubik:wght@400;600&display=swap">
 </head>
 <body class="signed-out">
 <a class="skip" href="#main" data-i18n="skip">דילוג לתוכן</a>
@@ -65,7 +67,7 @@
     <aside class="sidebar" id="sidebar" aria-label="148AI">
       <div class="sbHead">
         <a class="brand" href="/" aria-label="148AI"><img src="/brand/148ai-logo-64.png" alt="" width="26" height="26"><b>148AI</b></a>
-        <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">⟨⟩</button>
+        <button class="icon ghost" id="sbCollapse" type="button" aria-controls="sidebar" aria-expanded="true" data-i18n-label="hideSidebar">×</button>
       </div>
       <button class="sbNew" id="newProjectTopBtn" type="button"><span aria-hidden="true">＋</span> <span data-i18n="newChat">שיחה חדשה · פרויקט חדש</span></button>
       <label class="sbSearch"><span class="sr" data-i18n="searchProjects">חיפוש פרויקטים</span>
@@ -96,6 +98,7 @@
       </header>
       <nav class="ctxTabs" id="ctxTabs" aria-label="Project"></nav>
       <div class="ctx" id="ctx">
+        <div class="ctxToolbar"><span id="ctxTitle">עריכת הבקשה</span><button id="ctxMinimize" type="button" class="ghost" aria-controls="ctx" data-i18n-label="minimizeContext">−</button></div>
         <div class="panel" id="emptyProjects" hidden>
           <h2 data-i18n="firstProject">הפרויקט הראשון שלכם</h2>
           <form class="inline" id="firstProjectForm">
@@ -146,7 +149,10 @@
         </div>
       </div>
       <div class="thread" id="thread" role="log" aria-live="polite"></div>
+      <div class="attachTray" id="attachTray" hidden aria-live="polite"></div>
       <form class="composer" id="chatForm" novalidate>
+        <button type="button" class="ghost icon attachBtn" id="attachBtn" data-i18n-label="attachImage" aria-controls="attachInput"><span aria-hidden="true">📎</span></button>
+        <input type="file" id="attachInput" accept="image/png,image/jpeg,image/webp" multiple hidden>
         <label class="sr" for="chatInput" data-i18n="request">מה תרצו לבנות?</label>
         <textarea id="chatInput" rows="1" maxlength="8000"></textarea>
         <button type="submit" id="chatSend" data-i18n-label="send"><span aria-hidden="true">↑</span></button>
@@ -170,17 +176,72 @@
         </div>
         <p class="hint data-note" id="previewDataNote" hidden></p>
         <div class="row sharing" id="previewSharing" hidden></div>
+        <div class="inspectBar" id="inspectBar" hidden role="status"></div>
         <div class="viewport" id="viewport">
           <div class="empty" id="previewEmpty"><p id="previewEmptyText" data-i18n="noPreview">כאן תופיע האפליקציה אחרי שהבנייה תסתיים.</p></div>
+          <div class="cmpLabel" id="cmpAfterLabel" hidden data-i18n="after">אחרי</div>
           <iframe id="previewFrame" title="Preview" sandbox="allow-scripts allow-forms allow-same-origin allow-popups" referrerpolicy="no-referrer" hidden></iframe>
+          <div class="cmpPane" id="cmpPane" hidden>
+            <div class="cmpLabel" data-i18n="before">לפני</div>
+            <iframe id="compareFrame" title="Before" sandbox="allow-scripts allow-forms allow-same-origin" referrerpolicy="no-referrer"></iframe>
+            <p class="empty cmpWait" id="cmpWait"></p>
+          </div>
         </div>
       </div>
       <div class="stageActions">
+        <button class="secondary" id="inspectToggle" type="button" aria-pressed="false" disabled data-i18n="pickElement">בחירת רכיב לעריכה</button>
         <button class="secondary" id="downloadBtn" disabled data-i18n="download">הורדת קוד המקור (ZIP)</button>
         <button class="secondary" id="publishBtn" aria-describedby="publishNote" data-i18n="publish">פרסום</button>
         <p class="hint" id="publishNote"></p>
       </div>
     </section>
+
+    <div class="splitter" id="editSplitter" role="separator" aria-orientation="vertical" tabindex="0" aria-controls="editor" data-i18n-label="resizeEditor"></div>
+
+    <aside class="editor" id="editor" aria-labelledby="editorTitle">
+      <header class="editorHead">
+        <h2 id="editorTitle" data-i18n="editTitle">עריכה</h2>
+        <button class="ghost icon" id="editorClose" type="button" data-i18n-label="hideEditor">✕</button>
+      </header>
+      <div class="editorBody" id="editorBody">
+        <section class="edSection" aria-labelledby="edPickTitle">
+          <h3 id="edPickTitle" data-i18n="edPick">1. מה לשנות?</h3>
+          <p class="hint" id="edPickHint" data-i18n="edPickHint">לחצו "בחירת רכיב" ואז על החלק בתצוגה שתרצו לשנות. בטלפון — הקישו עליו.</p>
+          <div class="row"><button type="button" class="secondary" id="edPickBtn" aria-pressed="false" disabled data-i18n="pickElement">בחירת רכיב לעריכה</button></div>
+          <div id="edSelection" aria-live="polite"></div>
+        </section>
+        <section class="edSection" aria-labelledby="edShotTitle">
+          <h3 id="edShotTitle" data-i18n="edShot">או: צילום מסך עם סימון</h3>
+          <div class="row">
+            <button type="button" class="ghost" id="edShotBtn" data-i18n="edShotAdd">צירוף צילום מסך</button>
+            <input type="file" id="edShotInput" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+          <div class="annot" id="annot" hidden>
+            <div class="annotTools" role="toolbar" data-i18n-label="annotTools">
+              <button type="button" class="ghost" data-tool="rect" aria-pressed="true" data-i18n="toolRect">מסגרת</button>
+              <button type="button" class="ghost" data-tool="draw" aria-pressed="false" data-i18n="toolDraw">ציור</button>
+              <button type="button" class="ghost" id="annotClear" data-i18n="toolClear">ניקוי</button>
+              <button type="button" class="ghost danger" id="annotRemove" data-i18n="remove">הסרה</button>
+            </div>
+            <canvas id="annotCanvas" data-i18n-label="annotCanvas"></canvas>
+          </div>
+        </section>
+        <section class="edSection" aria-labelledby="edWhatTitle">
+          <h3 id="edWhatTitle"><label for="edInstruction" data-i18n="edWhat">2. מה לעשות?</label></h3>
+          <textarea id="edInstruction" rows="3" maxlength="4000" data-i18n-placeholder="edWhatPh"></textarea>
+          <div class="row"><button type="button" id="edSend" disabled data-i18n="edSend">ביצוע השינוי</button></div>
+          <p class="msg" id="edMsg" role="alert"></p>
+        </section>
+        <section class="edSection" id="edResult" hidden aria-live="polite"></section>
+      </div>
+    </aside>
+
+    <nav class="mobileTabs" id="mobileTabs" aria-label="Workspace">
+      <button type="button" id="mobileMenuBtn" aria-controls="sidebar" aria-expanded="false" data-i18n-label="showSidebar">☰</button>
+      <button type="button" data-pane="chat" aria-pressed="true" data-i18n="paneChat">שיחה</button>
+      <button type="button" data-pane="preview" aria-pressed="false" data-i18n="panePreview">תצוגה</button>
+      <button type="button" data-pane="edit" aria-pressed="false" data-i18n="paneEdit">עריכה</button>
+    </nav>
   </div>
 </main>
 

@@ -74,6 +74,10 @@ with sync_playwright() as p:
     hidden = page.eval_on_selector('#stage', 'e => getComputedStyle(e).display')
     page.click('#togglePreviewBtn'); time.sleep(0.2)
     reopened = page.eval_on_selector('#stage', 'e => getComputedStyle(e).display')
+    # 2026-10-11: with three working areas the project list starts as a drawer
+    # below 1600 px; open it first, then collapse it again.
+    if page.is_visible('#sbOpen'):
+        page.click('#sbOpen'); time.sleep(0.3)
     page.click('#sbCollapse'); time.sleep(0.3)
     shot(page, '09-desktop-sidebar-collapsed')
     page.click('#sbOpen'); time.sleep(0.3)
@@ -104,7 +108,8 @@ with sync_playwright() as p:
     mp.click('#sbOpen'); time.sleep(0.4)
     mp.screenshot(path=f'{OUT}/12-mobile-sidebar-he.png'); log.append('12-mobile-sidebar-he')
     mp.click('#sbScrim', position={'x': 20, 'y': 420}); time.sleep(0.3)
-    mp.click('#togglePreviewBtn'); time.sleep(0.4)
+    # 2026-10-11: on phones the bottom tabs (Chat / Preview / Edit) replace the header toggle.
+    mp.click('#mobileTabs [data-pane="preview"]' if mp.is_visible('#mobileTabs') else '#togglePreviewBtn'); time.sleep(0.4)
     mp.screenshot(path=f'{OUT}/13-mobile-preview-he.png'); log.append('13-mobile-preview-he')
     hscroll = mp.evaluate('document.documentElement.scrollWidth > window.innerWidth')
     print(json.dumps({'shots': log, 'tabs': tabs, 'stage_width_before': before, 'after_drag': after, 'enlarged': maxw,

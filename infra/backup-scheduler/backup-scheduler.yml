@@ -1,0 +1,76 @@
+# NOT ACTIVE here and NOT INSTALLED. GitHub only fires `schedule` triggers for workflows on the DEFAULT branch (main),
+# so the cron in .github/workflows/backup-restore.yml (milestone branch) has never run on its own; only
+# workflow_dispatch runs exist. This file is the proposed one-file addition (see README_HE.md). It must not be described
+# as working until an owner-approved install AND a real scheduled run have been verified.
+#
+# It separates three facts that must never be conflated:
+#   1. DISPATCHED  - the request to start backup-restore.yml was accepted;
+#   2. STARTED     - a NEW run of that workflow (created after the dispatch) exists;
+#   3. SUCCEEDED   - that same new run finished with conclusion `success` (backup uploaded, restored from storage and
+#                    compared, as backup-restore.yml itself proves). Only this turns the scheduler green.
+# An older successful run never counts for the new one; it is printed for context only.
+name: Backup scheduler
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: backup-scheduler
+  cancel-in-progress: false
+
+env:
+  TARGET_REF: milestone/pre-staging-2026-10-05
+  TARGET_WORKFLOW: backup-restore.yml
+
+jobs:
+  dispatch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Previous successful backup (context only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$TARGET_WORKFLOW" --branch "$TARGET_REF" \
+                  --status success --limit 1 --json createdAt --jq '.[0].createdAt // "none"')
+          echo "::notice title=backup-previous::last successful backup before this dispatch: $last"
+
+      - name: Dispatch (this proves only that the request was accepted)
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "since=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          gh workflow run "$TARGET_WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TARGET_REF"
+          echo "::notice title=backup-dispatched::DISPATCHED (not yet a backup): waiting for the new run"
+
+      - name: Find the NEW run and require its success
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SINCE: ${{ steps.dispatch.outputs.since }}
+        run: |
+          set -euo pipefail
+          run_id=""
+          for i in $(seq 1 30); do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$TARGET_WORKFLOW" --branch "$TARGET_REF" \
+                      --event workflow_dispatch --limit 10 --json databaseId,createdAt \
+                      --jq "[.[] | select(.createdAt >= \"$SINCE\")] | sort_by(.createdAt) | .[0].databaseId // \"\"")
+            [ -n "$run_id" ] && break
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error title=backup-not-started::the dispatch was accepted but no new backup run appeared"; exit 1
+          fi
+          echo "::notice title=backup-started::STARTED new run $run_id"
+          if gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status >/dev/null; then
+            echo "::notice title=backup-succeeded::SUCCEEDED new run $run_id (backup, restore from storage and comparison passed)"
+          else
+            echo "::error title=backup-failed::new run $run_id did NOT succeed; no fresh backup exists"; exit 1
+          fi

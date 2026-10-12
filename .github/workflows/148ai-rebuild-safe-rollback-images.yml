@@ -1,0 +1,65 @@
+name: One-time reconstruct pinned rollback images safely
+
+# The previous running containers have NO image objects left to tag. Rebuild
+# source-equivalent images from their EXACT pinned Git revision WITHOUT secrets
+# and WITHOUT stopping, replacing, or restarting any running containers.
+# These are not bit-identical binaries. Deploy must verify the label/commit
+# and keep fail-closed rollback protection; no Docker commit of secret env.
+on:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+    paths: [.github/workflows/148ai-rebuild-safe-rollback-images.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 148ai-rollback-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2a2bba6645bb05f4889420760f11127441a0d253
+          path: rollback-source
+          persist-credentials: false
+      - name: Ensure all existing consumer containers belong to the pinned rollback commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A container's OMNI_SOURCE_COMMIT environment can differ from the
+          # actual source after an env-only recreation. Verify shipped BYTES.
+          for s in worker intake-worker intake-maintain preview-worker; do
+            cid=$(docker ps -q -f "name=^/omni-worker-${s}-1$")
+            [ -n "$cid" ] || { echo "::error title=rollback::$s is not running"; exit 1; }
+            for p in omni_prod/worker_tasks.py omni_prod/model_gateway.py omni_prod/preview_router.py; do
+              expected=$(sha256sum "rollback-source/$p" | cut -d' ' -f1)
+              actual=$(docker exec "$cid" python -c 'import hashlib,sys;from pathlib import Path;print(hashlib.sha256(Path("/app",sys.argv[1]).read_bytes()).hexdigest())' "$p" 2>/dev/null) || {
+                echo "::error title=rollback::$s cannot inspect $p"; exit 1; }
+              [ "$actual" = "$expected" ] || {
+                echo "::error title=rollback::$s has different actual image source file $p than pinned history; cannot reconstruct safe rollback"; exit 1; }
+            done
+          done
+          echo "::notice title=rollback::all consumer code file hashes match pinned original revision (environment metadata is not trusted)"
+      - name: Rebuild previous source as a separate image (no credentials embedded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin=2a2bba6645bb05f4889420760f11127441a0d253
+          docker build --label "org.opencontainers.image.revision=$pin" \
+            -t omni-rollback/worker:prev -f rollback-source/Dockerfile rollback-source
+          docker build --label "org.opencontainers.image.revision=$pin" \
+            -t omni-rollback/preview-worker:prev -f rollback-source/infra/preview-worker/Dockerfile rollback-source
+          docker tag omni-rollback/worker:prev omni-rollback/intake-worker:prev
+          docker tag omni-rollback/worker:prev omni-rollback/intake-maintain:prev
+          for s in worker intake-worker intake-maintain preview-worker; do
+            actual=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "omni-rollback/$s:prev")
+            test "$actual" = "$pin"
+          done
+          docker run --rm --network none omni-rollback/worker:prev python -c 'import omni_prod.worker_tasks; import omni_prod.model_gateway; print("ROLLBACK_WORKER_IMPORT_OK")'
+          docker run --rm --network none --entrypoint python omni-rollback/preview-worker:prev -c 'import omni_prod.preview_router; print("ROLLBACK_PREVIEW_IMPORT_OK")'
+          echo "::warning title=rollback::Source-equivalent images at pinned revision available locally, NOT bit-identical original image layers. No running container touched."

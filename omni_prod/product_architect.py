@@ -54,6 +54,32 @@ def no_login_requested(prompt: str) -> bool:
     return bool(_NO_LOGIN.search(prompt or ''))
 
 
+# A WhatsApp *link* (wa.me / "קישור לוואטסאפ" / "whatsapp button") is a plain hyperlink, not a messaging
+# integration: nothing is sent by the product. Stripped before integration inference only.
+_WA_LINK = re.compile(
+    r"(wa\.me\S*|api\.whatsapp\.com\S*|"
+    r"(קישור|לינק|כפתור|link|button)\s+(ישיר\s+)?(ל|של\s+)?(וואטסאפ|ווטסאפ|whatsapp)|"
+    r"(וואטסאפ|ווטסאפ|whatsapp)\s+(link|button|קישור|לינק|כפתור))", re.I)
+
+
+def strip_whatsapp_links(text: str) -> str:
+    return _WA_LINK.sub(" ", text or "")
+
+
+_CONTENT_ONLY_PROMPT = ("Product kind: CONTENT-ONLY website", "Sign-in: NONE", "Do not store personal or contact details of people.")
+
+
+def content_only_approved(prompt: str) -> bool:
+    """True only when the *approved brief block* (not the free text) records a content-only website with no
+    sign-in and no personal data. Free-text keywords never qualify."""
+    flat = " ".join((prompt or "").split())
+    marker = "--- Approved project brief"
+    if marker not in flat:
+        return False
+    block = flat.split(marker, 1)[1]
+    return all(t in block for t in _CONTENT_ONLY_PROMPT)
+
+
 def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
     """Infrastructure the product needs, in the canonical managed-profile order.
 
@@ -139,7 +165,9 @@ class ProductArchitect:
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
-        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db)
+        no_login_early = no_login_requested(clean)
+        content_only = no_login_early and content_only_approved(clean)
+        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db, content_only=content_only)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -173,7 +201,8 @@ class ProductArchitect:
         integrations = self._infer_integrations(intent, capability_plan)
         questions = self._material_questions(intent, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
-        defaults = tuple(role_defaults + [profile.key, "vercel_release_target"])
+        static_default = ["static_content_site"] if content_only else []
+        defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
         security = tuple(s for s in (
             "tenant_isolation",
             "least_privilege_rbac",
@@ -248,8 +277,10 @@ class ProductArchitect:
         )
 
     @staticmethod
-    def _floor_spec(prompt: str, decision, *, self_contained: bool = False) -> ProductSpec:
+    def _floor_spec(prompt: str, decision, *, self_contained: bool = False, content_only: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
+        if content_only:
+            return ProductArchitect._content_only_spec(prompt, title)
         requirements: list[Requirement] = [
             Requirement("platform-auth", "Users authenticate through durable application sessions", "security"),
             Requirement("platform-rbac", "At least two application roles are enforced server-side", "security"),
@@ -290,6 +321,24 @@ class ProductArchitect:
             requirements=tuple(requirements),
             acceptance=acceptance,
         )
+
+    @staticmethod
+    def _content_only_spec(prompt: str, title: str) -> ProductSpec:
+        """Floor for an approved CONTENT-ONLY website: no sign-in, roles, database or record API to prove; the page
+        must show the approved content and work on mobile and desktop. Nothing here lets a build skip real checks."""
+        requirements = [
+            Requirement("site-content", "CONTENT-ONLY website: GET / serves the complete approved content, prices, links and "
+                        "logo text exactly as given; no sign-in, no stored visitor data, no record forms and no record API", "functional"),
+            Requirement("platform-responsive", "The page is usable on mobile and desktop web (viewport meta and responsive CSS)", "quality"),
+            Requirement("platform-api", "The server answers HTTP 200 on its health path; no /api/* record endpoint is required", "functional"),
+            Requirement("platform-observability", "Runtime errors and health are observable without secret leakage", "quality"),
+            Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
+            Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
+        ]
+        acceptance = tuple(AcceptanceCriterion(id="accept-" + r.id, requirement_id=r.id,
+                                               text=f"Automated acceptance proves: {r.text}") for r in requirements)
+        return ProductSpec(title=title, summary=f"Content-only Web site contract for: {prompt}",
+                           stack=_SELF_CONTAINED_STACK, requirements=tuple(requirements), acceptance=acceptance)
 
     @staticmethod
     def _merge_specs(floor: ProductSpec, model: ProductSpec | None) -> ProductSpec:
@@ -365,7 +414,7 @@ class ProductArchitect:
 
     @staticmethod
     def _infer_integrations(prompt: str, capability_plan) -> tuple[str, ...]:
-        low = prompt.casefold()
+        low = strip_whatsapp_links(prompt).casefold()
         result: list[str] = []
         canonical_capability_integrations = {
             "integration.payment": "payments",
