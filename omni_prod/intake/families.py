@@ -35,9 +35,9 @@ def _norm(text: str) -> str:
 def classify_family(text: str) -> str:
     t = _norm(text)
     # Explicit requested product wins over incidental feature keywords.
-    explicit = (("game", r"(?:לבנות|ליצור|build|create)\\s+(?:לי\\s+)?משחק"),
-                ("website", r"(?:לבנות|ליצור|build|create)\\s+(?:לי\\s+)?אתר|אני רוצה (?:לבנות )?אתר"),
-                ("mobile_app", r"(?:לבנות|ליצור|build|create)\\s+(?:לי\\s+)?אפליקציה (?:לנייד|לטלפון)"))
+    explicit = (("game", r"(?:לבנות|ליצור|build|create)\s+(?:לי\s+)?משחק"),
+                ("website", r"(?:לבנות|ליצור|build|create)\s+(?:לי\s+)?אתר|אני רוצה (?:לבנות )?אתר"),
+                ("mobile_app", r"(?:לבנות|ליצור|build|create)\s+(?:לי\s+)?אפליקציה (?:לנייד|לטלפון)"))
     for family, pattern in explicit:
         if re.search(pattern, t, re.I):
             return family
