@@ -84,6 +84,9 @@ services:
     environment:
       OMNI_CREATOR_PERSISTENCE: postgres
       OMNI_WORKER_QUEUES: omni-intake
+      # Explicitly enabled on private staging by write-env.sh, off otherwise.
+      # A deployment must preserve founder-only real AI conversation.
+      OMNI_INTAKE_MODEL: ${OMNI_INTAKE_MODEL:-0}
     networks: [internal]
     healthcheck:
       disable: true

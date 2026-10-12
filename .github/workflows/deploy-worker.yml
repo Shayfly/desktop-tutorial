@@ -11,7 +11,9 @@ on:
         required: false
         default: ""
   push:
-    branches: [milestone/pre-staging-2026-10-05]
+    # The private candidate is deployed to the EXISTING Oracle staging host,
+    # not to main or a customer production environment.
+    branches: [milestone/pre-staging-2026-10-05, codex/148ai-verified-intake-2026-10-12]
     paths:
       - omni_prod/**
       - infra/worker-host/**
@@ -41,6 +43,18 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: bash infra/worker-host/write-env.sh
+
+      - name: Confirm deployment scope and configured intake mode
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          grep -qx 'OMNI_ENV=staging' .env || {
+            echo "::error title=Prototype staging only::This source revision must not deploy onto non-staging worker"; exit 1; }
+          grep -qx 'OMNI_INTAKE_MODEL=1' .env || {
+            echo "::error title=Intake disabled::Cannot replace intake worker with a disabled model mode"; exit 1; }
+          docker compose config --services | grep -qx worker
+          docker compose config --services | grep -qx intake-worker
+          echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
 
       - name: Build images
         working-directory: infra/worker-host
