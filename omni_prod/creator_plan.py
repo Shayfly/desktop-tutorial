@@ -14,6 +14,7 @@ from typing import Any, Callable, Mapping
 from .build_contract import BuildContractStatus
 from .customer_views import unpriced_capabilities
 from .build_cost_plan import CostQuoteUnknown
+from .qa_budget import QABudgetDenied
 from .capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
 
 
@@ -82,6 +83,11 @@ def build_plan_preview(
         quote_error = ("A required capability is not available yet: " + ", ".join(names)) if names else \
             "A required capability is not available yet."
         quote_error_code = "cost_quote_unknown"
+    except QABudgetDenied as exc:
+        # INTERNAL_QA is an auditable founder-only staging entitlement. A
+        # per-build/total ceiling is NOT a subscription-plan restriction.
+        # Preserve its actionable reason rather than a misleading upsell.
+        quote_error, quote_error_code = str(exc), "qa_budget_denied"
     except PermissionError:
         quote_error, quote_error_code = "This build is not available on your current plan.", "plan_cannot_authorize_cost"
 
