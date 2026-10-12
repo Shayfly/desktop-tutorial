@@ -266,9 +266,9 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 3,
+    "IMPLEMENTED": 4,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 23,
+    "REAL_SERVER_VERIFIED": 22,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],

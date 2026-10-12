@@ -177,7 +177,10 @@ class RealDockerDrainRecovery(unittest.TestCase):
         return self.wait_running(SERVICES, 20)
 
     def drain(self, **extra):
-        return sh('bash', str(self.host / 'drain.sh'), env=self.env(DRAIN_DEADLINE_SECONDS='4', **extra), cwd=self.host, timeout=300)
+        # Tests may select a distinct deadline; do not pass the same keyword
+        # twice into env(). The normal drain deadline remains four seconds.
+        deadline = extra.pop('DRAIN_DEADLINE_SECONDS', '4')
+        return sh('bash', str(self.host / 'drain.sh'), env=self.env(DRAIN_DEADLINE_SECONDS=deadline, **extra), cwd=self.host, timeout=300)
 
     def recover(self):
         return sh('bash', str(self.host / 'recover.sh'), env=self.env(), cwd=self.host, timeout=300)
@@ -264,7 +267,12 @@ class RealDockerDrainRecovery(unittest.TestCase):
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        d = self.drain()
+        # The 4-second global drain deadline can expire before Docker delivers
+        # TERM to the last consumer under CI load; that is a deadline test,
+        # NOT evidence of an OOM kill. Give this distinct OOM scenario enough
+        # time to exercise Docker's real .State.OOMKilled path, without
+        # relaxing the required OOM assertion below.
+        d = self.drain(DRAIN_DEADLINE_SECONDS='20')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])

@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 20, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 11, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 61, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 65, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 62, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 64, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -323,7 +323,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 61, UNIT_TESTED 28, INTEGRATION
 | `queue_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | `storage_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | `database_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `environment_validation` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
+| `environment_validation` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: infra/worker-host/write-env.sh |  |
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
