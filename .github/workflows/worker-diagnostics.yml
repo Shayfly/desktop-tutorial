@@ -53,10 +53,10 @@ jobs:
           }
           publish() {  # title, then the command whose output to publish
             local title="$1"; shift
-            local body
-            body=$("$@" 2>&1 | tail -n "$n" | redact | cut -c1-400)
+            local body rc=0
+            body=$("$@" 2>&1 | tail -n "$n" | redact | cut -c1-400) || rc=$?
             body=${body//'%'/'%25'}; body=${body//$'\r'/}; body=${body//$'\n'/'%0A'}
-            echo "::notice title=${title}::${body:-<empty>}"
+            echo "::notice title=${title} rc=${rc}::${body:-<empty>}"
           }
           publish "containers" docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}'
           # Issue #22: all probes are read-only. No service restart, deployment, or provider call.
