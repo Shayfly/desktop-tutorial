@@ -258,7 +258,7 @@ def start(prompt: str, mode: str = GUIDED) -> Brief:
 # Defaults are only proposals: they are listed as assumptions in the approval summary and can be changed.
 _WEBSITE_DEFAULTS = {
     'audience': 'public',
-    'screens': 'דף אחד: לוגו וכותרת, תיאור העסק, המוצרים או השירותים עם המחירים שצוינו, וקישורי יצירת קשר שצוינו',
+    'screens': '__from_request__',
     'content': 'הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו',
     'dates': 'none',
     'duplicates': 'allow',
@@ -277,11 +277,26 @@ def _ctx(brief: 'Brief') -> dict:
     return v
 
 
+def _website_screens(prompt: str) -> str:
+    """Derive only explicitly requested site sections; never invent CRUD pages."""
+    patterns = (
+        (r'(דף בית|עמוד הבית|homepage|home page)', 'דף בית'),
+        (r'(חיפוש חופשות|חיפוש טיסות|חיפוש מלונות|search (?:for )?(?:vacations|holidays|flights|hotels))', 'חיפוש חופשות / שירותים'),
+        (r'(טופס יצירת קשר|טופס צור קשר|contact form)', 'טופס יצירת קשר'),
+        (r'(אודות|about us|about page)', 'אודות'),
+        (r'(גלריה|gallery)', 'גלריה'),
+        (r'(מחירון|pricing page|price list)', 'מחירון'),
+    )
+    screens = [label for pattern, label in patterns if re.search(pattern, prompt, re.I)]
+    return ', '.join(screens) if screens else 'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו'
+
+
 def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
     if q.recommended == '__from_request__':
-        return brief.prompt[:300]
+        return _website_screens(brief.prompt) if q.field == 'screens' and is_website(brief) else brief.prompt[:300]
     if q.field in _WEBSITE_DEFAULTS and q.field not in hints and is_website(brief):
-        return _WEBSITE_DEFAULTS[q.field]
+        value = _WEBSITE_DEFAULTS[q.field]
+        return _website_screens(brief.prompt) if value == '__from_request__' else value
     return hints.get(q.field, q.recommended)
 
 
