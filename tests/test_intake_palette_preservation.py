@@ -11,13 +11,13 @@ PROMPT = ('אני רוצה לבנות אתר לחברת נסיעות בשם Test
 class PalettePreservationTests(unittest.TestCase):
     def test_discovery_retains_both_requested_colours(self):
         brief = d.start(PROMPT, mode=d.RECOMMEND)
-        self.assertEqual(brief.values()['color'], 'blue, white')
+        self.assertEqual(brief.values()['color'], 'כחול, לבן')
         self.assertEqual(brief.fields['color']['source'], 'message')
 
     def test_interpreter_and_contract_agree_on_valid_css_tokens(self):
         proposals = DeterministicInterpreter().interpret(PROMPT).proposals
         colour = next(p.value for p in proposals if p.field == 'color')
-        self.assertEqual(colour, 'blue, white')
+        self.assertEqual(colour, 'כחול, לבן')
         contract = from_brief(d.start(PROMPT, mode=d.RECOMMEND))
         self.assertEqual(contract.design_preferences['palette_css'], ['#1d4ed8', '#ffffff'])
 

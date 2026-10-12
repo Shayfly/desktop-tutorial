@@ -132,6 +132,8 @@ class DeterministicInterpreter:
         # Extract colour words, never copy an entire product brief into a CSS value.
         unique_colours = d.colour_palette(message)
         if unique_colours:
+            if len(unique_colours) > 1:
+                unique_colours = d.colour_palette(message, preserve_words=True)
             palette = ', '.join(unique_colours[:6])
             best['color'] = Proposal('color', palette, HIGH, message[:120])
         # "רק לי" + customers in the same message = both audiences, ask.

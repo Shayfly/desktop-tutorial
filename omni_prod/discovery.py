@@ -201,6 +201,8 @@ def extract_from_message(prompt: str) -> tuple[dict[str, dict], dict[str, str]]:
         hints['audience'] = 'both'
     palette = colour_palette(prompt)
     if palette:
+        if len(palette) > 1:
+            palette = colour_palette(prompt, preserve_words=True)
         known['color'] = {'value': ', '.join(palette), 'source': 'message',
                           'question_id': 'color', 'confidence': 'stated'}
     return known, hints
@@ -390,16 +392,18 @@ _COLOUR_ALIASES = {'כחול': 'blue', 'ירוק': 'green', 'סגול': 'purple'
                    'turquoise': 'teal', **{name: name for name in _COLOR_HEX}}
 
 
-def colour_palette(text: str) -> list[str]:
+def colour_palette(text: str, *, preserve_words: bool = False) -> list[str]:
     """Ordered, bounded tokens from stated colour words or hex colours."""
     words = '|'.join(re.escape(word) for word in _COLOUR_ALIASES)
     pattern = r'(#[0-9a-f]{6}\b|#[0-9a-f]{3}\b)|(?<!\w)(?:וב|ו|ב)?(' + words + r')(?!\w)'
     tokens = []
+    words_seen = []
     for match in re.finditer(pattern, text or '', re.I):
         token = match.group(1).lower() if match.group(1) else _COLOUR_ALIASES[match.group(2).lower()]
         if token not in tokens:
             tokens.append(token)
-    return tokens[:6]
+            words_seen.append((match.group(1) or match.group(2)).lower())
+    return (words_seen if preserve_words else tokens)[:6]
 
 
 def palette_css(text: str) -> list[str]:
@@ -484,6 +488,8 @@ def requirements_text(brief: Brief) -> str:
     tokens = palette_css(color)
     colours = (f'primary colour {tokens[0]}; palette {", ".join(tokens)}' if tokens else
                f'requested colour description {color!r}; resolve it to valid CSS colours')
+    if tokens:
+        colours += f'; requested colour description {color!r}'
     lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':

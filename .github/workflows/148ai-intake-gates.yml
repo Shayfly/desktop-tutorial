@@ -25,7 +25,7 @@ jobs:
       - name: Product intent and capability closure (no provider calls)
         run: |
           set -o pipefail
-          python -m unittest -v tests.test_intake_palette_preservation tests.test_intake_family_intent tests.test_architect_assignment_gate tests.test_architect_website_no_crud tests.test_intake_complexity 2>&1 | tee evidence/unit.txt
+          python -m unittest -v tests.test_intake_palette_preservation tests.test_intake_palette_regression tests.test_customer_flow_rejects.CustomerFlowTests.test_free_colour_combination_is_preserved_in_binding tests.test_customer_flow_rejects.CustomerFlowTests.test_multi_colour_message_keeps_the_full_palette tests.test_intake_family_intent tests.test_architect_assignment_gate tests.test_architect_website_no_crud tests.test_intake_complexity 2>&1 | tee evidence/unit.txt
       - name: Hostile static cases (does not prove sandbox isolation)
         run: python scripts/run_hostile_static_suite.py > evidence/hostile-static.json
       - uses: actions/upload-artifact@v4
