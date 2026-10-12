@@ -199,6 +199,10 @@ def extract_from_message(prompt: str) -> tuple[dict[str, dict], dict[str, str]]:
             hints[fld] = value
     if re.search(r'(לקוחות|ציבור)', prompt or '') and re.search(r'(צוות|עובדים|מנהל)', prompt or ''):
         hints['audience'] = 'both'
+    palette = colour_palette(prompt)
+    if palette:
+        known['color'] = {'value': ', '.join(palette), 'source': 'message',
+                          'question_id': 'color', 'confidence': 'stated'}
     return known, hints
 
 
@@ -378,7 +382,28 @@ def complete(brief: Brief) -> bool:
 # ---- what the builders receive ----------------------------------------------
 
 _COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
-              'neutral': '#334155'}
+              'neutral': '#334155', 'white': '#ffffff', 'black': '#000000', 'red': '#dc2626',
+              'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080'}
+_COLOUR_ALIASES = {'כחול': 'blue', 'ירוק': 'green', 'סגול': 'purple', 'כתום': 'orange',
+                   'טורקיז': 'teal', 'לבן': 'white', 'שחור': 'black', 'אדום': 'red', 'צהוב': 'yellow',
+                   'ורוד': 'pink', 'שמנת': 'cream', 'זהב': 'gold', 'אפור': 'gray', 'grey': 'gray',
+                   'turquoise': 'teal', **{name: name for name in _COLOR_HEX}}
+
+
+def colour_palette(text: str) -> list[str]:
+    """Ordered, bounded tokens from stated colour words or hex colours."""
+    words = '|'.join(re.escape(word) for word in _COLOUR_ALIASES)
+    pattern = r'(#[0-9a-f]{6}\b|#[0-9a-f]{3}\b)|(?<!\w)(?:וב|ו|ב)?(' + words + r')(?!\w)'
+    tokens = []
+    for match in re.finditer(pattern, text or '', re.I):
+        token = match.group(1).lower() if match.group(1) else _COLOUR_ALIASES[match.group(2).lower()]
+        if token not in tokens:
+            tokens.append(token)
+    return tokens[:6]
+
+
+def palette_css(text: str) -> list[str]:
+    return [_COLOR_HEX.get(token, token) for token in colour_palette(text)]
 _FONT = {'heebo': "'Heebo', system-ui, sans-serif", 'assistant': "'Assistant', system-ui, sans-serif",
          'rubik': "'Rubik', system-ui, sans-serif", 'system': 'system-ui, sans-serif'}
 
@@ -456,7 +481,10 @@ def requirements_text(brief: Brief) -> str:
     if v.get('duplicates') == 'block':
         lines.append('Duplicates: block them on the server (also under two simultaneous requests) and explain why.')
     style, color, font = v.get('style', 'clean'), v.get('color', 'blue'), v.get('font', 'heebo')
-    lines.append(f'Design: style {style}; primary colour {_COLOR_HEX.get(color, color)}; font {_FONT.get(font, font)} '
+    tokens = palette_css(color)
+    colours = (f'primary colour {tokens[0]}; palette {", ".join(tokens)}' if tokens else
+               f'requested colour description {color!r}; resolve it to valid CSS colours')
+    lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':
         lines.append('Logo: a text logo with the product name in the header.')
@@ -504,3 +532,4 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
             'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
             'contradictions': contradictions(brief), 'complete': complete(brief)}
+
