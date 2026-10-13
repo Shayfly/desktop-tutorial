@@ -148,7 +148,7 @@ class CapabilityPlanner:
         # the approved Brief may amend ambiguous keyword interpretations.
         # This acts BEFORE DAG dependency closure and keeps the same registries.
         from .semantic_capabilities import overrides
-        semantic = overrides(semantic_decisions)
+        semantic = overrides(semantic_decisions, prompt=prompt)
         for key, outcome in semantic.items():
             if not self.registry.contains(key):
                 continue
