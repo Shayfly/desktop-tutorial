@@ -11,7 +11,7 @@ const T = {
     how1:'כותבים מה האפליקציה צריכה לעשות ולמי.', how2:'מקבלים תוכנית ועלות מקסימלית, ומאשרים.',
     how3:'צופים בבנייה, בודקים בתצוגה מקדימה, משנים ומורידים את הקוד.',
     scope:'כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.',
-    signinTitle:'כניסה לחשבון', email:'אימייל', password:'סיסמה', passwordHint:'לפחות 10 תווים.',
+    signinTitle:'כניסה לחשבון', email:'אימייל', password:'סיסמה', passwordHint:'לפחות 10 תווים.', showPassword:'הצגת סיסמה', hidePassword:'הסתרת סיסמה',
     login:'כניסה', register:'יצירת חשבון חינם',
     firstProject:'הפרויקט הראשון שלכם', projectName:'שם הפרויקט', createProject:'יצירת פרויקט',
     request:'מה תרצו לבנות?', build:'המשך', planHint:'שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.',
@@ -93,7 +93,11 @@ const T = {
     b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
     qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
-    b_cost_quote_unknown:'חלק מהעלויות של הבנייה לא ידועות, ולכן אי אפשר לאשר אותה.',
+    b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
+    b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
+    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע',
+    readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
+    quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
@@ -103,7 +107,7 @@ const T = {
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
-    f_FEASIBLE:'אפשר לבנות', f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
+    f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
     ts_SUCCEEDED:'הושלם', ts_RUNNING:'רץ', ts_PENDING:'ממתין', ts_READY:'מוכן', ts_FAILED:'נכשל', ts_BLOCKED:'חסום', ts_CANCELLED:'לא בוצע', ts_REPAIRING:'בתיקון', ts_NOT_RECORDED:'לא נרשם',
   },
@@ -113,7 +117,7 @@ const T = {
     how1:'Write what the app should do and for whom.', how2:'Get a plan and a maximum cost, then approve it.',
     how3:'Watch the build, try it in a preview, ask for changes and download the code.',
     scope:'Today: web apps and SaaS. Mobile, games and media are not available yet.',
-    signinTitle:'Sign in', email:'Email', password:'Password', passwordHint:'At least 10 characters.',
+    signinTitle:'Sign in', email:'Email', password:'Password', passwordHint:'At least 10 characters.', showPassword:'Show password', hidePassword:'Hide password',
     login:'Sign in', register:'Create free account',
     firstProject:'Your first project', projectName:'Project name', createProject:'Create project',
     request:'What do you want to build?', build:'Continue', planHint:'Nothing is built or charged before you approve a summary and a cost.',
@@ -195,7 +199,11 @@ const T = {
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
-    b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
+    b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
+    b_cost_quote_unavailable:'No verified build quote was returned.',
+    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet',
+    readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
+    quoteMissingTitle:'Requirements without verified pricing:', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
@@ -205,7 +213,7 @@ const T = {
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
-    f_FEASIBLE:'Buildable', f_FEASIBLE_WITH_CONSTRAINTS:'Buildable with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
+    f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
     ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
   },
@@ -298,6 +306,7 @@ function applyLang() {
   document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-label]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nLabel)); el.title = t(el.dataset.i18nLabel); });
+  if ($('passwordToggle')) { const label = t($('password').type === 'password' ? 'showPassword' : 'hidePassword'); $('passwordToggle').setAttribute('aria-label', label); $('passwordToggle').title = label; }
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
   $('chatInput').placeholder = t('chatPlaceholder');
@@ -322,6 +331,9 @@ async function authSubmit(kind) {
     const path = kind === 'register' ? '/api/v28/auth/register' : '/api/v28/auth/login';
     await api(path, { method: 'POST', body: { email, password } });
     $('password').value = '';
+    $('password').type = 'password';
+    $('passwordToggle').setAttribute('aria-pressed', 'false');
+    $('passwordToggle').setAttribute('aria-label', t('showPassword'));
     await enterWorkspace();
   } catch (e) { msg.textContent = explain(e); }
 }
@@ -619,6 +631,9 @@ function renderPlan() {
   ].flat() : [];
   const kids = [
     h('h2', {}, t('planTitle')),
+    h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
+      h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
+      !p.can_build ? h('p', {}, t('readinessBlockedHelp')) : null),
     ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
@@ -654,13 +669,14 @@ function renderPlan() {
         return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
       }
       if (b.code.startsWith('image_provider_')) return t('b_image_provider');
-      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || b.message;
+      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
     };
     const titles = [...new Set(p.blockers.map(title))];
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
-      ...p.blockers.flatMap(b=>(b.findings||[]).filter(f=>f&&typeof f.item==='string').map(f=>h('p',{},findingLabel(f)))),
-      h('details', { class: 'tech' }, h('summary', {}, t('operatorDetails')),
-        h('ul', { dir: 'ltr' }, p.blockers.map(b => h('li', {}, h('code', {}, b.code), ': ', b.message)))));
+      ...(Array.isArray(p.quote_gaps) && p.quote_gaps.length ? [
+        h('h4', {}, t('quoteMissingTitle')),
+        h('ul', { class: 'quoteMissing' }, p.quote_gaps.map(g => h('li', {}, String(g.purpose || g.key || t('unknownBlocker')))))
+      ] : []));
   }
   kids.push(h('div', { class: 'row' },
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
@@ -1270,8 +1286,9 @@ function renderArch() {
     ids.map(id => { const x = byId[id] || {}; return h('span', { class: `tk ${x.executable === false ? 'gap' : ''}`, title: `${x.department} · ${x.agent}` },
       `${x.department} · ${ttLabel(x.task_type || id)}${x.conditional ? ` (${t('ifNeeded')})` : ''}`); })));
   const limits = (f.findings || []).filter(x => x.outcome !== 'FEASIBLE');
+  const blockedByBuildGate = Boolean(S.plan && !S.plan.can_build);
   panel.replaceChildren(h('h2', {}, t('archTitle')),
-    h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, t(`f_${f.outcome}`) || f.outcome)),
+    h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${blockedByBuildGate ? 'bad' : f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, blockedByBuildGate ? t('readinessBlocked') : (t(`f_${f.outcome}`) || f.outcome))),
     limits.length ? h('details', {}, h('summary', {}, `${t('constraints')} (${limits.length})`),
       h('ul', {}, limits.map(x => h('li', {}, findingLabel(x),
         h('details', {}, h('summary', {}, S.lang==='he'?'פרטים טכניים':'Technical details'),
@@ -1432,6 +1449,15 @@ function wireWorkspace() {
 function wire() {
   $('ctxMinimize').addEventListener('click',()=>openTab(null));
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
+  $('passwordToggle').addEventListener('click', () => {
+    const input = $('password'), toggle = $('passwordToggle');
+    const showing = input.type === 'password';
+    input.type = showing ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(showing));
+    const label = t(showing ? 'hidePassword' : 'showPassword');
+    toggle.setAttribute('aria-label', label); toggle.title = label;
+    input.focus({ preventScroll: true });
+  });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
   $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
