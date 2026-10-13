@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -11,7 +15,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

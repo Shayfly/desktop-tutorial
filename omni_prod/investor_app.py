@@ -483,6 +483,10 @@ class V28PlanAdminRequest(BaseModel):
 class V28ModificationRequest(BaseModel):
     followup: str = Field(min_length=3,max_length=12000)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
+    # Visual edit (directive 2026-10-11): the element picked in the preview and,
+    # when locate() listed several, the candidate the person chose.
+    target: dict | None = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
 
 class V28ModificationAcceptRequest(BaseModel):
     force: bool = False
@@ -697,7 +701,7 @@ def _live_components():
     recorder=getattr(gateway,'recorder',None)
     if recorder is not None: executor=RecordingExecutor(executor,recorder)
     engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
-        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','5')))
+        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','3')))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:
@@ -1021,6 +1025,9 @@ def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-
 
 @app.get('/assets/app.js')
 def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript')
+
+@app.get('/assets/visual-edit.js')
+def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript')
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -1447,20 +1454,9 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
     try:
         token = _v28_bearer(request)
         account = _v28.account(token)
-        plan = _v28.subscriptions.plan_for(account.id)
-        # Archived projects do not occupy a slot (the workspace hides them).
-        current = [p for p in _v28.list_projects(token=token)
-                   if not (isinstance(p, dict) and (p.get('archived_at') or str(p.get('status', '')).upper() == 'ARCHIVED'))]
-        limit = plan.max_projects
-        if limit is not None and _v28_pool is not None:
-            # Golden E2E #1: the INTERNAL_QA account could build but not open a
-            # second project ("Free project limit reached"). In staging, an
-            # entitled QA account gets the QA project cap instead.
-            qa_policy, internal_qa = _internal_qa_funding(account.id)
-            if internal_qa:
-                limit = max(limit, int(os.getenv('OMNI_QA_MAX_PROJECTS', '20')))
-        if limit is not None and len(current) >= limit:
-            raise HTTPException(402, f'{plan.name} project limit reached')
+        # Project count is not a spend authorization. Users may maintain as
+        # many projects as they need; builds retain separate cost and execution
+        # admission controls. No external model call occurs on project create.
         return _v28.create_project(token=token, title=req.title)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
@@ -1827,6 +1823,18 @@ class V28ConversationMessage(BaseModel):
     message: str = Field(default='', max_length=8000)
     answers: dict[str, str] = Field(default_factory=dict)
     request_key: str | None = Field(default=None, max_length=80)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=6)
+    brief_revision: int | None = Field(default=None, ge=1)
+
+
+class V28AttachmentUpload(BaseModel):
+    kind: str = Field(default='image', max_length=20)
+    data_base64: str = Field(min_length=8, max_length=4_300_000)
+    annotation: dict | None = None
+
+
+class V28LocateRequest(BaseModel):
+    selection: dict
 
 
 def _conversation_store():
@@ -1893,7 +1901,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
         'turn': turn.to_dict(lang) if turn is not None else None,
         'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
                       'intent': (m.get('interpretation') or {}).get('intent'),
-                      'actions': (m.get('interpretation') or {}).get('actions') or []}
+                      'actions': (m.get('interpretation') or {}).get('actions') or [],
+                      'attachments': (m.get('interpretation') or {}).get('attachments') or []}
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
@@ -1922,15 +1931,28 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
-    if not req.message.strip() and not req.answers:
+    if not req.message.strip() and not req.answers and not req.attachment_ids:
         raise HTTPException(422, detail={'error': 'empty_message'})
+    attached = []
+    if req.attachment_ids:
+        from .attachments import AttachmentError, public as _att_public
+        try:
+            attached = [_att_public(a) for a in _attachments().many(project_id=project_id, account_id=account.id,
+                                                                   ids=req.attachment_ids)]
+        except AttachmentError as exc:
+            raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
     lang = _lang(request) if request.query_params.get('lang') else None
     store = _conversation_store()
     if req.request_key and store.find_reply(project_id, req.request_key):
         return _conversation_view(project_id, lang or 'he')   # a retried send: no second turn
+    if req.brief_revision is not None:
+        latest = _brief_repo().latest(project_id)
+        if latest is None or latest.revision != req.brief_revision:
+            raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
         turn = _supervisor(key).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                     answers=req.answers, request_key=req.request_key, lang=lang)
+                                     answers=req.answers, request_key=req.request_key, lang=lang,
+                                     attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
@@ -1987,7 +2009,10 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
                                          'findings': blocked or plan.get('graph_problems')})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
-            'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED'}
+            'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
+            # G3: the approved criteria travel with the plan; plan-governed builds test against them.
+            'acceptance_criteria': plan.get('acceptance_criteria') or [],
+            'requirements_fingerprint': plan.get('requirements_fingerprint')}
 
 
 @app.get('/api/v28/projects/{project_id}/builds/{build_id}/plan')
@@ -2037,6 +2062,21 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
+    """Expose the build-admission gate before showing an approval button.
+    Deterministic/free; does not reserve credits or start a build."""
+    try:
+        _bind_execution_plan(project_id, row.fingerprint)
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid'}:
+            raise
+        preview['can_build'] = False
+        preview['blockers'].append({'code': detail['error'],
+                                    'message': 'The approved requirements cannot be built yet. Review the unsupported requirements.',
+                                    'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})
+
+
 @app.post('/api/v28/projects/{project_id}/approvals')
 def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Request) -> dict:
     """"Approve and start building": binds user, project, brief revision +
@@ -2045,6 +2085,7 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     from .brief_repository import ApprovalError
     account = _discovery_account(request, project_id)
     _, row = _brief_prompt(project_id, req.brief_revision)
+    _bind_execution_plan(project_id, row.fingerprint)
     contracts = PostgresBuildContractRepository(_v28_pool)
     try:
         contract = contracts.get(req.build_contract_id, project_id=project_id)
@@ -2096,12 +2137,13 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
                                       max_cost_usd=quote.total_authorized_variable_usd)
             except QABudgetDenied as exc:
                 logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
-                raise PermissionError('internal QA funding would refuse this build') from exc
+                raise  # Preserve QA budget blocker, not a false customer-plan error.
         return quote
 
     prompt = req.prompt
+    brief_row = None
     if req.brief_revision is not None:
-        prompt, _ = _brief_prompt(project_id, req.brief_revision)
+        prompt, brief_row = _brief_prompt(project_id, req.brief_revision)
     preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
         economics=economics,
@@ -2112,6 +2154,22 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview['credits_required'] = _M5_BUILD_CREDITS
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
+    if internal_qa:
+        # Founder-only prototype diagnostics. Advisory information only: the
+        # live reserve transaction RECHECKS this budget under a DB lock.
+        from .qa_budget import qa_used_usd
+        with _v28_pool.connection() as conn:
+            with conn.cursor() as cur:
+                qa_used = qa_used_usd(cur, qa_policy.since)
+        preview['prototype_qa_budget'] = {
+            'mode': 'INTERNAL_QA', 'total_usd': str(qa_policy.total_usd),
+            'used_usd': str(qa_used),
+            'remaining_usd': str(max(Decimal('0'), qa_policy.total_usd - qa_used)),
+            'per_build_max_usd': str(qa_policy.build_max_usd),
+            'balance_is_provider_reported': False,
+        }
+    if brief_row is not None:
+        _apply_execution_plan_gate(preview, project_id, brief_row)
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')
@@ -2211,7 +2269,11 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                     cur, qa_policy, account_id=account.id, max_cost_usd=provider_reservation_usd)
                             except QABudgetDenied as exc:
                                 logging.getLogger(__name__).warning('internal QA build refused: %s', exc)
-                                raise HTTPException(402, detail={'error': 'qa_budget_denied'}) from exc
+                                raise HTTPException(402, detail={
+                                    'error': 'qa_budget_denied',
+                                    # Only scoped QA spend/cap reason, no account/token data.
+                                    'message': str(exc)[:300],
+                                }) from exc
                         else:
                             economics_evidence['funding'] = {'funding_source': 'customer_plan', 'plan': plan.code.value}
                         decision = _v28.subscriptions.reserve(
@@ -2568,6 +2630,11 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
     except SpecNotFound:
         raise HTTPException(422, 'this version predates spec tracking (M4B) and cannot be modified through this pipeline')
 
+    followup = req.followup
+    visual = None
+    if req.target or req.attachment_ids:
+        followup, visual = _visual_followup(project_id, account.id, key, version_id, req)
+
     modification_id = f"mod_{uuid.uuid4().hex}"
     mods = PostgresModificationRepository(_v28_pool)
     rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
@@ -2590,7 +2657,7 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
                     raise HTTPException(402, admission.reason)
                 mods.create(
                     cur, modification_id=modification_id, project_id=key, user_id=account.id,
-                    source_version_id=version_id, followup=req.followup,
+                    source_version_id=version_id, followup=followup,
                     target_markets=tuple(req.target_markets), rights_evidence=rights_evidence,
                 )
                 mods.create_outbox(cur, modification_id=modification_id)
@@ -2606,7 +2673,8 @@ def v28_propose_modification(project_id: str, version_id: str, req: V28Modificat
         # enqueued_at IS NULL, same as the build path above.
         dispatch = "deferred"
 
-    return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch})
+    return JSONResponse(status_code=202, content={"status": "queued", "modification_id": modification_id, "dispatch": dispatch,
+                                                  **({'visual_edit': visual} if visual else {})})
 
 @app.get('/api/v28/projects/{project_id}/modifications/latest')
 def v28_modification_latest(project_id: str, request: Request) -> dict:
@@ -2716,6 +2784,129 @@ def v28_modification_reject(project_id: str, modification_id: str, req: V28Modif
     if not outcome['rejected']:
         return JSONResponse(status_code=422, content=outcome)
     return outcome
+
+# ---------------------------------------------------------------------------
+# Attachments + Visual Edit (founder directive 2026-10-11: Conversation UX +
+# Visual Editing). Reuses the workspace's artifact bucket, the modification
+# pipeline and its versions/verification/preview; no new build engine.
+
+def _attachments():
+    from .attachments import AttachmentRepository
+    store = getattr(_v28.engine.workspace, 'storage', None)
+    if _v28_pool is None or store is None:
+        raise HTTPException(503, detail={'error': 'attachments_unavailable',
+                                         'message': 'image attachments need PostgreSQL and durable object storage'})
+    repo = AttachmentRepository(_v28_pool, store)
+    if not repo.schema_ready():
+        raise HTTPException(503, detail={'error':'attachments_not_ready','missing_migration':'038_conversation_attachments',
+                                         'message':'Image attachments require database migration 038 on this deployment.'})
+    return repo
+
+
+def _owner(project_id: str, request: Request):
+    token = _v28_bearer(request)
+    try:
+        return _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+
+@app.post('/api/v28/projects/{project_id}/attachments')
+def v28_attachment_upload(project_id: str, req: V28AttachmentUpload, request: Request) -> dict:
+    from .attachments import AttachmentError, decode_base64, public
+    account, _ = _owner(project_id, request)
+    repo = _attachments()
+    try:
+        row = repo.create(project_id=project_id, account_id=account.id, kind=req.kind,
+                          data=decode_base64(req.data_base64), annotation=req.annotation)
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+    return public(row)
+
+
+@app.get('/api/v28/projects/{project_id}/attachments')
+def v28_attachment_list(project_id: str, request: Request) -> dict:
+    from .attachments import public
+    account, _ = _owner(project_id, request)
+    return {'attachments': [public(r) for r in _attachments().list(project_id=project_id, account_id=account.id)]}
+
+
+@app.get('/api/v28/projects/{project_id}/attachments/{attachment_id}')
+def v28_attachment_get(project_id: str, attachment_id: str, request: Request):
+    from .attachments import AttachmentError
+    account, _ = _owner(project_id, request)
+    repo = _attachments()
+    try:
+        row = repo.get(project_id=project_id, account_id=account.id, attachment_id=attachment_id)
+        data = repo.read(row)
+    except KeyError:
+        raise HTTPException(404, 'attachment not found')
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code}) from exc
+    return Response(content=data, media_type=row['mime'], headers={
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox", 'Content-Disposition': 'inline',
+        'Cross-Origin-Resource-Policy': 'same-origin'})
+
+
+@app.delete('/api/v28/projects/{project_id}/attachments/{attachment_id}')
+def v28_attachment_delete(project_id: str, attachment_id: str, request: Request) -> dict:
+    from .attachments import AttachmentError
+    account, _ = _owner(project_id, request)
+    try:
+        return _attachments().delete(project_id=project_id, account_id=account.id, attachment_id=attachment_id)
+    except KeyError:
+        raise HTTPException(404, 'attachment not found')
+    except AttachmentError as exc:
+        raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+
+
+def _version_repository(key: str, version_id: str) -> dict:
+    try:
+        return _v28.engine.workspace.get(project_id=key, version_id=version_id).repository()
+    except KeyError:
+        raise HTTPException(404, 'version not found')
+
+
+@app.post('/api/v28/projects/{project_id}/versions/{version_id}/visual-edit/locate')
+def v28_visual_locate(project_id: str, version_id: str, req: V28LocateRequest, request: Request) -> dict:
+    """Where is the element the person picked? Deterministic and free."""
+    from .visual_edit import SelectionInvalid, locate
+    _, key = _owner(project_id, request)
+    try:
+        return locate(_version_repository(key, version_id), req.selection)
+    except SelectionInvalid as exc:
+        raise HTTPException(422, detail={'error': 'selection_invalid', 'message': str(exc)}) from exc
+
+
+def _visual_followup(project_id: str, account_id: str, key: str, version_id: str, req) -> tuple[str, dict]:
+    from .attachments import AttachmentError, public
+    from .visual_edit import SelectionInvalid, choose, compose_followup, locate
+    target = selection = None
+    located = None
+    if req.target:
+        try:
+            located = locate(_version_repository(key, version_id), req.target.get('selection') or {})
+            target = choose(located, req.target.get('candidate'))
+            selection = located['selection']
+        except SelectionInvalid as exc:
+            # Never change a guessed element: the person picks a candidate or describes it.
+            raise HTTPException(409, detail={'error': 'target_ambiguous', 'message': str(exc),
+                                             'locate': {k: located[k] for k in ('status', 'candidates', 'anchor')}
+                                             if located else None}) from exc
+    attachments = []
+    if req.attachment_ids:
+        try:
+            attachments = [public(a) for a in _attachments().many(project_id=project_id, account_id=account_id,
+                                                                  ids=req.attachment_ids)]
+        except AttachmentError as exc:
+            raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
+    followup = compose_followup(req.followup, target=target, selection=selection, attachments=attachments)
+    return followup, {'target': {'file': target['file'], 'line': target['line']} if target else None,
+                      'anchor': located['anchor'] if located else None,
+                      'attachments': [a['id'] for a in attachments],
+                      'image_analysis': 'NOT_ANALYZED' if attachments else None}
+
 
 @app.post('/api/v28/projects/{project_id}/rollback')
 def v28_rollback(project_id: str, req: V28RollbackRequest, request: Request) -> dict:
@@ -2888,6 +3079,32 @@ def v28_build_capability_truth(project_id: str, build_id: str, request: Request)
 @app.get('/api/v28/m5/status')
 def v28_m5_status() -> dict:
     return _m5_status_payload()
+
+
+def _schema_compatibility() -> dict:
+    """Required (code) vs applied (database) migrations. Versions only, no data."""
+    from .schema_manifest import REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME, compatibility
+    out = {'required': REQUIRED_MIGRATION, 'required_name': REQUIRED_MIGRATION_NAME}
+    if _v28_pool is None:
+        return {**out, 'status': 'NOT_CONFIGURED', 'compatible': False}
+    try:
+        with _v28_pool.connection() as conn:
+            exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
+            applied = sorted(int(r[0]) for r in conn.execute('SELECT version FROM schema_migrations').fetchall()) if exists else []
+    except Exception as exc:
+        return {**out, 'status': 'UNREACHABLE', 'compatible': False, 'error': type(exc).__name__}
+    return compatibility(applied)
+
+
+@app.get('/api/v28/deployment')
+def v28_deployment() -> dict:
+    """Post-deployment verification input (Continuous Verification P0.4): which
+    commit this deployment runs, in which environment, and whether its database
+    schema matches the code. No secrets, no customer data."""
+    return {'source_commit': os.getenv('VERCEL_GIT_COMMIT_SHA') or os.getenv('OMNI_SOURCE_COMMIT') or None,
+            'environment': os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV', 'development'),
+            'branch': os.getenv('VERCEL_GIT_COMMIT_REF') or None,
+            'schema': _schema_compatibility()}
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:

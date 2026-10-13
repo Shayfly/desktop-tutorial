@@ -39,8 +39,25 @@ class AuditTests(unittest.TestCase):
         result = audit.audit()
         self.assertEqual(audit.inflation_findings(result), [])
         committed = __import__('json').loads(audit.REGISTRY_JSON.read_text())
-        self.assertEqual(committed['summary'], result['summary'],
-                         'run python -m omni_prod.agent_os.audit --write')
+        if committed['summary'] != result['summary']:
+            # Report the precise rows that differ: this can expose
+            # import-order-dependent auditing during pytest collection.
+            differences = []
+            for collection, key in (('agents', 'agent_key'), ('skills', 'skill_key')):
+                saved = {row[key]: row for row in committed[collection]}
+                runtime = {row[key]: row for row in result[collection]}
+                differences.extend(
+                    f"{collection}/{item}: committed={saved.get(item, {}).get('status')}, "
+                    f"runtime={runtime.get(item, {}).get('status')}, "
+                    f"why={runtime.get(item, {}).get('why')}, "
+                    f"implementation={runtime.get(item, {}).get('implementation_location')}"
+                    for item in sorted(saved.keys() | runtime.keys())
+                    if saved.get(item, {}).get('status') != runtime.get(item, {}).get('status')
+                )
+            self.fail(
+                'run python -m omni_prod.agent_os.audit --write; '
+                'specific status changes: ' + '; '.join(differences[:20])
+            )
 
     def test_live_requires_fresh_live_evidence(self):
         from omni_prod.agent_os.contracts import SkillContract

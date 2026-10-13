@@ -45,11 +45,22 @@ def discover_migrations(directory: str | Path) -> list[Migration]:
 def verify_applied(
     migrations: list[Migration],
     applied: dict[int, str],
+    accept_newer: frozenset[int] = frozenset(),
 ) -> None:
+    """Every applied version must be a known file with an unchanged checksum.
+
+    `accept_newer` is the ONLY exception, used to run an OLDER package against a database that a newer release already
+    migrated (a code rollback): a version missing from the package is tolerated only if the operator named that exact
+    version AND it is newer than every migration in the package. It is never inferred, never a range, and an unlisted
+    unknown version, a gap below the package's newest migration and any checksum drift still abort.
+    """
     by_version = {m.version: m for m in migrations}
+    newest = max(by_version, default=0)
     for version, recorded_sha in applied.items():
         current = by_version.get(version)
         if current is None:
+            if version in accept_newer and version > newest:
+                continue
             raise RuntimeError(f"applied migration missing from package: {version}")
         if current.sha256 != recorded_sha:
             raise RuntimeError(f"migration checksum drift detected: {version}")
@@ -57,6 +68,7 @@ def verify_applied(
 def pending_migrations(
     migrations: list[Migration],
     applied: dict[int, str],
+    accept_newer: frozenset[int] = frozenset(),
 ) -> list[Migration]:
-    verify_applied(migrations, applied)
+    verify_applied(migrations, applied, accept_newer)
     return [m for m in migrations if m.version not in applied]

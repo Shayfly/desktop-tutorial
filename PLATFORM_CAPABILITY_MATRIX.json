@@ -164,13 +164,10 @@
    "capability": "behavioral_acceptance_test",
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
-   "test_location": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
-   ],
-   "last_result": "REAL_SERVER_VERIFIED",
-   "last_verified_commit": "67a0765",
-   "last_verified_at": "2026-10-10T20:26Z",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:43Z",
    "environment": "pre-staging worker host"
   },
   {

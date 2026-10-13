@@ -47,6 +47,27 @@ def _t(task_id, task_type, agent, skills, deps, stage, *, outputs, accept, verif
         executable=executable, gap=gap)
 
 
+def _permissions(t) -> list[str]:
+    """Least privilege per plan task, stated from what the existing engine stage can reach."""
+    out = []
+    if t.model_task:
+        out.append(f'model calls of task class {t.model_task!r} only, through the routed gateway, '
+                   f'<= ${t.maximum_authorized_cost_usd} x {t.max_iterations} (task budget, enforced when plan-governed)')
+    else:
+        out.append('no model calls')
+    tools = set(t.required_tools)
+    if 'remote sandbox runner' in tools:
+        out.append('runs generated code only in the isolated remote sandbox (no network)')
+    if 'preview runtime' in tools:
+        out.append('starts the candidate only in the private preview runtime')
+    if 'browser sandbox' in tools:
+        out.append('drives a browser only against the private preview')
+    if 'repository writer' in tools:
+        out.append('writes files of this build\'s repository only')
+    out.append('no secrets, no customer data outside this project, no production deploy')
+    return out
+
+
 def web_graph(contract, *, budget_usd: D) -> ExecutionGraph:
     """The executable web plan: every task maps to a real stage of the existing engine."""
     complex_ = contract.complexity == 'complex'
@@ -146,7 +167,15 @@ class ChiefArchitect:
         problems = graph.problems(agents=R.allowed_skills() if R.snapshot()['loaded'] else None,
                                   skills=R.skill_keys() if R.snapshot()['loaded'] else None)
         assignments = [self.router.assign(t) for t in graph.tasks]
-        entities = _entities(contract)
+        if fam in EXECUTABLE:
+            for assignment in assignments:
+                if not assignment['executable']:
+                    feas.findings.append(F.Finding(
+                        f'assignment: {assignment["task_id"]}', F.BLOCKED,
+                        '; '.join(assignment['problems']) or 'task assignment is not executable'))
+                    if feas.buildable:
+                        feas.outcome = F.BLOCKED
+        entities = [] if fam == 'website' else _entities(contract)
         auth = contract.authentication_requirements['mode']
         plan = {
             'schema': SCHEMA, 'status': status, 'brief_fingerprint': contract.brief_fingerprint,
@@ -184,6 +213,21 @@ class ChiefArchitect:
             'layers': graph.layers() if not any('cycle' in p for p in problems) else [],
             'critical_path': graph.critical_path() if not problems else [],
             'assignments': assignments,
-            'executable': feas.buildable and not problems and all(t.executable for t in graph.tasks),
+            'executable': feas.buildable and not problems and all(a['executable'] for a in assignments),
+            # Master directive stage 2: what each task may do, and what "done" means for the customer.
+            'permissions': {t.task_id: _permissions(t) for t in graph.tasks},
+            'deliverable': {
+                'items': list(getattr(contract, 'expected_deliverables', []) or []),
+                'preview': ({'required': True, 'kind': 'private running preview of the released version',
+                             'must_pass': ['preview_starts', 'behavioural_acceptance', 'approved_criteria_covered',
+                                           'browser_flow', 'static_security_scan', 'qa_review_blocking_findings'],
+                             'decided_by': 'release policy (quality-report/1): NOT_RUN/UNKNOWN block READY'}
+                            if fam in EXECUTABLE else {'required': False, 'reason': f'{fam} is not executable in this release'}),
+            },
+            'execution_mode': {'plan_governed_flag': 'OMNI_PLAN_DRIVEN',
+                               'governed': 'every model call and verification run is admitted by this graph; '
+                                           'spend is charged to the task that made it',
+                               'not_yet': 'tasks run in the engine order (no parallel dispatch); a crashed build '
+                                          'restarts under a new run (no resume from a task checkpoint)'},
         }
         return plan

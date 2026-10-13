@@ -1,8 +1,10 @@
 """Model lanes for intake turns (Issue #12).
 
   deterministic   LOW turns (greetings): no model, $0
-  standard        MEDIUM / HIGH / RISKY: task class 'conversation', mandatory
-                  quality floor 70 (unchanged global floor)
+  standard        MEDIUM: task class 'conversation', mandatory quality floor 70
+  escalated       HIGH / RISKY: task class 'conversation_complex' -- the
+                  strongest allowed model is tried first (preferred floor 85),
+                  mandatory floor 70 unchanged; same single reserved call
   low_risk        a cheaper sub-70 lane -- DISABLED. It may serve LOW turns only,
                   and only with a qualification record proving: a Hebrew
                   benchmark (>= 150 cases, >= 95 % accuracy, zero sensitive false
@@ -22,7 +24,8 @@ from pathlib import Path
 
 from .complexity import HIGH, LOW, RISKY
 
-DETERMINISTIC, STANDARD, LOW_RISK = 'deterministic', 'standard', 'low_risk'
+DETERMINISTIC, STANDARD, ESCALATED, LOW_RISK = 'deterministic', 'standard', 'escalated', 'low_risk'
+MODEL_LANES = (STANDARD, ESCALATED)
 QUALIFICATION_FILE = Path(__file__).resolve().parents[2] / 'docs' / 'evidence' / 'intake' / 'low_risk_lane_qualification.json'
 
 
@@ -55,6 +58,10 @@ def choose(level: str, *, qualification: dict | None = None) -> dict:
         if ok:
             return {'lane': LOW_RISK, 'task': 'conversation_low_risk', 'reason': why}
         return {'lane': DETERMINISTIC, 'task': None, 'reason': 'greeting: no model needed (' + why + ')'}
+    if level in (HIGH, RISKY):
+        return {'lane': ESCALATED, 'task': 'conversation_complex', 'quality_floor': 70, 'preferred_floor': 85,
+                'requires_explicit_confirmation': level == RISKY, 'flag_for_review': True,
+                'reason': f'{level}: escalated to the strongest allowed model (preferred 85, mandatory 70)'}
     return {'lane': STANDARD, 'task': 'conversation', 'quality_floor': 70,
-            'requires_explicit_confirmation': level == RISKY, 'flag_for_review': level in (HIGH, RISKY),
+            'requires_explicit_confirmation': False, 'flag_for_review': False,
             'reason': f'{level}: standard lane, mandatory floor 70'}

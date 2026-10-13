@@ -25,6 +25,7 @@ class AgentSkillRouter:
         else:
             problems += [f'skill {s} not allowed to {agent}' for s in task.required_skills if s not in allowed]
         skill_status = {s: R.skill_status(s) for s in task.required_skills}
+        problems += [f'skill {s} is {st}' for s, st in skill_status.items() if st not in R.EXECUTABLE]
         if status not in R.EXECUTABLE:
             problems.append(f'agent {agent} is {status}')
         models = []

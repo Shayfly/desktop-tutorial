@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 
 from .project_manifest import MANIFEST_SHAPE
 from .model_gateway import OpenAICompatibleGateway
@@ -8,6 +9,21 @@ from .repository_patch import parse_patch
 from .change_policy import ChangeAssessment
 from .dependency_policy import GENERATION_CONSTRAINTS
 from .skills_runtime import guidance_for
+
+# Founder build "חגית" (2026-10-11): the generator only sees the ProductSpec, so a content-only requirement must be
+# explained to every model role, otherwise it still builds CRUD to satisfy a platform floor that does not apply.
+CONTENT_ONLY_RULES = (
+    'CONTENT-ONLY websites: when a requirement says "CONTENT-ONLY website", this overrides every instruction above '
+    'about JSON endpoints, databases, sign-in, roles and record creation. Build a static or server-rendered page with the '
+    'standard library only: GET / (also the health_path) returns the complete HTML (dir="rtl" for Hebrew) with the approved '
+    'content, prices, links and logo text exactly as given, a viewport meta tag and responsive CSS (media queries). '
+    'Do NOT add a database, login, forms that store anything, /api/* record endpoints or any create/update/delete behaviour, '
+    'and do not invent such features to satisfy a check. A WhatsApp contact is a plain https://wa.me/... link, not an integration. '
+    'In web_saas_acceptance list only the kinds data_read (GET / asserting real approved text with expect_text_contains), '
+    'responsive (GET / asserting the viewport meta) and api_smoke (GET on health_path expecting 200); omit auth, role, '
+    'data_create, data_update, data_delete and integration; every acceptance id must be attached to a step of one of those kinds '
+    'that really checks it (an id attached only to an omitted kind stays uncovered and fails the build). '
+)
 
 _ARCHITECT_SYSTEM = (
     "You are Omni Architect. Convert the user's product request to strict JSON. "
@@ -38,6 +54,7 @@ _ARCHITECT_SYSTEM = (
     'every acceptance requirement_id names an existing requirement id. '
     "Every mandatory requirement must have at least one acceptance criterion. Include explicit quality, security, data and deployment requirements when relevant. "
     "Design for international use, accessibility, responsive behavior, safe secrets, observability and testability rather than a toy demo."
+    + CONTENT_ONLY_RULES
     + guidance_for('architect')
 )
 _GENERATOR_SYSTEM = (
@@ -72,6 +89,7 @@ _GENERATOR_SYSTEM = (
     'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
     + GENERATION_CONSTRAINTS
+    + CONTENT_ONLY_RULES
     + guidance_for('generator')
 )
 _REPAIR_SYSTEM = (
@@ -89,6 +107,7 @@ _REPAIR_SYSTEM = (
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
     + GENERATION_CONSTRAINTS
+    + CONTENT_ONLY_RULES
     + guidance_for('repair')
 )
 
@@ -115,6 +134,10 @@ def _filter_repo_summary(repo_summary: dict) -> dict:
         'files': kept,
         'files_omitted_from_prompt': max(0, len(files) - len(kept)),
         **({'content_note': repo_summary['content_note']} if 'content_note' in repo_summary else {}),
+        **({'base_repository_fingerprint': repo_summary['base_repository_fingerprint']}
+           if 'base_repository_fingerprint' in repo_summary else {}),
+        **({'candidate_files': repo_summary['candidate_files']}
+           if 'candidate_files' in repo_summary else {}),
     }
 _CHANGE_SYSTEM = (
     "Classify a user's follow-up against the approved spec. Return only JSON "
@@ -169,17 +192,53 @@ class GeneratorAgent:
         )
         return parse_patch(data)
 
+# Strict structured output is opt-in; legacy repair remains the default.
+# Both routes reuse the existing TaskTaggedGateway and FinOps reservation.
+_REPAIR_SYSTEM_V1 = (
+    'Reply with a single JSON object: '
+    '{"schema_version":1,"reason_code":"FIX_COMPILE_ERROR",'
+    '"base_repository_fingerprint":"sha256:<64 lowercase hex>",'
+    '"changes":[{"path":"src/app.py","operation":"UPSERT","content":"whole corrected file"}],'
+    '"repaired_acceptance_ids":["A1"],"summary":"minimal repair",'
+    '"requires_dependency_change":false}. '
+    'Copy the current repository fingerprint exactly. '
+    'Only edit files explicitly named in the reported compiler or test evidence. '
+    'Never change tests, acceptance policy, secrets, manifests or lockfiles; '
+    'never delete files, execute shell or broaden approved scope.'
+)
+
+
 class RepairAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):
         self.gateway = gateway
     def repair(self, *, spec: ProductSpec, repo_summary: dict, failures: list[dict]) -> tuple:
+        structured = os.getenv('OMNI_REPAIR_STRUCTURED_V1') == '1'
         payload = {'spec': spec.to_dict(), 'repository': _filter_repo_summary(repo_summary), 'failures': failures}
+        if not structured:
+            data = self.gateway.complete_json(
+                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=20000)
+            return parse_patch(data)
+        from .repair_contracts import validated_file_patches, sanitized_tail
+        from .repository_patch import PatchValidationError
+        base_fp = repo_summary.get('base_repository_fingerprint')
+        if not isinstance(base_fp, str) or not base_fp.startswith('sha256:'):
+            raise PatchValidationError('repair requires the real repository fingerprint')
+        payload['failures'] = [
+            {'acceptance_id': str(f.get('acceptance_id', ''))[:100],
+             'message': sanitized_tail(str(f.get('message', '')), limit=600),
+             'evidence': sanitized_tail(str(f.get('evidence', '')), limit=1500)}
+            for f in failures[:12] if isinstance(f, dict)]
+        candidates = repo_summary.get('candidate_files') or []
+        if not candidates:
+            raise PatchValidationError('repair target UNKNOWN; more diagnosis required')
         data = self.gateway.complete_json(
-            system=_REPAIR_SYSTEM,
-            user=json.dumps(payload, ensure_ascii=False),
-            max_tokens=20000,
-        )
-        return parse_patch(data)
+            system=_REPAIR_SYSTEM_V1, user=json.dumps(payload, ensure_ascii=False), max_tokens=12000)
+        patches = validated_file_patches(
+            data, base_fingerprint=base_fp, approved_acceptance_ids={a.id for a in spec.acceptance})
+        allowed = {candidate['path'] for candidate in candidates}
+        if not {p.path for p in patches}.issubset(allowed):
+            raise PatchValidationError('repair changed a path without diagnostic evidence')
+        return patches
 
 class ChangeClassifierAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):

@@ -28,14 +28,14 @@ def _load_applied(cursor) -> dict[int, str]:
     cursor.execute("SELECT version, sha256 FROM schema_migrations ORDER BY version")
     return {int(row[0]): str(row[1]) for row in cursor.fetchall()}
 
-def apply_migrations(conn, migrations: list[Migration]) -> MigrationRun:
+def apply_migrations(conn, migrations: list[Migration], accept_newer: frozenset[int] = frozenset()) -> MigrationRun:
     applied_now: list[int] = []
     with conn.transaction():
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (_LOCK_ID,))
             cur.execute(SCHEMA_MIGRATIONS_DDL)
             applied = _load_applied(cur)
-            verify_applied(migrations, applied)
+            verify_applied(migrations, applied, accept_newer)
             for migration in migrations:
                 if migration.version in applied:
                     continue

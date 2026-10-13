@@ -52,6 +52,14 @@ if ! grep -q '^OMNI_MODEL_CATALOG_JSON=.' .env; then
   sed -i '/^OMNI_MODEL_CATALOG_JSON=/d' .env
   echo "OMNI_MODEL_CATALOG_JSON=$(python3 -c 'import json;print(json.dumps(json.load(open("model-catalog.json")),separators=(",",":")))')" >> .env
 fi
+# Founder-only real-model intake. Turn on only for staging, and never override
+# an explicit WORKER_ENV(_OVERRIDES) operator choice (e.g. OMNI_INTAKE_MODEL=0).
+# This does not make any model call: durable Vercel intake reservations still
+# enforce $0.005/message, $0.05/project, $0.15/day on the preview branch.
+if grep -qx 'OMNI_ENV=staging' .env && ! grep -q '^OMNI_INTAKE_MODEL=' .env; then
+  echo 'OMNI_INTAKE_MODEL=1' >> .env
+  echo "::notice title=staging-intake::founder-only intake model enabled for the dedicated worker"
+fi
 # Which catalog models can route (names and key presence only, never values).
 python3 - <<'PY' || true
 import json

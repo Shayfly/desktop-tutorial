@@ -1,0 +1,39 @@
+name: 148AI intake and architecture regression gates
+
+on:
+  pull_request:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record environment and revision
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/revision.txt
+          python --version > evidence/python.txt
+      - name: Product intent and capability closure (no provider calls)
+        run: |
+          set -o pipefail
+          python -m unittest -v tests.test_intake_palette_preservation tests.test_intake_palette_regression tests.test_customer_flow_rejects.CustomerFlowTests.test_free_colour_combination_is_preserved_in_binding tests.test_customer_flow_rejects.CustomerFlowTests.test_multi_colour_message_keeps_the_full_palette tests.test_intake_family_intent tests.test_architect_assignment_gate tests.test_architect_website_no_crud tests.test_intake_complexity 2>&1 | tee evidence/unit.txt
+      - name: Hostile static cases (does not prove sandbox isolation)
+        run: python scripts/run_hostile_static_suite.py > evidence/hostile-static.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-regression-evidence
+          path: evidence/

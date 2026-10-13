@@ -70,6 +70,14 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
             not_required.append('data_update')
         if not any(w in text for w in _DELETE_WORDS):
             not_required.append('data_delete')
+    # A content-only website approved in the brief (no sign-in, no personal data, no external integration,
+    # no storage/scheduled/outbound infrastructure) has no record to create. Only data_create is waived; data_read
+    # (the content is served), responsive and api_smoke (GET on the health path; no /api/* is required) remain.
+    if ('static_content_site' in set(map(str, build_contract.get('defaults') or build_contract.get('defaults_applied') or ()))
+            and _no_login(build_contract) and 'integration' in not_required
+            and not (kinds & {'object_storage', 'scheduled_http', 'outbound'})
+            and 'prompt' in build_contract):
+        not_required.append('data_create')
     waived = tuple(dict.fromkeys(not_required))
     return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k not in waived), waived
 

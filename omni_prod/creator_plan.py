@@ -14,6 +14,7 @@ from typing import Any, Callable, Mapping
 from .build_contract import BuildContractStatus
 from .customer_views import unpriced_capabilities
 from .build_cost_plan import CostQuoteUnknown
+from .qa_budget import QABudgetDenied
 from .capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
 
 
@@ -73,15 +74,22 @@ def build_plan_preview(
     # unit economics and never returned (decision 2026-10-07 #29): the customer
     # sees only whether the build can be priced/authorized and why not.
     quote, quote_error, quote_error_code = None, None, None
+    missing_quote_keys: list[str] = []
     try:
         # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
         # callable accepts the contract; zero-argument callables are legacy.
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
     except CostQuoteUnknown as exc:
         names = unpriced_capabilities(exc.unknown)
+        missing_quote_keys = list(dict.fromkeys(names))
         quote_error = ("A required capability is not available yet: " + ", ".join(names)) if names else \
             "A required capability is not available yet."
         quote_error_code = "cost_quote_unknown"
+    except QABudgetDenied as exc:
+        # INTERNAL_QA is an auditable founder-only staging entitlement. A
+        # per-build/total ceiling is NOT a subscription-plan restriction.
+        # Preserve its actionable reason rather than a misleading upsell.
+        quote_error, quote_error_code = str(exc), "qa_budget_denied"
     except PermissionError:
         quote_error, quote_error_code = "This build is not available on your current plan.", "plan_cannot_authorize_cost"
 
@@ -98,9 +106,14 @@ def build_plan_preview(
         blockers.append({"code": f"image_provider_{str((image_readiness or {}).get('status', 'NOT_CONFIGURED')).lower()}",
                          "message": f"Product icon generation: {(image_readiness or {}).get('reason', 'not configured')}"})
     if quote_error:
-        blockers.append({"code": quote_error_code, "message": quote_error})
+        blockers.append({"code": quote_error_code, "message": quote_error,
+                         "capability_keys": missing_quote_keys if quote_error_code == "cost_quote_unknown" else []})
+    elif quote is None:
+        # An absent economics quote is UNKNOWN, never authorization to build.
+        blockers.append({"code": "cost_quote_unavailable", "message": "No verified build quote is available."})
 
     ready = contract.status == BuildContractStatus.READY
+    admissible = ready and not blockers and quote is not None
     return {
         "build_contract_id": contract.id,
         "contract_version": contract.contract_version,
@@ -117,9 +130,15 @@ def build_plan_preview(
         "infrastructure_not_required": _not_required(contract),
         "clarification_questions": [q.to_dict() for q in contract.unresolved_questions],
         "build_authorization": ("PRICED" if quote is not None else
-                         "UNKNOWN" if quote_error_code == "cost_quote_unknown" else "NOT_AUTHORIZED"),
+                         "UNKNOWN" if quote_error_code in {"cost_quote_unknown", None} else "NOT_AUTHORIZED"),
+        "execution_readiness": "ADMISSIBLE_NOW" if admissible else (
+            "BLOCKED_REQUIREMENTS" if not ready else
+            "BLOCKED_PROVIDER_OR_QUOTE" if quote_error_code == "cost_quote_unknown" or (quote is None and quote_error is None) else
+            "BLOCKED_BUDGET" if quote_error_code == "qa_budget_denied" else "BLOCKED"),
+        "unavailable_requirements": [{"key": key, "purpose": next((c["purpose"] for c in capabilities if c["key"] == key), key)}
+                       for key in missing_quote_keys],
         "blockers": blockers,
-        "can_build": ready and not blockers,
+        "can_build": admissible,
         "paid_work_started": False,
         "truth_note": ("Readiness PARTIAL means configured but not yet proven for this project. "
                        "Nothing is charged until you start the build."),

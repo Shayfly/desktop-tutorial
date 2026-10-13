@@ -31,10 +31,27 @@ def required_skills(contract: dict) -> tuple[str, ...]:
     roles = [str(r) for r in (contract.get('user_roles') or ())]
     if roles and roles != ['user']:
         skills += SIGN_IN
-    for family, words in (('game2d', ('game', 'משחק')), ('media', ('video', 'וידאו', 'image generation')),
-                          ('automation', ('automation', 'אוטומציה', 'workflow'))):
-        if any(w in text for w in words):
-            skills += FAMILY_EXTRA[family]
+    # A versioned, approved CapabilityPlan is more authoritative than keyword
+    # matches in the prompt. For example, a website ABOUT games or with an
+    # "Assistant" font must not acquire a game engine or media-provider skills.
+    # Retain the old keyword route only for pre-contract callers.
+    capability_plan = contract.get('capability_plan')
+    requirements = capability_plan.get('requirements') if isinstance(capability_plan, dict) else None
+    if isinstance(requirements, list):
+        keys = {item['key'] for item in requirements
+                if isinstance(item, dict) and isinstance(item.get('key'), str)
+                and item.get('required') is True}
+        if 'target.game.2d' in keys:
+            skills += FAMILY_EXTRA['game2d']
+        if {'media.image.generate', 'media.video.generate'} & keys:
+            skills += FAMILY_EXTRA['media']
+        if 'target.automation' in keys:
+            skills += FAMILY_EXTRA['automation']
+    else:
+        for family, words in (('game2d', ('game', 'משחק')), ('media', ('video', 'וידאו', 'image generation')),
+                              ('automation', ('automation', 'אוטומציה', 'workflow'))):
+            if any(w in text for w in words):
+                skills += FAMILY_EXTRA[family]
     return tuple(dict.fromkeys(skills))
 
 

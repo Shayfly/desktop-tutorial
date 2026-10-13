@@ -59,14 +59,36 @@ _ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסי
            'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
 
 
+# A bare "start" once a brief exists ("תתחיל", "בוא נתחיל", "go") asks for the approval screen. The first message
+# of a project ("תבנה לי ...") stays a requirements message because it only matches with a brief and as a full match.
+_START_BARE = (r'(?:יאללה\s+)?(?:בוא(?:ו)?\s+)?(?:נתחיל|תתחיל(?:ו)?|תתחילי|תבנה|תבנו|תבני|להתחיל|התחל)'
+               r'(?:\s+לבנות)?(?:\s+(?:עכשיו|כבר|בבקשה))*|(?:ok\s+)?(?:go|start|let\'?s start)(?:\s+(?:now|please))*')
+
+
 def classify_intent(message: str, *, has_version: bool, has_brief: bool) -> str:
     t = (message or '').strip().lower()
+    if has_brief and re.fullmatch(_START_BARE, t.strip(' .!?,'), re.I):
+        return 'approve'
     for intent in ('status', 'approve', 'cost', 'missing', 'recommend', 'feasibility'):
         if re.search(_RX[intent], t, re.I):
             return intent
     if has_version and re.search(_MODIFY_RX, t, re.I):
         return 'modify'
     return 'requirements'
+
+
+# Content the customer adds after the brief is complete (prices, copy, links, logo text). It is recorded, verbatim,
+# in the brief's "content" field as a new revision; the new fingerprint invalidates any earlier approval.
+_CONTENT_RX = re.compile(r'(₪|\bnis\b|\bils\b|\$|\d{2,}\s*(ש"ח|שקל|₪)|מחיר|מחירון|מחירים|טקסט|תוכן|קישור|לינק|וואטסאפ|ווטסאפ|whatsapp|wa\.me|'
+               r'לוגו|logo|price|prices|copy|link)', re.I)
+
+
+def _record_content(brief, message: str):
+    text = ' '.join((message or '').split())[:1500]
+    cur = brief.fields.get('content')
+    if cur and cur.get('source') in ('answer', 'message') and text not in str(cur.get('value')):
+        text = (str(cur['value']) + ' | ' + text)[:2000]
+    return d.answer(brief, {'content': text})
 
 
 @dataclass
@@ -84,6 +106,7 @@ class Turn:
     cost_usd: Decimal | None = Decimal('0')       # None = UNKNOWN / PENDING (see cost_state)
     cost_state: str = 'CONFIRMED_ZERO'
     reservation_id: str | None = None
+    explained: bool = False                        # this answer explained why the open question matters
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -106,6 +129,8 @@ def _plan_view(plan: dict) -> dict:
 
 _TXT = {
     'he': {'got': 'הבנתי', 'assumed': 'בחרתי עבורכם (אפשר לשנות בכל רגע)', 'ask': 'כדי להמשיך אני צריך תשובה אחת קטנה',
+           'content_saved': 'שמרתי את התוכן שכתבתם בסיכום הפרויקט, בדיוק כפי שנכתב. האישור הקודם בוטל — צריך לאשר את הגרסה המעודכנת.',
+           'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
@@ -119,8 +144,19 @@ _TXT = {
            'modify': 'הבנתי שתרצו לשנות את המוצר הקיים. אשרו ואשלח את השינוי לצנרת השינויים (תוצג עלות לפני ביצוע).',
            'feas_yes': '{cap}: אפשר כבר עכשיו.', 'feas_no': '{cap}: לא זמין כרגע — {reason}.{alt}',
            'recommend': 'ההמלצות שלי (כבר בתוך הסיכום, ואפשר לשנות כל אחת):', 'alt': ' חלופה: {x}.',
-           'more': ' ועוד {n} (בלשונית "דרישות")'},
+           'more': ' עוד {n} החלטות כאלה בלשונית "דרישות".',
+           'ask_one': 'שאלה אחת לפני שממשיכים:', 'decide': 'יש החלטה אחת לפני שממשיכים:',
+           'verify': 'רק לוודא — הבנתי מהבקשה: {label}. נכון?',
+           'why': 'למה אני שואל: {why}', 'unsure': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי" ואבחר {rec}. תמיד אפשר לשנות אחר כך.',
+           'unsure_norec': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי". תמיד אפשר לשנות אחר כך.',
+           'options': '{q} אפשרויות: {opts}.',
+           'attached_shown': '📎 {n}',
+           'attached_only': 'קיבלתי {n} ושמרתי בפרויקט. עדיין אין ניתוח תמונה אוטומטי (צריך מודל עם יכולת ראייה ואישור תקציב), אז כתבו במשפט מה חשוב בה או מה לשנות.',
+           'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
+           'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
+           'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
+           'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
@@ -136,13 +172,45 @@ _TXT = {
            'modify': 'You want to change the existing product. Confirm and I will send it to the change pipeline (cost shown before it runs).',
            'feas_yes': '{cap}: available now.', 'feas_no': '{cap}: not available right now — {reason}.{alt}',
            'recommend': 'My recommendations (already in the summary; change any of them):', 'alt': ' Alternative: {x}.',
-           'more': ' and {n} more (see "Requirements")'},
+           'more': ' {n} more such decisions are in "Requirements".',
+           'ask_one': 'One question before we continue:', 'decide': 'One decision before we continue:',
+           'verify': 'Just to confirm — from your request I understood: {label}. Right?',
+           'why': 'Why I ask: {why}', 'unsure': 'If you are not sure, tap "Choose for me" and I will use {rec}. You can change it later.',
+           'unsure_norec': 'If you are not sure, tap "Choose for me". You can change it later.',
+           'options': '{q} Options: {opts}.',
+           'attached_shown': '📎 {n}',
+           'attached_only': 'I saved {n} in the project. Automatic image analysis is not enabled yet (it needs a vision-capable model and an approved budget), so tell me in a sentence what matters in it or what to change.',
+           'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
+           'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
+
+
+# Short names for decisions (directive 2026-10-11 "Conversation UX"): the
+# reply names the decision in a word or two, not by repeating the question.
+SHORT = {
+    'he': {'audience': 'קהל', 'goal': 'מטרה', 'login': 'התחברות', 'personal_data': 'פרטים אישיים', 'access_scope': 'גישה',
+           'screens': 'מסכים', 'languages': 'שפה', 'content': 'תוכן התחלתי', 'dates': 'תאריכים', 'duplicates': 'כפילויות',
+           'style': 'סגנון', 'color': 'צבע', 'font': 'גופן', 'logo': 'לוגו', 'references': 'השראה'},
+    'en': {'audience': 'audience', 'goal': 'goal', 'login': 'sign-in', 'personal_data': 'personal data', 'access_scope': 'access',
+           'screens': 'screens', 'languages': 'language', 'content': 'starting content', 'dates': 'dates',
+           'duplicates': 'duplicates', 'style': 'style', 'color': 'colour', 'font': 'font', 'logo': 'logo',
+           'references': 'references'},
+}
+# "I don't know / what? / why?" -- explain why the open question matters and
+# offer the recommendation, instead of repeating the same sentence.
+_UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
+              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain)\s*[.!?]*\s*$')
+
+
+def _short(field_: str, lang: str) -> str:
+    q = d.BY_ID.get(field_)
+    name = SHORT['he' if lang == 'he' else 'en'].get(field_)
+    return name or ((q.he if lang == 'he' else q.en) if q else field_)
 
 
 def _label(field_: str, value, lang: str) -> str:
     q = d.BY_ID.get(field_)
-    return f'{(q.he if lang == "he" else q.en) if q else field_} → {d._label(q, value, lang) if q else value}'
+    return f'{_short(field_, lang)}: {d._label(q, value, lang) if q else value}'
 
 
 class ConversationSupervisor:
@@ -172,7 +240,7 @@ class ConversationSupervisor:
             return self.store.conversation_cost(project_id), self.store.daily_cost()
         return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None)
 
-    def _interpreter(self, project_id, account_id=None, request_key=None):
+    def _interpreter(self, project_id, account_id=None, request_key=None, task='conversation'):
         """Every paid call goes through a durable reservation (Issue #12); without
         the reservation service, authorization or budget the answer is deterministic."""
         from ..intake import budget as B
@@ -181,12 +249,15 @@ class ConversationSupervisor:
         if m.mode != intake_mode.MODEL_WORKER:
             return DeterministicInterpreter()
         if self.worker_interpreter is not None:
+            if hasattr(self.worker_interpreter, 'task'):
+                self.worker_interpreter.task = task
             return self.worker_interpreter
         if self.reservations is None or self.enqueue is None or not account_id:
             return DeterministicInterpreter()
         from ..intake.worker_route import ReservedWorkerInterpreter
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
-                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env())
+                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env(),
+                                         task=task)
 
     def _plan(self, project_id, row):
         try:
@@ -201,7 +272,7 @@ class ConversationSupervisor:
 
     # --------------------------------------------------------------------- turn
     def turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
-             request_key: str | None = None, lang: str | None = None) -> Turn:
+             request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
         message = (message or '').strip()[:8000]
         lang = lang or language_of(message or 'שלום')
         T = _TXT['he' if lang == 'he' else 'en']
@@ -210,14 +281,38 @@ class ConversationSupervisor:
         shown = message or '; '.join(_label(d.BY_ID[q].field if q in d.BY_ID else q,
                                             v if v != d.DELEGATE else ('בחרו עבורי' if lang == 'he' else 'choose for me'), lang)
                                      for q, v in (answers or {}).items())
+        attachments = list(attachments or [])
+        if attachments and not shown:
+            shown = T['attached_shown'].format(n=T['images'](len(attachments)))
         if shown:
             self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
-                                   brief_revision=row.revision if row else None, request_key=request_key)
+                                   brief_revision=row.revision if row else None, request_key=request_key,
+                                   interpretation={'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]}
+                                   if attachments else None)
         intent = 'answer' if answers else classify_intent(message, has_version=bool(ctx.get('latest_version_id')),
                                                           has_brief=row is not None)
+        if intent == 'recommend' and self.intake_mode(project_id,account_id).paid:
+            intent='requirements'
+        # An explicit withdrawal refers only to a uniquely identified blocker
+        # in the previous reply. Never guess which of several requirements to drop.
+        if row and not answers and re.fullmatch(r'(?:אז\s+)?(?:תוותר|וותר|תוריד)\s+(?:על\s+)?זה(?:\s+כרגע)?[.!? ]*|'
+                                               r'(?:skip|remove|drop)\s+(?:that|it)(?:\s+for now)?[.!? ]*', message, re.I):
+            previous = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
+            last_plan_id = (previous[-1].get('interpretation') or {}).get('plan_id') if previous else None
+            plan, _, _ = self._plan(project_id, row)
+            blockers = [f for f in (plan or {}).get('feasibility', {}).get('findings', [])
+                        if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+            if last_plan_id and len(blockers) == 1 and blockers[0]['item'].startswith('sign-in'):
+                answers = {'login': 'none'}
+                intent = 'answer'
+        if attachments and not message and not answers:
+            intent = 'attachment'
         turn = Turn(intent, lang, '')
-        if intent in ('answer', 'requirements'):
-            turn = self._requirements(project_id, account_id, row, message, answers or {}, request_key, lang, T)
+        if intent == 'attachment':
+            turn.brief_row = row
+            turn.reply = T['attached_only'].format(n=T['images'](len(attachments)))
+        elif intent in ('answer', 'requirements'):
+            turn = self._requirements(project_id, account_id, row, message, answers or {}, request_key, lang, T, attachments)
         else:
             turn.brief_row = row
             if row is not None:
@@ -227,14 +322,24 @@ class ConversationSupervisor:
                 turn.actions.append({'type': 'approve_build', 'brief_revision': row.revision})
             if intent == 'modify':
                 turn.actions.append({'type': 'confirm_modification', 'version_id': ctx.get('latest_version_id'),
-                                     'request': message})
-            if row is not None:
+                                     'request': message,
+                                     **({'attachment_ids': [a['id'] for a in attachments]} if attachments else {})})
+            if row is not None and intent != 'attachment':
                 turn.questions = intake_agent.apply(row.brief, DeterministicInterpreter().interpret('', row.brief),
                                                     infer_defaults=False).asked if intent == 'missing' else []
+        if attachments and intent != 'attachment':
+            turn.reply = (turn.reply + ' ' + T['attached_note'].format(n=T['images'](len(attachments)))).strip()
+        if turn.brief_row and not (turn.plan or {}).get('executable', True):
+            for action in ({'type': 'show_plan', 'brief_revision': turn.brief_row.revision},
+                           {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
+                if not any(a['type'] == action['type'] for a in turn.actions):
+                    turn.actions.append(action)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
+                                               'asked': [q.id for q in turn.questions],
+                                               'explained': bool(getattr(turn, 'explained', False)),
                                                'actions': turn.actions, 'plan_id': turn.plan_id},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
@@ -253,13 +358,14 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
-    def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T) -> Turn:
+    def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
-            source = (self._interpreter(project_id, account_id, request_key) if lane['lane'] == lanes.STANDARD
-                      else DeterministicInterpreter())
+            source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
+                      if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
+            source.history = self.store.messages_for(project_id, limit=5)[:-1]
             interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():
@@ -268,6 +374,22 @@ class ConversationSupervisor:
         res = intake_agent.apply(brief, interp, require_confirmation=sensitive) if interp else intake_agent.apply(
             brief, DeterministicInterpreter().interpret('', brief))
         new_brief = res.brief
+        # Persist only schema- and evidence-validated model decisions in the same
+        # brief revision. They remain reviewable and bind to the normal approval
+        # fingerprint; deterministic fallback cannot silently invent exclusions.
+        if interp is not None and getattr(interp, 'semantic_decisions', None) and str(interp.interpreter).startswith('model'):
+            from ..semantic_capabilities import updated_decisions
+            new_brief.semantic_decisions = updated_decisions(
+                new_brief.semantic_decisions, interp.semantic_decisions)
+        recorded = False
+        if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
+                and not answers and _CONTENT_RX.search(message)):
+            new_brief, recorded = _record_content(new_brief, message), True
+        if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
+            a = attachments[0]
+            if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
+                new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
+                new_brief = d.answer(new_brief, {'logo':'later'})
         expected = row.revision if row else 0
         if row is None or new_brief.fingerprint() != row.fingerprint:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
@@ -281,6 +403,10 @@ class ConversationSupervisor:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         parts = []
+        # The model's conversational advice is not an action: the authoritative
+        # questions, changes, blockers and approval controls below still apply.
+        if interp is not None and interp.reply and not res.conflicts:
+            parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
         if stated:
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
@@ -297,25 +423,80 @@ class ConversationSupervisor:
         if short:
             more = len(res.assumed) - len(short[:3])
             parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
-                         + (T['more'].format(n=more) if more > 0 else '') + '.')
-        if res.contradictions:
-            parts.append(T['contra'])
+                         + '.' + (T['more'].format(n=more) if more > 0 else ''))
+        unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
         if row.complete:
             turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
             feas = (turn.plan or {}).get('feasibility', {})
             if feas.get('buildable'):
-                parts.append(T['ready'])
+                if recorded:
+                    parts.append(T['content_saved'])
+                again = not stated and not res.corrected and (recorded or self._prev_ready(project_id))
+                parts.append(T['ready_again'] if again else T['ready'])
                 turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 parts.append(T['blocked'] + ': ' + '; '.join(
-                    f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '') for f in blocked[:3]))
+                    self._finding_message(f, lang, T) for f in blocked[:3]))
         elif res.asked:
-            parts.append(T['ask'] + ':')
+            self._last_reply_was_why = False
+            repeated = self._repeats(project_id, res.asked)
+            explain = unsure or repeated
+            parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
+            turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
         return turn
+
+    @staticmethod
+    def _finding_message(f, lang, T):
+        if lang == 'he' and f['item'].startswith('sign-in'):
+            return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את דרישת ההתחברות או להשאיר אותה להמשך'
+        return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
+
+    _last_reply_was_why = False
+
+    def _prev_ready(self, project_id) -> bool:
+        """The previous assistant turn already said the plan is ready (do not repeat the same sentence)."""
+        try:
+            prev = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
+        except Exception:
+            return False
+        return bool(prev) and any(a.get('type') == 'show_plan' for a in ((prev[-1].get('interpretation') or {}).get('actions') or []))
+
+    def _repeats(self, project_id, asked) -> bool:
+        """The same open question was already the subject of the previous answer."""
+        try:
+            prev = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
+        except Exception:
+            return False
+        if not prev:
+            return False
+        last = prev[-1].get('interpretation') or {}
+        self._last_reply_was_why = bool(last.get('explained'))
+        return bool(last.get('asked')) and last.get('asked') == [q.id for q in asked]
+
+    def _ask_line(self, res, row, lang, T, *, unsure: bool) -> list[str]:
+        """One short line per turn: verify a pre-selected value, explain why on
+        "I don't know"/repeats, otherwise just ask. Never the same sentence twice."""
+        q = res.asked[0]
+        he = lang == 'he'
+        if unsure and self._last_reply_was_why:
+            opts = ' / '.join(o.he if he else o.en for o in q.options[:4])
+            return [T['options'].format(q=q.he if he else q.en, opts=opts) if opts else T['ask_one']]
+        if unsure:
+            out = [T['why'].format(why=(q.why_he if he else q.why_en).rstrip('.') + '.')]
+            rec = q.recommended if q.recommended and q.recommended != '__from_request__' else None
+            out.append(T['unsure'].format(rec=d._label(q, rec, lang)) if rec and q.delegable else
+                       (T['unsure_norec'] if q.delegable else ''))
+            return [x for x in out if x]
+        hint = row.brief.hints.get(q.field) if row is not None else None
+        if hint and len(res.asked) == 1 and q.kind == 'choice':
+            return [T['verify'].format(label=_label(q.field, hint, lang))]
+        if res.contradictions or q.id == 'access_scope':
+            return [T['decide']]
+        return [T['ask_one'] if len(res.asked) == 1 else T['ask'] + ':']
 
     def _answer(self, intent, row, plan, ctx, message, T, lang) -> str:
         if intent == 'status':
@@ -358,6 +539,8 @@ class ConversationSupervisor:
     def _feasibility_answer(self, message, row, T) -> str:
         """Answers "can we add X?" from the registries, never from a model."""
         import dataclasses
+        from ..product_architect import strip_whatsapp_links
+        message = strip_whatsapp_links(message)          # a WhatsApp link is a hyperlink, not an SMS capability
         contract = C.from_brief(row.brief)
         out = []
         for name, rx in _FEAS_KEYS:

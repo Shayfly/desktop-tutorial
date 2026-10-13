@@ -94,6 +94,19 @@ QUESTIONS: tuple[Question, ...] = (
              'Will it store personal details (name, phone, email)?',
              'פרטים אישיים מחייבים לחשוב מי רשאי לראות אותם.', 'Personal data needs a decision about who may see it.',
              options=(_o('yes', 'כן', 'Yes'), _o('no', 'לא', 'No')), recommended='yes'),
+    # Content-only sites (landing pages, brochure sites): the one structured decision that lets acceptance skip
+    # "create records" checks. Never delegable and never defaulted: only the customer's own answer (or an
+    # unchanged pre-selected hint they confirm) sets it, it is shown in the approval summary, and it is bound
+    # into the build contract through requirements_text (see product_architect.content_only_approved).
+    Question('content_only', 'content_only', 'access',
+             'האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?',
+             'Is this a content-only site: it shows information, prices and links and stores nothing from visitors?',
+             'אתר תוכן לא נבדק על יצירה ועריכה של נתונים. אם יש טופס שנשמר, הזמנות או רשימה שמתעדכנת — ענו "לא".',
+             'A content-only site is not tested for creating or editing records. If it has a saved form, orders or a changing list, answer "no".',
+             options=(_o('yes', 'כן, אתר תוכן בלבד — בלי שמירת נתונים', 'Yes, content only: nothing is stored'),
+                      _o('no', 'לא, יש נתונים שנשמרים או משתנים', 'No, some data is stored or changes')),
+             delegable=False,
+             ask_if=lambda v: v.get('login') == 'none' and v.get('personal_data') == 'no' and v.get('_family') == 'website'),
     Question('access_scope', 'access_scope', 'access',
              'ביקשתם בלי התחברות, אבל יישמרו פרטים אישיים ואנשים מבחוץ ישתמשו. איך להמשיך?',
              'No sign-in, personal data and outside users: how should we proceed?',
@@ -107,7 +120,7 @@ QUESTIONS: tuple[Question, ...] = (
     Question('screens', 'screens', 'content', 'אילו מסכים או אזורים צריכים להיות?', 'Which screens or areas are needed?',
              'כל מסך שתכתבו ייבנה ויקבל בדיקה. אם לא תכתבו — נציע לפי הבקשה.',
              'Every screen you list is built and tested. Leave it to us and we propose from the request.',
-             kind='text', recommended='לפי הבקשה: מסך ראשי עם רשימה, טופס הוספה ופעולות על כל פריט'),
+             kind='text', recommended='__from_request__'),
     Question('languages', 'languages', 'content', 'באיזו שפה יהיה המוצר?', 'Which language?',
              'קובע כיוון כתיבה (ימין-לשמאל), פורמט תאריכים וניסוח.', 'Sets direction (RTL), date format and wording.',
              options=(_o('he', 'עברית', 'Hebrew'), _o('he_en', 'עברית ואנגלית', 'Hebrew and English'), _o('en', 'אנגלית', 'English')),
@@ -132,9 +145,9 @@ QUESTIONS: tuple[Question, ...] = (
              options=(_o('clean', 'נקי ומודרני', 'Clean and modern'), _o('warm', 'חם ומזמין', 'Warm and friendly'),
                       _o('formal', 'עסקי ורשמי', 'Formal business'), _o('playful', 'צבעוני ושמח', 'Playful and colourful')),
              recommended='clean'),
-    Question('color', 'color', 'design', 'איזה צבע ראשי?', 'Main colour?',
+    Question('color', 'color', 'design', 'אילו צבעים תרצו? אפשר לתאר במילים', 'Which colours? Describe them in your own words',
              'הצבע הראשי משמש לכפתורים ולכותרות; הטקסט תמיד יישאר קריא.', 'Used for buttons and headings; text stays readable.',
-             options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
+             kind='text', options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
                       _o('orange', 'כתום', 'Orange'), _o('teal', 'טורקיז', 'Teal'), _o('neutral', 'אפור/שחור', 'Neutral')),
              recommended='blue'),
     Question('font', 'font', 'design', 'איזה גופן?', 'Which font?',
@@ -159,6 +172,9 @@ _RULES: tuple[tuple[str, str, str, str], ...] = (
     (r'(בלי|ללא)\s+(התחברות|הרשמה|סיסמ)', 'login', 'none', 'high'),
     (r'\b(no|without)\s+(login|sign[- ]?in)', 'login', 'none', 'high'),
     (r'(הרשאות|תפקידים)', 'login', 'roles', 'hint'),
+    (r'(בלי|ללא)\s+(איסוף\s+|שמירת\s+|שמירה\s+של\s+|שמירה\s+)?(של\s+)?(פרטים|מידע|נתונים)\s+אישיים', 'personal_data', 'no', 'high'),
+    (r'\b(no|without)\s+(collecting\s+|storing\s+|saving\s+)?(any\s+)?personal\s+(data|details|information)', 'personal_data', 'no', 'high'),
+    (r'(דף נחיתה|אתר תדמית|landing page|brochure site)', 'content_only', 'yes', 'hint'),
     (r'(טלפון|מייל|אימייל|דוא"ל|כתובת מגורים|ת\.?ז)', 'personal_data', 'yes', 'hint'),
     (r'(לקוחות|ציבור|מטופלים|גולשים)', 'audience', 'public', 'hint'),
     (r'(צוות|עובדים|פנימי|שלי בלבד)', 'audience', 'internal', 'hint'),
@@ -183,6 +199,12 @@ def extract_from_message(prompt: str) -> tuple[dict[str, dict], dict[str, str]]:
             hints[fld] = value
     if re.search(r'(לקוחות|ציבור)', prompt or '') and re.search(r'(צוות|עובדים|מנהל)', prompt or ''):
         hints['audience'] = 'both'
+    palette = colour_palette(prompt)
+    if palette:
+        if len(palette) > 1:
+            palette = colour_palette(prompt, preserve_words=True)
+        known['color'] = {'value': ', '.join(palette), 'source': 'message',
+                          'question_id': 'color', 'confidence': 'stated'}
     return known, hints
 
 
@@ -195,18 +217,26 @@ class Brief:
     fields: dict[str, dict] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)  # questions the user chose to skip (no preference recorded)
     hints: dict[str, str] = field(default_factory=dict)  # suggested answers read from the request (pre-selected, still asked)
+    assets: dict[str, dict] = field(default_factory=dict)  # owner-checked attachment id + digest, never bytes/secrets
+    semantic_decisions: list[dict] = field(default_factory=list)  # validated model evidence, reviewed on brief approval
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
 
     def to_dict(self) -> dict:
-        return {'prompt': self.prompt, 'mode': self.mode, 'fields': self.fields, 'skipped': list(self.skipped),
-                'hints': dict(self.hints)}
+        out = {'prompt': self.prompt, 'mode': self.mode, 'fields': self.fields, 'skipped': list(self.skipped),
+               'hints': dict(self.hints)}
+        if self.assets:
+            out['assets'] = self.assets
+        if self.semantic_decisions:
+            out['semantic_decisions'] = list(self.semantic_decisions)
+        return out
 
     @classmethod
     def from_dict(cls, d: Mapping) -> 'Brief':
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
-                   dict(d.get('hints') or {}))
+                   dict(d.get('hints') or {}), dict(d.get('assets') or {}),
+                   list(d.get('semantic_decisions') or []))
 
     def fingerprint(self) -> str:
         return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -224,7 +254,7 @@ def start(prompt: str, mode: str = GUIDED) -> Brief:
         while changed:  # a choice can make a dependent question applicable
             changed = False
             for q in QUESTIONS:
-                if q.field not in brief.fields and q.delegable and q.recommended is not None and q.ask_if(brief.values()):
+                if q.field not in brief.fields and q.delegable and q.recommended is not None and q.ask_if(_ctx(brief)):
                     brief.fields[q.field] = {'value': _recommended(q, brief, hints), 'source': 'delegated',
                                              'question_id': q.id, 'confidence': 'recommended'}
                     changed = True
@@ -232,9 +262,51 @@ def start(prompt: str, mode: str = GUIDED) -> Brief:
     return brief
 
 
+# A website (landing page, brochure site) shows content; it is not a list-and-form application. The generic
+# defaults below (a list screen with an add form, date ranges, duplicate blocking, an empty start) are right
+# for applications and wrong for a website, so a website-family request gets content defaults instead.
+# Defaults are only proposals: they are listed as assumptions in the approval summary and can be changed.
+_WEBSITE_DEFAULTS = {
+    'audience': 'public',
+    'screens': '__from_request__',
+    'content': 'הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו',
+    'dates': 'none',
+    'duplicates': 'allow',
+}
+
+
+def is_website(brief: 'Brief') -> bool:
+    from .intake.families import classify_family
+    return classify_family(brief.prompt) == 'website'
+
+
+def _ctx(brief: 'Brief') -> dict:
+    """What a question's ask_if may look at: the brief's values plus the platform's family classification."""
+    v = brief.values()
+    v['_family'] = 'website' if is_website(brief) else 'other'
+    return v
+
+
+def _website_screens(prompt: str) -> str:
+    """Derive only explicitly requested site sections; never invent CRUD pages."""
+    patterns = (
+        (r'(דף בית|עמוד הבית|homepage|home page)', 'דף בית'),
+        (r'(חיפוש חופשות|חיפוש טיסות|חיפוש מלונות|search (?:for )?(?:vacations|holidays|flights|hotels))', 'חיפוש חופשות / שירותים'),
+        (r'(טופס יצירת קשר|טופס צור קשר|contact form)', 'טופס יצירת קשר'),
+        (r'(אודות|about us|about page)', 'אודות'),
+        (r'(גלריה|gallery)', 'גלריה'),
+        (r'(מחירון|pricing page|price list)', 'מחירון'),
+    )
+    screens = [label for pattern, label in patterns if re.search(pattern, prompt, re.I)]
+    return ', '.join(screens) if screens else 'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו'
+
+
 def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
     if q.recommended == '__from_request__':
-        return brief.prompt[:300]
+        return _website_screens(brief.prompt) if q.field == 'screens' and is_website(brief) else brief.prompt[:300]
+    if q.field in _WEBSITE_DEFAULTS and q.field not in hints and is_website(brief):
+        value = _WEBSITE_DEFAULTS[q.field]
+        return _website_screens(brief.prompt) if value == '__from_request__' else value
     return hints.get(q.field, q.recommended)
 
 
@@ -243,7 +315,7 @@ def _drop_inapplicable(brief: Brief) -> None:
     changed = True
     while changed:
         changed = False
-        vals = brief.values()
+        vals = _ctx(brief)
         for q in QUESTIONS:
             if q.field in brief.fields and not q.ask_if(vals):
                 del brief.fields[q.field]
@@ -277,11 +349,13 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         if qid in new.skipped:
             new.skipped.remove(qid)
     _drop_inapplicable(new)
+    if 'logo' in answers and new.values().get('logo') != 'later':
+        new.assets.pop('logo', None)
     return new
 
 
 def pending(brief: Brief) -> list[Question]:
-    vals = brief.values()
+    vals = _ctx(brief)
     return [q for q in QUESTIONS if q.field not in brief.fields and q.id not in brief.skipped and q.ask_if(vals)]
 
 
@@ -314,7 +388,30 @@ def complete(brief: Brief) -> bool:
 # ---- what the builders receive ----------------------------------------------
 
 _COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
-              'neutral': '#334155'}
+              'neutral': '#334155', 'white': '#ffffff', 'black': '#000000', 'red': '#dc2626',
+              'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080'}
+_COLOUR_ALIASES = {'כחול': 'blue', 'ירוק': 'green', 'סגול': 'purple', 'כתום': 'orange',
+                   'טורקיז': 'teal', 'לבן': 'white', 'שחור': 'black', 'אדום': 'red', 'צהוב': 'yellow',
+                   'ורוד': 'pink', 'שמנת': 'cream', 'זהב': 'gold', 'אפור': 'gray', 'grey': 'gray',
+                   'turquoise': 'teal', **{name: name for name in _COLOR_HEX}}
+
+
+def colour_palette(text: str, *, preserve_words: bool = False) -> list[str]:
+    """Ordered, bounded tokens from stated colour words or hex colours."""
+    words = '|'.join(re.escape(word) for word in _COLOUR_ALIASES)
+    pattern = r'(#[0-9a-f]{6}\b|#[0-9a-f]{3}\b)|(?<!\w)(?:וב|ו|ב)?(' + words + r')(?!\w)'
+    tokens = []
+    words_seen = []
+    for match in re.finditer(pattern, text or '', re.I):
+        token = match.group(1).lower() if match.group(1) else _COLOUR_ALIASES[match.group(2).lower()]
+        if token not in tokens:
+            tokens.append(token)
+            words_seen.append((match.group(1) or match.group(2)).lower())
+    return (words_seen if preserve_words else tokens)[:6]
+
+
+def palette_css(text: str) -> list[str]:
+    return [_COLOR_HEX.get(token, token) for token in colour_palette(text)]
 _FONT = {'heebo': "'Heebo', system-ui, sans-serif", 'assistant': "'Assistant', system-ui, sans-serif",
          'rubik': "'Rubik', system-ui, sans-serif", 'system': 'system-ui, sans-serif'}
 
@@ -349,6 +446,16 @@ def detection_text(prompt: str) -> str:
     return (head.strip() + extra).strip()
 
 
+CONTENT_ONLY_LINE = ('Product kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; '
+                     'no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given.')
+
+
+def _content_only(v: dict, login: str) -> bool:
+    """Only an explicit, non-delegated yes together with no sign-in and no personal data."""
+    return (v.get('content_only') == 'yes' and login == 'none'
+            and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -366,6 +473,8 @@ def requirements_text(brief: Brief) -> str:
         lines.append('Access: internal tool; only the owner gets the link (no public pages).')
     if scope == 'no_personal' or v.get('personal_data') == 'no':
         lines.append('Do not store personal or contact details of people.')
+    if _content_only(v, login):
+        lines.append(CONTENT_ONLY_LINE)
     for fld, label in (('audience', 'Audience'), ('goal', 'Main action'), ('screens', 'Screens'), ('content', 'Initial content'),
                        ('references', 'Visual references (inspiration only)')):
         if v.get(fld):
@@ -380,13 +489,26 @@ def requirements_text(brief: Brief) -> str:
     if v.get('duplicates') == 'block':
         lines.append('Duplicates: block them on the server (also under two simultaneous requests) and explain why.')
     style, color, font = v.get('style', 'clean'), v.get('color', 'blue'), v.get('font', 'heebo')
-    lines.append(f'Design: style {style}; primary colour {_COLOR_HEX.get(color, color)}; font {_FONT.get(font, font)} '
+    tokens = palette_css(color)
+    colours = (f'primary colour {tokens[0]}; palette {", ".join(tokens)}' if tokens else
+               f'requested colour description {color!r}; resolve it to valid CSS colours')
+    if tokens:
+        colours += f'; requested colour description {color!r}'
+    lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':
         lines.append('Logo: a text logo with the product name in the header.')
+    logo = brief.assets.get('logo')
+    if logo:
+        lines.append(f'Uploaded logo attachment: {logo["id"]}; sha256={logo["sha256"]}. '
+                     'Use the original uploaded logo in a visible img element with src="148ai-asset://logo". '
+                     'The worker replaces this marker with the verified image bytes before tests; do not recreate the logo.')
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')
+    if brief.semantic_decisions:
+        from .semantic_capabilities import encode_approved
+        lines.append(encode_approved(brief.semantic_decisions))
     return '\n'.join(lines)
 
 
@@ -412,12 +534,42 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
         included.append('התחברות' if he else 'Sign-in')
     if v.get('personal_data') == 'no' or v.get('access_scope') == 'no_personal':
         excluded.append('שמירת פרטים אישיים' if he else 'Personal details')
+    if _content_only(v, 'none' if login == 'none' else 'x'):
+        excluded.append('שמירת נתונים מהמבקרים (אתר תוכן בלבד)' if he else 'Visitor data storage (content-only site)')
     excluded += (['פרסום לכתובת קבועה (בשלב זה: תצוגה מקדימה וקוד להורדה)'] if he
                  else ['Publishing to a permanent address (for now: preview and downloadable code)'])
     excluded += (['שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים'] if he
                  else ['Long-term data storage — preview data is temporary'])
     assumptions = [x for g in sections.values() for x in g if x['source'] in ('delegated', 'default')]
+    # Plain-language semantic review before approval. Do not expose internal
+    # capability keys, model diagnostics or provider pricing to the customer.
+    names = {
+        'target.agent': ('סוכן AI', 'AI agent'),
+        'ai.agent.tools': ('כלי פעולה של סוכן AI', 'AI agent tools'),
+        'ai.agent.memory': ('זיכרון סוכן AI', 'AI agent memory'),
+        'ai.agent.eval': ('בדיקות סוכן AI', 'AI agent evaluation'),
+        'integration.maps': ('מפות אינטראקטיביות', 'Interactive maps'),
+        'integration.email': ('שליחת דואר אלקטרוני', 'Email sending'),
+        'integration.webhook': ('התממשקות Webhook', 'Webhook integration'),
+        'integration.messaging': ('מערכת הודעות', 'Messaging service'),
+        'media.audio.tts': ('יצירת קול וקריינות', 'Speech and narration'),
+        'media.audio.stt': ('תמלול דיבור', 'Speech recognition'),
+        'media.audio.realtime_voice': ('שיחה קולית בזמן אמת', 'Real-time voice'),
+        'media.image.generate': ('יצירת תמונות', 'Image generation'),
+        'media.video.generate': ('יצירת וידאו', 'Video generation'),
+        'target.automation': ('אוטומציה', 'Automation'),
+    }
+    semantic_review = [
+        {'label': names[d['key']][0 if he else 1],
+         'included': d['decision'] == 'required',
+         'uncertain': d['decision'] == 'uncertain',
+         'evidence': str(d['evidence'])[:160],
+         'reason': str(d['reason'])[:180]}
+        for d in brief.semantic_decisions if isinstance(d, dict) and d.get('key') in names
+        and d.get('decision') in ('required','not_required','uncertain')
+    ]
     return {'goal': v.get('goal') or brief.prompt[:200], 'sections': sections,
             'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
+            'semantic_review': semantic_review,
             'contradictions': contradictions(brief), 'complete': complete(brief)}

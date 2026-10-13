@@ -39,6 +39,10 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     TaskClass('general', 'unclassified call (strict default)', 70, 70),
     TaskClass('classification', 'route a change request / intent', 70, 70),
     TaskClass('conversation', 'customer intake dialogue (Hebrew/English)', 70, 70),
+    # Master directive stage 1: HIGH/RISKY intake turns escalate to the strongest
+    # allowed model first (preferred 85); the mandatory floor stays 70, so an
+    # unavailable strong model degrades to the standard lane, never below it.
+    TaskClass('conversation_complex', 'complex or sensitive intake turn (escalated)', 85, 70),
     TaskClass('intake_extraction', 'structured requirements from the dialogue', 70, 70, deterministic_first=True),
     TaskClass('architecture', 'architecture + plan for the build', 85, 70),
     TaskClass('codegen', 'write the product code', 85, 70),

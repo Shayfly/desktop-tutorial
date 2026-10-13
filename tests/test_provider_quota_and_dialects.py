@@ -10,7 +10,8 @@ from unittest import mock
 from urllib import error
 
 from omni_prod.model_catalog import CatalogModel, ModelCatalogError, parse_model_catalog
-from omni_prod.model_gateway import ModelEndpoint, ModelHTTPError, OpenAICompatibleGateway, quota_exhausted
+from omni_prod.model_gateway import (ModelEndpoint, ModelHTTPError, OpenAICompatibleGateway,
+                                    ProviderQuotaUnavailable, provider_quota_depleted, quota_exhausted)
 from omni_prod.model_policy import ModelPolicyViolation, ModelUsePolicy
 from omni_prod.model_router import ModelOption, RoutingPolicy
 from omni_prod.provider_usage import ProviderUsage
@@ -80,6 +81,28 @@ class QuotaTests(unittest.TestCase):
         # Later calls in the same build skip the exhausted route entirely.
         gw.complete_json(system='s', user='u', max_tokens=1000, task='codegen')
         self.assertEqual(s.calls, ['strong', 'backup', 'backup'])
+
+    def test_only_explicit_quota_depletion_is_named(self):
+        s = Script({'strong': [ModelHTTPError(QUOTA, status=429)],
+                    'backup': [ModelHTTPError('HTTP 402: insufficient credit balance', status=402)]})
+        gw = _gw(s, self.models)
+        with self.assertRaises(ProviderQuotaUnavailable) as caught:
+            gw.complete_json(system='s', user='u', max_tokens=1000, task='codegen')
+        self.assertEqual(caught.exception.providers, ('backup', 'strong'))
+        self.assertEqual(gw.state.external_spend_usd, Decimal('0'))
+        self.assertEqual(s.calls, ['strong', 'backup'])
+        from omni_prod.worker_tasks import failure_code
+        self.assertEqual(failure_code(caught.exception), 'provider_quota_exhausted')
+
+    def test_bad_key_is_not_mislabeled_credit_exhaustion(self):
+        s = Script({'strong': [ModelHTTPError('HTTP 401: invalid key', status=401)],
+                    'backup': [ModelHTTPError('HTTP 503: overloaded', status=503)] * 3})
+        gw = _gw(s, self.models)
+        with self.assertRaises(ModelGatewayError) as caught:
+            gw.complete_json(system='s', user='u', max_tokens=1000, task='codegen')
+        self.assertNotIsInstance(caught.exception, ProviderQuotaUnavailable)
+        self.assertFalse(provider_quota_depleted(ModelHTTPError('HTTP 429: rate limit', status=429)))
+        self.assertFalse(provider_quota_depleted(ModelHTTPError('HTTP 401: invalid key', status=401)))
 
     def test_plain_rate_limit_is_still_retried(self):
         s = Script({'strong': [ModelHTTPError('model request failed: HTTP 429: Too many requests', status=429)]})

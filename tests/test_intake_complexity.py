@@ -140,11 +140,30 @@ class ComplexityCorpusTests(unittest.TestCase):
 class LaneTests(unittest.TestCase):
     def test_lanes(self):
         self.assertEqual(lanes.choose(C.LOW)['lane'], lanes.DETERMINISTIC)
-        for level in (C.MEDIUM, C.HIGH, C.RISKY):
+        lane = lanes.choose(C.MEDIUM)
+        self.assertEqual((lane['lane'], lane['task'], lane['quality_floor']), (lanes.STANDARD, 'conversation', 70))
+        # Master directive stage 1: complex/sensitive turns escalate to the strong model
+        # first; the mandatory floor is unchanged (never below 70).
+        for level in (C.HIGH, C.RISKY):
             lane = lanes.choose(level)
-            self.assertEqual((lane['lane'], lane['task'], lane['quality_floor']), (lanes.STANDARD, 'conversation', 70))
+            self.assertEqual((lane['lane'], lane['task'], lane['quality_floor'], lane['preferred_floor']),
+                             (lanes.ESCALATED, 'conversation_complex', 70, 85))
         self.assertTrue(lanes.choose(C.RISKY)['requires_explicit_confirmation'])
+        self.assertFalse(lanes.choose(C.HIGH)['requires_explicit_confirmation'])
         self.assertTrue(lanes.choose(C.HIGH)['flag_for_review'])
+        from omni_prod.intelligence.task_policy import TASK_CLASSES
+        tc = TASK_CLASSES['conversation_complex']
+        self.assertEqual((tc.preferred_floor, tc.mandatory_floor), (85, 70))
+
+    def test_escalated_turn_is_quoted_reserved_and_executed_as_the_same_task(self):
+        from omni_prod.intake.reservation_worker import _reserved_task
+        self.assertEqual(_reserved_task({'task': 'conversation_complex'}, {'task': 'conversation_complex'}),
+                         'conversation_complex')
+        self.assertEqual(_reserved_task({}, {'task': 'conversation'}), 'conversation')        # pre-escalation rows
+        for payload, quote in (({'task': 'conversation_complex'}, {'task': 'conversation'}),  # pricier than quoted
+                               ({'task': 'codegen'}, {'task': 'codegen'})):                    # not an intake task
+            with self.assertRaises(ValueError):
+                _reserved_task(payload, quote)
 
     def test_low_risk_lane_is_disabled_without_qualification(self):
         ok, why = lanes.low_risk_lane_qualified()

@@ -20,7 +20,12 @@ def configure_web_security(app,*,raw_origins:str,production:bool)->list[str]:
         # M5-UX01: the creator workspace embeds running previews; only the
         # configured preview wildcard host may be framed.
         frame = preview_frame_source(os.getenv('PREVIEW_DOMAIN_TEMPLATE'))
-        csp = "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        # img-src blob:/data: -- the workspace previews an image (and draws on a
+        # screenshot) locally before it is uploaded.
+        csp = ("default-src 'self'; style-src 'self' https://fonts.googleapis.com; "
+               "font-src 'self' https://fonts.gstatic.com; "
+               "img-src 'self' blob: data:; object-src 'none'; base-uri 'self'; "
+               "frame-ancestors 'none'; form-action 'self'")
         if frame:
             csp += f"; frame-src 'self' {frame}"
         response.headers.setdefault('Content-Security-Policy', csp)

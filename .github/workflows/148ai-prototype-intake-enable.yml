@@ -1,0 +1,73 @@
+name: One-time founder prototype intake worker enable
+
+# Scoped live operation: recreate ONLY intake-worker on the existing OCI host
+# to permit already-authorized and durable-quoted chat reservations.
+# No inference, build, migration, or customer-plan bypass is executed here.
+on:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+    paths:
+      - .github/workflows/148ai-prototype-intake-enable.yml
+      - infra/worker-host/docker-compose.prototype-intake.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: founder-intake-worker-staging
+  cancel-in-progress: false
+
+jobs:
+  intake-worker-only:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check the installed worker is staging; fail closed otherwise
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i omni-worker-intake-worker-1 python - <<'PY'
+          import os
+          assert os.getenv("OMNI_ENV","").strip() == "staging", "Refusing non-staging environment"
+          assert os.getenv("OMNI_WORKER_QUEUES","").strip() == "omni-intake", "Unexpected worker queue"
+          assert os.getenv("OMNI_MODEL_CATALOG_JSON"), "No model catalog on worker"
+          assert os.getenv("GEMINI_API_KEY"), "No intake model key configured"
+          assert os.getenv("OMNI_DATABASE_URL") and os.getenv("OMNI_REDIS_URL"), "No durable services"
+          print("INTAKE_GATE=STAGING_WITH_CONFIGURED_MODEL_AND_PERSISTENCE")
+          PY
+      - name: Restore the protected worker environment after checkout
+        # checkout cleans untracked files on this runner: .env must ALWAYS be
+        # reconstituted from GitHub secrets before any compose operation.
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bash infra/worker-host/write-env.sh
+      - name: Recreate only the dedicated intake worker with the scoped override
+        shell: bash
+        env:
+          OVERRIDE: ${{ github.workspace }}/infra/worker-host/docker-compose.prototype-intake.yml
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/infra/worker-host"
+          test -f docker-compose.yml && test -f .env
+          docker compose -f docker-compose.yml -f "$OVERRIDE" config --services | grep -qx 'intake-worker'
+          docker compose -f docker-compose.yml -f "$OVERRIDE" up -d --no-deps --no-build --force-recreate intake-worker
+          docker exec -i omni-worker-intake-worker-1 python - <<'PY'
+          import os
+          assert os.getenv("OMNI_INTAKE_MODEL") == "1", "Enable failed"
+          assert os.getenv("OMNI_WORKER_QUEUES") == "omni-intake", "Wrong queue"
+          assert os.getenv("OMNI_ENV") == "staging", "Wrong environment"
+          print("INTAKE_WORKER_ENABLED=1; builder/preview/sandbox were not restarted")
+          PY
+      - name: Verify dedicated worker has not crashed immediately
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 3
+          test "$(docker inspect -f '{{.State.Running}}' omni-worker-intake-worker-1)" = true
+          echo "::notice title=Intake enabled::Only dedicated intake worker recreated. A provider call still requires real owner approval and durable per-message reservation."

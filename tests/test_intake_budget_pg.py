@@ -605,11 +605,12 @@ class MigrationPathTests(unittest.TestCase):
             old = PostgresConversationStore(pool)
             old.add_message(project_id='p', account_id='a', role='customer', content='שלום', cost_usd=Decimal('0'))
             old.add_message(project_id='p', account_id='a', role='assistant', content='היי', cost_usd=Decimal('0.0012'))
+            upto37 = [m for m in all_m if m.version <= 37]   # this test is the 036 -> 037 upgrade (038+ are later)
             with psycopg.connect(url) as conn:
-                run = apply_migrations(conn, all_m)
+                run = apply_migrations(conn, upto37)
             self.assertEqual(run.applied_versions, (37,))
             with psycopg.connect(url) as conn:
-                self.assertEqual(apply_migrations(conn, all_m).applied_versions, ())       # idempotent
+                self.assertEqual(apply_migrations(conn, upto37).applied_versions, ())      # idempotent
             self.assertEqual(old.conversation_cost('p'), Decimal('0.0012'))                 # data intact
             # deterministic writes do not need the new columns; paid writes use them
             old.add_message(project_id='p', account_id='a', role='assistant', content='x', cost_usd=Decimal('0'))
