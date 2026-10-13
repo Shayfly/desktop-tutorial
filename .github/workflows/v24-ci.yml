@@ -5,31 +5,6 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
-  registry-refresh:
-    # Repair generated evidence only on our isolated fix branch, never on main or PRs.
-    if: github.event_name == 'push' && github.ref_name == 'fix/docker-oom-rehearsal-20261013'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
-      - name: Regenerate computed registry and evidence matrices
-        run: python -m omni_prod.agent_os.audit --write
-      - name: Commit only generated audit artifacts
-        run: |
-          git add AGENT_OS_REGISTRY.json docs/AGENT_OS_REGISTRY.md omni_prod/registry_evidence_lock.json PLATFORM_CAPABILITY_MATRIX.json PLATFORM_REGRESSION_MATRIX.json GOLDEN_E2E_MATRIX.json FAILURE_INJECTION_MATRIX.json TRUTH_MATRIX.json docs/TRUTH_MATRIX.md
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "chore(audit): regenerate computed Agent OS evidence snapshots"
-            git push origin HEAD:fix/docker-oom-rehearsal-20261013
-          fi
   test:
     runs-on: ubuntu-latest
     steps:
