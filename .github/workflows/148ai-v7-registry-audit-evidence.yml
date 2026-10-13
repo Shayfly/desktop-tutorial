@@ -1,0 +1,46 @@
+name: V7 generated registry audit evidence
+on:
+  push:
+    branches: [feat/148ai-v7-readiness-ux-j3-2026-10-13]
+    paths: [.github/workflows/148ai-v7-registry-audit-evidence.yml]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Regenerate canonical registry evidence in disposable checkout
+        run: |
+          set -euo pipefail
+          python -m omni_prod.agent_os.audit --write
+          python -m omni_prod.registry_audit --write
+          git status --short
+          python - <<'PY'
+          import subprocess, pathlib, shutil
+          base = pathlib.Path("regenerated-registry-evidence")
+          for line in subprocess.check_output(["git","status","--porcelain"],text=True).splitlines():
+              path = line[3:]
+              if not path or path.startswith(".github/"):
+                  continue
+              src = pathlib.Path(path)
+              if src.is_file():
+                  dest=base / path
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  shutil.copy2(src,dest)
+          if not any(base.rglob("*")):
+              raise SystemExit("No generated artifacts changed; inspect CI cause")
+          print("generated_changed_files="+str(sum(p.is_file() for p in base.rglob("*"))))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-registry-evidence
+          path: regenerated-registry-evidence/
+          if-no-files-found: error
