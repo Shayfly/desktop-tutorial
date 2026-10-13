@@ -573,4 +573,3 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
             'semantic_review': semantic_review,
             'contradictions': contradictions(brief), 'complete': complete(brief)}
-

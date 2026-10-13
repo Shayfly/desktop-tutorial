@@ -344,4 +344,3 @@ def interpreter_from_env(gateway=None):
     if os.getenv('OMNI_INTAKE_MODEL') == '1' and gateway is not None:
         return ModelInterpreter(gateway)
     return DeterministicInterpreter()
-

@@ -231,4 +231,3 @@ class ChiefArchitect:
                                           'restarts under a new run (no resume from a task checkpoint)'},
         }
         return plan
-

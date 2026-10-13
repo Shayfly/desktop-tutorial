@@ -73,4 +73,3 @@ def classify_family(text: str) -> str:
 
 def executable(family: str) -> bool:
     return family in EXECUTABLE
-

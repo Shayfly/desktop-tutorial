@@ -225,4 +225,3 @@ def build(brief: d.Brief, **kw) -> RequirementsContract:
     if problems:
         raise ContractInvalid(problems)
     return c
-

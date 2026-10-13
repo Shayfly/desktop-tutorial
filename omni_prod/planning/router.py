@@ -43,4 +43,3 @@ class AgentSkillRouter:
             'model_task': task.model_task, 'model_candidates': models,
             'executable': task.executable and not problems, 'problems': problems + ([task.gap] if task.gap else []),
         }
-

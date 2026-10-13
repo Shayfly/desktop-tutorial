@@ -105,4 +105,3 @@ def assess(contract) -> Feasibility:
                          'anyone with the link can see the data; the customer decided this explicitly'))
     outcome = max((x.outcome for x in f), key=lambda o: _RANK[o], default=FEASIBLE)
     return Feasibility(outcome, f)
-
