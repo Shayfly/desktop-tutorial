@@ -1,0 +1,30 @@
+name: Registry snapshot (review only)
+on:
+  push:
+    branches:
+      - fix/docker-oom-rehearsal-20261013
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Recompute evidence without changing deployed systems
+        run: python -m omni_prod.agent_os.audit --write
+      - name: Save generated files for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-os-registry-generated
+          path: |
+            AGENT_OS_REGISTRY.json
+            docs/AGENT_OS_REGISTRY.md
+            docs/*MATRIX*.md
+            docs/*MATRIX*.json
+          if-no-files-found: warn
+      - name: Show changed paths
+        run: git status --short
