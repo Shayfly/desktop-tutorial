@@ -135,7 +135,7 @@ def build_plan_preview(
             "BLOCKED_REQUIREMENTS" if not ready else
             "BLOCKED_PROVIDER_OR_QUOTE" if quote_error_code == "cost_quote_unknown" or (quote is None and quote_error is None) else
             "BLOCKED_BUDGET" if quote_error_code == "qa_budget_denied" else "BLOCKED"),
-        "quote_gaps": [{"key": key, "purpose": next((c["purpose"] for c in capabilities if c["key"] == key), key)}
+        "unavailable_requirements": [{"key": key, "purpose": next((c["purpose"] for c in capabilities if c["key"] == key), key)}
                        for key in missing_quote_keys],
         "blockers": blockers,
         "can_build": admissible,
