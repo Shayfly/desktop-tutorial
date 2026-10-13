@@ -656,6 +656,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             if getattr(agent_recorder, 'enforce', False):   # ...and the approved criteria are the test basis (G3)
                 install_approved_criteria(engine, {'acceptance_criteria': getattr(agent_recorder, 'acceptance_criteria', None)})
         round_snapshots: list[dict] = []
+        # Keep original best-effort snapshots until independently proven in
+        # the real R2/Oracle environment; strict mode is opt-in and fail-closed.
+        engine.require_durable_snapshots = os.getenv('OMNI_STRICT_ROUND_EVIDENCE') == '1'
+        if engine.require_durable_snapshots and not (
+                callable(getattr(getattr(workspace, 'storage', None), 'put_bytes', None)) and
+                callable(getattr(workspace, '_zip_repo', None))):
+            raise RuntimeError('strict durable round evidence backend unavailable')
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
