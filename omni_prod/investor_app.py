@@ -1467,7 +1467,15 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
             if internal_qa:
                 limit = max(limit, int(os.getenv('OMNI_QA_MAX_PROJECTS', '20')))
         if limit is not None and len(current) >= limit:
-            raise HTTPException(402, f'{plan.name} project limit reached')
+            # Project slots and build credits are independent quotas.
+            raise HTTPException(403, detail={
+                'code': 'project_limit_reached',
+                'message': f'{plan.name} project limit reached',
+                'plan': plan.name,
+                'active_projects': len(current),
+                'max_projects': limit,
+                'action': 'archive_existing_project_or_upgrade',
+            })
         return _v28.create_project(token=token, title=req.title)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
