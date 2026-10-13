@@ -1,8 +1,11 @@
 name: Registry snapshot (review only)
-on:
+'on':
   push:
     branches:
       - fix/docker-oom-rehearsal-20261013
+  pull_request:
+    branches:
+      - milestone/pre-staging-2026-10-05
 permissions:
   contents: read
 jobs:
@@ -26,6 +29,9 @@ jobs:
             PLATFORM_*_MATRIX.json
             GOLDEN_E2E_MATRIX.json
             FAILURE_INJECTION_MATRIX.json
+            TRUTH_MATRIX.json
+            docs/TRUTH_MATRIX.md
+            omni_prod/registry_evidence_lock.json
             PLATFORM_TRUTH_MATRIX.json
           if-no-files-found: warn
       - name: Show changed paths
