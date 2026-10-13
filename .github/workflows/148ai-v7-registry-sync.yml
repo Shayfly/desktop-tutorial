@@ -25,7 +25,8 @@ jobs:
           test "$(git branch --show-current)" = "feat/148ai-v7-readiness-ux-j3-2026-10-13"
           python -m omni_prod.agent_os.audit --write
           python -m omni_prod.registry_audit --write
-          git add -- AGENT_OS_REGISTRY.json TRUTH_MATRIX.json docs/AGENT_OS_REGISTRY.md docs/AGENT_SKILL_STATUS.md docs/TRUTH_MATRIX.md
+          python -m omni_prod.agent_os.departments --write
+          git add -- AGENT_OS_REGISTRY.json TRUTH_MATRIX.json DEPARTMENT_MATRIX.json docs/AGENT_OS_REGISTRY.md docs/AGENT_SKILL_STATUS.md docs/TRUTH_MATRIX.md docs/DEPARTMENT_MATRIX.md
           if git diff --cached --quiet; then
             echo 'AUDIT_SYNC=UNCHANGED'
             exit 0
