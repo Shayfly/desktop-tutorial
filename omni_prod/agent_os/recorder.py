@@ -138,7 +138,7 @@ class BuildAgentRecorder:
         self._safe(self.rt.finish_run, self.run_id, status)
 
 
-__all__ = ['BuildAgentRecorder', 'PlanBoundRecorder', 'RuntimeViolation', 'recorder_for']
+__all__ = ['BuildAgentRecorder', 'PlanAdmittedExecutor', 'PlanBoundRecorder', 'PlanViolation', 'RuntimeViolation', 'recorder_for']
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +149,29 @@ MODEL_TASK_STAGE = {'architecture': 'architecture', 'codegen': 'codegen', 'repai
 STAGE_CHECK = {'preview': 'preview_starts', 'behavior': 'behavioural_acceptance', 'browser': 'browser_flow',
                'visual': 'visual_layout_desktop_mobile', 'security': 'static_security_scan',
                'review': 'qa_review_blocking_findings'}
+
+
+class PlanViolation(RuntimeError):
+    """A plan-governed build tried a step the approved execution plan does not
+    admit now (out of order, repeated, over its iteration limit or budget, or
+    without durable plan state). The build fails closed: error plan_violation."""
+
+
+class PlanAdmittedExecutor:
+    """Outermost executor wrapper of a plan-governed build: no verification run
+    starts unless the plan admits it (on_check_start). Keeps `_inner` so the
+    worker's find_in_chain still reaches every executor of the chain."""
+
+    def __init__(self, inner, recorder: 'PlanBoundRecorder'):
+        self._inner = inner
+        self._recorder = recorder
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def execute(self, *, repository, spec):
+        self._recorder.on_check_start()
+        return self._inner.execute(repository=repository, spec=spec)
 
 
 class PlanBoundRecorder(BuildAgentRecorder):
@@ -163,13 +186,119 @@ class PlanBoundRecorder(BuildAgentRecorder):
     are BLOCKED with their gap. Recording never changes the build outcome.
     """
 
-    def __init__(self, pool, subject_id: str, *, plan: dict, plan_id: str | None = None, **kw):
+    def __init__(self, pool, subject_id: str, *, plan: dict, plan_id: str | None = None, enforce: bool = False,
+                 acceptance_criteria: list | None = None, **kw):
         super().__init__(pool, subject_id, **kw)
         self.plan = plan
         self.plan_id = plan_id
+        self.acceptance_criteria = list(acceptance_criteria or [])   # approved intake criteria (G3)
         self.by_stage: dict[str, str] = {}
         self.agent_of: dict[str, str] = {}
         self.state: dict[str, str] = {}
+        # Plan-governed execution (OMNI_PLAN_DRIVEN=1): the durable task graph
+        # admits every engine step; recording-only otherwise (legacy behaviour).
+        self.enforce = enforce
+        self.violation: str | None = None
+        self.in_verification = False
+        self.repair_rounds = 0
+        self.verification_rounds = 0
+        self.cost_source = None          # () -> {model task type: Decimal spent so far}
+        self.charged: dict[str, Decimal] = {}
+        tasks = {t.get('stage'): t for t in (plan or {}).get('tasks', []) if isinstance(t, dict)}
+        self.max_repair_rounds = int((tasks.get('repair') or {}).get('max_iterations') or 0)
+        self.model_task_stage = {t['model_task']: t['stage'] for t in tasks.values() if t.get('model_task')}
+
+    # -------------------------------------------------- plan-governed execution
+    def bind(self, engine, gateway) -> None:
+        """Make the approved plan the source of the engine's limits and charge
+        every model call to the plan task that made it."""
+        if not self.enforce:
+            return
+        if getattr(engine, 'executor', None) is not None and not isinstance(engine.executor, PlanAdmittedExecutor):
+            engine.executor = PlanAdmittedExecutor(engine.executor, self)
+        if hasattr(engine, 'max_repair_rounds'):
+            # The plan may only tighten the engine's own limit, never widen it.
+            engine.max_repair_rounds = min(int(engine.max_repair_rounds), self.max_repair_rounds)
+            self.max_repair_rounds = engine.max_repair_rounds
+        recorder = getattr(gateway, 'recorder', None)
+
+        def spent_by_task():
+            out: dict[str, Decimal] = {}
+            for r in getattr(recorder, 'records', None) or []:
+                if getattr(r, 'kind', 'provider_call') != 'provider_call':
+                    continue
+                cost = r.metered_cost_usd if r.metered_cost_usd is not None else r.authorized_cost_usd
+                out[r.task_type] = out.get(r.task_type, Decimal('0')) + Decimal(str(cost or 0))
+            return out
+        self.cost_source = spent_by_task
+
+    def _violation(self, why: str):
+        _log.warning('plan violation on %s: %s', self.subject_id, why)
+        if self.violation is None:
+            self.violation = why
+        raise PlanViolation(why)
+
+    def raise_if_violated(self) -> None:
+        """Sticky: a violation swallowed by a caller (e.g. the QA reviewer turns
+        any exception into 'reviewer unavailable') still fails the build."""
+        if self.enforce and self.violation is not None:
+            raise PlanViolation(self.violation)
+
+    def _charge(self) -> None:
+        """Charge new spend (metered, or the authorized worst case while unknown) to its plan task."""
+        if self.cost_source is None:
+            return
+        for task_type, spent in self.cost_source().items():
+            stage = self.model_task_stage.get(task_type) or MODEL_TASK_STAGE.get(task_type)
+            tid = self.by_stage.get(stage)
+            if tid is None:
+                self._violation(f'model spend for {task_type!r}, which the plan does not contain')
+            delta = spent - self.charged.get(tid, Decimal('0'))
+            if delta > 0:
+                try:
+                    self.rt.charge(tid, delta, evidence={'charged_task_type': task_type})
+                except RuntimeViolation as exc:
+                    self._violation(f'{stage}: {exc}')
+                self.charged[tid] = spent
+
+    def _admit(self, stage: str) -> str:
+        """The task of `stage` must be RUNNING, or move to RUNNING now (the runtime
+        checks every dependency SUCCEEDED under a row lock)."""
+        tid = self.by_stage.get(stage)
+        if tid is None:
+            self._violation(f'stage {stage!r} is not in the approved plan')
+        st = self._last_state(tid)
+        if st == 'RUNNING':
+            return tid
+        if st in ('PENDING', 'READY', 'REPAIRING'):
+            try:
+                self.rt.transition(tid, 'RUNNING')
+            except RuntimeViolation as exc:
+                self._violation(f'{stage} not admitted: {exc}')
+            self.state[tid] = 'RUNNING'
+            return tid
+        self._violation(f'{stage} not admitted: task is {st}')
+
+    def _finish_stage(self, stage: str, evidence: dict) -> None:
+        tid = self.by_stage.get(stage)
+        st = self._last_state(tid) if tid else None
+        if st == 'RUNNING':
+            try:
+                self.rt.transition(tid, 'SUCCEEDED', evidence=evidence)
+            except RuntimeViolation as exc:
+                self._violation(f'{stage} could not complete: {exc}')
+            self.state[tid] = 'SUCCEEDED'
+            self.done[self.agent_of[tid]] = tid
+
+    def on_check_start(self) -> None:
+        if not self.enforce:
+            return
+        self.raise_if_violated()
+        self._charge()
+        self._finish_stage('codegen', {'note': 'files produced and handed to verification'})
+        self._admit('unit_tests')
+        self.verification_rounds += 1
+        self.in_verification = True
 
     def _move(self, tid, target, evidence=None):
         if tid is None:
@@ -207,6 +336,8 @@ class PlanBoundRecorder(BuildAgentRecorder):
                 if not t.executable:
                     self.rt.transition(tid, 'BLOCKED', evidence={'gap': t.gap or 'no execution engine'})
         self._safe(go)
+        if self.enforce and (self.run_id is None or not self.by_stage):
+            self._violation('the approved plan could not be materialized as durable tasks')
         for stage, note in (('intake', 'approved brief bound to the approval'), ('planning', 'build contract + reserved quote')):
             tid = self.by_stage.get(stage)
             if tid and self._move(tid, 'RUNNING'):
@@ -237,6 +368,9 @@ class PlanBoundRecorder(BuildAgentRecorder):
             self.done[self.agent_of[tid]] = tid
 
     def on_model(self, task: str) -> None:
+        if self.enforce:
+            self._on_model_enforced(task)
+            return
         stage = MODEL_TASK_STAGE.get(task)
         if stage is None:
             return
@@ -245,7 +379,49 @@ class PlanBoundRecorder(BuildAgentRecorder):
         if stage in ('codegen', 'repair', 'review', 'architecture'):
             self._open(stage)
 
+    def _on_model_enforced(self, task: str) -> None:
+        self.raise_if_violated()
+        self._charge()
+        stage = self.model_task_stage.get(task) or MODEL_TASK_STAGE.get(task)
+        if stage is None:
+            self._violation(f'model call for {task!r}, which the plan does not contain')
+        if stage == 'review':
+            # The QA review runs inside an admitted verification run (its outcome
+            # is decided later by the release policy); never on its own.
+            if not self.in_verification:
+                self._violation('review outside an admitted verification run')
+            return
+        if stage == 'codegen':
+            arch = self.by_stage.get('architecture')
+            if arch is not None and self._last_state(arch) == 'READY':
+                self._admit('architecture')      # spec produced without a model call (deterministic floor)
+            self._finish_stage('architecture', {'note': 'spec produced; code generation started'})
+        if stage == 'repair':
+            tid_u = self.by_stage.get('unit_tests')
+            if tid_u is None or self._last_state(tid_u) != 'REPAIRING':
+                self._violation('repair without a failed verification run')
+            tid_r = self.by_stage.get('repair')
+            if self._last_state(tid_r) != 'RUNNING':
+                self.repair_rounds += 1
+            if self.repair_rounds > self.max_repair_rounds:
+                self._violation(f'repair round {self.repair_rounds} exceeds the plan limit {self.max_repair_rounds}')
+        self._admit(stage)
+
     def on_check(self, passed: bool, summary: str) -> None:
+        if self.enforce:
+            self.raise_if_violated()
+            self._charge()
+            self.in_verification = False
+            tid = self.by_stage.get('unit_tests')
+            if passed:
+                self._finish_stage('unit_tests', {'summary': summary[:300], 'tests_written_by': 'coding_agent'})
+                self._finish_stage('repair', {'note': 'checks pass after repair'})
+            else:
+                self._move(tid, 'REPAIRING', {'last_failure': summary[:300]})
+                tid_r = self.by_stage.get('repair')
+                if self._last_state(tid_r) == 'RUNNING':     # next repair round re-admits explicitly
+                    self._move(tid_r, 'REPAIRING', {'round': self.repair_rounds, 'last_failure': summary[:300]})
+            return
         self._close('codegen', True, {'note': 'files produced and handed to verification'})
         tid = self._open('unit_tests')
         if tid is None:
@@ -314,9 +490,15 @@ class PlanBoundRecorder(BuildAgentRecorder):
         return st
 
 
-def recorder_for(pool, build_id: str, plan_binding: dict | None):
+def recorder_for(pool, build_id: str, plan_binding: dict | None, *, enforce: bool = False):
     """The plan-bound recorder when the build carries an approved plan; the
-    reactive recorder otherwise (legacy builds keep their behaviour)."""
+    reactive recorder otherwise (legacy builds keep their behaviour).
+
+    enforce=True (OMNI_PLAN_DRIVEN=1) makes the approved plan govern the build:
+    every engine step must be admitted by the durable task graph and every
+    model call is charged to its plan task's budget. Builds without a plan are
+    unaffected (backward compatible); unsetting the flag is the rollback."""
     if plan_binding and isinstance(plan_binding.get('graph'), dict):
-        return PlanBoundRecorder(pool, build_id, plan=plan_binding['graph'], plan_id=plan_binding.get('plan_id'))
+        return PlanBoundRecorder(pool, build_id, plan=plan_binding['graph'], plan_id=plan_binding.get('plan_id'),
+                                 enforce=enforce, acceptance_criteria=plan_binding.get('acceptance_criteria'))
     return BuildAgentRecorder(pool, build_id)

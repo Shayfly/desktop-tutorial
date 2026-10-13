@@ -121,6 +121,22 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual(model.calls[0], 'מערכת לניהול השאלת ציוד לצוות שלי, בלי התחברות, בעברית')
         del t1
 
+    def test_complex_turns_escalate_and_ordinary_turns_stay_cheap(self):
+        """Master directive stage 1: the lane's task reaches the reserved call."""
+        class TaskRecordingModel(FakeModel):
+            task = 'conversation'
+
+            def interpret(self, message, brief=None):
+                self.tasks = getattr(self, 'tasks', []) + [self.task]
+                return super().interpret(message, brief)
+        model = TaskRecordingModel()
+        s = self.sup(model)
+        self.say(s, 'מערכת לניהול השאלת ציוד לצוות שלי, בלי התחברות, בעברית')            # MEDIUM
+        t = self.say(s, 'תוסיף סליקת אשראי והרשאות מנהלים עם נתונים רפואיים של לקוחות')   # RISKY
+        self.assertEqual(model.tasks, ['conversation', 'conversation_complex'])
+        self.assertEqual(t.interpretation['lane']['lane'], 'escalated')
+        self.assertTrue(t.interpretation['lane']['requires_explicit_confirmation'])
+
     def test_conflict_is_asked_back_in_hebrew(self):
         s = self.sup(FakeModel([('languages', 'en', 'high')]))
         self.say(s, 'אתר תורים למספרה', answers=None)

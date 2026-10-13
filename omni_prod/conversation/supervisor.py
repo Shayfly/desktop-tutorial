@@ -172,7 +172,7 @@ class ConversationSupervisor:
             return self.store.conversation_cost(project_id), self.store.daily_cost()
         return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None)
 
-    def _interpreter(self, project_id, account_id=None, request_key=None):
+    def _interpreter(self, project_id, account_id=None, request_key=None, task='conversation'):
         """Every paid call goes through a durable reservation (Issue #12); without
         the reservation service, authorization or budget the answer is deterministic."""
         from ..intake import budget as B
@@ -181,12 +181,15 @@ class ConversationSupervisor:
         if m.mode != intake_mode.MODEL_WORKER:
             return DeterministicInterpreter()
         if self.worker_interpreter is not None:
+            if hasattr(self.worker_interpreter, 'task'):
+                self.worker_interpreter.task = task
             return self.worker_interpreter
         if self.reservations is None or self.enqueue is None or not account_id:
             return DeterministicInterpreter()
         from ..intake.worker_route import ReservedWorkerInterpreter
         return ReservedWorkerInterpreter(self.reservations, self.enqueue, account_id=account_id,
-                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env())
+                                         project_id=project_id, request_key=request_key, caps=B.caps_from_env(),
+                                         task=task)
 
     def _plan(self, project_id, row):
         try:
@@ -258,8 +261,8 @@ class ConversationSupervisor:
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
-            source = (self._interpreter(project_id, account_id, request_key) if lane['lane'] == lanes.STANDARD
-                      else DeterministicInterpreter())
+            source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
+                      if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
             interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():
