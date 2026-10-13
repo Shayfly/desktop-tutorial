@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 20, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 11, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 62, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 64, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 21, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 10, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 62, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -26,7 +26,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 62, UNIT_TESTED 28, INTEGRATION
 | Integration Agent (`integration_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | no generated-app integration path |
 | Coding Agent (`coding_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Code Review Agent (`code_review_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
-| QA Agent (`qa_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
+| QA Agent (`qa_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
 | Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, deploy-worker run 38083162363, postdeploy-checks run 37961193099 (attempt ledger via  |  |
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | Repair Agent (`repair_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
@@ -87,7 +87,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 62, UNIT_TESTED 28, INTEGRATION
 | `feature_prioritization` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `risk_identification` | Discovery / Requirements | **NOT_IMPLEMENTED** | discovery_agent | no implementation | not implemented |
 | `constraint_extraction` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/product_architect.py |  |
-| `dependency_analysis` | Discovery / Requirements | **REAL_SERVER_VERIFIED** | discovery_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `dependency_analysis` | Discovery / Requirements | **IMPLEMENTED** | discovery_agent | real-server evidence is stale; code changed since: omni_prod/capability_planner.py |  |
 | `build_plan_generation` | Planning | **IMPLEMENTED** | product_planner | real-server evidence is stale; code changed since: omni_prod/creator_plan.py |  |
 | `milestone_generation` | Planning | **NOT_IMPLEMENTED** | product_planner | no implementation | not implemented |
 | `task_decomposition` | Planning | **UNIT_TESTED** | product_planner | unit tests only |  |
@@ -225,7 +225,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 62, UNIT_TESTED 28, INTEGRATION
 | `repository_diff_generation` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `repository_patch_application` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `unit_test_generation` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| `unit_test_execution` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `unit_test_execution` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
 | `contract_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
