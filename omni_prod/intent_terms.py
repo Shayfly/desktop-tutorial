@@ -67,7 +67,7 @@ _HUMAN_AGENT = re.compile(
 def ai_agent_intent(text: str) -> bool:
     """AI-agent product intent, not a human job title that contains 'agent'."""
     low = " ".join(str(text).lower().split())
-    if has_term(low, "ai agent", "ai assistant", "virtual assistant", "assistant bot", "agentic", "autonomous agent", "chatbot",
+    if has_term(low, "ai agent", "ai assistant", "voice assistant", "virtual assistant", "assistant bot", "agentic", "autonomous agent", "chatbot",
                 "סוכן ai", "עוזר ai"):
         return True
     return has_term(_HUMAN_AGENT.sub(" ", low), "agent")
