@@ -90,11 +90,16 @@ class SemanticIntakeIntegrationTests(unittest.TestCase):
         self.assertNotIn("ai.agent.tools", cap)
         self.assertNotIn("media.audio.tts", cap)
         self.assertNotIn("integration.maps", cap)
-        self.assertNotIn("auth_session", kinds)
+        # Public visitors must never log in; newsletter lead management still
+        # requires private operator authentication and protected data.
+        self.assertIn("auth_session", kinds)
         self.assertIn("target.web", cap)
-        required = {r.id for r in contract.product_spec.requirements}
-        self.assertNotIn("platform-auth", required)
-        self.assertNotIn("platform-rbac", required)
+        required = {r.id: r.text for r in contract.product_spec.requirements}
+        self.assertIn("platform-auth", required)
+        self.assertIn("platform-rbac", required)
+        self.assertIn("Admin-only", required["platform-auth"])
+        self.assertIn("no public visitor sign-in", required["platform-auth"])
+        self.assertIn("no_login_single_user", contract.defaults_applied)
         self.assertTrue(contract.verify_fingerprint())
 
     def test_fallback_cannot_add_ambiguous_agent_voice_or_map_capabilities(self):
