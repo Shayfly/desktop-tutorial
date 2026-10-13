@@ -33,7 +33,7 @@ svc="$1"; ctl=/ctl
 [ "${GEN:-old}" = new ] && [ -f $ctl/startfail ] && { echo "startup failure of the new image"; exit 1; }
 [ "$svc" = worker ] && echo "*** Listening on omni-builds..."
 term() {
-  [ -f $ctl/$svc.oom ] && { s=aaaaaaaa; while :; do s=$s$s; done; }
+  [ -f $ctl/$svc.oom ] && { printf -v oom_payload '%*s' 134217728 ''; exit 99; }
   [ -f $ctl/$svc.ignore-term ] && return
   [ -f $ctl/$svc.finish-seconds ] && { read n < $ctl/$svc.finish-seconds; sleep "$n"; }
   exit 0
@@ -267,11 +267,11 @@ class RealDockerDrainRecovery(unittest.TestCase):
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        # OOM evidence is different from a Docker deadline kill (both can
-        # produce exit 137). CI under parallel service load has timed out at
-        # 20 seconds without .State.OOMKilled; reserve up to 60 seconds for
-        # this isolated, throwaway OOM scenario. Do not change the production
-        # 1500-second drain policy or relax the OOMKilled assertion.
+        # Bash's exponential string concatenation can spend the entire deadline
+        # copying memory without triggering the cgroup OOM killer. The stand-in
+        # instead allocates a single 128 MiB shell variable inside a 64 MiB
+        # cgroup. Keep the engine's OOMKilled assertion (exit 137 alone is not
+        # sufficient evidence). This changes only the disposable test workload.
         d = self.drain(DRAIN_DEADLINE_SECONDS='60')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
