@@ -6,52 +6,141 @@ name: Registry snapshot and sync
   pull_request:
     branches:
       - milestone/pre-staging-2026-10-05
+
+# Pull requests must not receive a write token, especially when checking
+# code from an untrusted fork. Only our explicit internal branch may sync.
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: registry-snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  snapshot:
+  review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
-      - name: Recompute evidence without changing deployed systems
-        run: python -m omni_prod.agent_os.audit --write
-      - name: Save generated files for independent review
-        uses: actions/upload-artifact@v4
+      - name: Recompute canonical snapshots in a disposable checkout
+        run: |
+          set -euo pipefail
+          python -m omni_prod.agent_os.audit --write
+          python -m omni_prod.registry_audit --write
+          python -m omni_prod.agent_os.departments --write
+          git diff --check
+      - name: Display generated differences (PR is always read-only)
+        run: git status --short
+      - uses: actions/upload-artifact@v4
         with:
-          name: agent-os-registry-generated
+          name: agent-os-registry-pr-review
           path: |
             AGENT_OS_REGISTRY.json
             docs/AGENT_OS_REGISTRY.md
+            docs/AGENT_SKILL_STATUS.md
             PLATFORM_*_MATRIX.json
             GOLDEN_E2E_MATRIX.json
             FAILURE_INJECTION_MATRIX.json
             TRUTH_MATRIX.json
             docs/TRUTH_MATRIX.md
+            DEPARTMENT_MATRIX.json
+            docs/DEPARTMENT_MATRIX.md
             omni_prod/registry_evidence_lock.json
-            PLATFORM_TRUTH_MATRIX.json
-          if-no-files-found: warn
-      - name: Show changed paths
-        run: git status --short
-      - name: Commit generated evidence on internal fix branch
-        env:
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-          EVENT_NAME: ${{ github.event_name }}
+          if-no-files-found: error
+
+  sync:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fix/docker-oom-rehearsal-20261013'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/docker-oom-rehearsal-20261013
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Refresh all three canonical registries
+        shell: bash
         run: |
-          if [ "$EVENT_NAME" != "pull_request" ] || [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ] || [ "$HEAD_BRANCH" != "fix/docker-oom-rehearsal-20261013" ]; then
-            echo "Read-only artifact for non-internal PR"; exit 0
+          set -euo pipefail
+          test "$(git branch --show-current)" = "fix/docker-oom-rehearsal-20261013"
+          python -m omni_prod.agent_os.audit --write
+          python -m omni_prod.registry_audit --write
+          python -m omni_prod.agent_os.departments --write
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          registry = json.loads(Path("AGENT_OS_REGISTRY.json").read_text(encoding="utf-8"))
+          summary = registry["summary"]
+          for category, key, count_key in (
+              ("agents", "agent_key", "agents_total"),
+              ("skills", "skill_key", "skills_total"),
+          ):
+              rows = registry[category]
+              counts = summary[category]
+              assert len(rows) == summary[count_key], (category, "total mismatch")
+              assert len({r[key] for r in rows}) == len(rows), (category, "duplicate keys")
+              assert sum(counts.values()) == len(rows), (category, "status mismatch")
+              for status, count in counts.items():
+                  assert sum(r["status"] == status for r in rows) == count, (category, status)
+              print(f"Agent OS {category}: {len(rows)} records, internally consistent")
+          print("Agent catalog and Agent OS registry are separate datasets; totals need not match.")
+          PY
+          git diff --check
+      - name: Store audited evidence before the optional commit
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-os-registry-sync-evidence
+          path: |
+            AGENT_OS_REGISTRY.json
+            docs/AGENT_OS_REGISTRY.md
+            docs/AGENT_SKILL_STATUS.md
+            PLATFORM_*_MATRIX.json
+            GOLDEN_E2E_MATRIX.json
+            FAILURE_INJECTION_MATRIX.json
+            TRUTH_MATRIX.json
+            docs/TRUTH_MATRIX.md
+            DEPARTMENT_MATRIX.json
+            docs/DEPARTMENT_MATRIX.md
+            omni_prod/registry_evidence_lock.json
+          if-no-files-found: error
+      - name: Commit computed evidence on the trusted branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/fix/docker-oom-rehearsal-20261013
+          git add -u
+          if git diff --cached --quiet; then
+            echo "AUDIT_SYNC=UNCHANGED"
+            exit 0
           fi
-          git add AGENT_OS_REGISTRY.json docs/AGENT_OS_REGISTRY.md omni_prod/registry_evidence_lock.json PLATFORM_CAPABILITY_MATRIX.json PLATFORM_REGRESSION_MATRIX.json GOLDEN_E2E_MATRIX.json FAILURE_INJECTION_MATRIX.json TRUTH_MATRIX.json docs/TRUTH_MATRIX.md
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "chore(audit): synchronize computed registry snapshots"
-            git push origin HEAD:fix/docker-oom-rehearsal-20261013
-          fi
+          git diff --cached --check
+          while IFS= read -r p; do
+            case "$p" in
+              AGENT_OS_REGISTRY.json|PLATFORM_*_MATRIX.json|GOLDEN_E2E_MATRIX.json|FAILURE_INJECTION_MATRIX.json|TRUTH_MATRIX.json|DEPARTMENT_MATRIX.json|docs/AGENT_OS_REGISTRY.md|docs/AGENT_SKILL_STATUS.md|docs/TRUTH_MATRIX.md|docs/DEPARTMENT_MATRIX.md|omni_prod/registry_evidence_lock.json) ;;
+              *) echo "::error title=unsafe-output::Unexpected generated change: $p"; exit 1 ;;
+            esac
+          done < <(git diff --cached --name-only)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(audit): sync canonical agent, skill and department evidence"
+          git push origin HEAD:refs/heads/fix/docker-oom-rehearsal-20261013
+          echo "AUDIT_SYNC=PUSHED_INTERNAL_BRANCH"
