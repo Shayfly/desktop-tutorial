@@ -11,6 +11,11 @@
 
 [**Binding detailed P0 UX and diagnosis addendum**](PROTOTYPE_READINESS_AND_BLOCKER_DIAGNOSTICS_P0_HE_2026-10-13.md) · [Tracked acceptance issue #26](https://github.com/Shayfly/desktop-tutorial/issues/26). Integrate into **T01, T03, T06, T07, T08 and T09** and verify in the actual protected Preview. This addendum is **SPECIFIED, not implemented**.
 
+## Additive specifications (required; not replacements)
+
+- **P0 Readiness and blocker diagnostics:** [customer/founder visible reasons, dependency provenance and safe unblock actions](PROTOTYPE_READINESS_AND_BLOCKER_DIAGNOSTICS_P0_HE_2026-10-13.md) (Issue #26).
+- **Safe Build/Test/Repair core integration:** [reuse-first engineering integration specification, file-by-file code map, interfaces, sandbox/preview/cost guards, migration/test gates](BUILD_REPAIR_CORE_INTEGRATION_SPEC_HE_2026-10-13.md). It incorporates only the verified useful ideas from the proposed standalone FastAPI/E2B repair-loop prototype, **without introducing a second execution path**. Do not claim implementation from documentation alone.
+
 ## Core engineering rules (non-negotiable)
 
 1. **Reuse Before Rewrite** — preserve functional existing architecture (FastAPI, Neon/Postgres, Redis/RQ, Oracle ARM64 runner, R2, Vercel) until a measured deficiency justifies replacement.
