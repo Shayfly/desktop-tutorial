@@ -541,8 +541,36 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
     excluded += (['שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים'] if he
                  else ['Long-term data storage — preview data is temporary'])
     assumptions = [x for g in sections.values() for x in g if x['source'] in ('delegated', 'default')]
+    # Plain-language semantic review before approval. Do not expose internal
+    # capability keys, model diagnostics or provider pricing to the customer.
+    names = {
+        'target.agent': ('סוכן AI', 'AI agent'),
+        'ai.agent.tools': ('כלי פעולה של סוכן AI', 'AI agent tools'),
+        'ai.agent.memory': ('זיכרון סוכן AI', 'AI agent memory'),
+        'ai.agent.eval': ('בדיקות סוכן AI', 'AI agent evaluation'),
+        'integration.maps': ('מפות אינטראקטיביות', 'Interactive maps'),
+        'integration.email': ('שליחת דואר אלקטרוני', 'Email sending'),
+        'integration.webhook': ('התממשקות Webhook', 'Webhook integration'),
+        'integration.messaging': ('מערכת הודעות', 'Messaging service'),
+        'media.audio.tts': ('יצירת קול וקריינות', 'Speech and narration'),
+        'media.audio.stt': ('תמלול דיבור', 'Speech recognition'),
+        'media.audio.realtime_voice': ('שיחה קולית בזמן אמת', 'Real-time voice'),
+        'media.image.generate': ('יצירת תמונות', 'Image generation'),
+        'media.video.generate': ('יצירת וידאו', 'Video generation'),
+        'target.automation': ('אוטומציה', 'Automation'),
+    }
+    semantic_review = [
+        {'label': names[d['key']][0 if he else 1],
+         'included': d['decision'] == 'required',
+         'uncertain': d['decision'] == 'uncertain',
+         'evidence': str(d['evidence'])[:160],
+         'reason': str(d['reason'])[:180]}
+        for d in brief.semantic_decisions if isinstance(d, dict) and d.get('key') in names
+        and d.get('decision') in ('required','not_required','uncertain')
+    ]
     return {'goal': v.get('goal') or brief.prompt[:200], 'sections': sections,
             'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
+            'semantic_review': semantic_review,
             'contradictions': contradictions(brief), 'complete': complete(brief)}
 
