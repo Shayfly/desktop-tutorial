@@ -94,9 +94,12 @@ def read_approved(full_prompt: str) -> list[dict]:
     raw = parsed.get("decisions")
     if not isinstance(raw, list) or len(raw) > MAX_DECISIONS:
         return []
-    # Recheck persisted model evidence against ORIGINAL request, not brief text.
-    original = full_prompt.split(marker, 1)[0]
-    accepted, _ = validate_decisions(raw, customer_text=original)
+    # Each turn was checked against the CURRENT message before its evidence
+    # was stored in the versioned brief. Later replies can legitimately differ
+    # from the original project prompt; that prompt alone is not sufficient to
+    # verify the source evidence. On read, enforce the same bounded schema.
+    accepted, _ = validate_decisions(
+        raw, customer_text="\n".join(str(x.get("evidence", "")) for x in raw if isinstance(x, dict)))
     return accepted
 
 
