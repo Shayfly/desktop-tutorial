@@ -30,7 +30,7 @@ const path=require('path');
    });
    await page.goto('http://fixture.test/fixture');
    await page.evaluate(d=>{S.projectId='p';S.lang='he';S.disc=d;S.chat={messages:[]};S.tab='req';
-     S.signedIn=true;S.me={email:'fixture@example.test'};showView();renderDiscovery();renderTabs();},fixture);
+     S.signedIn=true;S.me={email:'fixture@example.test'};showView();renderDiscovery();renderTabs();openTab('req');},fixture);
    await page.locator('#discoveryPanel button').filter({hasText:'שינוי'}).first().click();
    // Editing one answer must expose the rest without any request to the server.
    assert.equal(await page.locator('#discoveryPanel fieldset[data-q=font]').count(),1,'all decisions stay editable');
