@@ -1,4 +1,5 @@
 """Registry Auditor (founder Agent OS spec 2026-10-08, step 1)."""
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -71,6 +72,16 @@ class LifecycleTests(unittest.TestCase):
         unknown = self._row(b, lock={})
         self.assertEqual(unknown.lifecycle, ra.STALE)
         self.assertIn('freshness unknown', unknown.verification)
+
+    def test_checkout_line_endings_do_not_stale_live_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root) / 'module.py'
+            source.write_bytes(b'first line\r\nsecond line\r\n')
+            binding_files = ('module.py',)
+            evidence = Evidence('live', 'run 8', commit='abc1234')
+            lock = {'abc1234|module.py': ra._digest(b'first line\nsecond line\n')}
+            with mock.patch.object(ra, 'ROOT', Path(root)):
+                self.assertEqual(ra.freshness(evidence, binding_files, lock), ('fresh', ()))
 
     def test_run_id_without_commit_is_never_verified(self):
         b = Binding(self.role.key, ('omni_prod.registry_audit:audit',), 'web', (), (Evidence('live', 'run 1'),))

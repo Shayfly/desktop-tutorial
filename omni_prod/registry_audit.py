@@ -96,7 +96,9 @@ def _label(target: str) -> str:
 # ---- freshness --------------------------------------------------------------
 
 def _digest(data: bytes | None) -> str:
-    return 'absent' if data is None else hashlib.sha256(data).hexdigest()
+    if data is None:
+        return 'absent'
+    return hashlib.sha256(data.replace(b'\r\n', b'\n')).hexdigest()
 
 
 def _current_digest(rel: str) -> str:
