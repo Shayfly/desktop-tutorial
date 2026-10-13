@@ -5,6 +5,12 @@
 **Source revision audited (PINNED):** `codex/148ai-verified-intake-2026-10-12@e7c1a0e6017ec203acf607086bd947063f560fde`.  
 **Audit status:** **T01 PARTIAL / IN PROGRESS; T02–T09 NOT YET ACCEPTED.** Source modules for later tasks exist, but existence is not verified live E2E execution. This document creates execution criteria and records the *bounded* initial evidence; it does not implement the nine tasks.
 
+## P0 additive founder directive — Project Readiness & Blocker Diagnosis (2026-10-13)
+
+**Additional requirements, not a replacement for T01–T09:** every project must show its real readiness and why a build is blocked immediately; a founder-only diagnostic must identify the exact required dependencies, missing code/registries/providers/quotes/configuration and verified fix path, with safe client-visible alternatives and mobile usability. The photographed project says "buildable with constraints" but also "unpriced", and names `ai.agent.tools`, `integration.maps`, `media.audio.tts`, `outbound`, `target.agent`. Do not silently remove customer requirements or bypass cost/security gates to enable a button.
+
+[**Binding detailed P0 UX and diagnosis addendum**](PROTOTYPE_READINESS_AND_BLOCKER_DIAGNOSTICS_P0_HE_2026-10-13.md) · [Tracked acceptance issue #26](https://github.com/Shayfly/desktop-tutorial/issues/26). Integrate into **T01, T03, T06, T07, T08 and T09** and verify in the actual protected Preview. This addendum is **SPECIFIED, not implemented**.
+
 ## Core engineering rules (non-negotiable)
 
 1. **Reuse Before Rewrite** — preserve functional existing architecture (FastAPI, Neon/Postgres, Redis/RQ, Oracle ARM64 runner, R2, Vercel) until a measured deficiency justifies replacement.
