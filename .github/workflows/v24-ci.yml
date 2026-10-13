@@ -8,7 +8,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
@@ -36,13 +42,25 @@ jobs:
   compose-config:
     runs-on: ubuntu-latest
     steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - run: cp .env.example .env
       - run: docker compose -f docker-compose.international.yml config >/dev/null
   customer-ui:
     runs-on: ubuntu-latest
     steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with: {node-version: "22"}
       - name: Parse-check browser scripts before downloading Chromium
