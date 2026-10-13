@@ -215,7 +215,8 @@ class ProductArchitect:
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
         floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db,
-                                      content_only=content_only, no_login=no_login_early)
+                                      content_only=content_only, no_login=no_login_early,
+                                      operator_login_required=operator_login_required)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -326,7 +327,8 @@ class ProductArchitect:
 
     @staticmethod
     def _floor_spec(prompt: str, decision, *, self_contained: bool = False,
-                    content_only: bool = False, no_login: bool = False) -> ProductSpec:
+                    content_only: bool = False, no_login: bool = False,
+                    operator_login_required: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
         if content_only:
             return ProductArchitect._content_only_spec(prompt, title)
@@ -341,7 +343,12 @@ class ProductArchitect:
             Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
             Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
         ]
-        if no_login:
+        if no_login and not operator_login_required:
+            # No login AND no captured personal data: do not invent roles or
+            # session management for a content/task application.
+            requirements = [r for r in requirements
+                            if r.id not in ('platform-auth', 'platform-rbac')]
+        elif no_login:
             # Non-content-only products with leads still need private operator
             # administration. Public visitors must never be required to log in.
             requirements = [
