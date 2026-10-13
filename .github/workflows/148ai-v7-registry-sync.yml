@@ -1,0 +1,37 @@
+name: V7 sync canonical registry snapshots (feature only)
+on:
+  push:
+    branches: [feat/148ai-v7-readiness-ux-j3-2026-10-13]
+    paths: [.github/workflows/148ai-v7-registry-sync.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          ref: feat/148ai-v7-readiness-ux-j3-2026-10-13
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Generate exact registry truth through canonical audit programs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "feat/148ai-v7-readiness-ux-j3-2026-10-13"
+          python -m omni_prod.agent_os.audit --write
+          python -m omni_prod.registry_audit --write
+          git add -- AGENT_OS_REGISTRY.json TRUTH_MATRIX.json docs/AGENT_OS_REGISTRY.md docs/AGENT_SKILL_STATUS.md docs/TRUTH_MATRIX.md
+          if git diff --cached --quiet; then
+            echo 'AUDIT_SYNC=UNCHANGED'
+            exit 0
+          fi
+          git config user.name "148AI Audit CI"
+          git config user.email "148ai-audit@users.noreply.github.com"
+          git commit -m "chore(V7): synchronize canonical agent and truth registry snapshots"
+          git push origin HEAD:refs/heads/feat/148ai-v7-readiness-ux-j3-2026-10-13
+          echo 'AUDIT_SYNC=PUSHED_FEATURE_ONLY'
