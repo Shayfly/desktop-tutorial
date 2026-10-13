@@ -55,9 +55,16 @@ class AutonomousProductEngine:
 
     def _repair_summary(self, repo, failures=()):
         transform = getattr(self, 'repository_transform', None)
+        original_fingerprint = self._fingerprint(repo)
         if transform is not None and hasattr(transform, 'redact'):
             repo = transform.redact(repo)
-        return self._summary(repo, failures)
+        summary = dict(self._summary(repo, failures))
+        summary['base_repository_fingerprint'] = 'sha256:' + original_fingerprint
+        from .repair_contracts import attributed_files
+        diagnostic = '\n'.join(str(f.get('message', '')) + '\n' + str(f.get('evidence', ''))
+                               for f in failures if isinstance(f, dict))
+        summary['candidate_files'] = attributed_files(repo, stderr=diagnostic)
+        return summary
 
     @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
@@ -76,6 +83,9 @@ class AutonomousProductEngine:
         except Exception:  # a snapshot must never change the build
             import logging
             logging.getLogger(__name__).warning('round snapshot failed', exc_info=True)
+            if getattr(self, 'require_durable_snapshots', False):
+                # In verified strict mode, never claim READY without round evidence.
+                raise
 
     @staticmethod
     def progress(report) -> tuple[int, int]:
