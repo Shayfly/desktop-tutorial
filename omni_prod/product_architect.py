@@ -60,6 +60,12 @@ def _requires_outbound_delivery(prompt: str) -> bool:
     if any(term in low for term in ("webhook", "newsletter", "push notification",
                                     "sms", "וובהוק", "ניוזלטר")):
         return True
+    # Hebrew newsletter intake: "רוצה לקבל טיפים שבועיים ישירות למייל"
+    # is a delivery requirement even though it does not contain "שלח".
+    # A static contact address alone must not trigger outbound provisioning.
+    if re.search(r"(?:לקבל|קבלת|יישלח|נשלח|subscribe|receive|weekly|שבועי)"
+                 r"[^.!?\n]{0,140}(?:למייל|באימייל|אימייל|מייל|email|e-mail)", low):
+        return True
     return (any(term in low for term in _OUTBOUND_TERMS)
             and any(action in low for action in _OUTBOUND_ACTION_TERMS))
 
