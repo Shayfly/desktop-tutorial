@@ -41,6 +41,63 @@
 - Unblock: the founder clicks **Merge** on PR #8 (or merges `8fe5998` into the integration branch). That push triggers deploy-worker (migration 036 + worker `8fe5998`) and the Vercel Preview of the integration branch.
 - Prepared meanwhile (branch `claude/wave-a2-worker-intake-2026-10-11`, `3194ecd`, not in PR #8): real-model intake routed through the worker (`intake-worker` service, `omni-intake` queue), OFF until authorized; tests with doubles only.
 
+## Update 2026-10-11 10:45 Asia/Jerusalem — PR #11 security hardening of the deployment verifier (implementation: Claude; independent review: ChatGPT)
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11` (PR #11). Not merged. No production deploy, no secret change, $0.** Review: `docs/DEPLOYMENT_VERIFY_SECURITY_REVIEW.md`.
+
+**Implemented and independently verified (local, real HTTP over loopback; real FastAPI + PostgreSQL)**
+- High: secret leak on redirect **reproduced** (Bearer token + bypass secret delivered to a second host after a 302) and fixed — redirects never followed; secrets only sent to the validated origin.
+- High: SSRF — origin-only target, https except loopback, no IP literals/credentials/path/query, exact host or anchored suffix allowlist, all resolved addresses must be public.
+- No cookie jar, no env proxies, 1 MiB response cap, per-request timeout + overall deadline, classified network failures (no crash), evidence without bodies/tokens + final scrub, full 40-hex SHA (+ optional trusted deployment-metadata SHA), production writes refused without explicit flag, server-controlled ids validated.
+- Canonical contract: declared required checks; a missing/downgraded/NOT_RUN mandatory check ⇒ BLOCKED; FAIL ⇒ FAILED (takes precedence).
+- PR #9 compared; its hardening and test shapes merged into PR #11 (PR #9 itself not merged).
+- Tests `tests/test_deployment_verification.py`: 35 passed (+27 subtests) — attacks (cross/same-origin redirect, post-login redirect, cookies, echoed Authorization, path-steering id, 19 SSRF URL shapes, private/metadata DNS), network failures (refused, reset mid-journey, timeout, oversize, non-JSON), wrong credentials (bad bypass, no token, rejected token), SHA (short, malformed, mismatch, trusted mismatch, missing), schema mismatch, production guard, CLI exit codes 0/1/2/3.
+- Full suite: 1479 passed, 1 failed (`test_m4_acceptance` W — environment-only, also failing on base), 43 skipped.
+- Real local servers (`docs/evidence/verification/`): 036 DB → VERIFIED (exit 0); 035 DB → FAILED schema_compatible + conversation (exit 1); wrong SHA → FAILED (exit 1); `https://evil.example` → configuration error (exit 3).
+
+**Implemented but awaiting external live verification**
+- Workflow now runs only for `vercel[bot]` deployments (creator confirmed on real run 38114225915), non-Production, host suffix `-shayflys-projects.vercel.app`. Verdict on the protected Preview will remain BLOCKED until the bypass secret exists.
+
+**Blocked by a named credential/service**
+- `VERCEL_AUTOMATION_BYPASS_SECRET` (GitHub secret, from Vercel "Protection Bypass for Automation") — founder action.
+- Promotion gating on the check (Vercel Deployment Checks / branch protection) — founder action.
+- Merge decision — independent review (ChatGPT) + founder.
+
+- Real-run regression found and fixed: run 38120874664 produced no result because argparse took the dash-leading host suffix for an option; the workflow now uses `--allowed-host-suffix=…` and a bad command line still writes a BLOCKED result (exit 3).
+
+- Independent review findings R1–R3 fixed in `verification_contract.py`: exact full-SHA promotion binding (no prefixes, unbound promotion refused); timestamp/TTL validity window (future-dated, missing, non-finite, inverted, invalid TTL refused); mandatory NOT_APPLICABLE fails closed unless a versioned NA policy names the check; plus verdict recomputation at promotion (forged verdicts refused). `tests/test_deployment_verification.py`: 43 passed (+58 subtests). Full suite 1488 passed, 1 failed (`test_m4_acceptance` W, environment-only, also on base), 43 skipped.
+
+- Closure review (`docs/DEPLOYMENT_VERIFY_SECURITY_REVIEW.md` §C1–C5): three promotion-gate bypasses found on `5ad2ccc` (forged empty required list, self-authorizing NA policy in the evidence, duplicate check names) — **fixed**: `may_promote` takes `required` / `na_policy` from the caller (`DEPLOYMENT_REQUIRED_CHECKS`), never from evidence; duplicates block; `ForgedEvidenceTests` 6. Deployment binding verified three ways for `5ad2ccc` (GitHub run head_sha = Vercel deployment `dpl_B6def4hWWTkGVtz8hsxbgZagciQB` = app-reported SHA, schema COMPATIBLE). Checkout `persist-credentials: false`. DNS rebinding: accepted residual risk for pre-staging, IP-pinning fix specified. `test_m4_acceptance` W: fails identically on unchanged base `4cc9b91`; its nested suite passes there (exit 0, 1303 tests OK) — log-tail check artefact of local live-PG warnings (`docs/evidence/verification/baseline_failure_m4_acceptance_W.json`). Full suite: 1493 passed, 2 failed (the W test above; `test_maintenance_live_postgres` order-dependent locally, 3/3 pass alone), 43 skipped. `tests/test_deployment_verification.py`: 49 passed (+67 subtests).
+
+**Residual risks (not fixed)**: DNS rebinding between the address check and connect; `vercel.app` suffix trust relies on Vercel team-slug hostnames (mitigated by the `vercel[bot]` gate); app-reported SHA is self-reported; synthetic rows accumulate in the shared pre-staging DB.
+
+## Update 2026-10-11 08:20 Asia/Jerusalem — Vercel "Server error" fixed + Continuous Verification P0.1–P0.4
+
+**Branch `claude/wave-a-fix-conversation-schema-2026-10-11`. $0 spent. No production deploy, no secret change, no model call.**
+
+Root cause of the red "Server error": `psycopg.errors.UndefinedTable: relation "execution_plans"/"intake_messages" does not exist` (Vercel runtime errors, deployment `dpl_42B7ngrpgoMCqxnLF2K4DUG3r5K8`, commit `8fe5998`): the branch Preview ran the Wave A API against the shared pre-staging DB before migration 036 was applied. Fix `b6a99c1` (503 `conversation_not_ready` + guided fallback, builds unaffected). The founder merged PR #8 (merge `4cc9b91`, 2026-10-11 01:10 UTC); deploy-worker run 38100955911 succeeded incl. "Apply database migrations".
+
+**Implemented and independently verified**
+- Migration 036 applied on the shared pre-staging DB — read from the real Vercel Preview `dpl_AcJCaecSiEBVCk6fz7vtawtVn2iE` (`19d76d7`): `GET /api/v28/deployment` → `schema.status=COMPATIBLE, applied_max=36, missing=[]`.
+- No runtime errors on Vercel after 2026-10-11 00:25 UTC (both error groups belong to the pre-036 deployment).
+- P0.1 coverage map: `docs/VERIFICATION_COVERAGE_MAP.md` (generated products well covered; the platform's own Vercel API had no post-deployment check — why the incident shipped).
+- P0.3 canonical verdict `verification-result/1` (`omni_prod/verification_contract.py`): never VERIFIED by default; FAIL→FAILED; NOT_RUN/UNKNOWN→BLOCKED; skips need reasons; promotion gate refuses wrong-commit/artifact or expired evidence; `quality-report/1` maps onto it.
+- P0.2/P0.4 deployment verification: `GET /api/v28/deployment` (commit, env, required vs applied migrations via `omni_prod/schema_manifest.py`, drift-tested) + `tools/deployment_verify.py` (SHA, schema, register→project→conversation→persistence→memory, anonymous denial, cross-user isolation; synthetic users) + workflow `deployment-verify` on every Vercel `deployment_status`.
+- Local real-server evidence (`docs/evidence/verification/`): VERIFIED with 036; FAILED on 035 DB (schema + conversation 503); FAILED on wrong SHA.
+- Tests: `tests/test_deployment_verification.py` 17 (scenarios A, E, J, auth bypass, leak, protected, unreachable, no token leakage). Full suite 1462 passed, 1 failed (`test_m4_acceptance` W, environment-only, also failing on base), 43 skipped.
+
+**Implemented but awaiting external live verification**
+- `deployment-verify` ran for real on GitHub (run 38113948928) against the Vercel Preview → **BLOCKED** (HTTP 401, Vercel deployment protection). Working as designed (never VERIFIED without evidence).
+
+**Blocked by a named credential/service**
+- Full journey on Vercel needs Vercel "Protection Bypass for Automation" stored as GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET` (founder action; not created by me).
+- Gating Vercel promotion on the check needs Vercel Deployment Checks / branch protection (founder action).
+- Live AI conversation: OFF (needs approved budget + `OMNI_INTAKE_MODEL`).
+
+**Not implemented**: P0.5–P0.12 (repair loop over deployment failures, security gate expansion, visual QA on the platform UI, handoff contracts, requirement→test traceability, defect intelligence, dashboards, adversarial suite); paid Golden E2E (NOT RUN).
+
+Note: PR #9 (`chatgpt/pdv-001-candidate-2026-10-11` → this branch, "PDV-001" standalone post-deployment verifier, 37 loopback tests) overlaps with `tools/deployment_verify.py`; not merged, needs a decision on which verifier to keep (or merge its hardening — host allowlist, redirect blocking — into this one).
+
 ## Update 2026-10-11 03:05 Asia/Jerusalem — Wave A (intelligence plane, Conversation OS, workspace UI) — IN PROGRESS, not merged
 
 **Branch `claude/wave-a-intelligence-platform-2026-10-11` (base `c20503a` = `c874998` + PR #7). Not merged, not deployed. $0 spent. Live AI conversation NOT verified (no model call was made).** Baseline/source of truth: `docs/WAVE_A_BASELINE.md`. Handoff: `docs/CONTINUATION_HANDOFF.md` (Wave A section).
