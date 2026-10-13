@@ -3,6 +3,7 @@
 These tests never enqueue jobs or call a model provider.
 """
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 
 from omni_prod.build_contract_repository import MemoryBuildContractRepository
@@ -53,13 +54,13 @@ class V7ReadinessTests(unittest.TestCase):
         from omni_prod.product_architect import _infer_infrastructure, ProductArchitect
         text = "Travel brochure site. Show our contact email address: hello@example.org."
         self.assertNotIn("outbound", {r.kind for r in _infer_infrastructure(text, ())})
-        self.assertNotIn("email", ProductArchitect._infer_integrations(text, ()))
+        self.assertNotIn("email", ProductArchitect._infer_integrations(text, SimpleNamespace(requirements=())))
 
     def test_explicit_email_notifications_still_require_outbound(self):
         from omni_prod.product_architect import _infer_infrastructure, ProductArchitect
         text = "Send automatic email notifications after booking."
         self.assertIn("outbound", {r.kind for r in _infer_infrastructure(text, ())})
-        self.assertIn("email", ProductArchitect._infer_integrations(text, ()))
+        self.assertIn("email", ProductArchitect._infer_integrations(text, SimpleNamespace(requirements=())))
 
     def test_password_toggle_is_accessible_and_never_a_submit(self):
         html = (ASSETS / "index.html").read_text(encoding="utf-8")
