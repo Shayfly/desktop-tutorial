@@ -267,12 +267,12 @@ class RealDockerDrainRecovery(unittest.TestCase):
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        # The 4-second global drain deadline can expire before Docker delivers
-        # TERM to the last consumer under CI load; that is a deadline test,
-        # NOT evidence of an OOM kill. Give this distinct OOM scenario enough
-        # time to exercise Docker's real .State.OOMKilled path, without
-        # relaxing the required OOM assertion below.
-        d = self.drain(DRAIN_DEADLINE_SECONDS='20')
+        # OOM evidence is different from a Docker deadline kill (both can
+        # produce exit 137). CI under parallel service load has timed out at
+        # 20 seconds without .State.OOMKilled; reserve up to 60 seconds for
+        # this isolated, throwaway OOM scenario. Do not change the production
+        # 1500-second drain policy or relax the OOMKilled assertion.
+        d = self.drain(DRAIN_DEADLINE_SECONDS='60')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])
