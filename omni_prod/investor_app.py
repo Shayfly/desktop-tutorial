@@ -1454,28 +1454,9 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
     try:
         token = _v28_bearer(request)
         account = _v28.account(token)
-        plan = _v28.subscriptions.plan_for(account.id)
-        # Archived projects do not occupy a slot (the workspace hides them).
-        current = [p for p in _v28.list_projects(token=token)
-                   if not (isinstance(p, dict) and (p.get('archived_at') or str(p.get('status', '')).upper() == 'ARCHIVED'))]
-        limit = plan.max_projects
-        if limit is not None and _v28_pool is not None:
-            # Golden E2E #1: the INTERNAL_QA account could build but not open a
-            # second project ("Free project limit reached"). In staging, an
-            # entitled QA account gets the QA project cap instead.
-            qa_policy, internal_qa = _internal_qa_funding(account.id)
-            if internal_qa:
-                limit = max(limit, int(os.getenv('OMNI_QA_MAX_PROJECTS', '20')))
-        if limit is not None and len(current) >= limit:
-            # Project slots and build credits are independent quotas.
-            raise HTTPException(403, detail={
-                'code': 'project_limit_reached',
-                'message': f'{plan.name} project limit reached',
-                'plan': plan.name,
-                'active_projects': len(current),
-                'max_projects': limit,
-                'action': 'archive_existing_project_or_upgrade',
-            })
+        # Project count is not a spend authorization. Users may maintain as
+        # many projects as they need; builds retain separate cost and execution
+        # admission controls. No external model call occurs on project create.
         return _v28.create_project(token=token, title=req.title)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
