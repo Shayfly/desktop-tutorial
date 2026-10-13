@@ -673,9 +673,9 @@ function renderPlan() {
     };
     const titles = [...new Set(p.blockers.map(title))];
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
-      ...(Array.isArray(p.quote_gaps) && p.quote_gaps.length ? [
+      ...(Array.isArray(p.unavailable_requirements) && p.unavailable_requirements.length ? [
         h('h4', {}, t('quoteMissingTitle')),
-        h('ul', { class: 'quoteMissing' }, p.quote_gaps.map(g => h('li', {}, String(g.purpose || g.key || t('unknownBlocker')))))
+        h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, String(g.purpose || g.key || t('unknownBlocker')))))
       ] : []));
   }
   kids.push(h('div', { class: 'row' },
