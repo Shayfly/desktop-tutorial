@@ -281,6 +281,14 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  if (err.detail && err.detail.code === 'project_limit_reached') {
+    const used = Number(err.detail.active_projects);
+    const max = Number(err.detail.max_projects);
+    const count = Number.isFinite(used) && Number.isFinite(max) ? ` (${used}/${max})` : '';
+    return S.lang === 'he'
+      ? 'הגעתם למכסת הפרויקטים הפעילים' + count + '. ניתן לארכב פרויקט קיים או לשנות תוכנית. זו אינה בעיית קרדיטים.'
+      : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
+  }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
     ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
