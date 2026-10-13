@@ -88,6 +88,20 @@ class V7ReadinessTests(unittest.TestCase):
         self.assertIn("היתרה המוצגת אינה אישור לבנייה", js)
         self.assertIn("disabled: !p.can_build", js)
 
+    def test_project_quota_has_distinct_client_remedy(self):
+        js = (ASSETS / "app.js").read_text(encoding="utf-8")
+        self.assertIn("err.detail.code === 'project_limit_reached'", js)
+        self.assertIn("זו אינה בעיית קרדיטים", js)
+        self.assertIn("err.detail.active_projects", js)
+        self.assertIn("err.detail.max_projects", js)
+
+    def test_project_quota_server_remains_enforced(self):
+        source = (ROOT / "omni_prod" / "investor_app.py").read_text(encoding="utf-8")
+        self.assertIn("if limit is not None and len(current) >= limit:", source)
+        self.assertIn("'code': 'project_limit_reached'", source)
+        self.assertIn("'action': 'archive_existing_project_or_upgrade'", source)
+        self.assertIn("qa_policy, internal_qa = _internal_qa_funding(account.id)", source)
+
     def test_blocked_plan_is_not_presented_as_buildable(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("blockedByBuildGate ? t('readinessBlocked')", js)
