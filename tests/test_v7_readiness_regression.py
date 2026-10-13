@@ -95,12 +95,12 @@ class V7ReadinessTests(unittest.TestCase):
         self.assertIn("err.detail.active_projects", js)
         self.assertIn("err.detail.max_projects", js)
 
-    def test_project_quota_server_remains_enforced(self):
+    def test_project_creation_is_not_limited_by_subscription_slots(self):
         source = (ROOT / "omni_prod" / "investor_app.py").read_text(encoding="utf-8")
-        self.assertIn("if limit is not None and len(current) >= limit:", source)
-        self.assertIn("'code': 'project_limit_reached'", source)
-        self.assertIn("'action': 'archive_existing_project_or_upgrade'", source)
-        self.assertIn("qa_policy, internal_qa = _internal_qa_funding(account.id)", source)
+        create = source.split("def v28_create_project(", 1)[1].split("@app.get('/api/v28/projects')", 1)[0]
+        self.assertIn("return _v28.create_project(token=token, title=req.title)", create)
+        self.assertNotIn("max_projects", create)
+        self.assertNotIn("project_limit_reached", create)
 
     def test_blocked_plan_is_not_presented_as_buildable(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
