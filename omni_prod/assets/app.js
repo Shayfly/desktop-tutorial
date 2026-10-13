@@ -99,7 +99,7 @@ const T = {
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'אפשר לבנות', f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
-    constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'משימות הסוכנים (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
+    constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
     ts_SUCCEEDED:'הושלם', ts_RUNNING:'רץ', ts_PENDING:'ממתין', ts_READY:'מוכן', ts_FAILED:'נכשל', ts_BLOCKED:'חסום', ts_CANCELLED:'לא בוצע', ts_REPAIRING:'בתיקון', ts_NOT_RECORDED:'לא נרשם',
   },
   en: {
@@ -196,7 +196,7 @@ const T = {
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Buildable', f_FEASIBLE_WITH_CONSTRAINTS:'Buildable with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
-    constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Agent tasks (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
+    constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
     ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
   },
 };
@@ -283,6 +283,7 @@ function applyLang() {
   document.title = S.lang === 'he' ? '148AI · סביבת יצירה' : '148AI · Creator workspace';
   renderBanner(); renderDiscovery(); renderPlan(); renderTrack(); renderVersions(); renderEvidence(); renderPreview(); renderMod();
   renderProjects(); renderChat(); renderArch(); renderTabs(); syncStageButtons();
+  if (window.VE) VE.render();
 }
 
 /* ---------- auth ---------- */
@@ -395,6 +396,8 @@ async function selectProject(id) {
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
+  S.lastChange = null;
+  if (window.VE) VE.reset();
   applyLang();
   if (!S.projectId) return;
   await loadVersions();
@@ -788,6 +791,7 @@ function renderPreview() {
     if (!acc) { requestPreviewAccess(p); return; }
     if (frame.dataset.access !== acc.url) { frame.dataset.access = acc.url; frame.src = acc.url; }
     link.href = acc.url;
+    if (window.VE) VE.onPreview();
     return;
   }
   delete frame.dataset.access;
@@ -807,6 +811,7 @@ function renderPreview() {
   const canRetry = currentVersionId() && (!p || ['EXPIRED', 'STOPPED', 'FAILED', 'UNAVAILABLE'].includes(p.status));
   const existing = empty.querySelector('button'); if (existing) existing.remove();
   if (canRetry) empty.append(h('button', { class: 'secondary', onclick: () => startPreview(currentVersionId()) }, t('startPreview')));
+  if (window.VE) VE.onPreview();
 }
 
 let accessPending = null;
@@ -890,14 +895,20 @@ async function restoreVersion(versionId) {
 }
 
 /* ---------- modification ---------- */
-async function sendModification() {
+async function sendModification(extra) {
   const followup = $('followup').value.trim(); const vid = currentVersionId();
-  if (followup.length < 3 || !vid || modActive()) return;
+  if (followup.length < 3 || !vid || modActive()) return null;
   $('modifyBtn').disabled = true;
   try {
-    const d = await api(`/api/v28/projects/${pid()}/versions/${encodeURIComponent(vid)}/modifications`, { method: 'POST', body: { followup } });
-    S.mod = { id: d.modification_id, status: 'QUEUED' }; renderMod(); pollMod();
-  } catch (e) { S.mod = { status: 'ERROR', error_message: explain(e) }; renderMod(); }
+    const d = await api(`/api/v28/projects/${pid()}/versions/${encodeURIComponent(vid)}/modifications`,
+      { method: 'POST', body: { followup, ...(extra || {}) } });
+    S.mod = { id: d.modification_id, status: 'QUEUED', source_version_id: vid, visual_edit: d.visual_edit || null };
+    renderMod(); pollMod();
+    return d;
+  } catch (e) {
+    if (e.status === 409 && e.detail && e.detail.error === 'target_ambiguous') throw e;   // the editor asks which element
+    S.mod = { status: 'ERROR', error_message: explain(e) }; renderMod(); return null;
+  }
   finally { renderMod(); }
 }
 const MOD_DONE = ['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT', 'ERROR', 'CANCELLED'];
@@ -945,12 +956,18 @@ async function cancelMod() {
   } catch (e) { S.mod.cancelRequested = false; S.mod.error_message = explain(e); renderMod(); }
 }
 async function decideMod(accept) {
+  const before = currentVersionId();
   try {
     const d = await api(`/api/v28/projects/${pid()}/modifications/${encodeURIComponent(S.mod.id)}/${accept ? 'accept' : 'reject'}`,
       { method: 'POST', body: accept ? { message: 'accepted in workspace' } : { reason: 'rejected in workspace' } });
     S.mod = { ...S.mod, status: accept ? 'ACCEPTED' : 'REJECTED', promoted_version_id: d.version_id || d.promoted_version_id };
     renderMod();
-    if (accept) { await loadVersions(); if (currentVersionId()) startPreview(currentVersionId()); }
+    if (accept) {
+      await loadVersions();
+      S.lastChange = { before: S.mod.source_version_id || before, after: currentVersionId() };
+      if (currentVersionId()) startPreview(currentVersionId());
+      if (window.VE) VE.onChangeAccepted();
+    }
   } catch (e) { S.mod = { ...S.mod, status: 'ERROR', error_message: explain(e) }; renderMod(); }
 }
 function renderMod() {
@@ -1061,13 +1078,20 @@ async function sendChat(body, shownText) {
     $('composerMsg').textContent = explain(e);
   } finally { chatBusy = false; $('chatSend').disabled = false; }
 }
-function submitChat(e) {
+async function submitChat(e) {
   if (e) e.preventDefault();
   const text = $('chatInput').value.trim();
-  if (!text) return;
+  const images = window.VE ? VE.pendingCount() : 0;
+  if (!text && !images) return;
   if (!S.projectId) { openNewProject(); return; }
-  if (S.chat && S.chat.fallback) { startGuidedFallback(text); return; }
-  sendChat({ message: text }, text);
+  if (S.chat && S.chat.fallback && !images) { startGuidedFallback(text); return; }
+  let ids = [];
+  if (images) {
+    try { ids = await VE.uploadPending(); }
+    catch (err) { $('composerMsg').textContent = explain(err); return; }
+  }
+  await sendChat({ message: text, ...(ids.length ? { attachment_ids: ids } : {}) }, text || `📎 ${ids.length}`);
+  if (ids.length && window.VE) VE.clearPending();
 }
 async function startGuidedFallback(text) {
   // Only when the conversation API is not installed here: the existing guided
@@ -1100,7 +1124,7 @@ function actionButtons(actions) {
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
-      onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(); } }, t('actConfirmMod')));
+      onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(a.attachment_ids && a.attachment_ids.length ? { attachment_ids: a.attachment_ids } : null); } }, t('actConfirmMod')));
   }
   return out.length ? h('div', { class: 'acts' }, out) : null;
 }
@@ -1115,6 +1139,8 @@ function renderChat() {
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'who' }, m.role === 'customer' ? t('you') : t('assistant')), m.content);
+    if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
+      h('img', { src: `/api/v28/projects/${pid()}/attachments/${encodeURIComponent(a.id)}`, alt: t('attachedImage'), loading: 'lazy', width: 72, height: 72 }))));
     if (i === lastAssistant) {
       const turnQs = (S.chat.turn && S.chat.turn.questions) || [];
       const qs = turnQs.length ? turnQs : (S.disc && !S.disc.complete ? (S.disc.questions || []).slice(0, 2) : []);
@@ -1173,9 +1199,12 @@ function renderTasks() {
   const tasks = (S.tasks && S.tasks.bound && S.tasks.tasks) || [];
   if (!tasks.length) { box.replaceChildren(); return; }
   const cls = st => ({ SUCCEEDED: 'ok', RUNNING: 'warn', REPAIRING: 'warn', FAILED: 'bad', BLOCKED: 'bad' })[st] || 'muted';
-  box.replaceChildren(h('h3', {}, t('tasksTitle')), h('ul', { class: 'taskboard' }, tasks.map(x => h('li', {},
-    h('span', { class: 'dept' }, x.department), h('span', {}, ttLabel(x.task_type)),
-    h('span', { class: `pill ${cls(x.state)}` }, t(`ts_${x.state}`) || x.state)))));
+  // Founder 2026-10-11: customers see "build progress"; who-does-what stays one click away.
+  const done = tasks.filter(x => x.state === 'SUCCEEDED').length;
+  box.replaceChildren(h('details', { class: 'tech' }, h('summary', {}, `${t('tasksTitle')} · ${done}/${tasks.length}`),
+    h('ul', { class: 'taskboard' }, tasks.map(x => h('li', {},
+      h('span', { class: 'dept' }, x.department), h('span', {}, ttLabel(x.task_type)),
+      h('span', { class: `pill ${cls(x.state)}` }, t(`ts_${x.state}`) || x.state))))));
 }
 
 /* ---------- context tabs (requirements / plan / build / change / versions / details) ---------- */

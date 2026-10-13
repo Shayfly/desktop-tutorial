@@ -65,6 +65,68 @@ def set_acceptance_scope(engine, contract: dict | None) -> None:
                                                   'defaults_applied', 'prompt')}
 
 
+APPROVED_PREFIX = 'APPROVED-'
+
+
+def merge_approved_criteria(spec, criteria: list[dict]):
+    """ADWv1 G3: the customer-approved acceptance criteria (intake-requirements/1,
+    bound to the build with its plan) become acceptance criteria of the build's
+    spec under platform-owned ids (APPROVED-AC1 ...). The behavioural acceptance
+    runner already requires a passing HTTP step for every spec acceptance id,
+    so each approved criterion must be exercised; the model may enrich the spec
+    but cannot drop these. Deterministic, no model call."""
+    from .product_spec import ProductSpec
+    d = spec.to_dict()
+    req_ids = {r['id'] for r in d['requirements']}
+    acc_ids = {a['id'] for a in d['acceptance']}
+    for a in criteria or []:
+        aid, text = str(a.get('id') or '').strip(), str(a.get('given_when_then') or '').strip()
+        if not aid or not text:
+            raise ValueError(f'approved acceptance criterion without id/text: {a!r}')
+        rid = APPROVED_PREFIX + (str(a.get('covers') or '').strip() or aid)
+        if rid not in req_ids:
+            d['requirements'].append({'id': rid, 'text': f'Customer-approved requirement: {text}'[:2000],
+                                      'kind': 'functional', 'mandatory': True})
+            req_ids.add(rid)
+        if APPROVED_PREFIX + aid not in acc_ids:
+            d['acceptance'].append({'id': APPROVED_PREFIX + aid, 'requirement_id': rid, 'text': text[:2000]})
+            acc_ids.add(APPROVED_PREFIX + aid)
+    return ProductSpec.from_dict(d)
+
+
+class ApprovedCriteriaArchitect:
+    """Wraps the engine's architect: every spec it returns carries the approved criteria."""
+
+    def __init__(self, inner, criteria: list[dict]):
+        self._inner = inner
+        self.criteria = list(criteria)
+        self.approved_ids = [APPROVED_PREFIX + str(a.get('id')) for a in self.criteria]
+
+    def __getattr__(self, item):
+        return getattr(self._inner, item)
+
+    def create_spec(self, prompt, *args, **kwargs):
+        return merge_approved_criteria(self._inner.create_spec(prompt, *args, **kwargs), self.criteria)
+
+
+def install_approved_criteria(engine, plan_binding: dict | None) -> bool:
+    """Plan-governed builds (OMNI_PLAN_DRIVEN=1) only: bind the approved criteria
+    of the build's plan to its spec. Returns whether they were installed."""
+    criteria = (plan_binding or {}).get('acceptance_criteria')
+    if not criteria or getattr(engine, 'architect', None) is None:
+        return False
+    if not isinstance(engine.architect, ApprovedCriteriaArchitect):
+        engine.architect = ApprovedCriteriaArchitect(engine.architect, criteria)
+    return True
+
+
+def approved_criteria_evidence(engine) -> dict | None:
+    arch = getattr(engine, 'architect', None)
+    if not isinstance(arch, ApprovedCriteriaArchitect):
+        return None
+    return {'ids': list(arch.approved_ids), 'criteria': list(arch.criteria)}
+
+
 def behavior_evidence(engine) -> dict | None:
     from .behavior_acceptance import BehaviorAcceptanceExecutor, find_in_chain
     target = find_in_chain(getattr(engine, 'executor', None), BehaviorAcceptanceExecutor)
@@ -166,6 +228,7 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
             'browser_check': getattr(executor, 'last_probe', None),
             'product_review': list(getattr(executor, 'reviews', None) or []),
             'visual_qa': visual_evidence(engine),
+            'approved_acceptance': approved_criteria_evidence(engine),
         }
         return build_report(build_id=build_id, artifact_sha256=_checksum(result.repository), result=result,
                             evidence=evidence, quality=quality, security=security, rights=rights,
@@ -211,7 +274,10 @@ def failure_code(exc: BaseException) -> str:
     was reported as the generic worker_exception ("internal error")."""
     from .model_gateway import ModelGatewayError
     from .model_policy import ModelPolicyViolation
+    from .agent_os.recorder import PlanViolation
     text = str(exc)
+    if isinstance(exc, PlanViolation):
+        return 'plan_violation'
     if isinstance(exc, ModelPolicyViolation):
         if 'budget exceeded' in text or 'call limit' in text:
             return 'model_budget_exhausted'
@@ -580,6 +646,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
             agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
+            if hasattr(agent_recorder, 'bind'):     # plan-governed builds: plan limits + per-task charging
+                agent_recorder.bind(engine, gateway)
+            if getattr(agent_recorder, 'enforce', False):   # ...and the approved criteria are the test basis (G3)
+                install_approved_criteria(engine, {'acceptance_criteria': getattr(agent_recorder, 'acceptance_criteria', None)})
         round_snapshots: list[dict] = []
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
@@ -587,6 +657,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         result = engine.build(prompt)
+        if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
+            agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')
         quality = quality_fn(spec=result.spec, repository=result.repository, minimum_score=min_quality)
         security = security_fn(result.repository)
@@ -851,7 +923,8 @@ def execute_live_build_job(build_id: str) -> None:
         # Wave A: a build approved with an execution plan records that plan's
         # DAG (pre-created tasks with real dependencies); others stay reactive.
         from .agent_os.recorder import recorder_for
-        recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id))
+        recorder = recorder_for(_v28_pool, build_id, execution_plan_binding(_v28_pool, build_id),
+                                enforce=os.getenv('OMNI_PLAN_DRIVEN') == '1')
     try:
         _run_live_build_job_with_components(build_id, jobs=jobs, workspace=workspace,
                                             components_factory=components_factory, agent_recorder=recorder)

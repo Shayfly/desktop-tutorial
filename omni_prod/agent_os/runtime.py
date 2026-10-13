@@ -146,6 +146,41 @@ class AgentRuntime:
         if blocked:
             raise RuntimeViolation(blocked)
 
+    def charge(self, task_id: str, cost_usd: Decimal, *, evidence: dict | None = None) -> Decimal:
+        """Add spend to a task without changing its state (plan-governed builds
+        charge each model call to the plan task that made it). Exceeding the
+        task budget BLOCKS the task (committed) and raises; exceeding the run
+        budget raises. Returns the task's new total."""
+        cost_usd = Decimal(str(cost_usd))
+        if cost_usd < 0:
+            raise RuntimeViolation('negative cost')
+        blocked = None
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                row = conn.execute('SELECT state, budget_usd, cost_usd, run_id FROM agent_tasks WHERE id = %s FOR UPDATE',
+                                   (task_id,)).fetchone()
+                if row is None:
+                    raise KeyError(task_id)
+                state, budget, cost, run_id = row
+                new_cost = Decimal(str(cost)) + cost_usd
+                if budget is not None and new_cost > Decimal(str(budget)):
+                    conn.execute("UPDATE agent_tasks SET state = 'BLOCKED', cost_usd = %s, evidence = evidence || %s::jsonb "
+                                 "WHERE id = %s", (new_cost, json.dumps({'blocked': f'budget {budget} exceeded by {new_cost}',
+                                                                         **(evidence or {})}, default=str), task_id))
+                    blocked = f'task budget {budget} exceeded ({new_cost})'
+                else:
+                    run_budget = conn.execute('SELECT budget_usd FROM agent_runs WHERE id = %s', (run_id,)).fetchone()[0]
+                    if run_budget is not None:
+                        spent = conn.execute('SELECT COALESCE(sum(cost_usd), 0) FROM agent_tasks WHERE run_id = %s AND id <> %s',
+                                             (run_id, task_id)).fetchone()[0]
+                        if Decimal(str(spent)) + new_cost > Decimal(str(run_budget)):
+                            raise RuntimeViolation(f'run budget {run_budget} exceeded')
+                    conn.execute('UPDATE agent_tasks SET cost_usd = %s, evidence = evidence || %s::jsonb WHERE id = %s',
+                                 (new_cost, json.dumps(evidence or {}, default=str), task_id))
+        if blocked:
+            raise RuntimeViolation(blocked)
+        return new_cost
+
     def _apply(self, conn, task_id, target, new_cost, evidence, run_id, cost_usd) -> None:
         run_budget = conn.execute('SELECT budget_usd FROM agent_runs WHERE id = %s', (run_id,)).fetchone()[0]
         if run_budget is not None and cost_usd:

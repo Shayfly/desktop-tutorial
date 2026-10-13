@@ -136,7 +136,10 @@ services:
   preview-router:
     image: omni-preview-worker:latest
     restart: unless-stopped
-    command: ["python", "-m", "omni_prod.preview_router"]
+    # The same router wrapped by the Visual Edit inspector (omni_prod/preview_inspector.py).
+    # Pass-through unless .env sets OMNI_PREVIEW_INSPECTOR=1 and OMNI_WORKSPACE_ORIGINS.
+    # Rollback: command ["python", "-m", "omni_prod.preview_router"].
+    command: ["python", "-m", "omni_prod.preview_inspector"]
     env_file: .env
     network_mode: host
     depends_on: [preview-worker]

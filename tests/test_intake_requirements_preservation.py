@@ -112,7 +112,7 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual([(c['field'], c['current'], c['proposed'], c['origin']) for c in t2.interpretation['conflicts']],
                          [('login', 'none', 'roles', 'model')])
         self.assertIn('לא שיניתי', t2.reply)
-        self.assertEqual(t2.reply.count('האם צריך התחברות'), 2)                  # once per side, not duplicated
+        self.assertEqual(t2.reply.count('התחברות:'), 2)                          # once per side (short name), not duplicated
         self.assertEqual(self.briefs.latest('p').revision, 1)                    # nothing changed -> no new revision
         # Chief Architect input: the validated contract of the latest revision
         contract = C.build(brief)
@@ -120,6 +120,22 @@ class MultiTurnTests(unittest.TestCase):
         self.assertEqual(contract.to_dict()['brief_fingerprint'], brief.fingerprint())
         self.assertEqual(model.calls[0], 'מערכת לניהול השאלת ציוד לצוות שלי, בלי התחברות, בעברית')
         del t1
+
+    def test_complex_turns_escalate_and_ordinary_turns_stay_cheap(self):
+        """Master directive stage 1: the lane's task reaches the reserved call."""
+        class TaskRecordingModel(FakeModel):
+            task = 'conversation'
+
+            def interpret(self, message, brief=None):
+                self.tasks = getattr(self, 'tasks', []) + [self.task]
+                return super().interpret(message, brief)
+        model = TaskRecordingModel()
+        s = self.sup(model)
+        self.say(s, 'מערכת לניהול השאלת ציוד לצוות שלי, בלי התחברות, בעברית')            # MEDIUM
+        t = self.say(s, 'תוסיף סליקת אשראי והרשאות מנהלים עם נתונים רפואיים של לקוחות')   # RISKY
+        self.assertEqual(model.tasks, ['conversation', 'conversation_complex'])
+        self.assertEqual(t.interpretation['lane']['lane'], 'escalated')
+        self.assertTrue(t.interpretation['lane']['requires_explicit_confirmation'])
 
     def test_conflict_is_asked_back_in_hebrew(self):
         s = self.sup(FakeModel([('languages', 'en', 'high')]))
