@@ -60,7 +60,7 @@ class OmniUniversalBrain:
         # provider/capability DAG: no unrequested narration from a font name.
         from .semantic_capabilities import overrides
         from .media_pipeline import AssetKind, CreativePlan
-        denied = overrides(semantic_decisions)
+        denied = overrides(semantic_decisions, prompt=prompt)
         suppressed = {"media.audio.tts": AssetKind.VOICE,
                       "media.image.generate": AssetKind.IMAGE,
                       "media.video.generate": AssetKind.VIDEO}
