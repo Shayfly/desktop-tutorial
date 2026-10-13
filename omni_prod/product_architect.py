@@ -350,20 +350,26 @@ class ProductArchitect:
             Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
             Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
         ]
-        if no_login and not operator_login_required:
-            # No login AND no captured personal data: do not invent roles or
-            # session management for a content/task application.
-            requirements = [r for r in requirements
-                            if r.id not in ('platform-auth', 'platform-rbac')]
-        elif no_login:
-            # Non-content-only products with leads still need private operator
-            # administration. Public visitors must never be required to log in.
+        if no_login:
+            # Keep the existing platform security floor for non-content-only
+            # products, while honoring the absence of product visitor sign-in.
+            # A customer contact form requires protected product admin access;
+            # otherwise operator control may rely on 148AI platform identity
+            # without adding application visitor sessions.
+            auth_text = (
+                "Admin-only management authentication for saved customer data; no public visitor sign-in"
+                if operator_login_required else
+                "148AI platform-authenticated operator access; no generated-product visitor sign-in or sessions"
+            )
+            role_text = (
+                "Management roles are protected on the server; public visitors remain anonymous"
+                if operator_login_required else
+                "Operator privileges enforced by the 148AI platform; no generated-product visitor roles"
+            )
             requirements = [
                 Requirement(r.id,
-                    "Admin-only management authentication for saved customer data; no public visitor sign-in"
-                    if r.id == "platform-auth" else
-                    "Management roles are protected on the server; public visitors remain anonymous"
-                    if r.id == "platform-rbac" else r.text, r.kind)
+                    auth_text if r.id == "platform-auth" else
+                    role_text if r.id == "platform-rbac" else r.text, r.kind)
                 if r.id in ("platform-auth", "platform-rbac") else r
                 for r in requirements
             ]
