@@ -15,6 +15,8 @@
 
 - **P0 Readiness and blocker diagnostics:** [customer/founder visible reasons, dependency provenance and safe unblock actions](PROTOTYPE_READINESS_AND_BLOCKER_DIAGNOSTICS_P0_HE_2026-10-13.md) (Issue #26).
 - **Safe Build/Test/Repair core integration:** [reuse-first engineering integration specification, file-by-file code map, interfaces, sandbox/preview/cost guards, migration/test gates](BUILD_REPAIR_CORE_INTEGRATION_SPEC_HE_2026-10-13.md). It incorporates only the verified useful ideas from the proposed standalone FastAPI/E2B repair-loop prototype, **without introducing a second execution path**. Do not claim implementation from documentation alone.
+- **Copy-ready handoff to coding chat:** [precise execution instructions, dependency order, file map and evidence requirements](HANDOFF_TO_IMPLEMENTING_CHAT_BUILD_REPAIR_HE_2026-10-13.md).
+
 
 ## Core engineering rules (non-negotiable)
 
