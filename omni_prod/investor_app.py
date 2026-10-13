@@ -701,7 +701,7 @@ def _live_components():
     recorder=getattr(gateway,'recorder',None)
     if recorder is not None: executor=RecordingExecutor(executor,recorder)
     engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
-        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','5')))
+        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','3')))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:
