@@ -78,6 +78,21 @@ def no_login_requested(prompt: str) -> bool:
     return bool(_NO_LOGIN.search(prompt or ''))
 
 
+def _collects_visitor_contact_data(prompt: str) -> bool:
+    """No visitor sign-in is not permission to expose a collected-leads admin.
+
+    A static contact address is not lead collection. Requiring an authenticated
+    operator to view submitted newsletter/contact leads does not add sign-in for
+    ordinary visitors.
+    """
+    low = (prompt or "").casefold()
+    capture = ("טופס הרשמה", "טופס יצירת קשר", "טופס לידים",
+               "newsletter signup", "newsletter form", "signup form",
+               "lead capture", "lead form", "contact form",
+               "collect email", "collect phone", "collect leads")
+    return any(term in low for term in capture)
+
+
 # A WhatsApp *link* (wa.me / "קישור לוואטסאפ" / "whatsapp button") is a plain hyperlink, not a messaging
 # integration: nothing is sent by the product. Stripped before integration inference only.
 _WA_LINK = re.compile(
@@ -192,8 +207,10 @@ class ProductArchitect:
         # "No visitor sign-in" does not remove the admin-only management
         # security needed when contact/lead data is still being collected.
         # Fully content-only sites need neither user nor admin sessions.
+        operator_login_required = no_login_early and _collects_visitor_contact_data(intent)
         infrastructure = _infer_infrastructure(
-            intent, self._infer_integrations(intent, capability_plan), no_login=content_only)
+            intent, self._infer_integrations(intent, capability_plan),
+            no_login=(no_login_early and not operator_login_required))
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
