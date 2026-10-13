@@ -44,12 +44,15 @@ class AuditTests(unittest.TestCase):
             # import-order-dependent auditing during pytest collection.
             differences = []
             for collection, key in (('agents', 'agent_key'), ('skills', 'skill_key')):
-                saved = {row[key]: row['status'] for row in committed[collection]}
-                runtime = {row[key]: row['status'] for row in result[collection]}
+                saved = {row[key]: row for row in committed[collection]}
+                runtime = {row[key]: row for row in result[collection]}
                 differences.extend(
-                    f"{collection}/{item}: committed={saved.get(item)} runtime={runtime.get(item)}"
+                    f"{collection}/{item}: committed={saved.get(item, {}).get('status')}, "
+                    f"runtime={runtime.get(item, {}).get('status')}, "
+                    f"why={runtime.get(item, {}).get('why')}, "
+                    f"implementation={runtime.get(item, {}).get('implementation_location')}"
                     for item in sorted(saved.keys() | runtime.keys())
-                    if saved.get(item) != runtime.get(item)
+                    if saved.get(item, {}).get('status') != runtime.get(item, {}).get('status')
                 )
             self.fail(
                 'run python -m omni_prod.agent_os.audit --write; '
