@@ -71,6 +71,17 @@ class V7ReadinessTests(unittest.TestCase):
         self.assertIn("hidePassword:'הסתרת סיסמה'", js)
         self.assertIn("input.type = showing ? 'text' : 'password';", js)
 
+    def test_project_readiness_strip_persists_outside_plan_panel(self):
+        html = (ASSETS / "index.html").read_text(encoding="utf-8")
+        js = (ASSETS / "app.js").read_text(encoding="utf-8")
+        css = (ASSETS / "app.css").read_text(encoding="utf-8")
+        self.assertIn('id="projectReadiness"', html)
+        self.assertLess(html.index('id="projectReadiness"'), html.index('id="ctx"'))
+        self.assertIn("function renderProjectReadiness()", js)
+        self.assertIn("const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked'", js)
+        self.assertIn("strip.hidden = !S.projectId;", js)
+        self.assertIn(".projectReadiness.blocked", css)
+
     def test_blocked_plan_is_not_presented_as_buildable(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("blockedByBuildGate ? t('readinessBlocked')", js)
