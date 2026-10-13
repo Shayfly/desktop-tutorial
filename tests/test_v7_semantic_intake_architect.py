@@ -105,6 +105,19 @@ class SemanticIntakeIntegrationTests(unittest.TestCase):
         cap = {r.key for r in contract.capability_plan.requirements if r.required}
         self.assertFalse({"target.agent", "media.audio.tts", "integration.maps"} & cap)
 
+    def test_weekly_email_signup_requires_delivery_not_unrequested_webhook(self):
+        from omni_prod.product_architect import _requires_outbound_delivery, _infer_infrastructure
+        from omni_prod.capabilities import CapabilityPlan
+        self.assertTrue(_requires_outbound_delivery(LANDING))
+        self.assertFalse(_requires_outbound_delivery(
+            "Landing page showing contact email: hello@example.org"))
+        kinds = {r.kind for r in _infer_infrastructure(LANDING, ())}
+        self.assertIn("outbound", kinds)
+        contract = ProductArchitect().compile(LANDING, project_id="newsletter",
+                                              contract_version=1)
+        self.assertIn("outbound", {r.kind for r in contract.infrastructure})
+        self.assertNotIn("webhook", contract.required_integrations)
+
     def test_explicit_customer_ai_agent_maps_and_narration_remain_required(self):
         prompt = ("תבנה סוכן AI עם כלים משלו, מפות אינטראקטיביות "
                   "וקריינות קולית לכל שיעור")
