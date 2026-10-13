@@ -52,5 +52,23 @@
 - העבר לי: רשימת קבצים/שורות ששונו, SHA, PR, תוצאות בדיקות כולל failures, diff מול source-of-truth, מצב מול T01–T09 ו-Issue #26, URL Preview מאומת, פרטי evidence, עלות בפועל, rollback plan.
 - **אסור להגיד "מוכן" או "Production-Ready" בלי הוכחה שהמשתמש יכול לבקש אתר → לאשר → לבנות → לתקן → לבדוק → לראות Preview חי → לבקש שינוי → לקבל גרסה חדשה, בבטיחות ובתקציב.**
 
+## נספח חובה — סקירת קוד E2B/Repair/Worker מעודכן (13.10.2026)
+
+הצעת קוד שנייה התקבלה לבחינה עם `E2BSandboxAdapter`, `IntegrationRepairAgent`, `autonomous_build_worker_job` וטבלת Dashboard. **אסור להעתיק את הקוד הזה כפי שהוא**: הוא עדיין אינו משולב, מאומת או בטוח. קרא לפני כל שינוי את **סעיף N (R2-01 עד R2-14, R2-T01 עד R2-T12)** במסמך ההנדסי:
+
+https://github.com/Shayfly/desktop-tutorial/blob/audit/148ai-engineering-recovery-t01-2026-10-13/docs/BUILD_REPAIR_CORE_INTEGRATION_SPEC_HE_2026-10-13.md
+
+הבהרות מחייבות למפתח:
+- E2B הוא **PoC אופציונלי, לא ברירת המחדל**. בדוק גרסת Python SDK נעולה מול מסמכי E2B הרשמיים; בקוד שהוצע `AsyncSandbox.get()`, `sandbox.id`, `sandbox.close()` אינם הממשקים המתועדים שנמצאו ב-v2.5.0 — `connect()`, `sandbox.sandbox_id`, `kill()`. חובה בדיקת יצירה, reconnect, TTL, ניקוי והגנת סודות. שמור Docker Sandbox קיים.
+- **אל תסמוך על `if ".." in path` או על `mkdir -p {dir_name}`**; השתמש בנתיבים מנורמלים, API קבצים וללא Shell-interpolation; בדוק סינון symlinks ו-path traversal.
+- **אל תעקוף Provider Router.** בקוד המוצע `router=None` וקריאה ישירה ל-Gemini סינכרוני בתוך `async`. חבר רק דרך ה-Model Gateway עם הרשאות, ניתוב איכותי, מדידת שימוש ו-Structured Output שעובר ולידציה של צד שרת.
+- **אל תמציא עלויות** (`$0.45`, `$0.60`, `$0.80`) ואל תקבע `$1.50` כ-Reserve בלי Quote מאושר. השתמש ב-Quote/Reserve/Meter/Settle/Reconcile הקיימים, ושמור הוצאה אמיתית גם במסלול Exception/Crash.
+- **לא ליצור Worker/DB State חדש.** `database_state_manager.py` לא נמצא בשורש הריפו/omni_prod בענף הבסיס שנבדק; יש כבר worker_tasks, leases, Outbox ו-Postgres. להוסיף רק חוזים/Adapters חסרים למנוע הקיים.
+- **לא להציג COMPLETED אחרי Build בלבד**; חובה QA מאומת, סריקת סודות, behavioral/browser tests, גרסה שמורה ו-Preview פרטי ובריא. ניסיון תיקון שלישי חייב להיבדק במלואו.
+- **למנוע דליפות:** יצירת Sandbox חייבת להיות תחת אחריות cleanup ושחרור רזרבה גם אם היא נכשלת. `finally: pass` אסור. Heartbeat פעיל לכל אורך install/build, לא רק בין שלבים.
+- **לא להציג דמו כאמת:** שורות Dashboard עם סכומים/התקדמות ממקור הדוגמה הן דמו בלבד. להציג ללקוח ולמנהל רק נתוני Runtime אמת, בהפרדת הרשאות לפי Issue #26.
+
+**סטטוס:** REVISION REVIEWED, NOT IMPLEMENTED. אין לפתוח שירות נוסף, לא להחליף את הקוד הקיים או למזג את PR #24/#25 בלי השלמת בדיקות ו-Golden E2E.
+
 ## Definition of Done להעברה הזאת
 דוח השוואה לקוד הקיים + תוספות מינימליות ללא מנוע מקביל + טסטים מוכחים + build pipeline פרטי ובר-שחזור + ממשק חסימות אמיתי + אב־טיפוס שמוכיח Golden E2E. אם חוסם קיים, הצג אותו ואת התיקון המדויק עם סטטוס BLOCKED; אל תייפה את הנתונים.
