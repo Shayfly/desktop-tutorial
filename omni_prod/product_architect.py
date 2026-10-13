@@ -112,10 +112,17 @@ def content_only_approved(prompt: str) -> bool:
     """True only when the *approved brief block* (not the free text) records a content-only website with no
     sign-in and no personal data. Free-text keywords never qualify."""
     flat = " ".join((prompt or "").split())
-    marker = "--- Approved project brief"
-    if marker not in flat:
+    # Only the last canonical block appended by discovery.requirements_text()
+    # can mark a generated site as content-only. A customer's raw request
+    # may contain text impersonating an approved brief; the earlier occurrence
+    # must not disable private lead protection.
+    generated_markers = list(re.finditer(
+        r"--- Approved project brief \(binding; fingerprint [a-f0-9]{16}\) ---",
+        flat,
+    ))
+    if not generated_markers:
         return False
-    block = flat.split(marker, 1)[1]
+    block = flat[generated_markers[-1].end():]
     return all(t in block for t in _CONTENT_ONLY_PROMPT)
 
 
