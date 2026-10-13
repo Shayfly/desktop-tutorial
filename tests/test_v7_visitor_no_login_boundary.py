@@ -13,8 +13,12 @@ class VisitorLoginApprovalTests(unittest.TestCase):
         infrastructure = {x.kind for x in contract.infrastructure}
         ids = {r.id for r in contract.product_spec.requirements}
         self.assertNotIn("auth_session", infrastructure)
-        self.assertNotIn("platform-auth", ids)
-        self.assertNotIn("platform-rbac", ids)
+        # The platform-level operator protections remain mandatory even
+        # though no product visitor accounts or sessions are created.
+        self.assertIn("platform-auth", ids)
+        self.assertIn("platform-rbac", ids)
+        auth = next(r.text for r in contract.product_spec.requirements if r.id == "platform-auth")
+        self.assertIn("no generated-product visitor sign-in or sessions", auth)
 
     def test_no_public_login_with_lead_form_keeps_private_admin_protection(self):
         contract = self.compile(
