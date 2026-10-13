@@ -45,6 +45,24 @@ _SCHEDULE_TERMS = ("schedule", "reminder", "cron", "recurring", "every day", "ev
 _OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push notification",
                    "מייל", "אימייל", 'דוא"ל', "דואל")
 
+# Contact details such as "email: contact@example.org" are not an outbound
+# sending service. Preserve explicitly requested email notifications, marketing,
+# SMS or webhook delivery; never silently remove a capability the planner has
+# already marked required.
+_OUTBOUND_ACTION_TERMS = ("send", "sending", "notify", "notification", "mailing",
+                          "automated email", "outbound", "dispatch", "deliver",
+                          "שלח", "לשלוח", "שולח", "שליחה", "שליחת", "התראה",
+                          "התראות", "דיוור", "משלוח", "נשלח", "יישלח")
+
+
+def _requires_outbound_delivery(prompt: str) -> bool:
+    low = (prompt or "").casefold()
+    if any(term in low for term in ("webhook", "newsletter", "push notification",
+                                    "sms", "וובהוק", "ניוזלטר")):
+        return True
+    return (any(term in low for term in _OUTBOUND_TERMS)
+            and any(action in low for action in _OUTBOUND_ACTION_TERMS))
+
 
 _NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|משתמשים)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
                        r"sign-in:\s*none", re.I)
@@ -98,7 +116,7 @@ def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequ
         "auth_session": not no_login_requested(prompt),
         "object_storage": wants(_UPLOAD_TERMS) or "storage" in integration_keys,
         "scheduled_http": wants(_SCHEDULE_TERMS),
-        "outbound": wants(_OUTBOUND_TERMS) or bool({"email", "webhook"} & integration_keys),
+        "outbound": _requires_outbound_delivery(prompt) or bool({"email", "webhook"} & integration_keys),
     }
     embedded = {r.kind: r for r in SELF_CONTAINED_WEB_V1.requirements}
     out = []
@@ -433,7 +451,7 @@ class ProductArchitect:
             if mapped:
                 result.append(mapped)
         direct = (
-            ("email", ("email", "e-mail", "מייל", "דוא")),
+            ("email", ("email", "e-mail", "מייל", "דוא")) if _requires_outbound_delivery(prompt) else ("email", ()),
             ("webhook", ("webhook", "web hook")),
             ("payments", ("payment", "payments", "checkout", "תשלום")),
             ("maps", ("map", "maps", "gps", "מפה")),
