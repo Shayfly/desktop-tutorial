@@ -8,6 +8,8 @@ At `e364151`, the source CI and synthetic merge-candidate compatibility checks p
 
 The Agent OS consistency check exposed a Windows-only false stale status: Git checked out LF source files with CRLF, while the freshness auditor hashed raw working-tree bytes. `omni_prod/registry_audit.py` now normalizes CRLF before hashing, and `tests/test_registry_audit.py` covers line-ending-only changes. This keeps evidence freshness consistent with Git's normalized source content without treating actual code changes as fresh.
 
+The first follow-up run also exposed a CI cancellation race: push and pull-request events shared concurrency groups in `v24-ci`, V11 Overlay CI, `intake-budget-pg`, and the intake gates. Those groups now include the event name, with a regression test in `tests/test_ci_workflow_concurrency.py`, so one event cannot cancel the other.
+
 The separate [deployment verification run 38469273807](https://github.com/Shayfly/desktop-tutorial/actions/runs/38469273807) is **blocked**, not green: the protected Preview returned HTTP 401 because no valid Vercel automation-bypass token was supplied. The verifier correctly stopped before its authenticated journey; weakening this gate would turn an unverified deployment into a false success.
 
 ## Application-flow evidence
