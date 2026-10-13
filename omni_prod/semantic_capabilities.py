@@ -103,8 +103,31 @@ def read_approved(full_prompt: str) -> list[dict]:
     return accepted
 
 
-def overrides(decisions: object) -> dict[str, str]:
-    """Only required/not_required decisions influence the capability DAG."""
-    return {d["key"]: d["decision"] for d in (decisions or ())
-            if isinstance(d, Mapping) and d.get("key") in SUPPORTED
-            and d.get("decision") in ("required", "not_required")}
+# Independent explicit-request guard. An AI can disambiguate weak keyword
+# matches, but cannot silently exclude an unambiguous, customer-requested tool.
+# Other security/build floor capabilities are outside SUPPORTED entirely.
+_EXPLICIT_USER_INTENT = {
+    "target.agent": re.compile(r"\b(?:AI agent|AI assistant|voice assistant|chatbot|autonomous agent)\b|סוכן\s*(?:AI|בינה)", re.I),
+    "integration.maps": re.compile(r"\b(?:interactive maps?|map integration|GPS map)\b|מפות?\s+אינטראקטיבי", re.I),
+    "media.audio.tts": re.compile(r"\b(?:text.to.speech|narration|tts|voice.over)\b|קריינות", re.I),
+    "integration.email": re.compile(r"\b(?:send (?:an? )?email|email notifications?|newsletter)\b|שליחת?\s+(?:מייל|דוא)", re.I),
+}
+
+
+def overrides(decisions: object, *, prompt: str = "") -> dict[str, str]:
+    """Only validated semantic decisions influence the capability DAG.
+
+    A model 'not_required' must never override a clearly explicit user ask.
+    """
+    out = {}
+    for decision in decisions or ():
+        if not isinstance(decision, Mapping):
+            continue
+        key, status = decision.get("key"), decision.get("decision")
+        if key not in SUPPORTED or status not in ("required", "not_required"):
+            continue
+        rule = _EXPLICIT_USER_INTENT.get(key)
+        if status == "not_required" and rule and rule.search(prompt):
+            continue
+        out[key] = status
+    return out
