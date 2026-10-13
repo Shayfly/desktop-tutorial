@@ -218,6 +218,7 @@ class Brief:
     skipped: list[str] = field(default_factory=list)  # questions the user chose to skip (no preference recorded)
     hints: dict[str, str] = field(default_factory=dict)  # suggested answers read from the request (pre-selected, still asked)
     assets: dict[str, dict] = field(default_factory=dict)  # owner-checked attachment id + digest, never bytes/secrets
+    semantic_decisions: list[dict] = field(default_factory=list)  # validated model evidence, reviewed on brief approval
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
@@ -227,12 +228,15 @@ class Brief:
                'hints': dict(self.hints)}
         if self.assets:
             out['assets'] = self.assets
+        if self.semantic_decisions:
+            out['semantic_decisions'] = list(self.semantic_decisions)
         return out
 
     @classmethod
     def from_dict(cls, d: Mapping) -> 'Brief':
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
-                   dict(d.get('hints') or {}), dict(d.get('assets') or {}))
+                   dict(d.get('hints') or {}), dict(d.get('assets') or {}),
+                   list(d.get('semantic_decisions') or []))
 
     def fingerprint(self) -> str:
         return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -502,6 +506,9 @@ def requirements_text(brief: Brief) -> str:
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')
+    if brief.semantic_decisions:
+        from .semantic_capabilities import encode_approved
+        lines.append(encode_approved(brief.semantic_decisions))
     return '\n'.join(lines)
 
 
