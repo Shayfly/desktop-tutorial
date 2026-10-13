@@ -97,7 +97,7 @@ const T = {
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
-    quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
+    quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
@@ -203,7 +203,7 @@ const T = {
     b_cost_quote_unavailable:'No verified build quote was returned.',
     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
-    quoteMissingTitle:'Requirements without verified pricing:', unknownBlocker:'Further checks are needed before building.',
+    quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
@@ -661,6 +661,17 @@ function renderPlan() {
     kids.push(h('h3', {}, t('questions')), h('ul', { class: 'checklist' }, p.clarification_questions.map(q => h('li', {}, q.question))));
   }
   if (p.blockers.length) {
+    const missingCapabilityNames = {
+      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution'],
+      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps'],
+      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech'],
+      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications'],
+      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product'],
+    };
+    const nameForMissing = g => {
+      const names = missingCapabilityNames[g.key];
+      return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
+    };
     const title = b => {
       if(b.code==='capability_not_feasible')return S.lang==='he'?'אחת הדרישות עדיין אינה נתמכת. יש לערוך אותה או להמתין להשלמת היכולת.':'A requirement is not supported yet. Edit it or wait for support.';
       if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
@@ -675,7 +686,8 @@ function renderPlan() {
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
       ...(Array.isArray(p.unavailable_requirements) && p.unavailable_requirements.length ? [
         h('h4', {}, t('quoteMissingTitle')),
-        h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, String(g.purpose || g.key || t('unknownBlocker')))))
+        h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, nameForMissing(g)))),
+        h('p', { class: 'hint' }, t('quoteMissingHelp'))
       ] : []));
   }
   kids.push(h('div', { class: 'row' },
