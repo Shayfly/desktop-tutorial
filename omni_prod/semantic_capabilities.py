@@ -78,10 +78,17 @@ def encode_approved(decisions: object) -> str:
 
 def read_approved(full_prompt: str) -> list[dict]:
     """Read only the generated approved-brief section, never a raw user sentence."""
-    marker = "--- Approved project brief"
-    if marker not in full_prompt:
+    # Use the LAST canonical server-generated marker; a customer's original
+    # prompt can contain text imitating an approved brief and must not create
+    # authoritative capability decisions. The generated block is appended by
+    # discovery.requirements_text() after the untrusted customer text.
+    markers = list(re.finditer(
+        r"(?m)^--- Approved project brief \(binding; fingerprint [a-f0-9]{16}\) ---$",
+        full_prompt,
+    ))
+    if not markers:
         return []
-    block = full_prompt.split(marker, 1)[1]
+    block = full_prompt[markers[-1].end():]
     lines = [s for s in block.splitlines() if s.startswith(LINE_PREFIX)]
     if len(lines) != 1:
         return []
