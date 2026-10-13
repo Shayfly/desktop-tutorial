@@ -39,9 +39,15 @@ jobs:
           if-no-files-found: warn
       - name: Show changed paths
         run: git status --short
-      - name: Commit generated evidence on trusted internal PR only
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/docker-oom-rehearsal-20261013'
+      - name: Commit generated evidence on internal fix branch
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ] || [ "$HEAD_BRANCH" != "fix/docker-oom-rehearsal-20261013" ]; then
+            echo "Read-only artifact for non-internal PR"; exit 0
+          fi
           git add AGENT_OS_REGISTRY.json docs/AGENT_OS_REGISTRY.md omni_prod/registry_evidence_lock.json PLATFORM_CAPABILITY_MATRIX.json PLATFORM_REGRESSION_MATRIX.json GOLDEN_E2E_MATRIX.json FAILURE_INJECTION_MATRIX.json TRUTH_MATRIX.json docs/TRUTH_MATRIX.md
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
