@@ -188,12 +188,15 @@ class ProductArchitect:
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
         no_login_early = no_login_requested(clean)
+        content_only = no_login_early and content_only_approved(clean)
+        # "No visitor sign-in" does not remove the admin-only management
+        # security needed when contact/lead data is still being collected.
+        # Fully content-only sites need neither user nor admin sessions.
         infrastructure = _infer_infrastructure(
-            intent, self._infer_integrations(intent, capability_plan), no_login=no_login_early)
+            intent, self._infer_integrations(intent, capability_plan), no_login=content_only)
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
-        content_only = no_login_early and content_only_approved(clean)
         floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db,
                                       content_only=content_only, no_login=no_login_early)
 
@@ -239,7 +242,7 @@ class ProductArchitect:
             "input_validation",
             "audit_evidence",
             "no_cross_tenant_resource_access",
-        ) if not (no_login and s in ("least_privilege_rbac", "secure_session_lifecycle")))
+        ) if not (content_only and s in ("least_privilege_rbac", "secure_session_lifecycle")))
         cost = CostEnvelopeReference(pricing_catalog_version=pricing_catalog_version)
 
         required_skills = self._required_skills(capability_plan)
@@ -322,9 +325,17 @@ class ProductArchitect:
             Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
         ]
         if no_login:
-            # An approved no-sign-in landing page must not acquire visitor auth
-            # or multi-role requirements from the platform's default template.
-            requirements = [r for r in requirements if r.id not in ('platform-auth', 'platform-rbac')]
+            # Non-content-only products with leads still need private operator
+            # administration. Public visitors must never be required to log in.
+            requirements = [
+                Requirement(r.id,
+                    "Admin-only management authentication for saved customer data; no public visitor sign-in"
+                    if r.id == "platform-auth" else
+                    "Management roles are protected on the server; public visitors remain anonymous"
+                    if r.id == "platform-rbac" else r.text, r.kind)
+                if r.id in ("platform-auth", "platform-rbac") else r
+                for r in requirements
+            ]
         existing = {r.id for r in requirements}
         for module in decision.plan.modules:
             rid = "module-" + re.sub(r"[^a-z0-9]+", "-", module.lower()).strip("-")
