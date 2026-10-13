@@ -374,6 +374,13 @@ class ConversationSupervisor:
         res = intake_agent.apply(brief, interp, require_confirmation=sensitive) if interp else intake_agent.apply(
             brief, DeterministicInterpreter().interpret('', brief))
         new_brief = res.brief
+        # Persist only schema- and evidence-validated model decisions in the same
+        # brief revision. They remain reviewable and bind to the normal approval
+        # fingerprint; deterministic fallback cannot silently invent exclusions.
+        if interp is not None and getattr(interp, 'semantic_decisions', None) and str(interp.interpreter).startswith('model'):
+            from ..semantic_capabilities import updated_decisions
+            new_brief.semantic_decisions = updated_decisions(
+                new_brief.semantic_decisions, interp.semantic_decisions)
         recorded = False
         if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
                 and not answers and _CONTENT_RX.search(message)):
