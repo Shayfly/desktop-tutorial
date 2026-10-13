@@ -39,6 +39,10 @@ term() {
   exit 0
 }
 trap term TERM
+# Container .State.Running can precede trap installation. A stop arriving
+# during that window is ignored by PID 1 and looks like a 137 deadline kill,
+# NOT an OOM. Publish readiness only after the handler is installed.
+printf '1\\n' > "$ctl/$svc.ready"
 while :; do sleep 1; done
 '''
 
@@ -129,7 +133,15 @@ class RealDockerDrainRecovery(unittest.TestCase):
         self.redis_url = os.environ['OMNI_TEST_REDIS_URL']
         # previous release is running
         self.compose('up', '-d', env_extra={'IMG': f'{BASE_IMAGE}:1'})
-        self.wait_running(SERVICES)
+        self.assertTrue(self.wait_running(SERVICES), "test consumers did not reach running")
+        # A running container is not necessarily signal-ready. This is the
+        # synchronization barrier for both graceful drains and real OOM tests.
+        for _ in range(100):
+            if all((self.ctl / (service + '.ready')).exists() for service in SERVICES):
+                break
+            time.sleep(0.1)
+        else:
+            self.fail("Docker test consumers never installed their SIGTERM handlers")
         self.before = self.snapshot()
 
     def tearDown(self):
