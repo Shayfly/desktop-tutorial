@@ -703,6 +703,14 @@ function renderPlan() {
       return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
     };
     const titles = [...new Set(p.blockers.map(title))];
+    // Never imply that editing the request is the only remedy for a missing
+    // provider quote. A configured-but-unpriced capability needs operator
+    // pricing or an explicit, user-approved scope change.
+    if (p.blockers.some(b => b.code === 'cost_quote_unknown' || b.code === 'cost_quote_unavailable')) {
+      titles.push(S.lang === 'he'
+        ? 'הצעת המחיר אינה מאומתת. היתרה המוצגת אינה אישור לבנייה; יש להשלים תמחור ספק או להסיר דרישה באישורכם.'
+        : 'The provider quote is unverified. Displayed credits do not authorize a build; configure pricing or approve a scope change.');
+    }
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
       ...(Array.isArray(p.unavailable_requirements) && p.unavailable_requirements.length ? [
         h('h4', {}, t('quoteMissingTitle')),
