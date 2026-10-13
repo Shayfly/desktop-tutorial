@@ -111,7 +111,9 @@ def ensure_images():
     for b in ('bash', 'sleep', 'cat', 'date', 'env', 'true', str(oom_binary)):
         p = shutil.which(b)
         if p:
-            shutil.copy(os.path.realpath(p), rootfs / 'bin' / b)
+            # b may be an absolute path for the compiled OOM helper.
+            # Joining an absolute path discards rootfs; always use its basename.
+            shutil.copy(os.path.realpath(p), rootfs / 'bin' / Path(b).name)
             for line in sh('ldd', p).stdout.splitlines():
                 for tok in line.split():
                     if tok.startswith('/') and os.path.exists(tok):
