@@ -82,6 +82,12 @@ class V7ReadinessTests(unittest.TestCase):
         self.assertIn("strip.hidden = !S.projectId;", js)
         self.assertIn(".projectReadiness.blocked", css)
 
+    def test_missing_quote_is_explained_without_bypassing_admission(self):
+        js = (ASSETS / "app.js").read_text(encoding="utf-8")
+        self.assertIn("p.blockers.some(b => b.code === 'cost_quote_unknown' || b.code === 'cost_quote_unavailable')", js)
+        self.assertIn("היתרה המוצגת אינה אישור לבנייה", js)
+        self.assertIn("disabled: !p.can_build", js)
+
     def test_blocked_plan_is_not_presented_as_buildable(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("blockedByBuildGate ? t('readinessBlocked')", js)
