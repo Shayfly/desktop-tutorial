@@ -77,9 +77,9 @@ const T = {
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
     emailUnverified:'האימייל עדיין לא אומת.',
-    err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+    err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'לא ניתן לאשר את הפעולה במסגרת התקציב או המסלול הנוכחי. בדקו את תוכנית הבנייה.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
-    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
+    err503:'השירות הנדרש אינו זמין כרגע. נסו שוב או בדקו את מוכנות הפרויקט.', err422:'הבקשה לא עברה אימות. בדקו את הדרישות ונסו שוב.', unknownBuildError:'לא ניתן להשלים את הבנייה. פרטי התקלה נשמרו לאבחון מאובטח.', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
     dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
     shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
@@ -183,9 +183,9 @@ const T = {
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
     emailUnverified:'Your email is not verified yet.',
-    err401:'Your session expired. Sign in again.', err402:'Not enough credits or not allowed on your plan: ',
+    err401:'Your session expired. Sign in again.', err402:'The current budget or plan does not authorize this action. Review the build plan.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
-    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
+    err503:'The required service is not available right now. Retry or check project readiness.', err422:'The request could not be validated. Review the requirements and retry.', unknownBuildError:'The build could not finish. Technical details were retained for restricted diagnostics.', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
     dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
     shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
@@ -279,8 +279,9 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   return data;
 }
 function explain(err) {
-  if (!(err instanceof ApiError)) return String(err && err.message || err);
-  const msg = err.message || '';
+  // Customer UI must not echo raw provider exceptions, secrets, or internal paths.
+  // The server retains detailed evidence behind authenticated operator controls.
+  if (!(err instanceof ApiError)) return t('err5xx');
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
     ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
@@ -288,14 +289,13 @@ function explain(err) {
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
-    case 402: return t('err402') + msg;
+    case 402: return t('err402');
     case 403: return t('err403');
     case 404: return t('err404');
-    case 409: return (err.detail && err.detail.message) || t('err409');
-    case 422: return (err.detail && err.detail.message) || msg;
-    case 503: return (err.detail && err.detail.error === 'conversation_not_ready') ? t('convNotReady')
-      : (err.detail && err.detail.message) || (t('err503') + msg);
-    default: return err.status >= 500 ? t('err5xx') : msg;
+    case 409: return t('err409');
+    case 422: return t('err422');
+    case 503: return (err.detail && err.detail.error === 'conversation_not_ready') ? t('convNotReady') : t('err503');
+    default: return err.status >= 500 ? t('err5xx') : t('err422');
   }
 }
 const pid = () => encodeURIComponent(S.projectId);
@@ -971,14 +971,9 @@ function renderSharing(p) {
   box.replaceChildren(...kids);
 }
 function friendlyError(b) {
-  const known = (t('errCodes') || {})[b.error_code];
-  if (b.error_code === 'provider_quota_exhausted') {
-    // Show the named route only when the server reported a quota response.
-    // This is NOT a provider billing balance; it can also be a rate/usage quota.
-    const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
-    return known + (match && match[1] ? ' — ' + match[1] : '');
-  }
-  return known || b.error_message || b.error_code || '';
+  // Backend provider/model names and raw exception strings are founder-only.
+  const code = b && typeof b.error_code === 'string' ? b.error_code : '';
+  return (t('errCodes') || {})[code] || t('unknownBuildError');
 }
 
 /* ---------- versions ---------- */
