@@ -98,7 +98,7 @@ def content_only_approved(prompt: str) -> bool:
     return all(t in block for t in _CONTENT_ONLY_PROMPT)
 
 
-def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
+def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = None) -> tuple[InfrastructureRequirement, ...]:
     """Infrastructure the product needs, in the canonical managed-profile order.
 
     Persistence and sessions are always needed (every contract has data and the
@@ -113,7 +113,7 @@ def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequ
         "database": True,
         # Directive 2026-10-09 §17 "no-login fidelity": sessions are not added
         # when the request (or the approved brief) says there is no sign-in.
-        "auth_session": not no_login_requested(prompt),
+        "auth_session": not (no_login_requested(prompt) if no_login is None else no_login),
         "object_storage": wants(_UPLOAD_TERMS) or "storage" in integration_keys,
         "scheduled_http": wants(_SCHEDULE_TERMS),
         "outbound": _requires_outbound_delivery(prompt) or bool({"email", "webhook"} & integration_keys),
@@ -175,17 +175,21 @@ class ProductArchitect:
         # brief text 148AI wrote; the full text still binds the spec and code.
         from .discovery import detection_text
         intent = detection_text(clean) or clean
-        decision = self.brain.decide(intent)
+        from .semantic_capabilities import read_approved
+        semantic_decisions = read_approved(clean)
+        decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
-        infrastructure = _infer_infrastructure(intent, self._infer_integrations(intent, capability_plan))
+        no_login_early = no_login_requested(clean)
+        infrastructure = _infer_infrastructure(
+            intent, self._infer_integrations(intent, capability_plan), no_login=no_login_early)
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
-        no_login_early = no_login_requested(clean)
         content_only = no_login_early and content_only_approved(clean)
-        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db, content_only=content_only)
+        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db,
+                                      content_only=content_only, no_login=no_login_early)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -295,7 +299,8 @@ class ProductArchitect:
         )
 
     @staticmethod
-    def _floor_spec(prompt: str, decision, *, self_contained: bool = False, content_only: bool = False) -> ProductSpec:
+    def _floor_spec(prompt: str, decision, *, self_contained: bool = False,
+                    content_only: bool = False, no_login: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
         if content_only:
             return ProductArchitect._content_only_spec(prompt, title)
@@ -310,6 +315,10 @@ class ProductArchitect:
             Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
             Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
         ]
+        if no_login:
+            # An approved no-sign-in landing page must not acquire visitor auth
+            # or multi-role requirements from the platform's default template.
+            requirements = [r for r in requirements if r.id not in ('platform-auth', 'platform-rbac')]
         existing = {r.id for r in requirements}
         for module in decision.plan.modules:
             rid = "module-" + re.sub(r"[^a-z0-9]+", "-", module.lower()).strip("-")
