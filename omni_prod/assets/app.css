@@ -241,6 +241,18 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .workspace.sb-collapsed #sbOpen{display:inline-block}
 .ctxTabs{display:flex;gap:.3rem;padding:.45rem .9rem;overflow-x:auto;border-block-end:1px solid var(--rule);background:var(--surface)}
 .ctxTabs:empty{display:none}
+.projectReadiness{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  background:var(--sunk);padding:.35rem .85rem;border-block-end:1px solid var(--rule);font-size:.84rem;min-height:44px}
+.projectReadiness.blocked{border-inline-start:4px solid var(--bad)}
+.projectReadiness.ready{border-inline-start:4px solid var(--ok)}
+.projectReadiness.running{border-inline-start:4px solid var(--signal)}
+.projectReadiness .readinessLabel{flex:1;overflow-wrap:anywhere;font-weight:650}
+.projectReadiness button{background:transparent;color:var(--signal);border:1px solid var(--rule);
+  padding:.3rem .6rem;min-height:38px;font-size:.84rem;white-space:nowrap}
+@media (max-width:420px){
+  .projectReadiness{padding:.3rem .55rem;gap:.25rem}
+  .projectReadiness button{white-space:normal;max-width:34%}
+}
 .ctxTabs button{background:transparent;color:var(--slate);border:1px solid var(--rule);border-radius:999px;padding:.2rem .7rem;font-size:.85rem;font-weight:600;white-space:nowrap}
 .ctxTabs button[aria-selected="true"]{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
 .ctx{display:none;max-height:min(42vh,30rem);overflow:auto;padding:.75rem .9rem;border-block-end:1px solid var(--rule);background:var(--paper)}
