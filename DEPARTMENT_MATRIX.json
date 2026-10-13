@@ -19,9 +19,8 @@
    },
    "support_agents": {},
    "skills": {
-    "IMPLEMENTED": 8,
+    "IMPLEMENTED": 9,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 1,
     "UNIT_TESTED": 2
    },
    "missing_roles": [],
@@ -314,7 +313,7 @@
    "readiness": "PARTIAL",
    "responsibilities": "unit, integration, E2E, browser, regression",
    "core_agents": {
-    "qa_agent": "REAL_SERVER_VERIFIED",
+    "qa_agent": "IMPLEMENTED",
     "behavioral_acceptance_agent": "IMPLEMENTED",
     "browser_rehearsal_agent": "REAL_SERVER_VERIFIED",
     "code_review_agent": "REAL_SERVER_VERIFIED"
@@ -329,8 +328,8 @@
    "skills": {
     "IMPLEMENTED": 7,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 16,
-    "UNIT_TESTED": 6
+    "REAL_SERVER_VERIFIED": 15,
+    "UNIT_TESTED": 7
    },
    "missing_roles": [],
    "missing_adapters": [
