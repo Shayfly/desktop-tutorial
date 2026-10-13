@@ -45,7 +45,7 @@ class V7ReadinessTests(unittest.TestCase):
         p = self.preview(unknown)
         self.assertFalse(p["can_build"])
         self.assertEqual(p["execution_readiness"], "BLOCKED_PROVIDER_OR_QUOTE")
-        self.assertIn("integration.maps", [g["key"] for g in p["quote_gaps"]])
+        self.assertIn("integration.maps", [g["key"] for g in p["unavailable_requirements"]])
         self.assertNotIn("estimated_cost_usd", p)
         self.assertNotIn("maximum_authorized_cost_usd", p)
 
