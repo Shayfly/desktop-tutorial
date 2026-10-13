@@ -34,13 +34,15 @@ class Executor(Protocol):
 class AutonomousProductEngine:
     def __init__(self, *, architect, generator, repairer, executor: Executor,
                  max_repair_rounds: int = 3):
-        if max_repair_rounds < 0:
-            raise ValueError('max_repair_rounds cannot be negative')
+        if isinstance(max_repair_rounds, bool) or not isinstance(max_repair_rounds, int) or max_repair_rounds < 0:
+            raise ValueError('max_repair_rounds must be a non-negative integer')
         self.architect = architect
         self.generator = generator
         self.repairer = repairer
         self.executor = executor
-        self.max_repair_rounds = max_repair_rounds
+        # J3/T05: initial build + at most three repair candidates, each verified.
+        # Clamp even stale environment overrides; never spend on a fourth repair.
+        self.max_repair_rounds = min(max_repair_rounds, 3)
 
     @staticmethod
     def _summary(repo: dict[str, str], failures=()) -> dict:
