@@ -16,7 +16,7 @@ class FakeResponse:
     def __init__(self,payload): self.payload=payload
     def __enter__(self): return self
     def __exit__(self,*a): pass
-    def read(self): return json.dumps(self.payload).encode()
+    def read(self, size=-1): return json.dumps(self.payload).encode()[:size] if size >= 0 else json.dumps(self.payload).encode()
 
 class NativeSourceTests(unittest.TestCase):
     def test_android_source_contains_gradle_manifest_and_kotlin(self):

@@ -11,7 +11,7 @@ const T = {
     how1:'כותבים מה האפליקציה צריכה לעשות ולמי.', how2:'מקבלים תוכנית ועלות מקסימלית, ומאשרים.',
     how3:'צופים בבנייה, בודקים בתצוגה מקדימה, משנים ומורידים את הקוד.',
     scope:'כרגע: אפליקציות ווב ו-SaaS. מובייל, משחקים ומדיה עוד לא זמינים.',
-    signinTitle:'כניסה לחשבון', email:'אימייל', password:'סיסמה', passwordHint:'לפחות 10 תווים.',
+    signinTitle:'כניסה לחשבון', email:'אימייל', password:'סיסמה', passwordHint:'לפחות 10 תווים.', showPassword:'הצגת סיסמה', hidePassword:'הסתרת סיסמה',
     login:'כניסה', register:'יצירת חשבון חינם',
     firstProject:'הפרויקט הראשון שלכם', projectName:'שם הפרויקט', createProject:'יצירת פרויקט',
     request:'מה תרצו לבנות?', build:'המשך', planHint:'שום בנייה ושום חיוב לא מתחילים לפני שתאשרו סיכום ועלות.',
@@ -23,7 +23,7 @@ const T = {
     decided:'מה כבר החלטנו', change:'שינוי', save:'שמירה', cancel:'ביטול', needAnswer:q => `צריך תשובה ל: ${q}`,
     discDone:'האפיון הושלם. זה הסיכום — בדקו אותו לפני אישור.', showSummary:'הצגת הסיכום והעלות',
     src_message:'מהבקשה שלכם', src_answer:'התשובה שלכם', src_delegated:'נבחר עבורכם', src_default:'ברירת מחדל',
-    sumGoal:'המטרה', sumIncluded:'כלול', sumExcluded:'לא כלול בשלב זה', sumAssumptions:'החלטות שבחרנו עבורכם (אפשר לשנות)',
+    sumGoal:'המטרה', sumIncluded:'כלול', sumExcluded:'לא כלול בשלב זה', semanticTitle:'כך פירשנו את הבקשה', semanticIncluded:'נדרש במוצר', semanticExcluded:'לא התבקש', semanticUncertain:'צריך הבהרה', sumAssumptions:'החלטות שבחרנו עבורכם (אפשר לשנות)',
     updateRequest:'עדכן את הבקשה', approveBuild:'אשר והתחל בנייה', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
     progress:'התקדמות הבנייה', modifyTitle:'מה תרצו לשנות?', modifySend:'שליחת שינוי', versions:'גרסאות',
@@ -77,9 +77,9 @@ const T = {
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
     emailUnverified:'האימייל עדיין לא אומת.',
-    err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+    err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'לא ניתן לאשר את הפעולה במסגרת התקציב או המסלול הנוכחי. בדקו את תוכנית הבנייה.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
-    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
+    err503:'השירות הנדרש אינו זמין כרגע. נסו שוב או בדקו את מוכנות הפרויקט.', err422:'הבקשה לא עברה אימות. בדקו את הדרישות ונסו שוב.', unknownBuildError:'לא ניתן להשלים את הבנייה. פרטי התקלה נשמרו לאבחון מאובטח.', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
     dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
     shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
@@ -93,7 +93,11 @@ const T = {
     b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
     qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
-    b_cost_quote_unknown:'חלק מהעלויות של הבנייה לא ידועות, ולכן אי אפשר לאשר אותה.',
+    b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
+    b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
+    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים', 
+    readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
+    quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
     newChat:'שיחה חדשה · פרויקט חדש', searchProjects:'חיפוש פרויקטים', canBuildTitle:'מה אפשר לבנות היום', noMatches:'לא נמצאו פרויקטים',
     hideSidebar:'הסתרת הסרגל', showSidebar:'הצגת הסרגל', previewToggle:'תצוגה', expandPreview:'הגדלת התצוגה', shrinkPreview:'הקטנת התצוגה',
@@ -103,7 +107,7 @@ const T = {
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
-    f_FEASIBLE:'אפשר לבנות', f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
+    f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
     ts_SUCCEEDED:'הושלם', ts_RUNNING:'רץ', ts_PENDING:'ממתין', ts_READY:'מוכן', ts_FAILED:'נכשל', ts_BLOCKED:'חסום', ts_CANCELLED:'לא בוצע', ts_REPAIRING:'בתיקון', ts_NOT_RECORDED:'לא נרשם',
   },
@@ -113,7 +117,7 @@ const T = {
     how1:'Write what the app should do and for whom.', how2:'Get a plan and a maximum cost, then approve it.',
     how3:'Watch the build, try it in a preview, ask for changes and download the code.',
     scope:'Today: web apps and SaaS. Mobile, games and media are not available yet.',
-    signinTitle:'Sign in', email:'Email', password:'Password', passwordHint:'At least 10 characters.',
+    signinTitle:'Sign in', email:'Email', password:'Password', passwordHint:'At least 10 characters.', showPassword:'Show password', hidePassword:'Hide password',
     login:'Sign in', register:'Create free account',
     firstProject:'Your first project', projectName:'Project name', createProject:'Create project',
     request:'What do you want to build?', build:'Continue', planHint:'Nothing is built or charged before you approve a summary and a cost.',
@@ -125,7 +129,7 @@ const T = {
     decided:'Decided so far', change:'Change', save:'Save', cancel:'Cancel', needAnswer:q => `Please answer: ${q}`,
     discDone:'Discovery is complete. Here is the summary — check it before approving.', showSummary:'Show summary and cost',
     src_message:'from your request', src_answer:'your answer', src_delegated:'chosen for you', src_default:'default',
-    sumGoal:'Goal', sumIncluded:'Included', sumExcluded:'Not included for now', sumAssumptions:'Chosen for you (you can change these)',
+    sumGoal:'Goal', sumIncluded:'Included', sumExcluded:'Not included for now', semanticTitle:'How we understood your request', semanticIncluded:'Required in the product', semanticExcluded:'Not requested', semanticUncertain:'Needs clarification', sumAssumptions:'Chosen for you (you can change these)',
     updateRequest:'Update the request', approveBuild:'Approve and start building', approvalExpired:'The approval expired. Review the summary and approve again.',
     builtTitle:'What has been built', newBuild:'New product in a new project', newProjectPlus:'+ New project', newProjectHint:'Each product gets its own project. Name it, then describe what to build.', nameRequired:'Give the project a name.', builtVersion:'Current version', files:'files',
     progress:'Build progress', modifyTitle:'What would you like to change?', modifySend:'Send change', versions:'Versions',
@@ -179,9 +183,9 @@ const T = {
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
     emailUnverified:'Your email is not verified yet.',
-    err401:'Your session expired. Sign in again.', err402:'Not enough credits or not allowed on your plan: ',
+    err401:'Your session expired. Sign in again.', err402:'The current budget or plan does not authorize this action. Review the build plan.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
-    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
+    err503:'The required service is not available right now. Retry or check project readiness.', err422:'The request could not be validated. Review the requirements and retry.', unknownBuildError:'The build could not finish. Technical details were retained for restricted diagnostics.', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
     dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
     shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
@@ -195,7 +199,11 @@ const T = {
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
-    b_cost_quote_unknown:'Some build costs are unknown, so the build cannot be authorized.',
+    b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
+    b_cost_quote_unavailable:'No verified build quote was returned.',
+    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details', 
+    readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
+    quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
     newChat:'New chat · new project', searchProjects:'Search projects', canBuildTitle:'What can be built today', noMatches:'No projects found',
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
@@ -205,7 +213,7 @@ const T = {
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
-    f_FEASIBLE:'Buildable', f_FEASIBLE_WITH_CONSTRAINTS:'Buildable with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
+    f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
     ts_SUCCEEDED:'done', ts_RUNNING:'running', ts_PENDING:'waiting', ts_READY:'ready', ts_FAILED:'failed', ts_BLOCKED:'blocked', ts_CANCELLED:'not run', ts_REPAIRING:'repairing', ts_NOT_RECORDED:'not recorded',
   },
@@ -271,8 +279,9 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   return data;
 }
 function explain(err) {
-  if (!(err instanceof ApiError)) return String(err && err.message || err);
-  const msg = err.message || '';
+  // Customer UI must not echo raw provider exceptions, secrets, or internal paths.
+  // The server retains detailed evidence behind authenticated operator controls.
+  if (!(err instanceof ApiError)) return t('err5xx');
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
     ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
@@ -280,14 +289,13 @@ function explain(err) {
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
-    case 402: return t('err402') + msg;
+    case 402: return t('err402');
     case 403: return t('err403');
     case 404: return t('err404');
-    case 409: return (err.detail && err.detail.message) || t('err409');
-    case 422: return (err.detail && err.detail.message) || msg;
-    case 503: return (err.detail && err.detail.error === 'conversation_not_ready') ? t('convNotReady')
-      : (err.detail && err.detail.message) || (t('err503') + msg);
-    default: return err.status >= 500 ? t('err5xx') : msg;
+    case 409: return t('err409');
+    case 422: return t('err422');
+    case 503: return (err.detail && err.detail.error === 'conversation_not_ready') ? t('convNotReady') : t('err503');
+    default: return err.status >= 500 ? t('err5xx') : t('err422');
   }
 }
 const pid = () => encodeURIComponent(S.projectId);
@@ -298,6 +306,7 @@ function applyLang() {
   document.documentElement.dir = S.lang === 'he' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-label]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nLabel)); el.title = t(el.dataset.i18nLabel); });
+  if ($('passwordToggle')) { const label = t($('password').type === 'password' ? 'showPassword' : 'hidePassword'); $('passwordToggle').setAttribute('aria-label', label); $('passwordToggle').title = label; }
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   for (const b of [$('langBtn'), $('langBtn2')]) { b.textContent = S.lang === 'he' ? 'English' : 'עברית'; b.lang = S.lang === 'he' ? 'en' : 'he'; }
   $('chatInput').placeholder = t('chatPlaceholder');
@@ -322,6 +331,9 @@ async function authSubmit(kind) {
     const path = kind === 'register' ? '/api/v28/auth/register' : '/api/v28/auth/login';
     await api(path, { method: 'POST', body: { email, password } });
     $('password').value = '';
+    $('password').type = 'password';
+    $('passwordToggle').setAttribute('aria-pressed', 'false');
+    $('passwordToggle').setAttribute('aria-label', t('showPassword'));
     await enterWorkspace();
   } catch (e) { msg.textContent = explain(e); }
 }
@@ -594,8 +606,23 @@ function pill(status) {
   return h('span', { class: `pill ${cls}` }, t(`st_${status}`) || status || '—');
 }
 const money = v => (v === null || v === undefined) ? t('costUnknown') : `$${Number(v).toFixed(2)}`;
+function renderProjectReadiness() {
+  const strip = $('projectReadiness');
+  if (!strip) return;
+  strip.hidden = !S.projectId;
+  if (!S.projectId) return;
+  const p = S.plan;
+  const busy = S.build && !isTerminal(S.build.status);
+  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
+    p.can_build ? t('readinessReady') : t('readinessBlocked');
+  strip.className = 'projectReadiness ' + mode;
+  strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
+    h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
+}
 function renderPlan() {
   const panel = $('planPanel'); const p = S.plan;
+  renderProjectReadiness();
   if (!p) { panel.hidden = true; return; }
   panel.hidden = false;
   const facts = (label, items) => items && items.length ? [h('h3', {}, label), h('ul', { class: 'facts' }, items.map(x => h('li', {}, x)))] : [];
@@ -616,9 +643,17 @@ function renderPlan() {
       h('ul', { class: 'answers' }, items.map(x => h('li', {}, h('span', { class: 'q' }, x.question), h('b', {}, x.value),
         h('span', { class: `pill ${x.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${x.source}`)))))]),
     ...facts(t('sumIncluded'), sum.included), ...facts(t('sumExcluded'), sum.excluded),
+    ...(sum.semantic_review?.length ? [h('h3', {}, t('semanticTitle')),
+      h('ul', { class: 'answers' }, sum.semantic_review.map(x => h('li', {},
+        h('b', {}, x.label), h('span', { class: 'pill' },
+        x.uncertain ? t('semanticUncertain') : x.included ? t('semanticIncluded') : t('semanticExcluded')),
+        h('span', { class: 'meta' }, x.evidence))))] : []),
   ].flat() : [];
   const kids = [
     h('h2', {}, t('planTitle')),
+    h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
+      h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
+      !p.can_build ? h('p', {}, t('readinessBlockedHelp')) : null),
     ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
@@ -646,6 +681,17 @@ function renderPlan() {
     kids.push(h('h3', {}, t('questions')), h('ul', { class: 'checklist' }, p.clarification_questions.map(q => h('li', {}, q.question))));
   }
   if (p.blockers.length) {
+    const missingCapabilityNames = {
+      'ai.agent.tools': ['סוכן AI המבצע פעולות', 'Agent tool execution'],
+      'integration.maps': ['מפות אינטראקטיביות', 'Interactive maps'],
+      'media.audio.tts': ['יצירת קול וקריינות', 'Text-to-speech'],
+      'outbound': ['שליחת מיילים או התראות', 'Outgoing emails or notifications'],
+      'target.agent': ['מוצר מסוג סוכן AI', 'AI agent product'],
+    };
+    const nameForMissing = g => {
+      const names = missingCapabilityNames[g.key];
+      return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
+    };
     const title = b => {
       if(b.code==='capability_not_feasible')return S.lang==='he'?'אחת הדרישות עדיין אינה נתמכת. יש לערוך אותה או להמתין להשלמת היכולת.':'A requirement is not supported yet. Edit it or wait for support.';
       if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
@@ -654,13 +700,15 @@ function renderPlan() {
         return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
       }
       if (b.code.startsWith('image_provider_')) return t('b_image_provider');
-      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || b.message;
+      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
     };
     const titles = [...new Set(p.blockers.map(title))];
     kids.push(h('h3', {}, t('blockersTitle')), h('ul', { class: 'blockers' }, titles.map(x => h('li', {}, x))),
-      ...p.blockers.flatMap(b=>(b.findings||[]).filter(f=>f&&typeof f.item==='string').map(f=>h('p',{},findingLabel(f)))),
-      h('details', { class: 'tech' }, h('summary', {}, t('operatorDetails')),
-        h('ul', { dir: 'ltr' }, p.blockers.map(b => h('li', {}, h('code', {}, b.code), ': ', b.message)))));
+      ...(Array.isArray(p.unavailable_requirements) && p.unavailable_requirements.length ? [
+        h('h4', {}, t('quoteMissingTitle')),
+        h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, nameForMissing(g)))),
+        h('p', { class: 'hint' }, t('quoteMissingHelp'))
+      ] : []));
   }
   kids.push(h('div', { class: 'row' },
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
@@ -771,6 +819,7 @@ async function cancelBuild() {
 }
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
+  renderProjectReadiness();
   const panel = $('progressPanel');
   if (!S.build) { panel.hidden = true; return; }
   panel.hidden = false;
@@ -922,14 +971,9 @@ function renderSharing(p) {
   box.replaceChildren(...kids);
 }
 function friendlyError(b) {
-  const known = (t('errCodes') || {})[b.error_code];
-  if (b.error_code === 'provider_quota_exhausted') {
-    // Show the named route only when the server reported a quota response.
-    // This is NOT a provider billing balance; it can also be a rate/usage quota.
-    const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
-    return known + (match && match[1] ? ' — ' + match[1] : '');
-  }
-  return known || b.error_message || b.error_code || '';
+  // Backend provider/model names and raw exception strings are founder-only.
+  const code = b && typeof b.error_code === 'string' ? b.error_code : '';
+  return (t('errCodes') || {})[code] || t('unknownBuildError');
 }
 
 /* ---------- versions ---------- */
@@ -1270,8 +1314,9 @@ function renderArch() {
     ids.map(id => { const x = byId[id] || {}; return h('span', { class: `tk ${x.executable === false ? 'gap' : ''}`, title: `${x.department} · ${x.agent}` },
       `${x.department} · ${ttLabel(x.task_type || id)}${x.conditional ? ` (${t('ifNeeded')})` : ''}`); })));
   const limits = (f.findings || []).filter(x => x.outcome !== 'FEASIBLE');
+  const blockedByBuildGate = Boolean(S.plan && !S.plan.can_build);
   panel.replaceChildren(h('h2', {}, t('archTitle')),
-    h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, t(`f_${f.outcome}`) || f.outcome)),
+    h('p', {}, h('b', {}, `${t('feasibility')}: `), h('span', { class: `feas ${blockedByBuildGate ? 'bad' : f.outcome === 'FEASIBLE' ? 'ok' : f.outcome === 'FEASIBLE_WITH_CONSTRAINTS' ? 'warn' : 'bad'}` }, blockedByBuildGate ? t('readinessBlocked') : (t(`f_${f.outcome}`) || f.outcome))),
     limits.length ? h('details', {}, h('summary', {}, `${t('constraints')} (${limits.length})`),
       h('ul', {}, limits.map(x => h('li', {}, findingLabel(x),
         h('details', {}, h('summary', {}, S.lang==='he'?'פרטים טכניים':'Technical details'),
@@ -1432,6 +1477,15 @@ function wireWorkspace() {
 function wire() {
   $('ctxMinimize').addEventListener('click',()=>openTab(null));
   $('authForm').addEventListener('submit', e => { e.preventDefault(); authSubmit('login'); });
+  $('passwordToggle').addEventListener('click', () => {
+    const input = $('password'), toggle = $('passwordToggle');
+    const showing = input.type === 'password';
+    input.type = showing ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(showing));
+    const label = t(showing ? 'hidePassword' : 'showPassword');
+    toggle.setAttribute('aria-label', label); toggle.title = label;
+    input.focus({ preventScroll: true });
+  });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
   $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });

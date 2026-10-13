@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 
 from .project_manifest import MANIFEST_SHAPE
 from .model_gateway import OpenAICompatibleGateway
@@ -133,6 +134,10 @@ def _filter_repo_summary(repo_summary: dict) -> dict:
         'files': kept,
         'files_omitted_from_prompt': max(0, len(files) - len(kept)),
         **({'content_note': repo_summary['content_note']} if 'content_note' in repo_summary else {}),
+        **({'base_repository_fingerprint': repo_summary['base_repository_fingerprint']}
+           if 'base_repository_fingerprint' in repo_summary else {}),
+        **({'candidate_files': repo_summary['candidate_files']}
+           if 'candidate_files' in repo_summary else {}),
     }
 _CHANGE_SYSTEM = (
     "Classify a user's follow-up against the approved spec. Return only JSON "
@@ -187,17 +192,53 @@ class GeneratorAgent:
         )
         return parse_patch(data)
 
+# Strict structured output is opt-in; legacy repair remains the default.
+# Both routes reuse the existing TaskTaggedGateway and FinOps reservation.
+_REPAIR_SYSTEM_V1 = (
+    'Reply with a single JSON object: '
+    '{"schema_version":1,"reason_code":"FIX_COMPILE_ERROR",'
+    '"base_repository_fingerprint":"sha256:<64 lowercase hex>",'
+    '"changes":[{"path":"src/app.py","operation":"UPSERT","content":"whole corrected file"}],'
+    '"repaired_acceptance_ids":["A1"],"summary":"minimal repair",'
+    '"requires_dependency_change":false}. '
+    'Copy the current repository fingerprint exactly. '
+    'Only edit files explicitly named in the reported compiler or test evidence. '
+    'Never change tests, acceptance policy, secrets, manifests or lockfiles; '
+    'never delete files, execute shell or broaden approved scope.'
+)
+
+
 class RepairAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):
         self.gateway = gateway
     def repair(self, *, spec: ProductSpec, repo_summary: dict, failures: list[dict]) -> tuple:
+        structured = os.getenv('OMNI_REPAIR_STRUCTURED_V1') == '1'
         payload = {'spec': spec.to_dict(), 'repository': _filter_repo_summary(repo_summary), 'failures': failures}
+        if not structured:
+            data = self.gateway.complete_json(
+                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=20000)
+            return parse_patch(data)
+        from .repair_contracts import validated_file_patches, sanitized_tail
+        from .repository_patch import PatchValidationError
+        base_fp = repo_summary.get('base_repository_fingerprint')
+        if not isinstance(base_fp, str) or not base_fp.startswith('sha256:'):
+            raise PatchValidationError('repair requires the real repository fingerprint')
+        payload['failures'] = [
+            {'acceptance_id': str(f.get('acceptance_id', ''))[:100],
+             'message': sanitized_tail(str(f.get('message', '')), limit=600),
+             'evidence': sanitized_tail(str(f.get('evidence', '')), limit=1500)}
+            for f in failures[:12] if isinstance(f, dict)]
+        candidates = repo_summary.get('candidate_files') or []
+        if not candidates:
+            raise PatchValidationError('repair target UNKNOWN; more diagnosis required')
         data = self.gateway.complete_json(
-            system=_REPAIR_SYSTEM,
-            user=json.dumps(payload, ensure_ascii=False),
-            max_tokens=20000,
-        )
-        return parse_patch(data)
+            system=_REPAIR_SYSTEM_V1, user=json.dumps(payload, ensure_ascii=False), max_tokens=12000)
+        patches = validated_file_patches(
+            data, base_fingerprint=base_fp, approved_acceptance_ids={a.id for a in spec.acceptance})
+        allowed = {candidate['path'] for candidate in candidates}
+        if not {p.path for p in patches}.issubset(allowed):
+            raise PatchValidationError('repair changed a path without diagnostic evidence')
+        return patches
 
 class ChangeClassifierAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):

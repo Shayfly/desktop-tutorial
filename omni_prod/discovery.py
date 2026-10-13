@@ -218,6 +218,7 @@ class Brief:
     skipped: list[str] = field(default_factory=list)  # questions the user chose to skip (no preference recorded)
     hints: dict[str, str] = field(default_factory=dict)  # suggested answers read from the request (pre-selected, still asked)
     assets: dict[str, dict] = field(default_factory=dict)  # owner-checked attachment id + digest, never bytes/secrets
+    semantic_decisions: list[dict] = field(default_factory=list)  # validated model evidence, reviewed on brief approval
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
@@ -227,12 +228,15 @@ class Brief:
                'hints': dict(self.hints)}
         if self.assets:
             out['assets'] = self.assets
+        if self.semantic_decisions:
+            out['semantic_decisions'] = list(self.semantic_decisions)
         return out
 
     @classmethod
     def from_dict(cls, d: Mapping) -> 'Brief':
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
-                   dict(d.get('hints') or {}), dict(d.get('assets') or {}))
+                   dict(d.get('hints') or {}), dict(d.get('assets') or {}),
+                   list(d.get('semantic_decisions') or []))
 
     def fingerprint(self) -> str:
         return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -502,6 +506,9 @@ def requirements_text(brief: Brief) -> str:
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')
+    if brief.semantic_decisions:
+        from .semantic_capabilities import encode_approved
+        lines.append(encode_approved(brief.semantic_decisions))
     return '\n'.join(lines)
 
 
@@ -534,8 +541,36 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
     excluded += (['שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים'] if he
                  else ['Long-term data storage — preview data is temporary'])
     assumptions = [x for g in sections.values() for x in g if x['source'] in ('delegated', 'default')]
+    # Plain-language semantic review before approval. Do not expose internal
+    # capability keys, model diagnostics or provider pricing to the customer.
+    names = {
+        'target.agent': ('סוכן AI', 'AI agent'),
+        'ai.agent.tools': ('כלי פעולה של סוכן AI', 'AI agent tools'),
+        'ai.agent.memory': ('זיכרון סוכן AI', 'AI agent memory'),
+        'ai.agent.eval': ('בדיקות סוכן AI', 'AI agent evaluation'),
+        'integration.maps': ('מפות אינטראקטיביות', 'Interactive maps'),
+        'integration.email': ('שליחת דואר אלקטרוני', 'Email sending'),
+        'integration.webhook': ('התממשקות Webhook', 'Webhook integration'),
+        'integration.messaging': ('מערכת הודעות', 'Messaging service'),
+        'media.audio.tts': ('יצירת קול וקריינות', 'Speech and narration'),
+        'media.audio.stt': ('תמלול דיבור', 'Speech recognition'),
+        'media.audio.realtime_voice': ('שיחה קולית בזמן אמת', 'Real-time voice'),
+        'media.image.generate': ('יצירת תמונות', 'Image generation'),
+        'media.video.generate': ('יצירת וידאו', 'Video generation'),
+        'target.automation': ('אוטומציה', 'Automation'),
+    }
+    semantic_review = [
+        {'label': names[d['key']][0 if he else 1],
+         'included': d['decision'] == 'required',
+         'uncertain': d['decision'] == 'uncertain',
+         'evidence': str(d['evidence'])[:160],
+         'reason': str(d['reason'])[:180]}
+        for d in brief.semantic_decisions if isinstance(d, dict) and d.get('key') in names
+        and d.get('decision') in ('required','not_required','uncertain')
+    ]
     return {'goal': v.get('goal') or brief.prompt[:200], 'sections': sections,
             'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
+            'semantic_review': semantic_review,
             'contradictions': contradictions(brief), 'complete': complete(brief)}
 

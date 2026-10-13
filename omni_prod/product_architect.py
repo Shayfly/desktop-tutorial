@@ -45,6 +45,30 @@ _SCHEDULE_TERMS = ("schedule", "reminder", "cron", "recurring", "every day", "ev
 _OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push notification",
                    "מייל", "אימייל", 'דוא"ל', "דואל")
 
+# Contact details such as "email: contact@example.org" are not an outbound
+# sending service. Preserve explicitly requested email notifications, marketing,
+# SMS or webhook delivery; never silently remove a capability the planner has
+# already marked required.
+_OUTBOUND_ACTION_TERMS = ("send", "sending", "notify", "notification", "mailing",
+                          "automated email", "outbound", "dispatch", "deliver",
+                          "שלח", "לשלוח", "שולח", "שליחה", "שליחת", "התראה",
+                          "התראות", "דיוור", "משלוח", "נשלח", "יישלח")
+
+
+def _requires_outbound_delivery(prompt: str) -> bool:
+    low = (prompt or "").casefold()
+    if any(term in low for term in ("webhook", "newsletter", "push notification",
+                                    "sms", "וובהוק", "ניוזלטר")):
+        return True
+    # Hebrew newsletter intake: "רוצה לקבל טיפים שבועיים ישירות למייל"
+    # is a delivery requirement even though it does not contain "שלח".
+    # A static contact address alone must not trigger outbound provisioning.
+    if re.search(r"(?:לקבל|קבלת|יישלח|נשלח|subscribe|receive|weekly|שבועי)"
+                 r"[^.!?\n]{0,140}(?:למייל|באימייל|אימייל|מייל|email|e-mail)", low):
+        return True
+    return (any(term in low for term in _OUTBOUND_TERMS)
+            and any(action in low for action in _OUTBOUND_ACTION_TERMS))
+
 
 _NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|משתמשים)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
                        r"sign-in:\s*none", re.I)
@@ -52,6 +76,21 @@ _NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|�
 
 def no_login_requested(prompt: str) -> bool:
     return bool(_NO_LOGIN.search(prompt or ''))
+
+
+def _collects_visitor_contact_data(prompt: str) -> bool:
+    """No visitor sign-in is not permission to expose a collected-leads admin.
+
+    A static contact address is not lead collection. Requiring an authenticated
+    operator to view submitted newsletter/contact leads does not add sign-in for
+    ordinary visitors.
+    """
+    low = (prompt or "").casefold()
+    capture = ("טופס הרשמה", "טופס יצירת קשר", "טופס לידים",
+               "newsletter signup", "newsletter form", "signup form",
+               "lead capture", "lead form", "contact form",
+               "collect email", "collect phone", "collect leads")
+    return any(term in low for term in capture)
 
 
 # A WhatsApp *link* (wa.me / "קישור לוואטסאפ" / "whatsapp button") is a plain hyperlink, not a messaging
@@ -73,14 +112,21 @@ def content_only_approved(prompt: str) -> bool:
     """True only when the *approved brief block* (not the free text) records a content-only website with no
     sign-in and no personal data. Free-text keywords never qualify."""
     flat = " ".join((prompt or "").split())
-    marker = "--- Approved project brief"
-    if marker not in flat:
+    # Only the last canonical block appended by discovery.requirements_text()
+    # can mark a generated site as content-only. A customer's raw request
+    # may contain text impersonating an approved brief; the earlier occurrence
+    # must not disable private lead protection.
+    generated_markers = list(re.finditer(
+        r"--- Approved project brief \(binding; fingerprint [a-f0-9]{16}\) ---",
+        flat,
+    ))
+    if not generated_markers:
         return False
-    block = flat.split(marker, 1)[1]
+    block = flat[generated_markers[-1].end():]
     return all(t in block for t in _CONTENT_ONLY_PROMPT)
 
 
-def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequirement, ...]:
+def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = None) -> tuple[InfrastructureRequirement, ...]:
     """Infrastructure the product needs, in the canonical managed-profile order.
 
     Persistence and sessions are always needed (every contract has data and the
@@ -95,10 +141,10 @@ def _infer_infrastructure(prompt: str, integrations) -> tuple[InfrastructureRequ
         "database": True,
         # Directive 2026-10-09 §17 "no-login fidelity": sessions are not added
         # when the request (or the approved brief) says there is no sign-in.
-        "auth_session": not no_login_requested(prompt),
+        "auth_session": not (no_login_requested(prompt) if no_login is None else no_login),
         "object_storage": wants(_UPLOAD_TERMS) or "storage" in integration_keys,
         "scheduled_http": wants(_SCHEDULE_TERMS),
-        "outbound": wants(_OUTBOUND_TERMS) or bool({"email", "webhook"} & integration_keys),
+        "outbound": _requires_outbound_delivery(prompt) or bool({"email", "webhook"} & integration_keys),
     }
     embedded = {r.kind: r for r in SELF_CONTAINED_WEB_V1.requirements}
     out = []
@@ -157,17 +203,27 @@ class ProductArchitect:
         # brief text 148AI wrote; the full text still binds the spec and code.
         from .discovery import detection_text
         intent = detection_text(clean) or clean
-        decision = self.brain.decide(intent)
+        from .semantic_capabilities import read_approved
+        semantic_decisions = read_approved(clean)
+        decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
-        infrastructure = _infer_infrastructure(intent, self._infer_integrations(intent, capability_plan))
+        no_login_early = no_login_requested(clean)
+        content_only = no_login_early and content_only_approved(clean)
+        # "No visitor sign-in" does not remove the admin-only management
+        # security needed when contact/lead data is still being collected.
+        # Fully content-only sites need neither user nor admin sessions.
+        operator_login_required = no_login_early and _collects_visitor_contact_data(intent)
+        infrastructure = _infer_infrastructure(
+            intent, self._infer_integrations(intent, capability_plan),
+            no_login=(no_login_early and not operator_login_required))
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
                    else MANAGED_WEB_SAAS_V1)
-        no_login_early = no_login_requested(clean)
-        content_only = no_login_early and content_only_approved(clean)
-        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db, content_only=content_only)
+        floor_spec = self._floor_spec(clean, decision, self_contained=embedded_db,
+                                      content_only=content_only, no_login=no_login_early,
+                                      operator_login_required=operator_login_required)
 
         model_spec = None
         if self.architect_agent is not None:
@@ -211,7 +267,7 @@ class ProductArchitect:
             "input_validation",
             "audit_evidence",
             "no_cross_tenant_resource_access",
-        ) if not (no_login and s in ("least_privilege_rbac", "secure_session_lifecycle")))
+        ) if not (content_only and s in ("least_privilege_rbac", "secure_session_lifecycle")))
         cost = CostEnvelopeReference(pricing_catalog_version=pricing_catalog_version)
 
         required_skills = self._required_skills(capability_plan)
@@ -277,7 +333,9 @@ class ProductArchitect:
         )
 
     @staticmethod
-    def _floor_spec(prompt: str, decision, *, self_contained: bool = False, content_only: bool = False) -> ProductSpec:
+    def _floor_spec(prompt: str, decision, *, self_contained: bool = False,
+                    content_only: bool = False, no_login: bool = False,
+                    operator_login_required: bool = False) -> ProductSpec:
         title = decision.plan.title or prompt[:80]
         if content_only:
             return ProductArchitect._content_only_spec(prompt, title)
@@ -292,6 +350,29 @@ class ProductArchitect:
             Requirement("platform-deploy", "Verified immutable release can be deployed separately from preview", "deployment"),
             Requirement("platform-secrets", "Secrets are injected by reference and never embedded in generated source", "security"),
         ]
+        if no_login:
+            # Keep the existing platform security floor for non-content-only
+            # products, while honoring the absence of product visitor sign-in.
+            # A customer contact form requires protected product admin access;
+            # otherwise operator control may rely on 148AI platform identity
+            # without adding application visitor sessions.
+            auth_text = (
+                "Admin-only management authentication for saved customer data; no public visitor sign-in"
+                if operator_login_required else
+                "148AI platform-authenticated operator access; no generated-product visitor sign-in or sessions"
+            )
+            role_text = (
+                "Management roles are protected on the server; public visitors remain anonymous"
+                if operator_login_required else
+                "Operator privileges enforced by the 148AI platform; no generated-product visitor roles"
+            )
+            requirements = [
+                Requirement(r.id,
+                    auth_text if r.id == "platform-auth" else
+                    role_text if r.id == "platform-rbac" else r.text, r.kind)
+                if r.id in ("platform-auth", "platform-rbac") else r
+                for r in requirements
+            ]
         existing = {r.id for r in requirements}
         for module in decision.plan.modules:
             rid = "module-" + re.sub(r"[^a-z0-9]+", "-", module.lower()).strip("-")
@@ -433,7 +514,7 @@ class ProductArchitect:
             if mapped:
                 result.append(mapped)
         direct = (
-            ("email", ("email", "e-mail", "מייל", "דוא")),
+            ("email", ("email", "e-mail", "מייל", "דוא")) if _requires_outbound_delivery(prompt) else ("email", ()),
             ("webhook", ("webhook", "web hook")),
             ("payments", ("payment", "payments", "checkout", "תשלום")),
             ("maps", ("map", "maps", "gps", "מפה")),

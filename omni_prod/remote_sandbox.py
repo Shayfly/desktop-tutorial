@@ -6,6 +6,8 @@ import json
 from urllib import request, error
 from .autonomous_core import ExecutionReport, AcceptanceFailure
 from .product_spec import ProductSpec
+from .sandbox_request_policy import (validate_snapshot, validate_command, MAX_RESPONSE_BYTES, MAX_BODY_BYTES, SandboxRequestRejected)
+from .repair_contracts import sanitized_tail
 from .project_manifest import ProjectManifest, invalid_manifest_report, uncovered_acceptance_failures
 
 class RemoteSandboxError(RuntimeError): pass
@@ -35,14 +37,30 @@ class RemoteSandboxRepositoryExecutor:
     def __init__(self, config: RemoteSandboxConfig, *, urlopen=None):
         self.config=config; self._urlopen=urlopen or request.urlopen
     def _run(self, repository: dict[str,str], argv: tuple[str,...], build_id: str, profile: str='default') -> dict:
+        validate_snapshot(repository)
+        validate_command(argv, build_id=build_id, profile=profile, repository=repository)
         payload={'repository':repository,'argv':list(argv),'build_id':build_id}
         if profile!='default': payload['profile']=profile  # e.g. 'browser' (headless Chromium image)
         body=json.dumps(payload,separators=(',',':')).encode()
+        if len(body) > MAX_BODY_BYTES:
+            raise SandboxRequestRejected('serialized sandbox request exceeds byte ceiling')
         req=request.Request(self.config.base_url.rstrip('/')+'/run',data=body,method='POST',headers={'content-type':'application/json','x-omni-signature':sign_body(self.config.shared_secret,body)})
         try:
-            with self._urlopen(req,timeout=self.config.timeout_seconds) as resp: data=json.loads(resp.read().decode())
-        except (error.URLError,TimeoutError,json.JSONDecodeError) as exc: raise RemoteSandboxError(str(exc)) from exc
-        if not all(k in data for k in ('returncode','stdout','stderr')): raise RemoteSandboxError('invalid sandbox response')
+            with self._urlopen(req,timeout=self.config.timeout_seconds) as resp:
+                raw = resp.read(MAX_RESPONSE_BYTES + 1)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    raise RemoteSandboxError('sandbox response exceeds byte ceiling')
+                data = json.loads(raw.decode())
+        except (error.URLError,TimeoutError,json.JSONDecodeError) as exc:
+            code=getattr(exc,'code',None)
+            raise RemoteSandboxError('sandbox transport failed' +
+                                     (f' (HTTP {code})' if type(code) is int else '')) from exc
+        if not isinstance(data,dict) or not all(k in data for k in ('returncode','stdout','stderr')):
+            raise RemoteSandboxError('invalid sandbox response')
+        if type(data['returncode']) is not int or not isinstance(data['stdout'],str) or not isinstance(data['stderr'],str):
+            raise RemoteSandboxError('invalid sandbox response types')
+        data['stdout']=sanitized_tail(data['stdout'],limit=100000)
+        data['stderr']=sanitized_tail(data['stderr'],limit=100000)
         return data
     def execute(self, *, repository: dict[str,str], spec: ProductSpec) -> ExecutionReport:
         valid={a.id for a in spec.acceptance}; failures=[]; logs=[]; n=0

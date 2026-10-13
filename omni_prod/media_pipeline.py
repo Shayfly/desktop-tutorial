@@ -57,7 +57,7 @@ class CreativeDirector:
             add(AssetKind.MUSIC,'adaptive soundtrack','Create original loopable adaptive music; no imitation of living artists.',False)
         if any(t in low for t in ('video','reel','movie','סרט','וידאו')):
             add(AssetKind.VIDEO,'video sequence','Create an original shot plan/video asset with captions and safe-area variants.')
-        if any(t in low for t in ('voice','narration','assistant','קריינ','קול')):
+        if any(t in low for t in ('voice','narration','קריינ','קול')):
             add(AssetKind.VOICE,'voice/narration','Generate neutral synthetic narration; never impersonate a real person without authorization.')
         return CreativePlan(tuple(req),{'alt_text_required':True,'captions_for_video':True,'transcripts_for_voice':True},
             {'original_or_licensed_only':True,'trademark_review':True,'music_rights_review':True,'real_person_consent_required':True})

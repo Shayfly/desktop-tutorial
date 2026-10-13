@@ -33,13 +33,33 @@ svc="$1"; ctl=/ctl
 [ "${GEN:-old}" = new ] && [ -f $ctl/startfail ] && { echo "startup failure of the new image"; exit 1; }
 [ "$svc" = worker ] && echo "*** Listening on omni-builds..."
 term() {
-  [ -f $ctl/$svc.oom ] && { s=aaaaaaaa; while :; do s=$s$s; done; }
+  [ -f $ctl/$svc.oom ] && exec /bin/oom-allocate
   [ -f $ctl/$svc.ignore-term ] && return
   [ -f $ctl/$svc.finish-seconds ] && { read n < $ctl/$svc.finish-seconds; sleep "$n"; }
   exit 0
 }
 trap term TERM
+# Container .State.Running can precede trap installation. A stop arriving
+# during that window is ignored by PID 1 and looks like a 137 deadline kill,
+# NOT an OOM. Publish readiness only after the handler is installed.
+printf '1\\n' > "$ctl/$svc.ready"
 while :; do sleep 1; done
+'''
+
+# Deterministic CI-only workload: allocate and TOUCH resident pages in 8 MiB
+# increments until the isolated container's 64 MiB cgroup actually OOM-kills
+# its PID 1. Bash string doubling can be optimized/fail in userspace instead.
+# No production code or Oracle worker image uses this executable.
+OOM_C = r'''#include <stdlib.h>
+#include <stdint.h>
+int main(void) {
+    for (;;) {
+        const size_t bytes = 8u * 1024u * 1024u;
+        volatile unsigned char *p = (volatile unsigned char *)malloc(bytes);
+        if (!p) return 42; /* Explicit failure, never fake OOM evidence */
+        for (size_t i = 0; i < bytes; i += 4096u) p[i] = 0x5a;
+    }
+}
 '''
 
 COMPOSE = '''name: %(project)s
@@ -69,16 +89,31 @@ def sh(*cmd, env=None, cwd=None, timeout=240):
 
 def ensure_images():
     """Two local images built from the host's bash (no registry pull): :1 = previous release, :2 = new release."""
-    if sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:1').returncode == 0 and sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:2').returncode == 0:
-        return
+    if (sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:1').returncode == 0
+            and sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:2').returncode == 0):
+        probe = sh('docker', 'run', '--rm', '--network', 'none', '--entrypoint', '/bin/bash',
+                   f'{BASE_IMAGE}:1', '-c', 'test -x /bin/oom-allocate')
+        if probe.returncode == 0:
+            return
     work = Path(tempfile.mkdtemp())
+    oom_source = work / 'oom-allocate.c'
+    oom_source.write_text(OOM_C)
+    oom_binary = work / 'oom-allocate'
+    compiler = shutil.which('cc')
+    if compiler is None:
+        raise RuntimeError('real OOM rehearsal requires the host C compiler')
+    compile_result = sh(compiler, '-O0', '-o', str(oom_binary), str(oom_source))
+    if compile_result.returncode != 0:
+        raise RuntimeError('could not compile the real OOM workload')
     rootfs = work / 'rootfs'
     (rootfs / 'bin').mkdir(parents=True)
     libs = set()
-    for b in ('bash', 'sleep', 'cat', 'date', 'env', 'true'):
+    for b in ('bash', 'sleep', 'cat', 'date', 'env', 'true', str(oom_binary)):
         p = shutil.which(b)
         if p:
-            shutil.copy(os.path.realpath(p), rootfs / 'bin' / b)
+            # b may be an absolute path for the compiled OOM helper.
+            # Joining an absolute path discards rootfs; always use its basename.
+            shutil.copy(os.path.realpath(p), rootfs / 'bin' / Path(b).name)
             for line in sh('ldd', p).stdout.splitlines():
                 for tok in line.split():
                     if tok.startswith('/') and os.path.exists(tok):
@@ -129,7 +164,15 @@ class RealDockerDrainRecovery(unittest.TestCase):
         self.redis_url = os.environ['OMNI_TEST_REDIS_URL']
         # previous release is running
         self.compose('up', '-d', env_extra={'IMG': f'{BASE_IMAGE}:1'})
-        self.wait_running(SERVICES)
+        self.assertTrue(self.wait_running(SERVICES), "test consumers did not reach running")
+        # A running container is not necessarily signal-ready. This is the
+        # synchronization barrier for both graceful drains and real OOM tests.
+        for _ in range(100):
+            if all((self.ctl / (service + '.ready')).exists() for service in SERVICES):
+                break
+            time.sleep(0.1)
+        else:
+            self.fail("Docker test consumers never installed their SIGTERM handlers")
         self.before = self.snapshot()
 
     def tearDown(self):
@@ -267,12 +310,10 @@ class RealDockerDrainRecovery(unittest.TestCase):
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        # The 4-second global drain deadline can expire before Docker delivers
-        # TERM to the last consumer under CI load; that is a deadline test,
-        # NOT evidence of an OOM kill. Give this distinct OOM scenario enough
-        # time to exercise Docker's real .State.OOMKilled path, without
-        # relaxing the required OOM assertion below.
-        d = self.drain(DRAIN_DEADLINE_SECONDS='20')
+        # The throwaway /bin/oom-allocate workload touches resident memory
+        # until Docker itself reports .State.OOMKilled=true. A timeout-driven
+        # exit 137 is explicitly NOT acceptable. Production policy is unchanged.
+        d = self.drain(DRAIN_DEADLINE_SECONDS='60')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])

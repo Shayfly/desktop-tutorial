@@ -76,7 +76,7 @@ class UnifiedPromptPlanner:
                 modules = ['users', 'items', 'activity']
 
         caps = set(BASE_CAPABILITIES)
-        if _contains(clean, 'gps', 'map', 'maps', 'מפה', 'מפות', 'מיקום'):
+        if _contains(clean, 'gps', 'map', 'maps', 'מפה', 'מפות'):
             caps.add('maps')
         if _contains(clean, 'live', 'real-time', 'realtime', 'tracking', 'מעקב חי', 'בזמן אמת'):
             caps.add('realtime')

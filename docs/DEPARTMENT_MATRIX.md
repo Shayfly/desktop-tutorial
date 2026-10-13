@@ -17,7 +17,7 @@ Summary: {'IMPLEMENTED': 11, 'NOT_IMPLEMENTED': 3, 'PARTIAL': 3, 'READY': 1}
 | D09 | Integrations & Connectivity | **NOT_IMPLEMENTED** | integration_agent (NOT_IMPLEMENTED) | payments_agent, messaging_agent, payments adapter, email/SMS adapter, OAuth connector |
 | D10 | DevOps, Cloud & Infrastructure | **READY** | infrastructure_agent (REAL_SERVER_VERIFIED), deployment_agent (REAL_SERVER_VERIFIED) | — |
 | D11 | Security, Privacy & Compliance | **PARTIAL** | security_agent (REAL_SERVER_VERIFIED), compliance_ip_agent (REAL_SERVER_VERIFIED) | privacy_reviewer |
-| D12 | QA & Test Engineering | **PARTIAL** | qa_agent (REAL_SERVER_VERIFIED), behavioral_acceptance_agent (IMPLEMENTED), browser_rehearsal_agent (REAL_SERVER_VERIFIED), code_review_agent (REAL_SERVER_VERIFIED) | load-test runner |
+| D12 | QA & Test Engineering | **PARTIAL** | qa_agent (IMPLEMENTED), behavioral_acceptance_agent (IMPLEMENTED), browser_rehearsal_agent (REAL_SERVER_VERIFIED), code_review_agent (REAL_SERVER_VERIFIED) | load-test runner |
 | D13 | AI & Model Engineering | **IMPLEMENTED** | provider_router_agent (IMPLEMENTED) | model_evaluation_agent |
 | D14 | Game Development | **NOT_IMPLEMENTED** | game_designer_2d_agent (NOT_IMPLEMENTED), level_designer_2d_agent (NOT_IMPLEMENTED), game_engineering_2d_agent (NOT_IMPLEMENTED), game_qa_2d_agent (NOT_IMPLEMENTED) | multiplayer_engineer, game engine runner, gameplay test harness |
 | D15 | Media & Creative Production | **IMPLEMENTED** | media_orchestrator (UNIT_TESTED), image_agent (BLOCKED), video_agent (BLOCKED), voice_speech_agent (BLOCKED), audio_music_agent (BLOCKED) | 3d_asset_agent, image adapter on the worker, video adapter, TTS adapter, music adapter |

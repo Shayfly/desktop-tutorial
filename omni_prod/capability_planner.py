@@ -46,7 +46,7 @@ class CapabilityPlanner:
     def __init__(self, registry: CapabilityRegistry | None = None) -> None:
         self.registry = registry or CapabilityRegistry()
 
-    def plan(self, *, prompt: str, unified_plan, creative_plan) -> CapabilityPlan:
+    def plan(self, *, prompt: str, unified_plan, creative_plan, semantic_decisions=()) -> CapabilityPlan:
         low = " ".join(prompt.lower().split())
         requested: OrderedDict[str, tuple[str, bool]] = OrderedDict()
 
@@ -144,6 +144,24 @@ class CapabilityPlanner:
             add("software.deploy.web", "requested production web deployment")
             add("publish.web", "requested public web publishing")
 
+        # Only the confirmed, evidence-validated semantic decisions bound into
+        # the approved Brief may amend ambiguous keyword interpretations.
+        # This acts BEFORE DAG dependency closure and keeps the same registries.
+        from .semantic_capabilities import overrides
+        semantic = overrides(semantic_decisions, prompt=prompt)
+        for key, outcome in semantic.items():
+            if not self.registry.contains(key):
+                continue
+            if outcome == "not_required":
+                requested.pop(key, None)
+            elif outcome == "required":
+                add(key, "approved semantic customer intent")
+        # An agent requirement cannot survive removing its whole target.
+        if semantic.get("target.agent") == "not_required":
+            for key in ("ai.agent.tools", "ai.agent.eval", "ai.agent.memory"):
+                if semantic.get(key) != "required":
+                    requested.pop(key, None)
+
         # Requiredness propagates backwards through definition dependencies so an
         # optional child never makes a dependency mandatory unless another required
         # request needs it.
@@ -181,7 +199,7 @@ class CapabilityPlanner:
         result = CapabilityPlan(
             requirements=tuple(requirements),
             target_keys=target_keys,
-            notes=("deterministic-minimum-requirements",),
+            notes=("deterministic-minimum-requirements",) + (("approved-semantic-evidence",) if semantic else ()),
         )
         self.registry.validate_plan(result)
         return result
