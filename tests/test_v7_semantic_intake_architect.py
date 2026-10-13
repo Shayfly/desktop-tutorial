@@ -132,6 +132,21 @@ class SemanticIntakeIntegrationTests(unittest.TestCase):
         self.assertTrue({"target.agent", "ai.agent.tools", "integration.maps",
                          "media.audio.tts"}.issubset(keys))
 
+    def test_ai_cannot_suppress_unambiguous_explicit_customer_request(self):
+        from omni_prod.semantic_capabilities import overrides
+        claims = [
+            {"key": "integration.maps", "decision": "not_required",
+             "evidence": "מפות אינטראקטיביות", "reason": "incorrect model judgement"},
+            {"key": "media.audio.tts", "decision": "not_required",
+             "evidence": "קריינות", "reason": "incorrect model judgement"},
+            {"key": "target.agent", "decision": "not_required",
+             "evidence": "סוכן AI", "reason": "incorrect model judgement"},
+        ]
+        explicit = "אני מבקש סוכן AI עם מפות אינטראקטיביות וקריינות"
+        self.assertEqual(overrides(claims, prompt=explicit), {})
+        self.assertEqual(overrides(DECISIONS, prompt=LANDING).get("target.agent"),
+                         "not_required")
+
     def test_malformed_semantic_line_is_ignored_without_guessing(self):
         payload = LANDING + "\n--- Approved project brief ---\n" + (
             'Semantic capability decisions v1: {"version":1,"decisions":"unsafe"}')
