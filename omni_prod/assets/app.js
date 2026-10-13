@@ -95,7 +95,7 @@ const T = {
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
     b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
-    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע',
+    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים', 
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
@@ -201,7 +201,7 @@ const T = {
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
     b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
     b_cost_quote_unavailable:'No verified build quote was returned.',
-    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet',
+    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details', 
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
@@ -606,8 +606,23 @@ function pill(status) {
   return h('span', { class: `pill ${cls}` }, t(`st_${status}`) || status || '—');
 }
 const money = v => (v === null || v === undefined) ? t('costUnknown') : `$${Number(v).toFixed(2)}`;
+function renderProjectReadiness() {
+  const strip = $('projectReadiness');
+  if (!strip) return;
+  strip.hidden = !S.projectId;
+  if (!S.projectId) return;
+  const p = S.plan;
+  const busy = S.build && !isTerminal(S.build.status);
+  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
+    p.can_build ? t('readinessReady') : t('readinessBlocked');
+  strip.className = 'projectReadiness ' + mode;
+  strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
+    h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
+}
 function renderPlan() {
   const panel = $('planPanel'); const p = S.plan;
+  renderProjectReadiness();
   if (!p) { panel.hidden = true; return; }
   panel.hidden = false;
   const facts = (label, items) => items && items.length ? [h('h3', {}, label), h('ul', { class: 'facts' }, items.map(x => h('li', {}, x)))] : [];
@@ -799,6 +814,7 @@ async function cancelBuild() {
 }
 const PHASE_ORDER = ['PLANNING', 'INFRASTRUCTURE', 'ASSETS', 'GENERATING', 'VERIFYING'];
 function renderTrack() {
+  renderProjectReadiness();
   const panel = $('progressPanel');
   if (!S.build) { panel.hidden = true; return; }
   panel.hidden = false;
