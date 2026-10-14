@@ -768,7 +768,7 @@
     {
      "part": "skill:job_cancel",
      "status": "IMPLEMENTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
+     "why": "real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py"
     }
    ]
   },
@@ -787,23 +787,21 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:job_resume",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
     },
     {
      "part": "skill:stale_job_recovery",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
     }
    ]
   },
@@ -1144,8 +1142,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 9,
-  "REAL_SERVER_VERIFIED": 12,
+  "IMPLEMENTED": 10,
+  "REAL_SERVER_VERIFIED": 11,
   "UNIT_TESTED": 6,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,

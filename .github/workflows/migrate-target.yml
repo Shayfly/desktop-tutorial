@@ -1,0 +1,63 @@
+name: migrate-target
+
+# Manual only. Applies the checked-in SQL migrations (checksum-verified runner,
+# python -m omni_prod.migrate) to the database in the repository secret
+# TARGET_DATABASE_URL, and prints the pending and applied versions. The secret
+# is never printed (migrate prints versions only). Nothing else is touched.
+# Default is a read-only check; tick "apply" to change the database. Note:
+# STATUS.md records that the Vercel Preview and Production database variables
+# have been ONE shared record, so confirm what TARGET_DATABASE_URL points at
+# before applying.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/tag/SHA of the code to migrate with. Default is the pre-merge work branch; CHANGE THE DEFAULT TO main AFTER THE MERGE (main holds no omni_prod code until then)."
+        type: string
+        required: false
+        default: fix/financial-journal-recovery-20261014
+      apply:
+        description: "Apply pending migrations. Unchecked = --check (read-only, lists pending)."
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-target
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt
+      - name: Require the secret
+        env:
+          TARGET_DATABASE_URL: ${{ secrets.TARGET_DATABASE_URL }}
+        run: |
+          if [ -z "$TARGET_DATABASE_URL" ]; then
+            echo "::error::repository secret TARGET_DATABASE_URL is not set"
+            exit 2
+          fi
+      - name: Pending migrations (read-only)
+        env:
+          OMNI_DATABASE_URL: ${{ secrets.TARGET_DATABASE_URL }}
+        run: python -m omni_prod.migrate --check
+      - name: Apply pending migrations
+        if: ${{ inputs.apply }}
+        env:
+          OMNI_DATABASE_URL: ${{ secrets.TARGET_DATABASE_URL }}
+        run: |
+          python -m omni_prod.migrate
+          python -m omni_prod.migrate --check

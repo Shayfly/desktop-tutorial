@@ -183,13 +183,13 @@ class ReservationSeparationTests(unittest.TestCase):
         self.assertFalse(any("creator_subscriptions" in s for s, _ in cur.calls))
 
     def test_qa_release_does_not_touch_the_customer_plan(self):
-        cur = _Cur(("u1", "RESERVED", 0, Decimal("0.40"), "internal_qa"))
+        cur = _Cur(("u1", "RESERVED", 0, Decimal("0.40"), "internal_qa"), (False,))
         _service(_Pool(cur)).release(build_id="bld_qa")
         self.assertTrue(any("SET status='RELEASED'" in s for s, _ in cur.calls))
         self.assertFalse(any("creator_subscriptions" in s for s, _ in cur.calls))
 
     def test_customer_release_still_restores_plan_counters(self):
-        cur = _Cur(("u1", "RESERVED", 60, Decimal("0.40"), "customer_plan"))
+        cur = _Cur(("u1", "RESERVED", 60, Decimal("0.40"), "customer_plan"), (False,))
         _service(_Pool(cur)).release(build_id="b")
         self.assertTrue(any("UPDATE creator_subscriptions" in s for s, _ in cur.calls))
 

@@ -69,9 +69,9 @@ def reap_build(jobs, subscriptions, build_id: str, minutes: int) -> bool:
     from .models import BuildStatus
     moved = jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED, error_code='worker_lost',
-        error_message=f'the build stopped responding for more than {minutes} minutes and was released; '
-                      'no credits were charged',
-        evidence_json={'billing': 'released', 'reaped_by': 'maintenance', 'stale_minutes': minutes})
+        error_message=f'the build stopped responding for more than {minutes} minutes; '
+                      'provider exposure must be reconciled before funds can be released',
+        evidence_json={'billing': 'exposure_checked_release', 'reaped_by': 'maintenance', 'stale_minutes': minutes})
     if moved:
         subscriptions.release(build_id=build_id)
     return bool(moved)
@@ -152,7 +152,24 @@ def recover_lost_running(pool, *, subscriptions, enqueue, busy_ids=lambda: (), m
                 continue  # a live worker still has it: slow, not lost
             with pool.connection() as conn:
                 with conn.transaction():
-                    if stop:
+                    # Serialize against the mandatory pre-provider journal.
+                    table = 'build_jobs' if kind == 'build' else 'modification_requests'
+                    active_state = 'running' if kind == 'build' else 'RUNNING'
+                    current = conn.execute(f'SELECT cancel_requested_at IS NOT NULL, recovery_attempts FROM {table} '
+                                           'WHERE id=%s AND status=%s AND heartbeat_at IS NOT NULL '
+                                           'AND heartbeat_at < now() - make_interval(mins => %s) FOR UPDATE',
+                                           (item, active_state, int(minutes))).fetchone()
+                    if current is None:
+                        continue
+                    stop, attempts = current
+                    from .subscription_store import provider_exposure
+                    with conn.cursor() as cur:
+                        exposed = provider_exposure(cur, item)
+                    if exposed:
+                        done = _end(conn, kind, item, 'failed', 'provider_liability_unknown',
+                                    'worker lost after provider activity; reservation held for reconciliation')
+                        bucket, message = 'failed', 'העבודה נעצרה. חשיפת הספק נשמרת עד בירור החיוב.'
+                    elif stop:
                         done = _end(conn, kind, item, 'cancelled', 'cancelled_by_user',
                                     'stopped on request; its worker had stopped responding')
                         bucket, message = 'cancelled', 'הבנייה נעצרה לבקשתך.'

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import hashlib
 import json
 import re
 from typing import Any, Callable
@@ -142,15 +143,22 @@ class OpenAICompatibleGateway:
         self.last_usage = None
         # Exact model/version string the provider says it served, if reported.
         self.last_response_model = None
+        self.last_idempotency_key = None
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1,
-                 max_tokens: int = 4096) -> str:
+                 max_tokens: int = 4096, idempotency_key: str | None = None) -> str:
         if not 0 <= temperature <= 2:
             raise ValueError('temperature out of range')
         if max_tokens < 1:
             raise ValueError('max_tokens must be positive')
         style = self.endpoint.api_style
         headers = {'Content-Type': 'application/json', 'User-Agent': '148AI-model-gateway/1.0'}
+        # G5: one stable key per *logical* call. A retry after a lost response
+        # reuses the key, so a provider that honours it bills once. Providers
+        # that ignore the header are unaffected; the key is still kept so a
+        # double charge is provable from the provider's own bill.
+        if idempotency_key and str(idempotency_key).strip():
+            headers['Idempotency-Key'] = str(idempotency_key).strip()[:255]
         if style == 'anthropic':
             body = {'model': self.endpoint.model, 'system': system,
                     'messages': [{'role': 'user', 'content': user}], 'max_tokens': max_tokens}
@@ -181,6 +189,7 @@ class OpenAICompatibleGateway:
         req = request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         self.last_usage = None
         self.last_finish_reason = None
+        self.last_idempotency_key = headers.get('Idempotency-Key')
         try:
             with self._urlopen(req, timeout=self.endpoint.timeout_seconds) as resp:
                 response_headers = getattr(resp, 'headers', None)
@@ -281,3 +290,14 @@ def _json_candidates(text: str):
         fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', base)
         if fixed != base:
             yield fixed
+
+
+def idempotency_key_for(*, build_id: str, task: str, attempt: int = 0, call_index: int = 0) -> str:
+    """Stable key for one logical provider call.
+
+    Deterministic, so a retry of the same logical call reuses it (provider can
+    dedupe); distinct per attempt and call index, so two *different* calls
+    never collapse into one.
+    """
+    raw = f'{build_id}\x00{task}\x00{attempt}\x00{call_index}'
+    return 'g5-' + hashlib.sha256(raw.encode('utf-8')).hexdigest()[:40]

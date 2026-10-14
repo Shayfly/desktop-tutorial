@@ -5,10 +5,24 @@ Python imports and do not necessarily ship infra/postgres/*.sql.
 tests/test_deployment_verification.py fails if this drifts from the newest
 migration file, so adding a migration forces updating it in the same change.
 """
-REQUIRED_MIGRATION = 40
+REQUIRED_MIGRATION = 41
 # Every migration version shipped in infra/postgres (022-025 were never used).
-EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 41))
-REQUIRED_MIGRATION_NAME = '040_build_request_idempotency'
+EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 42))
+REQUIRED_MIGRATION_NAME = '041_company_loss_ledger'
+
+
+def db_fingerprint(host, dbname) -> str:
+    """Comparable identity of a database without exposing a URL: host and
+    database name only, never user or password."""
+    import hashlib
+    return hashlib.sha256(f'{host or ""}|{dbname or ""}'.encode('utf-8')).hexdigest()[:12]
+
+
+def db_identity(conn) -> dict:
+    """{'db_host', 'db_fingerprint'} for an open psycopg connection."""
+    host = getattr(getattr(conn, 'info', None), 'host', None)
+    dbname = conn.execute('SELECT current_database()').fetchone()[0]
+    return {'db_host': host, 'db_fingerprint': db_fingerprint(host, dbname)}
 
 
 def compatibility(applied) -> dict:

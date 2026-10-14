@@ -27,6 +27,10 @@ log = logging.getLogger(__name__)
 VERIFICATION_CLASSES = ('PASS', 'REPAIRABLE_FAIL', 'RETRYABLE_FAIL', 'ESCALATABLE_FAIL', 'FATAL_FAIL')
 
 
+class AttemptLedgerUnavailable(RuntimeError):
+    """A paid operation cannot start without its durable financial evidence."""
+
+
 def content_version(*parts: Any) -> str:
     """Short, stable id for exact content (prompt text, catalog, policy)."""
     h = hashlib.sha256()
@@ -250,7 +254,7 @@ def ledger_rows(records: Iterable[AttemptRecord], *, build_id: str, tenant_id: s
 
 def persist_attempts(pool, records: list[AttemptRecord], *, build_id: str, tenant_id: str | None = None,
                      project_id: str | None = None, reservation_id: str | None = None,
-                     final_outcome: str | None = None) -> int:
+                     final_outcome: str | None = None, require_active_reservation: bool = False) -> int:
     """Insert records idempotently (attempt_id primary key). Returns rows offered."""
     rows = ledger_rows(records, build_id=build_id, tenant_id=tenant_id, project_id=project_id,
                        reservation_id=reservation_id, final_outcome=final_outcome)
@@ -270,5 +274,15 @@ def persist_attempts(pool, records: list[AttemptRecord], *, build_id: str, tenan
     with pool.connection() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
+                if require_active_reservation:
+                    # Same order as recovery: job first, reservation second.
+                    cur.execute('SELECT status FROM build_jobs WHERE id=%s FOR UPDATE', (build_id,))
+                    job = cur.fetchone()
+                    if job is None or job[0] != 'running':
+                        raise AttemptLedgerUnavailable('build is no longer running')
+                    cur.execute('SELECT status FROM credit_reservations WHERE build_id=%s FOR UPDATE', (build_id,))
+                    reservation = cur.fetchone()
+                    if reservation is None or reservation[0] != 'RESERVED':
+                        raise AttemptLedgerUnavailable('build reservation is no longer active')
                 cur.executemany(sql, rows)
     return len(rows)

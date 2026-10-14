@@ -51,6 +51,23 @@ def _looks_runtime_generated_expression(line: str, match: re.Match[str]) -> bool
         and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", value)
     )
 
+_WORKFLOW_PATH = re.compile(r"(?:^|/)\.github/workflows/[^/]+\.ya?ml$")
+# A YAML env/service mapping entry whose whole value is a loopback database URL
+# carrying an explicit CI-fixture password ("ci-..."). Not a run script, not a
+# remote host, not any other secret kind.
+_CI_SERVICE_URL = re.compile(
+    r"^\s*[A-Za-z_][A-Za-z0-9_]*:\s*['\"]?"
+    r"(?:postgres(?:ql)?|mysql|mongodb)://[^:\s/@]+:ci-[A-Za-z0-9_.-]+@(?:127\.0\.0\.1|localhost)(?::\d+)?/[^\s'\"]*['\"]?\s*$",
+    re.I,
+)
+
+def _is_ci_service_credential(kind: str, path: str, line: str) -> bool:
+    return (
+        kind == "url_password"
+        and bool(_WORKFLOW_PATH.search(path.replace("\\", "/")))
+        and bool(_CI_SERVICE_URL.match(line))
+    )
+
 def scan_text(text: str, *, path: str = "<memory>") -> list[SecretFinding]:
     findings: list[SecretFinding] = []
     lines = text.splitlines()
@@ -59,7 +76,7 @@ def scan_text(text: str, *, path: str = "<memory>") -> list[SecretFinding]:
             m = pattern.search(line)
             if m:
                 value = m.group(1) if m.groups() else m.group(0)
-                if not _looks_placeholder(value):
+                if not _looks_placeholder(value) and not _is_ci_service_credential(kind, path, line):
                     findings.append(SecretFinding(kind, path, idx, line[:160]))
         m = _ASSIGNMENT.search(line)
         if m and not _looks_runtime_generated_expression(line, m) and not _looks_placeholder(m.group(2)):

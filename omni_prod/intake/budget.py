@@ -38,6 +38,8 @@ from datetime import datetime
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from pathlib import Path
 
+from ..company_loss import METERED_OVERRUN, UNRECONCILED_UNKNOWN, record_overrun
+
 PRODUCTION, CAMPAIGN = 'production', 'campaign'
 RESERVED, CLAIMED, EXECUTING, SETTLED, UNKNOWN, RELEASED = (
     'RESERVED', 'CLAIMED', 'EXECUTING', 'SETTLED', 'UNKNOWN', 'RELEASED')
@@ -393,6 +395,14 @@ class ReservationService:
                 row = cur.fetchone()
                 if row is not None:
                     self._event(cur, reservation.id, EXECUTING, to_state, detail)
+                    if actual is not None and actual > reservation.quoted_usd:
+                        record_overrun(
+                            cur, source='intake_reservation', idempotency_key=reservation.id,
+                            quoted_usd=reservation.quoted_usd, actual_usd=actual, cause=METERED_OVERRUN,
+                            build_id=reservation.project_id, reservation_id=reservation.id,
+                            account_id=reservation.account_id, project_id=reservation.project_id,
+                            lane=reservation.lane, provider=provider, model=model,
+                            evidence={'cost_state': cost_state, 'metering': metering or {}})
         if row is not None:
             return _res(row)
         current = self.get(reservation.id)
@@ -467,6 +477,13 @@ class ReservationService:
                 self._event(cur, reservation_id, UNKNOWN, SETTLED,
                             {'cost_state': cost_state, 'actual_usd': str(actual_usd), 'evidence': evidence[:1000],
                              'resolved_by': resolved_by[:120]})
+                settled = _res(row)
+                record_overrun(
+                    cur, source='intake_reservation', idempotency_key=reservation_id,
+                    quoted_usd=settled.quoted_usd, actual_usd=actual_usd, cause=UNRECONCILED_UNKNOWN,
+                    build_id=settled.project_id, reservation_id=reservation_id,
+                    account_id=settled.account_id, project_id=settled.project_id, lane=settled.lane,
+                    evidence={'evidence': evidence[:1000], 'resolved_by': resolved_by[:120]})
         return _res(row)
 
     # -- outbox ------------------------------------------------------------------

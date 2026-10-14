@@ -3174,6 +3174,15 @@ def v28_m5_status() -> dict:
     return _m5_status_payload()
 
 
+def _db_identity_best_effort(conn) -> dict:
+    """Identity is extra information: failing to read it must never change the schema verdict."""
+    from .schema_manifest import db_identity
+    try:
+        return db_identity(conn)
+    except Exception:
+        return {}
+
+
 def _schema_compatibility() -> dict:
     """Required (code) vs applied (database) migrations. Versions only, no data."""
     from .schema_manifest import REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME, compatibility
@@ -3184,9 +3193,10 @@ def _schema_compatibility() -> dict:
         with _v28_pool.connection() as conn:
             exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
             applied = sorted(int(r[0]) for r in conn.execute('SELECT version FROM schema_migrations').fetchall()) if exists else []
+            identity = _db_identity_best_effort(conn)
     except Exception as exc:
         return {**out, 'status': 'UNREACHABLE', 'compatible': False, 'error': type(exc).__name__}
-    return compatibility(applied)
+    return {**compatibility(applied), 'schema_migrations_present': bool(exists), **identity}
 
 
 @app.get('/api/v28/deployment')

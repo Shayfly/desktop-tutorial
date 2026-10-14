@@ -2,7 +2,7 @@
  "version": 1,
  "scenarios": [
   {
-   "scenario": "Golden 1 — New SaaS (Hebrew, persistent, preview, restart, version)",
+   "scenario": "Golden 1 â€” New SaaS (Hebrew, persistent, preview, restart, version)",
    "status": "PASS",
    "evidence": [
     "postdeploy-checks run 37961193099",
@@ -22,7 +22,7 @@
    "note": ""
   },
   {
-   "scenario": "Golden 2 — SaaS with authentication",
+   "scenario": "Golden 2 â€” SaaS with authentication",
    "status": "NOT_RUN",
    "evidence": [],
    "commits": [],
@@ -30,7 +30,7 @@
    "note": "generated-app sign-in is not implemented (Identity & Auth agent NOT_IMPLEMENTED)"
   },
   {
-   "scenario": "Golden 3 — Existing project modification",
+   "scenario": "Golden 3 â€” Existing project modification",
    "status": "PARTIAL",
    "evidence": [],
    "commits": [],
@@ -38,7 +38,7 @@
    "note": "founder change verified 2026-10-08 (mod_c14435dc); not re-run on this code"
   },
   {
-   "scenario": "Golden 4 — Cancellation (queued + active)",
+   "scenario": "Golden 4 â€” Cancellation (queued + active)",
    "status": "PASS",
    "evidence": [
     "postdeploy-checks run 38083312245"
@@ -52,7 +52,7 @@
    "note": ""
   },
   {
-   "scenario": "Golden 5 — Crash recovery",
+   "scenario": "Golden 5 â€” Crash recovery",
    "status": "PASS",
    "evidence": [
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
@@ -66,7 +66,7 @@
    "note": ""
   },
   {
-   "scenario": "Golden 6 — Provider failure",
+   "scenario": "Golden 6 â€” Provider failure",
    "status": "PARTIAL",
    "evidence": [],
    "commits": [],
@@ -74,7 +74,7 @@
    "note": "fallback proven by injection tests; OpenAI/Anthropic have no credit, so no real second provider"
   },
   {
-   "scenario": "Golden 7 — Budget guard",
+   "scenario": "Golden 7 â€” Budget guard",
    "status": "PARTIAL",
    "evidence": [],
    "commits": [],
@@ -82,7 +82,7 @@
    "note": "ceiling enforced in the paid run ($0.15 effective); refusal proven by injection test"
   },
   {
-   "scenario": "Golden 8 — Backup / restore",
+   "scenario": "Golden 8 â€” Backup / restore",
    "status": "PASS",
    "evidence": [
     "backup-restore run 37962179844"
@@ -96,7 +96,7 @@
    "note": "restore into a throw-away database; no destructive drill"
   },
   {
-   "scenario": "Golden 9 — Automation",
+   "scenario": "Golden 9 â€” Automation",
    "status": "NOT_RUN",
    "evidence": [],
    "commits": [],
@@ -104,7 +104,7 @@
    "note": "Automation agent NOT_IMPLEMENTED"
   },
   {
-   "scenario": "Golden 10 — Media",
+   "scenario": "Golden 10 â€” Media",
    "status": "BLOCKED",
    "evidence": [],
    "commits": [],
@@ -112,7 +112,7 @@
    "note": "image provider not configured on the build worker; video/voice/music providers not contracted"
   },
   {
-   "scenario": "Golden 11 — 2D game",
+   "scenario": "Golden 11 â€” 2D game",
    "status": "NOT_RUN",
    "evidence": [],
    "commits": [],

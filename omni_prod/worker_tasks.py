@@ -275,7 +275,10 @@ def failure_code(exc: BaseException) -> str:
     from .model_gateway import ModelGatewayError, ProviderQuotaUnavailable
     from .model_policy import ModelPolicyViolation
     from .agent_os.recorder import PlanViolation
+    from .attempt_ledger import AttemptLedgerUnavailable
     text = str(exc)
+    if isinstance(exc, AttemptLedgerUnavailable):
+        return 'attempt_ledger_unavailable'
     if isinstance(exc, PlanViolation):
         return 'plan_violation'
     if isinstance(exc, ProviderQuotaUnavailable):
@@ -646,7 +649,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
         if attempt_pool is not None:
-            control.flush = lambda: _persist_build_attempts(attempt_pool, jobs, build_id, gateway)
+            control.flush = lambda: _persist_build_attempts(attempt_pool, jobs, build_id, gateway, required=True)
             if hasattr(gateway, 'on_attempt_start'):
                 gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
@@ -969,9 +972,8 @@ def execution_plan_binding(pool, build_id: str) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
-    """Best effort: telemetry must never change a build's outcome, but a
-    failure to write it is logged loudly (telemetry completeness is a KPI)."""
+def _persist_build_attempts(pool, jobs, build_id: str, gateway, *, required: bool = False) -> None:
+    """Mandatory before dispatch; final terminal evidence remains best effort."""
     recorder = getattr(gateway, 'recorder', None)
     if recorder is None or not recorder.records:
         return
@@ -984,9 +986,13 @@ def _persist_build_attempts(pool, jobs, build_id: str, gateway) -> None:
             request = {}
         persist_attempts(pool, recorder.records, build_id=build_id,
                          tenant_id=request.get('user_id'), project_id=request.get('internal_project_id'),
-                         reservation_id=build_id, final_outcome=getattr(status, 'value', None))
-    except Exception:
+                         reservation_id=build_id, final_outcome=getattr(status, 'value', None),
+                         require_active_reservation=required)
+    except Exception as exc:
         logging.getLogger(__name__).exception('attempt ledger write failed for %s', build_id)
+        if required:
+            from .attempt_ledger import AttemptLedgerUnavailable
+            raise AttemptLedgerUnavailable('mandatory attempt ledger write failed') from exc
 
 
 def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, components_factory,

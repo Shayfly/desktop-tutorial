@@ -5,6 +5,15 @@ from decimal import Decimal
 from .db import DatabasePool
 from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD
 from .provider_pricing import contribution_evidence
+from .company_loss import BUDGET_CAPPED_SHORTFALL, record_overrun
+
+
+def provider_exposure(cur, build_id: str) -> bool:
+    """True when durable attempts contain paid or uncertain provider liability."""
+    cur.execute("SELECT EXISTS (SELECT 1 FROM task_attempts WHERE build_id=%s AND kind='provider_call' "
+                "AND (COALESCE(metered_cost_usd,0)>0 OR "
+                "(metered_cost_usd IS NULL AND COALESCE(authorized_cost_usd,0)>0)))", (build_id,))
+    return bool(cur.fetchone()[0])
 
 
 class PostgresSubscriptionService:
@@ -326,7 +335,15 @@ class PostgresSubscriptionService:
                     settled = settlement_basis
 
                     if not customer_plan:
-                        pass
+                        # Internal QA has no customer to absorb the extra: the
+                        # whole shortfall is 148AI's own loss.
+                        if settlement_basis > estimated_cost:
+                            record_overrun(
+                                cur, source='build_reservation', idempotency_key=build_id,
+                                quoted_usd=estimated_cost, actual_usd=settlement_basis,
+                                cause=BUDGET_CAPPED_SHORTFALL, build_id=build_id, account_id=user_id,
+                                evidence={'funding_source': 'internal_qa',
+                                          'shortfall_usd': str(settlement_basis - estimated_cost)})
                     elif settlement_basis < estimated_cost:
                         refund = estimated_cost - settlement_basis
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s", (refund, user_id))
@@ -347,6 +364,16 @@ class PostgresSubscriptionService:
                             charge = shortfall
 
                         cur.execute("UPDATE creator_subscriptions SET provider_spend_usd = provider_spend_usd + %s WHERE user_id=%s", (charge, user_id))
+
+                        # G5: whatever of the shortfall the plan's budget could
+                        # not absorb is a company loss, not a rounding error.
+                        if shortfall - charge > 0:
+                            record_overrun(
+                                cur, source='build_reservation', idempotency_key=build_id,
+                                quoted_usd=estimated_cost, actual_usd=settlement_basis,
+                                cause=BUDGET_CAPPED_SHORTFALL, build_id=build_id, account_id=user_id,
+                                evidence={'plan': plan.code.value, 'shortfall_usd': str(shortfall),
+                                          'charged_to_customer_usd': str(charge)})
 
                     cur.execute("UPDATE credit_reservations SET status='SETTLED', resolved_at=now(), actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s", (reported_actual, settled, build_id))
 
@@ -382,6 +409,11 @@ class PostgresSubscriptionService:
                     user_id, status, credits_reserved, estimated_cost = row[0], row[1], row[2], Decimal(str(row[3]))
 
                     if status != 'RESERVED': return
+
+                    # Mandatory write-ahead takes this same reservation lock.
+                    # Missing/failed evidence queries raise and keep funds held.
+                    if provider_exposure(cur, build_id):
+                        return
 
                     cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now() WHERE build_id=%s", (build_id,))
                     if row[4] == 'internal_qa':
