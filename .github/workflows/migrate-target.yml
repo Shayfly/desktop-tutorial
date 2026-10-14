@@ -11,6 +11,11 @@ name: migrate-target
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: "Branch/tag/SHA of the code to migrate with. Default is the pre-merge work branch; CHANGE THE DEFAULT TO main AFTER THE MERGE (main holds no omni_prod code until then)."
+        type: string
+        required: false
+        default: fix/financial-journal-recovery-20261014
       apply:
         description: "Apply pending migrations. Unchecked = --check (read-only, lists pending)."
         type: boolean
@@ -31,6 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
