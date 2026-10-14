@@ -1,0 +1,45 @@
+name: 148AI V28 Verify
+# Rewritten for the main integration (unrelated histories). The previous version
+# validated the old deployment shell (omni_prod_runtime.zip, /_148ai/health,
+# ui/app.js). app.py now imports omni_prod.investor_app directly, so this checks
+# that app: the real UI at "/", the real status/readiness endpoints, and a clean
+# start with no OMNI_ENV / OMNI_ALLOWED_ORIGINS set.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install runtime dependencies
+        run: pip install -r requirements.txt pytest httpx
+      - name: Python compile
+        run: python -m py_compile app.py
+      - name: Browser JavaScript syntax
+        run: node --check omni_prod/assets/app.js
+      - name: Direct entrypoint and customer UI smoke
+        run: |
+          python - <<'PY'
+          import os
+          assert "OMNI_ENV" not in os.environ and "OMNI_ALLOWED_ORIGINS" not in os.environ
+          from fastapi.testclient import TestClient
+          import app
+          c=TestClient(app.app)
+          r=c.get("/")
+          assert r.status_code==200
+          assert "148AI" in r.text and "/assets/app.js" in r.text, r.text[:300]
+          for asset in ("/assets/app.js","/assets/app.css"):
+              a=c.get(asset)
+              assert a.status_code==200 and len(a.content)>1000, (asset, a.status_code)
+          s=c.get("/api/status")
+          assert s.status_code==200 and s.json()["product"]=="148AI", s.text
+          l=c.get("/api/v28/launch/readiness")
+          assert l.status_code==200 and l.json()["release"].startswith("V28"), l.text
+          print("direct omni_prod app + UI + readiness OK")
+          PY
