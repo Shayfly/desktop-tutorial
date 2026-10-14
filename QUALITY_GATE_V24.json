@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "checks": {
+    "compileall": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "pytest": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "sssssssss............................................................... [ 41%]\n........................................................................ [ 82%]\n..............................                                           [100%]\n165 passed, 9 skipped in 0.93s\n",
+      "stderr": ""
+    },
+    "secret_scan": {
+      "ok": true,
+      "findings": []
+    },
+    "release_manifest": {
+      "ok": true,
+      "errors": []
+    }
+  }
+}

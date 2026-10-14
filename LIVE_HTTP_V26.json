@@ -1,0 +1,20 @@
+{
+  "register": 200,
+  "build_status": "READY",
+  "file_count": 69,
+  "creative_planned": 7,
+  "creative_materialized": 0,
+  "cross_user_history_status": 403,
+  "history_versions": 2,
+  "export_status": 200,
+  "export_zip_valid": true,
+  "promote_status": 200,
+  "runtime_unauth_status": 401,
+  "runtime_first_role": "admin",
+  "runtime_create_status": 200,
+  "runtime_item": {
+    "id": "items-00001",
+    "name": "hello",
+    "_created_by": "appadmin@example.com"
+  }
+}

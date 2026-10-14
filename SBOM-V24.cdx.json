@@ -1,0 +1,65 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/fastapi@0.128.2",
+      "name": "fastapi",
+      "purl": "pkg:pypi/fastapi@0.128.2",
+      "type": "library",
+      "version": "0.128.2"
+    },
+    {
+      "bom-ref": "pkg:pypi/uvicorn@0.48.0",
+      "name": "uvicorn",
+      "purl": "pkg:pypi/uvicorn@0.48.0",
+      "type": "library",
+      "version": "0.48.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/pydantic@2.13.4",
+      "name": "pydantic",
+      "purl": "pkg:pypi/pydantic@2.13.4",
+      "type": "library",
+      "version": "2.13.4"
+    },
+    {
+      "bom-ref": "pkg:pypi/psycopg@3.3.6",
+      "name": "psycopg[binary,pool]",
+      "purl": "pkg:pypi/psycopg@3.3.6",
+      "type": "library",
+      "version": "3.3.6"
+    },
+    {
+      "bom-ref": "pkg:pypi/redis@8.1.0",
+      "name": "redis",
+      "purl": "pkg:pypi/redis@8.1.0",
+      "type": "library",
+      "version": "8.1.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/rq@2.12.0",
+      "name": "rq",
+      "purl": "pkg:pypi/rq@2.12.0",
+      "type": "library",
+      "version": "2.12.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/boto3@1.43.94",
+      "name": "boto3",
+      "purl": "pkg:pypi/boto3@1.43.94",
+      "type": "library",
+      "version": "1.43.94"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "Omni Creator",
+      "type": "application",
+      "version": "V24"
+    },
+    "timestamp": "2026-09-22T00:46:53.293947+00:00"
+  },
+  "serialNumber": "urn:uuid:eb6e6103-b726-4e0d-adb6-26e093714006",
+  "specVersion": "1.5",
+  "version": 1
+}

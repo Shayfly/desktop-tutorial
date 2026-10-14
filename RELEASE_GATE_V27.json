@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "release": "V27 Rights & Company OS",
+  "checks": {
+    "compileall": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "pytest": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "sssssssss............................................................... [ 33%]\n........................................................................ [ 66%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n209 passed, 9 skipped in 2.36s\n",
+      "stderr": ""
+    },
+    "v10_parity": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "...................                                                      [100%]\n19 passed in 0.66s\n",
+      "stderr": ""
+    },
+    "v26_product": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "..........                                                               [100%]\n10 passed in 1.26s\n",
+      "stderr": ""
+    },
+    "v27_rights_company_os": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "...............                                                          [100%]\n15 passed in 0.68s\n",
+      "stderr": ""
+    },
+    "javascript": {
+      "ok": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "secret_scan": {
+      "ok": true,
+      "detail": "0 findings"
+    },
+    "company_os_release_council": {
+      "ok": true,
+      "detail": "{\"not_approved\": {\"technical_green\": true, \"public_launch_ready\": false, \"founder_public_launch_approved\": false, \"blockers\": [], \"gates\": {\"product_acceptance\": true, \"engineering_regression\": true, \"qa_evals\": true, \"security_tenant_isolation\": true, \"rights_ip\": true, \"infrastructure_readiness\": true, \"backup_restore\": true}, \"rule\": \"Technical green is necessary but public launch remains a founder decision.\"}, \"security_red\": {\"technical_green\": false, \"public_launch_ready\": false, \"founder_public_launch_approved\": true, \"blockers\": [{\"gate\": \"security_tenant_isolation\", \"department\": \"security\"}], \"gates\": {\"product_acceptance\": true, \"engineering_regression\": true, \"qa_evals\": true, \"security_tenant_isolation\": false, \"rights_ip\": true, \"infrastructure_readiness\": true, \"backup_restore\": true}, \"rule\": \"Technical green is necessary but public launch remains a founder decision.\"}}"
+    },
+    "v27_http": {
+      "ok": true,
+      "detail": "{\"server\": \"uvicorn\", \"register\": true, \"project_id\": \"prj_NGx6i0a5Hw4ltQ\", \"rights_gate\": \"LEGAL_REVIEW_REQUIRED\", \"promote_blocked_status\": 409, \"company_triage_top\": {\"id\": \"op-0001\", \"department_id\": \"security\", \"title\": \"Tenant probe\", \"priority_score\": 100, \"priority\": \"P0\", \"action_mode\": \"founder-review\", \"founder_approval_required\": true, \"reason\": \"security_alert routed to security; severity=critical; score=100\", \"source_signal\": {\"kind\": \"security_alert\", \"title\": \"Tenant probe\", \"severity\": \"critical\", \"detail\": \"\", \"source\": \"system\"}}, \"release_council_green\": true, \"export_zip_valid\": true, \"rights_manifest_present\": true}"
+    },
+    "release_manifest": {
+      "ok": true,
+      "detail": ""
+    },
+    "external_live_gates": {
+      "ok": true,
+      "detail": {
+        "open_weight_gpu": "NOT_RUN_HERE",
+        "real_multimodal_gpu": "NOT_RUN_HERE",
+        "docker_hostile_runtime": "NOT_RUN_HERE",
+        "postgres_redis_s3": "NOT_RUN_HERE",
+        "creator_postgres_persistence": "NOT_WIRED_YET",
+        "signed_android_ios": "NOT_RUN_HERE",
+        "payments": "NOT_RUN_HERE",
+        "public_tls_domain": "NOT_RUN_HERE",
+        "live_trademark_registry_search": "NOT_WIRED_YET",
+        "human_legal_review": "EXTERNAL_PROFESSIONAL_GATE"
+      }
+    }
+  }
+}

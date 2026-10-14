@@ -1,0 +1,256 @@
+{
+ "version": 1,
+ "capabilities": [
+  {
+   "capability": "discovery",
+   "expected_behavior": "professional discovery, delegated answers, brief revisions",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_discovery_and_approval.py",
+    "tests/test_brief_capability_detection.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "approval",
+   "expected_behavior": "server-bound approval, one build per approved plan",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_discovery_and_approval.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "build",
+   "expected_behavior": "contract-bound build, gates, settlement",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_m3_preview_logic.py",
+    "tests/test_live_build_stores_spec.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "modify",
+   "expected_behavior": "natural-language change with candidate and accept",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_golden_mod_path_live_postgres.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "cancel",
+   "expected_behavior": "queued and running stop for builds and changes",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_build_cancel_and_log.py",
+    "tests/test_crash_recovery_and_change_parity.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "resume",
+   "expected_behavior": "crash recovery and lost-queue redispatch",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_crash_recovery_and_change_parity.py",
+    "tests/test_janitor_redispatch.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "journal",
+   "expected_behavior": "live build/change log",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_build_cancel_and_log.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "provider_routing",
+   "expected_behavior": "price/quality routing, fallback, quota release",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_provider_quota_and_dialects.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "economics",
+   "expected_behavior": "metered settlement, QA budget",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "persistence",
+   "expected_behavior": "preview data across restart and versions",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_preview_data_durability.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "preview",
+   "expected_behavior": "private previews, acceptance on a scratch copy",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_preview_access.py",
+    "tests/test_preview_router.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "browser_execution",
+   "expected_behavior": "real-browser probe of every product",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_browser_probe.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "behavioral_acceptance",
+   "expected_behavior": "in-build acceptance feeding repair, requirements-aware scope",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_behavior_acceptance_in_build.py",
+    "tests/test_demand_driven_infrastructure.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "release",
+   "expected_behavior": "release gates and versions",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_m3_preview_logic.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "recovery",
+   "expected_behavior": "backups proven by restore",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_backup_restore.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "agent_os",
+   "expected_behavior": "durable agent runtime, permissions, budgets, verification, truthful registry",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_agent_os.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "failure_injection",
+   "expected_behavior": "graceful handling of injected failures",
+   "test_layer": "unit/integration",
+   "test_location": [
+    "tests/test_failure_injection.py"
+   ],
+   "last_result": "see CI (regression guardian)"
+  },
+  {
+   "capability": "behavioral_acceptance_test",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:43Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "preview_access_protect",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [
+    "postdeploy-checks run 38083312245"
+   ],
+   "last_result": "REAL_SERVER_VERIFIED",
+   "last_verified_commit": "67a0765",
+   "last_verified_at": "2026-10-10T20:20Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "persistence_verification",
+   "expected_behavior": "previews only",
+   "test_layer": "real-server",
+   "test_location": [
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
+   ],
+   "last_result": "REAL_SERVER_VERIFIED",
+   "last_verified_commit": "67a0765",
+   "last_verified_at": "2026-10-10T20:15Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "job_resume",
+   "expected_behavior": "restart from the beginning, once",
+   "test_layer": "real-server",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
+   "last_verified_commit": "2b4bafd",
+   "last_verified_at": "2026-10-09T15:46Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "credit_settlement",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "last_result": "UNIT_TESTED",
+   "last_verified_commit": "2b4bafd",
+   "last_verified_at": "2026-10-09T15:46Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "restore_verification",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [
+    "backup-restore run 37962179844"
+   ],
+   "last_result": "REAL_SERVER_VERIFIED",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:52Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "browser_launch",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [
+    "postdeploy-checks run 37961193099",
+    "deploy-worker run 38083162363"
+   ],
+   "last_result": "REAL_SERVER_VERIFIED",
+   "last_verified_commit": "039574f",
+   "last_verified_at": "2026-10-09T16:43Z",
+   "environment": "pre-staging worker host"
+  },
+  {
+   "capability": "job_cancel",
+   "expected_behavior": "as contracted",
+   "test_layer": "real-server",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
+   "last_verified_commit": "67a0765",
+   "last_verified_at": "2026-10-10T20:20Z",
+   "environment": "pre-staging worker host"
+  }
+ ]
+}

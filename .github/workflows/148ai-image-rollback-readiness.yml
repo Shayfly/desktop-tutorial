@@ -1,0 +1,37 @@
+name: One-time rollback image availability diagnosis
+
+# Read-only Docker metadata: DO NOT drain or restart anything.
+on:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+    paths: [.github/workflows/148ai-image-rollback-readiness.yml]
+
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Check whether images backing running containers still exist
+        shell: bash
+        run: |
+          set -uo pipefail
+          for s in worker intake-worker intake-maintain preview-worker; do
+            cid=$(docker ps -aq -f "name=^/omni-worker-${s}-1$" | head -1)
+            if [ -z "$cid" ]; then
+              echo "::warning title=image $s::no container found"
+              continue
+            fi
+            img=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null || true)
+            [ -n "$img" ] || { echo "::warning title=image $s::no image ID"; continue; }
+            if docker image inspect "$img" >/dev/null 2>&1; then
+              echo "::notice title=image $s::existing container image ID available"
+            else
+              echo "::error title=image $s::container runs from an image ID no longer present in Docker image store; cannot tag old image for rollback"
+            fi
+            echo "s=$s running=$(docker inspect -f '{{.State.Running}}' "$cid") ref=$(docker inspect -f '{{.Config.Image}}' "$cid")"
+          done
+          docker system df --format '{{json .}}' | head -c 1400 || true
+          echo
+          echo "::notice title=diagnosis::read-only; no service or image was changed"

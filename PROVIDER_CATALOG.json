@@ -1,0 +1,159 @@
+{
+  "commercial_adapters_status": "NOT_CONFIGURED",
+  "definitions": [
+    {
+      "category": "mobile-signing",
+      "key": "apple-developer",
+      "optional": [],
+      "required_secrets": [
+        "APPLE_TEAM_ID",
+        "APPLE_SIGNING_IDENTITY"
+      ]
+    },
+    {
+      "category": "storage",
+      "key": "cloudflare-r2",
+      "optional": [],
+      "required_secrets": [
+        "S3_ENDPOINT_URL",
+        "S3_BUCKET",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY"
+      ]
+    },
+    {
+      "category": "backend",
+      "key": "firebase",
+      "optional": [],
+      "required_secrets": [
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_CREDENTIALS_JSON"
+      ]
+    },
+    {
+      "category": "source-control",
+      "key": "github",
+      "optional": [],
+      "required_secrets": [
+        "GITHUB_TOKEN"
+      ]
+    },
+    {
+      "category": "maps",
+      "key": "google-maps",
+      "optional": [],
+      "required_secrets": [
+        "GOOGLE_MAPS_API_KEY"
+      ]
+    },
+    {
+      "category": "mobile-signing",
+      "key": "google-play",
+      "optional": [],
+      "required_secrets": [
+        "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
+      ]
+    },
+    {
+      "category": "ai",
+      "key": "local-openai-compatible-model",
+      "optional": [],
+      "required_secrets": [
+        "OMNI_LOCAL_MODEL_BASE_URL",
+        "OMNI_LOCAL_MODEL_NAME"
+      ]
+    },
+    {
+      "category": "maps",
+      "key": "mapbox",
+      "optional": [],
+      "required_secrets": [
+        "MAPBOX_TOKEN"
+      ]
+    },
+    {
+      "category": "media",
+      "key": "media-gateway",
+      "optional": [],
+      "required_secrets": [
+        "OMNI_MEDIA_BASE_URL"
+      ]
+    },
+    {
+      "category": "auth",
+      "key": "oidc",
+      "optional": [],
+      "required_secrets": [
+        "OIDC_ISSUER",
+        "OIDC_CLIENT_ID",
+        "OIDC_CLIENT_SECRET"
+      ]
+    },
+    {
+      "category": "media",
+      "key": "replicate",
+      "optional": [],
+      "required_secrets": [
+        "REPLICATE_API_TOKEN"
+      ]
+    },
+    {
+      "category": "email",
+      "key": "resend",
+      "optional": [],
+      "required_secrets": [
+        "RESEND_API_KEY"
+      ]
+    },
+    {
+      "category": "gpu",
+      "key": "runpod",
+      "optional": [],
+      "required_secrets": [
+        "RUNPOD_API_KEY"
+      ]
+    },
+    {
+      "category": "storage",
+      "key": "s3",
+      "optional": [],
+      "required_secrets": [
+        "S3_ENDPOINT_URL",
+        "S3_BUCKET",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY"
+      ]
+    },
+    {
+      "category": "email",
+      "key": "sendgrid",
+      "optional": [],
+      "required_secrets": [
+        "SENDGRID_API_KEY"
+      ]
+    },
+    {
+      "category": "payments",
+      "key": "stripe",
+      "optional": [],
+      "required_secrets": [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET"
+      ]
+    },
+    {
+      "category": "backend",
+      "key": "supabase",
+      "optional": [
+        "SUPABASE_ANON_KEY"
+      ],
+      "required_secrets": [
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ]
+    }
+  ],
+  "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME",
+  "schema_version": 1,
+  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
+}

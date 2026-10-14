@@ -1,0 +1,43 @@
+{
+  "release": "V27 Rights & Company OS Reviewer Release",
+  "full_suite": {
+    "passed": 209,
+    "skipped": 9,
+    "failed": 0
+  },
+  "v10_parity": {
+    "passed": 19,
+    "failed": 0
+  },
+  "v27_rights_company_os": {
+    "passed": 15,
+    "failed": 0
+  },
+  "production_http": {
+    "release": "V27 Rights & Company OS",
+    "server": "uvicorn-production-mode",
+    "separate_control_and_runtime_secrets": true,
+    "safe_build_status": "READY",
+    "safe_rights": "CLEAR",
+    "safe_promote_rights_gate": "CLEAR",
+    "cross_user_rights_status": 403,
+    "risky_initial_rights": "LEGAL_REVIEW_REQUIRED",
+    "risky_initial_promote_status": 409,
+    "unverified_evidence_still_blocked": true,
+    "unauthorized_review_status": 403,
+    "reviewer_verified_evidence": true,
+    "original_alternative_removed_people": true,
+    "risky_after_review": "CLEAR",
+    "risky_promote_after_review": "CLEAR",
+    "company_departments": 13,
+    "export_zip_valid": true,
+    "rights_manifest_in_export": true
+  },
+  "truth": {
+    "rights_engine": "risk triage/provenance/publish gate; not legal advice or exhaustive worldwide clearance",
+    "customer_evidence": "uploaded evidence remains unverified until a separate reviewer credential approves it",
+    "company_os": "13 automated department contracts; founder retains irreversible/legal/financial decisions",
+    "live_model_gpu": "not run in this environment",
+    "production_datastores": "live Postgres/Redis/S3 gates remain external/skipped"
+  }
+}

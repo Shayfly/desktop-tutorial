@@ -1,0 +1,1587 @@
+{
+  "agents": [
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan",
+        "skill.internal.cost.plan",
+        "skill.internal.release.gate",
+        "skill.software.plan",
+        "skill.software.architecture",
+        "skill.software.code.generate",
+        "skill.software.build",
+        "skill.software.test",
+        "skill.software.repair",
+        "skill.software.preview",
+        "skill.software.export"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.chief_orchestrator",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "coordinate product-production agents and release evidence"
+      ],
+      "role": "Chief Orchestrator",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify",
+        "skill.internal.capability.plan",
+        "skill.software.plan",
+        "skill.software.architecture"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.product_architect",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "compile product intent into architecture and acceptance plan"
+      ],
+      "role": "Product Architect",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.requirements.clarify"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.clarification",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "ask only material product questions"
+      ],
+      "role": "Clarification Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.capability.plan"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.capability_planner",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "produce deterministic capability dependency plans"
+      ],
+      "role": "Capability Planner",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost.plan",
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.cost_planner",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "construct conservative execution cost envelopes"
+      ],
+      "role": "Cost Planner",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.design.direct",
+        "skill.media.image.generate",
+        "skill.media.vector.generate",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.design_director",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "govern coherent visual and interaction design"
+      ],
+      "role": "Design Director",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.software.code.generate",
+        "skill.software.code.modify",
+        "skill.software.dependencies.install",
+        "skill.software.build",
+        "skill.software.test"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.code",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "generate and modify production code"
+      ],
+      "role": "Code Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.target.backend",
+        "skill.target.database",
+        "skill.software.code.generate",
+        "skill.integration.database",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.backend",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "produce backend, database and API product layers"
+      ],
+      "role": "Backend Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.infrastructure.plan",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.email",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.infrastructure",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "plan and provision generated-product infrastructure"
+      ],
+      "role": "Infrastructure Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.integration.bind",
+        "skill.integration.payment",
+        "skill.integration.email",
+        "skill.integration.sms",
+        "skill.integration.messaging",
+        "skill.integration.maps",
+        "skill.integration.storage",
+        "skill.integration.database",
+        "skill.integration.source_control",
+        "skill.integration.oauth",
+        "skill.integration.analytics",
+        "skill.integration.webhook"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.integration",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "bind, validate and monitor external integrations"
+      ],
+      "role": "Integration Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.asset.orchestrate",
+        "skill.media.image.generate",
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.3d.mesh.generate",
+        "skill.media.video.generate"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.asset_director",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "orchestrate multimodal asset production and reuse"
+      ],
+      "role": "Asset Director",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.mesh.generate",
+        "skill.media.3d.texture",
+        "skill.media.3d.multiview",
+        "skill.media.3d.retopology",
+        "skill.media.3d.optimize",
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget",
+        "skill.media.3d.export",
+        "skill.media.3d.scene.compose"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.three_d",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "produce and validate 3D assets"
+      ],
+      "role": "3D Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.game.design",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.game_director",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "orchestrate gameplay systems and game-production acceptance"
+      ],
+      "role": "Game Director",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.world.build",
+        "skill.media.3d.scene.compose",
+        "skill.media.texture.generate"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.world_builder",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "plan and construct worlds and levels"
+      ],
+      "role": "World Builder",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.mission.design"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.mission_designer",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "design mission and quest graphs with acceptance rules"
+      ],
+      "role": "Mission Designer",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.media.3d.rig",
+        "skill.media.3d.animate",
+        "skill.media.3d.retarget"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.animation",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "rig, animate and retarget 3D assets"
+      ],
+      "role": "Animation Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.media.audio.sfx",
+        "skill.media.audio.music",
+        "skill.media.audio.tts",
+        "skill.media.audio.stt",
+        "skill.media.audio.realtime_voice",
+        "skill.media.audio.dubbing",
+        "skill.media.audio.cleanup"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.audio_director",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "orchestrate voice, music and sound production"
+      ],
+      "role": "Audio Director",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.software.test",
+        "skill.internal.release.gate"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.qa",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "run functional verification and aggregate release evidence"
+      ],
+      "role": "QA Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.playtest",
+        "skill.target.game.2d",
+        "skill.target.game.3d"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.playtester",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "execute gameplay flows and report objective failures"
+      ],
+      "role": "Playtester Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.visual_qa"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.visual_qa",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "verify visual, responsive and presentation quality"
+      ],
+      "role": "Visual QA Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.performance_qa"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.performance",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "measure latency, FPS, memory and resource budgets"
+      ],
+      "role": "Performance Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.security_review"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.security",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "apply security checks and release gates"
+      ],
+      "role": "Security Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.compliance_review"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.compliance",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "apply domain, rights and regulatory gates"
+      ],
+      "role": "Compliance Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.software.repair",
+        "skill.software.code.modify",
+        "skill.software.test"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.repair",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "repair verified product failures without hiding them"
+      ],
+      "role": "Repair Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.software.deploy.web",
+        "skill.publish.web",
+        "skill.publish.android",
+        "skill.publish.ios",
+        "skill.publish.asset"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.deployment",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "publish verified releases and support rollback"
+      ],
+      "role": "Deployment Agent",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "NOT_IMPLEMENTED",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.cost_audit"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.chief_orchestrator"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.cost_auditor",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "reconcile provider/platform cost and gross contribution"
+      ],
+      "role": "Cost Auditor",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
+}

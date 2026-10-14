@@ -1,0 +1,10 @@
+{
+  "url": "http://127.0.0.1:8108/api/status",
+  "requests": 200,
+  "concurrency": 20,
+  "ok": 200,
+  "errors": 0,
+  "success_rate": 1.0,
+  "p95_ms": 92,
+  "rps": 273.11
+}

@@ -1,0 +1,10 @@
+# Founder-only staging prototype: paid conversational intake under durable caps.
+# Applied *in addition* to the existing docker-compose.yml, never overwrites it.
+# If preview model intake is disabled or the model cannot be quoted, the API
+# safely falls back to deterministic intake. The worker may not call a provider
+# without a durable intake reservation issued by the preview control plane.
+# Rollback: docker compose -f docker-compose.yml up -d --no-deps --no-build intake-worker
+services:
+  intake-worker:
+    environment:
+      OMNI_INTAKE_MODEL: "1"

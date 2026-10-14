@@ -1,0 +1,119 @@
+{
+  "release": "V25 Unified Core",
+  "automated_tests": {
+    "passed": 184,
+    "skipped": 9,
+    "failed": 0
+  },
+  "v10_parity_tests": {
+    "passed": 19,
+    "failed": 0
+  },
+  "offline_benchmark": {
+    "cases": 200,
+    "passed": 200,
+    "failed": 0,
+    "success_rate": 1.0,
+    "p95_duration_ms": 3,
+    "wall_ms": 402
+  },
+  "http_acceptance": {
+    "ok": true,
+    "build_status": "READY",
+    "file_count": 82,
+    "modules": [
+      "customers",
+      "drivers",
+      "rides",
+      "payments"
+    ],
+    "capabilities": [
+      "analytics",
+      "auth",
+      "export",
+      "maps",
+      "notifications",
+      "payments",
+      "realtime",
+      "roles",
+      "search"
+    ],
+    "launch_score": 100,
+    "deployment_id": "dpl-000001",
+    "first_user_role": "admin",
+    "unauth_crud_status": 401,
+    "auth_crud_items": 1,
+    "export_zip_files": 82,
+    "current_release": "V25 Unified Core"
+  },
+  "compileall": true,
+  "javascript_syntax": true,
+  "secret_scan": {
+    "ok": true,
+    "count": 0,
+    "findings": []
+  },
+  "international_gate_ok": true,
+  "hostile_static": {
+    "ok": true,
+    "cases": [
+      {
+        "name": "path_traversal",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PATH_ESCAPE",
+            "severity": "blocker",
+            "detail": "../escape.txt"
+          }
+        ]
+      },
+      {
+        "name": "private_key",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PRIVATE_KEY",
+            "severity": "blocker",
+            "detail": "secret.pem"
+          }
+        ]
+      },
+      {
+        "name": "shell_command",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "SHELL_COMMAND",
+            "severity": "high",
+            "detail": "bash -lc id"
+          }
+        ]
+      },
+      {
+        "name": "privileged_arg",
+        "blocked": true,
+        "findings": [
+          {
+            "code": "PRIVILEGE_ESCAPE",
+            "severity": "blocker",
+            "detail": "python --privileged"
+          }
+        ]
+      }
+    ]
+  },
+  "external_live_gates": {
+    "local_open_weight_gpu_model": "NOT_RUN",
+    "docker_hostile_runtime": "NOT_RUN",
+    "postgres_redis_s3": "NOT_RUN",
+    "android_signed_aab": "NOT_RUN",
+    "ios_signed_ipa": "NOT_RUN",
+    "console_certification": "NOT_RUN"
+  },
+  "legacy_v10": {
+    "zip_found_in_library": true,
+    "raw_bytes_materialized": false,
+    "behavioral_parity_reimplemented": true
+  }
+}

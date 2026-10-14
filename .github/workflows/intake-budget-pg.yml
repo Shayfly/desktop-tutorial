@@ -1,0 +1,68 @@
+name: intake-budget-pg
+
+# Issue #12: the intake budget reservation tests need a REAL PostgreSQL (and
+# Redis/RQ for duplicate delivery). They skip without one, so this job
+# provides both services and FAILS if any of them was skipped -- a skipped
+# concurrency test must never look like a pass. No secrets, no provider calls.
+on: [push, pull_request]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      M4D2_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+      OMNI_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Apply repository migrations (plan-governed execution needs agent_tasks, 034+)
+        env:
+          OMNI_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+        run: python -m omni_prod.migrate
+      - name: Focused PostgreSQL, Redis and build-idempotency regressions
+        run: |
+          python -m pytest -q -rs --junitxml=intake-pg.xml \
+            tests/test_intake_budget_pg.py tests/test_intake_complexity.py \
+            tests/test_intake_requirements_preservation.py tests/test_intake_worker_route.py \
+            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py \
+            tests/test_visual_edit.py tests/test_conversation_ux.py \
+            tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py \
+            tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
+            tests/integration/test_m5_build_economics_postgres.py
+      - name: No test may be skipped
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = list(ET.parse('intake-pg.xml').getroot().iter('testcase'))
+          skipped = [f"{c.get('classname')}.{c.get('name')}" for c in cases if c.find('skipped') is not None]
+          print(f'{len(cases)} test cases, {len(skipped)} skipped')
+          for s in skipped:
+              print(f'::error title=skipped::{s}')
+          sys.exit(1 if skipped or not cases else 0)
+          PY

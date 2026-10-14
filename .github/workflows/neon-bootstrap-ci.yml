@@ -1,0 +1,45 @@
+name: Neon bootstrap CI
+on:
+  push:
+    paths:
+      - 'infra/postgres/**'
+      - 'infra/staging/**'
+      - '.github/workflows/neon-bootstrap-ci.yml'
+  pull_request:
+    paths:
+      - 'infra/postgres/**'
+      - 'infra/staging/**'
+      - '.github/workflows/neon-bootstrap-ci.yml'
+permissions:
+  contents: read
+jobs:
+  fresh-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: bootstrap_ci_only
+          POSTGRES_DB: ai148_bootstrap_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ai148_bootstrap_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: bootstrap_ci_only
+      PGDATABASE: ai148_bootstrap_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Apply the complete bootstrap to a fresh database
+        run: psql -X -v ON_ERROR_STOP=1 -f infra/staging/bootstrap_neon_empty.sql
+      - name: Verify migration checksums, application tables, and rerun guard
+        run: python3 infra/staging/verify_neon_bootstrap.py

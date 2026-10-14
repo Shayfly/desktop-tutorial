@@ -1,0 +1,13 @@
+{
+  "compile": true,
+  "unit_tests": true,
+  "expected_tests": 13,
+  "sql_checks": {
+    "build_jobs": true,
+    "deployments": true,
+    "usage_events": true,
+    "idempotency_keys": true,
+    "worker_heartbeats": true,
+    "account_limits": true
+  }
+}

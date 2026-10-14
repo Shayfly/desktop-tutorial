@@ -1,0 +1,10 @@
+{
+  "compile": true,
+  "unit_tests": true,
+  "unit_test_count": 7,
+  "sql_checks": {
+    "build_jobs_table": true,
+    "deployments_table": true,
+    "usage_events_table": true
+  }
+}

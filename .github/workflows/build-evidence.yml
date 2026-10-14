@@ -1,0 +1,180 @@
+name: Build evidence
+
+# Read-only. Publishes one build's terminal status, error, verification
+# failures and build-log tail as annotations, so a failed build can be
+# diagnosed through the GitHub API without database access from chat. One
+# SELECT; nothing is written. Known secret shapes are redacted.
+#
+# The push trigger runs it once when this file changes (GitHub only
+# dispatches workflows that have run before or are on the default branch);
+# without a build id it reports the most recent build.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Build id (bld_...); empty = most recent build
+        required: false
+        default: ""
+      version_id:
+        description: "Optional version id (or prefix) whose start file is published in full, in parts"
+        required: false
+        default: ""
+      file_path:
+        description: "Optional file inside that version to publish instead of the start file"
+        required: false
+        default: ""
+      part_offset:
+        description: "Skip this many 3300-character parts (to read long files in several runs)"
+        required: false
+        default: "0"
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/build-evidence.yml]
+
+concurrency:
+  group: build-evidence
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Publish build evidence
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -uo pipefail
+          case "${BUILD_ID:-}" in ''|bld_[0-9a-f]*) ;; *) echo "::error::build_id must look like bld_<hex>"; exit 1;; esac
+          docker compose run --rm --no-deps -T -e BUILD_ID="${BUILD_ID:-}" worker python - <<'PY'
+          import json, os, re
+          import psycopg
+
+          def redact(text):
+              text = re.sub(r"AIza[0-9A-Za-z_-]{20,}", "[redacted-google-key]", text)
+              text = re.sub(r"(rediss?|postgres(?:ql)?)://\S+", r"\1://[redacted]", text)
+              text = re.sub(r"(?i)(key|token|secret|password|authorization)([\"' :=]+)[^\s\"',]+", r"\1\2[redacted]", text)
+              return re.sub(r"[A-Za-z0-9+/_-]{48,}", "[redacted-long-value]", text)
+
+          def publish(title, body, limit=3500):
+              body = redact(str(body))[:limit] if title.startswith("promoted entry") else redact(str(body))[-limit:]
+              body = body or "<empty>"
+              body = body.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::notice title={title}::{body}")
+
+          bid = os.environ.get("BUILD_ID") or None
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              row = conn.execute(
+                  "SELECT id, status, phase, error_code, error_message, evidence_json, created_at, finished_at, version_id, artifact_key "
+                  "FROM build_jobs WHERE (%s::text IS NULL OR id = %s) ORDER BY created_at DESC LIMIT 1",
+                  (bid, bid)).fetchone()
+          if not row:
+              print("::error::build not found"); raise SystemExit(1)
+          bid, status, phase, code, message, ev, created, finished, version_id, artifact_key = row
+          ev = ev if isinstance(ev, dict) else json.loads(ev or "{}")
+          publish("build", f"{bid} status={status} phase={phase} error_code={code} created={created} finished={finished} version={version_id} artifact={artifact_key}\n{message or ''}")
+          gates = ev.get("gates") or {}
+          ver = gates.get("verification") or ev.get("verification") or {}
+          failures = ver.get("failures") or []
+          lines = [f"passed={ver.get('passed')} failures={len(failures)}"]
+          for f in failures[:8]:
+              lines.append(f"- [{f.get('acceptance_id')}] {f.get('message')}\n  evidence: {json.dumps(f.get('evidence'), ensure_ascii=False, default=str)[:600]}")
+          publish("verification", "\n".join(lines))
+          publish("build log tail", ev.get("build_log_tail") or "")
+          q = gates.get("quality") or {}
+          publish("quality", f"score={q.get('score')} min={q.get('minimum_score')} blockers={q.get('blockers')}\n" +
+                  "\n".join(f"- {d.get('name')}: {d.get('score')} (w{d.get('weight')}) {d.get('notes')}" for d in q.get("dimensions") or []))
+          publish("repair", f"rounds={ev.get('repair_rounds')} stop={ev.get('repair_stop_reason')} release_ready={ev.get('release_ready')}")
+          # Non-secret spend figures (amounts and counts only), so a budget stop can be explained.
+          events = ev.get("model_route_events") or []
+          publish("evidence keys", ", ".join(sorted(ev)) + " | gates: " + ", ".join(sorted(gates)) +
+                  f"\nbudget_binding={ev.get('model_budget_binding')} calls={ev.get('external_model_calls')} "
+                  f"spend={ev.get('provider_spend_usd')} basis={ev.get('provider_spend_basis')} route_events={len(events)}\n" +
+                  "\n".join(f"- {e.get('model')} ok={e.get('ok')} {e.get('elapsed_ms')}ms max=${e.get('max_estimated_cost_usd')} err={(e.get('error') or '')[:90]}"
+                            for e in events[-12:] if isinstance(e, dict)))
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              recent = conn.execute(
+                  "SELECT id, status, classification, repair_rounds, error_code, left(coalesce(error_message, classification_reason, ''), 300), "
+                  "created_at, completed_at, accepted_at, promoted_version_id FROM modification_requests ORDER BY created_at DESC LIMIT 4").fetchall()
+              qa = conn.execute(
+                  "SELECT status, count(*), sum(estimated_provider_cost_usd), sum(settled_provider_cost_usd), min(created_at), max(created_at) "
+                  "FROM credit_reservations WHERE funding_source = 'internal_qa' GROUP BY status ORDER BY status").fetchall()
+              counted = ""
+              try:
+                  from omni_prod.qa_budget import qa_used_usd
+                  with conn.cursor() as cur:
+                      counted = (f"\ncounted (real) all-time={qa_used_usd(cur, None)} "
+                                 f"since 2026-10-08T17:12Z={qa_used_usd(cur, '2026-10-08T17:12:00Z')}")
+              except Exception as exc:
+                  counted = f"\ncounted: n/a ({type(exc).__name__})"
+              publish("qa budget", "status | count | reserved | settled | first | last\n" + "\n".join(" | ".join(str(x) for x in r) for r in qa) + counted)
+              publish("recent modifications", "\n".join(" | ".join(str(x) for x in r) for r in recent))
+              m = conn.execute(
+                  "SELECT id, status, classification, classification_reason, repair_rounds, error_code, error_message, "
+                  "source_version_id, promoted_version_id, evidence_json, created_at, completed_at, accepted_at "
+                  "FROM modification_requests ORDER BY created_at DESC LIMIT 1").fetchone()
+              if m:
+                  mev = m[9] if isinstance(m[9], dict) else json.loads(m[9] or "{}")
+                  publish("modification", f"{m[0]} status={m[1]} class={m[2]} repair_rounds={m[4]} error={m[5]} {m[6] or ''}\n"
+                          f"reason={m[3]}\nsource={m[7]} promoted={m[8]} created={m[10]} completed={m[11]} accepted={m[12]}\n"
+                          f"evidence keys: {', '.join(sorted(mev))}\nbilling={mev.get('billing')} spend={mev.get('provider_spend_usd')} calls={mev.get('external_model_calls')}")
+                  if m[8]:
+                      spec = conn.execute("SELECT spec_json FROM project_version_specs WHERE version_id = %s", (m[8],)).fetchone()
+                      if spec:
+                          sj = spec[0] if isinstance(spec[0], dict) else json.loads(spec[0])
+                          publish("promoted spec acceptance", "\n".join(f"{a.get('id')}: {a.get('text')}" for a in sj.get("acceptance", [])))
+                      v = conn.execute("SELECT file_count, message, created_at FROM project_versions WHERE id = %s", (m[8],)).fetchone()
+                      publish("promoted version", f"{m[8]} files={v and v[0]} message={v and v[1]} created={v and v[2]}")
+          PY
+
+      - name: Publish the latest promoted version's code (read-only)
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          VERSION_ID: ${{ inputs.version_id }}
+          FILE_PATH: ${{ inputs.file_path }}
+          PART_OFFSET: ${{ inputs.part_offset }}
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T -e VERSION_ID="$VERSION_ID" -e FILE_PATH="$FILE_PATH" -e PART_OFFSET="$PART_OFFSET" worker python - <<'PY'
+          import io, json, os, re, zipfile
+          import psycopg
+          from omni_prod.storage import S3ArtifactStore
+
+          def publish(title, body, limit=3400):
+              # Generated code, not configuration: redact secret-shaped values (long
+              # tokens, known key prefixes) without mangling code like `key=lambda`.
+              body = re.sub(r"(?i)(key|token|secret|password)([\"' :=]+)[A-Za-z0-9_\-/+=.]{16,}", r"\1\2[redacted]", str(body))
+              body = re.sub(r"(AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{20,}|(?:rediss?|postgres(?:ql)?)://\S+)", "[redacted]", body)[:limit] or "<empty>"
+              print(f"::notice title={title}::" + body.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              want = os.environ.get("VERSION_ID", "").strip()
+              if want:
+                  row = conn.execute("SELECT id, artifact_key FROM project_versions WHERE id LIKE %s ORDER BY created_at DESC LIMIT 1",
+                                     (want + "%",)).fetchone()
+              else:
+                  row = conn.execute("SELECT v.id, v.artifact_key FROM modification_requests m JOIN project_versions v "
+                                     "ON v.id = m.promoted_version_id ORDER BY m.created_at DESC LIMIT 1").fetchone()
+          if not row:
+              publish("code", "no promoted version"); raise SystemExit(0)
+          store = S3ArtifactStore(endpoint=os.environ["OMNI_S3_ENDPOINT"], bucket=os.environ["OMNI_S3_BUCKET"],
+                                  access_key=os.environ["OMNI_S3_ACCESS_KEY"], secret_key=os.environ["OMNI_S3_SECRET_KEY"])
+          z = zipfile.ZipFile(io.BytesIO(store.get_bytes(row[1], verify=False)))
+          names = set(z.namelist())
+          manifest = z.read(".omni/project.json").decode("utf-8", "replace") if ".omni/project.json" in names else ""
+          publish("manifest " + row[0], manifest)
+          start = (json.loads(manifest).get("start") or []) if manifest else []
+          publish("files " + row[0], ", ".join(sorted(names)))
+          if os.environ.get("VERSION_ID", "").strip():
+              # The whole start file, in parts (GitHub keeps 10 annotations per step).
+              target = os.environ.get("FILE_PATH", "").strip() or (start[-1] if start else "")
+              src = z.read(target).decode("utf-8", "replace") if target in names else ""
+              first = max(0, int(os.environ.get("PART_OFFSET", "0") or 0)) * 3300
+              publish("length " + target, f"{len(src)} characters; parts of 3300")
+              for i in range(first, min(len(src), first + 3300 * 8), 3300):
+                  publish(f"part {i // 3300 + 1} {target}", src[i:i + 3300])
+          else:
+              for f in [a for a in start if a in names][:1] + (["tests/test_league.py"] if "tests/test_league.py" in names else []):
+                  publish("file " + f.replace("/", "_"), z.read(f).decode("utf-8", "replace"))
+          PY

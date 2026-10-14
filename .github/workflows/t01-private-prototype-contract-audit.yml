@@ -1,0 +1,60 @@
+name: T01 read-only founder contract and Neon migration audit
+on:
+  push:
+    branches: [fix/148ai-t01-ci-recovery-2026-10-13]
+    paths: [.github/workflows/t01-private-prototype-contract-audit.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Inspect schema, latest founder-only plan capability requirements, and queue state
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i omni-worker-worker-1 python - <<'PY'
+          import os, hashlib, json
+          from collections import Counter
+          import psycopg
+          from omni_prod.capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
+
+          assert os.getenv("OMNI_ENV", "").lower() == "staging", "Refusing non-staging"
+          target_digest = "cfa6b12580e283432d57669d105ea4fd819055ba593dc94432854dd9e4925e9d"
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], options="-c default_transaction_read_only=on") as conn:
+              with conn.cursor() as c:
+                  for table in ("m5_build_contracts","project_briefs","creator_projects","build_jobs","schema_migrations"):
+                      c.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name=%s",(table,))
+                      print(f"SCHEMA_TABLE_{table}={'present' if c.fetchone()[0] else 'missing'}")
+                  c.execute("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1")
+                  print(f"NEON_LATEST_MIGRATION={c.fetchone()[0]}")
+                  c.execute("SELECT id,email FROM creator_accounts")
+                  ids=[account_id for account_id,email in c.fetchall()
+                       if email and hashlib.sha256(email.strip().casefold().encode()).hexdigest()==target_digest]
+                  assert len(ids)==1, "Exact founder match required"
+                  owner=ids[0]
+                  c.execute("""SELECT p.title, b.contract_json
+                               FROM m5_build_contracts b
+                               JOIN creator_projects p ON p.id=b.project_id
+                               WHERE p.owner_id=%s
+                               ORDER BY b.created_at DESC LIMIT 6""",(owner,))
+                  rows=c.fetchall()
+                  print(f"FOUNDER_CONTRACTS_INSPECTED={len(rows)}")
+                  for i,(title,contract) in enumerate(rows):
+                      d=contract if isinstance(contract,dict) else json.loads(contract)
+                      reqs=((d.get("capability_plan") or {}).get("requirements") or [])
+                      required=sorted({r.get("key") for r in reqs if r.get("required")})
+                      optional=sorted({r.get("key") for r in reqs if not r.get("required")})
+                      unresolved=sorted(set(required)-set(DEFAULT_NATIVE_BUILD_CAPABILITIES))
+                      print(f"CONTRACT_{i}_TRAVEL_TITLE_MATCH={title.strip().casefold()=='travel' if title else False}")
+                      print(f"CONTRACT_{i}_STATUS={d.get('status')}")
+                      print(f"CONTRACT_{i}_NON_NATIVE_REQUIRED={json.dumps(unresolved,sort_keys=True)}")
+                      print(f"CONTRACT_{i}_OPTIONAL={json.dumps(optional)}")
+                      print(f"CONTRACT_{i}_TARGETS={json.dumps((d.get('capability_plan') or {}).get('target_keys', []))}")
+                  c.execute("""SELECT status, COUNT(*) FROM build_jobs j JOIN creator_projects p
+                               ON p.id=j.project_id WHERE p.owner_id=%s
+                               GROUP BY status""",(owner,))
+                  print("FOUNDER_BUILD_STATE_COUNTS="+json.dumps(dict(c.fetchall()),sort_keys=True))
+          print("T01_AUDIT=READ_ONLY; NO PROMPTS, E-MAILS OR SECRETS LOGGED")
+          PY

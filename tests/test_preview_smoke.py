@@ -1,0 +1,135 @@
+"""The product must start for preview before a build is accepted.
+
+Golden E2E #1 (2026-10-07): the football site passed tests/quality/review and
+then failed preview with "preview contract requires schema_version 2, got
+None". The smoke script is executed for real here (subprocess in a temp dir,
+standing in for the sandbox's /run).
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from omni_prod.autonomous_core import ExecutionReport
+from omni_prod.preview_smoke import PREVIEW_FAILURE_ID, PreviewReadyExecutor
+
+CONTRACT = {'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
+            'port': 0, 'health_path': '/', 'build': [], 'verify': [{'name': 't', 'argv': ['true'], 'acceptance_ids': ['A1']}]}
+PAGE = ("<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><title>ליגה</title></head><body>"
+        "<h1>טבלת ליגה</h1><form id='add'><input name='team' placeholder='שם קבוצה'><button>הוספה</button></form>"
+        "<table id='standings'><thead><tr><th>קבוצה</th><th>נקודות</th><th>הפרש</th></tr></thead><tbody></tbody></table>"
+        "<script>fetch('/api/standings').then(r=>r.json()).then(console.log)</script></body></html>")
+APP_TEMPLATE = '''import os
+from http.server import BaseHTTPRequestHandler, HTTPServer
+BODY = %r
+CTYPE = %r
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        data = BODY.encode()
+        self.send_response(200); self.send_header("Content-Type", CTYPE); self.end_headers(); self.wfile.write(data)
+    def log_message(self, *a): pass
+HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever()
+'''
+GOOD_APP = APP_TEMPLATE % (PAGE, "text/html; charset=utf-8")
+HEALTH_ONLY_APP = APP_TEMPLATE % ("OK", "text/plain")
+CRASHING_APP = 'import sqlite3\nsqlite3.connect("league.db").execute("create table t(x)")\nraise SystemExit("cannot write")\n'
+
+
+def _free_port():
+    import socket
+    s = socket.socket(); s.bind(('127.0.0.1', 0)); p = s.getsockname()[1]; s.close(); return p
+
+
+class _LocalSandbox:
+    """execute() passes; _run() really runs argv in a temp copy of the repository."""
+    def execute(self, *, repository, spec):
+        return ExecutionReport(True, (), 'tests ok')
+
+    def _run(self, repository, argv, build_id):
+        with tempfile.TemporaryDirectory() as d:
+            for path, content in repository.items():
+                full = os.path.join(d, path); os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            p = subprocess.run(list(argv), cwd=d, capture_output=True, text=True, timeout=60)
+            return {'returncode': p.returncode, 'stdout': p.stdout, 'stderr': p.stderr}
+
+
+def _repo(app, **contract):
+    c = dict(CONTRACT, port=_free_port(), **contract)
+    return {'.omni/project.json': json.dumps(c), 'app.py': app}
+
+
+class PreviewSmokeTests(unittest.TestCase):
+    def setUp(self):
+        self.ex = PreviewReadyExecutor(_LocalSandbox())
+
+    def test_app_that_starts_and_answers_passes(self):
+        self.assertTrue(self.ex.execute(repository=_repo(GOOD_APP), spec=None).passed)
+
+    def test_health_string_instead_of_a_user_interface_fails(self):
+        # The exact Golden E2E #1 product: "/" answered "OK".
+        report = self.ex.execute(repository=_repo(HEALTH_ONLY_APP), spec=None)
+        self.assertFalse(report.passed)
+        self.assertIn('did not return an HTML page', report.failures[0].message)
+        self.assertIn('user interface', report.failures[0].evidence)
+
+    def test_missing_contract_is_a_repairable_failure_with_the_shape(self):
+        repo = {'.omni/project.json': json.dumps({'build': [], 'verify': CONTRACT['verify']}), 'app.py': GOOD_APP}
+        report = self.ex.execute(repository=repo, spec=None)
+        self.assertFalse(report.passed)
+        f = report.failures[0]
+        self.assertEqual(f.acceptance_id, PREVIEW_FAILURE_ID)
+        self.assertIn('schema_version', f.message)
+        self.assertIn('"start"', f.evidence)
+
+    def test_app_that_crashes_reports_why(self):
+        report = self.ex.execute(repository=_repo(CRASHING_APP), spec=None)
+        self.assertFalse(report.passed)
+        self.assertIn('server exited', report.failures[0].message)
+        self.assertIn('cannot write', report.failures[0].evidence)
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+class LinkedAssetSmokeTests(__import__('unittest').TestCase):
+    """bld_78e26994 (2026-10-08): a page whose UI is built by a same-origin
+    script must pass; a bare shell page must still fail, quoting its start."""
+
+    def _run(self, with_script):
+        import json, os, subprocess, sys, tempfile, socket
+        from omni_prod.preview_smoke import _SMOKE
+        with socket.socket() as s:
+            s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, '.omni'))
+        tag = '<script src="/app.js"></script>' if with_script else ''
+        app = ("import http.server, os\n"
+               f"PAGE=b'<!doctype html><html><body><div id=\"r\"></div>{tag}</body></html>'\n"
+               "JS=(\"document.createElement('button');\"*30).encode()\n"
+               "class H(http.server.BaseHTTPRequestHandler):\n"
+               "    def log_message(self,*a): pass\n"
+               "    def do_GET(self):\n"
+               "        b,c=(JS,'text/javascript') if self.path=='/app.js' else (PAGE,'text/html')\n"
+               "        self.send_response(200);self.send_header('Content-Type',c);self.end_headers();self.wfile.write(b)\n"
+               "http.server.HTTPServer(('127.0.0.1',int(os.environ['PORT'])),H).serve_forever()\n")
+        with open(os.path.join(d, 'app.py'), 'w', encoding='utf-8') as f:
+            f.write(app)
+        with open(os.path.join(d, '.omni', 'project.json'), 'w', encoding='utf-8') as f:
+            json.dump({'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
+                       'port': port, 'health_path': '/'}, f)
+        r = subprocess.run([sys.executable, '-c', _SMOKE], cwd=d, capture_output=True, text=True, timeout=60)
+        return r.returncode, r.stdout.splitlines()[0]
+
+    def test_ui_in_linked_script_passes(self):
+        self.assertEqual(self._run(True), (0, 'PREVIEW-SMOKE OK'))
+
+    def test_shell_page_fails_and_shows_its_start(self):
+        code, line = self._run(False)
+        self.assertEqual(code, 1)
+        self.assertIn('placeholder page', line)
+        self.assertIn('<div id="r">', line)

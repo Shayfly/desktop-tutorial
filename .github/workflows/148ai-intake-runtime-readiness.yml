@@ -1,0 +1,49 @@
+name: One-time 148AI intake runtime readiness
+
+# Read-only. Uses EXISTING self-hosted worker and running containers.
+# No checkout, registry pull, provider request, migration, restart, or build.
+on:
+  push:
+    branches: [codex/148ai-verified-intake-2026-10-12]
+    paths: [.github/workflows/148ai-intake-runtime-readiness.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 6
+    steps:
+      - name: Existing worker and intake container states (read-only)
+        run: |
+          set -euo pipefail
+          docker ps --format '{{.Names}}: {{.Status}}' | grep -E 'omni-worker-(worker|intake-worker|intake-maintain|sandbox-runner|preview-worker)-1' || true
+          docker exec -i omni-worker-intake-worker-1 python - <<'PY'
+          import os
+          from omni_prod.intake.budget import allowed_models
+          from omni_prod.intake import mode
+          print('intake_worker_model_enabled=' + str(os.getenv('OMNI_INTAKE_MODEL') == '1'))
+          print('intake_worker_queues=' + str(os.getenv('OMNI_WORKER_QUEUES', '')))
+          print('intake_worker_has_database=' + str(bool(os.getenv('OMNI_DATABASE_URL'))))
+          print('intake_worker_has_redis=' + str(bool(os.getenv('OMNI_REDIS_URL'))))
+          print('intake_worker_allowlisted_model_ids=' + ','.join(allowed_models()))
+          print('intake_worker_provider_keys_present=' + ','.join(
+              x.replace('_API_KEY', '') for x in ('GEMINI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY')
+              if os.getenv(x)))
+          print('intake_worker_source_commit=' + str(os.getenv('OMNI_SOURCE_COMMIT','unknown'))[:12])
+          for key in ('OMNI_INTAKE_MODEL_BUDGET_USD', 'OMNI_INTAKE_DAILY_BUDGET_USD',
+                      'OMNI_INTAKE_CALL_BUDGET_USD'):
+              print(key + '_is_set=' + str(bool(os.getenv(key))))
+          try:
+              from omni_prod.intake.budget import quote
+              q=quote(system='You are an assistant.', user='Create a simple website', max_tokens=700)
+              print('intake_quote_usd=' + str(q.amount_usd))
+          except Exception as exc:
+              print('intake_quote_unavailable=' + type(exc).__name__ + ': ' + str(exc)[:140])
+          PY
+          docker exec -i omni-worker-intake-maintain-1 python - <<'PY'
+          import os
+          print('intake_maintain_enabled=' + str(os.getenv('OMNI_INTAKE_MODEL')=='1'))
+          PY
+          echo "::notice title=READ-ONLY::No request to an AI provider or database write was performed"

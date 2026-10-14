@@ -1,0 +1,20 @@
+{
+  "release": "V27 Rights & Company OS",
+  "server": "uvicorn-production-mode",
+  "separate_control_and_runtime_secrets": true,
+  "safe_build_status": "READY",
+  "safe_rights": "CLEAR",
+  "safe_promote_rights_gate": "CLEAR",
+  "cross_user_rights_status": 403,
+  "risky_initial_rights": "LEGAL_REVIEW_REQUIRED",
+  "risky_initial_promote_status": 409,
+  "unverified_evidence_still_blocked": true,
+  "unauthorized_review_status": 403,
+  "reviewer_verified_evidence": true,
+  "original_alternative_removed_people": true,
+  "risky_after_review": "CLEAR",
+  "risky_promote_after_review": "CLEAR",
+  "company_departments": 13,
+  "export_zip_valid": true,
+  "rights_manifest_in_export": true
+}

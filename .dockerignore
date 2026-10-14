@@ -1,0 +1,6 @@
+.git
+__pycache__
+.pytest_cache
+*.pyc
+*.zip
+BENCHMARK-LIVE.json

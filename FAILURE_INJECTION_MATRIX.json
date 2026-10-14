@@ -1,0 +1,124 @@
+{
+ "version": 1,
+ "injections": [
+  {
+   "failure": "provider timeout",
+   "expected_handling": "fallback provider serves",
+   "proven_by": "tests/test_failure_injection.py::test_timeout_falls_back_to_the_next_provider",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "malformed provider response",
+   "expected_handling": "fallback provider serves",
+   "proven_by": "tests/test_failure_injection.py::test_malformed_response_falls_back",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "provider 429",
+   "expected_handling": "released at $0, route skipped",
+   "proven_by": "tests/test_failure_injection.py::test_429_is_released_and_the_route_is_skipped",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "provider 500",
+   "expected_handling": "bounded retry, then fallback",
+   "proven_by": "tests/test_failure_injection.py::test_500_is_retried_then_falls_back",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "all providers down",
+   "expected_handling": "build FAILED model_unavailable",
+   "proven_by": "tests/test_failure_injection.py::test_all_providers_down_is_a_named_failure",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "exhausted budget",
+   "expected_handling": "FAILED model_budget_exhausted",
+   "proven_by": "tests/test_failure_injection.py::test_exhausted_budget_stops_with_a_named_failure",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "DB unavailable during a step",
+   "expected_handling": "warning, build continues",
+   "proven_by": "tests/test_failure_injection.py::test_database_unavailable_during_a_step_does_not_crash_the_build",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "queue interruption",
+   "expected_handling": "janitor re-dispatches",
+   "proven_by": "tests/test_failure_injection.py::test_queue_interruption_is_redispatched",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "invalid migration",
+   "expected_handling": "deploy aborts on checksum drift",
+   "proven_by": "tests/test_failure_injection.py::test_invalid_migration_aborts_instead_of_diverging",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "corrupted artifact reference",
+   "expected_handling": "ArtifactIntegrityError, never served",
+   "proven_by": "tests/test_failure_injection.py::test_corrupted_artifact_is_refused",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "network interruption to the sandbox",
+   "expected_handling": "RemoteSandboxError",
+   "proven_by": "tests/test_failure_injection.py::test_sandbox_network_interruption_is_a_named_error",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "worker killed mid-build",
+   "expected_handling": "requeued once, build finished READY",
+   "proven_by": "postdeploy-checks run 37954236866 (+ inspect 37955419872)",
+   "status": "PASS",
+   "layer": "real-server"
+  },
+  {
+   "failure": "deployment during a build",
+   "expected_handling": "drain: running job finishes first",
+   "proven_by": "deploy-worker run 38083162363",
+   "status": "PASS",
+   "layer": "real-server"
+  },
+  {
+   "failure": "browser JS exception",
+   "expected_handling": "repairable BROWSER failure",
+   "proven_by": "tests/test_browser_probe.py",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "expired preview token",
+   "expected_handling": "401 private page",
+   "proven_by": "tests/test_preview_access.py::test_public_needs_no_token_and_expired_tokens_fail",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "insufficient credits",
+   "expected_handling": "build refused before work",
+   "proven_by": "tests/test_v28_148ai_launch.py",
+   "status": "PASS",
+   "layer": "unit/integration"
+  },
+  {
+   "failure": "invalid OAuth",
+   "expected_handling": "not applicable: generated-app OAuth not implemented",
+   "proven_by": "",
+   "status": "BLOCKED",
+   "layer": "unit/integration"
+  }
+ ]
+}

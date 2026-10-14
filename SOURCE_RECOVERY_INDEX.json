@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "current_release": "V27 Rights & Company OS",
+  "parent_release": {
+    "name": "OmniCreator-V26-Universal-Pro-Reviewer.zip",
+    "sha256": "066ef9c92a655fc64e77003b9297603d786905f33eff0df434c785f9101aacd4",
+    "library_file_id": "file_000000004aac81fd85271416bdc4e609"
+  },
+  "legacy_v10": {
+    "name": "OmniCreator-Product-V10-PRODUCTION.zip",
+    "library_file_id": "file_0000000015a481f48a0232955a52070e",
+    "size_bytes": 183817,
+    "raw_materialization": "blocked_by_project_file_authorization",
+    "validation_file_id": "file_00000000506c8210adf8464374c2f550"
+  },
+  "recovery_rule": "V27 is the source of truth. V26 is retained as the immediate parent backup; V10 behavior remains enforced by parity tests."
+}

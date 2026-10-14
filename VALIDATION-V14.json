@@ -1,0 +1,13 @@
+{
+  "package_complete": true,
+  "missing_before_zip": [],
+  "compile_pass": true,
+  "tests_pass": true,
+  "tests_run": 26,
+  "zip_integrity_pass": true,
+  "clean_extract_package_complete": true,
+  "clean_extract_missing": [],
+  "clean_extract_compile_pass": true,
+  "clean_extract_tests_pass": true,
+  "clean_extract_tests_run": 26
+}

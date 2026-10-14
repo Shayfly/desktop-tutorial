@@ -1,0 +1,36 @@
+{
+  "version": "V22",
+  "compile": "PASS",
+  "unit_tests": "PASS",
+  "tests_total": 98,
+  "tests_passed": 95,
+  "tests_skipped_live": 3,
+  "secret_scan_findings": 0,
+  "migration_versions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "autonomous_core": {
+    "product_spec_acceptance_contract": "PASS",
+    "generate_execute_repair_loop": "PASS_WITH_INJECTED_EXECUTOR",
+    "local_openai_compatible_http_gateway": "PASS",
+    "zero_cost_mode_external_block": "PASS",
+    "bug_vs_change_billing_policy": "PASS",
+    "sandbox_repository_bridge": "PASS_WITH_INJECTED_SANDBOX_RUNNER"
+  },
+  "external_gates": {
+    "real_open_weight_model": "NOT_RUN",
+    "real_docker_sandbox_execution": "NOT_RUN",
+    "postgres": "NOT_RUN",
+    "redis": "NOT_RUN",
+    "s3": "NOT_RUN",
+    "v10_merge": "NOT_DONE"
+  }
+}

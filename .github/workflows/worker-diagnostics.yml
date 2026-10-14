@@ -1,0 +1,93 @@
+name: Worker diagnostics
+
+# Read-only. Publishes the recent worker and sandbox-runner logs and container
+# state as annotations, so they can be read through the GitHub API without SSH
+# and without the job log. Changes nothing on the host: no checkout, no
+# compose, no restart. Known secret shapes are redacted before publishing.
+#
+# The push trigger runs it once when this file changes (GitHub only
+# dispatches workflows that have run before or are on the default branch).
+on:
+  workflow_dispatch:
+    inputs:
+      lines:
+        description: Log lines per container (max 200)
+        required: false
+        default: "120"
+      drain_check_seconds:
+        description: "Optional 30-600: also enqueue ONE harmless time.sleep(N) job on the build queue, to prove a deploy drains (directive §18). Writes only that queue entry."
+        required: false
+        default: ""
+      preview_id:
+        description: "Optional preview id (prv_<hex>): publish that preview container's state, request log and GET probes (read-only)"
+        required: false
+        default: ""
+  push:
+    branches: [milestone/pre-staging-2026-10-05]
+    paths: [.github/workflows/worker-diagnostics.yml]
+
+concurrency:
+  group: worker-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  diagnostics:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Publish container state and recent logs
+        env:
+          LINES_INPUT: ${{ inputs.lines }}
+          PREVIEW_INPUT: ${{ inputs.preview_id }}
+          DRAIN_INPUT: ${{ inputs.drain_check_seconds }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          n="${LINES_INPUT:-120}"; case "$n" in ''|*[!0-9]*) n=120;; esac; [ "$n" -gt 200 ] && n=200
+          redact() {
+            sed -E \
+              -e 's/AIza[0-9A-Za-z_-]{20,}/[redacted-google-key]/g' \
+              -e 's#(rediss?|postgres(ql)?)://[^ "]+#\1://[redacted]#g' \
+              -e 's/(key|token|secret|password|authorization)([" :=]+)[^ ",]+/\1\2[redacted]/Ig' \
+              -e 's/[A-Za-z0-9+\/_-]{48,}/[redacted-long-value]/g'
+          }
+          publish() {  # title, then the command whose output to publish
+            local title="$1"; shift
+            local body
+            body=$("$@" 2>&1 | tail -n "$n" | redact | cut -c1-400)
+            body=${body//'%'/'%25'}; body=${body//$'\r'/}; body=${body//$'\n'/'%0A'}
+            echo "::notice title=${title}::${body:-<empty>}"
+          }
+          publish "containers" docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}'
+          publish "restarts" docker inspect -f '{{.Name}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' omni-worker-worker-1 omni-worker-sandbox-runner-1
+          publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
+          publish "worker log" docker logs --tail "$n" omni-worker-worker-1
+          publish "sandbox-runner log" docker logs --tail "$n" omni-worker-sandbox-runner-1
+          publish "janitor log" docker logs --timestamps --tail "$n" omni-worker-janitor-1
+          publish "preview-router log" docker logs --timestamps --tail "$n" omni-worker-preview-router-1
+          publish "preview-worker log" docker logs --timestamps --tail "$n" omni-worker-preview-worker-1
+          pv="${PREVIEW_INPUT:-}"
+          if [ -n "$pv" ]; then
+            case "$pv" in prv_[0-9a-f]*) ;; *) echo "::error::preview_id must look like prv_<hex>"; exit 1;; esac
+            case "$pv" in *[!0-9a-z_]*) echo "::error::preview_id has unsafe characters"; exit 1;; esac
+            c="omni-preview-$pv"
+            publish "preview state" docker inspect -f '{{.Name}} status={{.State.Status}} started={{.State.StartedAt}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$c"
+            publish "preview request log" docker logs --tail "$n" "$c"
+            hp=$(docker port "$c" 2>/dev/null | head -1 | sed 's/.*://')
+            probe() { for path in / /books /members /loans /overdue; do printf '%s %s\n' "$path" "$(curl -sS -m 5 -o /dev/null -w '%{http_code} %{size_download}b' "http://127.0.0.1:$hp$path" 2>&1)"; done; }
+            [ -n "$hp" ] && publish "preview GET probes" probe
+          fi
+          s="${DRAIN_INPUT:-}"
+          if [ -n "$s" ]; then
+            case "$s" in *[!0-9]*) echo "::error::drain_check_seconds must be a number"; exit 1;; esac
+            [ "$s" -ge 30 ] && [ "$s" -le 600 ] || { echo "::error::drain_check_seconds must be 30-600"; exit 1; }
+            docker exec -e S="$s" -e JOB="drain-check-$RUN_ID" omni-worker-worker-1 python -c '
+          import os
+          from redis import Redis
+          from rq import Queue
+          s = int(os.environ["S"])
+          q = Queue("omni-builds", connection=Redis.from_url(os.environ["OMNI_REDIS_URL"]))
+          job = q.enqueue("time.sleep", s, job_id=os.environ["JOB"], job_timeout=s + 60, result_ttl=3600)
+          print(f"::notice title=drain check::enqueued {job.id}: time.sleep({s}) on omni-builds")
+          '
+          fi

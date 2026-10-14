@@ -1,0 +1,16 @@
+{
+  "status_endpoint": {
+    "http": 200,
+    "version": "V23 Investor-Grade Prelaunch",
+    "benchmark_catalog_cases": 30,
+    "live_ready_in_build_environment": false
+  },
+  "demo_build_endpoint": {
+    "http": 200,
+    "status": "ready",
+    "mode": "offline-deterministic-demo",
+    "repository_file_count": 6,
+    "verification_passed": true
+  },
+  "note": "Live autonomous model build not executed in this environment because Docker/GPU/model server are not available."
+}

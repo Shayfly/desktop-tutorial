@@ -1,0 +1,73 @@
+name: v24-ci
+"on": [push, pull_request]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - run: python -m compileall -q omni_prod tests
+      - run: python -m pytest -q --junitxml=pytest-report.xml
+      - name: Publish failing tests as annotations
+        if: failure()
+        # Job logs are not reachable from every review environment; annotations are.
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          for case in ET.parse('pytest-report.xml').getroot().iter('testcase'):
+              for bad in list(case.iter('failure')) + list(case.iter('error')):
+                  name = f"{case.get('classname')}.{case.get('name')}"
+                  msg = (bad.get('message') or '').replace('\n', ' ')[:300]
+                  print(f"::error title={name}::{msg}")
+          PY
+      - name: Regression guardian (agent 48) -- every protected area keeps its tests and passes
+        if: always()
+        run: python -m omni_prod.agent_os.meta regression pytest-report.xml
+      - name: Capability auditor (agent 47) -- no registry inflation
+        run: python -m omni_prod.agent_os.audit
+      - run: python scripts/run_hostile_static_suite.py
+      - run: python scripts/run_international_gate.py
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: cp .env.example .env
+      - run: docker compose -f docker-compose.international.yml config >/dev/null
+  customer-ui:
+    runs-on: ubuntu-latest
+    steps:
+      # Audited registry snapshots refer to the PR HEAD, not GitHub's
+      # synthetic merge SHA, which can include unrelated base-branch changes.
+      # Merge compatibility still requires a separately verified merge gate.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Parse-check browser scripts before downloading Chromium
+        run: |
+          node --check omni_prod/assets/app.js
+          node --check omni_prod/assets/visual-edit.js
+          node --check tests/customer_flow_browser.cjs
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/customer_flow_browser.cjs

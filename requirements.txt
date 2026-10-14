@@ -1,3 +1,4 @@
+# Direct production pins for the Vercel requirements parser.
 fastapi==0.128.2
 uvicorn==0.48.0
 pydantic==2.13.4

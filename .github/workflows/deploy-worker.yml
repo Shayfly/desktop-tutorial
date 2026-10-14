@@ -1,0 +1,331 @@
+name: Deploy build worker
+
+# Runs ON the worker host (self-hosted runner, label omni-worker), so no SSH
+# keys or inbound ports are needed. Secrets never appear in logs: the env file
+# is written with mode 600 and only variable NAMES are printed.
+on:
+  workflow_dispatch:
+    inputs:
+      accept_newer_migrations:
+        description: "Code ROLLBACK only: exact migration versions a newer release already applied, e.g. 38 (comma separated). Empty = normal strict check."
+        required: false
+        default: ""
+  push:
+    # The private candidate is deployed to the EXISTING Oracle staging host,
+    # not to main or a customer production environment.
+    branches: [milestone/pre-staging-2026-10-05, codex/148ai-verified-intake-2026-10-12]
+    paths:
+      - omni_prod/**
+      - infra/worker-host/**
+      - infra/sandbox/**
+      - infra/sandbox-runner/**
+      - infra/browser-sandbox/**
+      - infra/postgres/**
+      - requirements-production.txt
+      - Dockerfile
+      - .github/workflows/deploy-worker.yml
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write environment file
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bash infra/worker-host/write-env.sh
+
+      - name: Confirm deployment scope and configured intake mode
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          grep -qx 'OMNI_ENV=staging' .env || {
+            echo "::error title=Prototype staging only::This source revision must not deploy onto non-staging worker"; exit 1; }
+          grep -qx 'OMNI_INTAKE_MODEL=1' .env || {
+            echo "::error title=Intake disabled::Cannot replace intake worker with a disabled model mode"; exit 1; }
+          docker compose config --services | grep -qx worker
+          docker compose config --services | grep -qx intake-worker
+          echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
+
+      - name: Build images
+        working-directory: infra/worker-host
+        run: docker compose build
+
+      # Previews (M3): the preview worker's workdir must exist at the same
+      # path on the host; the public edge (Caddy) needs TCP 80/443 open in the
+      # host firewall (ufw from bootstrap.sh, plus the image's iptables rules).
+      # The cloud security list is opened separately in the Oracle console.
+      # Idempotent; prints the resulting INPUT rules for the record.
+      - name: Prepare preview host
+        run: |
+          set -euo pipefail
+          docker run --rm --privileged --net=host --pid=host -v /:/host alpine:3 chroot /host /bin/sh -c '
+            set -e
+            mkdir -p /var/lib/omni-preview/tmp && chmod 755 /var/lib/omni-preview && chmod 1777 /var/lib/omni-preview/tmp
+            if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
+            for p in 80 443; do
+              iptables -C INPUT -p tcp --dport $p -j ACCEPT 2>/dev/null || iptables -I INPUT 1 -p tcp --dport $p -j ACCEPT
+            done
+            command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+            echo "INPUT rules for 80/443:"; iptables -S INPUT | grep -E "dport (80|443)" || true'
+          docker pull -q python:3.11-slim
+          docker pull -q node:20-slim
+
+      # Directive 2026-10-09 §18: never replace a worker in the middle of a build
+      # or change. `docker stop` sends SIGTERM; an RQ worker then makes a warm
+      # shutdown -- it takes no new job and finishes the one it is running. We
+      # stop (drain) both workers BEFORE migrations and before any container is
+      # replaced (the sandbox runner a build depends on included). New jobs wait
+      # in the queue and the new worker takes them. Past the deadline Docker
+      # kills the job; that is reported, never hidden.
+      # Directive 2026-10-11: never start a drain while a customer job is RUNNING. Waits up to 20 minutes for it to
+      # finish (the drain itself would wait up to 25), then FAILS without touching anything. Read-only, no spend.
+      - name: Refuse to drain while a build or change is running
+        id: idle
+        working-directory: infra/worker-host
+        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20
+
+      - name: Drain workers (finish running jobs before replacing anything)
+        id: drain
+        run: bash infra/worker-host/drain.sh
+
+      # A rollback to older code names the newer versions explicitly (workflow_dispatch input); nothing is dropped or
+      # hidden and every other migration check stays. A normal push passes nothing and stays strict.
+      - name: Apply database migrations
+        id: migrate
+        working-directory: infra/worker-host
+        env:
+          ACCEPT_NEWER: ${{ github.event.inputs.accept_newer_migrations }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ACCEPT_NEWER:-}" ]; then
+            [[ "$ACCEPT_NEWER" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "::error::accept_newer_migrations must be exact versions like 38"; exit 2; }
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate --accept-newer "$ACCEPT_NEWER"
+          else
+            docker compose run --rm --no-deps worker python -m omni_prod.migrate
+          fi
+
+      - name: Start
+        id: start
+        working-directory: infra/worker-host
+        run: docker compose up -d --remove-orphans
+
+      - name: Verify worker is consuming the build queue
+        id: listen
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if docker compose logs worker 2>&1 | grep -q "Listening on"; then
+              docker compose ps
+              docker compose logs --tail 20 worker
+              exit 0
+            fi
+            sleep 4
+          done
+          docker compose ps
+          docker compose logs --tail 80 worker
+          echo "::error::worker did not start listening on its queue"
+          exit 1
+
+      # Directive 2026-10-11: a failed drain, migration, start or queue check must not leave customers without a
+      # worker. Restores the PREVIOUS consumers from the recorded images; never touches the database or volumes
+      # (migrations are additive, so the old code runs against the newer schema). The run stays red.
+      - name: Recover previous workers after a failed drain, migration or start
+        if: ${{ failure() && (steps.drain.outcome == 'failure' || steps.migrate.outcome == 'failure' || steps.start.outcome == 'failure' || steps.listen.outcome == 'failure') }}
+        run: bash infra/worker-host/recover.sh
+
+      # The sandbox runner reporting healthy did not mean it could run code
+      # (its image had no docker client; every build got HTTP 500). This runs
+      # a real snippet through the same signed path the worker uses and checks
+      # the sandbox has no network.
+      - name: Prove the sandbox runs code without network access
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os, sys
+          from omni_prod.remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
+
+          probe = (
+              "import compileall, socket, sys\n"
+              "print('sandbox-ok', sys.version_info[:2])\n"
+              "print('compile-ok' if compileall.compile_dir('.', quiet=1) else 'compile-FAILED')\n"
+              "try:\n"
+              "    socket.create_connection(('1.1.1.1', 53), timeout=3)\n"
+              "    print('network-OPEN')\n"
+              "except OSError:\n"
+              "    print('network-blocked')\n"
+          )
+          executor = RemoteSandboxRepositoryExecutor(RemoteSandboxConfig(
+              os.environ["OMNI_SANDBOX_RUNNER_URL"], os.environ["OMNI_SANDBOX_SHARED_SECRET"], timeout_seconds=120))
+          result = executor._run({"probe.py": probe}, ("python", "probe.py"), "deploy-sandbox-probe")
+          out = result["stdout"]
+          print(f"returncode={result['returncode']} stdout={out.strip()!r} stderr={result['stderr'][-300:]!r}")
+          if int(result["returncode"]) != 0 or "sandbox-ok" not in out or "network-blocked" not in out or "compile-ok" not in out:
+              err = " ".join(result["stderr"].split())[-300:]
+              print(f"::error title=sandbox-probe::returncode={result['returncode']} stdout={out.strip()[:200]!r} stderr={err!r}")
+              sys.exit(1)
+          print(f"::notice title=sandbox-probe::PASS code ran and compiled in the isolated read-only sandbox ({out.split()[1:3]}), network blocked")
+          PY
+
+      # Directive 2026-10-09 §17: the real-browser check runs in its own image
+      # with the same isolation. Proven both ways on every deploy: a working
+      # fixture product passes, one that hides its message after the first use
+      # is caught. A failure here is a warning (builds then record
+      # browser_check "unavailable"; never read as passed).
+      - name: Prove the browser sandbox clicks through a product
+        working-directory: infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os
+          from omni_prod.browser_fixtures import fixture_repository
+          from omni_prod.browser_probe import BROWSER_PROFILE, PROBE, parse_probe_output
+          from omni_prod.remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
+          ex = RemoteSandboxRepositoryExecutor(RemoteSandboxConfig(
+              os.environ["OMNI_SANDBOX_RUNNER_URL"], os.environ["OMNI_SANDBOX_SHARED_SECRET"], timeout_seconds=200))
+          seen = {}
+          for name, kw in (("working", {}), ("message-bug", {"feedback_bug": True})):
+              try:
+                  r = ex._run(fixture_repository(**kw), ("python", "-c", PROBE), f"deploy-browser-{name}", profile=BROWSER_PROFILE)
+                  out = parse_probe_output(r["stdout"])
+                  seen[name] = sorted({f["kind"] for f in out["findings"]}) if out else ("no result: " + (r["stdout"] + r["stderr"])[-300:])
+              except Exception as exc:
+                  seen[name] = f"error: {type(exc).__name__}: {exc}"[:300]
+          ok = seen.get("working") == [] and seen.get("message-bug") == ["feedback_disappears"]
+          level = "notice" if ok else "warning"
+          print(f"::{level} title=browser-probe::{'PASS' if ok else 'NOT WORKING'} working={seen.get('working')} message-bug={seen.get('message-bug')}")
+          PY
+
+      - name: Preview edge is up
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8088/_health >/dev/null; then break; fi; sleep 3
+          done
+          curl -fsS --max-time 3 http://127.0.0.1:8088/_health >/dev/null || { docker compose logs --tail 40 preview-router; echo "::error title=preview-edge::router not answering"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H 'Host: prv-0000000000000000.example' http://127.0.0.1/ || true)
+          docker compose ps preview-worker preview-router caddy
+          docker compose logs --no-color preview-worker 2>&1 | grep -E "queues:" | tail -1 | sed 's/^[^|]*| //' | while read -r l; do echo "::notice title=preview-worker::$l"; done
+          suffix=$(sed -n 's/^OMNI_PREVIEW_HOST_SUFFIX=//p' .env | head -n 1)
+          if [ "$code" != "308" ] && [ "$code" != "301" ]; then
+            docker compose logs --tail 40 caddy; echo "::error title=preview-edge::caddy on :80 answered $code (expected a redirect to https)"; exit 1
+          fi
+          echo "::notice title=preview-edge::PASS router healthy, caddy redirects :80 -> https; hostnames *.${suffix}"
+          for i in $(seq 1 20); do docker compose logs --no-color janitor 2>&1 | grep -q "maintenance started" && break; sleep 3; done
+          line=$(docker compose logs --no-color janitor 2>&1 | grep -E "maintenance started|expired=" | tail -2 | sed 's/^[^|]*| //' | tr '\n' ' ')
+          if [ -z "$line" ]; then docker compose logs --tail 30 janitor; echo "::error title=janitor::maintenance loop did not start"; exit 1; fi
+          echo "::notice title=janitor::$line"
+
+      # Directive 2026-10-09 §13: the generated product's own data survives a
+      # preview restart and a new version, acceptance probes use a scratch copy,
+      # and projects never share data. Real containers on this host, $0.
+      - name: Prove preview data survives a restart and a new version
+        working-directory: infra/worker-host
+        run: |
+          set -uo pipefail
+          docker compose exec -T preview-worker python -m omni_prod.preview_durability 2>&1 | grep -E '^::' || echo "::warning title=preview-data::self-test produced no result"
+
+      # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
+      # then SignatureDoesNotMatch) after minutes of paid generation. This writes,
+      # reads back and deletes one small object through the same S3ArtifactStore
+      # the worker uses, so a bad storage credential fails the deploy instead of
+      # a customer build. Reports only error codes and the endpoint's shape.
+      - name: Prove artifact storage accepts writes
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os, sys, uuid
+          from urllib.parse import urlsplit
+          from omni_prod.storage import S3ArtifactStore
+
+          endpoint = os.environ["OMNI_S3_ENDPOINT"]; bucket = os.environ["OMNI_S3_BUCKET"]
+          ak = os.environ["OMNI_S3_ACCESS_KEY"]; sk = os.environ["OMNI_S3_SECRET_KEY"]
+          parts = urlsplit(endpoint)
+          hexchars = set("0123456789abcdef")
+          shape = (f"scheme={parts.scheme} host_suffix={'.'.join((parts.hostname or '').split('.')[-3:])} "
+                   f"path={parts.path or '-'!r} bucket_len={len(bucket)} ak_len={len(ak)} sk_len={len(sk)} "
+                   f"ak_hex={set(ak) <= hexchars} sk_hex={set(sk) <= hexchars}")
+
+          def attempt(url):
+              store = S3ArtifactStore(endpoint=url, bucket=bucket, access_key=ak, secret_key=sk)
+              key = f"_deploy-probe/{uuid.uuid4().hex}.txt"
+              try:
+                  store.put_bytes(key, b"deploy-probe")
+                  ok = store.get_bytes(key) == b"deploy-probe"
+                  store.client.delete_object(Bucket=bucket, Key=key)
+                  return "PASS" if ok else "READBACK_MISMATCH"
+              except Exception as exc:
+                  code = getattr(exc, "response", {}).get("Error", {}).get("Code") or type(exc).__name__
+                  return f"FAIL {code}"
+
+          configured = attempt(endpoint)
+          print(f"configured endpoint: {configured}; {shape}")
+          if configured == "PASS":
+              print(f"::notice title=storage-probe::PASS write, read-back and delete in the artifact bucket ({shape})")
+              sys.exit(0)
+          host_only = f"{parts.scheme}://{parts.hostname}"
+          alt = attempt(host_only) if parts.path not in ("", "/") else "same-as-configured"
+          print(f"::error title=storage-probe::configured endpoint {configured}; host-only endpoint {alt}; {shape}")
+          sys.exit(1)
+          PY
+
+      # "Listening on" proves the worker started; this proves it consumes the
+      # queue. A probe job (stdlib socket.gethostname, no side effects, no
+      # build, no model call) is enqueued on omni-builds through the same
+      # Redis the web app uses. PASS only if the running worker container on
+      # this host executes it: the job returns the hostname of the container
+      # that ran it, which must equal the worker container's id.
+      - name: Prove the worker executes a job from the build queue
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          expected=$(docker compose ps -q worker | cut -c1-12)
+          if [ -z "$expected" ]; then echo "::error::worker container is not running"; exit 1; fi
+          docker compose logs --no-color worker 2>&1 | grep -E "stale consumers absorbed|dequeue wait" | tail -2 \
+            | sed 's/^[^|]*| //' | while read -r line; do echo "::notice title=worker-startup::$line"; done
+          docker compose run --rm --no-deps -T -e EXPECTED_WORKER_HOST="$expected" worker python - <<'PY'
+          import os, socket, sys, time
+          from redis import Redis
+          from rq import Queue, Worker
+
+          conn = Redis.from_url(os.environ["OMNI_REDIS_URL"])
+          queue = Queue("omni-builds", connection=conn)
+          workers = Worker.all(queue=queue)
+          print(f"workers registered on omni-builds: {len(workers)} ({', '.join(sorted(w.hostname or '?' for w in workers))})")
+          job = queue.enqueue("socket.gethostname", job_timeout=60, ttl=120, result_ttl=600, failure_ttl=600,
+                              description="deploy probe: worker consumes omni-builds")
+          done = {"finished", "failed", "stopped", "canceled"}
+          deadline = time.monotonic() + 90
+
+          def current_status():
+              value = job.get_status(refresh=True)
+              return str(getattr(value, "value", value) or "")
+
+          status = current_status()
+          while status not in done and time.monotonic() < deadline:
+              time.sleep(2)
+              status = current_status()
+          job.refresh()
+          executed_on = job.return_value(refresh=True) if status == "finished" else None
+          expected = os.environ["EXPECTED_WORKER_HOST"]
+          print(f"probe job {job.id}: status={status} worker={job.worker_name} executed_on={executed_on} "
+                f"expected={expected} enqueued_from={socket.gethostname()}")
+          if status != "finished" or executed_on != expected:
+              print(f"::error title=worker-queue-probe::job {job.id} status={status} executed_on={executed_on} expected={expected}")
+              sys.exit(1)
+          print(f"::notice title=worker-queue-probe::PASS job {job.id} enqueued on omni-builds was executed by "
+                f"worker {job.worker_name} in container {executed_on} on this host")
+          PY

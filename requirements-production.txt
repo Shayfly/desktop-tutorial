@@ -1,0 +1,8 @@
+# V24 top-level production pins (2026-09-22). Transitive hashes should be generated in networked CI.
+fastapi==0.128.2
+uvicorn==0.48.0
+pydantic==2.13.4
+psycopg[binary,pool]==3.3.6
+redis==8.1.0
+rq==2.12.0
+boto3==1.43.94

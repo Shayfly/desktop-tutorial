@@ -1,0 +1,26 @@
+{
+  "docker-compose.production.yml": {
+    "parsed": true,
+    "top_keys": [
+      "services",
+      "networks",
+      "volumes"
+    ]
+  },
+  "docker-compose.international.yml": {
+    "parsed": true,
+    "top_keys": [
+      "services",
+      "networks",
+      "volumes"
+    ]
+  },
+  ".github/workflows/v24-ci.yml": {
+    "parsed": true,
+    "top_keys": [
+      "name",
+      "on",
+      "jobs"
+    ]
+  }
+}

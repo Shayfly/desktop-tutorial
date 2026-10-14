@@ -1,0 +1,689 @@
+{
+  "schema": "financial-safety-fixes/1",
+  "report_name": "148AI Financial Safety Fixes - 2026-10-14",
+  "gate": "G4",
+  "gate_status": "PARTIAL_TWO_TARGETED_DEFECTS",
+  "base_commit": "70e3b7efc2910373824330d2205a57f52d492948",
+  "original_source_commit": "e0feac91d181605fac57aeea830c02f883501059",
+  "g3_historical_verdict": "FAIL_DEFECT_PROVEN",
+  "targeted_defects": [
+    "mandatory journal failure before provider dispatch",
+    "reservation release while provider liability remains"
+  ],
+  "red": {
+    "financial_integration_failed": 2,
+    "additional_guard_and_heartbeat_failed": 3
+  },
+  "green": {
+    "focused_passed": 115,
+    "focused_skipped": 3,
+    "subtests_passed": 6
+  },
+  "cases": [
+    {
+      "case": "durable_ledger_control",
+      "window": "provider receipt then worker crash",
+      "source_sha": "e0feac91d181605fac57aeea830c02f883501059",
+      "build_id": "bld_fault_b588cdebbe31",
+      "provider_cost_usd": "0.02",
+      "provider_requests": 1,
+      "worker_exit_codes": [
+        1
+      ],
+      "deliveries": [],
+      "snapshots": [
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            0,
+            null
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "running",
+            0,
+            null
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 1
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "failed",
+            0,
+            "provider_liability_unknown"
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 1
+        }
+      ],
+      "recoveries": [
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": {
+            "recovered": [],
+            "cancelled": [],
+            "failed": [
+              "bld_fault_b588cdebbe31"
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "final": {
+        "reservation": [
+          "RESERVED",
+          "0.100000",
+          null,
+          null,
+          10
+        ],
+        "balance": [
+          10,
+          "0.100000"
+        ],
+        "job": [
+          "failed",
+          0,
+          "provider_liability_unknown"
+        ],
+        "attempts": [
+          [
+            "unknown",
+            "0.05000000",
+            null
+          ]
+        ],
+        "provider_requests": 1
+      },
+      "checks": {
+        "no_uncontrolled_provider_replay": true,
+        "exposure_unknown_or_reconciled": true,
+        "reservation_not_released_as_free": true,
+        "balance_matches_provider_liability": true
+      },
+      "verdict": "PASS",
+      "boundary": "real PostgreSQL/HTTP/build worker/maintenance; controlled queue delivery; no Redis/RQ or sandbox E2E"
+    },
+    {
+      "case": "journal_guard_prevention",
+      "window": "pre-dispatch journal guard",
+      "source_sha": "e0feac91d181605fac57aeea830c02f883501059",
+      "build_id": "bld_fault_05e1f7976250",
+      "provider_cost_usd": "0",
+      "provider_requests": 0,
+      "worker_exit_codes": [
+        1
+      ],
+      "deliveries": [],
+      "snapshots": [
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            0,
+            null
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        },
+        {
+          "reservation": [
+            "RELEASED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            0,
+            "0.000000"
+          ],
+          "job": [
+            "failed",
+            0,
+            "attempt_ledger_unavailable"
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        },
+        {
+          "reservation": [
+            "RELEASED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            0,
+            "0.000000"
+          ],
+          "job": [
+            "failed",
+            0,
+            "attempt_ledger_unavailable"
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        }
+      ],
+      "recoveries": [
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": null,
+          "errors": []
+        }
+      ],
+      "final": {
+        "reservation": [
+          "RELEASED",
+          "0.100000",
+          null,
+          null,
+          10
+        ],
+        "balance": [
+          0,
+          "0.000000"
+        ],
+        "job": [
+          "failed",
+          0,
+          "attempt_ledger_unavailable"
+        ],
+        "attempts": [],
+        "provider_requests": 0
+      },
+      "checks": {
+        "no_uncontrolled_provider_replay": true,
+        "exposure_unknown_or_reconciled": true,
+        "reservation_not_released_as_free": true,
+        "balance_matches_provider_liability": true
+      },
+      "verdict": "PASS",
+      "boundary": "real PostgreSQL/HTTP/build worker/maintenance; controlled queue delivery; no Redis/RQ or sandbox E2E"
+    }
+  ],
+  "source_identity": {
+    "note": "Embedded case source_sha identifies fixture schema/base, not the patched code. Exact tested code identified by sha256 below.",
+    "sha256": {
+      ".github/workflows/financial-fault-experiment.yml": "dbda4f9f5017bce6a9aff119f67c8761a51ca8e1fb98239eabfc24ae0c143642",
+      "AGENT_OS_REGISTRY.json": "1be81426dd16d2b0998cb1b2727ec363e78695ed8dc39572517ba2d931926260",
+      "DEPARTMENT_MATRIX.json": "178e61f834c44af35c525a0a45829c1e47de2ca334a39a0f870a5f1ef387f3e3",
+      "PLATFORM_CAPABILITY_MATRIX.json": "a28150a71464ac2c069e378e02f360b3f5f1ee835715b6b2b2f95be39788c9b4",
+      "TRUTH_MATRIX.json": "86f4c400d7cabf679b9faaa380e542d41e0d6fcf170016a0bf7d8939aa11b6ef",
+      "docs/AGENT_OS_REGISTRY.md": "413cde56bc0e43ff5d826c7139845f57511028f9b3b3e1a4846251f7bf6181dc",
+      "docs/DEPARTMENT_MATRIX.md": "d000f0ba160c508053879f947a3ec35880b89b1be7c9d7341823eb7581b898d4",
+      "docs/TRUTH_MATRIX.md": "2ffa90d4292c01ddd3f9cda64febfb1694880ec72f89f6a7a28540c766ad1024",
+      "omni_prod/attempt_ledger.py": "0db6bf195c871fdc28b1643050bf1381affe61a8f9f5154b3df6c4f89cd85240",
+      "omni_prod/build_control.py": "2b6a55accd3acca9bc1e0cac3aa932065cb4eb604d7f097f2462ff6b9cb58034",
+      "omni_prod/maintenance.py": "469ca7b355e9aebab7a9f8da568407da277b15dfd03d72b3700ed38dc978d86d",
+      "omni_prod/routed_gateway.py": "0b3dde5cd100be1ed0defd1de0dc858e3777130b2893cb1d6f151499be254bab",
+      "omni_prod/subscription_store.py": "75ab1a56dbb100ce8c94e11409cfbb5acd5130dc4450d3c894b3309ef743b366",
+      "omni_prod/worker_tasks.py": "949415310c7e85bbdc2ceac57f08b75c5adbf8b666e5531d82c67c8b31e592f8",
+      "tests/financial_fault_harness.py": "bd84d968b5ef660903cc9f8a1ce4ce9f4d434e4d582e3aba1a50f7d6f8fc5bdd",
+      "tests/integration/test_financial_fault_experiment.py": "4e34dc3980c039ec0a9bfeb035ac787f0e3dfa585111676cc8075009cbf26c8a",
+      "tests/test_actual_cost_settlement.py": "c6607f423d39e1839550cab7660eebb50252b56bdb6c2d86a028044879aff126",
+      "tests/test_qa_budget.py": "d7b6ba31b576bae830dc9f3f0ccc90b00e29d9f30aff7959685c7e4a7a69eb9e",
+      "tests/test_financial_journal_guard.py": "7e6356b8baab6fc87ed3b704460ee21f90049e1022b90438aab8b18fc8df19cc"
+    }
+  },
+  "limits": [
+    "Simulated provider cost only, no commercial spend",
+    "Real PostgreSQL and HTTP; controlled delivery without Redis/RQ transport",
+    "Build path only: modification/paid capability journals not certified",
+    "UNKNOWN liability is retained, not reconciled against a commercial provider",
+    "Provider idempotency and separate company loss ledger are not fixed",
+    "No staging/production deployment or paid customer E2E",
+    "Full Windows suite is not green: G2 remains blocked; 62 remaining failure names also occur in baseline, causes not fully classified."
+  ],
+  "review": "Reviewer found heartbeat race; fixed and reproduced red/green; no remaining material finding in reviewed revision",
+  "full_suite": {
+    "passed": 1656,
+    "failed": 66,
+    "errors": 0,
+    "skipped": 181,
+    "subtests_passed": 330,
+    "duration_seconds": 296.35,
+    "failed_cases": [
+      {
+        "classname": "tests.integration.test_m495_provider_adapter.M495ProviderHTTPIntegrationTests",
+        "name": "test_real_http_bytes_flow_through_provider_contract_executor_verification_and_cost_evidence",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_agent_os.AuditTests",
+        "name": "test_committed_registry_is_current_and_not_inflated",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_agent_os.TruthMatrixTests",
+        "name": "test_committed_truth_matrix_is_current_and_lists_customer_findings",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_backup_restore.DataArchiveTests",
+        "name": "test_archive_matches_the_snapshot_and_detects_a_changed_file",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests",
+        "name": "test_a_real_400_becomes_a_repairable_failure_with_evidence",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests",
+        "name": "test_dropping_a_criterion_from_the_plan_does_not_pass",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests",
+        "name": "test_without_a_contract_the_strict_floor_applies",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests",
+        "name": "test_working_product_passes_without_auth_checks_for_a_no_login_contract",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_deployment_verification.DeploymentVerifyTests",
+        "name": "test_cli_exit_codes_and_config_error_evidence",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_evidence_export.FilesExportTests",
+        "name": "test_extraction_is_unredacted_and_never_escapes_the_directory",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_failure_replay.FailureReplayTests",
+        "name": "test_real_responsive_defect_is_not_blamed_on_the_requirement",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m2_native_logic.FakeVerificationRejectedTests",
+        "name": "test_echo_verify_is_rejected",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m2_native_logic.FakeVerificationRejectedTests",
+        "name": "test_real_verification_command_still_runs_and_can_pass",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m2_native_logic.FakeVerificationRejectedTests",
+        "name": "test_verify_true_is_rejected_without_running_the_sandbox",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart",
+        "name": "test_crash_on_boot_is_handed_back_for_diagnosis_not_destroyed",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart",
+        "name": "test_docker_port_failure_on_running_container_removes_container_and_workdir",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart",
+        "name": "test_docker_run_failure_removes_workdir",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart",
+        "name": "test_loads_repository_from_workspace_when_not_given",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart",
+        "name": "test_success_runs_then_asks_docker_for_the_port",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderOps",
+        "name": "test_materialize_rejects_traversal",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m3_preview_logic.TestDockerPreviewProviderOps",
+        "name": "test_remove_workdir_refuses_paths_it_did_not_create",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m495_capability_executor.CapabilityExecutorTests",
+        "name": "test_file_backed_provider_payload_streams_to_artifact_store_without_put_bytes",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m495_capability_verification.StorageStreamingTests",
+        "name": "test_download_file_uses_streaming_path",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m495_truth_lock.MachineTruthLockTests",
+        "name": "test_generated_truth_files_are_deterministic_and_drift_is_fatal",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m495_truth_lock.MachineTruthLockTests",
+        "name": "test_status_fingerprint_is_required_by_truth_check",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_m4_acceptance.AcceptanceW",
+        "name": "test_W_every_non_fastapi_test_module_passes",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_overlay.SandboxTests",
+        "name": "test_docker_command_is_locked_down",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_overlay.SandboxTests",
+        "name": "test_unsafe_build_id_rejected",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_data_durability.ArgvTests",
+        "name": "test_one_directory_per_project_without_user_text",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_data_durability.ProviderTests",
+        "name": "test_persistent_start_creates_the_project_directory",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_data_durability.ProviderTests",
+        "name": "test_scratch_start_has_no_data_mount",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_data_durability.SelfTestLogicTests",
+        "name": "test_selftest_passes_only_when_data_survives_and_stays_separate",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_smoke.PreviewSmokeTests",
+        "name": "test_app_that_crashes_reports_why",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_smoke.PreviewSmokeTests",
+        "name": "test_app_that_starts_and_answers_passes",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_smoke.PreviewSmokeTests",
+        "name": "test_health_string_instead_of_a_user_interface_fails",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_smoke.LinkedAssetSmokeTests",
+        "name": "test_shell_page_fails_and_shows_its_start",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_preview_smoke.LinkedAssetSmokeTests",
+        "name": "test_ui_in_linked_script_passes",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_qa_budget.ReservationSeparationTests",
+        "name": "test_customer_release_still_restores_plan_counters",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_qa_budget.ReservationSeparationTests",
+        "name": "test_qa_release_does_not_touch_the_customer_plan",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_registry_audit.LifecycleTests",
+        "name": "test_checkout_line_endings_do_not_stale_live_evidence",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_sandbox_cleanup.NamingTests",
+        "name": "test_names_are_unique_and_labelled",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_sandbox_cleanup.TimeoutTests",
+        "name": "test_timeout_removes_the_container_and_reports_failure",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_sandbox_runner_health.ImageAndDeployTests",
+        "name": "test_bytecode_and_pytest_caches_do_not_write_to_the_read_only_source",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v12_core.ProvenanceTests",
+        "name": "test_manifest_has_hash_and_ids",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v16_release_gate.MigrationTests",
+        "name": "test_migration_discovery_and_checksum_drift",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v16_release_gate.ManifestTests",
+        "name": "test_manifest_detects_file_tamper",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v17_preflight.MigrationRunnerTests",
+        "name": "test_applies_only_pending_migrations_under_lock",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v20_observability_recovery.BackupTests",
+        "name": "test_manifest_detects_tamper",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v20_observability_recovery.BackupTests",
+        "name": "test_restore_drill",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v21_gemini_remediation.SandboxHardeningTests",
+        "name": "test_command_contains_nonroot_and_resource_hardening",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v22_sandbox_executor.SandboxExecutorTests",
+        "name": "test_build_and_verify_pass",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_v22_sandbox_executor.SandboxExecutorTests",
+        "name": "test_verify_failure_maps_to_acceptance_id",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.DrainTests",
+        "name": "test_a_host_with_no_previous_consumers_still_drains",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.DrainTests",
+        "name": "test_clean_drain_stops_all_four_consumers_and_records_images",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.DrainTests",
+        "name": "test_exit_137_oom_or_failed_stop_fail_the_deploy",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.RecoverTests",
+        "name": "test_nothing_to_restore_is_not_an_error_and_missing_images_are",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.RecoverTests",
+        "name": "test_recover_restarts_previous_images_without_touching_data",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests",
+        "name": "test_a_full_recovery_succeeds_and_says_so",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests",
+        "name": "test_an_existing_consumer_that_cannot_be_inspected_or_tagged_blocks_the_drain",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests",
+        "name": "test_recovery_fails_when_a_recorded_service_has_no_rollback_image_but_restores_the_rest",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests",
+        "name": "test_recovery_fails_when_a_service_does_not_come_back_or_the_worker_is_not_listening",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests",
+        "name": "test_recovery_up_failure_is_a_failure",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.GateInDrainTests",
+        "name": "test_a_gate_that_cannot_verify_after_the_stop_also_fails_the_deploy",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.GateInDrainTests",
+        "name": "test_quiet_before_and_after_is_a_clean_drain_that_checks_twice",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.GateInDrainTests",
+        "name": "test_running_work_or_an_unverifiable_state_before_the_stop_refuses_without_stopping_anything",
+        "kind": "failure"
+      },
+      {
+        "classname": "tests.test_worker_deploy_recovery.GateInDrainTests",
+        "name": "test_work_that_starts_between_the_gate_and_the_stop_fails_the_deploy_and_recovery_restores_the_workers",
+        "kind": "failure"
+      }
+    ],
+    "new_failure_names_vs_base": [
+      "tests.test_agent_os.AuditTests.test_committed_registry_is_current_and_not_inflated",
+      "tests.test_agent_os.TruthMatrixTests.test_committed_truth_matrix_is_current_and_lists_customer_findings",
+      "tests.test_qa_budget.ReservationSeparationTests.test_customer_release_still_restores_plan_counters",
+      "tests.test_qa_budget.ReservationSeparationTests.test_qa_release_does_not_touch_the_customer_plan"
+    ],
+    "base_failure_names_absent": [
+      "tests.test_customer_economics_views.BuildStatusEvidenceTests.test_customer_endpoints_use_the_filter",
+      "tests.test_evidence_json.TerminalTransitionTests.test_repositories_use_the_encoder",
+      "tests.test_m4_acceptance.AcceptanceB.test_B_the_propose_route_never_calls_the_candidate_engine_itself",
+      "tests.test_qa_plan_parity.EndpointParityTests.test_admission_still_authorizes_under_lock",
+      "tests.test_qa_plan_parity.EndpointParityTests.test_both_endpoints_use_the_shared_decision",
+      "tests.test_qa_plan_parity.EndpointParityTests.test_plan_exposes_prototype_remaining_from_same_spend_ledger",
+      "tests.test_qa_plan_parity.EndpointParityTests.test_plan_view_quotes_with_qa_funding_and_checks_qa_caps",
+      "tests.test_worker_deploy_recovery.BackupSchedulerTests.test_nothing_presents_the_scheduler_as_running",
+      "tests.test_worker_repository_parity.FailedBuildStepsTests.test_steps_after_the_failure_are_never_shown_as_done",
+      "tests.test_worker_repository_parity.InterfaceParityTests.test_every_called_method_exists_on_the_postgres_twin"
+    ],
+    "new_failures_addressed_by": "generated audit/department refresh; QA cursor fixtures now explicitly return False for new exposure query",
+    "subsequent_regression": {
+      "passed": 69,
+      "skipped": 9,
+      "duration_seconds": 10.01
+    },
+    "remaining_baseline_names_count": 62,
+    "causal_classification_complete": false,
+    "integration_candidate_green": false,
+    "note": "Broad run captured before final generated reports/QA fixture updates; focused affected suite rerun after those changes. Not a fully green full-suite run."
+  },
+  "fix_locations": {
+    "journal_guard": [
+      "omni_prod/build_control.py:45",
+      "omni_prod/worker_tasks.py:652",
+      "omni_prod/worker_tasks.py:975",
+      "omni_prod/routed_gateway.py:200",
+      "omni_prod/attempt_ledger.py:277"
+    ],
+    "exposure_guard": [
+      "omni_prod/subscription_store.py:10",
+      "omni_prod/subscription_store.py:396",
+      "omni_prod/maintenance.py:158",
+      "omni_prod/maintenance.py:168"
+    ]
+  }
+}

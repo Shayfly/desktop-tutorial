@@ -1,0 +1,130 @@
+{
+  "checks": {
+    "conversation_reply_short": {
+      "ok": true,
+      "detail": "252"
+    },
+    "unsure_gets_reason_not_repeat": {
+      "ok": true,
+      "detail": "148AI\nלמה אני שואל: פרטים אישיים מחייבים לחשוב מי רשאי לראות אותם. אם לא בטוחים, אפשר ללחוץ \"בחרו עבורי\" ואבחר כן. תמיד "
+    },
+    "attachment_removable": {
+      "ok": true,
+      "detail": ""
+    },
+    "image_in_thread_and_honest_note": {
+      "ok": true,
+      "detail": "א. (שמרתי תמונה אחת; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)\nהאם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?\nכן\nלא\nבחרו עבורי"
+    },
+    "attachment_stored_not_analyzed": {
+      "ok": true,
+      "detail": "[{'id': 'att_fb461065d54440869eb65a9fb68a8f83', 'kind': 'image', 'mime': 'image/png', 'size_bytes': 30600, 'width': 800, 'height': 500, 'annotation': {}, 'analysis': {'state': 'NOT_ANALYZED', 'reason': 'image analysis needs a vision-capable model with an approved budget; it is not enabled'}, 'created_at': '2026-10-11 12:17:09.354263+00:00'}]"
+    },
+    "layout_chat_right_preview_centre_editor_left": {
+      "ok": true,
+      "detail": "{'chat': 920.796875, 'stage': 308, 'editor': 0}"
+    },
+    "inspector_ready": {
+      "ok": true,
+      "detail": "מצב בחירה: לחצו (או הקישו) על החלק שתרצו לשנות. Esc לביטול.\nסיום בחירה"
+    },
+    "locate_unique_to_source_line": {
+      "ok": true,
+      "detail": "templates/index.html:13"
+    },
+    "targeted_change_entered_existing_pipeline": {
+      "ok": true,
+      "detail": "שהכפתור יהיה ירוק ובולט יותר\n\n[Visual edit target — change only this element unless the instruction says otherwise]\nFile: templates/index.html (around line 13)\nElement: <button id=\"save-btn\" class=\"btn primary\"> \"שמירה\"\nCurrent source:\n    <label>מי שואל <input name=\"borrower\" placeholder=\"שם העובד\""
+    },
+    "ambiguous_lists_candidates_plus_describe": {
+      "ok": true,
+      "detail": "3"
+    },
+    "server_refuses_guessed_target_409": {
+      "ok": true,
+      "detail": "{'status': 409, 'json': {'detail': {'error': 'target_ambiguous', 'message': 'the selection does not identify one element; pick a candidate or describe it', 'locate': {'status': 'AMBIGUOUS', 'candidates': [{'file': 'templates/edit.html', 'line': 5, 'snippet': '<body><main><section class=\"card\"><h2>עריכת פריט</h2>\\n<div class=\"actions\"><button class=\"btn primary\">עדכון</button>\\n<button class=\"btn\">"
+    },
+    "accepted_as_new_version": {
+      "ok": true,
+      "detail": "2"
+    },
+    "compare_shows_before_and_after": {
+      "ok": true,
+      "detail": "after=rgb(30, 123, 74) before=rgb(31, 95, 168)"
+    },
+    "undo_restores_exact_previous_files": {
+      "ok": true,
+      "detail": "(3, 'undo message: ')"
+    },
+    "screenshot_note_not_claimed_before_send": {
+      "ok": true,
+      "detail": ""
+    },
+    "marked_screenshot_travels_with_the_change": {
+      "ok": true,
+      "detail": "די — להוסיף רווח\n\n[Attached images — not analyzed automatically (no vision budget enabled); rely on the text and the marked regions]\n- screenshot att_c535ed96738241838adc6bde0686279e (800x500); marked regions (px): [{'h': 150, 'w': 320, 'x': 160, 'y': 150}]; note: האזור המסומן צפוף מדי — להוסיף רווח"
+    },
+    "editor_resizable": {
+      "ok": true,
+      "detail": "(300, 404)"
+    },
+    "mobile_pick_switches_to_preview": {
+      "ok": true,
+      "detail": ""
+    },
+    "mobile_tap_selects_and_returns_to_edit": {
+      "ok": true,
+      "detail": ""
+    },
+    "mobile_no_horizontal_scroll": {
+      "ok": true,
+      "detail": "0"
+    },
+    "other_account_cannot_read_or_delete_image": {
+      "ok": true,
+      "detail": "(403, 403)"
+    },
+    "owner_reads_image_with_safe_headers": {
+      "ok": true,
+      "detail": "{'cache-control': 'private, no-store', 'content-disposition': 'inline', 'content-length': '30600', 'content-security-policy': \"default-src 'none'; sandbox\", 'content-type': 'image/png', 'cross-origin-opener-policy': 'same-origin', 'cross-origin-resource-policy': 'same-origin', 'date': 'Sun, 11 Oct 2026 12:17:27 GMT', 'permissions-policy': 'camera=(), microphone=(), geolocation=()', 'referrer-polic"
+    },
+    "svg_refused": {
+      "ok": true,
+      "detail": "415"
+    }
+  },
+  "shots": [
+    "01-desktop-conversation-he",
+    "02-desktop-image-attached-before-send",
+    "03-desktop-image-in-conversation",
+    "04-desktop-three-panes-preview",
+    "05-desktop-picking-hover",
+    "06-desktop-element-selected",
+    "07-desktop-change-queued",
+    "08-desktop-ambiguous-asks",
+    "09-desktop-review-candidate",
+    "10-desktop-compare-before-after",
+    "11-desktop-undone",
+    "12-desktop-screenshot-marked",
+    "12b-desktop-screenshot-change-sent",
+    "13-mobile-chat",
+    "14-mobile-preview",
+    "15-mobile-edit",
+    "16-mobile-tapped-selection"
+  ],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 415 (Unsupported Media Type)"
+  ],
+  "notes": [
+    "undo message: "
+  ],
+  "passed": 23,
+  "total": 23,
+  "substitutes": [
+    "object storage: local files (S3/R2 not exercised)",
+    "preview container: local process (no Docker daemon)",
+    "modification candidate written by the harness (no model call); accept/rollback/preview real"
+  ]
+}

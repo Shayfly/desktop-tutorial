@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "cases": [
+    {
+      "name": "path_traversal",
+      "blocked": true,
+      "findings": [
+        {
+          "code": "PATH_ESCAPE",
+          "severity": "blocker",
+          "detail": "../escape.txt"
+        }
+      ]
+    },
+    {
+      "name": "private_key",
+      "blocked": true,
+      "findings": [
+        {
+          "code": "PRIVATE_KEY",
+          "severity": "blocker",
+          "detail": "secret.pem"
+        }
+      ]
+    },
+    {
+      "name": "shell_command",
+      "blocked": true,
+      "findings": [
+        {
+          "code": "SHELL_COMMAND",
+          "severity": "high",
+          "detail": "bash -lc id"
+        }
+      ]
+    },
+    {
+      "name": "privileged_arg",
+      "blocked": true,
+      "findings": [
+        {
+          "code": "PRIVILEGE_ESCAPE",
+          "severity": "blocker",
+          "detail": "python --privileged"
+        }
+      ]
+    }
+  ]
+}
