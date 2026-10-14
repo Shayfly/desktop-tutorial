@@ -42,6 +42,17 @@ canonical.
   worker-deploy fake-container tests, and existing acceptance/preview/economics
   cases; the focused conversational/migration suite above passed. Triage the
   full-suite failures separately rather than treating them as waived.
+- After the CI-diagnosed migration fixes, the local offline migration,
+  manifest, preference, and smoke-guard tests passed: **12 passed, 3 skipped,
+  8 subtests passed**. `tools/generate_neon_bootstrap.py --check` also passed.
+  The canonical Agent OS audit was regenerated after its implementation file
+  changed: `migration_test` is now honestly `IMPLEMENTED` with its prior
+  real-server evidence retained as stale; the current registry audit and its
+  targeted test pass. No new live verification was claimed.
+- The Windows `AcceptanceW.test_W_every_non_fastapi_test_module_passes`
+  recheck remains non-green: **19 failures, 12 errors, 131 skipped** across
+  1,657 tests, including worker-deploy fake-container/platform assumptions.
+  The Windows result does not substitute for Linux CI.
 - `tools/live_model_smoke.py` remains an unrun, explicit-approval-only test
   harness with a one-call and catalog-priced $0.25 cap; it is not product
   acceptance and cannot protect against incorrect catalog prices or provider
@@ -78,6 +89,15 @@ canonical.
   regenerates it and compares exact bytes so mixed SQL line endings are
   preserved. These fixes have local unit/check evidence; their CI rerun is
   pending the follow-up push.
+- On follow-up head `1f4b8f10af25bb960d5eb72058b6dbfbae705568` (still
+  OPEN/DRAFT), the push and PR `fresh-postgres` jobs both passed, as did the
+  PR `intake-budget-pg` job, deterministic regressions, compose/UI checks, and
+  Vercel Preview deployment. The push-triggered duplicate Postgres job failed
+  only the real-Docker drain assertion: exit 137 at its 10-second deadline
+  with `oom=false`; its parallel PR-triggered run passed. V24/V11 jobs failed
+  because the changed bootstrap verifier made the Agent OS `migration_test`
+  evidence stale. The canonical registry refresh now records that status
+  honestly; the fresh post-refresh Linux CI rerun is pending.
 - The Preview deployment verifier failed because the Preview database is
   missing migration 039 (as well as versions 1-21 and 26-38). No migration was
   applied; the shared Preview schema remains an integration blocker. Vercel

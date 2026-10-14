@@ -2706,7 +2706,7 @@
    "gap": "platform migrations only",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/migrate.py",
+   "why": "real-server evidence is stale; code changed since: infra/staging/verify_neon_bootstrap.py, omni_prod/migrate.py",
    "evidence": [],
    "stale_evidence": [
     "deploy-worker run 38083162363"
@@ -3718,9 +3718,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: infra/staging/verify_neon_bootstrap.py",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -7638,10 +7639,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 63,
+   "IMPLEMENTED": 64,
    "UNIT_TESTED": 29,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 62,
+   "REAL_SERVER_VERIFIED": 61,
    "LIVE": 0,
    "BLOCKED": 9
   }
