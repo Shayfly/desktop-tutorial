@@ -1,0 +1,80 @@
+name: Financial fault experiment (G3)
+
+on:
+  pull_request:
+    branches: [shayfly-profit-protection-v2-follow-up]
+    paths:
+      - tests/financial_fault_harness.py
+      - tests/integration/test_financial_fault_experiment.py
+      - .github/workflows/financial-fault-experiment.yml
+      - omni_prod/maintenance.py
+      - omni_prod/build_control.py
+      - omni_prod/routed_gateway.py
+      - omni_prod/worker_tasks.py
+      - omni_prod/subscription_store.py
+      - omni_prod/attempt_ledger.py
+      - omni_prod/model_gateway.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: financial-fault-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fault_test
+          POSTGRES_PASSWORD: ci-fixture-only
+          POSTGRES_DB: fault_experiment
+        ports: ['55487:5432']
+        options: >-
+          --health-cmd "pg_isready -U fault_test -d fault_experiment"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      - name: Baseline before the failure experiment
+        run: python -m pytest -q --junitxml=financial-fault-baseline.xml
+      - name: Prepare only the disposable service database
+        env:
+          FAULT_DATABASE: postgresql://fault_test:ci-fixture-only@127.0.0.1:55487/fault_experiment
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+          from omni_prod.migrations import discover_migrations
+          from omni_prod.migration_runner import apply_migrations
+          with psycopg.connect(os.environ['FAULT_DATABASE']) as conn:
+              tables = conn.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema='public'").fetchone()[0]
+              if tables:
+                  raise SystemExit('disposable database must start empty')
+              conn.execute('CREATE TABLE financial_fault_database_marker (source_sha text PRIMARY KEY)')
+              conn.execute('INSERT INTO financial_fault_database_marker VALUES (%s)', ('e0feac91d181605fac57aeea830c02f883501059',))
+              apply_migrations(conn, discover_migrations('infra/postgres'))
+          PY
+      - name: Assert G3 financial acceptance (red until the source defects are fixed)
+        env:
+          FINANCIAL_FAULT_DATABASE_URL: postgresql://fault_test:ci-fixture-only@127.0.0.1:55487/fault_experiment
+          FINANCIAL_FAULT_OUTPUT_DIR: financial-fault-evidence
+        run: python -m pytest -q tests/integration/test_financial_fault_experiment.py --junitxml=financial-fault-acceptance.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: financial-fault-${{ github.event.pull_request.head.sha }}
+          path: |
+            financial-fault-baseline.xml
+            financial-fault-acceptance.xml
+            financial-fault-evidence/

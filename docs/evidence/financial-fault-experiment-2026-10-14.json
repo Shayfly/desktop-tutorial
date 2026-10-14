@@ -1,0 +1,745 @@
+{
+  "source_sha": "e0feac91d181605fac57aeea830c02f883501059",
+  "recorded_at_utc": "2026-10-14T17:07:30.650932+00:00",
+  "source_files": [
+    {
+      "path": "omni_prod/maintenance.py",
+      "git_blob_sha": "fef3ba92b9d0dc06dac913ce0d5ce38b528ebce7",
+      "verified": true
+    },
+    {
+      "path": "omni_prod/build_control.py",
+      "git_blob_sha": "9b97c46af066b28796ceb4f5e438210165d5f014",
+      "verified": true
+    },
+    {
+      "path": "omni_prod/routed_gateway.py",
+      "git_blob_sha": "51049b76e7f06df5a890e45c801f4016add85402",
+      "verified": true
+    },
+    {
+      "path": "omni_prod/worker_tasks.py",
+      "git_blob_sha": "a179197181e442204e6a4deb5a1516120d76444b",
+      "verified": true
+    },
+    {
+      "path": "omni_prod/subscription_store.py",
+      "git_blob_sha": "a6eb6ef7a85ac3dc4247522005bbb0fbe19104bd",
+      "verified": true
+    }
+  ],
+  "real_components": [
+    "PostgreSQL 17.11",
+    "loopback HTTP provider",
+    "SQLite provider journal",
+    "production build worker core",
+    "production maintenance.run_once",
+    "OS process kill"
+  ],
+  "not_exercised": [
+    "Redis/RQ transport",
+    "public API admission/approval",
+    "sandbox",
+    "deployed Staging/Production"
+  ],
+  "simulated_provider_cost_only": true,
+  "commercial_provider_calls": 0,
+  "cases": [
+    {
+      "case": "durable_ledger_control",
+      "source_sha": "e0feac91d181605fac57aeea830c02f883501059",
+      "build_id": "bld_fault_6839c92835ac",
+      "provider_cost_usd": "0.04",
+      "provider_requests": 2,
+      "worker_exit_codes": [
+        1,
+        1
+      ],
+      "deliveries": [
+        [
+          "omni_prod.worker_tasks.execute_live_build_job",
+          "bld_fault_6839c92835ac"
+        ]
+      ],
+      "snapshots": [
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            0
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "running",
+            0
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 1
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            1
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 1
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "running",
+            1
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ],
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 2
+        },
+        {
+          "reservation": [
+            "RELEASED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            0,
+            "0.000000"
+          ],
+          "job": [
+            "failed",
+            1
+          ],
+          "attempts": [
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ],
+            [
+              "unknown",
+              "0.05000000",
+              null
+            ]
+          ],
+          "provider_requests": 2
+        }
+      ],
+      "recoveries": [
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": {
+            "recovered": [
+              "bld_fault_6839c92835ac"
+            ],
+            "cancelled": [],
+            "failed": []
+          },
+          "errors": []
+        },
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": {
+            "recovered": [],
+            "cancelled": [],
+            "failed": [
+              "bld_fault_6839c92835ac"
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "final": {
+        "reservation": [
+          "RELEASED",
+          "0.100000",
+          null,
+          null,
+          10
+        ],
+        "balance": [
+          0,
+          "0.000000"
+        ],
+        "job": [
+          "failed",
+          1
+        ],
+        "attempts": [
+          [
+            "unknown",
+            "0.05000000",
+            null
+          ],
+          [
+            "unknown",
+            "0.05000000",
+            null
+          ]
+        ],
+        "provider_requests": 2
+      },
+      "checks": {
+        "no_uncontrolled_provider_replay": false,
+        "exposure_unknown_or_reconciled": false,
+        "reservation_not_released_as_free": false,
+        "balance_matches_provider_liability": false
+      },
+      "verdict": "FAIL",
+      "boundary": "real PostgreSQL/HTTP/build worker/maintenance; controlled queue delivery; no Redis/RQ or sandbox E2E"
+    },
+    {
+      "case": "ledger_write_failure",
+      "source_sha": "e0feac91d181605fac57aeea830c02f883501059",
+      "build_id": "bld_fault_e623d9391874",
+      "provider_cost_usd": "0.04",
+      "provider_requests": 2,
+      "worker_exit_codes": [
+        1,
+        1
+      ],
+      "deliveries": [
+        [
+          "omni_prod.worker_tasks.execute_live_build_job",
+          "bld_fault_e623d9391874"
+        ]
+      ],
+      "snapshots": [
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            0
+          ],
+          "attempts": [],
+          "provider_requests": 0
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "running",
+            0
+          ],
+          "attempts": [],
+          "provider_requests": 1
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "queued",
+            1
+          ],
+          "attempts": [],
+          "provider_requests": 1
+        },
+        {
+          "reservation": [
+            "RESERVED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            10,
+            "0.100000"
+          ],
+          "job": [
+            "running",
+            1
+          ],
+          "attempts": [],
+          "provider_requests": 2
+        },
+        {
+          "reservation": [
+            "RELEASED",
+            "0.100000",
+            null,
+            null,
+            10
+          ],
+          "balance": [
+            0,
+            "0.000000"
+          ],
+          "job": [
+            "failed",
+            1
+          ],
+          "attempts": [],
+          "provider_requests": 2
+        }
+      ],
+      "recoveries": [
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": {
+            "recovered": [
+              "bld_fault_e623d9391874"
+            ],
+            "cancelled": [],
+            "failed": []
+          },
+          "errors": []
+        },
+        {
+          "expired": 0,
+          "cleaned": 0,
+          "reaped": 0,
+          "redispatched": [],
+          "recovery": {
+            "recovered": [],
+            "cancelled": [],
+            "failed": [
+              "bld_fault_e623d9391874"
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "final": {
+        "reservation": [
+          "RELEASED",
+          "0.100000",
+          null,
+          null,
+          10
+        ],
+        "balance": [
+          0,
+          "0.000000"
+        ],
+        "job": [
+          "failed",
+          1
+        ],
+        "attempts": [],
+        "provider_requests": 2
+      },
+      "checks": {
+        "no_uncontrolled_provider_replay": false,
+        "exposure_unknown_or_reconciled": false,
+        "reservation_not_released_as_free": false,
+        "balance_matches_provider_liability": false
+      },
+      "verdict": "FAIL",
+      "boundary": "real PostgreSQL/HTTP/build worker/maintenance; controlled queue delivery; no Redis/RQ or sandbox E2E"
+    }
+  ],
+  "g3_verdict": "FAIL",
+  "baseline": {
+    "passed": 1648,
+    "failed": 68,
+    "errors": 4,
+    "skipped": 180,
+    "subtests_passed": 330,
+    "failure_classification_complete": false,
+    "failed_cases": [
+      {
+        "name": "tests.integration.test_m495_provider_adapter.M495ProviderHTTPIntegrationTests.test_real_http_bytes_flow_through_provider_contract_executor_verification_and_cost_evidence",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_backup_restore.DataArchiveTests.test_archive_matches_the_snapshot_and_detects_a_changed_file",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests.test_a_real_400_becomes_a_repairable_failure_with_evidence",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests.test_dropping_a_criterion_from_the_plan_does_not_pass",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests.test_without_a_contract_the_strict_floor_applies",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_behavior_acceptance_in_build.BehaviorAcceptanceInBuildTests.test_working_product_passes_without_auth_checks_for_a_no_login_contract",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_customer_economics_views.BuildStatusEvidenceTests.test_customer_endpoints_use_the_filter",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_deployment_verification.DeploymentVerifyTests.test_cli_exit_codes_and_config_error_evidence",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_evidence_export.FilesExportTests.test_extraction_is_unredacted_and_never_escapes_the_directory",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_evidence_json.TerminalTransitionTests.test_repositories_use_the_encoder",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_failure_replay.FailureReplayTests.test_real_responsive_defect_is_not_blamed_on_the_requirement",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m2_native_logic.FakeVerificationRejectedTests.test_echo_verify_is_rejected",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m2_native_logic.FakeVerificationRejectedTests.test_real_verification_command_still_runs_and_can_pass",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m2_native_logic.FakeVerificationRejectedTests.test_verify_true_is_rejected_without_running_the_sandbox",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart.test_crash_on_boot_is_handed_back_for_diagnosis_not_destroyed",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart.test_docker_port_failure_on_running_container_removes_container_and_workdir",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart.test_docker_run_failure_removes_workdir",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart.test_loads_repository_from_workspace_when_not_given",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderStart.test_success_runs_then_asks_docker_for_the_port",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderOps.test_materialize_rejects_traversal",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m3_preview_logic.TestDockerPreviewProviderOps.test_remove_workdir_refuses_paths_it_did_not_create",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m495_capability_executor.CapabilityExecutorTests.test_file_backed_provider_payload_streams_to_artifact_store_without_put_bytes",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m495_capability_verification.StorageStreamingTests.test_download_file_uses_streaming_path",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m495_truth_lock.MachineTruthLockTests.test_generated_truth_files_are_deterministic_and_drift_is_fatal",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m495_truth_lock.MachineTruthLockTests.test_status_fingerprint_is_required_by_truth_check",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m4_acceptance.AcceptanceB.test_B_the_propose_route_never_calls_the_candidate_engine_itself",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_m4_acceptance.AcceptanceW.test_W_every_non_fastapi_test_module_passes",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_overlay.SandboxTests.test_docker_command_is_locked_down",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_overlay.SandboxTests.test_unsafe_build_id_rejected",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_data_durability.ArgvTests.test_one_directory_per_project_without_user_text",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_data_durability.ProviderTests.test_persistent_start_creates_the_project_directory",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_data_durability.ProviderTests.test_scratch_start_has_no_data_mount",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_data_durability.SelfTestLogicTests.test_selftest_passes_only_when_data_survives_and_stays_separate",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_smoke.PreviewSmokeTests.test_app_that_crashes_reports_why",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_smoke.PreviewSmokeTests.test_app_that_starts_and_answers_passes",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_smoke.PreviewSmokeTests.test_health_string_instead_of_a_user_interface_fails",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_smoke.LinkedAssetSmokeTests.test_shell_page_fails_and_shows_its_start",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_preview_smoke.LinkedAssetSmokeTests.test_ui_in_linked_script_passes",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_qa_plan_parity.EndpointParityTests.test_admission_still_authorizes_under_lock",
+        "type": "error"
+      },
+      {
+        "name": "tests.test_qa_plan_parity.EndpointParityTests.test_both_endpoints_use_the_shared_decision",
+        "type": "error"
+      },
+      {
+        "name": "tests.test_qa_plan_parity.EndpointParityTests.test_plan_exposes_prototype_remaining_from_same_spend_ledger",
+        "type": "error"
+      },
+      {
+        "name": "tests.test_qa_plan_parity.EndpointParityTests.test_plan_view_quotes_with_qa_funding_and_checks_qa_caps",
+        "type": "error"
+      },
+      {
+        "name": "tests.test_registry_audit.LifecycleTests.test_checkout_line_endings_do_not_stale_live_evidence",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_sandbox_cleanup.NamingTests.test_names_are_unique_and_labelled",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_sandbox_cleanup.TimeoutTests.test_timeout_removes_the_container_and_reports_failure",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_sandbox_runner_health.ImageAndDeployTests.test_bytecode_and_pytest_caches_do_not_write_to_the_read_only_source",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v12_core.ProvenanceTests.test_manifest_has_hash_and_ids",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v16_release_gate.MigrationTests.test_migration_discovery_and_checksum_drift",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v16_release_gate.ManifestTests.test_manifest_detects_file_tamper",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v17_preflight.MigrationRunnerTests.test_applies_only_pending_migrations_under_lock",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v20_observability_recovery.BackupTests.test_manifest_detects_tamper",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v20_observability_recovery.BackupTests.test_restore_drill",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v21_gemini_remediation.SandboxHardeningTests.test_command_contains_nonroot_and_resource_hardening",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v22_sandbox_executor.SandboxExecutorTests.test_build_and_verify_pass",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_v22_sandbox_executor.SandboxExecutorTests.test_verify_failure_maps_to_acceptance_id",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.DrainTests.test_a_host_with_no_previous_consumers_still_drains",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.DrainTests.test_clean_drain_stops_all_four_consumers_and_records_images",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.DrainTests.test_exit_137_oom_or_failed_stop_fail_the_deploy",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.RecoverTests.test_nothing_to_restore_is_not_an_error_and_missing_images_are",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.RecoverTests.test_recover_restarts_previous_images_without_touching_data",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests.test_a_full_recovery_succeeds_and_says_so",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests.test_an_existing_consumer_that_cannot_be_inspected_or_tagged_blocks_the_drain",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests.test_recovery_fails_when_a_recorded_service_has_no_rollback_image_but_restores_the_rest",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests.test_recovery_fails_when_a_service_does_not_come_back_or_the_worker_is_not_listening",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.ReviewFindingRegressionTests.test_recovery_up_failure_is_a_failure",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.BackupSchedulerTests.test_nothing_presents_the_scheduler_as_running",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.GateInDrainTests.test_a_gate_that_cannot_verify_after_the_stop_also_fails_the_deploy",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.GateInDrainTests.test_quiet_before_and_after_is_a_clean_drain_that_checks_twice",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.GateInDrainTests.test_running_work_or_an_unverifiable_state_before_the_stop_refuses_without_stopping_anything",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_deploy_recovery.GateInDrainTests.test_work_that_starts_between_the_gate_and_the_stop_fails_the_deploy_and_recovery_restores_the_workers",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_repository_parity.InterfaceParityTests.test_every_called_method_exists_on_the_postgres_twin",
+        "type": "failure"
+      },
+      {
+        "name": "tests.test_worker_repository_parity.FailedBuildStepsTests.test_steps_after_the_failure_are_never_shown_as_done",
+        "type": "failure"
+      }
+    ]
+  },
+  "acceptance": {
+    "failed": 2,
+    "duration_seconds": 7.51
+  },
+  "state": "G3 experiment completed, defects reproduced; G4 fixes not included; no merge or G2 certification",
+  "report_name": "148AI Financial Fault Experiment - 2026-10-14",
+  "schema": "financial-fault-experiment/1",
+  "gate": "G3",
+  "experiment_status": "COMPLETED_DEFECT_REPRODUCED",
+  "financial_acceptance_verdict": "FAIL"
+}
