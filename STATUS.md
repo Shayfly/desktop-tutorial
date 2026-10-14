@@ -63,14 +63,33 @@ and V11 validation runs [38557768203](https://github.com/Shayfly/desktop-tutoria
 and [38557773492](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773492),
 failed on stale generated registry data: `skills/migration_test` still claimed
 REAL_SERVER_VERIFIED after its verifier source changed. `python -m
-omni_prod.agent_os.audit --write` regenerated the registry; the exact registry
-and truth regression passed **4 tests locally**:
+omni_prod.agent_os.audit --write` regenerated the registry; its focused test
+passed **4 tests locally**:
 
 ```text
 python -m pytest -q tests\test_agent_os.py::AuditTests::test_committed_registry_is_current_and_not_inflated tests\test_agent_os.py::TruthMatrixTests
 ```
 
-The V24/V11 failures were on the pre-regeneration artifacts; rerun is pending.
+On head `d3e9d9c`, V24 runs [38558480608](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480608)
+and [38558486429](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486429)
+plus V11 runs [38558480613](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480613)
+and [38558486243](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486243)
+then found `DEPARTMENT_MATRIX.json` stale after that registry update (generated
+IMPLEMENTED count 9 vs committed 8); the nested full-suite failure was a
+consequence. `python -m omni_prod.agent_os.departments --write` regenerated
+the matrix, and the combined registry/department/truth regressions passed
+**5 tests locally**:
+
+```text
+python -m pytest -q tests\test_conversation_os.py::DepartmentTests::test_every_agent_in_exactly_one_department_and_files_current tests\test_agent_os.py::AuditTests::test_committed_registry_is_current_and_not_inflated tests\test_agent_os.py::TruthMatrixTests
+```
+
+The d3e9d9c push/PR PostgreSQL runs
+[38558480621](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480621)
+and [38558486265](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486265)
+passed with no skips; Neon bootstrap run
+[38558486436](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486436)
+passed. CI on the regenerated department matrix is pending.
 
 Migration 040 has **not** been applied to Preview, staging, or Production.
 
@@ -87,16 +106,16 @@ URL. Do not bypass auth or migrate; diagnosis needs authorized read-only
 journal/search-path evidence and a safe isolated environment.
 
 **Still blocked/incomplete:** The full titled v2 requirements document remains
-unavailable, so the 22-area map is provisional. Migration-backed concurrency
-passed in the failed head's run, but the job needs a clean rerun after the
-rollback-fixture/bootstrap corrections. The other four corrective areas
-remain incomplete: company-liability accounting for provider failures; an
-operational overrun/estimate-error liability policy; verified recognized-sale
-revenue distinct from cost/reserve; and hard company-wide Free/storage/abuse
-and auditable admin ceilings. Wallet/top-ups/refunds, calibrated estimates,
-checkpoint resume, and reconciled profitability/compliance reporting are also
-not implemented. No paid services, shared/live migration, merge, Production
-deployment, or budget change occurred.
+unavailable, so the 22-area map is provisional. Migration-backed concurrency,
+rollback, and bootstrap checks passed in disposable CI on d3e9d9c; V24/V11
+still need a rerun after the department-matrix refresh. The other four
+corrective areas remain incomplete: company-liability accounting for provider
+failures; an operational overrun/estimate-error liability policy; verified
+recognized-sale revenue distinct from cost/reserve; and hard company-wide
+Free/storage/abuse and auditable admin ceilings. Wallet/top-ups/refunds,
+calibrated estimates, checkpoint resume, and reconciled profitability/
+compliance reporting are also not implemented. No paid services, shared/live
+migration, merge, Production deployment, or budget change occurred.
 
 ## Issue #6 / PR #31-#34 audit (evidence-bounded, 2026-10-14)
 

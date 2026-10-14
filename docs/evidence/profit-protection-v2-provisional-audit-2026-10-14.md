@@ -47,10 +47,14 @@ cannot be signed off until the full v2 source is available.
   passed without skips, and Neon bootstrap runs
   [38557768217](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768217)
   and [38557773575](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773575)
-  passed. V24/V11 runs failed because the generated Agent OS registry still
-  labeled `migration_test` REAL_SERVER_VERIFIED after the verifier changed.
-  `audit --write` regenerated it and the focused registry/truth regression
-  passed 4 tests locally; rerun is pending.
+  passed. V24/V11 runs on `1a1ce207` failed because the generated Agent OS registry
+  still labeled `migration_test` REAL_SERVER_VERIFIED after the verifier
+  changed. `audit --write` regenerated it and the focused registry/truth
+  regression passed 4 tests locally. V24/V11 runs on `d3e9d9c` then found a
+  stale `DEPARTMENT_MATRIX.json` (generated IMPLEMENTED count 9 vs committed
+  8); `departments --write` regenerated it and combined local registry/
+  department/truth regressions passed 5 tests. PostgreSQL and Neon bootstrap CI
+  passed on `d3e9d9c`; full CI after the matrix refresh is pending.
 - Migration 040 ran only in disposable PostgreSQL CI. No Preview/staging/
   Production migration, payment processor, paid provider, or production
   service was contacted.
