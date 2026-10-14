@@ -1,10 +1,66 @@
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
+## PR #34 follow-up — caller-stable build idempotency
+
+**Implemented and locally verified:** The build API accepts validated caller
+keys scoped to account + internal project, stores full request and quote
+SHA-256 fingerprints in an additive identity table. Quote identity uses the
+versioned `quote-fingerprint/2` scheme and `category=build`. Exact replays return
+the original build on an identical replay; changed input, quote, or persisted
+fingerprint version returns 409 before approval/reservation. The browser retains a stable
+key across ambiguous network failures; the postdeploy client supplies a UUID.
+Callers without a key retain the existing contract-level deduplication and
+deliberate retry behavior for failed/cancelled builds.
+
+Focused command:
+
+```text
+python -m pytest -q tests\test_m5_build_economics.py tests\test_qa_budget.py tests\test_m5_build_contract_binding.py tests\test_deployment_verification.py::ManifestTests tests\integration\test_m5_build_economics_postgres.py
+```
+
+Result: **62 passed, 3 skipped, 3 subtests passed**. The three skips are
+PostgreSQL-dependent; the new concurrent and cross-project idempotency cases
+have not run locally.
+Additional checks passed:
+
+```text
+python -m py_compile omni_prod\investor_app.py omni_prod\job_repository.py tests\test_m5_build_economics.py tests\integration\test_m5_build_economics_postgres.py
+node --check omni_prod\assets\app.js
+git diff --check
+```
+
+The real-PostgreSQL race and scope regressions are included in the existing
+disposable `intake-budget-pg` workflow; its new-head run is pending. Migration
+040 has **not** been applied to Preview, staging, or Production.
+
+**Preview schema blocker:** Deployment run
+[38551925540](https://github.com/Shayfly/desktop-tutorial/actions/runs/38551925540)
+failed only `schema_compatible`. The verifier received an empty applied-version
+set and therefore listed migrations 1-21 and 26-39 as missing. This proves the
+migration journal is absent, empty, or invisible to the application role; it
+does not prove that all application tables are absent. Other conversation,
+persistence, memory, and isolation checks passed. Read-only Vercel environment
+evidence shows Preview and Production share the configured database URL, so
+running migrations there is not safe or authorized. No migration was run.
+Resolve only after an authorized read-only journal/search-path diagnosis and a
+confirmed isolated database or safe staging path.
+
+**Still blocked/incomplete:** The full titled v2 requirements document remains
+unavailable, so the 22-area map is provisional. The migration-backed
+concurrency test and new-head CI are pending. The other four corrective areas
+remain incomplete: company-liability accounting for provider failures; an
+operational overrun/estimate-error liability policy; verified recognized-sale
+revenue distinct from cost/reserve; and hard company-wide Free/storage/abuse
+and auditable admin ceilings. Wallet/top-ups/refunds, calibrated estimates,
+checkpoint resume, and reconciled profitability/compliance reporting are also
+not implemented. No paid services, shared/live migration, merge, Production
+deployment, or budget change occurred.
+
 ## Issue #6 / PR #31-#34 audit (evidence-bounded, 2026-10-14)
 
 The requested Issue #6 work is broader than this follow-up. A requirement-to-code/test/status matrix for P1, P3, the customer build path, current PR bases, and blockers is recorded in [the evidence audit](docs/evidence/issue-6-pr31-34-audit-2026-10-14.md). The current P1/P3 acceptance and full build path remain PARTIAL, not merge-ready. Issue #6 remains OPEN. PRs #31-#34 remain open drafts. PR #34 targets PR #33, not the requested milestone branch; direct retarget would include 188 unrelated commits relative to the target merge base.
 
-The exact full v2 requirements source remains absent after repository/branch review and exact-text GitHub searches. The 22-area matrix remains explicitly provisional. Caller-stable idempotency/full quote fingerprint, provider-failure company liability, wallet/refunds, durable checkpoint resume, and reconciled profit remain partial or missing; no full v2 compliance claim is made.
+The exact full v2 requirements source remains absent after repository/branch review and exact-text GitHub searches. The 22-area matrix remains explicitly provisional. Caller-stable idempotency/full quote fingerprint is implemented locally but awaits PostgreSQL/CI verification; provider-failure company liability, wallet/refunds, durable checkpoint resume, and reconciled profit remain partial or missing. No full v2 compliance claim is made.
 
 ## v2 follow-up — provisional audit only (2026-10-14)
 
@@ -15,11 +71,11 @@ audit are in
 [`docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md`](docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md).
 These results verify only local test behavior, not live PostgreSQL, payment,
 provider, or production behavior.
-The same-build reservation replay now avoids a second counter debit; attempts
-to reuse that key with a different account/project/reserved amount or after
-settlement are rejected. This does not yet bind a complete quote fingerprint or
-provide a caller-stable request key. Its targeted tests passed as part of
-`tests/test_m5_build_economics.py` and `tests/test_qa_budget.py`.
+The same-build reservation replay avoids a second counter debit; attempts to
+reuse that key with a different account/project/reserved amount or after
+settlement are rejected. The current working-tree addition separately binds
+caller retries to request and quote fingerprints; its local regressions are
+listed above.
 
 **Implemented but awaiting external live verification:** Existing atomic
 reservation, billing-event idempotency journal (migration 039), project
@@ -28,7 +84,7 @@ The PostgreSQL concurrency/restart tests were skipped because no disposable
 loopback `profit_test...` database was configured. Migration 039 remains
 unapplied.
 
-**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The local focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. The real PostgreSQL/Redis Docker CI suite passed **174 tests, 56 subtests** on both code head `78a0d05` and documentation-only head `7c21dc8`, including the strict `OOMKilled=true` assertion. The Preview deployment verifier passed 10/11 checks and fails at `schema_compatible`: migrations 1-21 and 26-39 are pending. No migration was run.
+**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The local expanded focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. The real PostgreSQL/Redis Docker CI suite passed **174 tests, 56 subtests** on code head `78a0d05` and later head `7c21dc8`, including the strict `OOMKilled=true` assertion. Preview run [38552661996](https://github.com/Shayfly/desktop-tutorial/actions/runs/38552661996) failed 1/11 at `schema_compatible`; the verifier received an empty applied-version set. Other conversation, persistence, memory and isolation checks passed. This does not prove all application tables are absent. Preview and Production share the configured database URL. No migration was run.
 
 **Blocked by a named credential/service:** Canonical rule-by-rule v2 completion
 is blocked by the missing full titled v2 specification. Live billing and
@@ -37,17 +93,20 @@ processor test environment and disposable PostgreSQL test database. No
 credentials were requested or used.
 
 **Not implemented:** Complete funding-lot wallet, invoice/top-up/refund
-accounting, end-to-end idempotent quote/reservation identity, company-funded
-provider-failure budget, full all-scope exposure caps, budget pause/resume from
-verified checkpoints, data-calibrated Smart Completion Estimate, and
-reconciled profitability/compliance reporting. The implementation dependency
+accounting, company-funded provider-failure budget, full all-scope exposure
+caps, budget pause/resume from verified checkpoints, data-calibrated Smart
+Completion Estimate, and reconciled profitability/compliance reporting. The
+caller-key implementation is pending real-Postgres concurrency verification
+and migration application in an authorized test environment. The dependency
 order and gates are recorded in
 [`docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md`](docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md).
-Apart from that reservation replay hardening, no broader economy code was
-changed because the canonical v2 acceptance source is absent. No migration,
-real payment/provider call, budget change, merge, or production deployment was
-performed. The PR Preview deployment verifier remains blocked by pending
-migrations 1-21 and 26-39; no migration was run.
+The current follow-up adds only that reservation replay and caller-key
+hardening; broader economy work remains deferred because the canonical v2
+acceptance source is absent. No Preview/Production migration, real
+payment/provider call, budget change, merge, or production deployment was
+performed. The PR Preview verifier's applied-version set is empty; this is a
+journal/search-path compatibility failure, not proof that all migrations'
+schema objects are absent.
 
 **Implemented and independently verified locally:** unpaid Checkout and metadata
 events cannot grant paid entitlements; entitlement changes preserve usage;

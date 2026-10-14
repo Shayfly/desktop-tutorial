@@ -62,6 +62,7 @@ from .storage import S3ArtifactStore
 from .job_repository import PostgresBuildRepository
 from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
+from .idempotency import request_fingerprint, validate_key
 from .creator_plan import build_plan_preview
 from .browser_session import SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
 from .providers.managed_web_saas import managed_web_saas_readiness
@@ -233,6 +234,38 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
     else:
         enforce_margin_floor(quote)
     return (quote, components) if with_components else quote
+
+
+def _m5_build_idempotency_fingerprints(*, account_id, internal_project_id, public_project_id,
+                                       prompt, target_markets, contract_id, contract_fingerprint,
+                                       economics_quote, cost_class, credits, plan_code, funding_source,
+                                       funding_policy, rights_evidence, branding_visible, white_label_name,
+                                       quote_fingerprint_version=2, quote_category='build'):
+    quote_fingerprint = request_fingerprint({
+        'fingerprint_version': f'quote-fingerprint/{quote_fingerprint_version}',
+        'category': quote_category,
+        'build_contract': {'id': contract_id, 'fingerprint': contract_fingerprint},
+        'economics_quote': economics_quote,
+        'cost_class': cost_class,
+        'credits': credits,
+        'plan_code': plan_code,
+        'funding_source': funding_source,
+        'funding_policy': funding_policy,
+    })
+    build_request_fingerprint = request_fingerprint({
+        'fingerprint_version': 'build-request/1',
+        'account_id': account_id,
+        'internal_project_id': internal_project_id,
+        'public_project_id': public_project_id,
+        'prompt': prompt,
+        'target_markets': list(target_markets),
+        'build_contract': {'id': contract_id, 'fingerprint': contract_fingerprint},
+        'quote_fingerprint': quote_fingerprint,
+        'rights_evidence': rights_evidence,
+        'branding_visible': branding_visible,
+        'white_label_name': white_label_name,
+    })
+    return build_request_fingerprint, quote_fingerprint, quote_fingerprint_version
 
 
 def _m5_cost_inputs(contract, *, tenant_id: str, project_id: str):
@@ -435,6 +468,7 @@ class V27BuildRequest(BaseModel):
     prompt: str = Field(min_length=3,max_length=12000)
     target_markets: list[str] = Field(default_factory=lambda:['US','EU','IL'])
     build_contract_id: str | None = Field(default=None, min_length=1, max_length=160)
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=160)
     # Directive 2026-10-09 §5: the server-bound approval this build consumes.
     approval_id: str | None = Field(default=None, min_length=1, max_length=80)
 
@@ -2194,6 +2228,10 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
 @app.post('/api/v28/projects/{project_id}/builds')
 def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> dict:
     """Async durable build pipeline (M1 Revision 2, P0-1)."""
+    try:
+        caller_idempotency_key = validate_key(req.idempotency_key) if req.idempotency_key else None
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_idempotency_key'}) from exc
     # Also requires the durable workspace: the worker commits the version in
     # its own process, which the API can only read back if storage is shared.
     _require_durable_backend('Durable async build')
@@ -2248,6 +2286,26 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         # explicitly instead so build_requests.rights_evidence actually writes.
         rights_evidence = [e.to_dict() for e in _v28._rights_evidence.get(key, [])]
 
+        funding_source = 'internal_qa' if internal_qa else 'customer_plan'
+        funding_policy = None
+        if internal_qa:
+            funding_policy = {
+                'since': str(qa_policy.since),
+                'total_usd': str(qa_policy.total_usd),
+                'build_max_usd': str(qa_policy.build_max_usd),
+            }
+        request_fp = quote_fp = None
+        if caller_idempotency_key:
+            # Approval IDs are one-use authorization tokens, not build identity;
+            # a retry can obtain a fresh approval while replaying the same quote.
+            request_fp, quote_fp, quote_fp_version = _m5_build_idempotency_fingerprints(
+                account_id=account.id, internal_project_id=key, public_project_id=project_id,
+                prompt=req.prompt, target_markets=req.target_markets,
+                contract_id=build_contract.id, contract_fingerprint=build_contract.contract_fingerprint,
+                economics_quote=economics_evidence, cost_class=cost_class.value, credits=credits,
+                plan_code=plan.code.value, funding_source=funding_source, funding_policy=funding_policy,
+                rights_evidence=rights_evidence, branding_visible=brand_visible, white_label_name=white_label,
+            )
         jobs = PostgresBuildRepository(_v28_pool)
 
         existing = None
@@ -2256,6 +2314,22 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             with _v28_pool.connection() as conn:
                 with conn.transaction():
                     with conn.cursor() as cur:
+                        if caller_idempotency_key:
+                            try:
+                                claimed, replay = jobs.claim_build_request_idempotency(
+                                    cur, account_id=account.id, internal_project_id=key,
+                                    idempotency_key=caller_idempotency_key, request_fingerprint=request_fp,
+                                    quote_fingerprint=quote_fp,
+                                    quote_fingerprint_version=quote_fp_version, build_id=build_id,
+                                )
+                            except ValueError as exc:
+                                raise HTTPException(409, detail={
+                                    'error': 'idempotency_conflict',
+                                    'message': 'This idempotency key was already used for a different build request or quote.',
+                                }) from exc
+                            if not claimed:
+                                existing = replay
+                                raise _DuplicateApproval()
                         existing = jobs.claim_contract_build(cur, internal_project_id=key,
                                                              build_contract_id=build_contract.id)
                         if existing is not None:

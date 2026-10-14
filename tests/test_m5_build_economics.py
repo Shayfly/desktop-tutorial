@@ -184,6 +184,92 @@ class AsyncBuildAuthorizationTests(unittest.TestCase):
 
 
 class BuildRepositoryEconomicsTests(unittest.TestCase):
+    def test_claim_build_request_idempotency_inserts_once(self):
+        cur = ScriptedCursor([], rowcounts=[1])
+        created, replay = PostgresBuildRepository(None).claim_build_request_idempotency(
+            cur, account_id='u1', internal_project_id='p1', idempotency_key='retry-key-0001',
+            request_fingerprint='a' * 64, quote_fingerprint='b' * 64,
+            quote_fingerprint_version=2, build_id='bld_new',
+        )
+        self.assertTrue(created)
+        self.assertIsNone(replay)
+        self.assertIn('ON CONFLICT (account_id, internal_project_id, idempotency_key) DO NOTHING',
+                      cur.calls[0][0])
+        self.assertIn('quote_fingerprint_version', cur.calls[0][0])
+        self.assertEqual(cur.calls[0][1][-2], 2)
+        self.assertEqual(cur.calls[0][1][-1], 'bld_new')
+
+    def test_claim_build_request_idempotency_replays_same_quote(self):
+        cur = ScriptedCursor([('a' * 64, 'b' * 64, 2, 'bld_existing', 'running')], rowcounts=[0])
+        created, replay = PostgresBuildRepository(None).claim_build_request_idempotency(
+            cur, account_id='u1', internal_project_id='p1', idempotency_key='retry-key-0001',
+            request_fingerprint='a' * 64, quote_fingerprint='b' * 64,
+            quote_fingerprint_version=2, build_id='bld_new',
+        )
+        self.assertFalse(created)
+        self.assertEqual(replay, ('bld_existing', 'running'))
+        self.assertIn('FOR UPDATE OF idem', cur.calls[1][0])
+
+    def test_caller_key_claim_is_scoped_to_account_and_project(self):
+        cur = ScriptedCursor([], rowcounts=[1, 1])
+        repository = PostgresBuildRepository(None)
+        for project, build_id in (('tenant-p1', 'bld_1'), ('tenant-p2', 'bld_2')):
+            created, replay = repository.claim_build_request_idempotency(
+                cur, account_id='u1', internal_project_id=project, idempotency_key='shared-key-0001',
+                request_fingerprint='a' * 64, quote_fingerprint='b' * 64,
+                quote_fingerprint_version=2, build_id=build_id,
+            )
+            self.assertTrue(created)
+            self.assertIsNone(replay)
+        self.assertIn('(account_id, internal_project_id, idempotency_key)', cur.calls[0][0])
+        self.assertEqual(cur.calls[0][1][2], cur.calls[1][1][2])
+        self.assertNotEqual(cur.calls[0][1][1], cur.calls[1][1][1])
+
+    def test_claim_build_request_idempotency_rejects_request_quote_or_version_changes(self):
+        cases = (
+            ('c' * 64, 'b' * 64, 2),
+            ('a' * 64, 'd' * 64, 2),
+            ('a' * 64, 'b' * 64, 1),
+        )
+        for existing_request, existing_quote, existing_version in cases:
+            with self.subTest(existing_request=existing_request[0], existing_quote=existing_quote[0],
+                              existing_version=existing_version):
+                cur = ScriptedCursor(
+                    [(existing_request, existing_quote, existing_version, 'bld_existing', 'running')],
+                    rowcounts=[0],
+                )
+                with self.assertRaisesRegex(ValueError, 'different request or quote'):
+                    PostgresBuildRepository(None).claim_build_request_idempotency(
+                        cur, account_id='u1', internal_project_id='p1', idempotency_key='retry-key-0001',
+                        request_fingerprint='a' * 64, quote_fingerprint='b' * 64,
+                        quote_fingerprint_version=2, build_id='bld_new',
+                    )
+
+    def test_full_build_quote_fingerprint_changes_when_quote_changes(self):
+        args = {
+            'account_id': 'u1', 'internal_project_id': 'tenant-p1', 'public_project_id': 'p1',
+            'prompt': 'Build a CRM', 'target_markets': ['US'], 'contract_id': 'bc1',
+            'contract_fingerprint': 'contract-sha', 'economics_quote': {'total_authorized_variable_usd': '0.31'},
+            'cost_class': 'standard', 'credits': 60, 'plan_code': 'basic',
+            'funding_source': 'customer_plan', 'funding_policy': None, 'rights_evidence': [],
+            'branding_visible': True, 'white_label_name': None,
+        }
+        request_fp, quote_fp, quote_version = investor_app._m5_build_idempotency_fingerprints(**args)
+        changed = {**args, 'economics_quote': {'total_authorized_variable_usd': '0.32'}}
+        changed_request_fp, changed_quote_fp, _ = investor_app._m5_build_idempotency_fingerprints(**changed)
+        changed_version_fp = investor_app._m5_build_idempotency_fingerprints(
+            **args, quote_fingerprint_version=3,
+        )[1]
+        changed_category_fp = investor_app._m5_build_idempotency_fingerprints(
+            **args, quote_category='modification',
+        )[1]
+        self.assertEqual(quote_version, 2)
+        self.assertEqual(len(request_fp), 64)
+        self.assertNotEqual(request_fp, changed_request_fp)
+        self.assertNotEqual(quote_fp, changed_quote_fp)
+        self.assertNotEqual(quote_fp, changed_version_fp)
+        self.assertNotEqual(quote_fp, changed_category_fp)
+
     def test_get_request_loads_durable_authorization_and_quote_evidence(self):
         quote={'total_authorized_variable_usd':'0.40','provider_maximum_usd':'0.30'}
         row=('u1','p1','prompt',['US'],None,None,[], 'pub1', Decimal('0.30'), {'economics_quote': quote})
@@ -302,7 +388,8 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     """M5 remediation: the canonical build route reserves the FULL conservative
     total (LLM + capabilities + generated-app infra + retry) once, before enqueue."""
 
-    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None, require_approval='0'):
+    def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None, require_approval='0',
+             idempotency_result=(True, None), idempotency_key='caller-retry-key-1'):
         from omni_prod.build_cost_plan import BuildCostInputs, CostQuoteUnknown
         from omni_prod.build_contract import BuildContractStatus
 
@@ -319,6 +406,10 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         v28.subscriptions.reserve = reserve
         v28._project_brand_visible = {}; v28._project_white_label = {}; v28._rights_evidence = {}
         jobs = MagicMock()
+        if isinstance(idempotency_result, BaseException):
+            jobs.claim_build_request_idempotency.side_effect = idempotency_result
+        else:
+            jobs.claim_build_request_idempotency.return_value = idempotency_result
         jobs.claim_contract_build.return_value = existing_build
         cursor = MagicMock(); cursor.__enter__ = lambda s: s; cursor.__exit__ = lambda *a: False
         conn = MagicMock(); conn.__enter__ = lambda s: s; conn.__exit__ = lambda *a: False
@@ -341,7 +432,8 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
              patch.object(investor_app, 'PostgresBuildContractRepository'), \
              patch.object(investor_app, 'PostgresBuildRepository', return_value=jobs), \
              patch.object(investor_app, 'enqueue_build', enqueue):
-            req = investor_app.V27BuildRequest(prompt='Build a CRM', build_contract_id='bc_1')
+            req = investor_app.V27BuildRequest(prompt='Build a CRM', build_contract_id='bc_1',
+                                               idempotency_key=idempotency_key)
             try:
                 return investor_app.v28_build_async('prj_1', req, MagicMock()), reserve, enqueue, jobs, None
             except investor_app.HTTPException as exc:
@@ -356,6 +448,10 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         evidence = jobs.create_with_cursor.call_args.kwargs['evidence_json']['economics_quote']
         self.assertEqual(evidence['components']['capability_authorization_usd'], '0.01')
         self.assertEqual(evidence['total_authorized_variable_usd'], '0.31')
+        claim = jobs.claim_build_request_idempotency.call_args.kwargs
+        self.assertEqual(claim['idempotency_key'], 'caller-retry-key-1')
+        self.assertEqual(len(claim['request_fingerprint']), 64)
+        self.assertEqual(len(claim['quote_fingerprint']), 64)
 
     def test_denied_total_reservation_enqueues_nothing(self):
         _, reserve, enqueue, jobs, exc = self._run(reserve_allowed=False)
@@ -379,9 +475,48 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = json.loads(response.body)
         self.assertEqual((body['build_id'], body['status'], body['duplicate']), ('bld_first', 'running', True))
+        jobs.claim_build_request_idempotency.assert_called_once()
         reserve.assert_not_called()
         enqueue.assert_not_called()
         jobs.create_request.assert_not_called()
+
+    def test_same_caller_key_replays_the_original_build_before_reservation(self):
+        response, reserve, enqueue, jobs, exc = self._run(
+            idempotency_result=(False, ('bld_replay', 'ready')),
+        )
+        self.assertIsNone(exc)
+        body = json.loads(response.body)
+        self.assertEqual((body['build_id'], body['status'], body['duplicate']),
+                         ('bld_replay', 'ready', True))
+        jobs.claim_contract_build.assert_not_called()
+        reserve.assert_not_called()
+        enqueue.assert_not_called()
+
+    def test_same_caller_key_with_changed_quote_returns_conflict(self):
+        _, reserve, enqueue, jobs, exc = self._run(
+            idempotency_result=ValueError('idempotency key reused with different request or quote'),
+        )
+        self.assertEqual(exc.status_code, 409)
+        self.assertEqual(exc.detail['error'], 'idempotency_conflict')
+        reserve.assert_not_called()
+        enqueue.assert_not_called()
+
+    def test_legacy_request_without_key_keeps_contract_deduplication_and_retry_path(self):
+        response, reserve, enqueue, jobs, exc = self._run(idempotency_key=None)
+        self.assertIsNone(exc)
+        self.assertEqual(response.status_code, 202)
+        jobs.claim_build_request_idempotency.assert_not_called()
+        jobs.claim_contract_build.assert_called_once()
+        reserve.assert_called_once()
+        enqueue.assert_called_once()
+
+    def test_invalid_caller_key_is_rejected_before_build_admission(self):
+        _, reserve, enqueue, jobs, exc = self._run(idempotency_key='not a valid key')
+        self.assertEqual(exc.status_code, 422)
+        self.assertEqual(exc.detail['error'], 'invalid_idempotency_key')
+        jobs.claim_build_request_idempotency.assert_not_called()
+        reserve.assert_not_called()
+        enqueue.assert_not_called()
 
     def test_unknown_required_quote_blocks_before_reservation(self):
         from omni_prod.build_cost_plan import CostQuoteUnknown

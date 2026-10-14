@@ -28,11 +28,14 @@ cannot be signed off until the full v2 source is available.
   python -m pytest -q tests/test_profit_protection.py tests/test_m5_build_economics.py tests/test_actual_cost_settlement.py tests/test_m495_subscription_settlement.py tests/test_public_pricing_economics.py tests/test_build_state_machine.py tests/test_v28_148ai_launch.py tests/integration/test_profit_billing_events_pg.py tests/test_deployment_verification.py::ManifestTests tests/test_agent_os.py::AuditTests tests/test_agent_os.py::TruthMatrixTests tests/test_intelligence_plane.py::ProviderMatrixTests tests/test_conversation_os.py::DepartmentTests tests/test_m4_acceptance.py::AcceptanceV tests/test_migration_rollback_tolerance.py::VerifyAppliedTests
   ```
 
-  Observed after the reservation replay and CI-regression fixes: **118 passed,
-  9 skipped**. The skips include database tests which
-  require an explicitly configured disposable loopback PostgreSQL database.
-  This is local test evidence, not live database, payment, provider, or
-  production verification.
+  The earlier reservation-replay baseline passed **118 passed, 9 skipped**.
+  The skips include database tests which require an explicitly configured
+  disposable loopback PostgreSQL database. On the current PR #34 worktree, the
+  focused request-idempotency/economics command passed **62 passed, 3 skipped,
+  3 subtests passed**; the three skipped tests include real-Postgres
+  reservation/idempotency concurrency and project-scope cases. Migration 040
+  was not applied. This is local unit-test evidence, not live database,
+  payment, provider, or production verification.
 - No migration was applied; no payment processor, paid provider, or production
   service was contacted.
 
@@ -52,7 +55,7 @@ cannot be signed off until the full v2 source is available.
 | # | Area inferred from the task summary (not canonical v2 numbering) | Status | Evidence and remaining gap |
 |---:|---|---|---|
 | 1 | Minimum 60% operational contribution-margin target | PARTIAL | The pre-execution guard enforces a minimum 60% conservative variable-cost margin for paid builds. Revenue is allocated from monthly plan price by fixed build credits; this is not measured operational contribution margin, and no realized 60% outcome is verified. |
-| 2 | Quote → Reserve → Execute → Meter → Settle → Release/Refund lifecycle | PARTIAL | Build quote, durable reservation, execution, metering, settlement, and release paths exist. Reservation replay for an identical `build_id` now returns the existing RESERVED decision without charging counters again; account/project/reserved-amount conflicts and resolved-key reuse fail closed. The full quote fingerprint is not stored. Refunds, funding-lot allocation, and end-to-end caller idempotency are not implemented. |
+| 2 | Quote → Reserve → Execute → Meter → Settle → Release/Refund lifecycle | PARTIAL | Build quote, durable reservation, execution, metering, settlement, and release paths exist. Reservation replay for an identical `build_id` avoids a second allowance debit. PR #34 now adds a caller-supplied, account/project-scoped build key and durable request/quote SHA-256 fingerprints in additive migration 040; quote fingerprints use the persisted `quote-fingerprint/2` version and include `category=build`. Exact replay returns the original build; changed request, quote, or persisted version conflicts before approval/reservation. Unit tests pass locally; real-Postgres concurrency and migration execution remain unverified. Refunds and funding-lot allocation remain missing. |
 | 3 | Atomic reservations | IMPLEMENTED | Production reservation locks the subscription row and writes within the build transaction. PostgreSQL concurrency tests exist but were skipped; live atomicity is unverified. |
 | 4 | Budget ceilings across account, project, day, build, and outstanding exposure | PARTIAL | Plan credit/provider-spend checks and a separate intake-budget service exist. The M5 build path does not demonstrate one end-to-end set of all-scope caps including outstanding UNKNOWN exposure. |
 | 5 | Prevention of duplicate billing and replayed payment events | PARTIAL | Reviewer-service tests cover replay/order; Postgres journal and watermarks are prepared in additive migration 039. Database concurrency/restart tests were skipped and no processor test environment was used. |
@@ -94,21 +97,24 @@ cannot be signed off until the full v2 source is available.
    a verified sale transaction/net-recognized-revenue record. Risk reserve
    also needs its own versioned basis.
 5. **Idempotency identity must be stable.** Billing event IDs and capability
-   execution keys are durable/stable in their respective paths. The reservation
-   service now safely replays an identical existing `build_id` reservation and
-   rejects account/project/reserved-amount conflicts or reuse after resolution.
-   It does not persist/compare a complete quote fingerprint. New build IDs are
-   still random per request; duplicate approved contracts are deduplicated by
-   contract binding, not by a durable caller-provided quote/reservation key.
-   Provider request correlation and replay semantics need an explicit,
-   end-to-end contract.
+   execution keys are durable/stable in their respective paths. PR #34 adds a
+   caller-provided build key scoped by account and internal project, persists
+   separate full request and quote SHA-256 fingerprints, returns the original
+   build on exact replay, and rejects key reuse with changed content before
+   approval or reservation. The UI retains the key across ambiguous network
+   failures; the internal postdeploy client supplies a UUID. Legacy clients
+   without a key retain contract-level deduplication/retry behavior. Migration 040 is
+   additive and unrun; local unit tests pass, but real-Postgres concurrency
+   remains pending. Provider-level request correlation and full end-to-end
+   crash recovery are still not established.
 
 ## Safe boundary
 
-The code and tests do not justify marking the v2 economy complete. The
-reservation replay hardening is a narrowly scoped Economy Core correction, not
-completion of the lifecycle. Further Core work should use fake payment and
-provider adapters and must not run migrations or use real payment/provider
-services. Estimation calibration must wait for reliable measured-cost data.
-Monetization activation must wait for verified billing behavior. The complete
-canonical v2 matrix remains blocked by the absent requirements source.
+The code and tests do not justify marking the v2 economy complete. Reservation
+replay and caller-key persistence are narrowly scoped Economy Core corrections,
+not completion of the lifecycle. Migration 040 has not been applied. Further
+Core work should use fake payment and provider adapters and must not run live
+migrations or use real payment/provider services. Estimation calibration must
+wait for reliable measured-cost data. Monetization activation must wait for
+verified billing behavior. The complete canonical v2 matrix remains blocked
+by the absent requirements source.

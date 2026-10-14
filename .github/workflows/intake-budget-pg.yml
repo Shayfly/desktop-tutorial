@@ -44,7 +44,7 @@ jobs:
         env:
           OMNI_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
         run: python -m omni_prod.migrate
-      - name: Intake budget, routing, requirements and plan-governed execution tests (real PostgreSQL + Redis)
+      - name: Focused PostgreSQL, Redis and build-idempotency regressions
         run: |
           python -m pytest -q -rs --junitxml=intake-pg.xml \
             tests/test_intake_budget_pg.py tests/test_intake_complexity.py \
@@ -52,7 +52,8 @@ jobs:
             tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py \
             tests/test_visual_edit.py tests/test_conversation_ux.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py \
-            tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py
+            tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
+            tests/integration/test_m5_build_economics_postgres.py
       - name: No test may be skipped
         if: always()
         run: |

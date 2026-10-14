@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 21, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 10, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 60, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 22, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 9, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 70, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 55, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -61,7 +61,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION
 | Support Agent (`support_agent`) | platform | **NOT_IMPLEMENTED** | customer_success | no implementation | not implemented |
 | Platform Capability Auditor (`platform_capability_auditor`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
 | Regression Guardian (`regression_guardian`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
-| Golden Path Verifier (`golden_path_verifier`) | meta | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
+| Golden Path Verifier (`golden_path_verifier`) | meta | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/postdeploy-checks.yml, omni_prod/postdeploy_checks.py |  |
 | System Test Orchestrator (`system_test_orchestrator`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
 | Failure Injection Agent (`failure_injection_agent`) | meta | **UNIT_TESTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/agent_os/meta.py — tests/test_failure_injection.py |  |
 | Quality Gate Agent (`quality_gate_agent`) | meta | **UNIT_TESTED** | founder | unit tests only — tests/test_agent_os.py |  |
@@ -244,7 +244,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `resume_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | build restarts from the beginning |
-| `cancellation_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
@@ -319,16 +319,16 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION
 | `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |
 | `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `reconciliation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only | QA ledger |
-| `worker_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `worker_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `queue_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
 | `storage_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
-| `database_health_check` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `database_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `environment_validation` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: infra/worker-host/write-env.sh |  |
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `job_resume` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | restart from the beginning, once |
-| `job_cancel` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
 | `stale_job_recovery` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers |  |
 | `preview_prepare` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
@@ -342,7 +342,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION
 | `deployment_status_check` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
 | `environment_binding` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
 | `deployment_rollback` | Deployment | **IMPLEMENTED** | deployment_agent | code exists; no evidence | documented procedure, not automated |
-| `deployment_verification` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host | platform deploy |
+| `deployment_verification` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py | platform deploy |
 | `version_create` | Release | **REAL_SERVER_VERIFIED** | release_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `artifact_commit` | Release | **REAL_SERVER_VERIFIED** | release_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
 | `release_evidence_generation` | Release | **IMPLEMENTED** | release_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |

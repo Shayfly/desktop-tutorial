@@ -153,6 +153,53 @@ class PostgresBuildRepository:
         row = cur.fetchone()
         return (row[0], row[1]) if row else None
 
+    def claim_build_request_idempotency(self, cur, *, account_id: str, internal_project_id: str,
+                                       idempotency_key: str, request_fingerprint: str,
+                                       quote_fingerprint: str, quote_fingerprint_version: int,
+                                       build_id: str) -> tuple[bool, tuple[str, str] | None]:
+        """Atomically bind a caller key and immutable request/quote fingerprints to a build.
+
+        The FK is deferred because the request and job rows are inserted later in
+        this same transaction. A conflicting concurrent insert waits for the
+        winner, then reads its committed build instead of reserving a second one.
+        """
+        from .idempotency import validate_key
+        validate_key(idempotency_key)
+        cur.execute(
+            """
+            INSERT INTO build_request_idempotency(
+                account_id, internal_project_id, idempotency_key,
+                request_fingerprint, quote_fingerprint, quote_fingerprint_version, build_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (account_id, internal_project_id, idempotency_key) DO NOTHING
+            """,
+            (account_id, internal_project_id, idempotency_key,
+             request_fingerprint, quote_fingerprint, quote_fingerprint_version, build_id),
+        )
+        if cur.rowcount == 1:
+            return True, None
+
+        cur.execute(
+            """
+            SELECT idem.request_fingerprint, idem.quote_fingerprint,
+                   idem.quote_fingerprint_version, idem.build_id, job.status
+            FROM build_request_idempotency AS idem
+            JOIN build_requests AS request ON request.build_id = idem.build_id
+            JOIN build_jobs AS job ON job.id = idem.build_id
+            WHERE idem.account_id = %s AND idem.internal_project_id = %s
+              AND idem.idempotency_key = %s
+            FOR UPDATE OF idem
+            """,
+            (account_id, internal_project_id, idempotency_key),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise RuntimeError('idempotency key conflict did not resolve to a durable build')
+        if (row[0] != request_fingerprint or row[1] != quote_fingerprint
+                or row[2] != quote_fingerprint_version):
+            raise ValueError('idempotency key reused with different request or quote')
+        return False, (row[3], row[4])
+
     def create_request(self, cur, *, build_id: str, user_id: str, internal_project_id: str, prompt: str,
                         target_markets: tuple, branding_visible: bool | None, white_label_name: str | None,
                         rights_evidence: list, public_project_id: str | None = None,
