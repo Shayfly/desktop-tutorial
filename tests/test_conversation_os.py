@@ -388,6 +388,14 @@ class WorkspaceAssetTests(unittest.TestCase):
         self.assertIn("m.ai_status === 'fallback'", self.js)
         self.assertIn('aiFallback:', self.js)
 
+    def test_chat_discloses_provider_model_use_per_reply(self):
+        self.assertIn("m.ai_status === 'model'", self.js)
+        self.assertIn('aiModel:', self.js)
+
+    def test_chat_discloses_when_a_reply_did_not_need_a_model(self):
+        self.assertIn("m.ai_status === 'not_used'", self.js)
+        self.assertIn('aiNotUsed:', self.js)
+
     def test_no_fake_sidebar_items(self):
         lowered = self.html.lower()
         for fake in ('scheduled', 'artifacts', 'codex', 'gpts', 'sora', 'chatgpt'):

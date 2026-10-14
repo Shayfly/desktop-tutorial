@@ -209,7 +209,9 @@ const T = {
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
     hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
     chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI',
+    aiModel:'This reply was generated with an AI model.',
     aiFallback:'AI was not used for this reply; it is based on guided rules.',
+    aiNotUsed:'No AI model was needed for this reply.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
@@ -230,11 +232,15 @@ const S = {
 Object.assign(T.he, { updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
+  aiModel:'התשובה הזו נוצרה בעזרת מודל AI.',
   aiFallback:'ה-AI לא שימש בתשובה הזו; היא מבוססת על כללי ההנחיה.',
+  aiNotUsed:'לא נדרש מודל AI כדי לענות על ההודעה הזו.',
   attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
 Object.assign(T.en, { updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
+  aiModel:'This reply was generated with an AI model.',
+  aiNotUsed:'No AI model was needed for this reply.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
 
 const $ = id => document.getElementById(id);
@@ -1301,8 +1307,12 @@ function renderChat() {
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
     const bubble = h('div', { class: `bubble ${m.role}`, dir: 'auto' }, h('span', { class: 'who' }, m.role === 'customer' ? t('you') : t('assistant')), m.content);
+    if (m.role === 'assistant' && m.ai_status === 'model')
+      bubble.append(h('p', { class: 'hint aiModel' }, t('aiModel')));
     if (m.role === 'assistant' && m.ai_status === 'fallback')
       bubble.append(h('p', { class: 'hint aiFallback' }, t('aiFallback')));
+    if (m.role === 'assistant' && m.ai_status === 'not_used')
+      bubble.append(h('p', { class: 'hint aiNotUsed' }, t('aiNotUsed')));
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
       h('img', { src: `/api/v28/projects/${pid()}/attachments/${encodeURIComponent(a.id)}`, alt: t('attachedImage'), loading: 'lazy', width: 72, height: 72 }))));
     if (i === lastAssistant) {
