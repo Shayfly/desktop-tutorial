@@ -743,6 +743,10 @@ const isTerminal = s => ['ready', 'failed', 'cancelled', 'READY', 'FAILED', 'CAN
 let buildStarting = false;
 async function startBuild() {
   if (!S.plan || !S.plan.can_build || buildStarting) return;
+  const buildProjectId = pid();
+  const plan = S.plan;
+  const prompt = (S.disc && S.disc.prompt) || 'build';
+  const idempotencyStorageKey = `148ai_build_idempotency:${buildProjectId}:${plan.build_contract_id}`;
   // One click = one request; the server also returns the existing build for
   // an already-approved plan instead of starting a second one.
   buildStarting = true;
@@ -753,21 +757,32 @@ async function startBuild() {
   $('buildMsg').textContent = t('checkingApproval');
   openTab('build');
   try {
+    let idempotencyKey = localStorage.getItem(idempotencyStorageKey);
+    if (!idempotencyKey) {
+      idempotencyKey = newKey();
+      localStorage.setItem(idempotencyStorageKey, idempotencyKey);
+    }
     // Directive 2026-10-09 §5: the server binds this approval to the user,
     // the brief revision, the plan and the price; the build consumes it once.
     let approvalId = null;
-    if (S.plan.brief_revision) {
-      const a = await api(`/api/v28/projects/${pid()}/approvals`, { method: 'POST',
-        body: { build_contract_id: S.plan.build_contract_id, brief_revision: S.plan.brief_revision } });
+    if (plan.brief_revision) {
+      const a = await api(`/api/v28/projects/${buildProjectId}/approvals`, { method: 'POST',
+        body: { build_contract_id: plan.build_contract_id, brief_revision: plan.brief_revision } });
       approvalId = a.approval_id;
     }
-    const d = await api(`/api/v28/projects/${pid()}/builds`, { method: 'POST',
-      body: { prompt: (S.disc && S.disc.prompt) || 'build', build_contract_id: S.plan.build_contract_id,
-              approval_id: approvalId } });
+    const d = await api(`/api/v28/projects/${buildProjectId}/builds`, { method: 'POST',
+      body: { prompt, build_contract_id: plan.build_contract_id,
+              approval_id: approvalId, idempotency_key: idempotencyKey } });
+    localStorage.removeItem(idempotencyStorageKey);
+    if (pid() !== buildProjectId) return;
     S.build = { id: d.build_id, status: d.status || 'queued', phase: d.duplicate ? '' : 'QUEUED', evidence: {} };
     renderPlan(); renderTrack(); renderBuilt(); openTab('build'); pollBuild();
     if (d.duplicate) $('buildMsg').textContent = t('duplicateBuild');
   } catch (e) {
+    if (e.status >= 400 && e.status < 500) {
+      localStorage.removeItem(idempotencyStorageKey);
+    }
+    if (pid() !== buildProjectId) return;
     if(!S.build){
       S.buildAdmissionError=explain(e);
       if(e.status===409)await requestBriefPlan(false);

@@ -5,11 +5,15 @@ import subprocess
 
 root = pathlib.Path(__file__).resolve().parents[2]
 sources = sorted((root / "infra/postgres").glob("*.sql"))
-bootstrap = (root / "infra/staging/bootstrap_neon_empty.sql").read_text()
+def normalize_eol(data: bytes) -> bytes:
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+bootstrap = normalize_eol((root / "infra/staging/bootstrap_neon_empty.sql").read_bytes()).decode("utf-8")
 expected = {}
 for path in sources:
     version, name = path.stem.split("_", 1)
-    raw = path.read_bytes()
+    raw = normalize_eol(path.read_bytes())
     section = "-- BEGIN SOURCE " + path.name + "\n" + raw.decode() + "\n-- END SOURCE " + path.name
     assert section in bootstrap, "Bootstrap source drift: " + path.name
     expected[int(version)] = (name, hashlib.sha256(raw).hexdigest())

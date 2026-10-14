@@ -265,9 +265,9 @@
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 4,
+    "IMPLEMENTED": 8,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 22,
+    "REAL_SERVER_VERIFIED": 18,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],
@@ -322,13 +322,13 @@
     "repair_agent": "IMPLEMENTED",
     "performance_agent": "NOT_IMPLEMENTED",
     "regression_guardian": "UNIT_TESTED",
-    "golden_path_verifier": "REAL_SERVER_VERIFIED",
+    "golden_path_verifier": "IMPLEMENTED",
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 7,
+    "IMPLEMENTED": 9,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 15,
+    "REAL_SERVER_VERIFIED": 13,
     "UNIT_TESTED": 7
    },
    "missing_roles": [],

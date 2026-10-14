@@ -117,18 +117,16 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 38083312245"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "platform:contract_bound_approval",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
     }
    ]
   },
@@ -761,18 +759,16 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 38083312245"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "skill:job_cancel",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
     }
    ]
   },
@@ -1148,8 +1144,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 7,
-  "REAL_SERVER_VERIFIED": 14,
+  "IMPLEMENTED": 9,
+  "REAL_SERVER_VERIFIED": 12,
   "UNIT_TESTED": 6,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,
@@ -1159,8 +1155,10 @@
   "shown to the customer but IMPLEMENTED: Describe the product in natural language (Hebrew/English)",
   "shown to the customer but IMPLEMENTED: Clarifying questions only when needed",
   "shown to the customer but IMPLEMENTED: Plan and cost quote before the build",
+  "shown to the customer but IMPLEMENTED: Approval binds the build to the approved contract",
   "shown to the customer but IMPLEMENTED: Generate the product code",
   "shown to the customer but IMPLEMENTED: Change the product in natural language",
-  "shown to the customer but UNIT_TESTED: Download the product as ZIP"
+  "shown to the customer but UNIT_TESTED: Download the product as ZIP",
+  "shown to the customer but IMPLEMENTED: Stop a build; live progress journal"
  ]
 }

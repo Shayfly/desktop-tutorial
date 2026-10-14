@@ -1,15 +1,238 @@
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
+## PR #34 follow-up — caller-stable build idempotency
+
+**Implemented and locally verified:** The build API accepts validated caller
+keys scoped to account + internal project, stores full request and quote
+SHA-256 fingerprints in an additive identity table. Quote identity uses the
+versioned `quote-fingerprint/2` scheme and `category=build`. Exact replays return
+the original build on an identical replay; changed input, quote, or persisted
+fingerprint version returns 409 before approval/reservation. The browser retains a stable
+key across ambiguous network failures; the postdeploy client supplies a UUID.
+Callers without a key retain the existing contract-level deduplication and
+deliberate retry behavior for failed/cancelled builds.
+
+Focused command:
+
+```text
+python -m pytest -q tests\test_m5_build_economics.py tests\test_qa_budget.py tests\test_m5_build_contract_binding.py tests\test_deployment_verification.py::ManifestTests tests\integration\test_m5_build_economics_postgres.py
+```
+
+Result: **62 passed, 3 skipped, 3 subtests passed**. The three skips are
+PostgreSQL-dependent; the new concurrent and cross-project idempotency cases
+have not run locally.
+Additional checks passed:
+
+```text
+python -m py_compile omni_prod\investor_app.py omni_prod\job_repository.py tests\test_m5_build_economics.py tests\integration\test_m5_build_economics_postgres.py
+node --check omni_prod\assets\app.js
+git diff --check
+```
+
+On head `7779cab`, `intake-budget-pg` run
+[38556863549](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556863549)
+reported 175 passed, 2 failed, and 56 subtests. Both failures were rollback
+tests whose simulated 039 database accidentally included migration 040. The
+fixture now stops at 039 and separately verifies the current package applies
+040. The new caller-key PostgreSQL races did execute in the same run but the
+job failed overall.
+
+Neon bootstrap runs [38556861212](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556861212)
+and [38556863814](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556863814)
+failed because the checked-in bootstrap omitted migrations 039 and 040; its
+generator/verifier also mishandled Windows line endings. The generator and
+verifier now normalize SQL line endings, and local regeneration plus
+`python tools\generate_neon_bootstrap.py --check` confirms both migrations are
+included with LF output. The combined local command below passed **39 passed,
+6 skipped, 3 subtests passed**; skipped cases require PostgreSQL.
+
+```text
+python -m pytest -q tests\test_m5_build_economics.py tests\test_migration_rollback_tolerance.py tests\test_deployment_verification.py::ManifestTests tests\integration\test_m5_build_economics_postgres.py
+```
+
+On head `1a1ce20737bf952c749fd3f53308c216ef02f4ff`, both
+[`intake-budget-pg` runs](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773477)
+and [38557768232](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768232)
+passed, including the no-skip gate; both [Neon bootstrap runs](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773575)
+and [38557768217](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768217)
+passed migration checksum, app-table, and rerun-guard checks.
+
+The same head's V24 test runs [38557768202](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768202)
+and [38557773638](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773638),
+and V11 validation runs [38557768203](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768203)
+and [38557773492](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773492),
+failed on stale generated registry data: `skills/migration_test` still claimed
+REAL_SERVER_VERIFIED after its verifier source changed. `python -m
+omni_prod.agent_os.audit --write` regenerated the registry; its focused test
+passed **4 tests locally**:
+
+```text
+python -m pytest -q tests\test_agent_os.py::AuditTests::test_committed_registry_is_current_and_not_inflated tests\test_agent_os.py::TruthMatrixTests
+```
+
+On head `d3e9d9c`, V24 runs [38558480608](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480608)
+and [38558486429](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486429)
+plus V11 runs [38558480613](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480613)
+and [38558486243](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486243)
+then found `DEPARTMENT_MATRIX.json` stale after that registry update (generated
+IMPLEMENTED count 9 vs committed 8); the nested full-suite failure was a
+consequence. `python -m omni_prod.agent_os.departments --write` regenerated
+the matrix, and the combined registry/department/truth regressions passed
+**5 tests locally**:
+
+```text
+python -m pytest -q tests\test_conversation_os.py::DepartmentTests::test_every_agent_in_exactly_one_department_and_files_current tests\test_agent_os.py::AuditTests::test_committed_registry_is_current_and_not_inflated tests\test_agent_os.py::TruthMatrixTests
+```
+
+The d3e9d9c push/PR PostgreSQL runs
+[38558480621](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558480621)
+and [38558486265](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486265)
+passed with no skips; Neon bootstrap run
+[38558486436](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486436)
+passed. On corrected head `986e7b0`, V24 and V11 push/PR checks passed:
+[V24 push](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082202),
+[V24 PR](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085373),
+[V11 push](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082225),
+and [V11 PR](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085400).
+Deterministic regression [38559085391](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085391),
+Neon bootstrap/fresh-Postgres [38559085587](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085587),
+compose, customer UI, and the PR full V24 test all passed.
+
+The corrected-head push PostgreSQL suite
+[38559082247](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082247)
+passed **177 tests, 56 subtests, no skips**. Its duplicate PR run
+[38559085600](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085600)
+failed **1 of 177 tests** (176 passed, 56 subtests, no skips):
+`RealDockerDrainRecovery.test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything`.
+The isolated preview-worker exited 137 only when the 60-second drain deadline
+expired; Docker reported `oom=false`, so this is not evidence of an OOM kill.
+The test's strict `OOMKilled` assertion is retained. A reliable harness fix was
+not established; do not call exit 137 an OOM or weaken the assertion.
+
+The later documentation-only head `3e4f0bd` reproduced the same issue with
+the opposite push/PR outcome: push run
+[38559914558](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559914558)
+failed only that OOM test (**176 passed, 1 failed, 56 subtests, no skips**),
+while PR run
+[38559920282](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559920282)
+passed **177 tests, 56 subtests, no skips**. The push failure again reported
+exit 137 at the deadline and `oom=false`. Across the duplicate runs on both
+heads, this pass/fail reversal establishes a nondeterministic Docker OOM
+fixture; the CI evidence does not prove an OOM kill.
+
+**OOM fixture repair (commit de17f6d, awaiting CI):** root-cause hypothesis is
+that a 64 MiB allocation inside a 64 MiB cgroup can fit by reclaiming page
+cache. The container limit is now 48 MiB (memory and swap) against the same
+64 MiB allocator, so the allocation strictly exceeds the limit. The test now
+asserts the container's `HostConfig.Memory`/`MemorySwap` before triggering,
+failing fast if a runner ignores the limit. The strict `OOMKilled` assertion is
+unchanged. Not verified locally (no Docker); CI on 536c243: both duplicate
+`intake-budget-pg` runs passed (push 38579318433, PR 38579332870) including the
+strict OOM test. Two runs is not yet proof of determinism; repeat runs are
+needed. The push `v24-ci` run 38579318130 failed `customer-ui`
+(`tests/customer_flow_browser.cjs:34`, 'שינוי' button not visible) while the PR
+`v24-ci` run 38579332614 on the same SHA passed; this change touched no UI code,
+so it is recorded as a suspected flaky browser test, not diagnosed. Preview
+verify still fails only `schema_compatible` (unapplied migrations). Also added a
+worker-crash caller-key replay test (`tests/test_m5_build_economics.py`,
+33 passed locally).
+
+Migration 040 has **not** been applied to Preview, staging, or Production.
+
+**Preview schema blocker:** Deployment run
+[38559974291](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559974291)
+for head `3e4f0bd` failed only `schema_compatible`, reporting migration 040
+pending. Endpoint, commit SHA, synthetic registration, session identity,
+project creation, conversation, persistence, and project-memory checks passed.
+Sanitized nested checks additionally reported `AUTH_INVALID` (401) and
+`HTTP_403`, but did not add a second top-level failed check. Earlier run
+[38551925540](https://github.com/Shayfly/desktop-tutorial/actions/runs/38551925540)
+likewise received an empty applied-version set for the then-required
+migrations 1-21 and 26-39. This proves only that the journal is absent, empty,
+or invisible to the role, not that all application tables are absent.
+Read-only Vercel evidence indicates Preview and Production share the database
+URL. Do not bypass auth or migrate; diagnosis needs authorized read-only
+journal/search-path evidence and a safe isolated environment.
+
+**Still blocked/incomplete:** The full titled v2 requirements document remains
+unavailable, so the 22-area map is provisional. Migration-backed concurrency,
+rollback, bootstrap, V24, V11, and deterministic checks passed on `986e7b0`;
+V24/V11, deterministic, Neon, and Preview-independent acceptance checks also
+passed on `3e4f0bd`. The two duplicate PG jobs on each head diverged only on
+the bounded Docker OOM test, so this harness remains an unresolved
+nondeterministic blocker. Preview schema verification is blocked on unapplied
+040.
+The other four corrective areas remain incomplete: company-liability
+accounting for provider failures; an operational overrun/estimate-error
+liability policy; verified recognized-sale revenue distinct from cost/reserve;
+and hard company-wide Free/storage/abuse and auditable admin ceilings.
+Wallet/top-ups/refunds, calibrated estimates, checkpoint resume, and
+reconciled profitability/compliance reporting are also not implemented. No
+paid services, shared/live migration, merge, Production deployment, or budget
+change occurred.
+
+## Issue #6 / PR #31-#34 audit (evidence-bounded, 2026-10-14)
+
+The requested Issue #6 work is broader than this follow-up. A requirement-to-code/test/status matrix for P1, P3, the customer build path, current PR bases, and blockers is recorded in [the evidence audit](docs/evidence/issue-6-pr31-34-audit-2026-10-14.md). The current P1/P3 acceptance and full build path remain PARTIAL, not merge-ready. Issue #6 remains OPEN. PRs #31-#34 remain open drafts. PR #34 targets PR #33, not the requested milestone branch; direct retarget would include 188 unrelated commits relative to the target merge base.
+
+The exact full v2 requirements source remains absent after repository/branch review and exact-text GitHub searches. The 22-area matrix remains explicitly provisional. Caller-stable idempotency/full quote fingerprint is implemented locally but awaits PostgreSQL/CI verification; provider-failure company liability, wallet/refunds, durable checkpoint resume, and reconciled profit remain partial or missing. No full v2 compliance claim is made.
+
+## v2 follow-up — provisional audit only (2026-10-14)
+
+**Implemented and independently verified:** The focused local economy,
+billing, settlement, pricing, build-state, and registry command passed
+**118 tests** with **9 skipped**. Exact command and the provisional 22-area
+audit are in
+[`docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md`](docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md).
+These results verify only local test behavior, not live PostgreSQL, payment,
+provider, or production behavior.
+The same-build reservation replay avoids a second counter debit; attempts to
+reuse that key with a different account/project/reserved amount or after
+settlement are rejected. The current working-tree addition separately binds
+caller retries to request and quote fingerprints; its local regressions are
+listed above.
+
+**Implemented but awaiting external live verification:** Existing atomic
+reservation, billing-event idempotency journal (migration 039), project
+persistence, quote/meter/settle/release paths, and provider pricing versions.
+The PostgreSQL concurrency/restart tests were skipped because no disposable
+loopback `profit_test...` database was configured. Migration 039 remains
+unapplied.
+
+**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The local expanded focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. The real PostgreSQL/Redis Docker CI suite passed **174 tests, 56 subtests** on code head `78a0d05` and later head `7c21dc8`, including the strict `OOMKilled=true` assertion. Preview run [38552661996](https://github.com/Shayfly/desktop-tutorial/actions/runs/38552661996) failed 1/11 at `schema_compatible`; the verifier received an empty applied-version set. Other conversation, persistence, memory and isolation checks passed. This does not prove all application tables are absent. Preview and Production share the configured database URL. No migration was run.
+
+**Blocked by a named credential/service:** Canonical rule-by-rule v2 completion
+is blocked by the missing full titled v2 specification. Live billing and
+database verification are blocked by the absence of an authorized payment
+processor test environment and disposable PostgreSQL test database. No
+credentials were requested or used.
+
+**Not implemented:** Complete funding-lot wallet, invoice/top-up/refund
+accounting, company-funded provider-failure budget, full all-scope exposure
+caps, budget pause/resume from verified checkpoints, data-calibrated Smart
+Completion Estimate, and reconciled profitability/compliance reporting. The
+caller-key implementation is pending real-Postgres concurrency verification
+and migration application in an authorized test environment. The dependency
+order and gates are recorded in
+[`docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md`](docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md).
+The current follow-up adds only that reservation replay and caller-key
+hardening; broader economy work remains deferred because the canonical v2
+acceptance source is absent. No Preview/Production migration, real
+payment/provider call, budget change, merge, or production deployment was
+performed. The PR Preview verifier's applied-version set is empty; this is a
+journal/search-path compatibility failure, not proof that all migrations'
+schema objects are absent.
+
 **Implemented and independently verified locally:** unpaid Checkout and metadata
 events cannot grant paid entitlements; entitlement changes preserve usage;
 prior-worker UNKNOWN calls remain covered; minimum conservative variable-margin
-policy is60%; event identity/order/source cancellation regressions pass in the
+policy is 60%; event identity/order/source cancellation regressions pass in the
 reviewer service. Independent read-only review findings received regression fixes.
 Master registries were regenerated with their existing tools; no new live proof
 was asserted. See [scope and evidence](docs/evidence/profit-protection-v1-safety-2026-10-14.md).
 
 **Implemented, awaiting external verification:** Postgres transactional billing
-event journal, source tombstones and ordering (additive migration039); new local-only
+event journal, source tombstones and ordering (additive migration 039); new local-only
 Postgres concurrency/restart tests are opt-in, not counted as passed. No live
 migration, payment, provider execution, merge or Production deployment occurred.
 

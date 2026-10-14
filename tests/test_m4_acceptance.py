@@ -600,44 +600,42 @@ class AcceptanceU(unittest.TestCase):
 
 class AcceptanceV(unittest.TestCase):
     def test_V_reserve_called_twice_with_the_same_modification_id_charges_once(self):
-        """reserve()'s ON CONFLICT (build_id) DO NOTHING (subscription_store.py,
-        established in M1, reused unmodified for modifications -- see
-        investor_app.py:v28_propose_modification's reserve() call) means a
-        retried request-creation with the same modification_id inserts its
-        credit_reservations row once; the credits_used UPDATE is gated on
-        that INSERT's own rowcount, so a duplicate reserve() is a no-op."""
+        """A repeated modification_id reuses its reserved row without a second
+        credit debit; mismatched reservation identity is rejected."""
         from omni_prod.subscription_store import PostgresSubscriptionService
         subs = PostgresSubscriptionService(pool=None)  # never used directly; cur is passed explicitly
 
         # reserve() resets the usage row when the stored cycle isn't the
         # current one, which would shift the executed-statement indices
-        # below -- use the real current cycle so that branch never fires
-        # and the SELECT/INSERT/UPDATE sequence is exactly the one under test.
+        # below -- use the real current cycle so that branch never fires.
         from datetime import datetime, timezone
         current_cycle = datetime.now(timezone.utc).strftime('%Y-%m')
 
-        # First reserve(): INSERT succeeds (rowcount=1) -> credits_used updated.
+        # First reserve(): no reservation exists; insert it and update usage.
         cur1 = ScriptedCursor(
-            fetch=[('pro', current_cycle, 0, Decimal('0'))],  # SELECT ... FOR UPDATE
-            rowcounts=[1, 1],  # INSERT (new row), UPDATE creator_subscriptions
+            fetch=[('pro', current_cycle, 0, Decimal('0')), None],
+            rowcounts=[1, 1, 1, 1],
         )
         d1 = subs.reserve(cur1, build_id='mod_1', user_id='u1', project_id='p1',
                           cost_class='standard', credits=30, category='product_modification')
         self.assertTrue(d1.allowed)
-        insert_sql, update_sql = cur1.executed[1][0], cur1.executed[2][0]
+        insert_sql, update_sql = cur1.executed[2][0], cur1.executed[3][0]
         self.assertIn('ON CONFLICT (build_id) DO NOTHING', insert_sql)
         self.assertIn('UPDATE creator_subscriptions', update_sql)  # credits really applied
 
-        # Retried reserve() with the SAME modification_id: INSERT hits the
-        # conflict (rowcount=0) -> the credits UPDATE must NOT be re-issued.
+        # Retry with the SAME id and parameters returns the existing reservation.
         cur2 = ScriptedCursor(
-            fetch=[('pro', current_cycle, 30, Decimal('0'))],  # credits_used already reflects the first reserve
-            rowcounts=[1, 0],  # SELECT rowcount (unused), then INSERT hits ON CONFLICT DO NOTHING -> 0 rows
+            fetch=[
+                ('pro', current_cycle, 30, Decimal('0')),
+                ('u1', 'p1', 30, Decimal('0.25'), 'RESERVED'),
+            ],
+            rowcounts=[1, 1],
         )
         d2 = subs.reserve(cur2, build_id='mod_1', user_id='u1', project_id='p1',
                           cost_class='standard', credits=30, category='product_modification')
         self.assertTrue(d2.allowed)
-        self.assertEqual(len(cur2.executed), 2)  # SELECT + INSERT only -- no second credits UPDATE
+        self.assertEqual(d2.reason, 'reservation already exists')
+        self.assertEqual(len(cur2.executed), 2)  # subscription + reservation reads only
 
 
 # ===========================================================================

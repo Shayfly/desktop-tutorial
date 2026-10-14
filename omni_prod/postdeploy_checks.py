@@ -273,7 +273,8 @@ def plan_and_build(token, project_id, revision, prompt) -> dict:
         raise RuntimeError(f'approval {status} {appr}')
     status, build = api('POST', f'/api/v28/projects/{project_id}/builds',
                         {'prompt': prompt, 'build_contract_id': plan['build_contract_id'],
-                         'approval_id': appr['approval_id']}, token)
+                         'approval_id': appr['approval_id'],
+                         'idempotency_key': uuid.uuid4().hex}, token)
     if status not in (200, 202):
         raise RuntimeError(f'build {status} {build}')
     return {'build_id': build['build_id'], 'plan': plan.get('build_contract_id'), 'approval': appr['approval_id']}
