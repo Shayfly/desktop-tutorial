@@ -126,7 +126,14 @@ cache. The container limit is now 48 MiB (memory and swap) against the same
 64 MiB allocator, so the allocation strictly exceeds the limit. The test now
 asserts the container's `HostConfig.Memory`/`MemorySwap` before triggering,
 failing fast if a runner ignores the limit. The strict `OOMKilled` assertion is
-unchanged. Not verified locally (no Docker); only CI can confirm. Also added a
+unchanged. Not verified locally (no Docker); CI on 536c243: both duplicate
+`intake-budget-pg` runs passed (push 38579318433, PR 38579332870) including the
+strict OOM test. Two runs is not yet proof of determinism; repeat runs are
+needed. The push `v24-ci` run 38579318130 failed `customer-ui`
+(`tests/customer_flow_browser.cjs:34`, 'שינוי' button not visible) while the PR
+`v24-ci` run 38579332614 on the same SHA passed; this change touched no UI code,
+so it is recorded as a suspected flaky browser test, not diagnosed. Preview
+verify still fails only `schema_compatible` (unapplied migrations). Also added a
 worker-crash caller-key replay test (`tests/test_m5_build_economics.py`,
 33 passed locally).
 
