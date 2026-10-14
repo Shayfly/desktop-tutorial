@@ -115,12 +115,13 @@ def verify_stripe_signature(payload: bytes, signature_header: str, secret: str, 
 
 
 class StripeSubscriptionWebhookProcessor:
-    """Idempotent reviewer/runtime processor for verified subscription events.
+    """Validate payment semantics after signature verification.
 
-    Production scale should persist processed event IDs, but duplicate delivery is
-    already safe within a running process and plan changes are deterministic.
+    Entitlement mutations and idempotency belong to the subscription service:
+    durable Postgres in production, an in-memory equivalent for reviewer mode.
     """
-    SUPPORTED = {'checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'}
+    SUPPORTED = {'checkout.session.completed', 'checkout.session.async_payment_succeeded',
+                 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'}
 
     def __init__(self, subscription_service):
         self.subscriptions = subscription_service
@@ -131,17 +132,25 @@ class StripeSubscriptionWebhookProcessor:
         event_id = str(event.get('id', ''))
         event_type = str(event.get('type', ''))
         with self._lock:
-            if event_id in self._seen:
-                return {'processed': False, 'duplicate': True, 'event_id': event_id}
             if event_type not in self.SUPPORTED:
                 self._seen.add(event_id)
                 return {'processed': False, 'ignored': True, 'event_id': event_id, 'type': event_type}
             obj = dict(((event.get('data') or {}).get('object') or {}))
+            # A signed event proves who sent it, not that money was paid.
+            # Delayed-payment Checkout completions are not entitlement grants.
+            if event_type.startswith('checkout.session.'):
+                if obj.get('mode') != 'subscription' or obj.get('payment_status') != 'paid':
+                    self._seen.add(event_id)
+                    return {'processed': False, 'ignored': True, 'event_id': event_id,
+                            'reason': 'subscription payment not confirmed'}
             meta = dict(obj.get('metadata') or {})
             user_id = str(meta.get('user_id') or obj.get('client_reference_id') or '')
             if not user_id:
                 raise StripeBillingError('verified event missing user_id metadata')
-            if event_type == 'customer.subscription.deleted':
+            if event_type == 'customer.subscription.deleted' or (
+                event_type.startswith('customer.subscription.') and
+                obj.get('status') in {'canceled', 'unpaid', 'incomplete_expired', 'paused'}
+            ):
                 plan = PlanCode.FREE
             else:
                 raw_plan = str(meta.get('plan_code') or '')
@@ -151,6 +160,18 @@ class StripeSubscriptionWebhookProcessor:
                     raise StripeBillingError('verified event missing/invalid plan_code metadata') from exc
                 if plan not in {PlanCode.BASIC, PlanCode.PRO, PlanCode.BUSINESS}:
                     raise StripeBillingError('unsupported paid plan in Stripe event')
-            self.subscriptions.assign_plan(user_id, plan)
-            self._seen.add(event_id)
-            return {'processed': True, 'event_id': event_id, 'type': event_type, 'user_id': user_id, 'plan': plan.value}
+                if event_type.startswith('customer.subscription.'):
+                    # Metadata is neither a grant nor payment evidence. Do not
+                    # advance the payment watermark: a newer metadata update
+                    # must not suppress a delayed, older paid-upgrade event.
+                    return {'processed': False, 'ignored': True, 'event_id': event_id,
+                            'reason': 'subscription metadata does not grant entitlement'}
+            from .billing import BillingEntitlementEvent
+            source = obj.get('subscription') if event_type.startswith('checkout.session.') else obj.get('id')
+            try:
+                normalized = BillingEntitlementEvent(
+                    event_id, user_id, plan.value, event_type, source, event.get('created'))
+                outcome = self.subscriptions.apply_billing_entitlement(normalized)
+            except ValueError as exc:
+                raise StripeBillingError(str(exc)) from exc
+            return {**outcome, 'event_id': event_id, 'type': event_type, 'user_id': user_id, 'plan': plan.value}

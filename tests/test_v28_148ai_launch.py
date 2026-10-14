@@ -198,11 +198,12 @@ class V28LaunchHardeningTests(unittest.TestCase):
         from omni_prod.stripe_billing import verify_stripe_signature, StripeSubscriptionWebhookProcessor
         from omni_prod.pricing import SubscriptionService
         now=int(time.time())
-        payload=json.dumps({'id':'evt_148ai_1','type':'customer.subscription.updated','data':{'object':{'metadata':{'user_id':'u-stripe','plan_code':'pro'}}}},separators=(',',':')).encode()
+        payload=json.dumps({'id':'evt_148ai_1','created':now,'type':'checkout.session.completed','data':{'object':{'id':'cs_test_retention','subscription':'sub_test_retention','payment_status':'paid','mode':'subscription','metadata':{'user_id':'u-stripe','plan_code':'pro'}}}},separators=(',',':')).encode()
         secret='whsec_test_148ai'
         sig=hmac.new(secret.encode(),str(now).encode()+b'.'+payload,hashlib.sha256).hexdigest()
         event=verify_stripe_signature(payload,f't={now},v1={sig}',secret,now=now)
-        svc=SubscriptionService(); proc=StripeSubscriptionWebhookProcessor(svc)
+        svc=SubscriptionService(); svc.assign_plan('u-stripe', PlanCode.PRO)
+        proc=StripeSubscriptionWebhookProcessor(svc)
         first=proc.process(event); second=proc.process(event)
         self.assertTrue(first['processed']); self.assertEqual(svc.plan_for('u-stripe').code,PlanCode.PRO)
         self.assertTrue(second['duplicate']); self.assertFalse(second['processed'])
@@ -242,7 +243,7 @@ class V28VerifiedWebhookTests(unittest.TestCase):
         email=f'verified-billing-{uuid.uuid4().hex[:10]}@example.com'
         reg=c.post('/api/v28/auth/register',json={'email':email,'password':'StrongPass123!'}).json()
         uid=reg['user']['id']; token=reg['token']
-        event={'id':'evt_'+uuid.uuid4().hex,'type':'checkout.session.completed','data':{'object':{'client_reference_id':uid,'metadata':{'user_id':uid,'plan_code':'pro'}}}}
+        event={'id':'evt_'+uuid.uuid4().hex,'created':int(time.time()),'type':'checkout.session.completed','data':{'object':{'id':'cs_test_paid','subscription':'sub_test_paid','payment_status':'paid','mode':'subscription','client_reference_id':uid,'metadata':{'user_id':uid,'plan_code':'pro'}}}}
         body=json.dumps(event,separators=(',',':')).encode(); ts=int(time.time()); secret='verified-webhook-secret'
         sig=hmac.new(secret.encode(),str(ts).encode()+b'.'+body,hashlib.sha256).hexdigest()
         with patch.dict(os.environ,{'STRIPE_WEBHOOK_SECRET':secret},clear=False):

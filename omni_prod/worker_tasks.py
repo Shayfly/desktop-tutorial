@@ -454,7 +454,10 @@ def resolve_m5_billing(
     capability_actual, capability_activity = _capability_actual_cost(capability_evidence)
     prior = getattr(gateway, 'prior_metered', None)
     prior = prior if isinstance(prior, dict) else None
-    paid_activity = external_calls > 0 or capability_activity or bool(prior and prior['metered_usd'] > 0)
+    # A lost worker may have contacted a provider without reporting usage.
+    # UNKNOWN is outstanding liability, never proof of zero spend.
+    paid_activity = external_calls > 0 or capability_activity or bool(
+        prior and (prior.get('calls', 0) or prior.get('unknown_calls', 0) or prior['metered_usd'] > 0))
     if not ready and not paid_activity:
         subscriptions.release(build_id=build_id)
         return 'released', {'action': 'released'}, None

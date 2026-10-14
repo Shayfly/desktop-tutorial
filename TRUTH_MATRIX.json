@@ -833,19 +833,17 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 38083312245",
     "tests/test_actual_cost_settlement.py"
    ],
    "cost": "ledger",
-   "status": "UNIT_TESTED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:credit_reservation",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/subscription_store.py"
     },
     {
      "part": "skill:actual_cost_calculation",
@@ -1150,9 +1148,9 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 6,
+  "IMPLEMENTED": 7,
   "REAL_SERVER_VERIFIED": 14,
-  "UNIT_TESTED": 7,
+  "UNIT_TESTED": 6,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,
   "BLOCKED": 3

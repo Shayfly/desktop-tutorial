@@ -40,10 +40,10 @@ class ManifestTests(unittest.TestCase):
         from omni_prod.schema_manifest import compatibility
         full = compatibility(EXPECTED_VERSIONS)
         self.assertEqual((full['status'], full['missing'], full['unknown_applied']), ('COMPATIBLE', [], []))
-        pending = compatibility([v for v in EXPECTED_VERSIONS if v != 38])     # deployed code ahead of the DB
-        self.assertEqual((pending['compatible'], pending['missing']), (False, [38]))
-        ahead = compatibility(list(EXPECTED_VERSIONS) + [39])                   # DB ahead of this code
-        self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [39]))
+        pending = compatibility([v for v in EXPECTED_VERSIONS if v != REQUIRED_MIGRATION])
+        self.assertEqual((pending['compatible'], pending['missing']), (False, [REQUIRED_MIGRATION]))
+        ahead = compatibility(list(EXPECTED_VERSIONS) + [REQUIRED_MIGRATION + 1])
+        self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [REQUIRED_MIGRATION + 1]))
         self.assertEqual(compatibility([])['missing'], list(EXPECTED_VERSIONS))
 
 

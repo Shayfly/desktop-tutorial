@@ -176,6 +176,35 @@ class SubscriptionService:
     def __init__(self):
         self._state: dict[str, UsageState] = {}
         self._lock = threading.RLock()
+        self._billing_events: dict[str, str] = {}
+        self._billing_order: dict[str, tuple[int, int]] = {}
+        self._billing_source: dict[str, str] = {}
+        self._billing_source_order: dict[tuple[str, str], tuple[int, int]] = {}
+
+    def apply_billing_entitlement(self, event) -> dict:
+        """Reviewer equivalent of the durable, atomic Postgres event handler."""
+        with self._lock:
+            PlanCode(event.plan)
+            previous = self._billing_events.get(event.event_id)
+            if previous is not None:
+                if previous != event.fingerprint:
+                    raise ValueError('billing event id reused with different contents')
+                return {'processed': False, 'duplicate': True}
+            self._billing_events[event.event_id] = event.fingerprint
+            source_key = event.user_id, event.source_id
+            if event.order <= self._billing_source_order.get(source_key, (-1, 0)):
+                return {'processed': False, 'stale': True}
+            # Retain cancellation tombstones even for a different current
+            # subscription: its delayed checkout must never activate it later.
+            self._billing_source_order[source_key] = event.order
+            if event.priority and self._billing_source.get(event.user_id, event.source_id) != event.source_id:
+                return {'processed': False, 'source_mismatch': True}
+            if event.order <= self._billing_order.get(event.user_id, (-1, 0)):
+                return {'processed': False, 'stale': True}
+            self.assign_plan(event.user_id, event.plan)
+            self._billing_order[event.user_id] = event.order
+            self._billing_source[event.user_id] = event.source_id
+            return {'processed': True}
 
     @staticmethod
     def _cycle_now() -> str:
@@ -199,9 +228,9 @@ class SubscriptionService:
         with self._lock:
             state = self._get(user_id)
             state.plan = code
-            state.credits_used = 0
-            state.provider_spend_usd = Decimal('0')
-            state.cycle = self._cycle_now()
+            # Entitlement changes are not a new billing-period grant. Keep
+            # usage, spend and outstanding reservations across webhook retries,
+            # updates, upgrades and downgrades.
         return PLAN_CATALOG[code]
 
     def snapshot(self, user_id: str) -> dict:

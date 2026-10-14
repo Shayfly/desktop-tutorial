@@ -12,6 +12,52 @@ class PostgresSubscriptionService:
     def __init__(self, *, pool: DatabasePool):
         self._pool = pool
 
+    def apply_billing_entitlement(self, event) -> dict:
+        """One transaction for durable deduplication, ordering and entitlement.
+
+        Requires additive migration 039. It intentionally fails closed if the
+        schema is unavailable; no fallback to process-local payment state.
+        """
+        code = PlanCode(event.plan)
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                self._ensure(event.user_id, conn)
+                with conn.cursor() as cur:
+                    cur.execute('INSERT INTO creator_billing_watermarks(account_id) VALUES (%s) '
+                                'ON CONFLICT(account_id) DO NOTHING', (event.user_id,))
+                    cur.execute('SELECT event_created, priority, source_id FROM creator_billing_watermarks '
+                                'WHERE account_id=%s FOR UPDATE', (event.user_id,))
+                    watermark = cur.fetchone()
+                    latest, source = tuple(watermark[:2]), watermark[2]
+                    cur.execute('SELECT fingerprint FROM creator_billing_events WHERE event_id=%s',
+                                (event.event_id,))
+                    previous = cur.fetchone()
+                    if previous is not None:
+                        if previous[0] != event.fingerprint:
+                            raise ValueError('billing event id reused with different contents')
+                        return {'processed': False, 'duplicate': True}
+                    cur.execute('SELECT event_created, priority FROM creator_billing_events '
+                                'WHERE account_id=%s AND source_id=%s '
+                                'ORDER BY event_created DESC, priority DESC LIMIT 1',
+                                (event.user_id, event.source_id))
+                    source_latest = cur.fetchone()
+                    cur.execute('INSERT INTO creator_billing_events(event_id, account_id, source_id, '
+                                'event_type, event_created, priority, plan_code, fingerprint) '
+                                'VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',
+                                (event.event_id, event.user_id, event.source_id, event.event_type,
+                                 event.created, event.priority, code.value, event.fingerprint))
+                    if source_latest is not None and event.order <= tuple(source_latest):
+                        return {'processed': False, 'stale': True}
+                    if event.priority and source and source != event.source_id:
+                        return {'processed': False, 'source_mismatch': True}
+                    if event.order <= latest:
+                        return {'processed': False, 'stale': True}
+                    cur.execute('UPDATE creator_subscriptions SET plan_code=%s WHERE user_id=%s',
+                                (code.value, event.user_id))
+                    cur.execute('UPDATE creator_billing_watermarks SET event_created=%s, priority=%s, source_id=%s '
+                                'WHERE account_id=%s', (event.created, event.priority, event.source_id, event.user_id))
+        return {'processed': True}
+
     @staticmethod
     def _cycle_now() -> str:
         return datetime.now(timezone.utc).strftime('%Y-%m')
@@ -51,8 +97,10 @@ class PostgresSubscriptionService:
             with conn.transaction():
                 self._ensure(user_id, conn)
                 with conn.cursor() as cur:
-                    cur.execute('UPDATE creator_subscriptions SET plan_code=%s,cycle=%s,credits_used=0,provider_spend_usd=0 WHERE user_id=%s',
-                                (code.value, self._cycle_now(), user_id))
+                    # Plan metadata changes never replenish the allowance.
+                    # Period renewal is separate from entitlement assignment.
+                    cur.execute('UPDATE creator_subscriptions SET plan_code=%s WHERE user_id=%s',
+                                (code.value, user_id))
         return PLAN_CATALOG[code]
 
     def snapshot(self, user_id: str) -> dict:

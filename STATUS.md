@@ -1,3 +1,40 @@
+# 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
+
+**Implemented and independently verified locally:** unpaid Checkout and metadata
+events cannot grant paid entitlements; entitlement changes preserve usage;
+prior-worker UNKNOWN calls remain covered; minimum conservative variable-margin
+policy is60%; event identity/order/source cancellation regressions pass in the
+reviewer service. Independent read-only review findings received regression fixes.
+Master registries were regenerated with their existing tools; no new live proof
+was asserted. See [scope and evidence](docs/evidence/profit-protection-v1-safety-2026-10-14.md).
+
+**Implemented, awaiting external verification:** Postgres transactional billing
+event journal, source tombstones and ordering (additive migration039); new local-only
+Postgres concurrency/restart tests are opt-in, not counted as passed. No live
+migration, payment, provider execution, merge or Production deployment occurred.
+
+**Blocked by named environment:** disposable local PostgreSQL for integration,
+binary branding files absent from this API-reconstructed snapshot, and Linux
+shell/container parity for the broader suite. Stripe live behavior remains unverified.
+
+**Not implemented:** funding lots/top-ups, invoice-based renewal/proration/refunds,
+dynamic build-credit quotes, full cross-scope caps, completion-credit ranges,
+budget pause/checkpoint resume, and reconciled gross-margin reporting. This safety
+slice does not complete Credit Economy v1. Public plan prices are unchanged.
+
+**Verification:** the focused safety/economics/webhook/schema/registry suite passed
+106 tests, with9 skips (including4 opt-in Postgres tests) and3 binary-branding
+tests deselected because assets are absent locally. The broad Windows run ended
+1640 passed /67 failed /176 skipped, plus324 subtests; it ran during implementation
+and is not a final-head or green-CI claim. Its schema-boundary assertion was then
+updated and independently rechecked in the focused suite. Other broad failures
+include temporary-file permissions, unavailable shell/container support and
+missing binary assets; they have not all been resolved or classified as pre-existing.
+Local snapshot transport EOFs were corrected only where bytes matched remote Git
+blob SHA, then existing registries were recomputed. No provider credentials were
+used. Exact commands are in the linked evidence document; full-suite and focused
+logs are retained as chat outputs. No Production readiness is claimed.
+
 # 2026-10-12 — P0 session evidence (partial verification)
 
 Read [the current evidence and gap report](docs/evidence/148ai_p0_2026-10-12.md) before interpreting historical status entries below. Final local focused regressions: 23 pass. Earlier exact-revision CI passed full pytest with 1607 passed / 172 skipped; palette changes require new CI. Golden AI/build/preview E2E is NOT_VERIFIED. Draft PR #21; no merge/Production/live migration/paid provider authorization.
