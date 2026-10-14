@@ -33,8 +33,10 @@ def _q(pool, sql, args):
         return exc
 
 
-def snapshot(pool, *, project_id: str, internal_key: str, store, briefs) -> dict:
+def snapshot(pool, *, project_id: str, internal_key: str, store, briefs, account_id: str | None = None) -> dict:
     out: dict = {'schema': SCHEMA, 'project_id': project_id}
+    if account_id is not None:
+        out['user_preferences'] = store.preferences_for(account_id)
     msgs = store.messages_for(project_id, limit=50)
     out['conversation'] = [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
                             'intent': (m.get('interpretation') or {}).get('intent')} for m in msgs]

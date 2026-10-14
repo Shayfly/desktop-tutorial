@@ -32,8 +32,11 @@ it is. This is an index, not a cleanup.
    implemented. This is the most current statement of what actually runs.
 5. **`PATCH_APPLICATION_REPORT.md`** — the evidence backing `STATUS.md`: exact
    commands, exact diffs, every deviation from a pasted directive and why.
-6. **`00_START_HERE_HE.md`** — the handoff note pointing new sessions (this
-   one included) at 1–4 above.
+6. **`148AI_MASTER_SPEC.md`** — the consolidated current architecture,
+   constraints, product acceptance and roadmap. It is not live-status evidence;
+   `STATUS.md` wins on what is actually verified.
+7. **`00_START_HERE_HE.md`** — the handoff note pointing new sessions (this
+   one included) at the current source-of-truth documents above.
 
 If a claim in any other file in this repo contradicts `STATUS.md`, `STATUS.md`
 wins.

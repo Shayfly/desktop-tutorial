@@ -20,6 +20,7 @@ from decimal import Decimal
 GOOGLE = 'https://ai.google.dev/gemini-api/docs/pricing'
 OPENAI = 'https://developers.openai.com/api/docs/pricing'
 ANTHROPIC = 'https://platform.claude.com/docs/en/about-claude/pricing'
+OPENROUTER = 'https://openrouter.ai/api/v1/models'
 REPLICATE_FLUX = 'https://replicate.com/black-forest-labs/flux-schnell'
 VERIFIED = '2026-10-11'
 
@@ -63,9 +64,11 @@ def _d(x) -> Decimal | None:
 
 
 def _row(provider, model, *, src, frm='2026-10-01', until=None, tier='paid standard', inp=None, cached=None, out=None,
-         image=None, audio_s=None, video_s=None, song=None, minute=None, note='', reasoning='billed as output tokens'):
+         image=None, audio_s=None, video_s=None, song=None, minute=None, note='', reasoning='billed as output tokens',
+         verified_at=None):
     return PriceRow(provider=provider, model=model, effective_from=date.fromisoformat(frm),
-                    effective_until=date.fromisoformat(until) if until else None, source_url=src, verified_at=VERIFIED,
+                    effective_until=date.fromisoformat(until) if until else None, source_url=src,
+                    verified_at=verified_at or VERIFIED,
                     applicable_tier=tier, input_per_million=_d(inp), cached_input_per_million=_d(cached),
                     output_per_million=_d(out), per_image=_d(image), per_audio_second=_d(audio_s),
                     per_video_second=_d(video_s), per_song=_d(song), per_transcription_minute=_d(minute),
@@ -109,6 +112,11 @@ SCHEDULE: tuple[PriceRow, ...] = (
     _row('anthropic', 'claude-sonnet-5-5', src=ANTHROPIC, inp='2.00', cached='0.10', out='10.00'),
     _row('anthropic', 'claude-haiku-5-5', src=ANTHROPIC, inp='0.10', cached='0.01', out='0.50', note='<=100k prompt tokens'),
     _row('anthropic', 'claude-opus-5-5', src=ANTHROPIC, inp='4.00', cached='0.20', out='20.00'),
+    # OpenRouter's public model catalog reports per-token prices. This
+    # conditional route remains disabled until its isolated worker is approved.
+    _row('openrouter', 'openai/gpt-4o-mini', src=OPENROUTER, frm='2026-10-14', inp='0.15', out='0.60',
+         note='OpenRouter catalog price for the selected upstream model; refresh before activation',
+         verified_at='2026-10-14'),
 )
 
 

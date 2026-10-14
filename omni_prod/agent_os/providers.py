@@ -21,6 +21,8 @@ RULES: tuple[tuple[str, str, str, str], ...] = (
      'paid-tier terms: outputs usable commercially; paid-tier prompts are not used to improve products'),
     ('openai-', COMMERCIAL_APPROVED, 'OpenAI API (pay-as-you-go)', 'API terms: customer owns outputs; API data not used for training by default'),
     ('anthropic-', COMMERCIAL_APPROVED, 'Anthropic API (commercial terms)', 'commercial terms: outputs owned by the customer; no training on API data by default'),
+    ('openrouter-', CONDITIONAL, 'OpenRouter paid API credits + selected upstream model terms',
+     'verify the selected model/plan and data handling before customer use; route is explicitly disabled by default'),
     ('replicate-', CONDITIONAL, 'Replicate per-model licence', 'allowed only for models whose licence permits commercial use (checked per model)'),
     ('local-', DEV_ONLY, 'self-hosted development model', 'not part of the customer path'),
 )

@@ -36,6 +36,7 @@ class CatalogModel:
     endpoint: ModelEndpoint | None
     max_output_tokens: int
     api_key_env: str
+    task_allowlist: tuple[str, ...] = ()
     # Wave A governance (omni_prod.intelligence.governance): lifecycle and
     # where the price in force comes from; notes carry warnings/replacements.
     lifecycle: str = 'ACTIVE'
@@ -60,6 +61,7 @@ class CatalogModel:
             'output_per_million_usd': str(o.output_per_million),
             'max_output_tokens': self.max_output_tokens,
             'api_key_env': self.api_key_env, 'status': self.status,
+            'task_allowlist': list(self.task_allowlist),
             'lifecycle': self.lifecycle, 'price_source': self.price_source,
             'governance_notes': list(self.governance_notes),
         }
@@ -84,6 +86,16 @@ def _https_base_url(value, name: str) -> str:
     return url.rstrip('/')
 
 
+def route_enabled(item: Mapping, env: Mapping[str, str] | None = None) -> bool:
+    """Operational kill switch for providers that are not authorized by default."""
+    env = os.environ if env is None else env
+    if not bool(item.get('enabled', True)):
+        return False
+    if str(item.get('provider', '')).strip().lower() == 'openrouter':
+        return env.get('OMNI_OPENROUTER_ENABLED', '').strip() == '1'
+    return True
+
+
 def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple[CatalogModel, ...]:
     raw = (raw or '').strip()
     if not raw:
@@ -105,6 +117,12 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         if name in seen:
             raise ModelCatalogError(f'{name}: duplicate name')
         seen.add(name)
+        task_allowlist = item.get('task_allowlist', [])
+        if (not isinstance(task_allowlist, list) or
+                any(not isinstance(task, str) or not task.strip() for task in task_allowlist)):
+            raise ModelCatalogError(f'{name}: task_allowlist must be a list of task names')
+        if len(set(task_allowlist)) != len(task_allowlist):
+            raise ModelCatalogError(f'{name}: task_allowlist contains duplicates')
         if 'api_key' in item:
             raise ModelCatalogError(f'{name}: put the key in an environment variable and use api_key_env')
         key_env = str(item.get('api_key_env', '')).strip()
@@ -142,12 +160,12 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         if not isinstance(extra, dict) or any(not isinstance(k, str) or k in reserved for k in extra):
             raise ModelCatalogError(f'{name}: extra_body must be an object without core request fields')
         extra_body = tuple(sorted((k, json.dumps(v)) for k, v in extra.items()))
-        enabled = bool(item.get('enabled', True))
+        provider_enabled = route_enabled(item, env)
         from .intelligence.governance import govern
         gov = govern(model=model, base_url=base_url, input_per_million=input_price,
                      output_per_million=output_price, when=when)
         input_price, output_price = gov.input_per_million, gov.output_per_million
-        enabled = enabled and gov.routable
+        enabled = provider_enabled and gov.routable
         key = (env.get(key_env) or '').strip()
         option = ModelOption(provider=provider, model=model, quality=quality, latency_ms=latency,
                              input_per_million=input_price, output_per_million=output_price,
@@ -157,12 +175,13 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
             endpoint = ModelEndpoint(name=name, base_url=base_url, model=model, api_key=key,
                                      timeout_seconds=timeout, external=True, api_style=api_style,
                                      extra_body=extra_body)
+        blocked_reason = ('PRICE_UNVERIFIED' if (key and bool(item.get('enabled', True))
+                                                 and not gov.routable and gov.lifecycle != 'RETIRED') else
+                          'PROVIDER_DISABLED' if key and bool(item.get('enabled', True)) and not provider_enabled else '')
         out.append(CatalogModel(option=option, endpoint=endpoint, max_output_tokens=max_out,
-                                api_key_env=key_env, lifecycle=gov.lifecycle, price_source=gov.price_source,
-                                governance_notes=gov.notes,
-                                blocked_reason='PRICE_UNVERIFIED' if (key and bool(item.get('enabled', True))
-                                                                      and not gov.routable
-                                                                      and gov.lifecycle != 'RETIRED') else ''))
+                                api_key_env=key_env, task_allowlist=tuple(task_allowlist),
+                                lifecycle=gov.lifecycle, price_source=gov.price_source,
+                                governance_notes=gov.notes, blocked_reason=blocked_reason))
     return tuple(out)
 
 

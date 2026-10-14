@@ -223,5 +223,95 @@ class ConversationDeliveryStatusTests(unittest.TestCase):
             'interpreter': 'deterministic', 'interpretation': {}}), 'not_used')
 
 
+class ReservedConversationSliceTests(unittest.TestCase):
+    def test_contextual_model_reply_is_validated_saved_and_waits_for_customer_approval(self):
+        from omni_prod.conversation.store import MemoryConversationStore
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        from omni_prod.intake import budget as B
+        from tests.test_conversation_os import MemoryBriefs
+
+        first_message = ('I need a simple internal tool for my team to track equipment loans, in English, '
+                         'no login. No personal data. You decide the rest')
+        responses = [
+            {'language': 'en', 'product_family': 'web_app', 'proposals': [
+                {'field': 'login', 'value': 'none', 'confidence': 'high', 'evidence': 'no login'},
+                {'field': 'audience', 'value': 'public', 'confidence': 'high', 'evidence': 'for all customers'}],
+             'reply': 'I understood an internal equipment-loan tool with no login.'},
+            {'language': 'en', 'product_family': 'web_app', 'proposals': [
+                {'field': 'color', 'value': 'blue', 'confidence': 'high', 'evidence': 'blue accent'}],
+             'reply': 'I kept the confirmed requirements and added the blue accent.'},
+        ]
+
+        class SettledReservations:
+            def __init__(self):
+                self.payloads = []
+                self.rows = {}
+
+            def counted(self, _scope):
+                return Decimal('0')
+
+            def reserve(self, **kwargs):
+                index = len(self.payloads)
+                self.payloads.append(kwargs['payload'])
+                rid = f'irs_test_{index}'
+                result = B.Reservation(
+                    id=rid, idempotency_key=kwargs['idempotency_key'], account_id=kwargs['account_id'],
+                    project_id=kwargs['project_id'], lane=kwargs['lane'], campaign_id=None,
+                    quoted_usd=kwargs['quote_'].amount_usd, state=B.SETTLED, cost_state=B.ESTIMATED,
+                    actual_usd=Decimal('0.0012'), provider='gemini', model='gemini-3.1-flash-lite',
+                    result={'ok': True, 'raw': responses[index]},
+                )
+                self.rows[rid] = result
+                return B.Reservation(
+                    id=rid, idempotency_key=kwargs['idempotency_key'], account_id=kwargs['account_id'],
+                    project_id=kwargs['project_id'], lane=kwargs['lane'], campaign_id=None,
+                    quoted_usd=kwargs['quote_'].amount_usd, state=B.RESERVED,
+                )
+
+            def mark_enqueued(self, _reservation_id):
+                return None
+
+            def get(self, reservation_id, account_id=None):
+                return self.rows[reservation_id]
+
+        reservations = SettledReservations()
+        queued = []
+        store = MemoryConversationStore()
+        supervisor = ConversationSupervisor(
+            briefs=MemoryBriefs(), store=store, reservations=reservations,
+            enqueue=queued.append, context=lambda _project_id: {},
+        )
+        def quote_for_task(**kwargs):
+            return B.Quote(Decimal('0.0026'), {
+                'task': kwargs['task'], 'max_calls': 1, 'max_tokens': 700,
+                'allowed_models': ['gemini-3.1-flash-lite'],
+            })
+        env = {**CLEAR, **ALL, 'OMNI_INTAKE_ALLOWED_MODELS': ''}
+        with mock.patch.dict(os.environ, env), mock.patch.object(B, 'quote', side_effect=quote_for_task):
+            first = supervisor.turn(project_id='p', account_id='a', message=first_message, request_key='msg-1')
+            second = supervisor.turn(project_id='p', account_id='a', message='Use a blue accent.',
+                                     request_key='msg-2')
+            confirmation = supervisor.turn(project_id='p', account_id='a', message='go ahead and build it',
+                                           request_key='msg-3')
+
+        self.assertEqual(len(reservations.payloads), 2)
+        self.assertEqual(queued, ['irs_test_0', 'irs_test_1'])
+        self.assertIn('I understood an internal equipment-loan tool', first.reply)
+        self.assertIn('blue accent', second.reply)
+        self.assertIn('recent_messages', reservations.payloads[1]['user'])
+        self.assertIn('I understood an internal equipment-loan tool', reservations.payloads[1]['user'])
+        self.assertEqual(first.brief_row.brief.fields['login']['value'], 'none')
+        self.assertEqual(second.brief_row.brief.fields['color']['value'], 'blue')
+        self.assertTrue(any('audience: evidence not found' in x for x in first.interpretation['dropped']))
+        self.assertTrue(first.interpretation['interpreter'].startswith('model:gemini-3.1-flash-lite'))
+        assistant_rows = [m for m in store.messages_for('p') if m['role'] == 'assistant']
+        self.assertEqual([m['interpreter'] for m in assistant_rows[:2]],
+                         [first.interpretation['interpreter'], second.interpretation['interpreter']])
+        self.assertEqual([m['cost_state'] for m in assistant_rows[:2]], ['ESTIMATED', 'ESTIMATED'])
+        self.assertEqual([m['reservation_id'] for m in assistant_rows[:2]], ['irs_test_0', 'irs_test_1'])
+        self.assertEqual((confirmation.intent, confirmation.actions[0]['type']), ('approve', 'approve_build'))
+        self.assertEqual(len(reservations.payloads), 2)  # a request to build is not a provider call or auto-build
+
+
 if __name__ == '__main__':
     unittest.main()

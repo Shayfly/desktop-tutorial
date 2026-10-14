@@ -5,7 +5,7 @@ import subprocess
 
 root = pathlib.Path(__file__).resolve().parents[2]
 sources = sorted((root / "infra/postgres").glob("*.sql"))
-bootstrap = (root / "infra/staging/bootstrap_neon_empty.sql").read_text()
+bootstrap = (root / "infra/staging/bootstrap_neon_empty.sql").read_bytes().decode("utf-8")
 expected = {}
 for path in sources:
     version, name = path.stem.split("_", 1)

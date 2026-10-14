@@ -158,6 +158,14 @@ INVENTORY: tuple[ModelEntry, ...] = (
          health_note='HTTP 400 credit balance too low (2026-10-08); 0 ok / 10 in the ledger',
          commercial='Anthropic commercial terms: customer owns outputs; no training on API data by default',
          adapter='routed_gateway (Anthropic Messages API)', id_source='Anthropic published model string'),
+    # ----------------------------------------------------- OpenRouter (staging candidate)
+    _llm('openrouter', 'openrouter-openai-gpt-4o-mini', 'openai/gpt-4o-mini', 'GPT-4o-mini via OpenRouter',
+         quality_tasks=('conversation', 'conversation_complex'), key_env='OPENROUTER_API_KEY',
+         cred=S.NOT_CONFIGURED, conn=S.NOT_CONNECTED, ver=S.UNVERIFIED, ev=(), ctx=128_000, max_out=4096,
+         limits='worker credential and isolated staging worker are not configured; Hebrew quality and upstream data terms unverified',
+         fallback='none', in_catalog=True, reasoning=False, vision=False,
+         commercial='OpenRouter paid API and selected upstream model terms require review before customer traffic',
+         id_source='OpenRouter public model catalog (checked 2026-10-14)'),
     # ------------------------------------------------- candidates (not in catalog)
     _llm('gemini', 'gemini-2-5-flash-lite', 'gemini-2.5-flash-lite', 'Gemini Flash-Lite',
          quality_tasks=('conversation', 'intake_extraction'), key_env='GEMINI_API_KEY', cred=S.CREDENTIAL_PRESENT,

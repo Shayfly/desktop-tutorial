@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 21, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 10, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 62, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 22, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 9, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 64, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 61, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -31,7 +31,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | Repair Agent (`repair_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Security Agent (`security_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 38083312245 |  |
-| Compliance & IP Agent (`compliance_ip_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
+| Compliance & IP Agent (`compliance_ip_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/agent_os/providers.py |  |
 | Provider Router Agent (`provider_router_agent`) | platform | **IMPLEMENTED** | compliance_ip_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | Cost & Economics Agent (`cost_economics_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | Infrastructure Agent (`infrastructure_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before repl — postdeploy-checks run 37954236866 (+ inspect 37955419872), deploy-worker run 38083162363 |  |
@@ -168,7 +168,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION
 | `file_upload_backend` | Backend | **NOT_IMPLEMENTED** | backend_agent | no implementation | not implemented |
 | `schema_generation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py | SQLite in DATA_DIR |
 | `migration_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
-| `migration_validation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py | platform migrations only |
+| `migration_validation` | Database | **IMPLEMENTED** | database_agent | real-server evidence is stale; code changed since: infra/staging/verify_neon_bootstrap.py, omni_prod/migrate.py | platform migrations only |
 | `index_design` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_generation` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
 | `query_optimization` | Database | **NOT_IMPLEMENTED** | database_agent | no implementation | not implemented |
@@ -238,7 +238,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION
 | `auth_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `permission_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `persistence_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `migration_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
+| `migration_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: infra/staging/verify_neon_bootstrap.py |  |
 | `rollback_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `cost_test` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |

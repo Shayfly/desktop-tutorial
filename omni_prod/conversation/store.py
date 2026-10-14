@@ -1,4 +1,4 @@
-"""Durable conversation + plan storage (migration 036).
+"""Durable conversation + plan storage (migrations 036 and 039).
 
 The brief (project_briefs, immutable revisions) is the source of truth for
 requirements. These tables hold what happened around it:
@@ -15,7 +15,7 @@ import uuid
 from decimal import Decimal
 
 
-REQUIRED_TABLES = ('intake_messages', 'execution_plans', 'provider_health')
+REQUIRED_TABLES = ('intake_messages', 'execution_plans', 'provider_health', 'conversation_preferences')
 
 
 class StorageNotReady(RuntimeError):
@@ -38,10 +38,30 @@ def schema_ready(pool) -> bool:
     return not missing
 
 
+def missing_tables(pool) -> list[str]:
+    with pool.connection() as conn:
+        return [t for t in REQUIRED_TABLES
+                if conn.execute('SELECT to_regclass(%s)', (f'public.{t}',)).fetchone()[0] is None]
+
+
 class MemoryConversationStore:
     def __init__(self):
         self.messages: list[dict] = []
         self.plans: dict[tuple[str, str], dict] = {}
+        self.preferences: dict[str, dict] = {}
+
+    def preferences_for(self, account_id) -> dict:
+        return dict(self.preferences.get(str(account_id), {'language': 'he'}))
+
+    def save_preferences(self, account_id, preferences: dict) -> dict:
+        if not isinstance(preferences, dict) or set(preferences) - {'language'}:
+            raise ValueError('only the language preference can be updated')
+        language = preferences.get('language')
+        if language not in ('he', 'en'):
+            raise ValueError('language must be he or en')
+        saved = {'language': language}
+        self.preferences[str(account_id)] = saved
+        return dict(saved)
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
                     interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
@@ -89,6 +109,26 @@ class MemoryConversationStore:
 class PostgresConversationStore:
     def __init__(self, pool):
         self.pool = pool
+
+    def preferences_for(self, account_id) -> dict:
+        with self.pool.connection() as conn:
+            row = conn.execute('SELECT language FROM conversation_preferences WHERE account_id = %s',
+                               (str(account_id),)).fetchone()
+        return {'language': row[0] if row else 'he'}
+
+    def save_preferences(self, account_id, preferences: dict) -> dict:
+        if not isinstance(preferences, dict) or set(preferences) - {'language'}:
+            raise ValueError('only the language preference can be updated')
+        language = preferences.get('language')
+        if language not in ('he', 'en'):
+            raise ValueError('language must be he or en')
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                'INSERT INTO conversation_preferences (account_id, language) VALUES (%s, %s) '
+                'ON CONFLICT (account_id) DO UPDATE SET language = EXCLUDED.language, updated_at = NOW() '
+                'RETURNING language',
+                (str(account_id), language)).fetchone()
+        return {'language': row[0]}
 
     _MSG = 'id, project_id, account_id, role, content, brief_revision, interpretation, interpreter, cost_usd, request_key'
 

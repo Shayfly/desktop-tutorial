@@ -33,13 +33,25 @@ svc="$1"; ctl=/ctl
 [ "${GEN:-old}" = new ] && [ -f $ctl/startfail ] && { echo "startup failure of the new image"; exit 1; }
 [ "$svc" = worker ] && echo "*** Listening on omni-builds..."
 term() {
-  [ -f $ctl/$svc.oom ] && { printf -v oom_payload '%*s' 134217728 ''; exit 99; }
+  [ -f $ctl/$svc.oom ] && exec /bin/oom-killer
   [ -f $ctl/$svc.ignore-term ] && return
   [ -f $ctl/$svc.finish-seconds ] && { read n < $ctl/$svc.finish-seconds; sleep "$n"; }
   exit 0
 }
 trap term TERM
 while :; do sleep 1; done
+'''
+
+OOM_C = r'''#include <stddef.h>
+#include <stdlib.h>
+
+int main(void) {
+    const size_t size = 256u * 1024u * 1024u;
+    volatile unsigned char *memory = malloc(size);
+    if (memory == NULL) return 2;
+    for (size_t i = 0; i < size; i += 4096u) memory[i] = 1;
+    return 0;
+}
 '''
 
 COMPOSE = '''name: %(project)s
@@ -69,11 +81,19 @@ def sh(*cmd, env=None, cwd=None, timeout=240):
 
 def ensure_images():
     """Two local images built from the host's bash (no registry pull): :1 = previous release, :2 = new release."""
-    if sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:1').returncode == 0 and sh('docker', 'image', 'inspect', f'{BASE_IMAGE}:2').returncode == 0:
-        return
     work = Path(tempfile.mkdtemp())
     rootfs = work / 'rootfs'
     (rootfs / 'bin').mkdir(parents=True)
+    oom_source = work / 'oom-killer.c'
+    oom_binary = work / 'oom-killer'
+    oom_source.write_text(OOM_C)
+    compiler = shutil.which('cc')
+    if not compiler:
+        raise RuntimeError('the real-Docker OOM test requires a C compiler to build its bounded allocator')
+    compiled = sh(compiler, '-O2', '-Wall', '-Werror', str(oom_source), '-o', str(oom_binary))
+    if compiled.returncode != 0:
+        raise RuntimeError(f'could not build the bounded OOM helper: {compiled.stderr}')
+    shutil.copy(oom_binary, rootfs / 'bin' / 'oom-killer')
     libs = set()
     for b in ('bash', 'sleep', 'cat', 'date', 'env', 'true'):
         p = shutil.which(b)
@@ -83,6 +103,10 @@ def ensure_images():
                 for tok in line.split():
                     if tok.startswith('/') and os.path.exists(tok):
                         libs.add(tok)
+    for line in sh('ldd', str(oom_binary)).stdout.splitlines():
+        for tok in line.split():
+            if tok.startswith('/') and os.path.exists(tok):
+                libs.add(tok)
     for lib in libs:
         dst = rootfs / lib.lstrip('/')
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -267,12 +291,9 @@ class RealDockerDrainRecovery(unittest.TestCase):
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        # Bash's exponential string concatenation can spend the entire deadline
-        # copying memory without triggering the cgroup OOM killer. The stand-in
-        # instead allocates a single 128 MiB shell variable inside a 64 MiB
-        # cgroup. Keep the engine's OOMKilled assertion (exit 137 alone is not
-        # sufficient evidence). This changes only the disposable test workload.
-        d = self.drain(DRAIN_DEADLINE_SECONDS='60')
+        # The compiled helper touches each page of a bounded allocation so the
+        # cgroup must account for resident memory; exit 137 alone is not proof.
+        d = self.drain(DRAIN_DEADLINE_SECONDS='10')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])

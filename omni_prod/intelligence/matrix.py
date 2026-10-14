@@ -34,7 +34,7 @@ MD_OUT = ROOT / 'docs' / 'PROVIDER_MATRIX.md'
 SCHEMA = 'provider-matrix/1'
 # The matrix is a dated statement: lifecycle/price "now" is this day, so a
 # regenerated file is reproducible and changes only when the date is bumped.
-AS_OF = date(2026, 10, 11)
+AS_OF = date(2026, 10, 14)
 
 CREDENTIAL_EVIDENCE = {DEPLOY_NOTICE.ref, VERCEL_ENV_NAMES.ref}
 CONNECTION_EVIDENCE = {PROBE.ref, REPLICATE_ACCOUNT.ref}

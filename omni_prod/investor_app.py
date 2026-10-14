@@ -1827,6 +1827,10 @@ class V28ConversationMessage(BaseModel):
     brief_revision: int | None = Field(default=None, ge=1)
 
 
+class V28ConversationPreferences(BaseModel):
+    language: str = Field(min_length=2, max_length=2)
+
+
 class V28AttachmentUpload(BaseModel):
     kind: str = Field(default='image', max_length=20)
     data_base64: str = Field(min_length=8, max_length=4_300_000)
@@ -1838,16 +1842,19 @@ class V28LocateRequest(BaseModel):
 
 
 def _conversation_store():
-    from .conversation.store import PostgresConversationStore, schema_ready
+    from .conversation.store import PostgresConversationStore, missing_tables, schema_ready
     if _v28_pool is None:
         raise HTTPException(503, detail={'error': 'durable_backend_required'})
     # Preview of 2026-10-11 00:22 UTC: a branch deployed before its migration
     # crashed with UndefinedTable (HTTP 500). Missing schema is a known,
     # explained state, never a server error.
     if not schema_ready(_v28_pool):
-        raise HTTPException(503, detail={'error': 'conversation_not_ready', 'missing_migration': '036_intelligence_plane',
+        missing = missing_tables(_v28_pool)
+        migration = ('039_conversation_preferences' if 'conversation_preferences' in missing
+                     else '036_intelligence_plane')
+        raise HTTPException(503, detail={'error': 'conversation_not_ready', 'missing_migration': migration,
                                          'message': 'The conversation is not installed on this server yet '
-                                                    '(database migration 036 pending). Guided questions still work.'})
+                                                    f'(database migration {migration} pending). Guided questions still work.'})
     return PostgresConversationStore(_v28_pool)
 
 
@@ -1892,7 +1899,7 @@ def _supervisor(key: str):
                                   reservations=reservations, enqueue=enqueue)
 
 
-def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
+def _conversation_view(project_id: str, lang: str, turn=None, preferences=None) -> dict:
     store, repo = _conversation_store(), _brief_repo()
     row = repo.latest(project_id)
     plan = store.plan_for(project_id, row.fingerprint) if row else None
@@ -1907,6 +1914,7 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
+        'preferences': preferences or {'language': lang},
         # what will actually answer the next message (never 'model' just because a switch is on)
         'interpreter': _intake_mode(project_id).mode,
     }
@@ -1955,10 +1963,11 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
                                                                    ids=req.attachment_ids)]
         except AttachmentError as exc:
             raise HTTPException(exc.status, detail={'error': exc.code, 'message': str(exc)}) from exc
-    lang = _lang(request) if request.query_params.get('lang') else None
     store = _conversation_store()
+    preferences = store.preferences_for(account.id)
+    lang = _lang(request) if request.query_params.get('lang') else preferences['language']
     if req.request_key and store.find_reply(project_id, req.request_key):
-        return _conversation_view(project_id, lang or 'he')   # a retried send: no second turn
+        return _conversation_view(project_id, lang, preferences=preferences)   # a retried send: no second turn
     if req.brief_revision is not None:
         latest = _brief_repo().latest(project_id)
         if latest is None or latest.revision != req.brief_revision:
@@ -1971,13 +1980,30 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
-    return _conversation_view(project_id, turn.language, turn)
+    return _conversation_view(project_id, turn.language, turn, preferences)
 
 
 @app.get('/api/v28/projects/{project_id}/conversation')
 def v28_conversation_get(project_id: str, request: Request) -> dict:
-    _discovery_account(request, project_id)
-    return _conversation_view(project_id, _lang(request))
+    account = _discovery_account(request, project_id)
+    store = _conversation_store()
+    preferences = store.preferences_for(account.id)
+    lang = _lang(request) if request.query_params.get('lang') else preferences['language']
+    return _conversation_view(project_id, lang, preferences=preferences)
+
+
+@app.patch('/api/v28/account/conversation-preferences')
+def v28_conversation_preferences(req: V28ConversationPreferences, request: Request) -> dict:
+    try:
+        account = _v28.account(_v28_bearer(request))
+    except PermissionError as exc:
+        raise HTTPException(401, str(exc)) from exc
+    if req.language not in ('he', 'en'):
+        raise HTTPException(422, detail={'error': 'invalid_language', 'allowed': ['he', 'en']})
+    try:
+        return _conversation_store().save_preferences(account.id, {'language': req.language})
+    except ValueError as exc:
+        raise HTTPException(422, detail={'error': 'invalid_preferences', 'message': str(exc)}) from exc
 
 
 @app.get('/api/v28/projects/{project_id}/memory')
@@ -1985,11 +2011,12 @@ def v28_project_memory(project_id: str, request: Request) -> dict:
     """Structured project memory: ten separate sections from durable tables."""
     token = _v28_bearer(request)
     try:
-        _, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     from .conversation.memory import snapshot
-    return snapshot(_v28_pool, project_id=project_id, internal_key=key, store=_conversation_store(), briefs=_brief_repo())
+    return snapshot(_v28_pool, project_id=project_id, internal_key=key, account_id=account.id,
+                    store=_conversation_store(), briefs=_brief_repo())
 
 
 def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None:

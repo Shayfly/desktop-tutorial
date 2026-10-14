@@ -1,3 +1,255 @@
+# 2026-10-14 — Controlled rebaseline against MASTER SPEC v1
+
+This entry records the current controlled rebaseline. It does not supersede
+the evidence-bounded status below; older claims remain tied to their named
+commit and environment. No branch, commit, pull request, or prior evidence was
+discarded or rewritten.
+
+The user supplied MASTER SPEC v1 and Appendix A. The supplied Product
+Specification part 3 currently ends at the start of section 2; section 7's nine
+unverified capabilities and section 10's conflict rules are not in the received
+text or checked-out repository. The full canonical Profit Protection v2
+specification also remains unavailable. Do not infer these missing rules or
+claim full v2 compliance.
+
+See the consolidated [MASTER SPEC requirements-to-code gap
+matrix](docs/evidence/MASTER_SPEC_REQUIREMENTS_GAP_MATRIX_2026-10-14.md) for
+reusable implementations, gaps, all 18 cost-saving mechanisms, and the
+measurement plan. Draft PR #34 already contains a reusable Issue #6 P1/P3
+audit; its provisional Profit Protection v2 22-area list is explicitly not
+canonical.
+
+**Implemented and independently verified**
+- The existing worker-routed conversation, requirements brief, Architect,
+  revision-bound approval, build workflow, model gateway, attempt ledger,
+  cost quote, reservation, and release/acceptance code remain the intended
+  reuse path. Their local regression evidence is not live-provider or staging
+  proof.
+- The in-progress PR #31 account language preference change adds a
+  PostgreSQL-backed preference store, authenticated API, UI restore/save path,
+  and additive migration `039_conversation_preferences.sql`. The schema
+  manifest and compatibility test now include migration 039.
+- Offline focused command, with provider credentials, live opt-ins, database
+  URLs, and the live-smoke approval variable removed from the process
+  environment and zero-cost/external-fallback-off set:
+  `python -m pytest -q tests/test_conversation_os.py tests/test_intake_assistant_he.py tests/test_intake_worker_route.py tests/test_model_catalog_routing.py tests/test_intelligence_plane.py tests/test_intake_budget_pg.py tests/test_conversation_preferences.py tests/test_live_model_smoke_guard.py tests/test_deployment_verification.py::ManifestTests`
+  — **122 passed, 28 skipped, 34 subtests passed**. No provider call or
+  database migration was made.
+- Full Windows/Python 3.13 command `python -m pytest -q --tb=short` with the
+  same external credentials and live opt-ins cleared — **1,664 passed, 172
+  skipped, 30 failed, 4 errors, 332 subtests passed** (335.72s). This is not a
+  green full suite. Failures include Windows cp1252 reads of UTF-8 fixtures,
+  worker-deploy fake-container tests, and existing acceptance/preview/economics
+  cases; the focused conversational/migration suite above passed. Triage the
+  full-suite failures separately rather than treating them as waived.
+- After the CI-diagnosed migration fixes, the local offline migration,
+  manifest, preference, and smoke-guard tests passed: **12 passed, 3 skipped,
+  8 subtests passed**. `tools/generate_neon_bootstrap.py --check` also passed.
+  The canonical Agent OS audit was regenerated after its implementation file
+  changed: `migration_test` is now honestly `IMPLEMENTED` with its prior
+  real-server evidence retained as stale; the current registry audit and its
+  targeted test pass. No new live verification was claimed.
+- The Windows `AcceptanceW.test_W_every_non_fastapi_test_module_passes`
+  recheck remains non-green: **19 failures, 12 errors, 131 skipped** across
+  1,657 tests, including worker-deploy fake-container/platform assumptions.
+  The Windows result does not substitute for Linux CI.
+- `tools/live_model_smoke.py` remains an unrun, explicit-approval-only test
+  harness with a one-call and catalog-priced $0.25 cap; it is not product
+  acceptance and cannot protect against incorrect catalog prices or provider
+  billing discrepancies.
+
+**Implemented but awaiting external live verification**
+- Real provider-backed Hebrew discovery, durable PostgreSQL restart recovery,
+  authenticated approval, actual build execution, private preview, measured
+  usage settlement, and the full customer Golden E2E remain unverified.
+- The current conversation code is gated behind worker configuration, provider
+  credentials, reservations, and budgets. No paid API is activated under this
+  rebaseline.
+
+**Blocked by a named credential/service or integration decision**
+- PR #31 adds migration 039 for conversation preferences, while sibling draft
+  PR #33 independently uses 039 for billing-event idempotency and stacked PR
+  #34 adds 040 for build-request idempotency. Preserve all drafts; resolve the
+  migration ordering/numbering on a reviewed integration plan before combining,
+  pushing a combined stack, or deploying. No migration was applied.
+- A complete live Golden E2E is blocked by the explicit no-paid-API/no-shared
+  database constraints, absent independently verified isolated staging
+  Postgres/Redis/worker, worker-side provider authorization and caps, and the
+  unapplied schema chain. Preview and Production must not be migrated or used
+  as a substitute.
+- On pushed PR #31 code head `cba62f212f9419e928af8774629a9c51f692fd88`
+  (OPEN/DRAFT), both V24 test jobs, both compose/UI runs, both V11 checks,
+  deterministic regressions, and Vercel Preview deployment passed. This is
+  useful CI evidence, not live-AI acceptance.
+- That head's two `intake-budget-pg` runs failed 2 rollback-tolerance tests:
+  the older-package fixture explicitly allowed migration 038 but the database
+  also had 039. The follow-up now explicitly allows only versions 038 and 039
+  in those rollback tests and still refuses 040. The `fresh-postgres` job
+  failed because the generated bootstrap lacked migration 039; the follow-up
+  regenerates it and compares exact bytes so mixed SQL line endings are
+  preserved. These fixes have local unit/check evidence; their CI rerun is
+  pending the follow-up push.
+- On follow-up head `1f4b8f10af25bb960d5eb72058b6dbfbae705568` (still
+  OPEN/DRAFT), the push and PR `fresh-postgres` jobs both passed, as did the
+  PR `intake-budget-pg` job, deterministic regressions, compose/UI checks, and
+  Vercel Preview deployment. The push-triggered duplicate Postgres job failed
+  only the real-Docker drain assertion: exit 137 at its 10-second deadline
+  with `oom=false`; its parallel PR-triggered run passed. V24/V11 jobs failed
+  because the changed bootstrap verifier made the Agent OS `migration_test`
+  evidence stale. The canonical registry refresh now records that status
+  honestly; the fresh post-refresh Linux CI rerun is pending.
+- On head `398321901a9c8af593521b7a0aece2f2302a4579`, both `fresh-postgres`
+  and both `intake-budget-pg` runs passed. V24/V11 and their nested acceptance
+  check then found `DEPARTMENT_MATRIX.json` stale against the refreshed Agent
+  OS status counts. The canonical department generator has now regenerated
+  that matrix; the targeted audit and department tests pass (**2 passed**).
+  CI rerun after this final generated-matrix update is pending.
+- On code head `3f8c45fbfeecc2a1362a03ccb1728a4169a1696f`, both V24 test jobs,
+  both V11 checks, both Postgres jobs, fresh-Postgres bootstrap, UI, compose,
+  deterministic regression, and Vercel Preview deployment passed. The
+  push-triggered UI job initially timed out on a hidden discovery button; its
+  failed-job rerun passed. The only remaining failing check is deployment
+  verification, which reports Preview missing migrations 1-21 and 26-39,
+  including `039_conversation_preferences`. This shared-schema blocker is not
+  resolved by applying migrations; none was applied.
+- The Preview deployment verifier failed because the Preview database is
+  missing migration 039 (as well as versions 1-21 and 26-38). No migration was
+  applied; the shared Preview schema remains an integration blocker. Vercel
+  deployment success is not schema or application acceptance.
+- At the last recorded snapshot, PR #33 remained OPEN/DRAFT with its
+  deployment verifier failing; PR #34 remained OPEN/DRAFT, with its V24/V11/
+  PG, compose, UI, and deterministic regression jobs passing but deployment
+  verification failing on pending migration 040. This is not a
+  platform-wide CI-green claim. Recheck GitHub before any branch-state action.
+- The complete Product Specification part 3 is needed before the nine
+  section-7 capabilities or section-10 conflict rules can be entered as
+  normative backlog items.
+
+**Not implemented / not verified**
+- The nine Product Specification section-7 capabilities cannot yet be named
+  because that section was not supplied.
+- The 18 savings mechanisms are specified in the matrix, but most do not have
+  verified runtime activation or per-mechanism savings measurement. Do not
+  report their projected percentages as achieved savings.
+- The five-agent/27-skill structure, universal Appendix A tool envelope and
+  permissions, append-only hash-chained ledger, all 18 savings mechanisms,
+  and current-head real customer Golden E2E are not fully demonstrated.
+- No canonical Profit Protection v2 compliance claim, authenticated live
+  provider call, migration application, shared-database write, merge,
+  Production deployment, billing change, or provider spend is reported.
+
+# Update 2026-10-14 — OpenRouter route and latest verification
+
+PR #31 adds a priced, worker-only OpenRouter route for Hebrew requirements conversation. This is implementation evidence, not proof of a live connection. PR #28 and PR #30 remain unchanged. No provider request, paid call, migration, worker deployment, merge, Production change, or protected-deployment bypass was performed; provider spend is **$0**.
+
+**Implemented and independently verified**
+- Added OpenRouter `openai/gpt-4o-mini` at the public catalog rates of $0.15/M input and $0.60/M output (source checked 2026-10-14). Hebrew quality and selected upstream model/data terms are not independently verified.
+- Route is disabled unless `OMNI_OPENROUTER_ENABLED=1` is set in both the quoting API and worker. The catalog route is limited to `conversation` and `conversation_complex` and excluded from code-generation tasks in both quoting and execution. A worker-held `OPENROUTER_API_KEY` is required; a key configured only in Vercel Preview is not available to this worker path.
+- The route continues to use the existing single-call durable reservation, budget quote, response validation and usage capture. Tests use a fake gateway only; no provider network call is made.
+- `python -m unittest tests.test_model_catalog_routing tests.test_intelligence_plane -q` — **52 tests run, 51 passed, 1 PostgreSQL test skipped**. Coverage includes disabled-by-default behavior, missing worker credential, task restrictions, bounded quote and mocked OpenAI-compatible response/usage capture.
+- Broader vertical-slice command `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing tests.test_intelligence_plane tests.test_intake_budget_pg -q` — **121 tests run, 110 passed, 11 skipped**.
+- `python -m omni_prod.intelligence.matrix --check`, `python -m omni_prod.registry_audit` (with `PYTHONUTF8=1` on Windows), `python -m omni_prod.agent_os.audit`, `python -m compileall -q omni_prod tests`, `node --check omni_prod/assets/app.js`, and `git diff --check` completed successfully.
+- Full local command `python -m unittest discover -s tests -q`, after installing exactly `requirements-production.txt` and `requirements-test.txt` as CI does, ran **1,818 tests: 1,639 passed, 19 failed, 5 errors, 155 skipped**. This Windows result is not a clean full-suite pass. Failures include POSIX/Docker/worker-deploy harness assumptions and existing behavior-acceptance failures; errors include unavailable `os.chown` and shell/script execution assumptions. The same strict-floor `TypeError` appeared in the earlier full run before the OpenRouter changes. No failure in the focused OpenRouter/registry tests was observed.
+- At PR head `dd44c84adcf36213be7467c27466537cca134198`, V24 CI run [38523423811](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423811), V11 run [38523423792](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423792), intake/Postgres run [38523423824](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423824), intake/architecture run [38523423867](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423867), and deployment verifier [38523467909](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523467909) failed before useful verification. The V24 check annotation explicitly says the job was not started because recent account payments failed or the Actions spending limit must be increased; no test steps ran. The Vercel Preview deployment status itself was successful, but that is not authenticated application or provider verification.
+- Published implementation commit `9a039a59ba52640475764affd0659d90ce3491c3` is the PR #31 head. Push-triggered V24 [38527399174](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527399174), V11 [38527399135](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527399135), intake/Postgres [38527399216](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527399216), and Neon bootstrap [38527399191](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527399191) failed. PR-triggered V24 [38527403928](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527403928), V11 [38527403833](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527403833), intake/Postgres [38527403744](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527403744), Neon bootstrap [38527403892](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527403892), intake/architecture [38527403904](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527403904), and Preview verifier [38527447340](https://github.com/Shayfly/desktop-tutorial/actions/runs/38527447340) failed for the same reason: annotations say the jobs were not started due to account payment/spending-limit status, and job steps are empty. The Vercel Preview deployment status succeeded, but the verifier did not execute. Thus no CI or authenticated Preview-verification result exists for this code revision.
+
+**Implemented but awaiting external live verification**
+- The repository-reported Vercel Preview `OPENROUTER_API_KEY` has not been independently inspected and was not read. It cannot satisfy the worker-only credential requirement unless separately provisioned in a verified isolated worker secret store.
+- An actual one-call Preview smoke test remains blocked until a dedicated Staging API/worker/DB/Redis path and matching model catalog are verified, worker-side credential and approved hard caps are present, and the founder explicitly approves the paid provider call. No model key should be placed in `WORKER_ENV` or another environment shared with Preview/Production.
+
+**Blocked by a named credential/service**
+- GitHub Actions is blocked by the repository account's billing/spending-limit hold (evidence above). The owner/account admin must resolve it at [GitHub Billing & plans](https://github.com/settings/billing/summary) before CI can execute on the new head.
+- The local `OPENROUTER_API_KEY` is absent; the only reported credential location is Vercel Preview, while the application route requires a private worker key. No dedicated isolated Staging worker was available or changed.
+- Existing Preview schema compatibility, database/Redis isolation, and backup/restore remain unresolved as described below. Do not migrate, deploy a worker, or route paid traffic through the shared environment.
+
+**Not implemented / not verified**
+- No real OpenRouter response, provider usage/cost settlement, durable conversation restart recovery, authenticated Preview confirmation, or Architect-to-Preview build was observed. Mocked tests do not pass staging acceptance.
+- GitHub Actions did not execute tests on the published OpenRouter revision because the repository account billing hold prevents runner startup. Keep PR #31 draft and do not claim the product flow works live.
+
+# Update 2026-10-14 — conversational provider vertical slice
+
+Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `e364151`). This update does **not** claim a live provider-backed staging conversation. No paid provider call, worker deployment, merge, flag change, or database migration was made. GitHub/Vercel automatically created PR Preview deployments. The authorized Vercel Protection Bypass for Automation was used only by the deployment verifier; Deployment Protection remained enabled. Spend for this work was **$0**.
+
+**Implemented and independently verified**
+- The browser now distinguishes each assistant reply as model-generated, deterministic fallback, or a response that did not need a model, using the server's per-message status.
+- Added a portable conversation-slice regression through `ConversationSupervisor` and `ReservedWorkerInterpreter`: bounded contextual follow-up, reservation/queue seam, evidence-bound requirements, invalid evidence rejection, message persistence contract, and a separate approval action. This test uses an in-memory store and a settled reservation test double; it is **not** a real provider, PostgreSQL, Redis, or live E2E.
+- Local baseline before this change: `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing -v` — 80 tests passed, 4 PostgreSQL-dependent tests skipped after installing the missing FastAPI runtime dependency.
+- Final focused local verification: `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing tests.test_intake_budget_pg -v` — **86 tests passed, 10 PostgreSQL-dependent tests skipped**. `node --check omni_prod/assets/app.js`, `python -m compileall -q omni_prod tests`, and `git diff --check` passed.
+- On source head `b5f0625`, read-only CI records show `v24-ci` run 38488749440, `intake-budget-pg` run 38488749457, V11 Overlay CI run 38488749470, and intake/architecture regression run 38488749466 completed successfully. The earlier Linux full-suite evidence at `a799936` is 1,682 passed / 172 skipped / 324 subtests; it is not a new full-suite result for this worktree.
+- On implementation commit `00c01c53964ce3d8b00f8107ad283632820bb70d`, PR CI passed: `v24-ci` runs 38490498580/38490515291 (`test`, `customer-ui`, `compose-config`); V11 Overlay CI 38490498602/38490515318 (`validate`); `intake-budget-pg` 38490498636/38490515186 (`pg`); intake/architecture regression 38490515248 (`deterministic-regressions`). The Preview deployment completed automatically. No merge-candidate compatibility run is reported for this milestone.
+- Documentation-only revision `6b769eda73795af442fcf5baa961152c20def297` passed CI: `v24-ci` 38491028729/38491033654; V11 Overlay CI 38491028743/38491033742; `intake-budget-pg` runs 38491028733/38491033594; intake/architecture regression 38491033647. Duplicate PR run 38491033594 initially failed the unrelated real-Docker OOM-timing assertion; its failed job was rerun successfully (3m16s), and its PR-triggered PostgreSQL run passed. Deployment verification on this revision is separately blocked below.
+- On revision `aa756a450cfa954af049760b786fe230c3f46a21`, the corrected repository secret let the verifier access Preview while leaving Deployment Protection enabled. In run [38517442457](https://github.com/Shayfly/desktop-tutorial/actions/runs/38517442457), deployment identity, synthetic account/project, English conversation and persistence-contract, memory, anonymous denial, and cross-account isolation checks passed. Overall verdict **FAILED** because `schema_compatible` reported `MIGRATIONS_PENDING`: required version 38 (`038_conversation_attachments`) and migration versions 1–38 are absent. This synthetic verifier makes no provider call/build and is not proof of durable production-backed conversation.
+- PR-triggered CI on `aa756a450cfa954af049760b786fe230c3f46a21` passed V24 (`38517402309`: test, UI, compose), V11 (`38517402299`: validate), intake/Postgres (`38517402281`), and intake/architecture regression (`38517402285`). The duplicate push-triggered intake/Postgres run `38517394721` failed; the PR-triggered Postgres run passed. The deployment-verify run above failed schema compatibility.
+- Follow-up verifier [38517912368](https://github.com/Shayfly/desktop-tutorial/actions/runs/38517912368) on `19a069f6e6034231e504567a400eb5bd0e3cb78d`: deployment endpoint and exact commit identity passed; synthetic registration, session identity, project creation, conversation, persistence contract (2 messages), memory, anonymous denial, and cross-user isolation all passed. The 401 `AUTH_INVALID` is the expected unauthenticated-denial probe; 403 is the expected cross-user isolation response. Neither indicates rejection of `VERCEL_AUTOMATION_BYPASS_SECRET`; that token successfully crossed Vercel protection so checks could run. Overall verdict remains failed solely at `schema_compatible` (`MIGRATIONS_PENDING`, required 38; missing 1–21 and 26–38). The verifier made synthetic no-provider/no-build requests.
+- Push-triggered intake/Postgres [38517868303](https://github.com/Shayfly/desktop-tutorial/actions/runs/38517868303) failed only `RealDockerDrainRecovery.test_5...`: container exit 137 at the 60-second stop deadline, engine `oom=false`. The old Bash string-allocation workload stalled until Docker's deadline and did not prove an OOM kill. Narrow harness fix: compile a small bounded C allocator, touch each page inside the existing 64 MiB container limit, and `exec` it from the test process; the test still requires Docker's `OOMKilled` flag. It does not accept exit 137 as a substitute. Focused local isolation tests and Python syntax checks pass; the actual Docker OOM test cannot run in this Windows worktree and must pass in Linux CI.
+- On the latest local revision for this follow-up, `python -m unittest tests.test_isolation_check tests.test_m5_migration_numbering tests.test_v17_preflight tests.test_real_docker_drain_recovery -v` reports **20 passed, 0 failed, 8 skipped**; the 8 real-Docker scenarios are skipped locally because no Docker daemon is available. `python -m compileall -q tests\test_real_docker_drain_recovery.py omni_prod\isolation_check.py tests\test_isolation_check.py` and `git diff --check` pass. The C helper/engine OOM assertion is pending its real Linux Docker CI run.
+- On pushed PR head `155300c66aa2640b313e9e341a60c07501ccc96b`, GitHub rejected every Linux Actions job before runner startup due to repository account billing/spending-limit status. Evidence: push runs [38523055465](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523055465), [38523055471](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523055471), [38523055446](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523055446), [38523055470](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523055470); PR-triggered duplicates [38523059412](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523059412), [38523059677](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523059677), [38523059383](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523059383), [38523059630](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523059630), and [38523059537](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523059537). Their check annotations say the job was not started because recent account payments failed or the spending limit must be increased; no test code ran in these jobs. Preview deployment completed, but deployment-verification run [38523104174](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523104174) was blocked before runner startup by the same account issue. The Windows environment also has no Docker daemon or C compiler, so the actual engine `OOMKilled` assertion has not yet been re-proven after the harness fix.
+- **Billing action required to resume CI:** repository owner/account admin must review [GitHub Billing & plans](https://github.com/settings/billing/summary) and resolve the payment method/account hold or authorize an appropriate Actions spending limit. No billing setting was changed here. Once the owner restores Actions, rerun workflows on the current head; do not infer that checks passed from local tests.
+- The evidence update was pushed as `657d104525059dff0432b697d42422b2109a43c8`. Its push-triggered checks (`38523284483`, `38523284488`, `38523284508`) and PR-triggered checks (`38523289317`, `38523289233`, `38523289240`, `38523289238`, `38523289232`) were likewise rejected before runner startup for the same billing reason. The Vercel Preview deployment itself reported success, but deployment verifier [38523324008](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523324008) was not started; no verifier outcome exists for this latest head.
+
+**Implemented but awaiting external live verification**
+- The source path already includes worker-only provider routing, durable reservations, response validation, persistent Postgres conversation/brief repositories, cost settlement, and explicit revision-bound customer approval. The new UI disclosure and regression coverage do not change that live status.
+- Current staging flags/caps were reported configured after the earlier worker-switch correction. The exact Vercel bypass secret name is now present as a repository Actions secret and reached the verifier (value not read); worker/provider reachability and provider credential validity/usage remain unknown.
+- Previous runtime evidence: read-only run `38312763134` found the staging intake worker switch off; staging-only action `38313019963` enabled it and later Preview flags/caps were configured. This is configuration evidence only.
+
+**Blocked by a named credential/service**
+- Production/Preview schema work is blocked pending an authorized worker migration/deployment: the Preview API reports every migration version 1–38 absent, including required `038_conversation_attachments`. The repository documents that branch Previews share the database and migrations run only through `deploy-worker`; that operation drains/replaces worker services and changes the shared DB. No migration or worker deployment was initiated.
+- This Windows worktree has no `OMNI_DATABASE_URL`, `OMNI_REDIS_URL`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OMNI_INTAKE_MODEL`, `OMNI_INTAKE_VIA_WORKER`, or Docker executable. Live Postgres persistence, Redis/RQ, provider configuration, and isolated build/preview therefore cannot be verified locally. Provider credential validity must be checked by the authorized owner without sharing values.
+
+**Not implemented / not verified**
+- No real provider-backed customer response, actual usage/cost settlement, durable staging conversation/restart recovery, live requirements/quote review, explicit build approval, bounded build initiation, or two-account persistence isolation was observed. The current `deployment-verify` suite is intentionally synthetic and makes no provider call or build.
+- No live Architect -> Agent OS -> Build -> Repair -> Preview path was attempted. Apply the required migrations through the authorized staging worker release, verify worker health and budget/caps, then run a separately bounded Hebrew AI/requirements/quote/approval/build E2E before claiming the slice.
+- Merge-candidate compatibility remains unverified; its workflow is milestone-target-only, and no run was observed for this milestone. Do not claim compatibility from a base-branch or synthetic prior run.
+
+## Update 2026-10-14 — isolated Staging preparation (LOCAL ONLY; no infrastructure changed)
+
+The founder authorized planning, code preparation, and non-infrastructure tests for an isolated Staging environment. This does not authorize changes to existing Preview/Production, creation of paid resources, a migration, or a shared-worker deployment. No push was made: updating the draft PR would automatically run Preview workflows against the currently shared database.
+
+**Implemented and independently verified**
+- `omni_prod.isolation_check` now treats PostgreSQL endpoints on the same host/port as SHARED even when the database names differ, and treats Redis on the same host/port as SHARED even when the Redis DB number differs. It accepts three labeled env files (`staging`, `production`, `preview`), requires `OMNI_ENV=staging`, compares Staging against both existing targets, and does not print URL credentials or secret values.
+- Regression command: `python -m unittest tests.test_isolation_check tests.test_m5_migration_numbering tests.test_v17_preflight -v` — **20 tests passed**. `python -m compileall -q omni_prod\isolation_check.py tests\test_isolation_check.py` and `git diff --check` passed.
+- Static migration scan: `rg -n -i "^\s*(DROP\s+(TABLE|COLUMN|SCHEMA|DATABASE)|TRUNCATE|DELETE\s+FROM)\b" infra\postgres` — no matches. Manual review found constraint replacement in 015/033, additive tables/columns/indexes and the nullable-cost change in 037; 038 creates the attachments table/index. This does not prove compatibility with the unknown current schema/data or a restore rehearsal.
+
+**Implemented but awaiting external live verification**
+- The three-environment endpoint check is local-only and has not been run against actual Staging/Production/Preview env files. Distinct hostnames cannot rule out provider DNS aliases; provider-console resource/project IDs must also confirm separate PostgreSQL and Redis instances.
+- Existing last restore-verified backup [38139880170](https://github.com/Shayfly/desktop-tutorial/actions/runs/38139880170) is dated 2026-10-11 and records migration 37. It proves that historical copy restored at that time, not that the current Preview database matches it or that a new Staging target is backed up.
+
+**Blocked by a named credential/service**
+- No dedicated Staging PostgreSQL, Redis, object-storage target, worker host/runner, or corresponding connection settings are available in this worktree. The founder must provision/select isolated resources (prefer already-available free tiers; no paid plan without separate approval), then retain env files locally for a redacted endpoint check. Do not send connection strings or secrets in chat.
+- The existing `backup-restore.yml` and `deploy-worker.yml` target the current worker host/environment; they are not safe substitutes for a dedicated Staging runner and have not been run.
+
+**Not implemented / not verified**
+- No Staging resource was created; no new backup/restore was run; no migration, worker deploy, provider call, or E2E was run. The schema discrepancy (Preview reports 1–38 missing versus the Oct. 11 backup at 37) remains unresolved.
+- Migration execution remains NO-GO until the exact Staging resource identities are confirmed separate from both existing environments, a fresh backup of that exact target is restored and verified, and a dedicated isolated worker path exists. No Production or existing Preview change is authorized.
+
+## Update 2026-10-14 — Neon/Upstash candidates and connection preparation (LOCAL ONLY)
+
+The founder reports existing candidate resources: Neon project `148ai-db`, branch `preview-isolated-2026-10-12` (Frankfurt), and Upstash Redis `148ai-preview-isolated` (Frankfurt, Free). Do not create replacements. These names and plan details are **founder-provided, not independently verified**. A Neon branch can inherit data from its parent; its parent branch and snapshot lineage must be checked before it qualifies as containing no Production data.
+
+**Implemented and independently verified**
+- Added `infra/staging/.env.example` with blank connection fields, unique Staging key placeholders, and model/worker/provider spend disabled by default. Added `infra/staging/README_HE.md` with setup links and explicit safety gates.
+- `git check-ignore infra/staging/.env.local` confirms local connection files are ignored. No populated env file or credentials are present.
+- The stricter isolation checker and regression evidence are recorded above: **20 tests passed**.
+- Added optional fingerprint-only output to the three-environment checker so a future local run can compare endpoints without printing hosts or database names. Verification: `python -m unittest tests.test_isolation_check tests.test_m5_migration_numbering tests.test_v17_preflight -v` — **20 passed**. `python -m compileall -q omni_prod\isolation_check.py tests\test_isolation_check.py`, `git diff --check`, and `git check-ignore infra\staging\.env.local` also passed.
+
+**Implemented but awaiting external live verification**
+- Read-only GitHub metadata lists environments `Preview`, `Preview – 148ai`, `Preview – 148aiv28`, `Production`, `Production – 148ai`, and `Production – 148aiv28`; no `Staging` environment. Actions Variables are empty. No Neon/Upstash/Staging-named repository secret exists. Secret values were not read.
+- The reported Neon branch/Upstash database have not been compared with Production. This Windows worktree has no Neon/Upstash/Vercel CLI or API token, `psql`, `redis-cli`, Docker, or Staging/Production/Preview DSN files. Vercel project variables and provider resource IDs were not inspected.
+
+| Target | PostgreSQL identity / fingerprint | Redis identity / fingerprint | Production relationship |
+|---|---|---|---|
+| Production | Not available locally; secret values not read | Not available locally; secret values not read | Baseline unavailable for an endpoint fingerprint |
+| Existing Preview | Historical Vercel inspection recorded same DB environment record as Production; fingerprint not available | Historical Vercel inspection recorded same Redis environment record as Production; fingerprint not available | **SHARED (historical evidence; current settings not re-read)** |
+| Candidate Staging | Founder-reported Neon project `148ai-db`, branch `preview-isolated-2026-10-12`; provider branch ID, parent, and endpoint fingerprint unavailable | Founder-reported Upstash name `148ai-preview-isolated`; provider database ID and endpoint fingerprint unavailable | **UNKNOWN — not compared with Production** |
+
+**Blocked by a named credential/service**
+- An account operator must verify the Neon branch ID, parent and snapshot lineage against Production at [Neon Console](https://console.neon.tech/app/projects), and compare Upstash database ID/endpoint against Production at [Upstash Console](https://console.upstash.com/redis). Endpoint files must be staged locally or through a secure approved runner; do not send them in chat.
+- A separate Staging Vercel project/target must be confirmed at [Vercel Dashboard](https://vercel.com/dashboard). Do not add candidate DSNs to the existing Preview or Production deployment settings. Dedicated Staging GitHub environment secrets must use a separate worker path; do not replace `WORKER_ENV` or `WORKER_ENV_OVERRIDES`.
+
+**Not implemented / not verified**
+- No real endpoint isolation check, backup, restore, migration, Worker, deploy, Production change, paid call, or E2E has run. The existing backup workflow targets the shared worker and performs retention pruning; do not run it for this candidate. Before any migration, create a backup/export of the verified Staging target and restore it to a separate disposable PostgreSQL, then verify schema/history/data. Migration 001–038 remains NO-GO pending that evidence and explicit approval.
+- The environment is **not ready for real E2E**: isolated DB/Redis use, Neon data ancestry, Staging Vercel/worker configuration, and backup/restore are unverified. PR #31 was not changed; the preparation is local and unpushed to avoid automatic Preview workflows.
+
 # 2026-10-12 — P0 session evidence (partial verification)
 
 Read [the current evidence and gap report](docs/evidence/148ai_p0_2026-10-12.md) before interpreting historical status entries below. Final local focused regressions: 23 pass. Earlier exact-revision CI passed full pytest with 1607 passed / 172 skipped; palette changes require new CI. Golden AI/build/preview E2E is NOT_VERIFIED. Draft PR #21; no merge/Production/live migration/paid provider authorization.

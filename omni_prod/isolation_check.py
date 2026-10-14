@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import re
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 
 DB_KEYS = ('OMNI_DATABASE_URL', 'DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'POSTGRES_URL_NON_POOLING')
@@ -48,11 +49,25 @@ def db_identity(url: str | None) -> str | None:
     return f"{_host(u.hostname)}:{u.port or 5432}/{u.path.lstrip('/')}" if u.hostname else None
 
 
+def db_instance_identity(url: str | None) -> str | None:
+    if not url:
+        return None
+    u = urlsplit(url)
+    return f"{_host(u.hostname)}:{u.port or 5432}" if u.hostname else None
+
+
 def redis_identity(url: str | None) -> str | None:
     if not url:
         return None
     u = urlsplit(url)
     return f"{(u.hostname or '').lower()}:{u.port or 6379}/{u.path.lstrip('/') or '0'}" if u.hostname else None
+
+
+def redis_instance_identity(url: str | None) -> str | None:
+    if not url:
+        return None
+    u = urlsplit(url)
+    return f"{(u.hostname or '').lower()}:{u.port or 6379}" if u.hostname else None
 
 
 def s3_identity(env: dict) -> str | None:
@@ -79,18 +94,43 @@ def identities(env: dict) -> dict:
     return out, notes
 
 
+def _compare_service(identity_a, identity_b, instance_a, instance_b, labels, service):
+    if not identity_a or not identity_b or not instance_a or not instance_b:
+        return {'verdict': 'UNKNOWN', labels[0]: identity_a, labels[1]: identity_b,
+                'why': 'a value is missing or invalid on at least one side'}
+    if instance_a == instance_b:
+        reason = (f'both environments use the same {service} instance; a different logical database or Redis '
+                  'number is not isolated' if identity_a != identity_b else
+                  f'both environments point at the same {service} instance')
+        return {'verdict': 'SHARED', labels[0]: identity_a, labels[1]: identity_b, 'why': reason}
+    return {'verdict': 'ISOLATED', labels[0]: identity_a, labels[1]: identity_b,
+            'why': f'{service} endpoints differ'}
+
+
 def compare(a: dict, b: dict, labels=('A', 'B')) -> dict:
     ia, na = identities(a)
     ib, nb = identities(b)
     rows = {}
-    for res in ('database', 'redis', 'object_storage'):
-        if ia[res] is None or ib[res] is None:
-            rows[res] = {'verdict': 'UNKNOWN', labels[0]: ia[res], labels[1]: ib[res],
-                         'why': 'a value is missing (or its variables disagree) on at least one side'}
-        elif ia[res] == ib[res]:
-            rows[res] = {'verdict': 'SHARED', 'identity': ia[res], 'why': 'both environments point at the same resource'}
-        else:
-            rows[res] = {'verdict': 'ISOLATED', labels[0]: ia[res], labels[1]: ib[res]}
+    db_a = ia['database']
+    db_b = ib['database']
+    db_instance_a = None if db_a is None else next((db_instance_identity(a.get(k)) for k in DB_KEYS if a.get(k)), None)
+    db_instance_b = None if db_b is None else next((db_instance_identity(b.get(k)) for k in DB_KEYS if b.get(k)), None)
+    rows['database'] = _compare_service(db_a, db_b, db_instance_a, db_instance_b, labels, 'PostgreSQL')
+
+    redis_a = ia['redis']
+    redis_b = ib['redis']
+    redis_instance_a = None if redis_a is None else next((redis_instance_identity(a.get(k)) for k in REDIS_KEYS if a.get(k)), None)
+    redis_instance_b = None if redis_b is None else next((redis_instance_identity(b.get(k)) for k in REDIS_KEYS if b.get(k)), None)
+    rows['redis'] = _compare_service(redis_a, redis_b, redis_instance_a, redis_instance_b, labels, 'Redis')
+
+    if ia['object_storage'] is None or ib['object_storage'] is None:
+        rows['object_storage'] = {'verdict': 'UNKNOWN', labels[0]: ia['object_storage'], labels[1]: ib['object_storage'],
+                                  'why': 'a value is missing on at least one side'}
+    elif ia['object_storage'] == ib['object_storage']:
+        rows['object_storage'] = {'verdict': 'SHARED', 'identity': ia['object_storage'],
+                                  'why': 'both environments point at the same resource'}
+    else:
+        rows['object_storage'] = {'verdict': 'ISOLATED', labels[0]: ia['object_storage'], labels[1]: ib['object_storage']}
     # queues live in Redis: sharing Redis means sharing queues unless the queue names differ per environment
     rows['queues'] = {'verdict': rows['redis']['verdict'],
                       'why': ('queues are RQ keys inside Redis: same Redis = same omni-builds / omni-previews / omni-intake queues, so a '
@@ -104,9 +144,59 @@ def compare(a: dict, b: dict, labels=('A', 'B')) -> dict:
             sec[k] = 'UNKNOWN'
     rows['secrets_equality'] = sec
     bad = [r for r, v in rows.items() if r != 'secrets_equality' and v['verdict'] != 'ISOLATED']
-    return {'labels': list(labels), 'resources': rows, 'notes': na + nb, 'all_isolated': not bad and not any(
-        v == 'SAME' for v in sec.values()), 'blocking': bad,
+    bad.extend(f'secrets_equality:{k}' for k, value in sec.items() if value == 'SAME')
+    return {'labels': list(labels), 'resources': rows, 'notes': na + nb, 'all_isolated': not bad, 'blocking': bad,
         'rule': 'A write test, migration, restore or paid call may only target an environment whose resources are ISOLATED and confirmed by the person.'}
+
+
+def compare_staging(staging: dict, production: dict, preview: dict) -> dict:
+    """Require a labeled staging environment to use separate services from both existing targets."""
+    comparisons = {
+        'staging_vs_production': compare(staging, production, ('staging', 'production')),
+        'staging_vs_preview': compare(staging, preview, ('staging', 'preview')),
+    }
+    label = (staging.get('OMNI_ENV') or '').strip().lower()
+    blocking = []
+    if label != 'staging':
+        blocking.append('OMNI_ENV must be exactly staging')
+    for pair, result in comparisons.items():
+        if not result['all_isolated']:
+            blocking.extend(f'{pair}:{resource}' for resource in result['blocking'])
+    return {
+        'environments': ['staging', 'production', 'preview'],
+        'staging_environment_label': {'configured': label or None, 'verdict': 'PASS' if label == 'staging' else 'BLOCKED'},
+        'comparisons': comparisons,
+        'all_isolated': not blocking,
+        'blocking': blocking,
+        'rule': ('Staging must use separate PostgreSQL and Redis instances from Production and existing Preview. '
+                 'Provider-console resource identities must also be checked; different DNS names alone cannot prove '
+                 'that aliases do not point to the same managed instance.'),
+    }
+
+
+def fingerprinted_report(report: dict) -> dict:
+    """Replace resource endpoint identities in a comparison report with SHA-256 fingerprints."""
+    import copy
+
+    result = copy.deepcopy(report)
+
+    def visit(value, labels=()):
+        if isinstance(value, dict):
+            labels = value.get('labels', labels)
+            out = {}
+            for key, item in value.items():
+                if key in labels and isinstance(item, str):
+                    out[f'{key}_fingerprint'] = hashlib.sha256(item.encode('utf-8')).hexdigest()
+                elif key == 'identity' and isinstance(item, str):
+                    out['identity_fingerprint'] = hashlib.sha256(item.encode('utf-8')).hexdigest()
+                else:
+                    out[key] = visit(item, labels)
+            return out
+        if isinstance(value, list):
+            return [visit(item, labels) for item in value]
+        return value
+
+    return visit(result)
 
 
 def main(argv: list[str]) -> int:
@@ -114,15 +204,23 @@ def main(argv: list[str]) -> int:
     labels = [argv[i + 1] for i, x in enumerate(argv[:-1]) if x == '--label'] or ['A', 'B']
     if '--show' in argv and len(files) == 1:
         import json
-        ids, notes = identities(parse_env(open(files[0], encoding='utf-8').read()))
+        ids, notes = identities(parse_env(Path(files[0]).read_text(encoding='utf-8')))
         print(json.dumps({'identities': ids, 'notes': notes}, indent=2))
         return 0
-    if len(files) != 2 or len(labels) != 2:
-        print('usage: python -m omni_prod.isolation_check --env-file a.env --env-file b.env [--label x --label y] | --show --env-file a.env',
+    import json
+    envs = [parse_env(Path(f).read_text(encoding='utf-8')) for f in files]
+    if len(files) == 2 and len(labels) == 2:
+        out = compare(*envs, labels=tuple(labels))
+    elif len(files) == 3 and len(labels) == 3 and set(labels) == {'staging', 'production', 'preview'}:
+        by_label = dict(zip(labels, envs))
+        out = compare_staging(by_label['staging'], by_label['production'], by_label['preview'])
+    else:
+        print('usage: python -m omni_prod.isolation_check --env-file a.env --env-file b.env [--label x --label y] '
+              '[or three files labeled staging, production, preview] [--fingerprints] | --show --env-file a.env',
               file=sys.stderr)
         return 2
-    import json
-    out = compare(*(parse_env(open(f, encoding='utf-8').read()) for f in files), labels=tuple(labels))
+    if '--fingerprints' in argv:
+        out = fingerprinted_report(out)
     print(json.dumps(out, indent=2, ensure_ascii=False))
     return 0 if out['all_isolated'] else 1
 
