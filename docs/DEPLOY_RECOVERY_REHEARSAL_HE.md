@@ -45,14 +45,21 @@ cd infra/worker-host && docker compose run --rm --no-deps -T worker python - bld
 **ניתוח (ללא מודל, ללא רשת, ללא עלות):** `python -m omni_prod.failure_replay evidence.json --files-dir /tmp/hagit-files` — מפריד **דרישת CRUD שגויה** / **כיסוי קריטריון חסר** / **פגם responsive אמיתי** (אותות סטטיים הם חיזוק בלבד).
 הוא מסווג ארטיפקטים שמורים; הוא לא מריץ מחדש את האפליקציה ולא מצהיר „תוקן".
 
-## 5. בידוד Preview/Production לפני פריסה חיה (`python -m omni_prod.isolation_check`)
-קורא קובצי env שהמפעיל הפיק (`vercel env pull preview.env --environment=preview`, וכן ל-production; ו-`.env` של ה-worker), מדפיס רק זהויות לא-סודיות (host ללא `-pooler`, פורט, שם DB / מספר DB ב-Redis, bucket) ופסק: ISOLATED / SHARED / UNKNOWN. סודות מושוו לשוויון בלבד.
-תורי RQ יושבים ב-Redis — Redis משותף = תורים משותפים. **ממצא קיים (קריאה בלבד מ-Vercel):** `OMNI_DATABASE_URL`, `OMNI_REDIS_URL`, `OMNI_SECRET_KEY` הם רשומה אחת ל-production+preview ⇒ SHARED. `OMNI_S3_*` — רשומות נפרדות, ערכים לא ידועים.
-עד שהבדיקה מחזירה ISOLATED ומישהו אישר את היעד: אסור כתיבת בדיקה, מיגרציה, שחזור או קריאה בתשלום מול הסביבה.
+## 5. בידוד סביבות (`python -m omni_prod.isolation_check`)
+קורא קובצי env מקומיים שהמפעיל הפיק, בלי להתחבר לשירותים ובלי לבצע כתיבה. הפלט כולל רק host/port ושמות DB, מספר Redis, bucket ופסק ISOLATED / SHARED / UNKNOWN; סיסמאות וטוקנים אינם מודפסים. אותה PostgreSQL instance נחשבת SHARED גם אם שם ה-DB שונה; אותה Redis instance נחשבת SHARED גם אם מספר ה-DB שונה, כי תורים ואחריות לזיכרון/זמינות עדיין משותפים.
 
-## 6. גיבוי חדש ושחזורו — תוכנית (לא הורצה)
-1. אחרי שהשער מראה שקט ולפני הפריסה: `workflow_dispatch` של `backup-restore.yml` על ענף ה-milestone (לא משנים default branch).
-2. ההצלחה נקבעת לפי **הריצה החדשה** שהסתיימה ב-success (שחזור לבסיס זמני + 55 גרסאות נבנו מחדש + השוואת נתוני preview), לא לפי שיגור.
-3. רושמים את ה-stamp; אם נכשל — NO-GO לפריסה.
-4. אחרי הפריסה (ואחרי 038 בחי): גיבוי נוסף באותו אופן, כדי שיהיה גיבוי שכולל את הטבלה החדשה.
-5. מגבלה ידועה: השחזור בודק 14 טבלאות בלבד; `conversation_attachments` אינה בהן עד שתתווסף ויאומת.
+כדי לבדוק את היעד החדש מול שתי הסביבות הקיימות:
+```
+python -m omni_prod.isolation_check --env-file staging.env --label staging --env-file production.env --label production --env-file preview.env --label preview
+```
+הקובץ הראשון חייב לכלול `OMNI_ENV=staging`; כל שלושת הקבצים חייבים להישמר מקומית ולא להיכנס ל-Git. הפקודה חייבת להחזיר `all_isolated=true` ויציאה 0. היא בודקת הבדלי endpoints, אך DNS aliases עלולים להסתיר משאב מנוהל משותף: לפני כל פעולה יש לאמת בנפרד בקונסולת הספק שמזהי ה-PostgreSQL וה-Redis Staging הם משאבים/פרויקטים ייעודיים, שונים מ-Production ומ-Preview. `UNKNOWN`, ערכים חסרים/סותרים או endpoint משותף הם NO-GO. גם אחרי PASS אין לבצע כתיבה, restore, migration או קריאה בתשלום לפני אישור מפורש ליעד ולפעולה.
+
+**הראיה הקיימת עדיין מזהה את Production ואת Preview כמשתפים את רשומות `OMNI_DATABASE_URL`, `OMNI_REDIS_URL` ו-`OMNI_SECRET_KEY`.** בדיקת Staging החדשה טרם רצה: אין כאן קובצי env חדשים או משאבי Staging. אין להעתיק ערכי Preview/Production ל-Staging.
+
+## 6. ביקורת מיגרציות 001–038 — סקירה סטטית בלבד
+ב-34 קובצי SQL (גרסאות 001–021 ו-026–038) לא נמצאו statements פעילים של `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` או `TRUNCATE`. נמצאו החלפה של constraints (015, 033), יצירת טבלאות/אינדקסים/עמודות, וב-037 הסרת `NOT NULL` מ-`intake_messages.cost_usd`; 038 מוסיפה טבלת attachments ואינדקס. זו אינה הוכחת תאימות ל-DB חי: מצב היעד, הנתונים וגודל הטבלאות אינם ידועים, ומסלול CI של DB ריק אינו תחליף ל-rehearsal על שחזור מדויק של היעד.
+
+אין להריץ מיגרציה עד שמשאב Staging עצמאי אומת מול שתי הסביבות הקיימות, גיבוי של אותו יעד שוחזר בהצלחה לסביבה חד-פעמית, והוכח שאין פעולת נתונים/DDL הרסנית לא מאושרת. מיגרציה 038 לבדה additive, אך אין להסיק מכך שכל השרשרת תואמת למצב הקיים.
+
+## 7. גיבוי ושחזור ל-Staging המבודד — לא הוכן/לא הורץ
+`backup-restore.yml` הקיים רץ על runner ה-worker הקיים, קורא את `infra/worker-host/.env`, מעלה עותקים ל-object storage ומוחק גיבויים מעבר למדיניות retention. הוא מכוון לתשתית הקיימת, ולכן **אין להפעיל אותו עבור בדיקת Staging החדשה**. גיבוי/שחזור מאומת אחרון שנמצא הוא run [38139880170](https://github.com/Shayfly/desktop-tutorial/actions/runs/38139880170), מ-11 באוקטובר 2026, ברמת migration 37; הוא אינו גיבוי של יעד Staging חדש ואינו מכסה migration 38. נדרש runner/worker מבודד ושער גיבוי-שחזור שמכוון במפורש ל-DSN של Staging בלבד, שומר ומאמת את ה-stamp, ומחזיר את המשאב הזמני למצב נקי. עד להקמתם ואימותם לא מריצים migration או E2E שכותב ל-DB. יש להעדיף שירותים חינמיים שכבר זמינים בחשבונות המייסד; לא נבחר ספק/תוכנית, לא נוצר משאב, ולא תופעל תוכנית בתשלום ללא אישור נוסף.

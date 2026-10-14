@@ -27,6 +27,27 @@ Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `
 - No live Architect -> Agent OS -> Build -> Repair -> Preview path was attempted. Apply the required migrations through the authorized staging worker release, verify worker health and budget/caps, then run a separately bounded Hebrew AI/requirements/quote/approval/build E2E before claiming the slice.
 - Merge-candidate compatibility remains unverified; its workflow is milestone-target-only, and no run was observed for this milestone. Do not claim compatibility from a base-branch or synthetic prior run.
 
+## Update 2026-10-14 — isolated Staging preparation (LOCAL ONLY; no infrastructure changed)
+
+The founder authorized planning, code preparation, and non-infrastructure tests for an isolated Staging environment. This does not authorize changes to existing Preview/Production, creation of paid resources, a migration, or a shared-worker deployment. No push was made: updating the draft PR would automatically run Preview workflows against the currently shared database.
+
+**Implemented and independently verified**
+- `omni_prod.isolation_check` now treats PostgreSQL endpoints on the same host/port as SHARED even when the database names differ, and treats Redis on the same host/port as SHARED even when the Redis DB number differs. It accepts three labeled env files (`staging`, `production`, `preview`), requires `OMNI_ENV=staging`, compares Staging against both existing targets, and does not print URL credentials or secret values.
+- Regression command: `python -m unittest tests.test_isolation_check tests.test_m5_migration_numbering tests.test_v17_preflight -v` — **20 tests passed**. `python -m compileall -q omni_prod\isolation_check.py tests\test_isolation_check.py` and `git diff --check` passed.
+- Static migration scan: `rg -n -i "^\s*(DROP\s+(TABLE|COLUMN|SCHEMA|DATABASE)|TRUNCATE|DELETE\s+FROM)\b" infra\postgres` — no matches. Manual review found constraint replacement in 015/033, additive tables/columns/indexes and the nullable-cost change in 037; 038 creates the attachments table/index. This does not prove compatibility with the unknown current schema/data or a restore rehearsal.
+
+**Implemented but awaiting external live verification**
+- The three-environment endpoint check is local-only and has not been run against actual Staging/Production/Preview env files. Distinct hostnames cannot rule out provider DNS aliases; provider-console resource/project IDs must also confirm separate PostgreSQL and Redis instances.
+- Existing last restore-verified backup [38139880170](https://github.com/Shayfly/desktop-tutorial/actions/runs/38139880170) is dated 2026-10-11 and records migration 37. It proves that historical copy restored at that time, not that the current Preview database matches it or that a new Staging target is backed up.
+
+**Blocked by a named credential/service**
+- No dedicated Staging PostgreSQL, Redis, object-storage target, worker host/runner, or corresponding connection settings are available in this worktree. The founder must provision/select isolated resources (prefer already-available free tiers; no paid plan without separate approval), then retain env files locally for a redacted endpoint check. Do not send connection strings or secrets in chat.
+- The existing `backup-restore.yml` and `deploy-worker.yml` target the current worker host/environment; they are not safe substitutes for a dedicated Staging runner and have not been run.
+
+**Not implemented / not verified**
+- No Staging resource was created; no new backup/restore was run; no migration, worker deploy, provider call, or E2E was run. The schema discrepancy (Preview reports 1–38 missing versus the Oct. 11 backup at 37) remains unresolved.
+- Migration execution remains NO-GO until the exact Staging resource identities are confirmed separate from both existing environments, a fresh backup of that exact target is restored and verified, and a dedicated isolated worker path exists. No Production or existing Preview change is authorized.
+
 # 2026-10-12 — P0 session evidence (partial verification)
 
 Read [the current evidence and gap report](docs/evidence/148ai_p0_2026-10-12.md) before interpreting historical status entries below. Final local focused regressions: 23 pass. Earlier exact-revision CI passed full pytest with 1607 passed / 172 skipped; palette changes require new CI. Golden AI/build/preview E2E is NOT_VERIFIED. Draft PR #21; no merge/Production/live migration/paid provider authorization.
