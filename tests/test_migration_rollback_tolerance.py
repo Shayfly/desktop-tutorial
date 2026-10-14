@@ -64,7 +64,8 @@ class LiveRollbackTests(unittest.TestCase):
         self.url = base.rsplit('/', 1)[0] + '/' + self.name
         self.conn = psycopg.connect(self.url)
         self.all = discover_migrations(PG)
-        # the older package: the same files without 039 (what the deployed worker contains)
+        self.through_039 = [m for m in self.all if m.version <= 39]
+        # The older deployed package predates migration 039.
         self.old = [m for m in self.all if m.version <= 38]
 
     def tearDown(self):
@@ -77,7 +78,7 @@ class LiveRollbackTests(unittest.TestCase):
         self.conn.execute("INSERT INTO creator_accounts (id,email,password_hash,salt_b64) VALUES ('a1','a@x.test','x','x')")
         self.conn.execute("INSERT INTO creator_projects (id,owner_id,title) VALUES ('p1','a1','t')")
         self.conn.commit()
-        apply_migrations(self.conn, self.all)                                   # the release that ships 039
+        apply_migrations(self.conn, self.through_039)                           # the release that ships 039, before 040
         cols = [r[0] for r in self.conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name='conversation_attachments'")]
         self.assertTrue(cols)
         return cols
@@ -86,6 +87,7 @@ class LiveRollbackTests(unittest.TestCase):
         self._upgrade_to_039_with_data()
         before = _load_applied(self.conn.cursor())
         self.assertIn(39, before)
+        self.assertNotIn(40, before)
         # 1. without the explicit exception the old package still aborts: nothing was weakened
         with self.assertRaisesRegex(RuntimeError, 'missing from package: 39'):
             apply_migrations(self.conn, self.old)
@@ -107,8 +109,16 @@ class LiveRollbackTests(unittest.TestCase):
         import sys
         self._upgrade_to_039_with_data()
         env = {**os.environ, 'OMNI_DATABASE_URL': self.url}
-        # The CURRENT package knows 039, so the command passes and never writes.
-        for extra in ([], ['--accept-newer', '39'], ['--check']):
+        # Check is read-only at 039; the current package then applies only 040.
+        r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate', '--check'], env=env, cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('pending migrations: [40]', r.stdout)
+        self.assertNotIn(40, _load_applied(self.conn.cursor()))
+        r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate'], env=env, cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.stdout.splitlines()[-1], 'applied migrations: [40]')
+        self.assertIn(40, _load_applied(self.conn.cursor()))
+        for extra in (['--accept-newer', '39'], ['--check']):
             r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate', *extra], env=env, cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate', '--accept-newer', 'all'], env=env, cwd=ROOT, capture_output=True, text=True)

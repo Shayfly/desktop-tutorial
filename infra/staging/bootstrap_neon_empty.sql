@@ -1534,6 +1534,57 @@ CREATE INDEX IF NOT EXISTS conversation_attachments_project
 
 -- END SOURCE 038_conversation_attachments.sql
 
+-- BEGIN SOURCE 039_billing_event_idempotency.sql
+-- Additive only. Prepared for review; never applied to a live database by this change.
+-- Watermarks serialize entitlement events per account. Event IDs survive worker
+-- and API restarts. No card data, raw webhook payloads, or secret values are stored.
+CREATE TABLE IF NOT EXISTS creator_billing_watermarks (
+    account_id TEXT PRIMARY KEY,
+    event_created BIGINT NOT NULL DEFAULT -1 CHECK (event_created >= -1),
+    priority INTEGER NOT NULL DEFAULT 0 CHECK (priority IN (0, 1)),
+    source_id TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS creator_billing_events (
+    event_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES creator_billing_watermarks(account_id),
+    source_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    event_created BIGINT NOT NULL CHECK (event_created >= 0),
+    priority INTEGER NOT NULL CHECK (priority IN (0, 1)),
+    plan_code TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS creator_billing_events_account_created
+    ON creator_billing_events(account_id, event_created);
+CREATE INDEX IF NOT EXISTS creator_billing_events_source_order
+    ON creator_billing_events(account_id, source_id, event_created DESC, priority DESC);
+
+-- END SOURCE 039_billing_event_idempotency.sql
+
+-- BEGIN SOURCE 040_build_request_idempotency.sql
+-- Caller-stable build request identity. The quote hash uses
+-- quote-fingerprint/2 (including category=build); its version is persisted.
+-- The deferred FK lets admission claim
+-- the key before reserving credits, then attach it to the request/job created
+-- by the same transaction. Raw request and quote payloads are not stored.
+CREATE TABLE IF NOT EXISTS build_request_idempotency (
+    account_id TEXT NOT NULL,
+    internal_project_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL CHECK (idempotency_key ~ '^[A-Za-z0-9._:-]{8,160}$'),
+    request_fingerprint TEXT NOT NULL CHECK (request_fingerprint ~ '^[0-9a-f]{64}$'),
+    quote_fingerprint TEXT NOT NULL CHECK (quote_fingerprint ~ '^[0-9a-f]{64}$'),
+    quote_fingerprint_version SMALLINT NOT NULL DEFAULT 2 CHECK (quote_fingerprint_version > 0),
+    build_id TEXT NOT NULL UNIQUE
+        REFERENCES build_requests(build_id) ON DELETE CASCADE
+        DEFERRABLE INITIALLY DEFERRED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (account_id, internal_project_id, idempotency_key)
+);
+
+-- END SOURCE 040_build_request_idempotency.sql
+
 -- Record exact original migration checksums for the normal migration runner.
 INSERT INTO schema_migrations(version, name, sha256)
 VALUES (1, 'control_plane', encode(sha256(convert_to($source_001$CREATE TABLE IF NOT EXISTS build_jobs (
@@ -3017,6 +3068,55 @@ CREATE INDEX IF NOT EXISTS conversation_attachments_project
     ON conversation_attachments (project_id, account_id, created_at)
     WHERE deleted_at IS NULL;
 $source_038$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (39, 'billing_event_idempotency', encode(sha256(convert_to($source_039$-- Additive only. Prepared for review; never applied to a live database by this change.
+-- Watermarks serialize entitlement events per account. Event IDs survive worker
+-- and API restarts. No card data, raw webhook payloads, or secret values are stored.
+CREATE TABLE IF NOT EXISTS creator_billing_watermarks (
+    account_id TEXT PRIMARY KEY,
+    event_created BIGINT NOT NULL DEFAULT -1 CHECK (event_created >= -1),
+    priority INTEGER NOT NULL DEFAULT 0 CHECK (priority IN (0, 1)),
+    source_id TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS creator_billing_events (
+    event_id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES creator_billing_watermarks(account_id),
+    source_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    event_created BIGINT NOT NULL CHECK (event_created >= 0),
+    priority INTEGER NOT NULL CHECK (priority IN (0, 1)),
+    plan_code TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS creator_billing_events_account_created
+    ON creator_billing_events(account_id, event_created);
+CREATE INDEX IF NOT EXISTS creator_billing_events_source_order
+    ON creator_billing_events(account_id, source_id, event_created DESC, priority DESC);
+$source_039$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (40, 'build_request_idempotency', encode(sha256(convert_to($source_040$-- Caller-stable build request identity. The quote hash uses
+-- quote-fingerprint/2 (including category=build); its version is persisted.
+-- The deferred FK lets admission claim
+-- the key before reserving credits, then attach it to the request/job created
+-- by the same transaction. Raw request and quote payloads are not stored.
+CREATE TABLE IF NOT EXISTS build_request_idempotency (
+    account_id TEXT NOT NULL,
+    internal_project_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL CHECK (idempotency_key ~ '^[A-Za-z0-9._:-]{8,160}$'),
+    request_fingerprint TEXT NOT NULL CHECK (request_fingerprint ~ '^[0-9a-f]{64}$'),
+    quote_fingerprint TEXT NOT NULL CHECK (quote_fingerprint ~ '^[0-9a-f]{64}$'),
+    quote_fingerprint_version SMALLINT NOT NULL DEFAULT 2 CHECK (quote_fingerprint_version > 0),
+    build_id TEXT NOT NULL UNIQUE
+        REFERENCES build_requests(build_id) ON DELETE CASCADE
+        DEFERRABLE INITIALLY DEFERRED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (account_id, internal_project_id, idempotency_key)
+);
+$source_040$, 'UTF8')), 'hex'));
 
 COMMIT;
 

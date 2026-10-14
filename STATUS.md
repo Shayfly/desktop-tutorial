@@ -29,25 +29,48 @@ node --check omni_prod\assets\app.js
 git diff --check
 ```
 
-The real-PostgreSQL race and scope regressions are included in the existing
-disposable `intake-budget-pg` workflow; its new-head run is pending. Migration
-040 has **not** been applied to Preview, staging, or Production.
+On head `7779cab`, `intake-budget-pg` run
+[38556863549](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556863549)
+reported 175 passed, 2 failed, and 56 subtests. Both failures were rollback
+tests whose simulated 039 database accidentally included migration 040. The
+fixture now stops at 039 and separately verifies the current package applies
+040. The new caller-key PostgreSQL races did execute in the same run but the
+job failed overall.
+
+Neon bootstrap runs [38556861212](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556861212)
+and [38556863814](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556863814)
+failed because the checked-in bootstrap omitted migrations 039 and 040; its
+generator/verifier also mishandled Windows line endings. The generator and
+verifier now normalize SQL line endings, and local regeneration plus
+`python tools\generate_neon_bootstrap.py --check` confirms both migrations are
+included with LF output. The combined local command below passed **39 passed,
+6 skipped, 3 subtests passed**; skipped cases require PostgreSQL.
+
+```text
+python -m pytest -q tests\test_m5_build_economics.py tests\test_migration_rollback_tolerance.py tests\test_deployment_verification.py::ManifestTests tests\integration\test_m5_build_economics_postgres.py
+```
+
+The PostgreSQL-only rollback and concurrency regressions require CI; corrective
+CI is pending.
+
+Migration 040 has **not** been applied to Preview, staging, or Production.
 
 **Preview schema blocker:** Deployment run
+[38556919308](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556919308)
+failed only `schema_compatible`, reporting required migration 040 pending; its
+nested journey also returned `AUTH_INVALID` (401) and `HTTP_403`. Earlier run
 [38551925540](https://github.com/Shayfly/desktop-tutorial/actions/runs/38551925540)
-failed only `schema_compatible`. The verifier received an empty applied-version
-set and therefore listed migrations 1-21 and 26-39 as missing. This proves the
-migration journal is absent, empty, or invisible to the application role; it
-does not prove that all application tables are absent. Other conversation,
-persistence, memory, and isolation checks passed. Read-only Vercel environment
-evidence shows Preview and Production share the configured database URL, so
-running migrations there is not safe or authorized. No migration was run.
-Resolve only after an authorized read-only journal/search-path diagnosis and a
-confirmed isolated database or safe staging path.
+likewise received an empty applied-version set for the then-required
+migrations 1-21 and 26-39. This proves only that the journal is absent, empty,
+or invisible to the role, not that all application tables are absent.
+Read-only Vercel evidence indicates Preview and Production share the database
+URL. Do not bypass auth or migrate; diagnosis needs authorized read-only
+journal/search-path evidence and a safe isolated environment.
 
 **Still blocked/incomplete:** The full titled v2 requirements document remains
-unavailable, so the 22-area map is provisional. The migration-backed
-concurrency test and new-head CI are pending. The other four corrective areas
+unavailable, so the 22-area map is provisional. Migration-backed concurrency
+passed in the failed head's run, but the job needs a clean rerun after the
+rollback-fixture/bootstrap corrections. The other four corrective areas
 remain incomplete: company-liability accounting for provider failures; an
 operational overrun/estimate-error liability policy; verified recognized-sale
 revenue distinct from cost/reserve; and hard company-wide Free/storage/abuse

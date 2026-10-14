@@ -36,6 +36,13 @@ cannot be signed off until the full v2 source is available.
   reservation/idempotency concurrency and project-scope cases. Migration 040
   was not applied. This is local unit-test evidence, not live database,
   payment, provider, or production verification.
+- On PR #34 head `7779cab`, disposable PostgreSQL CI ran the new integration
+  cases but reported 175 passed, 2 failed, and 56 subtests because legacy
+  rollback tests accidentally included migration 040 in a fixture intended
+  to represent schema version 039. Neon bootstrap CI also exposed a stale
+  generated file missing migrations 039-040 and Windows newline handling in
+  its generator/verifier. Both issues have narrow local fixes; corrective CI
+  is pending.
 - No migration was applied; no payment processor, paid provider, or production
   service was contacted.
 
@@ -55,7 +62,7 @@ cannot be signed off until the full v2 source is available.
 | # | Area inferred from the task summary (not canonical v2 numbering) | Status | Evidence and remaining gap |
 |---:|---|---|---|
 | 1 | Minimum 60% operational contribution-margin target | PARTIAL | The pre-execution guard enforces a minimum 60% conservative variable-cost margin for paid builds. Revenue is allocated from monthly plan price by fixed build credits; this is not measured operational contribution margin, and no realized 60% outcome is verified. |
-| 2 | Quote → Reserve → Execute → Meter → Settle → Release/Refund lifecycle | PARTIAL | Build quote, durable reservation, execution, metering, settlement, and release paths exist. Reservation replay for an identical `build_id` avoids a second allowance debit. PR #34 now adds a caller-supplied, account/project-scoped build key and durable request/quote SHA-256 fingerprints in additive migration 040; quote fingerprints use the persisted `quote-fingerprint/2` version and include `category=build`. Exact replay returns the original build; changed request, quote, or persisted version conflicts before approval/reservation. Unit tests pass locally; real-Postgres concurrency and migration execution remain unverified. Refunds and funding-lot allocation remain missing. |
+| 2 | Quote → Reserve → Execute → Meter → Settle → Release/Refund lifecycle | PARTIAL | Build quote, durable reservation, execution, metering, settlement, and release paths exist. Reservation replay for an identical `build_id` avoids a second allowance debit. PR #34 adds a caller-supplied, account/project-scoped build key and durable request/quote SHA-256 fingerprints in additive migration 040; quote fingerprints use persisted `quote-fingerprint/2` and include `category=build`. Exact replay returns the original build; changed request, quote, or persisted version conflicts before approval/reservation. Migration 040 applied successfully in the disposable PostgreSQL CI service; that head's test phase failed two unrelated rollback-fixture assertions, so a clean rerun is pending. No shared/live migration was applied. Refunds and funding-lot allocation remain missing. |
 | 3 | Atomic reservations | IMPLEMENTED | Production reservation locks the subscription row and writes within the build transaction. PostgreSQL concurrency tests exist but were skipped; live atomicity is unverified. |
 | 4 | Budget ceilings across account, project, day, build, and outstanding exposure | PARTIAL | Plan credit/provider-spend checks and a separate intake-budget service exist. The M5 build path does not demonstrate one end-to-end set of all-scope caps including outstanding UNKNOWN exposure. |
 | 5 | Prevention of duplicate billing and replayed payment events | PARTIAL | Reviewer-service tests cover replay/order; Postgres journal and watermarks are prepared in additive migration 039. Database concurrency/restart tests were skipped and no processor test environment was used. |
@@ -104,15 +111,17 @@ cannot be signed off until the full v2 source is available.
    approval or reservation. The UI retains the key across ambiguous network
    failures; the internal postdeploy client supplies a UUID. Legacy clients
    without a key retain contract-level deduplication/retry behavior. Migration 040 is
-   additive and unrun; local unit tests pass, but real-Postgres concurrency
-   remains pending. Provider-level request correlation and full end-to-end
+   additive and has run only in a disposable PostgreSQL CI database. Local unit
+   tests pass; the CI run containing real-Postgres concurrency ended red on two
+   rollback-fixture assertions and needs a clean rerun. Provider-level request correlation and full end-to-end
    crash recovery are still not established.
 
 ## Safe boundary
 
 The code and tests do not justify marking the v2 economy complete. Reservation
 replay and caller-key persistence are narrowly scoped Economy Core corrections,
-not completion of the lifecycle. Migration 040 has not been applied. Further
+not completion of the lifecycle. Migration 040 has not been applied outside the
+disposable PostgreSQL CI service. Further
 Core work should use fake payment and provider adapters and must not run live
 migrations or use real payment/provider services. Estimation calibration must
 wait for reliable measured-cost data. Monetization activation must wait for
