@@ -101,7 +101,7 @@ different account, project, or reserved amount, and reuse after settlement or
 release, fails closed. This is not a caller-stable idempotency key or a full
 quote fingerprint.
 
-The focused local regression suite passed **112 tests** with **9
+The focused local regression suite passed **118 tests** with **9
 database-dependent skips**. No live payment/provider access, database
 migration, budget change, merge, or deployment was performed. Further canonical
 v2 implementation remains blocked until its full source is supplied.

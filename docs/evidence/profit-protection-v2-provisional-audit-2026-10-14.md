@@ -25,10 +25,11 @@ cannot be signed off until the full v2 source is available.
 - Focused local command:
 
   ```text
-  python -m pytest -q tests/test_profit_protection.py tests/test_m5_build_economics.py tests/test_actual_cost_settlement.py tests/test_m495_subscription_settlement.py tests/test_public_pricing_economics.py tests/test_build_state_machine.py tests/test_v28_148ai_launch.py tests/integration/test_profit_billing_events_pg.py tests/test_deployment_verification.py::ManifestTests tests/test_agent_os.py::AuditTests tests/test_agent_os.py::TruthMatrixTests tests/test_intelligence_plane.py::ProviderMatrixTests tests/test_conversation_os.py::DepartmentTests
+  python -m pytest -q tests/test_profit_protection.py tests/test_m5_build_economics.py tests/test_actual_cost_settlement.py tests/test_m495_subscription_settlement.py tests/test_public_pricing_economics.py tests/test_build_state_machine.py tests/test_v28_148ai_launch.py tests/integration/test_profit_billing_events_pg.py tests/test_deployment_verification.py::ManifestTests tests/test_agent_os.py::AuditTests tests/test_agent_os.py::TruthMatrixTests tests/test_intelligence_plane.py::ProviderMatrixTests tests/test_conversation_os.py::DepartmentTests tests/test_m4_acceptance.py::AcceptanceV tests/test_migration_rollback_tolerance.py::VerifyAppliedTests
   ```
 
-  Observed after the reservation replay fix: **112 passed, 9 skipped**. The skips include database tests which
+  Observed after the reservation replay and CI-regression fixes: **118 passed,
+  9 skipped**. The skips include database tests which
   require an explicitly configured disposable loopback PostgreSQL database.
   This is local test evidence, not live database, payment, provider, or
   production verification.

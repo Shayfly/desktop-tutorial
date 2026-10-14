@@ -4,7 +4,7 @@
 
 **Implemented and independently verified:** The focused local economy,
 billing, settlement, pricing, build-state, and registry command passed
-**112 tests** with **9 skipped**. Exact command and the provisional 22-area
+**118 tests** with **9 skipped**. Exact command and the provisional 22-area
 audit are in
 [`docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md`](docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md).
 These results verify only local test behavior, not live PostgreSQL, payment,
