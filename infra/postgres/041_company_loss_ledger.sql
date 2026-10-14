@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE IF NOT EXISTS company_loss_events (
     id              BIGSERIAL    PRIMARY KEY,
     occurred_at     timestamptz  NOT NULL DEFAULT now(),
@@ -28,5 +26,3 @@ CREATE INDEX IF NOT EXISTS company_loss_events_occurred_at
     ON company_loss_events (occurred_at DESC);
 CREATE INDEX IF NOT EXISTS company_loss_events_build_id
     ON company_loss_events (build_id) WHERE build_id IS NOT NULL;
-
-COMMIT;
