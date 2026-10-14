@@ -105,8 +105,9 @@ class CatalogGovernanceTests(unittest.TestCase):
 
     def test_real_catalog_prices_match_schedule_today(self):
         raw = open(matrix.CATALOG, encoding='utf-8').read()
-        models = parse_model_catalog(raw, {'GEMINI_API_KEY': 'k', 'OPENAI_API_KEY': 'k', 'ANTHROPIC_API_KEY': 'k'},
-                                     when=date(2026, 10, 11))
+        models = parse_model_catalog(raw, {'GEMINI_API_KEY': 'k', 'OPENAI_API_KEY': 'k', 'ANTHROPIC_API_KEY': 'k',
+                                           'OPENROUTER_API_KEY': 'k', 'OMNI_OPENROUTER_ENABLED': '1'},
+                                     when=date(2026, 10, 14))
         self.assertTrue(all(m.status == 'CONFIGURED' for m in models))
         self.assertTrue(all(m.price_source.startswith('schedule') for m in models))
 

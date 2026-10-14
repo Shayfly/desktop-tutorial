@@ -1,7 +1,7 @@
 # 148AI Master Specification
 
 **Snapshot:** 2026-10-14  
-**Baseline:** PR #30 source head `b5f0625`, stacked on PR #28 source head `e364151`; this document describes repository evidence, not a live-product certification.  
+**Baseline:** PR #31's `shayfly-conversation-provider-vertical-slice` branch, stacked on `shayfly-148ai-engineering-recovery`, which includes PR #30 source head `b5f0625` (itself stacked on PR #28 source head `e364151`); this document describes repository evidence, not a live-product certification.
 **Authority:** `AGENTS.md`, `PRODUCT_MISSION_AND_ACCEPTANCE.md`, `docs/OPERATING_CONTRACT_HE.md`, and `STATUS.md` govern this snapshot. `STATUS.md` wins whenever a capability claim differs.
 
 ## Founder-declared product intent
@@ -38,6 +38,8 @@ This is the repository's intended/implemented topology, not proof that every nam
 5. The response is validated as structured data. Requirement evidence must occur in the current customer message; invalid or fabricated proposals are dropped. Deterministic high-confidence statements win conflicts. Model decisions never approve a build or execute a tool.
 6. Customer and assistant messages are recorded with brief revision, interpreter, reservation and cost state. The brief is saved as a compare-and-set revision; model context is bounded and is not authoritative state.
 7. The customer reviews the summary and plan. A separate, authenticated approval is bound to the exact brief, contract and budget; chat text alone cannot start a build.
+
+OpenRouter `openai/gpt-4o-mini` is now a priced catalog candidate for `conversation` and `conversation_complex` only. It requires `OMNI_OPENROUTER_ENABLED=1` in both the quoting API and private worker, the same catalog on both sides, a worker-side `OPENROUTER_API_KEY`, a durable reservation and available hard caps. It remains disabled by default and is not authorized for code generation. The public model catalog price checked 2026-10-14 is $0.15/M input and $0.60/M output; this is not a Hebrew-quality benchmark or verification of selected upstream model terms. A key stored only in Vercel Preview does not reach this worker route.
 
 Migrations 036 and 037 define durable conversation and reservation storage. Durable Postgres execution is covered by tests that require a real database; this local run did not have one. `STATUS.md` records the current live verification gap.
 
@@ -118,6 +120,12 @@ Before claiming a working staging product or public production service, also mee
 ## Current milestone evidence and blockers
 
 At source head `b5f0625`, verifier run [38488792854](https://github.com/Shayfly/desktop-tutorial/actions/runs/38488792854) stopped at protected Preview authentication (HTTP 401). After an authorized Vercel automation bypass secret was configured, verifier run [38517442457](https://github.com/Shayfly/desktop-tutorial/actions/runs/38517442457) reached Preview and passed deployment identity plus synthetic API/authentication checks, but failed `schema_compatible`: the API reports migrations 1–38 absent, including required `038_conversation_attachments`. The verifier makes no provider call or build. No real provider-backed customer conversation, verified durable persistence, requirements/quote approval, or build has been observed. Since Preview branches share the database and the documented migration route drains/replaces worker services, do not apply migrations or deploy a worker without explicit operational approval.
+
+### OpenRouter route status — 2026-10-14
+
+The conditional route and mock-only regression coverage are implemented on PR #31. `python -m unittest tests.test_model_catalog_routing tests.test_intelligence_plane -q` passed 51 tests with one PostgreSQL-dependent skip; provider-matrix, registry, Python/JavaScript syntax and whitespace checks passed. The full Windows discovery suite is not clean (1,818 tests: 1,639 passed, 19 failed, 5 errors, 155 skipped); recorded failures include platform-dependent Docker/worker scripts and existing behavior-acceptance issues. The latest GitHub Actions checks on the prior PR head were blocked before runner startup by the account billing/spending-limit hold, so they establish no CI result for the OpenRouter revision. See `STATUS.md` for run links and exact classifications.
+
+The user-reported Vercel Preview key has not been read or independently verified, and a Vercel-only key does not provide the private worker credential. No real provider call or spend occurred. Live acceptance remains blocked on a verified isolated Staging API, worker, PostgreSQL and Redis path, worker-side key, matching catalog, approved caps, restoration/isolation evidence, and explicit approval for one paid call. Do not use the existing shared Preview/Production worker path.
 
 This Windows worktree has no Postgres URL, Redis URL, provider API key, intake activation flags or Docker runtime. Vercel automatically created PR Preview deployments; no worker deployment or paid provider call was made. The exact runnable local results and external dependencies are kept in `STATUS.md`.
 

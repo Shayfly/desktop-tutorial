@@ -287,7 +287,7 @@
    "responsibilities": "threats, permissions, secrets, IP",
    "core_agents": {
     "security_agent": "REAL_SERVER_VERIFIED",
-    "compliance_ip_agent": "REAL_SERVER_VERIFIED"
+    "compliance_ip_agent": "IMPLEMENTED"
    },
    "support_agents": {},
    "skills": {

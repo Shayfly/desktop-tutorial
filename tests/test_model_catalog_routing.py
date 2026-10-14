@@ -28,6 +28,13 @@ CATALOG = [
     {"name": "gemini-nokey", "provider": "gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
      "model": "gem", "api_key_env": "GEMINI_API_KEY", "quality": 90, "input_per_million": "0.1", "output_per_million": "0.4"},
 ]
+OPENROUTER_CATALOG = [{
+    "name": "openrouter-openai-gpt-4o-mini", "provider": "openrouter",
+    "base_url": "https://openrouter.ai/api/v1", "model": "openai/gpt-4o-mini",
+    "api_key_env": "OPENROUTER_API_KEY", "quality": 70,
+    "input_per_million": "0.15", "output_per_million": "0.60",
+    "max_output_tokens": 4096, "task_allowlist": ["conversation", "conversation_complex"],
+}]
 KEYS = {"CHEAP_API_KEY": "k1", "GROQ_API_KEY": "k2", "OPENAI_API_KEY": "k3"}
 OPEN_POLICY = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
                              external_budget_usd=Decimal("1.00"), max_external_calls_per_build=20)
@@ -83,6 +90,78 @@ class CatalogParsingTests(unittest.TestCase):
     def test_duplicate_names_rejected(self):
         with self.assertRaises(ModelCatalogError):
             parse_model_catalog(json.dumps([CATALOG[1], CATALOG[1]]), KEYS)
+
+
+class OpenRouterSafetyTests(unittest.TestCase):
+    def test_route_requires_explicit_switch_and_worker_credential(self):
+        raw = json.dumps(OPENROUTER_CATALOG)
+        off = parse_model_catalog(raw, {"OPENROUTER_API_KEY": "unit-test-secret"})[0]
+        self.assertEqual(off.status, "PROVIDER_DISABLED")
+        self.assertIsNone(off.endpoint)
+
+        missing = parse_model_catalog(raw, {"OMNI_OPENROUTER_ENABLED": "1"})[0]
+        self.assertEqual(missing.status, "NOT_CONFIGURED")
+        self.assertIsNone(missing.endpoint)
+
+        enabled = parse_model_catalog(raw, {"OMNI_OPENROUTER_ENABLED": "1",
+                                            "OPENROUTER_API_KEY": "unit-test-secret"})[0]
+        self.assertEqual(enabled.status, "CONFIGURED")
+        self.assertTrue(enabled.endpoint.external)
+        self.assertEqual(enabled.endpoint.base_url, "https://openrouter.ai/api/v1")
+
+    def test_route_is_conversation_only(self):
+        with mock.patch.dict(os.environ, {"OMNI_OPENROUTER_ENABLED": "1"}, clear=True):
+            gw = _gateway(catalog=OPENROUTER_CATALOG,
+                          env={"OMNI_OPENROUTER_ENABLED": "1", "OPENROUTER_API_KEY": "unit-test-secret"})
+            self.assertEqual(gw.complete(system="s", user="שלום", task="conversation"), "ok:openrouter-openai-gpt-4o-mini")
+            with self.assertRaises(ModelGatewayError):
+                gw.complete(system="s", user="write code", task="codegen")
+        self.assertEqual(_FakeGateway.calls, [("openrouter-openai-gpt-4o-mini", 4096)])
+
+    def test_quote_is_disabled_by_default_and_task_scoped_when_enabled(self):
+        from omni_prod.intake import budget
+        env = {"OMNI_MODEL_CATALOG_JSON": json.dumps(OPENROUTER_CATALOG),
+               "OMNI_INTAKE_ALLOWED_MODELS": "openai/gpt-4o-mini"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(budget.QuoteUnavailable):
+                budget.quote(system="s", user="שלום", max_tokens=700)
+
+        env["OMNI_OPENROUTER_ENABLED"] = "1"
+        with mock.patch.dict(os.environ, env, clear=True):
+            quote = budget.quote(system="s", user="שלום", max_tokens=700)
+            self.assertEqual(quote.envelope["allowed_models"], ["openai/gpt-4o-mini"])
+            self.assertLess(quote.amount_usd, Decimal("0.005"))
+            with self.assertRaises(budget.QuoteUnavailable):
+                budget.quote(system="s", user="write code", max_tokens=700, task="codegen")
+
+    def test_openrouter_compatible_request_captures_reported_cost(self):
+        from omni_prod.model_gateway import ModelEndpoint
+        seen = {}
+
+        class _Resp:
+            headers = {"x-request-id": "req-unit-test"}
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return json.dumps({
+                    "id": "gen-unit-test",
+                    "choices": [{"message": {"content": '{"language":"he","proposals":[]}'}}],
+                    "usage": {"prompt_tokens": 12, "completion_tokens": 8, "total_tokens": 20, "cost": 0.000003},
+                }).encode()
+
+        def opener(req, timeout):
+            seen["url"] = req.full_url
+            seen["authorization"] = req.get_header("Authorization")
+            return _Resp()
+
+        endpoint = ModelEndpoint(name="openrouter-test", base_url="https://openrouter.ai/api/v1",
+                                 model="openai/gpt-4o-mini", api_key="unit-test-secret", external=True)
+        gateway = OpenAICompatibleGateway(endpoint, urlopen=opener)
+        self.assertIn('"proposals":[]', gateway.complete(system="s", user="שלום"))
+        self.assertEqual(seen["url"], "https://openrouter.ai/api/v1/chat/completions")
+        self.assertEqual(seen["authorization"], "Bearer unit-test-secret")
+        self.assertEqual(gateway.last_usage.provider_reported_cost_usd, Decimal("0.000003"))
+        self.assertEqual(gateway.last_usage.request_id, "req-unit-test")
 
 
 class CostAwareRoutingTests(unittest.TestCase):

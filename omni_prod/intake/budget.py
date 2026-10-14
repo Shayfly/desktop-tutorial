@@ -45,7 +45,7 @@ CONFIRMED, CONFIRMED_ZERO, ESTIMATED, COST_UNKNOWN = 'CONFIRMED', 'CONFIRMED_ZER
 OPEN_STATES = (RESERVED, CLAIMED, EXECUTING, UNKNOWN)
 DAILY_SCOPE = 'daily:global'
 Q = Decimal('0.00000001')                      # NUMERIC(18, 8)
-DEFAULT_ALLOWED_MODELS = ('gemini-3.1-flash-lite', 'gemini-3.5-flash-lite')
+DEFAULT_ALLOWED_MODELS = ('gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'openai/gpt-4o-mini')
 DEFAULT_CAMPAIGN_CAP = Decimal('10')            # Issue #12: acceptance-test campaign hard ceiling
 CEILING_BASIS = ('output bound = max_tokens; reasoning/thinking tokens are billed as output and count against '
                  'max_tokens for the allowed OpenAI-compatible routes (catalog _thinking_basis notes); '
@@ -112,6 +112,7 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
     """Worst case of the permitted envelope, using the gateway's own bounds."""
     from ..intelligence.governance import govern
     from ..intelligence.task_policy import eligible
+    from ..model_catalog import route_enabled
     if not isinstance(max_tokens, int) or max_tokens <= 0 or max_calls != 1:
         raise QuoteUnavailable('only a single bounded call is quotable (no automatic retry or fallback)')
     models = models or allowed_models()
@@ -119,7 +120,10 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
     priced = []
     for item in _catalog_items():
         model = str(item.get('model', ''))
-        if model not in models or not item.get('enabled', True):
+        if model not in models or not route_enabled(item):
+            continue
+        task_allowlist = item.get('task_allowlist') or ()
+        if task_allowlist and task not in task_allowlist:
             continue
         try:
             quality = int(item.get('quality'))

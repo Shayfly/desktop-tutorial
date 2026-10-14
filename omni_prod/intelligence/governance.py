@@ -26,6 +26,7 @@ MANAGED_HOSTS = {
     'generativelanguage.googleapis.com': 'gemini',
     'api.openai.com': 'openai',
     'api.anthropic.com': 'anthropic',
+    'openrouter.ai': 'openrouter',
 }
 
 

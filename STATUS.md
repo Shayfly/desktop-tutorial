@@ -1,3 +1,30 @@
+# Update 2026-10-14 — OpenRouter route and latest verification
+
+PR #31 adds a priced, worker-only OpenRouter route for Hebrew requirements conversation. This is implementation evidence, not proof of a live connection. PR #28 and PR #30 remain unchanged. No provider request, paid call, migration, worker deployment, merge, Production change, or protected-deployment bypass was performed; provider spend is **$0**.
+
+**Implemented and independently verified**
+- Added OpenRouter `openai/gpt-4o-mini` at the public catalog rates of $0.15/M input and $0.60/M output (source checked 2026-10-14). Hebrew quality and selected upstream model/data terms are not independently verified.
+- Route is disabled unless `OMNI_OPENROUTER_ENABLED=1` is set in both the quoting API and worker. The catalog route is limited to `conversation` and `conversation_complex` and excluded from code-generation tasks in both quoting and execution. A worker-held `OPENROUTER_API_KEY` is required; a key configured only in Vercel Preview is not available to this worker path.
+- The route continues to use the existing single-call durable reservation, budget quote, response validation and usage capture. Tests use a fake gateway only; no provider network call is made.
+- `python -m unittest tests.test_model_catalog_routing tests.test_intelligence_plane -q` — **52 tests run, 51 passed, 1 PostgreSQL test skipped**. Coverage includes disabled-by-default behavior, missing worker credential, task restrictions, bounded quote and mocked OpenAI-compatible response/usage capture.
+- Broader vertical-slice command `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing tests.test_intelligence_plane tests.test_intake_budget_pg -q` — **121 tests run, 110 passed, 11 skipped**.
+- `python -m omni_prod.intelligence.matrix --check`, `python -m omni_prod.registry_audit` (with `PYTHONUTF8=1` on Windows), `python -m omni_prod.agent_os.audit`, `python -m compileall -q omni_prod tests`, `node --check omni_prod/assets/app.js`, and `git diff --check` completed successfully.
+- Full local command `python -m unittest discover -s tests -q`, after installing exactly `requirements-production.txt` and `requirements-test.txt` as CI does, ran **1,818 tests: 1,639 passed, 19 failed, 5 errors, 155 skipped**. This Windows result is not a clean full-suite pass. Failures include POSIX/Docker/worker-deploy harness assumptions and existing behavior-acceptance failures; errors include unavailable `os.chown` and shell/script execution assumptions. The same strict-floor `TypeError` appeared in the earlier full run before the OpenRouter changes. No failure in the focused OpenRouter/registry tests was observed.
+- At PR head `dd44c84adcf36213be7467c27466537cca134198`, V24 CI run [38523423811](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423811), V11 run [38523423792](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423792), intake/Postgres run [38523423824](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423824), intake/architecture run [38523423867](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523423867), and deployment verifier [38523467909](https://github.com/Shayfly/desktop-tutorial/actions/runs/38523467909) failed before useful verification. The V24 check annotation explicitly says the job was not started because recent account payments failed or the Actions spending limit must be increased; no test steps ran. The Vercel Preview deployment status itself was successful, but that is not authenticated application or provider verification.
+
+**Implemented but awaiting external live verification**
+- The repository-reported Vercel Preview `OPENROUTER_API_KEY` has not been independently inspected and was not read. It cannot satisfy the worker-only credential requirement unless separately provisioned in a verified isolated worker secret store.
+- An actual one-call Preview smoke test remains blocked until a dedicated Staging API/worker/DB/Redis path and matching model catalog are verified, worker-side credential and approved hard caps are present, and the founder explicitly approves the paid provider call. No model key should be placed in `WORKER_ENV` or another environment shared with Preview/Production.
+
+**Blocked by a named credential/service**
+- GitHub Actions is blocked by the repository account's billing/spending-limit hold (evidence above). The owner/account admin must resolve it at [GitHub Billing & plans](https://github.com/settings/billing/summary) before CI can execute on the new head.
+- The local `OPENROUTER_API_KEY` is absent; the only reported credential location is Vercel Preview, while the application route requires a private worker key. No dedicated isolated Staging worker was available or changed.
+- Existing Preview schema compatibility, database/Redis isolation, and backup/restore remain unresolved as described below. Do not migrate, deploy a worker, or route paid traffic through the shared environment.
+
+**Not implemented / not verified**
+- No real OpenRouter response, provider usage/cost settlement, durable conversation restart recovery, authenticated Preview confirmation, or Architect-to-Preview build was observed. Mocked tests do not pass staging acceptance.
+- No CI result for the local OpenRouter revision is available yet; the PR's current account billing hold prevents runner startup. Keep PR #31 draft and do not claim the product flow works live.
+
 # Update 2026-10-14 — conversational provider vertical slice
 
 Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `e364151`). This update does **not** claim a live provider-backed staging conversation. No paid provider call, worker deployment, merge, flag change, or database migration was made. GitHub/Vercel automatically created PR Preview deployments. The authorized Vercel Protection Bypass for Automation was used only by the deployment verifier; Deployment Protection remained enabled. Spend for this work was **$0**.

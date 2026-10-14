@@ -1,31 +1,33 @@
 {
  "schema": "provider-matrix/1",
- "as_of": "2026-10-11",
+ "as_of": "2026-10-14",
  "summary": {
   "credential_state": {
-   "CREDENTIAL_PRESENT": 14
+   "CREDENTIAL_PRESENT": 14,
+   "NOT_CONFIGURED": 1
   },
   "connection_state": {
    "CONNECTION_TESTED": 7,
-   "NOT_CONNECTED": 7
+   "NOT_CONNECTED": 8
   },
   "verification_state": {
    "REAL_EXECUTION_VERIFIED": 3,
-   "UNVERIFIED": 11
+   "UNVERIFIED": 12
   },
   "availability": {
    "AVAILABLE": 2,
    "DEPRECATED": 1,
    "INSUFFICIENT_CREDIT": 3,
+   "NOT_CONFIGURED": 1,
    "NOT_ROUTED": 8
   },
   "implementation_status": {
    "BLOCKED": 3,
-   "IMPLEMENTED": 4,
+   "IMPLEMENTED": 5,
    "NOT_IMPLEMENTED": 4,
    "REAL_SERVER_VERIFIED": 3
   },
-  "models": 14
+  "models": 15
  },
  "models": [
   {
@@ -637,6 +639,96 @@
    ],
    "current_operational_status": "configured but blocked: provider account has no credit",
    "blocker": "HTTP 400 credit balance too low (2026-10-08); 0 ok / 10 in the ledger"
+  },
+  {
+   "provider_key": "openrouter",
+   "model_key": "openrouter-openai-gpt-4o-mini",
+   "provider_model_id": "openai/gpt-4o-mini",
+   "id_source": "OpenRouter public model catalog (checked 2026-10-14)",
+   "model_family": "GPT-4o-mini via OpenRouter",
+   "provider_type": "llm",
+   "capability_types": [
+    "text.generate",
+    "json.structured"
+   ],
+   "intended_task_types": [
+    "conversation",
+    "conversation_complex"
+   ],
+   "execution_adapter": "routed_gateway (OpenAI-compatible chat)",
+   "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
+   "supported_modalities": [
+    "text"
+   ],
+   "supported_languages": [
+    "he",
+    "en"
+   ],
+   "context_window": 128000,
+   "maximum_output_tokens": 4096,
+   "supports_tool_calls": false,
+   "supports_structured_output": true,
+   "supports_streaming": false,
+   "supports_reasoning": false,
+   "supports_vision": false,
+   "supports_function_calling": false,
+   "credential_reference_names": [
+    "OPENROUTER_API_KEY"
+   ],
+   "credential_scope": "worker",
+   "credential_state": "NOT_CONFIGURED",
+   "connection_state": "NOT_CONNECTED",
+   "verification_state": "UNVERIFIED",
+   "implementation_status": "IMPLEMENTED",
+   "health": "UNKNOWN",
+   "availability": "NOT_CONFIGURED",
+   "last_verified_at": null,
+   "evidence_reference": [],
+   "price_schedule_reference": {
+    "effective_from": "2026-10-14",
+    "effective_until": null,
+    "source_url": "https://openrouter.ai/api/v1/models",
+    "verified_at": "2026-10-14"
+   },
+   "price_in_force": {
+    "provider": "openrouter",
+    "model": "openai/gpt-4o-mini",
+    "effective_from": "2026-10-14",
+    "source_url": "https://openrouter.ai/api/v1/models",
+    "verified_at": "2026-10-14",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "input_per_million": "0.15",
+    "output_per_million": "0.60",
+    "reasoning_accounting": "billed as output tokens",
+    "units_note": "OpenRouter catalog price for the selected upstream model; refresh before activation"
+   },
+   "price_changes_announced": [],
+   "deprecation_state": "ACTIVE",
+   "replacement_model": null,
+   "deprecation_warning": null,
+   "commercial_status": "CONDITIONAL",
+   "commercial_plan": "OpenRouter paid API credits + selected upstream model terms",
+   "commercial_usage_constraints": "OpenRouter paid API and selected upstream model terms require review before customer traffic",
+   "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
+   "known_limitations": "worker credential and isolated staging worker are not configured; Hebrew quality and upstream data terms unverified",
+   "fallback_eligibility": "none",
+   "in_worker_catalog": true,
+   "catalog_quality": 70,
+   "eligible_tasks": [
+    "general",
+    "classification",
+    "conversation",
+    "conversation_complex",
+    "intake_extraction",
+    "architecture",
+    "codegen",
+    "repair",
+    "modification",
+    "review"
+   ],
+   "current_operational_status": "configured, unverified",
+   "blocker": ""
   },
   {
    "provider_key": "gemini",

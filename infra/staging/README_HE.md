@@ -25,6 +25,7 @@
 - `OMNI_SECRET_KEY` ו-`OMNI_SANDBOX_SHARED_SECRET`: ערכים חדשים, ייחודיים ל-Staging.
 - `OMNI_S3_*`: יישארו ריקים עד שיאומת bucket/prefix נפרד. אל תכוון אל bucket Production.
 - Provider keys נשארים ריקים; intake model/worker והתקציב מוגדרים כבויים/אפס.
+- OpenRouter אינו מחובר לנתיב Vercel: שיחות AI מורשות רק דרך Worker מבודד עם reservation. המפתח שדווח ב-Vercel Preview אינו עובר ל-Worker. ב-Staging ייעודי בלבד יש להגדיר `OPENROUTER_API_KEY` ב-secret store של ה-Worker ואת `OMNI_MODEL_CATALOG_JSON` הזהה ב-API וב-Worker; `OMNI_OPENROUTER_ENABLED=0` נשאר כבוי עד אישור מפורש. אין להוסיף את המפתח ל-`WORKER_ENV` המשותף או להפעיל את workflow הקיים.
 
 קובץ `.env.local` נכלל בכלל `.gitignore` של `.env.*`. אין לצרף, להדפיס, להעלות ל-GitHub או לשלוח אותו בצ'אט.
 

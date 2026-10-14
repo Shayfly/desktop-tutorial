@@ -504,9 +504,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/agent_os/providers.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7627,10 +7628,10 @@
   "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 21,
+   "IMPLEMENTED": 22,
    "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 10,
+   "REAL_SERVER_VERIFIED": 9,
    "LIVE": 0,
    "BLOCKED": 4
   },

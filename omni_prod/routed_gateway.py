@@ -308,6 +308,9 @@ class RoutedModelGateway:
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
                 continue
+            task_allowlist = getattr(model, 'task_allowlist', ())
+            if task_allowlist and task not in task_allowlist:
+                continue
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).
             from .intelligence.task_policy import eligible
