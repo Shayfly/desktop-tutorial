@@ -1,5 +1,11 @@
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
+## Issue #6 / PR #31-#34 audit (evidence-bounded, 2026-10-14)
+
+The requested Issue #6 work is broader than this follow-up. A requirement-to-code/test/status matrix for P1, P3, the customer build path, current PR bases, and blockers is recorded in [the evidence audit](docs/evidence/issue-6-pr31-34-audit-2026-10-14.md). The current P1/P3 acceptance and full build path remain PARTIAL, not merge-ready. Issue #6 remains OPEN. PRs #31-#34 remain open drafts. PR #34 targets PR #33, not the requested milestone branch; direct retarget would include 188 unrelated commits relative to the target merge base.
+
+The exact full v2 requirements source remains absent after repository/branch review and exact-text GitHub searches. The 22-area matrix remains explicitly provisional. Caller-stable idempotency/full quote fingerprint, provider-failure company liability, wallet/refunds, durable checkpoint resume, and reconciled profit remain partial or missing; no full v2 compliance claim is made.
+
 ## v2 follow-up — provisional audit only (2026-10-14)
 
 **Implemented and independently verified:** The focused local economy,
@@ -22,6 +28,8 @@ The PostgreSQL concurrency/restart tests were skipped because no disposable
 loopback `profit_test...` database was configured. Migration 039 remains
 unapplied.
 
+**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The latest local focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. The real-engine regression is still unverified until CI reports `OOMKilled=true`.
+
 **Blocked by a named credential/service:** Canonical rule-by-rule v2 completion
 is blocked by the missing full titled v2 specification. Live billing and
 database verification are blocked by the absence of an authorized payment
@@ -37,7 +45,9 @@ order and gates are recorded in
 [`docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md`](docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md).
 Apart from that reservation replay hardening, no broader economy code was
 changed because the canonical v2 acceptance source is absent. No migration,
-real payment/provider call, budget change, merge, or deployment was performed.
+real payment/provider call, budget change, merge, or production deployment was
+performed. The PR Preview deployment verifier remains blocked by unapplied
+migrations 1-39; no migration was run.
 
 **Implemented and independently verified locally:** unpaid Checkout and metadata
 events cannot grant paid entitlements; entitlement changes preserve usage;

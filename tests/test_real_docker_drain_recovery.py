@@ -26,14 +26,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HOST = ROOT / 'infra' / 'worker-host'
 SERVICES = ('worker', 'intake-worker', 'intake-maintain', 'preview-worker')
-BASE_IMAGE = 'omni-e2e-base'
+BASE_IMAGE = 'omni-e2e-oom-base-v2'
 
 JOB_SH = r'''#!/bin/bash
 svc="$1"; ctl=/ctl
 [ "${GEN:-old}" = new ] && [ -f $ctl/startfail ] && { echo "startup failure of the new image"; exit 1; }
 [ "$svc" = worker ] && echo "*** Listening on omni-builds..."
 term() {
-  [ -f $ctl/$svc.oom ] && { printf -v oom_payload '%*s' 134217728 ''; exit 99; }
+  [ -f $ctl/$svc.oom ] && exec /bin/oom-allocator 64
   [ -f $ctl/$svc.ignore-term ] && return
   [ -f $ctl/$svc.finish-seconds ] && { read n < $ctl/$svc.finish-seconds; sleep "$n"; }
   exit 0
@@ -75,6 +75,34 @@ def ensure_images():
     rootfs = work / 'rootfs'
     (rootfs / 'bin').mkdir(parents=True)
     libs = set()
+    oom_source = work / 'oom-allocator.c'
+    oom_source.write_text(r'''#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(int argc, char **argv) {
+    if (argc != 2) return 2;
+    char *end = NULL;
+    errno = 0;
+    unsigned long mib = strtoul(argv[1], &end, 10);
+    if (errno || !end || *end || mib == 0 || mib > 64) return 2;
+    size_t bytes = (size_t)mib * 1024u * 1024u;
+    volatile unsigned char *memory = malloc(bytes);
+    if (!memory) return 3;
+    for (size_t offset = 0; offset < bytes; offset += 4096u) memory[offset] = 1;
+    memory[bytes - 1] = 1;
+    return 0;
+}
+''', encoding='utf-8')
+    compiler = shutil.which('cc') or shutil.which('gcc') or shutil.which('clang')
+    if compiler:
+        oom_binary = rootfs / 'bin' / 'oom-allocator'
+        result = sh(compiler, '-O0', '-Wall', '-Wextra', '-Werror', str(oom_source), '-o', str(oom_binary))
+        if result.returncode:
+            raise RuntimeError(f'could not compile bounded OOM allocator: {result.stderr}')
+        oom_binary.chmod(oom_binary.stat().st_mode | stat.S_IEXEC)
     for b in ('bash', 'sleep', 'cat', 'date', 'env', 'true'):
         p = shutil.which(b)
         if p:
@@ -83,6 +111,11 @@ def ensure_images():
                 for tok in line.split():
                     if tok.startswith('/') and os.path.exists(tok):
                         libs.add(tok)
+    if compiler:
+        for line in sh('ldd', str(rootfs / 'bin' / 'oom-allocator')).stdout.splitlines():
+            for tok in line.split():
+                if tok.startswith('/') and os.path.exists(tok):
+                    libs.add(tok)
     for lib in libs:
         dst = rootfs / lib.lstrip('/')
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -266,12 +299,9 @@ class RealDockerDrainRecovery(unittest.TestCase):
             self.assertEqual(now[s]['image'], self.before[s]['image'], f'{s} must run the PREVIOUS image again')
 
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
-        (self.ctl / 'preview-worker.oom').write_text('1')            # real memory exhaustion inside a 64 MB cgroup on SIGTERM
-        # Bash's exponential string concatenation can spend the entire deadline
-        # copying memory without triggering the cgroup OOM killer. The stand-in
-        # instead allocates a single 128 MiB shell variable inside a 64 MiB
-        # cgroup. Keep the engine's OOMKilled assertion (exit 137 alone is not
-        # sufficient evidence). This changes only the disposable test workload.
+        if not (shutil.which('cc') or shutil.which('gcc') or shutil.which('clang')):
+            self.skipTest('BLOCKED: a C compiler is required to build the bounded OOM allocator')
+        (self.ctl / 'preview-worker.oom').write_text('1')            # touch each page of a 64 MiB allocation in the same 64 MiB cgroup
         d = self.drain(DRAIN_DEADLINE_SECONDS='60')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
