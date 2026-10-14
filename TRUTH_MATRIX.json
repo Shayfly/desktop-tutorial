@@ -80,203 +80,1083 @@
    "platform": [],
    "implementation": [
     "omni_prod.build_cost_plan:build_economics_quote",
-    "omni_prod.creator_plan:build_plan_p…19617 tokens truncated…changed since: omni_prod/routed_gateway.py | catalog quality scores |
-| `provider_latency_compare` | Provider Routing | **NOT_IMPLEMENTED** | provider_router_agent | no implementation | not implemented |
-| `commercial_permission_check` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
-| `privacy_policy_check` | Provider Routing | **NOT_IMPLEMENTED** | provider_router_agent | no implementation | not implemented |
-| `provider_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
-| `provider_fallback_selection` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
-| `provider_retry` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
-| `model_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
-| `build_quote` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `credit_reservation` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
-| `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
-| `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `provider_price_lookup` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/model_catalog.py | versioned catalog |
-| `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `unused_reservation_release` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
-| `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/economics_report.py | margin UNKNOWN until revenue exists; costs from the ledger |
-| `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |
-| `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `reconciliation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only | QA ledger |
-| `worker_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
-| `queue_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
-| `storage_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
-| `database_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
-| `environment_validation` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: infra/worker-host/write-env.sh |  |
-| `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
-| `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
-| `queue_job_submit` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | restart from the beginning, once |
-| `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py |  |
-| `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
-| `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py |  |
-| `preview_prepare` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_deploy` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_health_check` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_access_protect` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_token_issue` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `preview_token_revoke` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
-| `production_prepare` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
-| `production_deploy` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
-| `deployment_status_check` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
-| `environment_binding` | Deployment | **NOT_IMPLEMENTED** | deployment_agent | no implementation | not implemented |
-| `deployment_rollback` | Deployment | **IMPLEMENTED** | deployment_agent | code exists; no evidence | documented procedure, not automated |
-| `deployment_verification` | Deployment | **IMPLEMENTED** | deployment_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py | platform deploy |
-| `version_create` | Release | **REAL_SERVER_VERIFIED** | release_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `artifact_commit` | Release | **REAL_SERVER_VERIFIED** | release_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `release_evidence_generation` | Release | **IMPLEMENTED** | release_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `release_candidate_validation` | Release | **NOT_IMPLEMENTED** | release_agent | no implementation | not implemented |
-| `release_gate` | Release | **IMPLEMENTED** | release_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `release_publish` | Release | **NOT_IMPLEMENTED** | release_agent | no implementation | not implemented |
-| `rollback_point_create` | Release | **UNIT_TESTED** | release_agent | unit tests only |  |
-| `release_rollback` | Release | **NOT_IMPLEMENTED** | release_agent | no implementation | not implemented |
-| `execution_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py |  |
-| `agent_trace` | Observability | **UNIT_TESTED** | observability_agent | unit tests only |  |
-| `skill_trace` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `provider_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `cost_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
-| `failure_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
-| `latency_measurement` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `health_metric` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `structured_logging` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py |  |
-| `incident_creation` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `database_backup` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | same object store as artifacts |
-| `artifact_backup` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | content-addressed artifacts re-verified |
-| `project_backup` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
-| `backup_validation` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
-| `restore_database` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | into a throw-away database |
-| `restore_project` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
-| `restore_artifact` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
-| `restore_verification` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re |  |
-| `disaster_recovery_test` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | restore drill only; no failover |
-| `frontend_performance_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `backend_performance_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `database_performance_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `bundle_analysis` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `slow_query_detection` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `latency_analysis` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `memory_analysis` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `concurrency_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `load_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
-| `keyboard_navigation_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `semantic_html_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `label_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | unlabelled_field rule, advisory |
-| `contrast_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | WCAG AA ratio, advisory |
-| `touch_target_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | mobile 24x24 CSS px, advisory |
-| `screen_reader_structure_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `focus_order_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `translation` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `hebrew_localization` | Localization | **IMPLEMENTED** | localization_rtl_agent | model instruction only; no platform check verifies the result |  |
-| `rtl_layout` | Localization | **IMPLEMENTED** | localization_rtl_agent | model instruction only; no platform check verifies the result |  |
-| `ltr_layout` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `locale_date` | Localization | **IMPLEMENTED** | localization_rtl_agent | model instruction only; no platform check verifies the result |  |
-| `locale_currency` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `locale_number` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `translation_validation` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `missing_translation_detection` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
-| `metadata_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `title_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `description_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `canonical_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `sitemap_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `robots_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `opengraph_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `structured_data_generation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `seo_validation` | SEO | **NOT_IMPLEMENTED** | seo_web_quality_agent | no implementation | not implemented |
-| `event_schema_generation` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `event_tracking` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `funnel_definition` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `usage_metric` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `conversion_metric` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `error_metric` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `feature_usage_metric` | Analytics | **NOT_IMPLEMENTED** | analytics_agent | no implementation | not implemented |
-| `text_to_image` | Media — Image | **BLOCKED** | image_agent | not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF, OMNI_IMAGE_PROVIDER_MODEL | no verified real generation |
-| `image_to_image` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `image_edit` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `background_remove` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `image_upscale` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `image_variation` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `character_consistency` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `brand_consistency` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `thumbnail_generation` | Media — Image | **NOT_IMPLEMENTED** | image_agent | no implementation | not implemented |
-| `image_quality_check` | Media — Image | **UNIT_TESTED** | image_agent | unit tests only | format/size only |
-| `video_brief` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `script_generation` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `storyboard_generation` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `shot_list_generation` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `text_to_video` | Media — Video | **BLOCKED** | video_agent | no commercial video provider contracted | not implemented |
-| `image_to_video` | Media — Video | **BLOCKED** | video_agent | no commercial video provider contracted | not implemented |
-| `video_to_video` | Media — Video | **BLOCKED** | video_agent | no commercial video provider contracted | not implemented |
-| `scene_generation` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `scene_continuity` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `lip_sync` | Media — Video | **BLOCKED** | video_agent | no commercial video provider contracted | not implemented |
-| `caption_generation` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `video_composition` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `video_render` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `video_quality_check` | Media — Video | **NOT_IMPLEMENTED** | video_agent | no implementation | not implemented |
-| `text_to_speech` | Voice | **NOT_IMPLEMENTED** | voice_speech_agent | no implementation | not implemented |
-| `speech_to_text` | Voice | **NOT_IMPLEMENTED** | voice_speech_agent | no implementation | not implemented |
-| `voice_selection` | Voice | **NOT_IMPLEMENTED** | voice_speech_agent | no implementation | not implemented |
-| `voice_clone_where_licensed` | Voice | **BLOCKED** | voice_speech_agent | no licensed voice provider contracted | not implemented |
-| `voice_localization` | Voice | **NOT_IMPLEMENTED** | voice_speech_agent | no implementation | not implemented |
-| `speech_quality_check` | Voice | **NOT_IMPLEMENTED** | voice_speech_agent | no implementation | not implemented |
-| `music_generation` | Audio / Music | **BLOCKED** | audio_music_agent | no commercially licensed music provider contracted | not implemented |
-| `sound_effect_generation` | Audio / Music | **NOT_IMPLEMENTED** | audio_music_agent | no implementation | not implemented |
-| `audio_mix` | Audio / Music | **NOT_IMPLEMENTED** | audio_music_agent | no implementation | not implemented |
-| `audio_normalization` | Audio / Music | **NOT_IMPLEMENTED** | audio_music_agent | no implementation | not implemented |
-| `music_license_check` | Audio / Music | **NOT_IMPLEMENTED** | audio_music_agent | no implementation | not implemented |
-| `trigger_definition` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `schedule_definition` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `webhook_trigger` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `action_definition` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_branch` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_condition` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_retry` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_state` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_audit` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `workflow_test` | Automation | **NOT_IMPLEMENTED** | automation_agent | no implementation | not implemented |
-| `game_concept` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `game_loop_design` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `genre_rules` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `player_movement` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `player_input` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `collision` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `physics_2d` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `enemy_ai_2d` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `npc_2d` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `health_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `damage_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `score_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `inventory` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `item_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `upgrade_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `shop_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `quest_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `dialogue_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `level_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `checkpoint_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `save_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `load_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `progression_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `difficulty_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `boss_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `spawn_system` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `camera_2d` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `animation_2d` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `sprite_management` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `tileset_management` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `audio_game` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `hud` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `pause_menu` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `game_over` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `restart` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `leaderboard` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `touch_controls` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `keyboard_controls` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `gameplay_test` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `level_completion_test` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
-| `save_load_test` | 2D Games | **NOT_IMPLEMENTED** | game_engineering_2d_agent | no implementation | not implemented |
+    "omni_prod.creator_plan:build_plan_preview"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:build_plan_generation",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/creator_plan.py"
+    },
+    {
+     "part": "skill:build_quote",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Approval binds the build to the approved contract",
+   "capability": "server-side approval",
+   "agent": "executive_orchestrator",
+   "skills": [],
+   "platform": [
+    "contract_bound_approval"
+   ],
+   "implementation": [
+    "omni_prod.job_repository:PostgresBuildRepository.claim_contract_build"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:contract_bound_approval",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/job_repository.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Sign up / sign in to 148AI",
+   "capability": "148AI accounts",
+   "agent": "security_agent",
+   "skills": [],
+   "platform": [
+    "platform_accounts"
+   ],
+   "implementation": [
+    "omni_prod.creator_accounts:PostgresAccountService",
+    "omni_prod.identity_lifecycle:IdentityService"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_m5_identity_lifecycle.py"
+   ],
+   "evidence": [
+    "postdeploy-checks run 38083312245"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:platform_accounts",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+    }
+   ]
+  },
+  {
+   "requirement": "Generate the product code",
+   "capability": "code generation",
+   "agent": "coding_agent",
+   "skills": [
+    "file_create"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.autonomous_agents:GeneratorAgent"
+   ],
+   "provider": "Gemini (catalog)",
+   "tests": [],
+   "evidence": [],
+   "cost": "metered per call",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:file_create",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Detect cross-file errors before running (syntax, imports, routes, assets)",
+   "capability": "consistency gate",
+   "agent": "qa_agent",
+   "skills": [],
+   "platform": [
+    "consistency_gate"
+   ],
+   "implementation": [
+    "omni_prod.consistency_gate:ConsistencyGateExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_consistency_gate.py"
+   ],
+   "evidence": [
+    "postdeploy-checks gate-replay run 38083647077"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:consistency_gate",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: no false positive on stored working versions; repair prompt contains the code"
+    }
+   ]
+  },
+  {
+   "requirement": "Run the product's tests in an isolated sandbox",
+   "capability": "sandbox verification",
+   "agent": "qa_agent",
+   "skills": [
+    "unit_test_execution"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.remote_sandbox:RemoteSandboxRepositoryExecutor"
+   ],
+   "provider": "sandbox runner (no network)",
+   "tests": [],
+   "evidence": [
+    "tests/test_acceptance_coverage.py",
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0 marginal",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "tests are written by the generating model",
+   "parts": [
+    {
+     "part": "skill:unit_test_execution",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Repair focused on real errors; worse repairs rolled back",
+   "capability": "repair loop",
+   "agent": "repair_agent",
+   "skills": [
+    "repair_execution",
+    "retry_decision"
+   ],
+   "platform": [
+    "round_snapshots_rollback"
+   ],
+   "implementation": [
+    "omni_prod.autonomous_agents:RepairAgent",
+    "omni_prod.autonomous_core:AutonomousProductEngine",
+    "omni_prod.worker_tasks:install_round_snapshots"
+   ],
+   "provider": "Gemini",
+   "tests": [
+    "tests/test_repair_stop_loss.py"
+   ],
+   "evidence": [
+    "tests/test_repair_stop_loss.py"
+   ],
+   "cost": "metered per call",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:repair_execution",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
+    },
+    {
+     "part": "skill:retry_decision",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_core.py"
+    },
+    {
+     "part": "platform:round_snapshots_rollback",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    }
+   ]
+  },
+  {
+   "requirement": "The product starts for preview",
+   "capability": "preview smoke",
+   "agent": "deployment_agent",
+   "skills": [
+    "page_load_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_smoke:PreviewReadyExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks verify-replay run 38083686082"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:page_load_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    }
+   ]
+  },
+  {
+   "requirement": "The product does what was asked (behaviour over HTTP)",
+   "capability": "behavioural acceptance",
+   "agent": "behavioral_acceptance_agent",
+   "skills": [
+    "behavioral_acceptance_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.behavior_acceptance:BehaviorAcceptanceExecutor",
+    "omni_prod.web_saas_acceptance:WebSaaSAcceptanceRunner"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "steps written by the model; platform enforces required kinds",
+   "parts": [
+    {
+     "part": "skill:behavioral_acceptance_test",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py"
+    }
+   ]
+  },
+  {
+   "requirement": "A real browser uses the product (forms, JS errors)",
+   "capability": "browser check",
+   "agent": "browser_rehearsal_agent",
+   "skills": [
+    "browser_acceptance_test",
+    "javascript_error_detection"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.browser_probe:BrowserFlowExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "postdeploy-checks verify-replay run 38083686082"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:browser_acceptance_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "skill:javascript_error_detection",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    }
+   ]
+  },
+  {
+   "requirement": "Looks right on desktop and mobile, RTL",
+   "capability": "visual QA",
+   "agent": "ux_ui_design_agent",
+   "skills": [
+    "mobile_view_test",
+    "desktop_view_test",
+    "responsive_test"
+   ],
+   "platform": [
+    "visual_qa_desktop_mobile"
+   ],
+   "implementation": [
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks verify-replay run 38083686082"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "shadow mode: measured and recorded, not yet blocking",
+   "parts": [
+    {
+     "part": "skill:mobile_view_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "skill:desktop_view_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "skill:responsive_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "platform:visual_qa_desktop_mobile",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    }
+   ]
+  },
+  {
+   "requirement": "Accessible (labels, contrast, keyboard)",
+   "capability": "accessibility",
+   "agent": "accessibility_agent",
+   "skills": [
+    "label_test",
+    "contrast_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.consistency_gate:scan",
+    "omni_prod.visual_qa:VisualQAExecutor"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks verify-replay run 38083686082"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:label_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "skill:contrast_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    }
+   ]
+  },
+  {
+   "requirement": "Performance within budget",
+   "capability": "performance",
+   "agent": "performance_agent",
+   "skills": [],
+   "platform": [
+    "performance_budgets"
+   ],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:performance_budgets",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "No secrets or unsafe code in the product",
+   "capability": "security scan",
+   "agent": "security_agent",
+   "skills": [
+    "secret_detection",
+    "security_release_gate"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.security_testing:hostile_repository_scan",
+    "omni_prod.worker_tasks:evaluate_release_gates"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks verify-replay run 38083686082",
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:secret_detection",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+    },
+    {
+     "part": "skill:security_release_gate",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Never READY when a mandatory check failed or did not run",
+   "capability": "release policy",
+   "agent": "quality_gate_agent",
+   "skills": [],
+   "platform": [
+    "release_policy"
+   ],
+   "implementation": [
+    "omni_prod.release_policy:build_report"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [
+    "tests/test_release_policy.py",
+    "tests/test_release_blocks_on_failed_acceptance.py"
+   ],
+   "evidence": [
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:release_policy",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/release_policy.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Private preview; sharing only on purpose",
+   "capability": "preview access",
+   "agent": "deployment_agent",
+   "skills": [
+    "preview_access_protect",
+    "preview_token_revoke"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_access:PreviewAccess",
+    "omni_prod.preview_access:PreviewAccess.set_mode",
+    "omni_prod.preview_router:make_handler"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 38083312245"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:preview_access_protect",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+    },
+    {
+     "part": "skill:preview_token_revoke",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+    }
+   ]
+  },
+  {
+   "requirement": "Preview data survives restarts and new versions",
+   "capability": "preview data",
+   "agent": "database_agent",
+   "skills": [
+    "persistence_test"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.preview_durability:selftest"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "deploy-worker run 38083162363",
+    "postdeploy-checks run 38083312245"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:persistence_test",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge; migrations "
+    }
+   ]
+  },
+  {
+   "requirement": "Change the product in natural language",
+   "capability": "modification",
+   "agent": "product_evolution_agent",
+   "skills": [
+    "file_modify"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.autonomous_agents:RepairAgent"
+   ],
+   "provider": "Gemini",
+   "tests": [],
+   "evidence": [],
+   "cost": "metered per call",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:file_modify",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Version history and rollback",
+   "capability": "versions",
+   "agent": "release_agent",
+   "skills": [
+    "version_create"
+   ],
+   "platform": [
+    "version_rollback"
+   ],
+   "implementation": [
+    "omni_prod.modification_repository:PostgresModificationRepository.rollback",
+    "omni_prod.workspace:PostgresProjectWorkspace.commit"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099",
+    "postdeploy-checks run 38083312245"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:version_create",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    },
+    {
+     "part": "platform:version_rollback",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+    }
+   ]
+  },
+  {
+   "requirement": "Download the product as ZIP",
+   "capability": "export",
+   "agent": "release_agent",
+   "skills": [],
+   "platform": [
+    "zip_export"
+   ],
+   "implementation": [
+    "omni_prod.unified_engine:UnifiedOmniEngine.export_zip",
+    "omni_prod.v26_platform:V26UniversalPlatform.export"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_v25_unified_v10_parity.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:zip_export",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/unified_engine.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Publish to a live address",
+   "capability": "publish",
+   "agent": "deployment_agent",
+   "skills": [
+    "release_publish"
+   ],
+   "platform": [
+    "publish"
+   ],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "refused with 501; not shown in the UI",
+   "parts": [
+    {
+     "part": "skill:release_publish",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    },
+    {
+     "part": "platform:publish",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "Stop a build; live progress journal",
+   "capability": "cancel + journal",
+   "agent": "infrastructure_agent",
+   "skills": [
+    "job_cancel"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.build_control:BuildControl",
+    "omni_prod.job_repository:PostgresBuildRepository.request_cancel"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": true,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:job_cancel",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Recover a build after a worker crash",
+   "capability": "crash recovery",
+   "agent": "infrastructure_agent",
+   "skills": [
+    "job_resume",
+    "stale_job_recovery"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.maintenance:recover_lost_running",
+    "omni_prod.maintenance:redispatch_lost"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:job_resume",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
+    },
+    {
+     "part": "skill:stale_job_recovery",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/maintenance.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Charge only actual usage (metered settlement)",
+   "capability": "settlement",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "credit_reservation",
+    "actual_cost_calculation",
+    "credit_settlement"
+   ],
+   "platform": [
+    "write_ahead_cost_ledger"
+   ],
+   "implementation": [
+    "omni_prod.attempt_ledger:persist_attempts",
+    "omni_prod.subscription_store:PostgresSubscriptionService",
+    "omni_prod.worker_tasks:metered_llm_cost",
+    "omni_prod.worker_tasks:prior_worker_metered_cost",
+    "omni_prod.worker_tasks:resolve_m5_billing"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_actual_cost_settlement.py"
+   ],
+   "cost": "ledger",
+   "status": "IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:credit_reservation",
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/subscription_store.py"
+    },
+    {
+     "part": "skill:actual_cost_calculation",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    },
+    {
+     "part": "skill:credit_settlement",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/worker_tasks.py"
+    },
+    {
+     "part": "platform:write_ahead_cost_ledger",
+     "status": "INTEGRATION_TESTED",
+     "why": "integration tests"
+    }
+   ]
+  },
+  {
+   "requirement": "Cost per build / per successful build / by model, from the ledger",
+   "capability": "unit economics",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "margin_calculation"
+   ],
+   "platform": [
+    "unit_economics_report"
+   ],
+   "implementation": [
+    "omni_prod.economics_report:compute"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_economics_report.py"
+   ],
+   "cost": "$0",
+   "status": "UNIT_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:margin_calculation",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
+    },
+    {
+     "part": "platform:unit_economics_report",
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/economics_report.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Every check stored per build, bound to the artifact",
+   "capability": "stage evidence",
+   "agent": "quality_gate_agent",
+   "skills": [],
+   "platform": [
+    "durable_stage_evidence"
+   ],
+   "implementation": [
+    "omni_prod.release_policy:persist"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_release_policy.py"
+   ],
+   "cost": "$0",
+   "status": "INTEGRATION_TESTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:durable_stage_evidence",
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/release_policy.py"
+    }
+   ]
+  },
+  {
+   "requirement": "Hard budget ceiling per build and in total",
+   "capability": "budget guard",
+   "agent": "cost_economics_agent",
+   "skills": [
+    "budget_guard"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.model_policy:authorize_model_call"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "postdeploy-checks run 37961193099"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:budget_guard",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+    }
+   ]
+  },
+  {
+   "requirement": "Costs reconciled with provider invoices",
+   "capability": "reconciliation",
+   "agent": "cost_economics_agent",
+   "skills": [],
+   "platform": [
+    "invoice_reconciliation"
+   ],
+   "implementation": [
+    "omni_prod.qa_budget:qa_used_usd"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "platform:invoice_reconciliation",
+     "status": "BLOCKED",
+     "why": "needs the provider billing export (founder access to Google AI Studio / Cloud billing)"
+    }
+   ]
+  },
+  {
+   "requirement": "Backups that restore",
+   "capability": "backup/restore",
+   "agent": "backup_recovery_agent",
+   "skills": [
+    "restore_verification"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.backup:verify"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "backup-restore run 37962179844"
+   ],
+   "cost": "$0",
+   "status": "REAL_SERVER_VERIFIED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:restore_verification",
+     "status": "REAL_SERVER_VERIFIED",
+     "why": "verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune"
+    }
+   ]
+  },
+  {
+   "requirement": "Fallback to a second AI provider",
+   "capability": "provider fallback",
+   "agent": "provider_router_agent",
+   "skills": [
+    "provider_fallback_selection"
+   ],
+   "platform": [
+    "second_model_provider"
+   ],
+   "implementation": [
+    "omni_prod.routed_gateway:RoutedModelGateway"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [
+    "tests/test_provider_quota_and_dialects.py"
+   ],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:provider_fallback_selection",
+     "status": "UNIT_TESTED",
+     "why": "unit tests only"
+    },
+    {
+     "part": "platform:second_model_provider",
+     "status": "BLOCKED",
+     "why": "OpenAI: no credits (HTTP 429); Anthropic: credit balance too low (HTTP 400)"
+    }
+   ]
+  },
+  {
+   "requirement": "Sign-in and roles inside generated products",
+   "capability": "generated-app auth",
+   "agent": "identity_auth_agent",
+   "skills": [
+    "signup",
+    "login"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:signup",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    },
+    {
+     "part": "skill:login",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "Images for the product",
+   "capability": "media",
+   "agent": "image_agent",
+   "skills": [
+    "text_to_image"
+   ],
+   "platform": [],
+   "implementation": [
+    "omni_prod.providers.image_provider:PredictionImageProvider"
+   ],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "BLOCKED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:text_to_image",
+     "status": "BLOCKED",
+     "why": "not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF, OMNI_IMAGE_PROVIDER_MODEL"
+    }
+   ]
+  },
+  {
+   "requirement": "Automations",
+   "capability": "automation",
+   "agent": "automation_agent",
+   "skills": [
+    "workflow_test"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:workflow_test",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  },
+  {
+   "requirement": "2D games",
+   "capability": "games",
+   "agent": "game_engineering_2d_agent",
+   "skills": [
+    "gameplay_test"
+   ],
+   "platform": [],
+   "implementation": [],
+   "provider": "none (deterministic)",
+   "tests": [],
+   "evidence": [],
+   "cost": "$0",
+   "status": "NOT_IMPLEMENTED",
+   "shown_to_customer": false,
+   "note": "",
+   "parts": [
+    {
+     "part": "skill:gameplay_test",
+     "status": "NOT_IMPLEMENTED",
+     "why": "no implementation"
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "IMPLEMENTED": 10,
+  "REAL_SERVER_VERIFIED": 11,
+  "UNIT_TESTED": 6,
+  "NOT_IMPLEMENTED": 5,
+  "INTEGRATION_TESTED": 1,
+  "BLOCKED": 3
+ },
+ "customer_visible_findings": [
+  "shown to the customer but IMPLEMENTED: Describe the product in natural language (Hebrew/English)",
+  "shown to the customer but IMPLEMENTED: Clarifying questions only when needed",
+  "shown to the customer but IMPLEMENTED: Plan and cost quote before the build",
+  "shown to the customer but IMPLEMENTED: Approval binds the build to the approved contract",
+  "shown to the customer but IMPLEMENTED: Generate the product code",
+  "shown to the customer but IMPLEMENTED: Change the product in natural language",
+  "shown to the customer but UNIT_TESTED: Download the product as ZIP",
+  "shown to the customer but IMPLEMENTED: Stop a build; live progress journal"
+ ]
+}

@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 22, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 9, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 54, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 24, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 7, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 49, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -34,11 +34,11 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION
 | Compliance & IP Agent (`compliance_ip_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099 |  |
 | Provider Router Agent (`provider_router_agent`) | platform | **IMPLEMENTED** | compliance_ip_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | Cost & Economics Agent (`cost_economics_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| Infrastructure Agent (`infrastructure_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; superseded agent run closed; drain before repl — postdeploy-checks run 37954236866 (+ inspect 37955419872), deploy-worker run 38083162363 |  |
+| Infrastructure Agent (`infrastructure_agent`) | platform | **IMPLEMENTED** | sre_reliability_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py |  |
 | Deployment Agent (`deployment_agent`) | platform | **REAL_SERVER_VERIFIED** | release_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
 | Release Agent (`release_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py | no publishing to a live customer domain |
-| Observability Agent (`observability_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview cre — postdeploy-checks run 38083312245 |  |
-| SRE / Reliability Agent (`sre_reliability_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml |  |
+| Observability Agent (`observability_agent`) | platform | **IMPLEMENTED** | sre_reliability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py, omni_prod/build_control.py |  |
+| SRE / Reliability Agent (`sre_reliability_agent`) | platform | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: .github/workflows/deploy-worker.yml, omni_prod/maintenance.py |  |
 | Backup & Recovery Agent (`backup_recovery_agent`) | platform | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; retention prune — backup-restore run 37962179844 |  |
 | Migration Agent (`migration_agent`) | platform | **IMPLEMENTED** | backup_recovery_agent | real-server evidence is stale; code changed since: omni_prod/migrate.py |  |
 | Performance Agent (`performance_agent`) | quality | **NOT_IMPLEMENTED** | quality_gate_agent | no implementation | not implemented |
@@ -243,7 +243,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION
 | `cost_test` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `provider_failure_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only | simulated providers |
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
-| `resume_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | build restarts from the beginning |
+| `resume_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | build restarts from the beginning |
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
@@ -327,10 +327,10 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION
 | `runtime_validation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `resource_allocation` | Infrastructure | **NOT_IMPLEMENTED** | infrastructure_agent | no implementation | not implemented |
 | `queue_job_submit` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `job_resume` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers | restart from the beginning, once |
-| `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/job_repository.py |  |
+| `job_resume` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | restart from the beginning, once |
+| `job_cancel` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py, omni_prod/job_repository.py |  |
 | `job_timeout` | Infrastructure | **UNIT_TESTED** | infrastructure_agent | unit tests only |  |
-| `stale_job_recovery` | Infrastructure | **REAL_SERVER_VERIFIED** | infrastructure_agent | verified for: crash recovery (requeue once); build finished after recovery; settlement at metered usage; lost worker's calls settled; supers |  |
+| `stale_job_recovery` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py |  |
 | `preview_prepare` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
 | `preview_deploy` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
 | `preview_health_check` | Deployment | **REAL_SERVER_VERIFIED** | deployment_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
@@ -351,7 +351,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION
 | `release_publish` | Release | **NOT_IMPLEMENTED** | release_agent | no implementation | not implemented |
 | `rollback_point_create` | Release | **UNIT_TESTED** | release_agent | unit tests only |  |
 | `release_rollback` | Release | **NOT_IMPLEMENTED** | release_agent | no implementation | not implemented |
-| `execution_trace` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `execution_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py |  |
 | `agent_trace` | Observability | **UNIT_TESTED** | observability_agent | unit tests only |  |
 | `skill_trace` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `provider_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
@@ -359,7 +359,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 71, UNIT_TESTED 29, INTEGRATION
 | `failure_trace` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | `latency_measurement` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `health_metric` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
-| `structured_logging` | Observability | **REAL_SERVER_VERIFIED** | observability_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `structured_logging` | Observability | **IMPLEMENTED** | observability_agent | real-server evidence is stale; code changed since: omni_prod/build_control.py |  |
 | `incident_creation` | Observability | **NOT_IMPLEMENTED** | observability_agent | no implementation | not implemented |
 | `database_backup` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | same object store as artifacts |
 | `artifact_backup` | Backup / Recovery | **REAL_SERVER_VERIFIED** | backup_recovery_agent | verified for: database backup; artifact/project backup; restore of the stored copy; version rebuild from artifacts; preview data archive; re | content-addressed artifacts re-verified |
