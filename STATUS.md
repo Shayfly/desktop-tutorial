@@ -1,6 +1,6 @@
 # Update 2026-10-14 — conversational provider vertical slice
 
-Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `e364151`). This update does **not** claim a live provider-backed staging conversation. No paid provider call, deployment, merge, secret change, flag change, database migration, or authentication bypass was made; spend for this work was **$0**.
+Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `e364151`). This update does **not** claim a live provider-backed staging conversation. No paid provider call, manually initiated deployment, merge, secret change, flag change, database migration, or authentication bypass was made. GitHub/Vercel automatically created a PR Preview deployment and completed its deployment check; spend for this work was **$0**.
 
 **Implemented and independently verified**
 - The browser now distinguishes each assistant reply as model-generated, deterministic fallback, or a response that did not need a model, using the server's per-message status.
@@ -8,6 +8,7 @@ Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `
 - Local baseline before this change: `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing -v` — 80 tests passed, 4 PostgreSQL-dependent tests skipped after installing the missing FastAPI runtime dependency.
 - Final focused local verification: `python -m unittest tests.test_conversation_os tests.test_intake_assistant_he tests.test_intake_worker_route tests.test_model_catalog_routing tests.test_intake_budget_pg -v` — **86 tests passed, 10 PostgreSQL-dependent tests skipped**. `node --check omni_prod/assets/app.js`, `python -m compileall -q omni_prod tests`, and `git diff --check` passed.
 - On source head `b5f0625`, read-only CI records show `v24-ci` run 38488749440, `intake-budget-pg` run 38488749457, V11 Overlay CI run 38488749470, and intake/architecture regression run 38488749466 completed successfully. The earlier Linux full-suite evidence at `a799936` is 1,682 passed / 172 skipped / 324 subtests; it is not a new full-suite result for this worktree.
+- On implementation commit `00c01c53964ce3d8b00f8107ad283632820bb70d`, PR CI passed: `v24-ci` runs 38490498580/38490515291 (`test`, `customer-ui`, `compose-config`); V11 Overlay CI 38490498602/38490515318 (`validate`); `intake-budget-pg` 38490498636/38490515186 (`pg`); intake/architecture regression 38490515248 (`deterministic-regressions`). The Preview deployment completed automatically. No merge-candidate compatibility run is reported for this milestone.
 
 **Implemented but awaiting external live verification**
 - The source path already includes worker-only provider routing, durable reservations, response validation, persistent Postgres conversation/brief repositories, cost settlement, and explicit revision-bound customer approval. The new UI disclosure and regression coverage do not change that live status.
@@ -15,13 +16,13 @@ Baseline: verified PR #30 source head `b5f0625` (stacked on PR #28 source head `
 - Previous runtime evidence: read-only run `38312763134` found the staging intake worker switch off; staging-only action `38313019963` enabled it and later Preview flags/caps were configured. This is configuration evidence only.
 
 **Blocked by a named credential/service**
-- Authenticated Preview E2E is blocked by protected deployment authentication: deployment-verify run [38488792854](https://github.com/Shayfly/desktop-tutorial/actions/runs/38488792854) returned HTTP 401 `PROTECTED` before the customer journey. Required service/configuration: authorized `VERCEL_AUTOMATION_BYPASS_SECRET` or an equivalent approved authenticated test identity. Do not bypass the gate.
+- Authenticated Preview E2E is blocked by protected deployment authentication: on implementation commit `00c01c53964ce3d8b00f8107ad283632820bb70d`, deployment-verify run [38490544184](https://github.com/Shayfly/desktop-tutorial/actions/runs/38490544184) returned HTTP 401 `PROTECTED`; verdict `BLOCKED`, 0 journey checks executed and all 10 mandatory checks skipped. Earlier source-head run [38488792854](https://github.com/Shayfly/desktop-tutorial/actions/runs/38488792854) had the same blocker. Required service/configuration: authorized `VERCEL_AUTOMATION_BYPASS_SECRET` or an equivalent approved authenticated test identity. Do not bypass the gate.
 - This Windows worktree has no `OMNI_DATABASE_URL`, `OMNI_REDIS_URL`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OMNI_INTAKE_MODEL`, `OMNI_INTAKE_VIA_WORKER`, or Docker executable. Live Postgres persistence, Redis/RQ, provider configuration, and isolated build/preview therefore cannot be verified locally. Provider credential validity must be checked by the authorized owner without sharing values.
 
 **Not implemented / not verified**
 - No real provider-backed customer response, actual usage/cost settlement, durable staging conversation/restart recovery, or two-account isolation was observed in this milestone.
 - No live Architect -> Agent OS -> Build -> Repair -> Preview path was attempted. The existing tests and source are not staging evidence; continue only after the first conversational slice passes the protected staging gate.
-- New-head full CI and merge-candidate compatibility remain pending until this stacked branch is published and CI runs. The merge-candidate workflow is milestone-target-only; do not claim compatibility from a base-branch or synthetic prior run.
+- Merge-candidate compatibility remains unverified; its workflow is milestone-target-only, and no run was observed for this milestone. Do not claim compatibility from a base-branch or synthetic prior run.
 
 # 2026-10-12 — P0 session evidence (partial verification)
 
