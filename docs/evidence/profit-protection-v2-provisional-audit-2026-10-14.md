@@ -41,9 +41,18 @@ cannot be signed off until the full v2 source is available.
   rollback tests accidentally included migration 040 in a fixture intended
   to represent schema version 039. Neon bootstrap CI also exposed a stale
   generated file missing migrations 039-040 and Windows newline handling in
-  its generator/verifier. Both issues have narrow local fixes; corrective CI
-  is pending.
-- No migration was applied; no payment processor, paid provider, or production
+  its generator/verifier. Commit `1a1ce207` fixed both: push and PR PostgreSQL
+  runs [38557768232](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768232)
+  and [38557773477](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773477)
+  passed without skips, and Neon bootstrap runs
+  [38557768217](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768217)
+  and [38557773575](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773575)
+  passed. V24/V11 runs failed because the generated Agent OS registry still
+  labeled `migration_test` REAL_SERVER_VERIFIED after the verifier changed.
+  `audit --write` regenerated it and the focused registry/truth regression
+  passed 4 tests locally; rerun is pending.
+- Migration 040 ran only in disposable PostgreSQL CI. No Preview/staging/
+  Production migration, payment processor, paid provider, or production
   service was contacted.
 
 ## Status meanings

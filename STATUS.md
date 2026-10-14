@@ -50,13 +50,32 @@ included with LF output. The combined local command below passed **39 passed,
 python -m pytest -q tests\test_m5_build_economics.py tests\test_migration_rollback_tolerance.py tests\test_deployment_verification.py::ManifestTests tests\integration\test_m5_build_economics_postgres.py
 ```
 
-The PostgreSQL-only rollback and concurrency regressions require CI; corrective
-CI is pending.
+On head `1a1ce20737bf952c749fd3f53308c216ef02f4ff`, both
+[`intake-budget-pg` runs](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773477)
+and [38557768232](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768232)
+passed, including the no-skip gate; both [Neon bootstrap runs](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773575)
+and [38557768217](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768217)
+passed migration checksum, app-table, and rerun-guard checks.
+
+The same head's V24 test runs [38557768202](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768202)
+and [38557773638](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773638),
+and V11 validation runs [38557768203](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557768203)
+and [38557773492](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557773492),
+failed on stale generated registry data: `skills/migration_test` still claimed
+REAL_SERVER_VERIFIED after its verifier source changed. `python -m
+omni_prod.agent_os.audit --write` regenerated the registry; the exact registry
+and truth regression passed **4 tests locally**:
+
+```text
+python -m pytest -q tests\test_agent_os.py::AuditTests::test_committed_registry_is_current_and_not_inflated tests\test_agent_os.py::TruthMatrixTests
+```
+
+The V24/V11 failures were on the pre-regeneration artifacts; rerun is pending.
 
 Migration 040 has **not** been applied to Preview, staging, or Production.
 
 **Preview schema blocker:** Deployment run
-[38556919308](https://github.com/Shayfly/desktop-tutorial/actions/runs/38556919308)
+[38557838587](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557838587)
 failed only `schema_compatible`, reporting required migration 040 pending; its
 nested journey also returned `AUTH_INVALID` (401) and `HTTP_403`. Earlier run
 [38551925540](https://github.com/Shayfly/desktop-tutorial/actions/runs/38551925540)
