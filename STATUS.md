@@ -89,14 +89,35 @@ The d3e9d9c push/PR PostgreSQL runs
 and [38558486265](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486265)
 passed with no skips; Neon bootstrap run
 [38558486436](https://github.com/Shayfly/desktop-tutorial/actions/runs/38558486436)
-passed. CI on the regenerated department matrix is pending.
+passed. On corrected head `986e7b0`, V24 and V11 push/PR checks passed:
+[V24 push](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082202),
+[V24 PR](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085373),
+[V11 push](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082225),
+and [V11 PR](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085400).
+Deterministic regression [38559085391](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085391),
+Neon bootstrap/fresh-Postgres [38559085587](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085587),
+compose, customer UI, and the PR full V24 test all passed.
+
+The corrected-head push PostgreSQL suite
+[38559082247](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559082247)
+passed **177 tests, 56 subtests, no skips**. Its duplicate PR run
+[38559085600](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559085600)
+failed **1 of 177 tests** (176 passed, 56 subtests, no skips):
+`RealDockerDrainRecovery.test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything`.
+The isolated preview-worker exited 137 only when the 60-second drain deadline
+expired; Docker reported `oom=false`, so this is not evidence of an OOM kill.
+The test's strict `OOMKilled` assertion is retained. A reliable harness fix was
+not established; do not call exit 137 an OOM or weaken the assertion.
 
 Migration 040 has **not** been applied to Preview, staging, or Production.
 
 **Preview schema blocker:** Deployment run
-[38557838587](https://github.com/Shayfly/desktop-tutorial/actions/runs/38557838587)
-failed only `schema_compatible`, reporting required migration 040 pending; its
-nested journey also returned `AUTH_INVALID` (401) and `HTTP_403`. Earlier run
+[38559135355](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559135355)
+for head `986e7b0` failed only `schema_compatible`, reporting migration 040
+pending. Endpoint, commit SHA, synthetic registration, session identity,
+project creation, conversation, persistence, and project-memory checks passed.
+Sanitized nested checks additionally reported `AUTH_INVALID` (401) and
+`HTTP_403`, but did not add a second top-level failed check. Earlier run
 [38551925540](https://github.com/Shayfly/desktop-tutorial/actions/runs/38551925540)
 likewise received an empty applied-version set for the then-required
 migrations 1-21 and 26-39. This proves only that the journal is absent, empty,
@@ -107,15 +128,17 @@ journal/search-path evidence and a safe isolated environment.
 
 **Still blocked/incomplete:** The full titled v2 requirements document remains
 unavailable, so the 22-area map is provisional. Migration-backed concurrency,
-rollback, and bootstrap checks passed in disposable CI on d3e9d9c; V24/V11
-still need a rerun after the department-matrix refresh. The other four
-corrective areas remain incomplete: company-liability accounting for provider
-failures; an operational overrun/estimate-error liability policy; verified
-recognized-sale revenue distinct from cost/reserve; and hard company-wide
-Free/storage/abuse and auditable admin ceilings. Wallet/top-ups/refunds,
-calibrated estimates, checkpoint resume, and reconciled profitability/
-compliance reporting are also not implemented. No paid services, shared/live
-migration, merge, Production deployment, or budget change occurred.
+rollback, bootstrap, V24, V11, and deterministic checks passed on `986e7b0`;
+the PR PostgreSQL run is not green because the OOM fixture timed out without an
+OOMKilled signal, and Preview schema verification is blocked on unapplied 040.
+The other four corrective areas remain incomplete: company-liability
+accounting for provider failures; an operational overrun/estimate-error
+liability policy; verified recognized-sale revenue distinct from cost/reserve;
+and hard company-wide Free/storage/abuse and auditable admin ceilings.
+Wallet/top-ups/refunds, calibrated estimates, checkpoint resume, and
+reconciled profitability/compliance reporting are also not implemented. No
+paid services, shared/live migration, merge, Production deployment, or budget
+change occurred.
 
 ## Issue #6 / PR #31-#34 audit (evidence-bounded, 2026-10-14)
 

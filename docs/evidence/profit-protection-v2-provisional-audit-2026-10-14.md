@@ -54,7 +54,17 @@ cannot be signed off until the full v2 source is available.
   stale `DEPARTMENT_MATRIX.json` (generated IMPLEMENTED count 9 vs committed
   8); `departments --write` regenerated it and combined local registry/
   department/truth regressions passed 5 tests. PostgreSQL and Neon bootstrap CI
-  passed on `d3e9d9c`; full CI after the matrix refresh is pending.
+  passed on `d3e9d9c`. On corrected head `986e7b0`, V24/V11, deterministic,
+  Neon bootstrap, fresh-Postgres, compose, customer UI, and the V24 test
+  passed. The push PG suite passed 177 tests/56 subtests without skips. The
+  duplicate PR PG suite had one failure (176 passed, one failed, 56 subtests,
+  no skips): the OOM recovery test waited through the 60-second drain deadline
+  and received exit 137 with `oom=false`. The OOMKilled assertion was not
+  weakened, and no reliable fixture repair was found. Latest Preview verifier
+  [38559135355](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559135355)
+  failed only the schema check because migration 040 is pending; the other
+  deployment acceptance checks passed. No live migration or auth bypass was
+  performed.
 - Migration 040 ran only in disposable PostgreSQL CI. No Preview/staging/
   Production migration, payment processor, paid provider, or production
   service was contacted.
