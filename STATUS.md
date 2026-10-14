@@ -28,7 +28,7 @@ The PostgreSQL concurrency/restart tests were skipped because no disposable
 loopback `profit_test...` database was configured. Migration 039 remains
 unapplied.
 
-**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The local focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. On pushed head `78a0d05`, the real PostgreSQL/Redis Docker CI suite passed **174 tests, 56 subtests**, including the strict `OOMKilled=true` assertion. The deployment verifier still fails at `schema_compatible`: migrations 1-39, including 039, are pending. No migration was run.
+**Updated Docker recovery regression:** The first PR #34 GitHub Actions run had a genuine failure: the OOM workload was killed at the stop deadline with `oom=false`. The test now compiles a bounded allocator that touches every page of a 64 MiB allocation within the existing 64 MiB cgroup; the assertion still requires Docker's `OOMKilled=true` evidence and does not treat exit 137 alone as an OOM pass. The local focused command, including the Docker module, passed **118 tests with 17 skipped**; the eight Docker cases were skipped because Docker/PostgreSQL/Redis are unavailable here. Syntax compilation and `git diff --check` passed. The real PostgreSQL/Redis Docker CI suite passed **174 tests, 56 subtests** on both code head `78a0d05` and documentation-only head `7c21dc8`, including the strict `OOMKilled=true` assertion. The Preview deployment verifier passed 10/11 checks and fails at `schema_compatible`: migrations 1-21 and 26-39 are pending. No migration was run.
 
 **Blocked by a named credential/service:** Canonical rule-by-rule v2 completion
 is blocked by the missing full titled v2 specification. Live billing and
@@ -46,8 +46,8 @@ order and gates are recorded in
 Apart from that reservation replay hardening, no broader economy code was
 changed because the canonical v2 acceptance source is absent. No migration,
 real payment/provider call, budget change, merge, or production deployment was
-performed. The PR Preview deployment verifier remains blocked by unapplied
-migrations 1-39; no migration was run.
+performed. The PR Preview deployment verifier remains blocked by pending
+migrations 1-21 and 26-39; no migration was run.
 
 **Implemented and independently verified locally:** unpaid Checkout and metadata
 events cannot grant paid entitlements; entitlement changes preserve usage;
