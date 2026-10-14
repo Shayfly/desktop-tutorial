@@ -98,6 +98,12 @@ canonical.
   because the changed bootstrap verifier made the Agent OS `migration_test`
   evidence stale. The canonical registry refresh now records that status
   honestly; the fresh post-refresh Linux CI rerun is pending.
+- On head `398321901a9c8af593521b7a0aece2f2302a4579`, both `fresh-postgres`
+  and both `intake-budget-pg` runs passed. V24/V11 and their nested acceptance
+  check then found `DEPARTMENT_MATRIX.json` stale against the refreshed Agent
+  OS status counts. The canonical department generator has now regenerated
+  that matrix; the targeted audit and department tests pass (**2 passed**).
+  CI rerun after this final generated-matrix update is pending.
 - The Preview deployment verifier failed because the Preview database is
   missing migration 039 (as well as versions 1-21 and 26-38). No migration was
   applied; the shared Preview schema remains an integration blocker. Vercel
