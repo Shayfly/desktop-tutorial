@@ -3,10 +3,11 @@ name: 148AI intake and architecture regression gates
 on:
   pull_request:
   push:
-    branches: [codex/148ai-verified-intake-2026-10-12]
+    branches: [main, milestone/pre-staging-2026-10-05]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -37,3 +38,4 @@ jobs:
         with:
           name: deterministic-regression-evidence
           path: evidence/
+

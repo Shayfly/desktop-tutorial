@@ -1,11 +1,13 @@
 name: V11 Overlay CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches: [main, milestone/pre-staging-2026-10-05]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -14,6 +16,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -42,3 +45,4 @@ jobs:
           OMNI_S3_SECRET_KEY: CHANGE_ME
           OMNI_SANDBOX_RUNNER_URL: https://sandbox.invalid
           OMNI_LOCAL_MODEL_URL: https://model.invalid/v1
+
