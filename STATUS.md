@@ -104,6 +104,14 @@ canonical.
   OS status counts. The canonical department generator has now regenerated
   that matrix; the targeted audit and department tests pass (**2 passed**).
   CI rerun after this final generated-matrix update is pending.
+- On code head `3f8c45fbfeecc2a1362a03ccb1728a4169a1696f`, both V24 test jobs,
+  both V11 checks, both Postgres jobs, fresh-Postgres bootstrap, UI, compose,
+  deterministic regression, and Vercel Preview deployment passed. The
+  push-triggered UI job initially timed out on a hidden discovery button; its
+  failed-job rerun passed. The only remaining failing check is deployment
+  verification, which reports Preview missing migrations 1-21 and 26-39,
+  including `039_conversation_preferences`. This shared-schema blocker is not
+  resolved by applying migrations; none was applied.
 - The Preview deployment verifier failed because the Preview database is
   missing migration 039 (as well as versions 1-21 and 26-38). No migration was
   applied; the shared Preview schema remains an integration blocker. Vercel
