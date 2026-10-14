@@ -43,8 +43,10 @@ compared the code's required schema with the applied one.
 
 - Golden E2E (10 paid builds) — NOT RUN, needs budget approval.
 - Live AI conversation — not verified (no provider call made).
-- `deployment-verify` on a protected Preview needs the repository secret
-  `VERCEL_AUTOMATION_BYPASS_SECRET`; without it the verdict is BLOCKED (never VERIFIED).
+- `deployment-verify` on a protected Preview uses the repository secret
+  `VERCEL_AUTOMATION_BYPASS_SECRET` while Deployment Protection remains enabled.
+  On 2026-10-14 the verifier reached Preview but failed schema compatibility:
+  migration versions 1–38 were reported missing. See `STATUS.md` for the run.
 - Repair loop over deployment failures, defect intelligence, dashboards,
   adversarial suite, requirement→test traceability (P0.5–P0.12) — NOT IMPLEMENTED.
 - Automatic promotion block: the workflow produces a red check on the commit;
