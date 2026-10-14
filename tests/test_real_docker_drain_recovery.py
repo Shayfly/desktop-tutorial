@@ -27,13 +27,17 @@ ROOT = Path(__file__).resolve().parents[1]
 HOST = ROOT / 'infra' / 'worker-host'
 SERVICES = ('worker', 'intake-worker', 'intake-maintain', 'preview-worker')
 BASE_IMAGE = 'omni-e2e-oom-base-v2'
+# The allocator touches 64 MiB, strictly above the cgroup limit, so reclaiming
+# page cache can never let it fit (an equal limit made the kill nondeterministic).
+MEM_LIMIT_MIB = 48
+OOM_ALLOCATION_MIB = 64
 
 JOB_SH = r'''#!/bin/bash
 svc="$1"; ctl=/ctl
 [ "${GEN:-old}" = new ] && [ -f $ctl/startfail ] && { echo "startup failure of the new image"; exit 1; }
 [ "$svc" = worker ] && echo "*** Listening on omni-builds..."
 term() {
-  [ -f $ctl/$svc.oom ] && exec /bin/oom-allocator 64
+  [ -f $ctl/$svc.oom ] && exec /bin/oom-allocator @OOM_MIB@
   [ -f $ctl/$svc.ignore-term ] && return
   [ -f $ctl/$svc.finish-seconds ] && { read n < $ctl/$svc.finish-seconds; sleep "$n"; }
   exit 0
@@ -51,8 +55,8 @@ services:
     network_mode: none
     stop_grace_period: 30s
     volumes: ["%(ctl)s:/ctl"]
-    mem_limit: 64m
-    memswap_limit: 64m
+    mem_limit: {MEM_LIMIT_MIB}m
+    memswap_limit: {MEM_LIMIT_MIB}m
 ''' for s in SERVICES)
 
 
@@ -143,7 +147,7 @@ class RealDockerDrainRecovery(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         self.ctl = self.tmp / 'ctl'
         self.ctl.mkdir()
-        (self.ctl / 'job.sh').write_text(JOB_SH)
+        (self.ctl / 'job.sh').write_text(JOB_SH.replace('@OOM_MIB@', str(OOM_ALLOCATION_MIB)))
         self.host = self.tmp / 'host'
         self.host.mkdir()
         for f in ('drain.sh', 'recover.sh'):
@@ -301,7 +305,12 @@ class RealDockerDrainRecovery(unittest.TestCase):
     def test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything(self):
         if not (shutil.which('cc') or shutil.which('gcc') or shutil.which('clang')):
             self.skipTest('BLOCKED: a C compiler is required to build the bounded OOM allocator')
-        (self.ctl / 'preview-worker.oom').write_text('1')            # touch each page of a 64 MiB allocation in the same 64 MiB cgroup
+        cid = self.cid('preview-worker')[0]
+        limit = MEM_LIMIT_MIB * 1024 * 1024
+        self.assertEqual(self.inspect(cid, '{{.HostConfig.Memory}}'), str(limit), 'runner did not apply the memory limit')
+        self.assertEqual(self.inspect(cid, '{{.HostConfig.MemorySwap}}'), str(limit), 'runner did not disable swap')
+        self.assertGreater(OOM_ALLOCATION_MIB, MEM_LIMIT_MIB)
+        (self.ctl / 'preview-worker.oom').write_text('1')            # touches more anonymous memory than the cgroup allows
         d = self.drain(DRAIN_DEADLINE_SECONDS='60')
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)

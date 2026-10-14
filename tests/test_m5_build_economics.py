@@ -492,6 +492,20 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         reserve.assert_not_called()
         enqueue.assert_not_called()
 
+    def test_same_caller_key_after_worker_crash_replays_the_in_flight_build_without_new_debit(self):
+        for status in ('queued', 'running', 'failed'):
+            with self.subTest(status=status):
+                response, reserve, enqueue, jobs, exc = self._run(
+                    idempotency_result=(False, ('bld_crashed', status)),
+                )
+                self.assertIsNone(exc)
+                body = json.loads(response.body)
+                self.assertEqual((body['build_id'], body['status'], body['duplicate']),
+                                 ('bld_crashed', status, True))
+                reserve.assert_not_called()
+                enqueue.assert_not_called()
+                jobs.create_request.assert_not_called()
+
     def test_same_caller_key_with_changed_quote_returns_conflict(self):
         _, reserve, enqueue, jobs, exc = self._run(
             idempotency_result=ValueError('idempotency key reused with different request or quote'),
