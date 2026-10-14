@@ -238,7 +238,10 @@ class ConversationSupervisor:
                 return (self.reservations.counted(f'project:{account_id}:{project_id}'),
                         self.reservations.counted(B.DAILY_SCOPE))
             return self.store.conversation_cost(project_id), self.store.daily_cost()
-        return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None)
+        worker_route_available = self.worker_interpreter is not None or (
+            self.reservations is not None and self.enqueue is not None)
+        return intake_mode.resolve_with_spend(spend, has_direct_gateway=self.gateway is not None,
+                                              worker_route_available=worker_route_available)
 
     def _interpreter(self, project_id, account_id=None, request_key=None, task='conversation'):
         """Every paid call goes through a durable reservation (Issue #12); without

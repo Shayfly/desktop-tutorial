@@ -51,7 +51,8 @@ class _LocalSandbox:
         with tempfile.TemporaryDirectory() as d:
             for path, content in repository.items():
                 full = os.path.join(d, path); os.makedirs(os.path.dirname(full), exist_ok=True)
-                open(full, 'w').write(content)
+                with open(full, 'w', encoding='utf-8') as f:
+                    f.write(content)
             p = subprocess.run(list(argv), cwd=d, capture_output=True, text=True, timeout=60)
             return {'returncode': p.returncode, 'stdout': p.stdout, 'stderr': p.stderr}
 
@@ -116,9 +117,11 @@ class LinkedAssetSmokeTests(__import__('unittest').TestCase):
                "        b,c=(JS,'text/javascript') if self.path=='/app.js' else (PAGE,'text/html')\n"
                "        self.send_response(200);self.send_header('Content-Type',c);self.end_headers();self.wfile.write(b)\n"
                "http.server.HTTPServer(('127.0.0.1',int(os.environ['PORT'])),H).serve_forever()\n")
-        open(os.path.join(d, 'app.py'), 'w').write(app)
-        json.dump({'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
-                   'port': port, 'health_path': '/'}, open(os.path.join(d, '.omni', 'project.json'), 'w'))
+        with open(os.path.join(d, 'app.py'), 'w', encoding='utf-8') as f:
+            f.write(app)
+        with open(os.path.join(d, '.omni', 'project.json'), 'w', encoding='utf-8') as f:
+            json.dump({'schema_version': 2, 'runtime': 'python:3.11-slim', 'start': [sys.executable, 'app.py'],
+                       'port': port, 'health_path': '/'}, f)
         r = subprocess.run([sys.executable, '-c', _SMOKE], cwd=d, capture_output=True, text=True, timeout=60)
         return r.returncode, r.stdout.splitlines()[0]
 
