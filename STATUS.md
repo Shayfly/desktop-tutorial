@@ -48,6 +48,27 @@ The founder authorized planning, code preparation, and non-infrastructure tests 
 - No Staging resource was created; no new backup/restore was run; no migration, worker deploy, provider call, or E2E was run. The schema discrepancy (Preview reports 1–38 missing versus the Oct. 11 backup at 37) remains unresolved.
 - Migration execution remains NO-GO until the exact Staging resource identities are confirmed separate from both existing environments, a fresh backup of that exact target is restored and verified, and a dedicated isolated worker path exists. No Production or existing Preview change is authorized.
 
+## Update 2026-10-14 — Neon/Upstash candidates and connection preparation (LOCAL ONLY)
+
+The founder reports existing candidate resources: Neon project `148ai-db`, branch `preview-isolated-2026-10-12` (Frankfurt), and Upstash Redis `148ai-preview-isolated` (Frankfurt, Free). Do not create replacements. These names and plan details are **founder-provided, not independently verified**. A Neon branch can inherit data from its parent; its parent branch and snapshot lineage must be checked before it qualifies as containing no Production data.
+
+**Implemented and independently verified**
+- Added `infra/staging/.env.example` with blank connection fields, unique Staging key placeholders, and model/worker/provider spend disabled by default. Added `infra/staging/README_HE.md` with setup links and explicit safety gates.
+- `git check-ignore infra/staging/.env.local` confirms local connection files are ignored. No populated env file or credentials are present.
+- The stricter isolation checker and regression evidence are recorded above: **20 tests passed**.
+
+**Implemented but awaiting external live verification**
+- Read-only GitHub metadata lists environments `Preview`, `Preview – 148ai`, `Preview – 148aiv28`, `Production`, `Production – 148ai`, and `Production – 148aiv28`; no `Staging` environment. Actions Variables are empty. No Neon/Upstash/Staging-named repository secret exists. Secret values were not read.
+- The reported Neon branch/Upstash database have not been compared with Production. This Windows worktree has no Neon/Upstash/Vercel CLI or API token, `psql`, `redis-cli`, Docker, or Staging/Production/Preview DSN files. Vercel project variables were not inspected.
+
+**Blocked by a named credential/service**
+- An account operator must verify the Neon branch ID, parent and snapshot lineage against Production at [Neon Console](https://console.neon.tech/app/projects), and compare Upstash database ID/endpoint against Production at [Upstash Console](https://console.upstash.com/redis). Endpoint files must be staged locally or through a secure approved runner; do not send them in chat.
+- A separate Staging Vercel project/target must be confirmed at [Vercel Dashboard](https://vercel.com/dashboard). Do not add candidate DSNs to the existing Preview or Production deployment settings. Dedicated Staging GitHub environment secrets must use a separate worker path; do not replace `WORKER_ENV` or `WORKER_ENV_OVERRIDES`.
+
+**Not implemented / not verified**
+- No real endpoint isolation check, backup, restore, migration, Worker, deploy, Production change, paid call, or E2E has run. The existing backup workflow targets the shared worker and performs retention pruning; do not run it for this candidate. Before any migration, create a backup/export of the verified Staging target and restore it to a separate disposable PostgreSQL, then verify schema/history/data. Migration 001–038 remains NO-GO pending that evidence and explicit approval.
+- The environment is **not ready for real E2E**: isolated DB/Redis use, Neon data ancestry, Staging Vercel/worker configuration, and backup/restore are unverified. PR #31 was not changed; the preparation is local and unpushed to avoid automatic Preview workflows.
+
 # 2026-10-12 — P0 session evidence (partial verification)
 
 Read [the current evidence and gap report](docs/evidence/148ai_p0_2026-10-12.md) before interpreting historical status entries below. Final local focused regressions: 23 pass. Earlier exact-revision CI passed full pytest with 1607 passed / 172 skipped; palette changes require new CI. Golden AI/build/preview E2E is NOT_VERIFIED. Draft PR #21; no merge/Production/live migration/paid provider authorization.
