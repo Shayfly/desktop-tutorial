@@ -1,3 +1,96 @@
+# 2026-10-14 — Controlled rebaseline against MASTER SPEC v1
+
+This entry records the current controlled rebaseline. It does not supersede
+the evidence-bounded status below; older claims remain tied to their named
+commit and environment. No branch, commit, pull request, or prior evidence was
+discarded or rewritten.
+
+The user supplied MASTER SPEC v1 and Appendix A. The supplied Product
+Specification part 3 currently ends at the start of section 2; section 7's nine
+unverified capabilities and section 10's conflict rules are not in the received
+text or checked-out repository. The full canonical Profit Protection v2
+specification also remains unavailable. Do not infer these missing rules or
+claim full v2 compliance.
+
+See the consolidated [MASTER SPEC requirements-to-code gap
+matrix](docs/evidence/MASTER_SPEC_REQUIREMENTS_GAP_MATRIX_2026-10-14.md) for
+reusable implementations, gaps, all 18 cost-saving mechanisms, and the
+measurement plan. Draft PR #34 already contains a reusable Issue #6 P1/P3
+audit; its provisional Profit Protection v2 22-area list is explicitly not
+canonical.
+
+**Implemented and independently verified**
+- The existing worker-routed conversation, requirements brief, Architect,
+  revision-bound approval, build workflow, model gateway, attempt ledger,
+  cost quote, reservation, and release/acceptance code remain the intended
+  reuse path. Their local regression evidence is not live-provider or staging
+  proof.
+- The in-progress PR #31 account language preference change adds a
+  PostgreSQL-backed preference store, authenticated API, UI restore/save path,
+  and additive migration `039_conversation_preferences.sql`. The schema
+  manifest and compatibility test now include migration 039.
+- Offline focused command, with provider credentials, live opt-ins, database
+  URLs, and the live-smoke approval variable removed from the process
+  environment and zero-cost/external-fallback-off set:
+  `python -m pytest -q tests/test_conversation_os.py tests/test_intake_assistant_he.py tests/test_intake_worker_route.py tests/test_model_catalog_routing.py tests/test_intelligence_plane.py tests/test_intake_budget_pg.py tests/test_conversation_preferences.py tests/test_live_model_smoke_guard.py tests/test_deployment_verification.py::ManifestTests`
+  — **122 passed, 28 skipped, 34 subtests passed**. No provider call or
+  database migration was made.
+- Full Windows/Python 3.13 command `python -m pytest -q --tb=short` with the
+  same external credentials and live opt-ins cleared — **1,664 passed, 172
+  skipped, 30 failed, 4 errors, 332 subtests passed** (335.72s). This is not a
+  green full suite. Failures include Windows cp1252 reads of UTF-8 fixtures,
+  worker-deploy fake-container tests, and existing acceptance/preview/economics
+  cases; the focused conversational/migration suite above passed. Triage the
+  full-suite failures separately rather than treating them as waived.
+- `tools/live_model_smoke.py` remains an unrun, explicit-approval-only test
+  harness with a one-call and catalog-priced $0.25 cap; it is not product
+  acceptance and cannot protect against incorrect catalog prices or provider
+  billing discrepancies.
+
+**Implemented but awaiting external live verification**
+- Real provider-backed Hebrew discovery, durable PostgreSQL restart recovery,
+  authenticated approval, actual build execution, private preview, measured
+  usage settlement, and the full customer Golden E2E remain unverified.
+- The current conversation code is gated behind worker configuration, provider
+  credentials, reservations, and budgets. No paid API is activated under this
+  rebaseline.
+
+**Blocked by a named credential/service or integration decision**
+- PR #31 adds migration 039 for conversation preferences, while sibling draft
+  PR #33 independently uses 039 for billing-event idempotency and stacked PR
+  #34 adds 040 for build-request idempotency. Preserve all drafts; resolve the
+  migration ordering/numbering on a reviewed integration plan before combining,
+  pushing a combined stack, or deploying. No migration was applied.
+- A complete live Golden E2E is blocked by the explicit no-paid-API/no-shared
+  database constraints, absent independently verified isolated staging
+  Postgres/Redis/worker, worker-side provider authorization and caps, and the
+  unapplied schema chain. Preview and Production must not be migrated or used
+  as a substitute.
+- At the latest refreshed GitHub snapshot, PR #31 remains OPEN/DRAFT at
+  `c7df5882a13172e56ce2686db80a3a2034ca56aa`; recorded CI jobs fail after
+  2-4 seconds without useful test-step output, while Preview deployment
+  succeeds and deployment verification fails. PR #33 remains OPEN/DRAFT and
+  its deployment verifier fails. PR #34 remains OPEN/DRAFT; its V24/V11/PG,
+  compose, UI, and deterministic regression jobs pass, but deployment
+  verification fails because migration 040 is pending. This is not a
+  platform-wide CI-green claim. Recheck GitHub before any branch-state action.
+- The complete Product Specification part 3 is needed before the nine
+  section-7 capabilities or section-10 conflict rules can be entered as
+  normative backlog items.
+
+**Not implemented / not verified**
+- The nine Product Specification section-7 capabilities cannot yet be named
+  because that section was not supplied.
+- The 18 savings mechanisms are specified in the matrix, but most do not have
+  verified runtime activation or per-mechanism savings measurement. Do not
+  report their projected percentages as achieved savings.
+- The five-agent/27-skill structure, universal Appendix A tool envelope and
+  permissions, append-only hash-chained ledger, all 18 savings mechanisms,
+  and current-head real customer Golden E2E are not fully demonstrated.
+- No canonical Profit Protection v2 compliance claim, authenticated live
+  provider call, migration application, shared-database write, merge,
+  Production deployment, billing change, or provider spend is reported.
+
 # Update 2026-10-14 — OpenRouter route and latest verification
 
 PR #31 adds a priced, worker-only OpenRouter route for Hebrew requirements conversation. This is implementation evidence, not proof of a live connection. PR #28 and PR #30 remain unchanged. No provider request, paid call, migration, worker deployment, merge, Production change, or protected-deployment bypass was performed; provider spend is **$0**.

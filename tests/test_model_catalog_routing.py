@@ -72,6 +72,10 @@ class CatalogParsingTests(unittest.TestCase):
         self.assertEqual(models["gem"].status, "NOT_CONFIGURED")
         self.assertIsNone(models["gem"].endpoint)
         self.assertEqual(models["g-model"].status, "CONFIGURED")
+        optional_groq = {m.option.model: m for m in parse_model_catalog(
+            json.dumps(CATALOG), {k: v for k, v in KEYS.items() if k != "GROQ_API_KEY"})}["g-model"]
+        self.assertEqual(optional_groq.status, "NOT_CONFIGURED")
+        self.assertIsNone(optional_groq.endpoint)
 
     def test_public_dict_never_contains_key_value(self):
         for m in parse_model_catalog(json.dumps(CATALOG), KEYS):

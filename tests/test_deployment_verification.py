@@ -42,8 +42,8 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual((full['status'], full['missing'], full['unknown_applied']), ('COMPATIBLE', [], []))
         pending = compatibility([v for v in EXPECTED_VERSIONS if v != 38])     # deployed code ahead of the DB
         self.assertEqual((pending['compatible'], pending['missing']), (False, [38]))
-        ahead = compatibility(list(EXPECTED_VERSIONS) + [39])                   # DB ahead of this code
-        self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [39]))
+        ahead = compatibility(list(EXPECTED_VERSIONS) + [40])                   # DB ahead of this code
+        self.assertEqual((ahead['compatible'], ahead['unknown_applied']), (True, [40]))
         self.assertEqual(compatibility([])['missing'], list(EXPECTED_VERSIONS))
 
 

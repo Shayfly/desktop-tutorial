@@ -1212,7 +1212,15 @@ function applyConversation(view) {
   if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
 async function restoreConversation() {
-  try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
+  try {
+    const view = await api(convPath());
+    if (view.preferences && ['he', 'en'].includes(view.preferences.language)) {
+      S.lang = view.preferences.language;
+      localStorage.setItem('148ai_lang', S.lang);
+      applyLang();
+    }
+    applyConversation(view);
+  }
   catch (e) {
     // Conversation storage missing (migration pending) or unreachable: say so and
     // keep the guided questionnaire (the /discovery flow) working underneath.
@@ -1523,7 +1531,14 @@ function wire() {
   });
   $('registerBtn').addEventListener('click', () => authSubmit('register'));
   $('logoutBtn').addEventListener('click', logout);
-  $('langBtn').addEventListener('click', () => { S.lang = S.lang === 'he' ? 'en' : 'he'; localStorage.setItem('148ai_lang', S.lang); applyLang(); });
+  $('langBtn').addEventListener('click', async () => {
+    S.lang = S.lang === 'he' ? 'en' : 'he';
+    localStorage.setItem('148ai_lang', S.lang);
+    applyLang();
+    try {
+      await api('/api/v28/account/conversation-preferences', { method: 'PATCH', body: { language: S.lang } });
+    } catch (e) { $('composerMsg').textContent = explain(e); }
+  });
   $('projectSelect').addEventListener('change', e => selectProject(e.target.value));
   $('projectMenuBtn').addEventListener('click', openProjectDialog);
   $('firstProjectForm').addEventListener('submit', async e => {
