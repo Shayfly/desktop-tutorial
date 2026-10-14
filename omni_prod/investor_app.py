@@ -1902,7 +1902,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
         'messages': [{'role': m['role'], 'content': m['content'], 'brief_revision': m['brief_revision'],
                       'intent': (m.get('interpretation') or {}).get('intent'),
                       'actions': (m.get('interpretation') or {}).get('actions') or [],
-                      'attachments': (m.get('interpretation') or {}).get('attachments') or []}
+                      'attachments': (m.get('interpretation') or {}).get('attachments') or [],
+                      'ai_status': _conversation_message_status(m)}
                      for m in store.messages_for(project_id, limit=100)],
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
@@ -1917,7 +1918,20 @@ def _intake_mode(project_id: str):
     def spend():
         store = _conversation_store()
         return store.conversation_cost(project_id), store.daily_cost()
-    return intake_mode.resolve_with_spend(spend)
+    worker_route_available = _v28_pool is not None and bool(os.getenv('OMNI_REDIS_URL', '').strip())
+    return intake_mode.resolve_with_spend(spend, worker_route_available=worker_route_available)
+
+
+def _conversation_message_status(message: dict) -> str:
+    """Expose whether an assistant reply used a model, fell back, or needed no model."""
+    interpretation = message.get('interpretation') or {}
+    lane = (interpretation.get('lane') or {}).get('lane')
+    interpreter = str(message.get('interpreter') or '')
+    if interpreter.startswith(('model:', 'model+')):
+        return 'model'
+    if lane in ('standard', 'escalated'):
+        return 'fallback'
+    return 'not_used'
 
 
 @app.post('/api/v28/projects/{project_id}/conversation')

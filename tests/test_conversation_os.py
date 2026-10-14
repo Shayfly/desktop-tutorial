@@ -384,6 +384,10 @@ class WorkspaceAssetTests(unittest.TestCase):
         self.assertIn('/builds/${encodeURIComponent(S.build.id)}/plan', self.js)
         self.assertIn('/modifications', self.js)       # changes still go through the existing pipeline
 
+    def test_chat_discloses_deterministic_fallback_per_reply(self):
+        self.assertIn("m.ai_status === 'fallback'", self.js)
+        self.assertIn('aiFallback:', self.js)
+
     def test_no_fake_sidebar_items(self):
         lowered = self.html.lower()
         for fake in ('scheduled', 'artifacts', 'codex', 'gpts', 'sora', 'chatgpt'):

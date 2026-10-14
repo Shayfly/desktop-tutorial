@@ -51,6 +51,9 @@ class ModeTests(unittest.TestCase):
         m = resolve(no_worker, has_direct_gateway=True)                             # would bypass reservations
         self.assertEqual(m.mode, M.DETERMINISTIC)
         self.assertIn('reservations', m.reason)
+        unavailable = resolve(ALL, worker_route_available=False)
+        self.assertEqual(unavailable.mode, M.DETERMINISTIC)
+        self.assertIn('worker route is unavailable', unavailable.reason)
 
     def test_cost_estimate_uses_the_source_backed_price(self):
         est = M.estimate_message_cost()
@@ -82,6 +85,14 @@ class SupervisorBudgetTests(unittest.TestCase):
         fake = FakeModel()
         self.store = MemoryConversationStore()
         self.sup = ConversationSupervisor(briefs=MemoryBriefs(), store=self.store, worker_interpreter=fake)
+
+    def test_supervisor_does_not_advertise_model_without_reservation_and_queue(self):
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        sup = ConversationSupervisor(briefs=self.sup.briefs, store=self.store)
+        with mock.patch.dict(os.environ, {**CLEAR, **ALL}):
+            status = sup.intake_mode('p', 'a')
+        self.assertEqual(status.mode, M.DETERMINISTIC)
+        self.assertIn('worker route is unavailable', status.reason)
 
     def turn(self, env, msg, project='p'):
         with mock.patch.dict(os.environ, {**CLEAR, **env}):
@@ -185,7 +196,7 @@ class TruthfulLabelTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {**CLEAR, **ALL}):
             m = self.app._intake_mode('p')
         self.assertEqual(m.mode, M.DETERMINISTIC)
-        self.assertIn('spend unavailable', m.reason)
+        self.assertIn('worker route is unavailable', m.reason)
 
     def test_spend_is_not_read_when_no_model_could_run(self):
         def boom():
@@ -194,6 +205,22 @@ class TruthfulLabelTests(unittest.TestCase):
             self.assertEqual(M.resolve_with_spend(boom).mode, M.DETERMINISTIC)
         with mock.patch.dict(os.environ, {**CLEAR, **ALL}):
             self.assertEqual(M.resolve_with_spend(lambda: (Decimal('0'), Decimal('0'))).mode, M.MODEL_WORKER)
+            self.assertEqual(M.resolve_with_spend(lambda: self.fail('spend read'),
+                                                  worker_route_available=False).mode, M.DETERMINISTIC)
+
+
+class ConversationDeliveryStatusTests(unittest.TestCase):
+    def test_status_reflects_the_interpreter_used_for_each_saved_turn(self):
+        from omni_prod.investor_app import _conversation_message_status
+        lane = {'lane': 'standard'}
+        self.assertEqual(_conversation_message_status({
+            'interpreter': 'model:gemini-3.1-flash-lite+deterministic', 'interpretation': {'lane': lane}}), 'model')
+        self.assertEqual(_conversation_message_status({
+            'interpreter': 'deterministic', 'interpretation': {'lane': lane}}), 'fallback')
+        self.assertEqual(_conversation_message_status({
+            'interpreter': 'deterministic', 'interpretation': {'lane': {'lane': 'deterministic'}}}), 'not_used')
+        self.assertEqual(_conversation_message_status({
+            'interpreter': 'deterministic', 'interpretation': {}}), 'not_used')
 
 
 if __name__ == '__main__':

@@ -57,7 +57,7 @@ class IntakeMode:
 
 
 def resolve(*, project_spent: Decimal = Decimal('0'), daily_spent: Decimal = Decimal('0'),
-            has_direct_gateway: bool = False) -> IntakeMode:
+            has_direct_gateway: bool = False, worker_route_available: bool | None = None) -> IntakeMode:
     project_cap = _money('OMNI_INTAKE_MODEL_BUDGET_USD')
     daily_cap = _money('OMNI_INTAKE_DAILY_BUDGET_USD')
     reserve = _money('OMNI_INTAKE_CALL_BUDGET_USD', str(DEFAULT_CALL_RESERVE))
@@ -76,6 +76,8 @@ def resolve(*, project_spent: Decimal = Decimal('0'), daily_spent: Decimal = Dec
     if daily_spent + reserve > daily_cap:
         return IntakeMode(DETERMINISTIC, 'daily intake budget exhausted', **caps)
     if os.getenv('OMNI_INTAKE_VIA_WORKER') == '1':
+        if worker_route_available is False:
+            return IntakeMode(DETERMINISTIC, 'intake worker route is unavailable', **caps)
         return IntakeMode(MODEL_WORKER, 'authorized; routed through the worker', **caps)
     if has_direct_gateway:
         return IntakeMode(DETERMINISTIC, 'direct model calls are disabled: paid calls run only through '
@@ -96,15 +98,17 @@ def estimate_message_cost(model: str = RECOMMENDED_MODEL, when=None) -> dict:
             'price_effective_from': str(row.effective_from)}
 
 
-def resolve_with_spend(spend, *, has_direct_gateway: bool = False) -> IntakeMode:
+def resolve_with_spend(spend, *, has_direct_gateway: bool = False,
+                       worker_route_available: bool | None = None) -> IntakeMode:
     """resolve() reading spend lazily: `spend()` -> (project_spent, daily_spent)
     is only called when a model could otherwise run; any failure reading it
     fails closed (deterministic)."""
-    optimistic = resolve(has_direct_gateway=True)
+    optimistic = resolve(has_direct_gateway=True, worker_route_available=worker_route_available)
     if not optimistic.paid:
-        return resolve(has_direct_gateway=has_direct_gateway)
+        return resolve(has_direct_gateway=has_direct_gateway, worker_route_available=worker_route_available)
     try:
         project_spent, daily_spent = spend()
     except Exception as exc:  # spend unknown -> never risk an uncapped call
         return IntakeMode(DETERMINISTIC, f'intake spend unavailable ({type(exc).__name__})')
-    return resolve(project_spent=project_spent, daily_spent=daily_spent, has_direct_gateway=has_direct_gateway)
+    return resolve(project_spent=project_spent, daily_spent=daily_spent, has_direct_gateway=has_direct_gateway,
+                   worker_route_available=worker_route_available)
