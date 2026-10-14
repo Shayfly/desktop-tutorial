@@ -47,8 +47,9 @@ class BuildControl:
             return
         try:
             self.flush()
-        except Exception:  # pragma: no cover - telemetry must never fail a build
+        except Exception:
             _log.warning('attempt ledger flush failed for %s', self.build_id, exc_info=True)
+            raise  # Financial write-ahead is mandatory; customer logs remain best effort.
 
     def log(self, kind: str, message: str) -> None:
         add = getattr(self._jobs, 'add_event', None)

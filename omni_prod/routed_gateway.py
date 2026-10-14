@@ -11,7 +11,7 @@ from .model_gateway import (ModelEndpoint, OpenAICompatibleGateway, ModelGateway
 from .model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
 from .provider_usage import ProviderUsageLedger
 from .model_router import RoutingPolicy, estimated_cost
-from .attempt_ledger import AttemptRecord, AttemptRecorder, content_version, metered_cost
+from .attempt_ledger import AttemptLedgerUnavailable, AttemptRecord, AttemptRecorder, content_version, metered_cost
 import os
 
 
@@ -188,8 +188,16 @@ class RoutedModelGateway:
         if self.on_attempt_start is not None:
             try:
                 self.on_attempt_start()
-            except Exception:  # telemetry must never block the call
-                pass
+            except Exception as exc:
+                # No provider was contacted. Undo only this admission and stop
+                # every fallback rather than spending without financial proof.
+                if route.endpoint.external:
+                    self.state.external_calls -= 1
+                    self.state.external_spend_usd -= route.max_estimated_cost_usd
+                record.outcome = 'error'
+                record.metered_cost_usd = Decimal('0')
+                record.failure_reason = 'attempt ledger unavailable before provider dispatch'
+                raise AttemptLedgerUnavailable(record.failure_reason) from exc
         try:
             gateway = self.gateway_factory(route.endpoint)
             value = getattr(gateway, method)(**kwargs)
@@ -412,6 +420,8 @@ class RoutedModelGateway:
                                          task=task, option=option, rank=rank, candidate_set=candidate_set)
                 except Exception as exc:
                     last_error = exc
+                    if isinstance(exc, AttemptLedgerUnavailable):
+                        raise
                     if isinstance(exc, ModelPolicyViolation):
                         # A route whose worst case does not fit the remaining
                         # budget is passed over for a cheaper one that does (still
@@ -429,6 +439,8 @@ class RoutedModelGateway:
                                                          task=task, option=option, rank=rank, candidate_set=candidate_set)
                                 except Exception as fitted_exc:
                                     last_error = fitted_exc
+                                    if isinstance(fitted_exc, AttemptLedgerUnavailable):
+                                        raise
                                     if isinstance(fitted_exc, ModelPolicyViolation) and 'budget exceeded' not in str(fitted_exc):
                                         raise
                                     if quota_exhausted(fitted_exc):

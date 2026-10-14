@@ -2,7 +2,7 @@ name: Financial fault experiment (G3)
 
 on:
   pull_request:
-    branches: [shayfly-profit-protection-v2-follow-up]
+    branches: [shayfly-profit-protection-v2-follow-up, audit/financial-fault-g3-20261014]
     paths:
       - tests/financial_fault_harness.py
       - tests/integration/test_financial_fault_experiment.py

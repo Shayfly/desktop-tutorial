@@ -115,12 +115,13 @@ class LedgerFlushTests(unittest.TestCase):
         ControlledExecutor(inner, control).execute(repository={}, spec=None)
         self.assertEqual(len(flushed), 2)
 
-    def test_a_failing_flush_never_fails_the_build(self):
+    def test_financial_flush_failure_blocks_the_build(self):
         from omni_prod.build_control import BuildControl
         control = BuildControl(MagicMock(checkpoint=MagicMock(return_value=False)), 'b')
         control.flush = MagicMock(side_effect=OSError('db down'))
-        control.before_model_call('codegen')
-        self.assertEqual(control.model_calls, 1)
+        with self.assertRaisesRegex(OSError, 'db down'):
+            control.before_model_call('codegen')
+        self.assertEqual(control.model_calls, 0)
 
 
 

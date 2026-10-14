@@ -7,6 +7,14 @@ from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLA
 from .provider_pricing import contribution_evidence
 
 
+def provider_exposure(cur, build_id: str) -> bool:
+    """True when durable attempts contain paid or uncertain provider liability."""
+    cur.execute("SELECT EXISTS (SELECT 1 FROM task_attempts WHERE build_id=%s AND kind='provider_call' "
+                "AND (COALESCE(metered_cost_usd,0)>0 OR "
+                "(metered_cost_usd IS NULL AND COALESCE(authorized_cost_usd,0)>0)))", (build_id,))
+    return bool(cur.fetchone()[0])
+
+
 class PostgresSubscriptionService:
     """Persistent monthly plan/usage ledger for production creator accounts."""
     def __init__(self, *, pool: DatabasePool):
@@ -382,6 +390,11 @@ class PostgresSubscriptionService:
                     user_id, status, credits_reserved, estimated_cost = row[0], row[1], row[2], Decimal(str(row[3]))
 
                     if status != 'RESERVED': return
+
+                    # Mandatory write-ahead takes this same reservation lock.
+                    # Missing/failed evidence queries raise and keep funds held.
+                    if provider_exposure(cur, build_id):
+                        return
 
                     cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now() WHERE build_id=%s", (build_id,))
                     if row[4] == 'internal_qa':

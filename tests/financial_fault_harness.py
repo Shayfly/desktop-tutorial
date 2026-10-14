@@ -34,7 +34,7 @@ def validate_database(url: str) -> None:
         raise ValueError('experiment requires a loopback PostgreSQL endpoint')
     if not parsed.path.lstrip('/').startswith('fault_'):
         raise ValueError('experiment database name must start with fault_')
-    with psycopg.connect(url) as conn:
+    with psycopg.connect(url, connect_timeout=5) as conn:
         marker = conn.execute("SELECT to_regclass('financial_fault_database_marker')").fetchone()[0]
         if not marker or conn.execute('SELECT source_sha FROM financial_fault_database_marker').fetchall() != [(BASE_SOURCE_SHA,)]:
             raise ValueError('experiment requires its disposable-database ownership marker')
@@ -96,7 +96,7 @@ def worker(url: str, build_id: str, provider_url: str) -> None:
                        attempt_pool=pool)
 
 
-def run_case(url: str, output: Path, *, fail_ledger: bool) -> dict:
+def run_case(url: str, output: Path, *, fail_ledger: bool, expect_prevention: bool = False) -> dict:
     validate_database(url)
     from omni_prod import maintenance
     from omni_prod.db import DatabasePool
@@ -152,7 +152,7 @@ def run_case(url: str, output: Path, *, fail_ledger: bool) -> dict:
                                        'FROM credit_reservations WHERE build_id=%s', (build_id,)).fetchone()
             balance = conn.execute('SELECT credits_used, provider_spend_usd FROM creator_subscriptions '
                                    'WHERE user_id=%s', (account,)).fetchone()
-            job = conn.execute('SELECT status, recovery_attempts FROM build_jobs WHERE id=%s', (build_id,)).fetchone()
+            job = conn.execute('SELECT status, recovery_attempts, error_code FROM build_jobs WHERE id=%s', (build_id,)).fetchone()
             attempts = conn.execute('SELECT outcome, authorized_cost_usd, metered_cost_usd FROM task_attempts '
                                     'WHERE build_id=%s', (build_id,)).fetchall()
         return {'reservation': list(reservation), 'balance': list(balance), 'job': list(job),
@@ -197,7 +197,7 @@ def run_case(url: str, output: Path, *, fail_ledger: bool) -> dict:
                                          stdout=log, stderr=log, env=env)
                 children.append(child)
                 wait_for(lambda: len(provider_rows()) >= index + 1 or child.poll() is not None)
-                if index == 0 and child.poll() is not None:
+                if index == 0 and child.poll() is not None and not expect_prevention:
                     raise AssertionError('charge-then-crash window was not exercised; worker stopped before first receipt: '
                                          + log_path.read_text(encoding='utf-8'))
                 if child.poll() is None:
@@ -221,6 +221,8 @@ def run_case(url: str, output: Path, *, fail_ledger: bool) -> dict:
             if len(deliveries) > 1 or any(x != (maintenance.BUILD_JOB, build_id) for x in deliveries):
                 raise AssertionError('unexpected or repeated recovery delivery')
         final = snapshot()
+        if expect_prevention and not provider_rows() and final['job'][2] != 'attempt_ledger_unavailable':
+            raise AssertionError('no dispatch, but the financial journal guard was not the stopping reason')
         cost = sum((Decimal(row[1]) for row in provider_rows()), Decimal('0'))
         held = Decimal(str(final['balance'][1]))
         status, quoted, actual, settled, reserved_credits = final['reservation']
@@ -236,7 +238,9 @@ def run_case(url: str, output: Path, *, fail_ledger: bool) -> dict:
                   'reservation_not_released_as_free': cost == 0 or status != 'RELEASED',
                   'balance_matches_provider_liability': held == expected_held and held >= cost
                       and final['balance'][0] == expected_credits}
-        return {'case': 'ledger_write_failure' if fail_ledger else 'durable_ledger_control',
+        return {'case': 'journal_guard_prevention' if expect_prevention else
+                       'ledger_write_failure' if fail_ledger else 'durable_ledger_control',
+                'window': 'pre-dispatch journal guard' if expect_prevention else 'provider receipt then worker crash',
                 'source_sha': BASE_SOURCE_SHA, 'build_id': build_id,
                 'provider_cost_usd': str(cost), 'provider_requests': len(provider_rows()),
                 'worker_exit_codes': [p.returncode for p in children], 'deliveries': deliveries,

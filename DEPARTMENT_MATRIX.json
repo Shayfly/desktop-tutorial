@@ -1,10 +1,9 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 11,
+  "IMPLEMENTED": 12,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 3,
-  "READY": 1
+  "PARTIAL": 3
  },
  "departments": [
   {
@@ -255,19 +254,19 @@
   {
    "key": "D10",
    "name": "DevOps, Cloud & Infrastructure",
-   "readiness": "READY",
+   "readiness": "PARTIAL",
    "responsibilities": "workers, sandboxes, previews, backups",
    "core_agents": {
-    "infrastructure_agent": "REAL_SERVER_VERIFIED",
+    "infrastructure_agent": "IMPLEMENTED",
     "deployment_agent": "REAL_SERVER_VERIFIED"
    },
    "support_agents": {
     "backup_recovery_agent": "REAL_SERVER_VERIFIED"
    },
    "skills": {
-    "IMPLEMENTED": 8,
+    "IMPLEMENTED": 10,
     "NOT_IMPLEMENTED": 6,
-    "REAL_SERVER_VERIFIED": 18,
+    "REAL_SERVER_VERIFIED": 16,
     "UNIT_TESTED": 1
    },
    "missing_roles": [],
@@ -326,9 +325,9 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 9,
+    "IMPLEMENTED": 10,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 13,
+    "REAL_SERVER_VERIFIED": 12,
     "UNIT_TESTED": 7
    },
    "missing_roles": [],
@@ -466,12 +465,12 @@
   {
    "key": "D17",
    "name": "Release, Reliability & Operations",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "release gate, observability, incidents, rollback",
    "core_agents": {
     "release_agent": "IMPLEMENTED",
     "quality_gate_agent": "UNIT_TESTED",
-    "observability_agent": "REAL_SERVER_VERIFIED",
+    "observability_agent": "IMPLEMENTED",
     "sre_reliability_agent": "IMPLEMENTED"
    },
    "support_agents": {
@@ -479,9 +478,9 @@
     "platform_capability_auditor": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 5,
+    "IMPLEMENTED": 7,
     "NOT_IMPLEMENTED": 7,
-    "REAL_SERVER_VERIFIED": 4,
+    "REAL_SERVER_VERIFIED": 2,
     "UNIT_TESTED": 2
    },
    "missing_roles": [],
