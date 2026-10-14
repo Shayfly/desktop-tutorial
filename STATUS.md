@@ -66,13 +66,26 @@ canonical.
   Postgres/Redis/worker, worker-side provider authorization and caps, and the
   unapplied schema chain. Preview and Production must not be migrated or used
   as a substitute.
-- At the latest refreshed GitHub snapshot, PR #31 remains OPEN/DRAFT at
-  `c7df5882a13172e56ce2686db80a3a2034ca56aa`; recorded CI jobs fail after
-  2-4 seconds without useful test-step output, while Preview deployment
-  succeeds and deployment verification fails. PR #33 remains OPEN/DRAFT and
-  its deployment verifier fails. PR #34 remains OPEN/DRAFT; its V24/V11/PG,
-  compose, UI, and deterministic regression jobs pass, but deployment
-  verification fails because migration 040 is pending. This is not a
+- On pushed PR #31 code head `cba62f212f9419e928af8774629a9c51f692fd88`
+  (OPEN/DRAFT), both V24 test jobs, both compose/UI runs, both V11 checks,
+  deterministic regressions, and Vercel Preview deployment passed. This is
+  useful CI evidence, not live-AI acceptance.
+- That head's two `intake-budget-pg` runs failed 2 rollback-tolerance tests:
+  the older-package fixture explicitly allowed migration 038 but the database
+  also had 039. The follow-up now explicitly allows only versions 038 and 039
+  in those rollback tests and still refuses 040. The `fresh-postgres` job
+  failed because the generated bootstrap lacked migration 039; the follow-up
+  regenerates it and compares exact bytes so mixed SQL line endings are
+  preserved. These fixes have local unit/check evidence; their CI rerun is
+  pending the follow-up push.
+- The Preview deployment verifier failed because the Preview database is
+  missing migration 039 (as well as versions 1-21 and 26-38). No migration was
+  applied; the shared Preview schema remains an integration blocker. Vercel
+  deployment success is not schema or application acceptance.
+- At the last recorded snapshot, PR #33 remained OPEN/DRAFT with its
+  deployment verifier failing; PR #34 remained OPEN/DRAFT, with its V24/V11/
+  PG, compose, UI, and deterministic regression jobs passing but deployment
+  verification failing on pending migration 040. This is not a
   platform-wide CI-green claim. Recheck GitHub before any branch-state action.
 - The complete Product Specification part 3 is needed before the nine
   section-7 capabilities or section-10 conflict rules can be entered as

@@ -65,10 +65,11 @@ def render() -> str:
 if __name__ == "__main__":
     text = render()
     if "--check" in sys.argv:
-        if TARGET.read_text() != text:
+        if TARGET.read_bytes().decode("utf-8") != text:
             print("bootstrap drift: run python3 tools/generate_neon_bootstrap.py")
             sys.exit(1)
         print("bootstrap up to date")
     else:
-        TARGET.write_text(text)
+        with TARGET.open("w", encoding="utf-8", newline="") as target:
+            target.write(text)
         print("wrote", TARGET.relative_to(ROOT))

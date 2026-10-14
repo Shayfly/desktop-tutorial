@@ -1534,6 +1534,16 @@ CREATE INDEX IF NOT EXISTS conversation_attachments_project
 
 -- END SOURCE 038_conversation_attachments.sql
 
+-- BEGIN SOURCE 039_conversation_preferences.sql
+-- Persist the account's conversation language preference. Additive only.
+CREATE TABLE IF NOT EXISTS conversation_preferences (
+    account_id  TEXT PRIMARY KEY REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    language    TEXT NOT NULL DEFAULT 'he' CHECK (language IN ('he', 'en')),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- END SOURCE 039_conversation_preferences.sql
+
 -- Record exact original migration checksums for the normal migration runner.
 INSERT INTO schema_migrations(version, name, sha256)
 VALUES (1, 'control_plane', encode(sha256(convert_to($source_001$CREATE TABLE IF NOT EXISTS build_jobs (
@@ -3017,6 +3027,15 @@ CREATE INDEX IF NOT EXISTS conversation_attachments_project
     ON conversation_attachments (project_id, account_id, created_at)
     WHERE deleted_at IS NULL;
 $source_038$, 'UTF8')), 'hex'));
+
+INSERT INTO schema_migrations(version, name, sha256)
+VALUES (39, 'conversation_preferences', encode(sha256(convert_to($source_039$-- Persist the account's conversation language preference. Additive only.
+CREATE TABLE IF NOT EXISTS conversation_preferences (
+    account_id  TEXT PRIMARY KEY REFERENCES creator_accounts(id) ON DELETE CASCADE,
+    language    TEXT NOT NULL DEFAULT 'he' CHECK (language IN ('he', 'en')),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+$source_039$, 'UTF8')), 'hex'));
 
 COMMIT;
 
