@@ -11,6 +11,20 @@ EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 42))
 REQUIRED_MIGRATION_NAME = '041_company_loss_ledger'
 
 
+def db_fingerprint(host, dbname) -> str:
+    """Comparable identity of a database without exposing a URL: host and
+    database name only, never user or password."""
+    import hashlib
+    return hashlib.sha256(f'{host or ""}|{dbname or ""}'.encode('utf-8')).hexdigest()[:12]
+
+
+def db_identity(conn) -> dict:
+    """{'db_host', 'db_fingerprint'} for an open psycopg connection."""
+    host = getattr(getattr(conn, 'info', None), 'host', None)
+    dbname = conn.execute('SELECT current_database()').fetchone()[0]
+    return {'db_host': host, 'db_fingerprint': db_fingerprint(host, dbname)}
+
+
 def compatibility(applied) -> dict:
     """Required (code) vs applied (database) migration versions -- the single rule
     used by GET /api/v28/deployment (Vercel, no .sql files in the bundle) and by

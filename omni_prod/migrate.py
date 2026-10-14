@@ -21,6 +21,7 @@ from pathlib import Path
 
 from .migrations import discover_migrations, pending_migrations
 from .migration_runner import apply_migrations, _load_applied
+from .schema_manifest import db_identity
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / 'infra' / 'postgres'
 
@@ -54,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
     with psycopg.connect(url, connect_timeout=10) as conn:
         with conn.cursor() as cur:
             applied = _load_applied(cur)
+        ident = db_identity(conn)
+        print(f"database: host={ident['db_host']} fingerprint={ident['db_fingerprint']}")
         pending = pending_migrations(migrations, applied, accept)
         ahead = sorted(v for v in applied if v not in {m.version for m in migrations})
         if ahead:

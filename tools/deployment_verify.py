@@ -268,6 +268,11 @@ def _schema_evidence(schema) -> dict:
             ev[k] = schema[k]
     if isinstance(schema.get('missing'), list):
         ev['missing'] = [v for v in schema['missing'] if isinstance(v, int)][:50]
+    if isinstance(schema.get('schema_migrations_present'), bool):
+        ev['schema_migrations_present'] = schema['schema_migrations_present']
+    for k, pat in (('db_host', r'[A-Za-z0-9._:-]{1,255}'), ('db_fingerprint', r'[0-9a-f]{12}')):
+        if isinstance(schema.get(k), str) and re.fullmatch(pat, schema[k]):
+            ev[k] = schema[k]
     ev['compatible'] = schema.get('compatible') is True
     return ev
 
