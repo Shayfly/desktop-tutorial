@@ -1,12 +1,41 @@
 name: v24-ci
-"on": [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [main, milestone/pre-staging-2026-10-05]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      heavy: ${{ steps.scope.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Classify changed files (unknown diffs run heavy checks)
+        id: scope
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/ci_scope.py
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -39,8 +68,17 @@ jobs:
         run: python -m omni_prod.agent_os.audit
       - run: python scripts/run_hostile_static_suite.py
       - run: python scripts/run_international_gate.py
+      - name: Retain test report even after failure or timeout
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: pytest-report.xml
+          retention-days: 7
+          if-no-files-found: warn
   compose-config:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -51,8 +89,11 @@ jobs:
           persist-credentials: false
       - run: cp .env.example .env
       - run: docker compose -f docker-compose.international.yml config >/dev/null
-  customer-ui:
+  browser-tests:
+    needs: changes
+    if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -70,4 +111,24 @@ jobs:
           node --check tests/customer_flow_browser.cjs
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       - run: npx playwright install --with-deps chromium
+        timeout-minutes: 5
       - run: node tests/customer_flow_browser.cjs
+        timeout-minutes: 5
+  customer-ui:
+    # Preserve the required check name and fail closed if classification fails.
+    needs: [changes, browser-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require browser success or an explicit documentation-only skip
+        env:
+          SCOPE_RESULT: ${{ needs.changes.result }}
+          HEAVY: ${{ needs.changes.outputs.heavy }}
+          TEST_RESULT: ${{ needs.browser-tests.result }}
+        run: python scripts/ci_scope.py --verify-gate
+

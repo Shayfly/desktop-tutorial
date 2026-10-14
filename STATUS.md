@@ -2450,3 +2450,12 @@ Awaiting live storage probe on new Preview. No claim that SignatureDoesNotMatch 
 ## 2026-10-11: PR17 branch reconciliation with PR11
 
 PR11 is integrated into the PR17 branch only. Schema compatibility now requires migration 038, matching the attachment migration already present in PR17. Existing drift checks remain intact. This branch push is authorized to trigger Preview; no milestone/main merge, worker deployment, live migration, or secret change is authorized by this reconciliation. Local verification covers 48 deployment verification tests; full application and PostgreSQL validation must be confirmed by CI on the resulting commit. Preview protection, unscheduled default-branch backups, and worker recovery/drain risks remain release blockers; this entry does not claim production readiness.
+
+## 2026-10-14: controlled GitHub Actions cost optimization (draft)
+
+- Implemented and independently verified: feature push/full PR trigger separation, documentation-only heavy-check selection, stable per-PR cancellation, fail-closed required pg/customer-ui checks, bounded Docker/browser jobs and retained failure reports. 16 focused CI tests pass (37 subtests), 28 workflow YAML files validate, Python/JavaScript syntax checks pass; independent re-review found no remaining important issue.
+- Implemented but awaiting external live verification: actual Linux, PostgreSQL, Docker and browser CI execution and net job-minute savings. Full local suite: 1645 passed, 63 failed, 172 skipped; no additional failing test IDs relative to the local baseline. This is not a green full-suite claim.
+- Blocked by named service/environment: GitHub Actions says jobs cannot start due to failed recent payments or the account spending limit; local Windows temporary-directory access and unavailable Linux/Docker services prevent complete integration verification. No spending limit or payment setting was changed.
+- Not implemented: measured billed savings after integration; these require successful candidate runs and a comparable billing/job-minute sample. Production deployment and merge are outside the authorization.
+
+Commands, sample of 100 historical runs, timeout policy and evidence limits: docs/CI_ACTIONS_COST_OPTIMIZATION_2026-10-14.md.

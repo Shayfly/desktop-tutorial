@@ -57,6 +57,8 @@ jobs:
           echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
 
       - name: Build images
+        # Bound image preparation before any worker drain or service replacement.
+        timeout-minutes: 20
         working-directory: infra/worker-host
         run: docker compose build
 
@@ -329,3 +331,4 @@ jobs:
           print(f"::notice title=worker-queue-probe::PASS job {job.id} enqueued on omni-builds was executed by "
                 f"worker {job.worker_name} in container {executed_on} on this host")
           PY
+

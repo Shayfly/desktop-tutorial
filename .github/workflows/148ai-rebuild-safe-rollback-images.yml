@@ -46,6 +46,7 @@ jobs:
           done
           echo "::notice title=rollback::all consumer code file hashes match pinned original revision (environment metadata is not trusted)"
       - name: Rebuild previous source as a separate image (no credentials embedded)
+        timeout-minutes: 25
         shell: bash
         run: |
           set -euo pipefail
@@ -63,3 +64,4 @@ jobs:
           docker run --rm --network none omni-rollback/worker:prev python -c 'import omni_prod.worker_tasks; import omni_prod.model_gateway; print("ROLLBACK_WORKER_IMPORT_OK")'
           docker run --rm --network none --entrypoint python omni-rollback/preview-worker:prev -c 'import omni_prod.preview_router; print("ROLLBACK_PREVIEW_IMPORT_OK")'
           echo "::warning title=rollback::Source-equivalent images at pinned revision available locally, NOT bit-identical original image layers. No running container touched."
+
