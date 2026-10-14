@@ -506,9 +506,9 @@
     "support_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 2,
+    "IMPLEMENTED": 4,
     "NOT_IMPLEMENTED": 3,
-    "REAL_SERVER_VERIFIED": 4,
+    "REAL_SERVER_VERIFIED": 2,
     "UNIT_TESTED": 5
    },
    "missing_roles": [],

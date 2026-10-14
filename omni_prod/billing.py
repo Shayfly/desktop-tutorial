@@ -2,6 +2,41 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from hashlib import sha256
+import json
+
+
+@dataclass(frozen=True)
+class BillingEntitlementEvent:
+    """Normalized signed payment evidence; excludes raw customer/payment data."""
+    event_id: str
+    user_id: str
+    plan: str
+    event_type: str
+    source_id: str
+    created: int
+
+    def __post_init__(self):
+        for field in ('event_id', 'user_id', 'plan', 'event_type', 'source_id'):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not value.strip() or len(value) > 300:
+                raise ValueError(f'invalid billing {field}')
+        if isinstance(self.created, bool) or not isinstance(self.created, int) or self.created < 0:
+            raise ValueError('billing event requires a valid creation timestamp')
+
+    @property
+    def priority(self):
+        return 1 if self.plan == 'free' else 0
+
+    @property
+    def order(self):
+        # Stripe timestamps have second precision. When ordering is ambiguous,
+        # revocation wins; a later confirmed payment may restore access.
+        return self.created, self.priority
+
+    @property
+    def fingerprint(self):
+        return sha256(json.dumps(self.__dict__, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 class ChargeReason(str, Enum):
     NEW_BUILD='new_build'

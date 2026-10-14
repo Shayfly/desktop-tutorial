@@ -5,10 +5,10 @@ Python imports and do not necessarily ship infra/postgres/*.sql.
 tests/test_deployment_verification.py fails if this drifts from the newest
 migration file, so adding a migration forces updating it in the same change.
 """
-REQUIRED_MIGRATION = 38
+REQUIRED_MIGRATION = 39
 # Every migration version shipped in infra/postgres (022-025 were never used).
-EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 39))
-REQUIRED_MIGRATION_NAME = '038_conversation_attachments'
+EXPECTED_VERSIONS = tuple(range(1, 22)) + tuple(range(26, 40))
+REQUIRED_MIGRATION_NAME = '039_billing_event_idempotency'
 
 
 def compatibility(applied) -> dict:

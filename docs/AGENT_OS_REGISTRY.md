@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 21, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 10, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 62, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 65, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 60, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -306,14 +306,14 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 63, UNIT_TESTED 29, INTEGRATION
 | `provider_retry` | Provider Routing | **UNIT_TESTED** | provider_router_agent | unit tests only |  |
 | `model_selection` | Provider Routing | **IMPLEMENTED** | provider_router_agent | real-server evidence is stale; code changed since: omni_prod/routed_gateway.py |  |
 | `build_quote` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `credit_reservation` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `credit_reservation` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `agent_budget_assignment` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only |  |
 | `provider_budget_assignment` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `usage_metering` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `provider_price_lookup` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/model_catalog.py | versioned catalog |
 | `actual_cost_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
 | `credit_settlement` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/worker_tasks.py |  |
-| `unused_reservation_release` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, host |  |
+| `unused_reservation_release` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/economics_report.py | margin UNKNOWN until revenue exists; costs from the ledger |
 | `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |

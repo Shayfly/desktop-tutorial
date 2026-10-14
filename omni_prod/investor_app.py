@@ -210,7 +210,12 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
     minimum_margin = None
     if getattr(plan, 'monthly_price_usd', None) not in (None, Decimal('0')) and getattr(plan, 'included_credits', 0):
         revenue_basis = (Decimal(plan.monthly_price_usd) * Decimal(int(credits)) / Decimal(int(plan.included_credits)))
-        minimum_margin = Decimal(os.getenv('OMNI_MIN_BUILD_VARIABLE_MARGIN', '0.20'))
+        configured_margin = Decimal(os.getenv('OMNI_MIN_BUILD_VARIABLE_MARGIN', '0.60'))
+        if not configured_margin.is_finite() or not Decimal('0') <= configured_margin < Decimal('1'):
+            raise PermissionError('invalid build margin policy')
+        # Operators may tighten the policy, never lower the v1 target. This
+        # guards conservative variable cost; it is not realized-profit evidence.
+        minimum_margin = max(Decimal('0.60'), configured_margin)
 
     quote, components = build_economics_quote(
         llm_quotes=provider_quotes, cost_inputs=cost_inputs,

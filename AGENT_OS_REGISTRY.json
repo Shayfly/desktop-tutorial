@@ -4848,14 +4848,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/subscription_store.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "agent_budget_assignment",
@@ -4978,14 +4979,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview private by default (anonymous 401); owner token access; share link only while shared; data survives preview restart; data survives a new version; ZIP export of a version; rollback restores the exact stored version; queu",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/subscription_store.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 38083312245",
     "postdeploy-checks run 37954236866 (+ inspect 37955419872)"
    ],
-   "last_verified_at": "2026-10-10T20:20Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-09T15:46Z",
+   "last_verified_commit": "2b4bafd"
   },
   {
    "skill_key": "margin_calculation",
@@ -7637,10 +7639,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 63,
+   "IMPLEMENTED": 65,
    "UNIT_TESTED": 29,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 62,
+   "REAL_SERVER_VERIFIED": 60,
    "LIVE": 0,
    "BLOCKED": 9
   }

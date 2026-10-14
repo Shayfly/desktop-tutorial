@@ -122,14 +122,14 @@ class AsyncBuildAuthorizationTests(unittest.TestCase):
     def test_runtime_authorization_reserves_full_external_model_budget(self):
         env={
             'OMNI_ZERO_COST_MODE':'0', 'OMNI_ALLOW_EXTERNAL_FALLBACK':'1',
-            'OMNI_EXTERNAL_BUDGET_USD':'0.30', 'OMNI_EXTERNAL_CALLS_PER_BUILD':'3',
+            'OMNI_EXTERNAL_BUDGET_USD':'0.20', 'OMNI_EXTERNAL_CALLS_PER_BUILD':'3',
             'OMNI_BUILD_INFRA_ESTIMATED_USD':'0.05', 'OMNI_BUILD_INFRA_MAX_USD':'0.10',
-            'OMNI_MIN_BUILD_VARIABLE_MARGIN':'0.20',
+            'OMNI_MIN_BUILD_VARIABLE_MARGIN':'0.60',
         }
         with patch.dict('os.environ', env, clear=False):
             quote=investor_app._m5_build_economics_quote(PLAN_CATALOG[PlanCode.BASIC], credits=60)
-        self.assertEqual(quote.provider_maximum_usd, Decimal('0.30'))
-        self.assertEqual(quote.total_authorized_variable_usd, Decimal('0.40'))
+        self.assertEqual(quote.provider_maximum_usd, Decimal('0.20'))
+        self.assertEqual(quote.total_authorized_variable_usd, Decimal('0.30'))
         self.assertTrue(quote.margin_floor_passed)
 
     def test_runtime_authorization_denies_below_margin_floor(self):
@@ -287,10 +287,10 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         conn.transaction.return_value = MagicMock(__enter__=lambda s: s, __exit__=lambda *a: False)
         pool = MagicMock(); pool.connection.return_value = conn
         enqueue = MagicMock()
-        env = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1', 'OMNI_EXTERNAL_BUDGET_USD': '0.30',
+        env = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1', 'OMNI_EXTERNAL_BUDGET_USD': '0.20',
                'OMNI_EXTERNAL_CALLS_PER_BUILD': '3', 'OMNI_BUILD_INFRA_ESTIMATED_USD': '0',
                'OMNI_BUILD_INFRA_MAX_USD': '0', 'OMNI_BUILD_RETRY_RESERVE_USD': '0.05',
-               'OMNI_MIN_BUILD_VARIABLE_MARGIN': '0.20', 'OMNI_REQUIRE_APPROVAL': require_approval}
+               'OMNI_MIN_BUILD_VARIABLE_MARGIN': '0.60', 'OMNI_REQUIRE_APPROVAL': require_approval}
         cost = MagicMock(side_effect=cost_inputs_exc) if cost_inputs_exc else MagicMock(return_value=inputs)
         with patch.dict('os.environ', env, clear=False), \
              patch.object(investor_app, '_require_durable_backend'), \
@@ -311,12 +311,12 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     def test_reservation_is_the_full_conservative_total(self):
         response, reserve, enqueue, jobs, exc = self._run()
         self.assertIsNone(exc)
-        # 0.30 LLM + 0.01 image + 0.05 generated-app infra + 0.05 retry
-        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.41'))
+        # 0.20 LLM + 0.01 image + 0.05 generated-app infra + 0.05 retry
+        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.31'))
         enqueue.assert_called_once()
         evidence = jobs.create_with_cursor.call_args.kwargs['evidence_json']['economics_quote']
         self.assertEqual(evidence['components']['capability_authorization_usd'], '0.01')
-        self.assertEqual(evidence['total_authorized_variable_usd'], '0.41')
+        self.assertEqual(evidence['total_authorized_variable_usd'], '0.31')
 
     def test_denied_total_reservation_enqueues_nothing(self):
         _, reserve, enqueue, jobs, exc = self._run(reserve_allowed=False)
