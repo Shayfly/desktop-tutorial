@@ -60,11 +60,20 @@ cannot be signed off until the full v2 source is available.
   duplicate PR PG suite had one failure (176 passed, one failed, 56 subtests,
   no skips): the OOM recovery test waited through the 60-second drain deadline
   and received exit 137 with `oom=false`. The OOMKilled assertion was not
-  weakened, and no reliable fixture repair was found. Latest Preview verifier
+  weakened, and no reliable fixture repair was found. The Preview verifier on
+  `986e7b0`
   [38559135355](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559135355)
   failed only the schema check because migration 040 is pending; the other
   deployment acceptance checks passed. No live migration or auth bypass was
-  performed.
+  performed. On the later documentation-only head `3e4f0bd`, V24/V11 and
+  other non-Preview checks passed. The duplicate PG jobs reversed outcome:
+  push [38559914558](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559914558)
+  failed the OOM test with the same deadline exit 137/`oom=false`, while PR
+  [38559920282](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559920282)
+  passed **177/56 subtests without skips**. This confirms nondeterministic
+  fixture behavior, not an OOM; no assertion was weakened. Latest Preview run
+  [38559974291](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559974291)
+  again failed only because migration 040 is pending.
 - Migration 040 ran only in disposable PostgreSQL CI. No Preview/staging/
   Production migration, payment processor, paid provider, or production
   service was contacted.

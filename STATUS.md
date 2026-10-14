@@ -109,11 +109,22 @@ expired; Docker reported `oom=false`, so this is not evidence of an OOM kill.
 The test's strict `OOMKilled` assertion is retained. A reliable harness fix was
 not established; do not call exit 137 an OOM or weaken the assertion.
 
+The later documentation-only head `3e4f0bd` reproduced the same issue with
+the opposite push/PR outcome: push run
+[38559914558](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559914558)
+failed only that OOM test (**176 passed, 1 failed, 56 subtests, no skips**),
+while PR run
+[38559920282](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559920282)
+passed **177 tests, 56 subtests, no skips**. The push failure again reported
+exit 137 at the deadline and `oom=false`. Across the duplicate runs on both
+heads, this pass/fail reversal establishes a nondeterministic Docker OOM
+fixture; the CI evidence does not prove an OOM kill.
+
 Migration 040 has **not** been applied to Preview, staging, or Production.
 
 **Preview schema blocker:** Deployment run
-[38559135355](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559135355)
-for head `986e7b0` failed only `schema_compatible`, reporting migration 040
+[38559974291](https://github.com/Shayfly/desktop-tutorial/actions/runs/38559974291)
+for head `3e4f0bd` failed only `schema_compatible`, reporting migration 040
 pending. Endpoint, commit SHA, synthetic registration, session identity,
 project creation, conversation, persistence, and project-memory checks passed.
 Sanitized nested checks additionally reported `AUTH_INVALID` (401) and
@@ -129,8 +140,11 @@ journal/search-path evidence and a safe isolated environment.
 **Still blocked/incomplete:** The full titled v2 requirements document remains
 unavailable, so the 22-area map is provisional. Migration-backed concurrency,
 rollback, bootstrap, V24, V11, and deterministic checks passed on `986e7b0`;
-the PR PostgreSQL run is not green because the OOM fixture timed out without an
-OOMKilled signal, and Preview schema verification is blocked on unapplied 040.
+V24/V11, deterministic, Neon, and Preview-independent acceptance checks also
+passed on `3e4f0bd`. The two duplicate PG jobs on each head diverged only on
+the bounded Docker OOM test, so this harness remains an unresolved
+nondeterministic blocker. Preview schema verification is blocked on unapplied
+040.
 The other four corrective areas remain incomplete: company-liability
 accounting for provider failures; an operational overrun/estimate-error
 liability policy; verified recognized-sale revenue distinct from cost/reserve;
