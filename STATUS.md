@@ -120,6 +120,16 @@ exit 137 at the deadline and `oom=false`. Across the duplicate runs on both
 heads, this pass/fail reversal establishes a nondeterministic Docker OOM
 fixture; the CI evidence does not prove an OOM kill.
 
+**OOM fixture repair (commit de17f6d, awaiting CI):** root-cause hypothesis is
+that a 64 MiB allocation inside a 64 MiB cgroup can fit by reclaiming page
+cache. The container limit is now 48 MiB (memory and swap) against the same
+64 MiB allocator, so the allocation strictly exceeds the limit. The test now
+asserts the container's `HostConfig.Memory`/`MemorySwap` before triggering,
+failing fast if a runner ignores the limit. The strict `OOMKilled` assertion is
+unchanged. Not verified locally (no Docker); only CI can confirm. Also added a
+worker-crash caller-key replay test (`tests/test_m5_build_economics.py`,
+33 passed locally).
+
 Migration 040 has **not** been applied to Preview, staging, or Production.
 
 **Preview schema blocker:** Deployment run
