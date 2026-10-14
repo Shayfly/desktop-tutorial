@@ -122,9 +122,16 @@ class IsolationTests(unittest.TestCase):
                 args.extend(('--env-file', str(files[name]), '--label', name))
             output = StringIO()
             with redirect_stdout(output):
-                result = main(args)
+                result = main(args + ['--fingerprints'])
         self.assertEqual(result, 0)
-        self.assertTrue(json.loads(output.getvalue())['all_isolated'])
+        report = json.loads(output.getvalue())
+        self.assertTrue(report['all_isolated'])
+        db_row = report['comparisons']['staging_vs_production']['resources']['database']
+        self.assertEqual(len(db_row['staging_fingerprint']), 64)
+        self.assertEqual(len(db_row['production_fingerprint']), 64)
+        self.assertNotIn('staging-db.example', output.getvalue())
+        self.assertNotIn('prod-db.example', output.getvalue())
+        self.assertNotIn('preview-db.example', output.getvalue())
         self.assertNotIn('u:p', output.getvalue())
 
     def test_disagreeing_variables_on_one_side_are_unknown(self):

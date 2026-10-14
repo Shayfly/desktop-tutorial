@@ -174,6 +174,31 @@ def compare_staging(staging: dict, production: dict, preview: dict) -> dict:
     }
 
 
+def fingerprinted_report(report: dict) -> dict:
+    """Replace resource endpoint identities in a comparison report with SHA-256 fingerprints."""
+    import copy
+
+    result = copy.deepcopy(report)
+
+    def visit(value, labels=()):
+        if isinstance(value, dict):
+            labels = value.get('labels', labels)
+            out = {}
+            for key, item in value.items():
+                if key in labels and isinstance(item, str):
+                    out[f'{key}_fingerprint'] = hashlib.sha256(item.encode('utf-8')).hexdigest()
+                elif key == 'identity' and isinstance(item, str):
+                    out['identity_fingerprint'] = hashlib.sha256(item.encode('utf-8')).hexdigest()
+                else:
+                    out[key] = visit(item, labels)
+            return out
+        if isinstance(value, list):
+            return [visit(item, labels) for item in value]
+        return value
+
+    return visit(result)
+
+
 def main(argv: list[str]) -> int:
     files = [argv[i + 1] for i, x in enumerate(argv[:-1]) if x == '--env-file']
     labels = [argv[i + 1] for i, x in enumerate(argv[:-1]) if x == '--label'] or ['A', 'B']
@@ -191,8 +216,11 @@ def main(argv: list[str]) -> int:
         out = compare_staging(by_label['staging'], by_label['production'], by_label['preview'])
     else:
         print('usage: python -m omni_prod.isolation_check --env-file a.env --env-file b.env [--label x --label y] '
-              '[or three files labeled staging, production, preview] | --show --env-file a.env', file=sys.stderr)
+              '[or three files labeled staging, production, preview] [--fingerprints] | --show --env-file a.env',
+              file=sys.stderr)
         return 2
+    if '--fingerprints' in argv:
+        out = fingerprinted_report(out)
     print(json.dumps(out, indent=2, ensure_ascii=False))
     return 0 if out['all_isolated'] else 1
 

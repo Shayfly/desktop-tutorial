@@ -33,9 +33,9 @@
 1. בעל החשבון מאמת במסכי Neon/Upstash את resource IDs, parent lineage, endpoint ו-owner, ומשווה אותם ל-Production. Names שונים ב-DNS בלבד אינם ראיה מספקת.
 2. שמור קובצי env רגישים מקומיים בלבד. לאחר ש-Vercel CLI הוגדר אצל מפעיל מורשה, אפשר למשוך את ערכי Preview/Production לקבצים מקומיים בלי להדפיס אותם. אחרי אימות ידני, השווה:
    ```
-   python -m omni_prod.isolation_check --env-file infra/staging/.env.local --label staging --env-file infra/staging/production.env --label production --env-file infra/staging/preview.env --label preview
+   python -m omni_prod.isolation_check --env-file infra/staging/.env.local --label staging --env-file infra/staging/production.env --label production --env-file infra/staging/preview.env --label preview --fingerprints
    ```
-   PASS דורש `all_isolated=true`; UNKNOWN/SHARED הוא NO-GO. כלי זה בודק endpoints ולא יכול להוכיח ש-DNS aliases אינם מפנים לאותו resource; הצלבה מול ה-resource IDs בקונסולות הספק נדרשת בנוסף.
+   הפלט מציג SHA-256 fingerprints בלבד במקום hosts ושמות DB. PASS דורש `all_isolated=true`; UNKNOWN/SHARED הוא NO-GO. כלי זה בודק endpoints ולא יכול להוכיח ש-DNS aliases אינם מפנים לאותו resource; הצלבה מול ה-resource IDs בקונסולות הספק נדרשת בנוסף.
 3. אין כרגע backup workflow מבודד: `.github/workflows/backup-restore.yml` משתמש ב-worker וב-`.env` הקיימים ומבצע גם pruning. אסור להריץ אותו עבור היעד הזה. יש להשיג snapshot/export של ה-branch המאומת ולהחזירו ל-PostgreSQL חד-פעמי ומבודד, בלי לשנות את ה-branch המקורי. פלט backup ו-restore חייב להראות התאמת schema, migration history ושימור נתוני snapshot. אין לבצע migrations כחלק מהשלב הזה.
 4. רק אחרי שהבידוד ושחזור הגיבוי הוכחו, יש לבקש אישור מפורש נפרד לפני migration 001–038. אין להפעיל Worker או deploy עד אישור נוסף והקמת מסלול Worker מבודד.
 

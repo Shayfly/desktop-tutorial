@@ -56,10 +56,17 @@ The founder reports existing candidate resources: Neon project `148ai-db`, branc
 - Added `infra/staging/.env.example` with blank connection fields, unique Staging key placeholders, and model/worker/provider spend disabled by default. Added `infra/staging/README_HE.md` with setup links and explicit safety gates.
 - `git check-ignore infra/staging/.env.local` confirms local connection files are ignored. No populated env file or credentials are present.
 - The stricter isolation checker and regression evidence are recorded above: **20 tests passed**.
+- Added optional fingerprint-only output to the three-environment checker so a future local run can compare endpoints without printing hosts or database names. After the temporary Windows PowerShell/.NET host error (`0x80004005` / `0x800705AF`), the rerun succeeded: `python -m unittest tests.test_isolation_check tests.test_m5_migration_numbering tests.test_v17_preflight -v` — **20 passed**. `python -m compileall -q omni_prod\isolation_check.py tests\test_isolation_check.py`, `git diff --check`, and `git check-ignore infra\staging\.env.local` also passed.
 
 **Implemented but awaiting external live verification**
 - Read-only GitHub metadata lists environments `Preview`, `Preview – 148ai`, `Preview – 148aiv28`, `Production`, `Production – 148ai`, and `Production – 148aiv28`; no `Staging` environment. Actions Variables are empty. No Neon/Upstash/Staging-named repository secret exists. Secret values were not read.
-- The reported Neon branch/Upstash database have not been compared with Production. This Windows worktree has no Neon/Upstash/Vercel CLI or API token, `psql`, `redis-cli`, Docker, or Staging/Production/Preview DSN files. Vercel project variables were not inspected.
+- The reported Neon branch/Upstash database have not been compared with Production. This Windows worktree has no Neon/Upstash/Vercel CLI or API token, `psql`, `redis-cli`, Docker, or Staging/Production/Preview DSN files. Vercel project variables and provider resource IDs were not inspected.
+
+| Target | PostgreSQL identity / fingerprint | Redis identity / fingerprint | Production relationship |
+|---|---|---|---|
+| Production | Not available locally; secret values not read | Not available locally; secret values not read | Baseline unavailable for an endpoint fingerprint |
+| Existing Preview | Historical Vercel inspection recorded same DB environment record as Production; fingerprint not available | Historical Vercel inspection recorded same Redis environment record as Production; fingerprint not available | **SHARED (historical evidence; current settings not re-read)** |
+| Candidate Staging | Founder-reported Neon project `148ai-db`, branch `preview-isolated-2026-10-12`; provider branch ID, parent, and endpoint fingerprint unavailable | Founder-reported Upstash name `148ai-preview-isolated`; provider database ID and endpoint fingerprint unavailable | **UNKNOWN — not compared with Production** |
 
 **Blocked by a named credential/service**
 - An account operator must verify the Neon branch ID, parent and snapshot lineage against Production at [Neon Console](https://console.neon.tech/app/projects), and compare Upstash database ID/endpoint against Production at [Upstash Console](https://console.upstash.com/redis). Endpoint files must be staged locally or through a secure approved runner; do not send them in chat.
