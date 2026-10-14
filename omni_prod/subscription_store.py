@@ -183,14 +183,50 @@ class PostgresSubscriptionService:
         cc = cost_class if isinstance(cost_class, CostClass) else CostClass(cost_class)
         if credits < 0: raise ValueError('credits must be non-negative')
 
+        def existing_reservation(*, expected_credits: int, estimate: Decimal, plan: str,
+                                  user_billable: bool) -> UsageDecision | None:
+            cur.execute(
+                'SELECT account_id, project_id, credits_reserved, estimated_provider_cost_usd, status'
+                + (', funding_source' if internal_qa else '')
+                + ' FROM credit_reservations WHERE build_id=%s FOR UPDATE',
+                (build_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            if (
+                row[0] != user_id or row[1] != project_id
+                or int(row[2]) != expected_credits
+                or Decimal(str(row[3])) != estimate
+                or (internal_qa and row[5] != 'internal_qa')
+            ):
+                raise ValueError('reservation id reused with different scope or reserved amount')
+            active = row[4] == 'RESERVED'
+            return UsageDecision(
+                active, plan, cc.value, str(estimate.quantize(Decimal('0.0001'))),
+                expected_credits, 0, None,
+                'reservation already exists' if active else 'reservation already resolved',
+                user_billable,
+            )
+
         if internal_qa:
             estimate = Decimal(str(estimated_provider_cost_usd if estimated_provider_cost_usd is not None else Decimal('0.25')))
             if estimate < 0:
                 raise ValueError('estimated provider cost must be non-negative')
+            prior = existing_reservation(expected_credits=0, estimate=estimate, plan='internal_qa',
+                                         user_billable=False)
+            if prior is not None:
+                return prior
             cur.execute(
                 "INSERT INTO credit_reservations(build_id, account_id, project_id, credits_reserved, estimated_provider_cost_usd, status, funding_source) VALUES (%s, %s, %s, %s, %s, 'RESERVED', %s) ON CONFLICT (build_id) DO NOTHING",
                 (build_id, user_id, project_id, 0, estimate, 'internal_qa'),
             )
+            if cur.rowcount == 0:
+                prior = existing_reservation(expected_credits=0, estimate=estimate, plan='internal_qa',
+                                             user_billable=False)
+                if prior is None:
+                    raise RuntimeError('reservation conflict disappeared before reconciliation')
+                return prior
             return UsageDecision(True, 'internal_qa', cc.value, str(estimate.quantize(Decimal('0.0001'))), 0, 0, None,
                                  'internal QA budget', False)
 
@@ -217,6 +253,11 @@ class PostgresSubscriptionService:
         user_billable = category not in {'system_bug','missing_requirement'}
         charge = credits if user_billable else 0
 
+        prior = existing_reservation(expected_credits=charge, estimate=estimate, plan=plan.code.value,
+                                     user_billable=user_billable)
+        if prior is not None:
+            return prior
+
         allowed, reason = True, 'authorized'
         if cc not in plan.allowed_cost_classes:
             allowed, reason = False, 'cost class not included in plan'
@@ -237,9 +278,14 @@ class PostgresSubscriptionService:
                 "INSERT INTO credit_reservations(build_id, account_id, project_id, credits_reserved, estimated_provider_cost_usd, status) VALUES (%s, %s, %s, %s, %s, 'RESERVED') ON CONFLICT (build_id) DO NOTHING",
                 (build_id, user_id, project_id, charge, estimate)
             )
-            # Only update if the insert wasn't ignored due to conflict (idempotency)
             if cur.rowcount == 1:
                 cur.execute('UPDATE creator_subscriptions SET credits_used=%s, provider_spend_usd=%s WHERE user_id=%s', (used + charge, spend + estimate, user_id))
+            else:
+                prior = existing_reservation(expected_credits=charge, estimate=estimate, plan=plan.code.value,
+                                             user_billable=user_billable)
+                if prior is None:
+                    raise RuntimeError('reservation conflict disappeared before reconciliation')
+                return prior
 
         return decision
 

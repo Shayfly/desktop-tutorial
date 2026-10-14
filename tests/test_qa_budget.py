@@ -148,8 +148,8 @@ class ReservationSeparationTests(unittest.TestCase):
                                       credits=60, estimated_provider_cost_usd=Decimal("0.40"), internal_qa=True)
         self.assertTrue(decision.allowed)
         self.assertEqual((decision.plan, decision.credits, decision.user_billable), ("internal_qa", 0, False))
-        self.assertEqual(len(cur.calls), 1)
-        sql, params = cur.calls[0]
+        self.assertEqual(len(cur.calls), 2)
+        sql, params = cur.calls[1]
         self.assertIn("INSERT INTO credit_reservations", sql)
         self.assertIn("funding_source", sql)
         self.assertEqual(params, ("bld_qa", "u1", "p", 0, Decimal("0.40"), "internal_qa"))
@@ -157,14 +157,14 @@ class ReservationSeparationTests(unittest.TestCase):
 
     def test_free_plan_without_qa_is_still_refused(self):
         svc = _service()
-        decision = svc.reserve(_Cur(("free", svc._cycle_now(), 0, Decimal("0"))), build_id="b", user_id="u",
+        decision = svc.reserve(_Cur(("free", svc._cycle_now(), 0, Decimal("0")), None), build_id="b", user_id="u",
                                project_id="p", cost_class="standard", credits=50,
                                estimated_provider_cost_usd=Decimal("0.40"))
         self.assertFalse(decision.allowed)
 
     def test_customer_reservation_sql_is_unchanged(self):
         svc = _service()
-        cur = _Cur(("pro", svc._cycle_now(), 0, Decimal("0")))
+        cur = _Cur(("pro", svc._cycle_now(), 0, Decimal("0")), None)
         svc.reserve(cur, build_id="b", user_id="u", project_id="p", cost_class="standard", credits=1,
                     estimated_provider_cost_usd=Decimal("0.10"))
         insert = [s for s, _ in cur.calls if "INSERT INTO credit_reservations" in s][0]

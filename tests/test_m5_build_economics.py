@@ -87,7 +87,7 @@ class ReservationTests(unittest.TestCase):
 
     def test_reservation_shortfall_denies_without_insert(self):
         # BASIC cap defaults to $2.50; already reserved/spent $2.30.
-        cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('2.30'))])
+        cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('2.30')), None])
         d=self.service().reserve(
             cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
@@ -97,7 +97,7 @@ class ReservationTests(unittest.TestCase):
         self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
 
     def test_reservation_takes_user_budget_row_lock_before_deciding(self):
-        cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('0'))], rowcounts=[1,1])
+        cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('0')), None], rowcounts=[1,1])
         d=self.service().reserve(
             cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
@@ -106,6 +106,45 @@ class ReservationTests(unittest.TestCase):
         self.assertIn('FOR UPDATE', cur.calls[0][0])
         insert_index=next(i for i,(sql,_) in enumerate(cur.calls) if 'INSERT INTO credit_reservations' in sql)
         self.assertLess(0, insert_index)
+
+    def test_replaying_same_reservation_does_not_consume_allowance_twice(self):
+        cur=ScriptedCursor([
+            ('basic', self.service()._cycle_now(), 60, Decimal('0.30')),
+            ('u1', 'p1', 60, Decimal('0.30'), 'RESERVED'),
+        ])
+        decision=self.service().reserve(
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            estimated_provider_cost_usd=Decimal('0.30'),
+        )
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.reason, 'reservation already exists')
+        self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
+        self.assertFalse(any('UPDATE creator_subscriptions' in sql for sql,_ in cur.calls))
+
+    def test_reservation_key_cannot_be_reused_for_a_different_project(self):
+        cur=ScriptedCursor([
+            ('basic', self.service()._cycle_now(), 60, Decimal('0.30')),
+            ('u1', 'other-project', 60, Decimal('0.30'), 'RESERVED'),
+        ])
+        with self.assertRaisesRegex(ValueError, 'different scope or reserved amount'):
+            self.service().reserve(
+                cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+                estimated_provider_cost_usd=Decimal('0.30'),
+            )
+        self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
+
+    def test_resolved_reservation_key_cannot_be_reused(self):
+        cur=ScriptedCursor([
+            ('basic', self.service()._cycle_now(), 60, Decimal('0.30')),
+            ('u1', 'p1', 60, Decimal('0.30'), 'SETTLED'),
+        ])
+        decision=self.service().reserve(
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            estimated_provider_cost_usd=Decimal('0.30'),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.reason, 'reservation already resolved')
+        self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
 
 
 class SettlementEvidenceTests(unittest.TestCase):

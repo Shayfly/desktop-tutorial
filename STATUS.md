@@ -1,15 +1,54 @@
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
+## v2 follow-up — provisional audit only (2026-10-14)
+
+**Implemented and independently verified:** The focused local economy,
+billing, settlement, pricing, build-state, and registry command passed
+**112 tests** with **9 skipped**. Exact command and the provisional 22-area
+audit are in
+[`docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md`](docs/evidence/profit-protection-v2-provisional-audit-2026-10-14.md).
+These results verify only local test behavior, not live PostgreSQL, payment,
+provider, or production behavior.
+The same-build reservation replay now avoids a second counter debit; attempts
+to reuse that key with a different account/project/reserved amount or after
+settlement are rejected. This does not yet bind a complete quote fingerprint or
+provide a caller-stable request key. Its targeted tests passed as part of
+`tests/test_m5_build_economics.py` and `tests/test_qa_budget.py`.
+
+**Implemented but awaiting external live verification:** Existing atomic
+reservation, billing-event idempotency journal (migration 039), project
+persistence, quote/meter/settle/release paths, and provider pricing versions.
+The PostgreSQL concurrency/restart tests were skipped because no disposable
+loopback `profit_test...` database was configured. Migration 039 remains
+unapplied.
+
+**Blocked by a named credential/service:** Canonical rule-by-rule v2 completion
+is blocked by the missing full titled v2 specification. Live billing and
+database verification are blocked by the absence of an authorized payment
+processor test environment and disposable PostgreSQL test database. No
+credentials were requested or used.
+
+**Not implemented:** Complete funding-lot wallet, invoice/top-up/refund
+accounting, end-to-end idempotent quote/reservation identity, company-funded
+provider-failure budget, full all-scope exposure caps, budget pause/resume from
+verified checkpoints, data-calibrated Smart Completion Estimate, and
+reconciled profitability/compliance reporting. The implementation dependency
+order and gates are recorded in
+[`docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md`](docs/superpowers/plans/2026-10-14-profit-protection-v2-follow-up.md).
+Apart from that reservation replay hardening, no broader economy code was
+changed because the canonical v2 acceptance source is absent. No migration,
+real payment/provider call, budget change, merge, or deployment was performed.
+
 **Implemented and independently verified locally:** unpaid Checkout and metadata
 events cannot grant paid entitlements; entitlement changes preserve usage;
 prior-worker UNKNOWN calls remain covered; minimum conservative variable-margin
-policy is60%; event identity/order/source cancellation regressions pass in the
+policy is 60%; event identity/order/source cancellation regressions pass in the
 reviewer service. Independent read-only review findings received regression fixes.
 Master registries were regenerated with their existing tools; no new live proof
 was asserted. See [scope and evidence](docs/evidence/profit-protection-v1-safety-2026-10-14.md).
 
 **Implemented, awaiting external verification:** Postgres transactional billing
-event journal, source tombstones and ordering (additive migration039); new local-only
+event journal, source tombstones and ordering (additive migration 039); new local-only
 Postgres concurrency/restart tests are opt-in, not counted as passed. No live
 migration, payment, provider execution, merge or Production deployment occurred.
 
