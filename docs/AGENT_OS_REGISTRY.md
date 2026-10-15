@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 24, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 7, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 49, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 25, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 6, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 43, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -27,7 +27,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 29, INTEGRATION
 | Coding Agent (`coding_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Code Review Agent (`code_review_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
 | QA Agent (`qa_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
-| Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, deploy-worker run 38083162363, postdeploy-checks run 37961193099 (attempt ledger via  |  |
+| Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
 | Repair Agent (`repair_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Security Agent (`security_agent`) | quality | **REAL_SERVER_VERIFIED** | quality_gate_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 38083312245 |  |
@@ -247,19 +247,19 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 29, INTEGRATION
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
-| `browser_launch` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
+| `browser_launch` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
-| `click_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  |  |
-| `form_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | fills forms by field type |
+| `click_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
+| `form_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | fills forms by field type |
 | `navigation_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
 | `mobile_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 390x844; layout rules enforced |
 | `desktop_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 1440x900; layout rules enforced |
 | `responsive_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | overflow/offscreen/viewport; enforced |
-| `javascript_error_detection` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
-| `network_error_detection` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both | 5xx answers |
+| `javascript_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
+| `network_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | 5xx answers |
 | `browser_persistence_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
 | `reload_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `browser_acceptance_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `browser_acceptance_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `failure_classification` | Repair | **IMPLEMENTED** | repair_agent | real-server evidence is stale; code changed since: omni_prod/attempt_ledger.py |  |
 | `root_cause_analysis` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |
 | `repair_plan_generation` | Repair | **NOT_IMPLEMENTED** | repair_agent | no implementation | not implemented |

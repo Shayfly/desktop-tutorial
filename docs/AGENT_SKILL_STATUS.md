@@ -6,7 +6,7 @@ Dimensions are separate: implementation · configuration · verification (scope 
 
 Roles (61): VERIFIED 1, STALE 15, CONNECTED 3, DEFINED 42
 
-Skills in the §9 catalog (137): VERIFIED 9, STALE 27, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
+Skills in the §9 catalog (137): VERIFIED 8, STALE 28, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
 
 ## management
 
@@ -182,7 +182,7 @@ Skills in the §9 catalog (137): VERIFIED 9, STALE 27, TESTED 17, IMPLEMENTED 7,
 | tests.plan | quality | EXECUTABLE | STALE | ArchitectAgent | acceptance.define | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI at beb67b4; code changed since: omni_prod/autonomous_agents.py | — |
 | tests.run | quality | VALIDATOR | STALE | RemoteSandboxRepositoryExecutor | sandbox.prepare | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI; prompt -> ready build (task list); quality gate >= 80 at 782dafd; code changed since: omni_prod/remote_sandbox.py | — |
 | api.behavior.verify | quality | VALIDATOR | STALE | WebSaaSAcceptanceRunner, BehaviorAcceptanceExecutor | runtime.readiness | STALE — was verified for: prompt -> ready build (library, business rules); HTTP acceptance: create/read/conflict/return/delete at b0a0cfa; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py | in-build gate not yet seen inside a real build |
-| browser.flow.verify | quality | VALIDATOR | VERIFIED | BrowserFlowExecutor | app.start | VERIFIED for: working fixture passes; vanishing-message fixture caught (fresh: deploy-worker@d8a01fa) | not yet inside a founder build |
+| browser.flow.verify | quality | VALIDATOR | STALE | BrowserFlowExecutor | app.start | STALE — was verified for: working fixture passes; vanishing-message fixture caught at d8a01fa; code changed since: omni_prod/browser_probe.py | not yet inside a founder build |
 | visual.inspect | quality | VALIDATOR | NOT_IMPLEMENTED | — | browser.flow.verify | none | not implemented (no screenshots) |
 | security.negative_test | quality | VALIDATOR | VERIFIED | hostile_repository_scan | — | VERIFIED for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI (fresh: bld_f419acd1317a40afab5a7bd287841048@beb67b4) | static scan only |
 | failure.reproduce | quality | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented |
