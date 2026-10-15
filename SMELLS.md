@@ -1731,6 +1731,29 @@ omni_prod/recovery_simulation.py:34:    assert dead.dead_letter
 
 ```
 -- מודול-גלובלי שנכתב --
+./infra/staging/verify_neon_bootstrap.py:13:expected = {}
+./infra/staging/verify_neon_bootstrap.py:28:actual = {}
+./omni_prod/investor_app.py:149:_v26=V26UniversalPlatform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
+./omni_prod/investor_app.py:150:_v27=V27UniversalPlatform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
+./omni_prod/investor_app.py:151:_v28_pool=None
+./omni_prod/investor_app.py:183:_v28=_build_v28_platform()
+./scripts/run_hostile_static_suite.py:10:cases=[]
+./scripts/run_international_gate.py:14:checks={}
+./scripts/run_live_sandbox_hostile.py:8:checks=[]
+./scripts/run_quality_gate.py:14:checks = {}
+./scripts/run_v25_offline_benchmark.py:14:rows=[]
+./scripts/run_v25_offline_benchmark.py:30:by={}
+./scripts/run_v25_release_gate.py:10:checks={}
+./scripts/run_v26_release_gate.py:9:checks={}
+./scripts/run_v27_release_gate.py:9:checks={}
+./scripts/run_v28_offline_benchmark.py:15:rows=[]; started=time.monotonic()
+./scripts/run_v28_release_gate.py:13:checks = {}
+./scripts/run_v28_release_gate.py:69:margin_detail = {}
+./tests/test_m49_sandbox_security.py:65:results = []
+./tests/test_m49_sandbox_security.py:158:children = []
+./tests/test_m49_sandbox_security.py:200:chunks = []
+./tools/ui_conversation_walkthrough.py:19:log = []
+./tools/ui_visual_edit/preview_host.py:24:procs = []
 -- dict/list גלובלי ברמת מודול --
 omni_prod/browser_fixtures.py:13:ITEMS = []
 ```

@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# audit_pack.sh — הרץ משורש הריפו
+# audit_pack.sh — run from the repo root
 set -uo pipefail
 OUT=AUDIT_PACK.md
 : > "$OUT"
-sec(){ printf '\n\n## %s\n\n```\n' "$1" >> "$OUT"; }
-end(){ printf '```\n' >> "$OUT"; }
+exec 3>&1 1>>"$OUT"
+sec(){ printf '\n\n## %s\n\n```\n' "$1"; }
+end(){ printf '```\n'; }
 
-# Capture section bodies as well as headings; the supplied script omitted this.
-{
 sec "META"
   echo "commit: $(git rev-parse HEAD)"
   echo "date:   $(date -u +%FT%TZ)"
@@ -42,7 +41,7 @@ sec "TRANSACTIONS"
 end
 
 sec "IN-MEMORY STATE — מודול-גלובלי"
-  grep -rnE '^_v[0-9]+\._|\s_v[0-9]+\._[a-z_]+\s*=' --include='*.py' .
+  grep -rnE '^_?[a-z][a-z0-9_]* *(: *[A-Za-z\[\], ]+)?= *(\{\}|\[\]|dict\(\)|set\(\)|list\(\)|defaultdict\()|^_v[0-9]+[a-z0-9_]* *=' --include='*.py' .
 end
 
 sec "BROAD EXCEPTS"
@@ -75,6 +74,5 @@ sec "DEPS"
   cat requirements.txt 2>/dev/null
   cat pyproject.toml 2>/dev/null
 end
-} >> "$OUT" 2>&1
 
-echo "done -> $OUT  ($(wc -l < "$OUT") lines)"
+echo "done -> $OUT  ($(wc -l < "$OUT") lines)" >&3

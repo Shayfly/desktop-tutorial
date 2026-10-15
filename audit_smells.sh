@@ -3,11 +3,9 @@
 set -uo pipefail
 O=SMELLS.md
 : > "$O"
-S(){ printf '\n\n## %s\n\n```\n' "$1" >> "$O"; }
-E(){ printf '```\n' >> "$O"; }
-
-# Capture section bodies as well as headings; the supplied script omitted this.
-{
+exec 3>&1 1>>"$O"
+S(){ printf '\n\n## %s\n\n```\n' "$1"; }
+E(){ printf '```\n'; }
 
 S "A1 — כסף: float מול Decimal"
   echo "-- float( --";      grep -rn 'float(' --include='*.py' . | head -80
@@ -63,7 +61,7 @@ S "D1 — אבטחה: השוואת סודות"
 E
 
 S "D2 — אבטחה: TLS וקריאות רשת"
-  echo "-- verify=False --";  grep -rn 'verify\s*=\s*False' --include='*.py' .
+  echo "-- verify=False --";  grep -rnE 'verify\s*=\s*False' --include='*.py' .
   echo "-- urlopen/requests --"; grep -rnE 'urlopen|requests\.(get|post|put|delete)' --include='*.py' .
   echo "-- בלי timeout --";   grep -rnE 'urlopen\(' --include='*.py' . | grep -v timeout
 E
@@ -73,7 +71,7 @@ S "D3 — אבטחה: CORS / עוגיות / CSRF"
 E
 
 S "D4 — אבטחה: הרצה והזרקה"
-  echo "-- shell=True --";  grep -rn 'shell\s*=\s*True' --include='*.py' .
+  echo "-- shell=True --";  grep -rnE 'shell\s*=\s*True' --include='*.py' .
   echo "-- subprocess --";  grep -rn 'subprocess\.' --include='*.py' .
   echo "-- eval/exec --";   grep -rnE '\b(eval|exec)\(' --include='*.py' .
   echo "-- pickle --";      grep -rn 'pickle' --include='*.py' .
@@ -87,7 +85,7 @@ E
 
 S "E1 — עמידות: מצב בזיכרון"
   echo "-- מודול-גלובלי שנכתב --"
-  grep -rnE '^_v[0-9]+\._|\b_v[0-9]+\._[a-z_]+\s*=' --include='*.py' .
+  grep -rnE '^_?[a-z][a-z0-9_]* *(: *[A-Za-z\[\], ]+)?= *(\{\}|\[\]|dict\(\)|set\(\)|list\(\)|defaultdict\()|^_v[0-9]+[a-z0-9_]* *=' --include='*.py' .
   echo "-- dict/list גלובלי ברמת מודול --"
   grep -rnE '^[A-Z_]+ *= *(\{\}|\[\])' --include='*.py' omni_prod/
 E
@@ -147,7 +145,7 @@ S "H1 — באגים קלאסיים"
   echo "-- ארגומנט ברירת מחדל משתנה --"
   grep -rnE 'def [a-z_]+\(.*=(\[\]|\{\})' --include='*.py' .
   echo "-- is מול == --"
-  grep -rnE '\bis\s+["'\''0-9]' --include='*.py' .
+  grep -rnE '\bis\s+["'\'' 0-9]' --include='*.py' .
   echo "-- dict.get ואז חשבון --"
   grep -rnE '\.get\([^,)]+\)\s*[-+*]' --include='*.py' .
 E
@@ -159,6 +157,4 @@ S "H2 — סכמה ומיגרציות"
   echo "-- CHECK --";     grep -rniE 'check *\(' --include='*.sql' . 2>/dev/null | head -40
 E
 
-} >> "$O" 2>&1
-
-echo "done -> $O  ($(wc -l < "$O") lines)"
+echo "done -> $O  ($(wc -l < "$O") lines)" >&3
