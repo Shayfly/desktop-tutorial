@@ -96,15 +96,15 @@ _PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/p
 @app.middleware('http')
 async def production_auth(request:Request,call_next):
     if os.getenv('OMNI_ENV','development')=='production' and request.url.path.startswith('/api/') and not any(request.url.path==p or (p.endswith('/') and request.url.path.startswith(p)) for p in _PUBLIC_PREFIXES):
-        raw=request.headers.get('authorization','')
-        if not raw.startswith('Bearer '):
-            from fastapi.responses import JSONResponse
-            return JSONResponse({'detail':'authentication required'},status_code=401)
+        from fastapi.responses import JSONResponse
         try:
-            claims=verify_token(raw[7:],secret=os.getenv('OMNI_SECRET_KEY',''))
+            token, _transport = extract_session_token(request, allowed_origins=_ALLOWED_ORIGINS)
+        except SessionTokenError as exc:
+            return JSONResponse({'detail':exc.detail},status_code=exc.status_code)
+        try:
+            claims=verify_token(token,secret=os.getenv('OMNI_SECRET_KEY',''))
             request.state.auth=claims
         except AuthError:
-            from fastapi.responses import JSONResponse
             return JSONResponse({'detail':'invalid authentication'},status_code=401)
     return await call_next(request)
 # Audit 2026-10-10: legacy in-process paths (template "builds", an in-memory
