@@ -34,11 +34,12 @@ BROWSER_PROFILE = 'browser'
 
 # Runs inside the sandbox. Kept free of omni_prod imports.
 PROBE = r'''
-import json, os, subprocess, sys, time, urllib.request
+import json, os, subprocess, sys, tempfile, time, urllib.request
 from datetime import date, timedelta
 c = json.load(open(".omni/project.json"))
 port = int(c["port"])
-env = dict(os.environ, PORT=str(port), HOME="/tmp", DATA_DIR="/tmp", PYTHONDONTWRITEBYTECODE="1")
+scratch = (os.environ.get("OMNI_SCRATCH_DIR") or tempfile.gettempdir())
+env = dict(os.environ, PORT=str(port), HOME=scratch, DATA_DIR=scratch, PYTHONDONTWRITEBYTECODE="1")
 srv = subprocess.Popen(c["start"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 base = "http://127.0.0.1:%d" % port
 out = {"page_errors": [], "server_errors": [], "forms": [], "findings": []}

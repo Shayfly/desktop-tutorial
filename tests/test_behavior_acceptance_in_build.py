@@ -12,9 +12,9 @@ from omni_prod.autonomous_core import ExecutionReport
 from omni_prod.behavior_acceptance import BEHAVIOR_FAILURE_ID, BehaviorAcceptanceExecutor, find_in_chain
 
 APP = r'''
-import json, os, http.server
+import json, os, tempfile, http.server
 from datetime import date
-DATA = os.path.join(os.environ.get("DATA_DIR", "/tmp"), "items.json")
+DATA = os.path.join(os.environ.get("DATA_DIR") or os.environ.get("OMNI_SCRATCH_DIR") or tempfile.gettempdir(), "items.json")
 def load():
     try:
         return json.load(open(DATA))
