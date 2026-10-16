@@ -360,26 +360,21 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "deploy-worker run 38083162363",
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:browser_acceptance_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py"
     },
     {
      "part": "skill:javascript_error_detection",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py"
     }
    ]
   },
@@ -1142,8 +1137,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 10,
-  "REAL_SERVER_VERIFIED": 11,
+  "IMPLEMENTED": 11,
+  "REAL_SERVER_VERIFIED": 10,
   "UNIT_TESTED": 6,
   "NOT_IMPLEMENTED": 5,
   "INTEGRATION_TESTED": 1,

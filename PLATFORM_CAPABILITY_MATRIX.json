@@ -233,13 +233,10 @@
    "capability": "browser_launch",
    "expected_behavior": "as contracted",
    "test_layer": "real-server",
-   "test_location": [
-    "postdeploy-checks run 37961193099",
-    "deploy-worker run 38083162363"
-   ],
-   "last_result": "REAL_SERVER_VERIFIED",
-   "last_verified_commit": "039574f",
-   "last_verified_at": "2026-10-09T16:43Z",
+   "test_location": [],
+   "last_result": "IMPLEMENTED",
+   "last_verified_commit": "67a0765",
+   "last_verified_at": "2026-10-10T20:15Z",
    "environment": "pre-staging worker host"
   },
   {

@@ -50,8 +50,9 @@ exec(compile(cfg["runner"], "web_saas_acceptance.py", "exec"), mod.__dict__)
 c = json.load(open(".omni/project.json"))
 port, path = int(c["port"]), c.get("health_path", "/")
 import tempfile
-data_dir = tempfile.mkdtemp(prefix="behavior-", dir="/tmp")  # fresh, scratch data for every run
-env = dict(os.environ, PORT=str(port), HOME="/tmp", DATA_DIR=data_dir, PYTHONDONTWRITEBYTECODE="1")
+scratch = (os.environ.get("OMNI_SCRATCH_DIR") or tempfile.gettempdir())
+data_dir = tempfile.mkdtemp(prefix="behavior-", dir=scratch)  # fresh, scratch data for every run
+env = dict(os.environ, PORT=str(port), HOME=scratch, DATA_DIR=data_dir, PYTHONDONTWRITEBYTECODE="1")
 p = subprocess.Popen(c["start"], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 ok, deadline = False, time.time() + 20
 while time.time() < deadline and p.poll() is None:
