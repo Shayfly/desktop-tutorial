@@ -314,7 +314,7 @@
    "core_agents": {
     "qa_agent": "IMPLEMENTED",
     "behavioral_acceptance_agent": "IMPLEMENTED",
-    "browser_rehearsal_agent": "REAL_SERVER_VERIFIED",
+    "browser_rehearsal_agent": "IMPLEMENTED",
     "code_review_agent": "REAL_SERVER_VERIFIED"
    },
    "support_agents": {
@@ -325,9 +325,9 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 10,
+    "IMPLEMENTED": 16,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 12,
+    "REAL_SERVER_VERIFIED": 6,
     "UNIT_TESTED": 7
    },
    "missing_roles": [],
