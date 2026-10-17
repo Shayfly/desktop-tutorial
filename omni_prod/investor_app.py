@@ -1343,8 +1343,16 @@ def v28_register(req: V26AuthRequest, response: Response) -> dict:
     try:
         payload = _v28.register(email=req.email, password=req.password)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        if 'already exists' not in str(exc).lower():
+            raise HTTPException(400, str(exc)) from exc
+        try:
+            payload = _v28.login(email=req.email, password=req.password)
+        except PermissionError:
+            raise HTTPException(409, 'account already exists') from exc
+        payload['existing_account'] = True
     _set_session_cookie(response, payload['token'])
+    if 'subscription' not in payload:
+        payload['subscription'] = _v28.subscription(token=payload['token'])
     return payload
 
 @app.post('/api/v28/auth/login')
