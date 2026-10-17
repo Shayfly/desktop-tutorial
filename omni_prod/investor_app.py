@@ -162,6 +162,10 @@ def _build_v28_platform():
     # is reported as PARTIAL, not silently upgraded to LIVE.
     global _v28_pool
     mode=os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()
+    if os.getenv('OMNI_ENV','development')=='production' and mode!='postgres':
+        raise RuntimeError(f"OMNI_CREATOR_PERSISTENCE must be 'postgres' when OMNI_ENV=production "
+                           f"(got {mode!r}; unset means 'memory', which loses accounts and sessions on every "
+                           f"restart). Valid values: 'postgres' (production), 'memory' (development only).")
     if mode=='postgres':
         database_url=os.getenv('OMNI_DATABASE_URL','').strip()
         if not database_url:
