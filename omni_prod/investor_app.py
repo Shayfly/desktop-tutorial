@@ -1351,9 +1351,10 @@ def v28_register(req: V26AuthRequest, response: Response) -> dict:
 def v28_login(req: V26AuthRequest, response: Response) -> dict:
     try:
         payload = _v28.login(email=req.email, password=req.password)
-        payload['subscription'] = _v28.subscription(token=payload['token'])
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    # A subscription failure must not look like a wrong password.
+    payload['subscription'] = _v28.subscription(token=payload['token'])
     _set_session_cookie(response, payload['token'])
     return payload
 
