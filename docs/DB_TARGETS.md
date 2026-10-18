@@ -17,7 +17,7 @@
 
 | יעד | host | fingerprint | מקור הראיה | מצב |
 |---|---|---|---|---|
-| **Production** (Vercel `148aiv28`, `VERCEL_ENV=production`) | Neon, ‏eu-central-1 (ה-host המלא לא נכתב כאן; ראו `docs/SECRETS_POLICY.md`) | `5fabb3bf756d` | `smoke/last-run.md:5`: תשובת `/api/v28/deployment` ב-commit `f53b6dd`, `environment: production`, `applied_max: 41` | **נצפה** |
+| **Production** (Vercel `148aiv28`, `VERCEL_ENV=production`) | `ep-floral-bread-b1weu1th.c-5.eu-central-1.aws.neon.tech` | `5fabb3bf756d` | `smoke/last-run.md:5`: תשובת `/api/v28/deployment` ב-commit `f53b6dd`, `environment: production`, `applied_max: 41` | **נצפה** |
 | **Preview** (Vercel `148aiv28`) | ככל הנראה זהה ל-Production | ככל הנראה `5fabb3bf756d` | `STATUS.md:153` ו-`STATUS.md:282`: ‏`OMNI_DATABASE_URL`, ‏`OMNI_REDIS_URL` ו-`OMNI_SECRET_KEY` הם **רשומת env אחת** ל-production+preview ב-Vercel | **מוסק, לא נצפה.** אין בריפו תשובת deployment של Preview עם `db_fingerprint`. |
 | **Staging / worker** (Oracle, runner `omni-worker`) | לא ידוע | **לא נצפה** | `OMNI_DATABASE_URL` מגיע מה-secret `WORKER_ENV` (`infra/worker-host/write-env.sh`). הערך לא בריפו. `STATUS.md:471`: אחרי ש-deploy-worker הריץ מיגרציה 036, ‏Vercel **Preview** דיווח `applied_max=36`. | **טעון אימות.** הראיה מצביעה על כך שה-DB של ה-worker הוא ה-DB של Preview. אם Preview = Production, **אין staging נפרד: ה-worker מריץ מיגרציות על Production.** |
 | **`TARGET_DATABASE_URL`** (secret ידני) | לא ידוע | לא נצפה | `migrate-target.yml`. הקובץ עצמו מזהיר שהיעד לא ידוע ויש לבדוק לפני apply. | לא ידוע |
