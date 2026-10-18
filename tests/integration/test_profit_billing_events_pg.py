@@ -118,7 +118,7 @@ def test_source_revocation_tombstone_survives_service_restart(pool):
         payment('evt_new', 'sub_new', 200, 'pro'))
     assert late['stale']
     with pool.connection() as conn:
-        assert conn.execute("SELECT plan_code FROM creator_subscriptions WHERE user_id='u'").fetchone()[0] == 'basic'
+        assert conn.execute("SELECT plan_code FROM creator_subscriptions WHERE user_id='u'").fetchone()[0] == 'amateur'  # legacy event plan 'basic' is stored canonically (CEO 2026-10-19)
 
 
 def test_conflicting_event_id_does_not_mutate_entitlement(pool):
@@ -127,4 +127,4 @@ def test_conflicting_event_id_does_not_mutate_entitlement(pool):
     with pytest.raises(ValueError, match='different contents'):
         service.apply_billing_entitlement(payment(plan='pro'))
     with pool.connection() as conn:
-        assert conn.execute("SELECT plan_code FROM creator_subscriptions WHERE user_id='u'").fetchone()[0] == 'basic'
+        assert conn.execute("SELECT plan_code FROM creator_subscriptions WHERE user_id='u'").fetchone()[0] == 'amateur'  # legacy event plan 'basic' is stored canonically (CEO 2026-10-19)

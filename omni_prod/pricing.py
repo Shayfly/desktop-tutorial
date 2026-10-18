@@ -113,6 +113,17 @@ def _env_decimal(name: str, default: str) -> Decimal:
     return Decimal(raw) if raw else Decimal(default)
 
 
+def _env_decimal_renamed(name: str, legacy_name: str, default: str) -> Decimal:
+    """New name wins; the pre-rename name (CEO 2026-10-19: Basic->Amateur,
+    Business->Studio) is still honoured so an operator value already set in
+    Vercel/worker env is not silently dropped."""
+    for key in (name, legacy_name):
+        raw = os.getenv(key, '').strip()
+        if raw:
+            return Decimal(raw)
+    return Decimal(default)
+
+
 PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     PlanCode.FREE: PlanDefinition(
         PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, Decimal('0'), 2, 1,
@@ -123,7 +134,7 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
         ),
     ),
     PlanCode.AMATEUR: PlanDefinition(
-        PlanCode.AMATEUR, 'Amateur', _env_decimal('OMNI_PRICE_AMATEUR_USD','29'), _env_decimal('OMNI_PRICE_AMATEUR_ANNUAL_USD','290'), 900, _env_decimal('OMNI_PROVIDER_CAP_AMATEUR_USD','2.50'), 10, 1,
+        PlanCode.AMATEUR, 'Amateur', _env_decimal_renamed('OMNI_PRICE_AMATEUR_USD', 'OMNI_PRICE_BASIC_USD','29'), _env_decimal_renamed('OMNI_PRICE_AMATEUR_ANNUAL_USD', 'OMNI_PRICE_BASIC_ANNUAL_USD','290'), 900, _env_decimal_renamed('OMNI_PROVIDER_CAP_AMATEUR_USD', 'OMNI_PROVIDER_CAP_BASIC_USD','2.50'), 10, 1,
         # CEO 2026-10-19: economy/light only; STANDARD starts at Pro.
         (CostClass.ZERO, CostClass.LIGHT), 'subtle-required', False, False, 'standard',
         (
@@ -142,7 +153,7 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
         ),
     ),
     PlanCode.STUDIO: PlanDefinition(
-        PlanCode.STUDIO, 'Studio', _env_decimal('OMNI_PRICE_STUDIO_USD','299'), _env_decimal('OMNI_PRICE_STUDIO_ANNUAL_USD','2990'), 12000, _env_decimal('OMNI_PROVIDER_CAP_STUDIO_USD','25'), 250, 5,
+        PlanCode.STUDIO, 'Studio', _env_decimal_renamed('OMNI_PRICE_STUDIO_USD', 'OMNI_PRICE_BUSINESS_USD','299'), _env_decimal_renamed('OMNI_PRICE_STUDIO_ANNUAL_USD', 'OMNI_PRICE_BUSINESS_ANNUAL_USD','2990'), 12000, _env_decimal_renamed('OMNI_PROVIDER_CAP_STUDIO_USD', 'OMNI_PROVIDER_CAP_BUSINESS_USD','25'), 250, 5,
         # CEO 2026-10-19: Studio may use every cost class.
         tuple(CostClass), 'white-label-eligible', True, True, 'high',
         (
@@ -160,6 +171,23 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     ),
 }
 
+
+
+# CEO 2026-10-19: the cost class an M5 build reserves under, per plan. Each
+# value must be inside that plan's allowed_cost_classes, or reserve() refuses
+# the build. Plans not listed keep the pre-decision STANDARD (Free is refused
+# by the revenue check anyway; Enterprise allows every class; internal QA
+# reservations skip the class check).
+M5_BUILD_COST_CLASS: dict[PlanCode, CostClass] = {
+    PlanCode.AMATEUR: CostClass.LIGHT,
+    PlanCode.PRO: CostClass.STANDARD,
+    PlanCode.STUDIO: CostClass.HEAVY,
+}
+
+
+def m5_build_cost_class(plan_code) -> CostClass:
+    code = plan_code if isinstance(plan_code, PlanCode) else PlanCode(plan_code)
+    return M5_BUILD_COST_CLASS.get(code, CostClass.STANDARD)
 
 @dataclass(frozen=True)
 class UsageDecision:

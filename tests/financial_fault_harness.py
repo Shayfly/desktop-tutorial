@@ -165,7 +165,7 @@ def run_case(url: str, output: Path, *, fail_ledger: bool, expect_prevention: bo
             cur.execute("INSERT INTO creator_subscriptions(user_id,plan_code,cycle,credits_used,provider_spend_usd) "
                         "VALUES (%s,'basic',to_char(now(),'YYYY-MM'),0,0)", (account,))
             decision = subs.reserve(cur, build_id=build_id, user_id=account, project_id=project,
-                                    cost_class='standard', credits=10, estimated_provider_cost_usd=RESERVATION)
+                                    cost_class='light', credits=10, estimated_provider_cost_usd=RESERVATION)
             if not decision.allowed:
                 raise AssertionError(decision.reason)
             jobs.create_request(cur, build_id=build_id, user_id=account, internal_project_id=project,

@@ -2265,8 +2265,12 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "contract_version": exc.contract.contract_version,
                 "unresolved_questions": [q.to_dict() for q in exc.contract.unresolved_questions],
             }) from exc
-        cost_class, credits = CostClass.STANDARD, _M5_BUILD_CREDITS
         plan = _v28.subscriptions.plan_for(account.id)
+        from .pricing import m5_build_cost_class
+        # CEO 2026-10-19: reserve under the plan's own build class (Amateur
+        # LIGHT, Pro STANDARD, Studio HEAVY) so reserve() does not refuse a
+        # legitimate build on a plan that excludes STANDARD.
+        cost_class, credits = m5_build_cost_class(plan.code), _M5_BUILD_CREDITS
         from .qa_budget import QABudgetDenied, authorize_qa_build
         # Explicit INTERNAL_QA entitlement bound to the account id (migration
         # 029), decided exactly as in the plan view; re-verified under lock

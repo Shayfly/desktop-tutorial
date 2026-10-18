@@ -51,7 +51,7 @@ class PricingAndBrandingTests(unittest.TestCase):
         denied=s.authorize(user_id=uid,cost_class='standard',credits=10)
         self.assertFalse(denied.allowed)
         s.assign_plan(uid,'basic')
-        repair=s.authorize(user_id=uid,cost_class='standard',credits=100,category='system_bug')
+        repair=s.authorize(user_id=uid,cost_class='light',credits=100,category='system_bug')
         self.assertTrue(repair.allowed); self.assertEqual(repair.credits,0); self.assertFalse(repair.user_billable)
         snap=s.consume(user_id=uid,decision=repair)
         self.assertEqual(snap['credits_used'],0)
@@ -59,7 +59,7 @@ class PricingAndBrandingTests(unittest.TestCase):
 
     def test_hard_provider_budget(self):
         s=SubscriptionService(); uid='u2'; s.assign_plan(uid,'basic')
-        d=s.authorize(user_id=uid,cost_class='standard',credits=1,estimated_provider_cost_usd=Decimal('2.40'))
+        d=s.authorize(user_id=uid,cost_class='light',credits=1,estimated_provider_cost_usd=Decimal('2.40'))
         self.assertTrue(d.allowed); s.consume(user_id=uid,decision=d)
         d2=s.authorize(user_id=uid,cost_class='light',credits=1,estimated_provider_cost_usd=Decimal('.20'))
         self.assertFalse(d2.allowed); self.assertIn('budget',d2.reason)

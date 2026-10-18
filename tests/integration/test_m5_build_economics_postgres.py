@@ -90,7 +90,7 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
                         with conn.cursor() as cur:
                             decision=service.reserve(
                                 cur, build_id=build_id, user_id=self.user_id, project_id='p1',
-                                cost_class='standard', credits=1,
+                                cost_class='light', credits=1,
                                 estimated_provider_cost_usd=Decimal('1.60'),
                             )
                 with lock:

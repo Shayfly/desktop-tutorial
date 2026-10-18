@@ -86,10 +86,10 @@ class ReservationTests(unittest.TestCase):
         return PostgresSubscriptionService(pool=None)
 
     def test_reservation_shortfall_denies_without_insert(self):
-        # BASIC cap defaults to $2.50; already reserved/spent $2.30.
+        # Amateur (persisted as legacy 'basic') cap defaults to $2.50; LIGHT is its M5 build class (CEO 2026-10-19); already reserved/spent $2.30.
         cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('2.30')), None])
         d=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertFalse(d.allowed)
@@ -99,7 +99,7 @@ class ReservationTests(unittest.TestCase):
     def test_reservation_takes_user_budget_row_lock_before_deciding(self):
         cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('0')), None], rowcounts=[1,1])
         d=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertTrue(d.allowed)
@@ -113,7 +113,7 @@ class ReservationTests(unittest.TestCase):
             ('u1', 'p1', 60, Decimal('0.30'), 'RESERVED'),
         ])
         decision=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertTrue(decision.allowed)
@@ -128,7 +128,7 @@ class ReservationTests(unittest.TestCase):
         ])
         with self.assertRaisesRegex(ValueError, 'different scope or reserved amount'):
             self.service().reserve(
-                cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+                cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
                 estimated_provider_cost_usd=Decimal('0.30'),
             )
         self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
@@ -139,7 +139,7 @@ class ReservationTests(unittest.TestCase):
             ('u1', 'p1', 60, Decimal('0.30'), 'SETTLED'),
         ])
         decision=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertFalse(decision.allowed)
