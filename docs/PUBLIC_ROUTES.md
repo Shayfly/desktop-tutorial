@@ -1,6 +1,6 @@
 # PUBLIC_ROUTES — נתיבים ללא אימות ב-middleware
 
-מקור: `omni_prod/investor_app.py:95` (`_PUBLIC_PREFIXES`), נבדק מול `main` @ `7afaa75`, 2026-10-19.
+מקור: `omni_prod/investor_app.py:95` (`_PUBLIC_PREFIXES`), נבדק מול `main` @ `7afaa75`, 2026-10-19. החלטות CEO נוספו ב-2026-10-19.
 המסמך מתאר את הקוד כפי שהוא. הוא לא משנה התנהגות.
 
 ## איך הרשימה נאכפת (`production_auth`, שורות 96–110)
@@ -17,51 +17,59 @@
 
 ## טבלה
 
-| נתיב | מה מחזיר | האם ציבורי | הצדקה | האם נדרש טסט |
-|---|---|---|---|---|
-| `POST /api/v26/auth/register` | יצירת חשבון V26 + טוקן | כן (prefix) | **טעון הכרעה**: גרסת auth ישנה. אין צרכן ב-`ui/`, ב-`scripts/` או ב-`.github/`. צריך להחליט אם להשאיר. | כן: ההחלטה (השארה או 410) |
-| `POST /api/v26/auth/login` | טוקן V26 | כן (prefix) | **טעון הכרעה**: כמו למעלה | כן |
-| `POST /api/v27/auth/register` | יצירת חשבון V27 + טוקן | כן (prefix) | **טעון הכרעה**: גרסת auth ישנה, אין צרכן | כן |
-| `POST /api/v27/auth/login` | טוקן V27 | כן (prefix) | **טעון הכרעה**: כמו למעלה | כן |
-| `POST /api/v28/auth/register` | חשבון + טוקן + עוגיית session; ניסיון login אם החשבון קיים | כן (prefix) | הרשמה חייבת להיות ציבורית. ה-UI צורך אותו (`ui/app.js:6`). | יש חלקי. נדרש: 409 על חשבון קיים עם סיסמה שגויה |
-| `POST /api/v28/auth/login` | טוקן + subscription + עוגייה | כן (prefix) | כניסה חייבת להיות ציבורית (`ui/app.js:6`) | יש (2 קבצים) |
-| `POST /api/v28/auth/logout` | `logged_out`, מוחק עוגייה תמיד | כן (prefix) | חייב לעבוד גם עם session שפג תוקפו, כדי שהעוגייה תימחק (הערה בקוד, שורות 1375–1379) | כן: מחיקת עוגייה בלי טוקן תקף |
-| `GET /api/v28/auth/sessions` | רשימת ה-sessions של החשבון | כן (prefix) | **טעון הכרעה**: ציבורי בגלל ה-prefix, לא בגלל צורך. ההגנה היחידה היא `_v28_bearer` + `_v28.account` ב-handler. | **כן, חסר**: 401 בלי טוקן ב-production |
-| `POST /api/v28/auth/sessions/{id}/revoke` | ביטול session | כן (prefix) | **טעון הכרעה**: כמו למעלה; ההגנה ב-handler בלבד | **כן, חסר**: 401/403 בלי טוקן, ו-403 על session של משתמש אחר |
-| `POST /api/v28/auth/email-verification/request` | 202 | כן (prefix) | **טעון הכרעה**: דורש חשבון; ההגנה ב-handler בלבד | **כן, חסר** |
-| `POST /api/v28/auth/verify-email` | `verified` + `user_id` | כן (prefix) | הקישור מהמייל נפתח בלי session; הטוקן במייל הוא האימות | כן: טוקן לא תקף מחזיר 400 |
-| `POST /api/v28/auth/password-reset/request` | 202 תמיד | כן (prefix) | משתמש שאיבד סיסמה אינו מחובר; התגובה בטוחה מפני enumeration | כן: אותה תגובה למייל קיים ולא קיים |
-| `POST /api/v28/auth/password-reset/confirm` | `reset` | כן (prefix) | טוקן האיפוס הוא האימות | כן: טוקן לא תקף מחזיר 400 |
-| `POST /api/v28/auth/consents` | רישום הסכמה | כן (prefix) | **טעון הכרעה**: דורש חשבון; ההגנה ב-handler בלבד | **כן, חסר** |
-| `POST /api/v28/auth/data-export` | בקשת ייצוא נתונים (202) | כן (prefix) | **טעון הכרעה**: פעולה על נתוני משתמש; ההגנה ב-handler בלבד | **כן, חסר**: 401 בלי טוקן |
-| `POST /api/v28/auth/account-deletion` | בקשת מחיקת חשבון (202) | כן (prefix) | **טעון הכרעה**: פעולה הרסנית; ההגנה ב-handler בלבד | **כן, חסר**: 401 בלי טוקן, ו-CSRF על עוגייה |
-| `GET /api/v28/pricing` | קטלוג תוכניות ציבורי (`public_dict`) + עקרונות | כן (exact) | עמוד תמחור לפני הרשמה. כלכלה פנימית מוסננת (`pricing.py:61`). | יש (`test_public_pricing_economics.py`) |
-| `GET /api/v28/brand/readiness` | מצב מוכנות מיתוג | כן (exact) | **טעון הכרעה**: מידע פנימי, אין צרכן ציבורי | כן |
-| `GET /api/v28/launch/readiness` | שערי מוכנות להשקה | כן (exact) | **טעון הכרעה**: הצרכן היחיד הוא כפתור ב-UI אחרי התחברות (`ui/app.js:18`), כך שאין צורך שיהיה ציבורי | כן |
-| `GET /api/v28/ui/translations` | מחרוזות UI | כן (exact) | נדרש לפני התחברות, כדי להציג את מסך הכניסה בשפה הנכונה | יש (1) |
-| `POST /api/v28/billing/stripe/webhook` | עיבוד אירוע Stripe | כן (exact) | Stripe לא שולח Bearer. האימות הוא חתימת `stripe-signature` מול `STRIPE_WEBHOOK_SECRET`. | יש (1). נדרש גם: 400 כשהסוד ריק |
-| `GET /api/v28/deployment` | commit, environment, branch, תאימות סכמה, **`db_host` + `db_fingerprint`** | כן (exact) | נצרך ללא אימות ע"י `tools/deployment_verify.py:340` ו-`production-smoke.yml:95`. **טעון הכרעה לגבי `db_host`**: hostname של מסד הייצור חשוף לציבור. ה-fingerprint לבדו מספיק לאימות. | יש (2). נדרש: אסרשן על מה מותר לחשוף |
-| `GET /api/status` | מוצר, יכולות, `readiness`, `international`, `brand_readiness`, `launch_readiness` | כן (exact) | נצרך ע"י `verify.yml` ו-`scripts/run_v28_http_acceptance.py`. **טעון הכרעה לגבי התוכן**: חושף את `OMNI_LOCAL_MODEL_URL` (`readiness.py:24`) ואילו תשתיות מוגדרות. בדיקת בריאות לא צריכה את זה. | יש (7). נדרש: אין כתובות פנימיות |
-| `GET /api/international/readiness` | מוכנות בינלאומית | כן (exact) | **טעון הכרעה**: אין צרכן | כן |
-| `GET /api/integrations` | קטלוג אינטגרציות + **שמות** הסודות הנדרשים (לא ערכים) | כן (exact) | **טעון הכרעה**: קיימת גרסה מאומתת `/api/v28/integrations`, ואין צרכן לגרסה הציבורית | כן |
-| `GET /api/benchmark/catalog` | עד 200 מקרי בנצ'מרק כולל prompts | כן (exact) | **טעון הכרעה**: אין צרכן | כן |
-| `GET /api/targets/mobile/{platform}` | תוכנית build למובייל | כן (prefix) | **טעון הכרעה**: אין צרכן | כן |
-| `GET /api/targets/game/{engine}` | תוכנית build למנוע משחק | כן (prefix) | **טעון הכרעה**: אין צרכן | כן |
-| `GET /api/source/mobile/{platform}` | `_repo_summary` של פרויקט Android/iOS שנוצר | כן (prefix), **אבל 410 ב-staging/production** (legacy guard) | **טעון הכרעה**: לא נגיש בפועל ב-production. הכניסה ל-`_PUBLIC_PREFIXES` מתה. | יש: 410 (`test_legacy_paths_guard.py`) + חוזה סודות (PR #47) |
-| `GET /api/source/game/{engine}` | `_repo_summary` של פרויקט משחק | כן (prefix), **אבל 410 ב-staging/production** | **טעון הכרעה**: כמו למעלה | כן |
-| `GET /api/v28/source/client/{platform}` | `_repo_summary` של קליינט 148AI ל-Android/iOS | כן (prefix), **לא חסום ע"י legacy** | **טעון הכרעה**: זה הנתיב הציבורי היחיד ב-production שמחזיר previews של קבצים, כולל קבצים רגישים כל עוד `is_sensitive_path` לא ממומש (PR #47). צרכן: `scripts/run_v28_http_acceptance.py` בלבד. | **כן, חסר**: אין טסט על הנתיב הזה |
-| `GET /api/agent-team` | תוכנית צוות סוכנים | כן (exact) | **טעון הכרעה**: אין צרכן | כן |
-| `GET /_omni/metrics` | מטריקות Prometheus (מונה בקשות, 5xx, זמני תגובה) | **כן, תמיד**: לא מתחיל ב-`/api/`, לכן המידלוור לא בודק אותו בכלל | **טעון הכרעה**: הכניסה ב-`_PUBLIC_PREFIXES` מתה ומטעה. המטריקות ציבוריות בכל סביבה, בלי קשר לרשימה. | כן |
+| נתיב | מה מחזיר | האם ציבורי | הצדקה | האם נדרש טסט | הוכרע ע"י CEO + תאריך |
+|---|---|---|---|---|---|
+| `POST /api/v26/auth/register` | יצירת חשבון V26 + טוקן | כן (prefix) | **טעון הכרעה**: גרסת auth ישנה. אין צרכן ב-`ui/`, ב-`scripts/` או ב-`.github/`. צריך להחליט אם להשאיר. | כן: ההחלטה (השארה או 410) | **טעון הכרעה**: לא נמסרה החלטה |
+| `POST /api/v26/auth/login` | טוקן V26 | כן (prefix) | **טעון הכרעה**: כמו למעלה | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `POST /api/v27/auth/register` | יצירת חשבון V27 + טוקן | כן (prefix) | **טעון הכרעה**: גרסת auth ישנה, אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `POST /api/v27/auth/login` | טוקן V27 | כן (prefix) | **טעון הכרעה**: כמו למעלה | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `POST /api/v28/auth/register` | חשבון + טוקן + עוגיית session; ניסיון login אם החשבון קיים | כן (prefix) | הרשמה חייבת להיות ציבורית. ה-UI צורך אותו (`ui/app.js:6`). | יש חלקי. נדרש: 409 על חשבון קיים עם סיסמה שגויה | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/auth/login` | טוקן + subscription + עוגייה | כן (prefix) | כניסה חייבת להיות ציבורית (`ui/app.js:6`) | יש (2 קבצים) | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/auth/logout` | `logged_out`, מוחק עוגייה תמיד | כן (prefix) | חייב לעבוד גם עם session שפג תוקפו, כדי שהעוגייה תימחק (הערה בקוד, שורות 1375–1379) | כן: מחיקת עוגייה בלי טוקן תקף | לא נדרש (מוצדק בקוד) |
+| `GET /api/v28/auth/sessions` | רשימת ה-sessions של החשבון | כן (prefix) | **הוכרע**: ציבורי בגלל ה-prefix, לא בגלל צורך. ההגנה היחידה היא `_v28_bearer` + `_v28.account` ב-handler. | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: ציבורי-prefix, אימות ב-handler + טסט 401. טסט: PR #50, ירוק |
+| `POST /api/v28/auth/sessions/{id}/revoke` | ביטול session | כן (prefix) | **הוכרע**: כמו למעלה; ההגנה ב-handler בלבד | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: כנ"ל. טסט: PR #50, ירוק |
+| `POST /api/v28/auth/email-verification/request` | 202 | כן (prefix) | **הוכרע**: דורש חשבון; ההגנה ב-handler בלבד | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: ציבורי-prefix. **הנתיב השישי:** ההחלטה מחייבת אימות ב-5 מתוך 6, והנתיב הזה מחזיר כרגע **400 ולא 401** (`except Exception` ב-handler בולע את ה-401). טסט: PR #50, אדום |
+| `POST /api/v28/auth/verify-email` | `verified` + `user_id` | כן (prefix) | הקישור מהמייל נפתח בלי session; הטוקן במייל הוא האימות | כן: טוקן לא תקף מחזיר 400 | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/auth/password-reset/request` | 202 תמיד | כן (prefix) | משתמש שאיבד סיסמה אינו מחובר; התגובה בטוחה מפני enumeration | כן: אותה תגובה למייל קיים ולא קיים | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/auth/password-reset/confirm` | `reset` | כן (prefix) | טוקן האיפוס הוא האימות | כן: טוקן לא תקף מחזיר 400 | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/auth/consents` | רישום הסכמה | כן (prefix) | **הוכרע**: דורש חשבון; ההגנה ב-handler בלבד | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: ציבורי-prefix, אימות ב-handler + טסט 401. טסט: PR #50, ירוק |
+| `POST /api/v28/auth/data-export` | בקשת ייצוא נתונים (202) | כן (prefix) | **הוכרע**: פעולה על נתוני משתמש; ההגנה ב-handler בלבד | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: כנ"ל. טסט: PR #50, ירוק |
+| `POST /api/v28/auth/account-deletion` | בקשת מחיקת חשבון (202) | כן (prefix) | **הוכרע**: פעולה הרסנית; ההגנה ב-handler בלבד | נוסף ב-PR #50 (401 אנונימי + Bearer שגוי) | **הוכרע: CEO, 2026-10-19**: כנ"ל. טסט: PR #50, ירוק |
+| `GET /api/v28/pricing` | קטלוג תוכניות ציבורי (`public_dict`) + עקרונות | כן (exact) | עמוד תמחור לפני הרשמה. כלכלה פנימית מוסננת (`pricing.py:61`). | יש (`test_public_pricing_economics.py`) | לא נדרש (מוצדק בקוד) |
+| `GET /api/v28/brand/readiness` | מצב מוכנות מיתוג | כן (exact) | **טעון הכרעה**: מידע פנימי, אין צרכן ציבורי | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/v28/launch/readiness` | שערי מוכנות להשקה | כן (exact) | **הוכרע**: ציבורי לפי החלטת CEO. (ממצא הבדיקה: הצרכן היחיד הוא כפתור ב-UI אחרי התחברות, `ui/app.js:18`.) | כן | **הוכרע: CEO, 2026-10-19**: ציבורי |
+| `GET /api/v28/ui/translations` | מחרוזות UI | כן (exact) | נדרש לפני התחברות, כדי להציג את מסך הכניסה בשפה הנכונה | יש (1) | לא נדרש (מוצדק בקוד) |
+| `POST /api/v28/billing/stripe/webhook` | עיבוד אירוע Stripe | כן (exact) | Stripe לא שולח Bearer. האימות הוא חתימת `stripe-signature` מול `STRIPE_WEBHOOK_SECRET`. | יש (1). נדרש גם: 400 כשהסוד ריק | לא נדרש (מוצדק בקוד) |
+| `GET /api/v28/deployment` | commit, environment, branch, תאימות סכמה, **`db_host` + `db_fingerprint`** | כן (exact) | נצרך ללא אימות ע"י `tools/deployment_verify.py:340` ו-`production-smoke.yml:95`. **טעון הכרעה לגבי `db_host`**: hostname של מסד הייצור חשוף לציבור. ה-fingerprint לבדו מספיק לאימות. | יש (2). נדרש: אסרשן על מה מותר לחשוף | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/status` | מוצר, יכולות, `readiness`, `international`, `brand_readiness`, `launch_readiness` | כן (exact) | נצרך ע"י `verify.yml` ו-`scripts/run_v28_http_acceptance.py`. **הוכרע (ציבורי)**; תוכן: חושף את `OMNI_LOCAL_MODEL_URL` (`readiness.py:24`) ואילו תשתיות מוגדרות. בדיקת בריאות לא צריכה את זה. | יש (7). נדרש: אין כתובות פנימיות | **הוכרע: CEO, 2026-10-19**: ציבורי |
+| `GET /api/international/readiness` | מוכנות בינלאומית | כן (exact) | **טעון הכרעה**: אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/integrations` | קטלוג אינטגרציות + **שמות** הסודות הנדרשים (לא ערכים) | כן (exact) | **טעון הכרעה**: קיימת גרסה מאומתת `/api/v28/integrations`, ואין צרכן לגרסה הציבורית | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/benchmark/catalog` | עד 200 מקרי בנצ'מרק כולל prompts | כן (exact) | **טעון הכרעה**: אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/targets/mobile/{platform}` | תוכנית build למובייל | כן (prefix) | **טעון הכרעה**: אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/targets/game/{engine}` | תוכנית build למנוע משחק | כן (prefix) | **טעון הכרעה**: אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /api/source/mobile/{platform}` | `_repo_summary` של פרויקט Android/iOS שנוצר | כן (prefix), **אבל 410 ב-staging/production** (legacy guard) | **הוכרע**: לא נגיש בפועל ב-production. הכניסה ל-`_PUBLIC_PREFIXES` מתה. | יש: 410 (`test_legacy_paths_guard.py`) + חוזה סודות (PR #47) | **הוכרע: CEO, 2026-10-19**: נשאר ברשימה, מתועד כ-410 ב-staging/production |
+| `GET /api/source/game/{engine}` | `_repo_summary` של פרויקט משחק | כן (prefix), **אבל 410 ב-staging/production** | **הוכרע**: כמו למעלה | כן | **הוכרע: CEO, 2026-10-19**: נשאר ברשימה, מתועד כ-410 ב-staging/production |
+| `GET /api/v28/source/client/{platform}` | `_repo_summary` של קליינט 148AI ל-Android/iOS | כן (prefix), **לא חסום ע"י legacy** | **הוכרע**: זה הנתיב הציבורי היחיד ב-production שמחזיר previews של קבצים, כולל קבצים רגישים כל עוד `is_sensitive_path` לא ממומש (PR #47). צרכן: `scripts/run_v28_http_acceptance.py` בלבד. | **כן, חסר**: אין טסט על הנתיב הזה | **הוכרע: CEO, 2026-10-19**: ציבורי, מוגן בסינון סודות. **התנאי לא מתקיים עדיין:** `is_sensitive_path` לא ממומש (PR #47 אדום) |
+| `GET /api/agent-team` | תוכנית צוות סוכנים | כן (exact) | **טעון הכרעה**: אין צרכן | כן | **טעון הכרעה**: לא נמסרה החלטה |
+| `GET /_omni/metrics` | מטריקות Prometheus (מונה בקשות, 5xx, זמני תגובה) | **כן, תמיד**: לא מתחיל ב-`/api/`, לכן המידלוור לא בודק אותו בכלל | **הוכרע**: הכניסה ב-`_PUBLIC_PREFIXES` מתה ומטעה. המטריקות ציבוריות בכל סביבה, בלי קשר לרשימה. | כן | **הוכרע: CEO, 2026-10-19**: ציבורי, מתועד (המסמך הזה) |
 
 ## סיכום
 
 - 33 נתיבים תחת 18 ערכים ב-`_PUBLIC_PREFIXES`.
-- 24 מסומנים **טעון הכרעה** (בשורה של `/api/v28/deployment` ההכרעה נוגעת רק ל-`db_host`, ובשורה של `/api/status` רק לתוכן).
-- 6 נתיבים תחת `/api/v28/auth/` ציבוריים רק בגלל ה-prefix, וההגנה עליהם קיימת ב-handler בלבד: `sessions`, `sessions/{id}/revoke`, `email-verification/request`, `consents`, `data-export`, `account-deletion`. לאף אחד מהם אין טסט שמוודא 401.
-- שתי כניסות ברשימה מתות:
-  - `/api/source/`: מקבל 410 ב-production ממילא.
-  - `/_omni/metrics`: ציבורי תמיד, בלי קשר לרשימה.
-- ב-staging אין אימות במידלוור על אף נתיב (`OMNI_ENV != 'production'`).
-- חשיפת תשתית לציבור: `db_host` ב-`/api/v28/deployment`, `OMNI_LOCAL_MODEL_URL` ב-`/api/status`.
+- **12 הוכרעו** ע"י CEO ב-2026-10-19: 6 נתיבי `/api/v28/auth/*`, ‏`launch/readiness`, ‏`/_omni/metrics`, ‏`/api/source/*` (2), ‏`/api/v28/source/client/*`, ‏`/api/status`.
+- **12 עדיין טעונים הכרעה, כי לא נמסרה עליהם החלטה:** `/api/v26/auth/*` (2), ‏`/api/v27/auth/*` (2), ‏`brand/readiness`, ‏`/api/v28/deployment` (רק `db_host`), ‏`international/readiness`, ‏`/api/integrations`, ‏`/api/benchmark/catalog`, ‏`/api/targets/*` (2), ‏`/api/agent-team`.
+- 9 מוצדקים בקוד ולא דרשו הכרעה.
 
-המסמך לא מכריע באף אחת מהנקודות האלה. ההכרעות שייכות לבעלי `omni_prod/**`.
+### תנאים פתוחים בתוך ההחלטות
+
+| החלטה | תנאי | מצב | ראיה |
+|---|---|---|---|
+| `/api/v28/auth/*`: אימות ב-handler + טסט 401 | 401 בלי טוקן | 5 מתוך 6 ירוקים. **`email-verification/request` מחזיר 400** | PR #50, CI ‏v24-ci |
+| `/api/v28/source/client/*`: מוגן בסינון סודות | `is_sensitive_path` + `_repo_summary` בלי preview לקבצים רגישים | **לא מתקיים** | PR #47, CI אדום (6 כשלי חוזה) |
+
+### עובדות אכיפה (לא השתנו)
+
+- `/api/source/`: מקבל 410 ב-staging/production ממילא (legacy guard).
+- `/_omni/metrics`: ציבורי תמיד, כי הוא לא מתחיל ב-`/api/`.
+- ב-staging אין אימות במידלוור על אף נתיב (`OMNI_ENV != 'production'`).
+- חשיפת תשתית: `db_host` ב-`/api/v28/deployment` (טעון הכרעה), ו-`OMNI_LOCAL_MODEL_URL` ב-`/api/status` (הנתיב הוכרע כציבורי, התוכן לא נדון).
