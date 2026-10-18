@@ -77,7 +77,9 @@ const T = {
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
     emailUnverified:'האימייל עדיין לא אומת.',
-    err401:'פג תוקף ההתחברות. היכנסו שוב.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+    err401:'פג תוקף ההתחברות. היכנסו שוב.',
+ errBadCreds:'האימייל או הסיסמה שגויים. אם אין לך חשבון — לחצו "יצירת חשבון חינם".',
+ errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
@@ -183,7 +185,9 @@ const T = {
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
     emailUnverified:'Your email is not verified yet.',
-    err401:'Your session expired. Sign in again.', err402:'Not enough credits or not allowed on your plan: ',
+    err401:'Your session expired. Sign in again.',
+ errBadCreds:'Wrong email or password. If you have no account, click "Create free account".',
+ errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
@@ -283,6 +287,9 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  // A 401 on the sign-in screen means wrong credentials, not an expired session.
+  if (err.status === 401 && !S.signedIn) return t('errBadCreds');
+  if ((err.status === 400 || err.status === 409) && /already exists/i.test(msg)) return t('errAccountExists');
   if (err.detail && err.detail.code === 'project_limit_reached') {
     const used = Number(err.detail.active_projects);
     const max = Number(err.detail.max_projects);
@@ -345,7 +352,15 @@ async function authSubmit(kind) {
     $('passwordToggle').setAttribute('aria-pressed', 'false');
     $('passwordToggle').setAttribute('aria-label', t('showPassword'));
     await enterWorkspace();
-  } catch (e) { msg.textContent = explain(e); }
+  } catch (e) {
+    msg.textContent = explain(e);
+    const exists = e instanceof ApiError && [400, 409].includes(e.status)
+      && /already exists/i.test(String(e.message || ''));
+    if (kind === 'register' && exists) {
+      $('authTitle').textContent = t('signinTitle');
+      $('email').focus();
+    }
+  }
 }
 async function logout() {
   try { await api('/api/v28/auth/logout', { method: 'POST' }); } catch { /* local sign-out still happens */ }

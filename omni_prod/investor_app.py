@@ -92,7 +92,7 @@ configure_observability(app,_metrics)
 _PRODUCTION = os.getenv('OMNI_ENV','development')=='production'
 _ALLOWED_ORIGINS = tuple(configure_web_security(app,raw_origins=os.getenv('OMNI_ALLOWED_ORIGINS','http://127.0.0.1:8000,http://localhost:8000'),production=_PRODUCTION) or ())
 
-_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics')
+_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/v28/deployment','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics')
 @app.middleware('http')
 async def production_auth(request:Request,call_next):
     if os.getenv('OMNI_ENV','development')=='production' and request.url.path.startswith('/api/') and not any(request.url.path==p or (p.endswith('/') and request.url.path.startswith(p)) for p in _PUBLIC_PREFIXES):
@@ -162,6 +162,10 @@ def _build_v28_platform():
     # is reported as PARTIAL, not silently upgraded to LIVE.
     global _v28_pool
     mode=os.getenv('OMNI_CREATOR_PERSISTENCE','memory').strip().lower()
+    if os.getenv('OMNI_ENV','development')=='production' and mode!='postgres':
+        raise RuntimeError(f"OMNI_CREATOR_PERSISTENCE must be 'postgres' when OMNI_ENV=production "
+                           f"(got {mode!r}; unset means 'memory', which loses accounts and sessions on every "
+                           f"restart). Valid values: 'postgres' (production), 'memory' (development only).")
     if mode=='postgres':
         database_url=os.getenv('OMNI_DATABASE_URL','').strip()
         if not database_url:
@@ -1343,17 +1347,26 @@ def v28_register(req: V26AuthRequest, response: Response) -> dict:
     try:
         payload = _v28.register(email=req.email, password=req.password)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        if 'already exists' not in str(exc).lower():
+            raise HTTPException(400, str(exc)) from exc
+        try:
+            payload = _v28.login(email=req.email, password=req.password)
+        except PermissionError:
+            raise HTTPException(409, 'account already exists') from exc
+        payload['existing_account'] = True
     _set_session_cookie(response, payload['token'])
+    if 'subscription' not in payload:
+        payload['subscription'] = _v28.subscription(token=payload['token'])
     return payload
 
 @app.post('/api/v28/auth/login')
 def v28_login(req: V26AuthRequest, response: Response) -> dict:
     try:
         payload = _v28.login(email=req.email, password=req.password)
-        payload['subscription'] = _v28.subscription(token=payload['token'])
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    # A subscription failure must not look like a wrong password.
+    payload['subscription'] = _v28.subscription(token=payload['token'])
     _set_session_cookie(response, payload['token'])
     return payload
 
