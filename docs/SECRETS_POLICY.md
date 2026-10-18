@@ -33,7 +33,7 @@
 - `.env.example` עם placeholders ריקים או `CHANGE_ME`.
 - ערכי CI זמניים שברור שאינם אמיתיים, כמו `postgresql://postgres:ci-only@127.0.0.1:5432/postgres`.
 - fixtures בטסטים עם ערכים מזויפים מובהקים, כמו `SECRETPW1`, `sk-live-DO-NOT-LEAK-…` או `AKIA-FAKE-…`, על host לא אמיתי. ערך שנראה אמיתי (prefix ופורמט מלאים) מפעיל סורקים חיצוניים, ולכן עדיף לסמן אותו כמזויף בשם.
-- **hostname של DB/Redis ו-`db_fingerprint` (12 hex) אינם סודיים** (הוכרע: CEO, 2026-10-19). מה שסודי הוא ה-credentials: user, password, ו-connection string מלא. מזהי commit מותרים.
+- **hostname של DB/Redis ו-`db_fingerprint` (12 hex) אינם סודיים** (הוכרע: CEO, 2026-10-19; מקור: הנחיית המייסד בצ'אט, לא רשומה שניתן לאמת בריפו, ונדרש comment של `@Shayfly` על PR #51). מה שסודי הוא ה-credentials: user, password, ו-connection string מלא. מזהי commit מותרים.
 
 ## 4. ערוצים שכותבים לריפו אוטומטית
 
@@ -47,12 +47,16 @@
 
 ## 5. אירועים פתוחים (נמצאו בבדיקה הזו)
 
-1. **טוקני session של Production בהיסטוריה הציבורית:** קומיט `ba2bb23` (smoke-bot, 2026-10-18 20:48 UTC), קובץ `smoke/last-run.md`, שתי שורות. הטוקנים שייכים לחשבון smoke סינתטי, ותוקף session הוא 7 ימים (`identity_lifecycle.py:391`). **ביטול הסשנים: התקבל (CEO, 2026-10-19).** הערה: הסשנים לא נבדקו מכאן לאחר הביטול.
+1. **טוקני session של Production בהיסטוריה הציבורית:** קומיט `ba2bb23` (smoke-bot, 2026-10-18 20:48 UTC), קובץ `smoke/last-run.md`, שתי שורות. הטוקנים שייכים לחשבון smoke סינתטי, ותוקף session הוא 7 ימים (`identity_lifecycle.py:391`). **ביטול הסשנים: התקבל כדיווח CEO (2026-10-19), לא מאומת. האירוע נשאר פתוח** עד שתהיה ראיה שהסשנים בוטלו: probe של `GET /api/v28/me` עם הטוקן שמחזיר 401, או רשומת revocation ב-DB. (תוקן אחרי ביקורת Codex, P1.)
 2. ~~`db_host` של Production ב-`smoke/last-run.md` וב-`/api/v28/deployment`~~: **לא אירוע.** host אינו סודי (הוכרע: CEO, 2026-10-19).
 3. **אימייל אישי** ב-`docs/DECISIONS_2026-10-07_HE.md:27`.
 4. **מזהי פרויקטים של Vercel** ב-`STATUS.md:1274` וב-`STATUS.md:1278`.
+5. **כתובות IP ציבוריות** (נוסף אחרי ביקורת Codex, P1; ה-regex שלי היה שבור ופספס אותן). הערכים לא מועתקים לכאן:
+   - **IP של ה-worker:** בצורה מקווקוות או מנוקדת, ב-10 קבצים. מתוכם **2 בקוד**: `omni_prod/preview_router.py:15` ו-`omni_prod/runtime_bindings.py:163`. השאר: `STATUS.md:754`, `:825`, `:826`, `:1150`, `:1152`, ‏`docs/AGENT_SKILL_STATUS.md:45`, ‏`docs/AUDIT_ACCESS.md:12`, ‏`docs/STATUS_REVIEW_2026-10-08_HE.md:207`.
+   - IP ציבורי נוסף ב-`STATUS.md:825`.
+   - הסעיף נוגע ל-IP של שרת, לא ל-host של DB, ולכן הכרעת ה-CEO ש"host אינו סודי" לא חלה עליו. **טעון הכרעה.**
 
-לא נמצאו בקבצים המעוקבים (`main` @ `1f744ae`): מפתחות בפורמט `sk-…`/`gsk_…`/`AKIA…`/`ghp_…`/`xox…`, ‏private keys, connection strings אמיתיים עם סיסמה, IP ציבורי, או קבצי `.env` מלבד `*.env.example`. הבדיקה נעשתה ב-regex בלבד, על ה-tree הנוכחי ועל 40 הקומיטים האחרונים של `smoke/last-run.md`. זו לא סריקה מלאה של כל ההיסטוריה.
+לא נמצאו בקבצים המעוקבים (`main` @ `1f744ae`): מפתחות בפורמט `sk-…`/`gsk_…`/`AKIA…`/`ghp_…`/`xox…`, ‏private keys, connection strings אמיתיים עם סיסמה, או קבצי `.env` מלבד `*.env.example`. הבדיקה נעשתה ב-regex בלבד, על ה-tree הנוכחי ועל היסטוריית `smoke/last-run.md`. זו לא סריקה מלאה של כל ההיסטוריה. ה-regex של ה-IP פספס בריצה הראשונה, כך שאין להסתמך על הסריקה הזו כהוכחה.
 
 ## 6. אם משהו דלף
 
@@ -67,4 +71,6 @@ git diff --cached | grep -nE 'eyJhbGciOi|postgres(ql)?://[^:]+:[^@]+@|rediss?://
 ```
 אם יש פלט: לעצור ולבדוק.
 
-**אין בריפו סורק סודות שרץ על כל push או PR.** קיימים `omni_prod/secret_scan.py` וה-release gates (`scripts/run_v2*_release_gate.py`), אבל הם לא workflow שחוסם merge.
+**סורק סודות רץ על כל push ו-PR:** `v24-ci.yml` (`on: [push, pull_request]`) מריץ בשורה 41 את `scripts/run_international_gate.py`, שקורא ל-`scan_tree` (`omni_prod/secret_scan.py:90`) ונכשל כשיש ממצאים. (תוקן אחרי ביקורת Codex. הנוסח הקודם, "אין סורק", היה שגוי.) המגבלות:
+- הסורק **לא בודק `.md`** (`include_suffixes`, ‏`secret_scan.py:93`), ושם נמצאו רוב החשיפות שלמעלה.
+- לא בדקתי מכאן אם הבדיקה מחייבת ב-branch protection.
