@@ -52,4 +52,4 @@
 2. **אין fingerprint צפוי בקוד.** `deployment_verify` בודק פורמט, לא זהות. Production שמצביע בטעות על DB אחר יעבור את כל הבדיקות.
 3. **`internal-entitlement` מריץ מיגרציות** בכל הפעלה, כולל `list`.
 4. **ברירת המחדל של `migrate-target` מיושנת.** מי שמריץ עם `apply` בלי לשנות `ref` מריץ מיגרציות מענף ישן.
-5. **`db_host` של Production חשוף ציבורית** ב-`/api/v28/deployment` (ראו `docs/PUBLIC_ROUTES.md`).
+5. `db_host` של Production חשוף ב-`/api/v28/deployment`. **הוכרע (CEO, 2026-10-19): host אינו סודי.**
