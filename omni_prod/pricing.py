@@ -200,12 +200,12 @@ _M5_CLASS_LLM_CAP_DEFAULT_USD: dict[CostClass, str] = {
     CostClass.ADVANCED: '3.00', CostClass.HEAVY: '5.50', CostClass.EXTREME: '18.00',
 }
 
-# Model allowlist per class: the most a routable model may charge per 1M
-# output tokens (same thresholds as docs/MODEL_PRICES.md economy/standard).
-# None = no price ceiling. ZERO admits only models that charge nothing.
+# Model allowlist per class (CEO 2026-10-19 02:22): the most a routable model
+# may charge per 1M output tokens. None = no price ceiling. ZERO admits only
+# models that charge nothing.
 M5_CLASS_MAX_OUTPUT_PER_MILLION: dict[CostClass, Decimal | None] = {
-    CostClass.ZERO: Decimal('0'), CostClass.LIGHT: Decimal('1.50'), CostClass.STANDARD: Decimal('10.00'),
-    CostClass.ADVANCED: None, CostClass.HEAVY: None, CostClass.EXTREME: None,
+    CostClass.ZERO: Decimal('0'), CostClass.LIGHT: Decimal('1.50'), CostClass.STANDARD: Decimal('5.00'),
+    CostClass.ADVANCED: Decimal('8.00'), CostClass.HEAVY: None, CostClass.EXTREME: None,
 }
 
 # Exempt from the 60% build-margin floor (CEO 2026-10-19): Enterprise is priced by

@@ -186,12 +186,27 @@ class OtherPlanTests(unittest.TestCase):
 
 class AllowlistAndOverageTests(unittest.TestCase):
     def test_allowlist_thresholds(self):
+        # CEO 2026-10-19 02:22: LIGHT <= $1.50 · STANDARD <= $5 · ADVANCED <= $8 · HEAVY = all
         self.assertTrue(m5_model_allowed(CostClass.LIGHT, '1.50'))
         self.assertFalse(m5_model_allowed(CostClass.LIGHT, '1.51'))
-        self.assertTrue(m5_model_allowed(CostClass.STANDARD, '10.00'))
-        self.assertFalse(m5_model_allowed(CostClass.STANDARD, '10.01'))
+        self.assertTrue(m5_model_allowed(CostClass.STANDARD, '5.00'))
+        self.assertFalse(m5_model_allowed(CostClass.STANDARD, '5.01'))
+        self.assertTrue(m5_model_allowed(CostClass.ADVANCED, '8.00'))
+        self.assertFalse(m5_model_allowed(CostClass.ADVANCED, '8.01'))
         self.assertTrue(m5_model_allowed(CostClass.HEAVY, '50'))
+        self.assertTrue(m5_model_allowed(CostClass.EXTREME, '180'))
         self.assertFalse(m5_model_allowed(CostClass.ZERO, '0.01'))
+
+    def test_pro_and_studio_get_different_allowlists(self):
+        pro, studio = _gateway(), _gateway()
+        pro.restrict_to_cost_class(m5_build_cost_class(PlanCode.PRO))
+        studio.restrict_to_cost_class(m5_build_cost_class(PlanCode.STUDIO))
+        p_models = {m.endpoint.name for m in pro.ranked}
+        s_models = {m.endpoint.name for m in studio.ranked}
+        self.assertTrue(p_models, 'Pro must keep at least one routable model')
+        self.assertTrue(p_models < s_models, (p_models, s_models))
+        self.assertTrue(all(m.option.output_per_million <= Decimal('5.00') for m in pro.ranked))
+        self.assertTrue(any(m.option.output_per_million > Decimal('5.00') for m in studio.ranked))
 
     def test_soft_cap_records_overage_and_alerts_above_2x(self):
         self.assertEqual(llm_overage('0.30', '0.35')['status'], 'WITHIN_CAP')
