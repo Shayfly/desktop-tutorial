@@ -21,6 +21,7 @@ GOOGLE = 'https://ai.google.dev/gemini-api/docs/pricing'
 OPENAI = 'https://developers.openai.com/api/docs/pricing'
 ANTHROPIC = 'https://platform.claude.com/docs/en/about-claude/pricing'
 REPLICATE_FLUX = 'https://replicate.com/black-forest-labs/flux-schnell'
+VENICE = 'https://docs.venice.ai/overview/pricing'
 VERIFIED = '2026-10-11'
 
 
@@ -63,9 +64,10 @@ def _d(x) -> Decimal | None:
 
 
 def _row(provider, model, *, src, frm='2026-10-01', until=None, tier='paid standard', inp=None, cached=None, out=None,
-         image=None, audio_s=None, video_s=None, song=None, minute=None, note='', reasoning='billed as output tokens'):
+         image=None, audio_s=None, video_s=None, song=None, minute=None, note='', reasoning='billed as output tokens',
+         verified=VERIFIED):
     return PriceRow(provider=provider, model=model, effective_from=date.fromisoformat(frm),
-                    effective_until=date.fromisoformat(until) if until else None, source_url=src, verified_at=VERIFIED,
+                    effective_until=date.fromisoformat(until) if until else None, source_url=src, verified_at=verified,
                     applicable_tier=tier, input_per_million=_d(inp), cached_input_per_million=_d(cached),
                     output_per_million=_d(out), per_image=_d(image), per_audio_second=_d(audio_s),
                     per_video_second=_d(video_s), per_song=_d(song), per_transcription_minute=_d(minute),
@@ -109,6 +111,19 @@ SCHEDULE: tuple[PriceRow, ...] = (
     _row('anthropic', 'claude-sonnet-5-5', src=ANTHROPIC, inp='2.00', cached='0.10', out='10.00'),
     _row('anthropic', 'claude-haiku-5-5', src=ANTHROPIC, inp='0.10', cached='0.01', out='0.50', note='<=100k prompt tokens'),
     _row('anthropic', 'claude-opus-5-5', src=ANTHROPIC, inp='4.00', cached='0.20', out='20.00'),
+    # -- Venice (resold Gemini). Model ids exactly as Venice publishes them
+    # (dashes). NOT the route 148AI uses today: Gemini calls go to Google
+    # directly (infra/worker-host/model-catalog.json), so the 'gemini' rows
+    # above stay authoritative for real call costs. Snapshot: docs/venice_prices_snapshot.md
+    # (text extraction, not byte-exact). Short-context prices only.
+    _row('venice', 'gemini-3-flash-preview', src=VENICE, verified='2026-10-19', inp='0.70', cached='0.07', out='3.75', note='preview; not connected'),
+    _row('venice', 'gemini-3-1-pro-preview', src=VENICE, verified='2026-10-19', inp='2.50', cached='0.50', out='15.00', note='<=200k context; >200k is 5.00/0.50/22.50; preview; not connected'),
+    _row('venice', 'gemini-3-5-flash', src=VENICE, verified='2026-10-19', inp='1.55', cached='0.15', out='9.45', note='not connected'),
+    _row('venice', 'gemini-3-5-flash-lite', src=VENICE, verified='2026-10-19', inp='0.38', cached='0.04', out='3.13', note='not connected'),
+    _row('venice', 'gemini-3-6-flash', src=VENICE, verified='2026-10-19', inp='0.94', cached='0.09', out='4.69', note='not connected'),
+    _row('venice', 'gemini-3-7-flash', src=VENICE, verified='2026-10-19', inp='0.94', cached='0.09', out='4.69', note='not connected'),
+    _row('venice', 'gemini-3-8-flash', src=VENICE, verified='2026-10-19', inp='0.94', cached='0.09', out='4.69', note='not connected'),
+    _row('venice', 'gemini-4-argon', src=VENICE, verified='2026-10-19', inp='2.50', cached='0.13', out='12.50', note='not connected'),
 )
 
 
