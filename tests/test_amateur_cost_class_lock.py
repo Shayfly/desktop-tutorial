@@ -40,8 +40,9 @@ class AmateurCostClassLockTests(unittest.TestCase):
     def test_standard_starts_at_pro(self):
         self.assertIn(CostClass.STANDARD, PLAN_CATALOG[PlanCode.PRO].allowed_cost_classes)
 
-    def test_free_stays_zero_only(self):
-        self.assertEqual(set(PLAN_CATALOG[PlanCode.FREE].allowed_cost_classes), {CostClass.ZERO})
+    def test_free_is_zero_and_light(self):
+        # CEO 2026-10-19 (later decision): Free = ZERO + LIGHT, 150 credits.
+        self.assertEqual(set(PLAN_CATALOG[PlanCode.FREE].allowed_cost_classes), {CostClass.ZERO, CostClass.LIGHT})
 
 
 if __name__ == '__main__':

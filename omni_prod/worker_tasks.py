@@ -376,7 +376,29 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
         return {'binding': 'legacy_unbound'}
     if not hasattr(gateway, 'bind_budget'):
         return {'binding': 'not_applicable'}
-    return {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
+    out = {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
+    # CEO 2026-10-19: the plan's cost class also limits WHICH models may run.
+    if components.get('cost_class') and hasattr(gateway, 'restrict_to_cost_class'):
+        out['model_allowlist'] = gateway.restrict_to_cost_class(components['cost_class'])
+    return out
+
+
+def llm_cap_overage(request: dict, spent) -> dict | None:
+    """Soft class cap (CEO 2026-10-19): record how actual model spend compares
+    with the class cap; above 2x the cap it is logged as an alert. Never refuses."""
+    components = (request.get('economics_quote') or {}).get('components') or {}
+    cap = components.get('llm_class_cap_usd')
+    if cap in (None, 'None'):
+        return None
+    from .pricing import llm_overage
+    result = llm_overage(spent, cap)
+    if result['status'] == 'OVER_2X_CAP':
+        logging.getLogger(__name__).warning('LLM_SPEND_ALERT build class=%s spent=%s cap=%s (>2x)',
+                                            components.get('cost_class'), result['actual_usd'], result['cap_usd'])
+    elif result['status'] == 'OVER_CAP':
+        logging.getLogger(__name__).info('llm spend over class cap: class=%s spent=%s cap=%s',
+                                         components.get('cost_class'), result['actual_usd'], result['cap_usd'])
+    return result
 
 
 def capability_authorization_ceiling(request: dict) -> Decimal:
@@ -772,6 +794,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'llm_cap_overage': llm_cap_overage(request, spent),
             'asset_capabilities': asset_capability_status(capability_plan),
             # Agent OS §11: which skills shaped the build and what QA review found.
             'skills_applied': _skills_applied(),

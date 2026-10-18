@@ -126,6 +126,17 @@ class RoutedModelGateway:
                                                        None if primary is None else primary.endpoint.name,
                                                        [r.endpoint.name for r in fallback]))
 
+    def restrict_to_cost_class(self, cost_class) -> dict:
+        """CEO 2026-10-19: a build may route only to models its class admits
+        (pricing.M5_CLASS_MAX_OUTPUT_PER_MILLION). Narrows, never widens, the
+        catalog; an empty result leaves no external route (fail closed)."""
+        from .pricing import m5_model_allowed
+        before = [m.endpoint.name for m in self.ranked]
+        self.ranked = tuple(m for m in self.ranked if m5_model_allowed(cost_class, m.option.output_per_million))
+        kept = [m.endpoint.name for m in self.ranked]
+        return {'cost_class': getattr(cost_class, 'value', str(cost_class)), 'allowed_models': kept,
+                'excluded_models': [n for n in before if n not in kept]}
+
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Lower (never raise) the whole-build external budget to what was
         reserved for this build at admission. The worker's own environment can

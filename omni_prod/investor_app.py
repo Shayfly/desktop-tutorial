@@ -186,7 +186,8 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
-def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None):
+def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None,
+                              cost_class=None):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
@@ -197,19 +198,19 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
     required paid capability quotes and generated-app infrastructure maxima to
     the same quote, so one reservation covers every paid external effect.
     Called without it, the result is identical to the Task 10 quote.
+
+    CEO 2026-10-19: with ``cost_class`` the model budget is that class's cap
+    (pricing.m5_class_llm_cap), clipped so the whole quote still clears the
+    60% margin floor; it is never refused for the cap itself. Without
+    ``cost_class`` the legacy environment budget is used unchanged.
     """
+    from .pricing import MARGIN_FLOOR_EXEMPT_PLANS, m5_class_llm_cap
     cfg = ModelRuntimeConfig.from_env()
-    provider_quotes = ()
     provider_budget = Decimal(str(cfg.policy.external_budget_usd))
-    if provider_budget > 0:
-        provider_quotes = (ProviderQuote(
-            provider='model-router', capability_key='software.code.generate',
-            estimated_cost_usd=Decimal('0'), maximum_cost_usd=provider_budget,
-            pricing_version='runtime-model-policy-v1', unit_name='build-budget', units=Decimal('1'),
-        ),)
     infra_est = Decimal(os.getenv('OMNI_BUILD_INFRA_ESTIMATED_USD', '0'))
     infra_max = Decimal(os.getenv('OMNI_BUILD_INFRA_MAX_USD', str(infra_est)))
     retry_reserve = Decimal(os.getenv('OMNI_BUILD_RETRY_RESERVE_USD', '0'))
+    exempt = getattr(plan, 'code', None) in MARGIN_FLOOR_EXEMPT_PLANS
 
     revenue_basis = None
     minimum_margin = None
@@ -222,15 +223,41 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
         # guards conservative variable cost; it is not realized-profit evidence.
         minimum_margin = max(Decimal('0.60'), configured_margin)
 
-    quote, components = build_economics_quote(
-        llm_quotes=provider_quotes, cost_inputs=cost_inputs,
-        platform_infrastructure_estimated_usd=infra_est, platform_infrastructure_maximum_usd=infra_max,
-        retry_reserve_usd=retry_reserve, revenue_usd=revenue_basis, minimum_margin=minimum_margin,
-    )
-    if funding == 'internal_qa':
+    def _quote(llm_budget):
+        llm = () if llm_budget <= 0 else (ProviderQuote(
+            provider='model-router', capability_key='software.code.generate',
+            estimated_cost_usd=Decimal('0'), maximum_cost_usd=llm_budget,
+            pricing_version='runtime-model-policy-v1', unit_name='build-budget', units=Decimal('1'),
+        ),)
+        return build_economics_quote(
+            llm_quotes=llm, cost_inputs=cost_inputs,
+            platform_infrastructure_estimated_usd=infra_est, platform_infrastructure_maximum_usd=infra_max,
+            retry_reserve_usd=retry_reserve, revenue_usd=revenue_basis, minimum_margin=minimum_margin,
+        )
+
+    budget_basis = 'environment'
+    class_cap = None
+    if cost_class is not None:
+        from .pricing import m5_llm_budget
+        class_cap = m5_class_llm_cap(cost_class)
+        non_llm = Decimal('0')
+        if revenue_basis is not None and funding != 'internal_qa' and not exempt:
+            others, _ = _quote(Decimal('0'))
+            non_llm = others.total_authorized_variable_usd
+        provider_budget, budget_basis = m5_llm_budget(
+            plan, cost_class, credits, non_llm_usd=non_llm,
+            minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
+            internal_qa=funding == 'internal_qa')
+
+    quote, components = _quote(provider_budget)
+    if cost_class is not None:
+        components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
+                      'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
+    if funding == 'internal_qa' or exempt:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
         # of the margin floor. The caller must run authorize_qa_build().
+        # Margin-exempt plans (Enterprise) are priced by contract.
         pass
     elif revenue_basis is None:
         if quote.total_authorized_variable_usd > 0:
@@ -2112,9 +2139,9 @@ def v28_build_plan(project_id: str, build_id: str, request: Request) -> dict:
             'bound': binding is not None, 'tasks': tasks}
 
 
-def _budget_fingerprint(contract, quote, funding: str) -> str:
+def _budget_fingerprint(contract, quote, funding: str, credits: int = _M5_BUILD_CREDITS) -> str:
     import hashlib
-    basis = f'{contract.contract_fingerprint}|{quote.total_authorized_variable_usd}|{_M5_BUILD_CREDITS}|{funding}'
+    basis = f'{contract.contract_fingerprint}|{quote.total_authorized_variable_usd}|{credits}|{funding}'
     return hashlib.sha256(basis.encode()).hexdigest()
 
 
@@ -2160,18 +2187,21 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     if row.fingerprint[:16] not in contract.prompt:
         raise HTTPException(409, detail={'error': 'approval_stale', 'message': 'This plan was made for another version of the request.'})
     plan = _v28.subscriptions.plan_for(account.id)
+    from .pricing import m5_build_terms
+    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
     _, internal_qa = _internal_qa_funding(account.id)
     try:
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
-        quote = _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None)
+        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
     except (CostQuoteUnknown, PermissionError) as exc:
         raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'}) from exc
     try:
         return _brief_repo().create_approval(
             project_id=project_id, account_id=account.id, brief_row=row, build_contract_id=contract.id,
             contract_fingerprint=contract.contract_fingerprint,
-            budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan'))
+            budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan',
+                                                   credits=build_credits))
     except ApprovalError as exc:
         raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
 
@@ -2188,14 +2218,16 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         raise HTTPException(403, str(exc)) from exc
     repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
     plan = _v28.subscriptions.plan_for(account.id)
+    from .pricing import m5_build_terms
+    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
     qa_policy, internal_qa = _internal_qa_funding(account.id)
 
     def economics(contract):
         # Admission parity: the same funding decision and, for internal QA,
         # the same caps as POST .../builds (checked read-only here).
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
-        quote = _m5_build_economics_quote(plan, credits=_M5_BUILD_CREDITS, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None)
+        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
         if internal_qa:
             from .qa_budget import QABudgetDenied, preauthorize_qa_build
             try:
@@ -2217,7 +2249,7 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
     # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
-    preview['credits_required'] = _M5_BUILD_CREDITS
+    preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
     preview['allowance'] = _v28.subscription(token=token)
     if internal_qa:
@@ -2266,11 +2298,12 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "unresolved_questions": [q.to_dict() for q in exc.contract.unresolved_questions],
             }) from exc
         plan = _v28.subscriptions.plan_for(account.id)
-        from .pricing import m5_build_cost_class
-        # CEO 2026-10-19: reserve under the plan's own build class (Amateur
-        # LIGHT, Pro STANDARD, Studio HEAVY) so reserve() does not refuse a
-        # legitimate build on a plan that excludes STANDARD.
-        cost_class, credits = m5_build_cost_class(plan.code), _M5_BUILD_CREDITS
+        from .pricing import m5_build_terms
+        # CEO 2026-10-19: a build is reserved, budgeted and charged by its
+        # plan's class (pricing.M5_BUILD_COST_CLASS / M5_CLASS_BUILD_CREDITS /
+        # m5_class_llm_cap), so reserve() never refuses a legitimate build and
+        # the tiers differ in real model spend, not only in the label.
+        cost_class, credits = m5_build_terms(plan.code)
         from .qa_budget import QABudgetDenied, authorize_qa_build
         # Explicit INTERNAL_QA entitlement bound to the account id (migration
         # 029), decided exactly as in the plan view; re-verified under lock
@@ -2280,7 +2313,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
                 plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
-                funding='internal_qa' if internal_qa else None)
+                funding='internal_qa' if internal_qa else None, cost_class=cost_class)
         except CostQuoteUnknown as exc:
             logging.getLogger(__name__).info('build %s: cost quote unknown: %s', project_id, list(exc.unknown))
             raise HTTPException(402, detail={'error': 'cost_quote_unknown',
@@ -2360,7 +2393,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                     cur, approval_id=req.approval_id, project_id=project_id, account_id=account.id,
                                     build_contract_id=build_contract.id, contract_fingerprint=build_contract.contract_fingerprint,
                                     budget_fingerprint=_budget_fingerprint(
-                                        build_contract, economics_quote, 'internal_qa' if internal_qa else 'customer_plan'),
+                                        build_contract, economics_quote, 'internal_qa' if internal_qa else 'customer_plan',
+                                        credits=credits),
                                     build_id=build_id)
                             except ApprovalError as exc:
                                 raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc

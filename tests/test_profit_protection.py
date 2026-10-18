@@ -31,7 +31,7 @@ def test_lost_worker_unknown_call_keeps_reservation():
  assert actual is None
 
 def test_default_margin_target_is_sixty_percent():
- # Amateur $29 x 60/900 credits = $1.93 revenue basis; 60% floor allows <= $0.77, so $0.80 must be refused.
+ # Legacy (no cost_class) quote: Amateur $29 x 60/1000 credits = $1.74 basis; 60% floor allows <= $0.70, so $0.80 is refused.
  env={'OMNI_ZERO_COST_MODE':'0','OMNI_ALLOW_EXTERNAL_FALLBACK':'1','OMNI_EXTERNAL_BUDGET_USD':'0.80','OMNI_EXTERNAL_CALLS_PER_BUILD':'3'}
  with patch.dict('os.environ',env,clear=False):
   with pytest.raises(PermissionError):
