@@ -119,3 +119,17 @@ def test_branch_is_not_behind_main():
         pytest.skip('shallow clone: merge-base unavailable')
     behind = _git('rev-list', '--count', 'HEAD..origin/main').stdout.strip()
     assert behind == '0', f'branch is {behind} commit(s) behind origin/main'
+
+
+# --- documented bug: email-verification/request turns 401 into 400 -------------
+
+def test_email_verification_request_anonymous_bug_returns_400_not_401(prod):
+    """BUG (documented, not fixed): the handler's broad `except Exception` catches
+    the HTTPException(401) raised by _v28_bearer and re-raises it as 400 with
+    detail "401: authentication required". Characterizes CURRENT behavior: this
+    test goes RED when the bug is fixed; then delete it — the 401 expectation in
+    test_auth_required_routes_reject_anonymous covers the fixed behavior.
+    """
+    r = prod.post('/api/v28/auth/email-verification/request', headers=SAME_ORIGIN)
+    assert r.status_code == 400, (r.status_code, r.text[:200])
+    assert r.json()['detail'] == '401: authentication required'
