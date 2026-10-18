@@ -27,13 +27,38 @@
 | 17 | אסור שספק מחובר יפעל בלי רשומת מחיר. ל-Replicate ‏flux-schnell נוספה שורה | צ'אט 01:55 | `prices.py` (#60); שמירה: `test_every_connection_tested_model_has_a_price_row` |
 | 18 | אישורי חריגה ל-`omni_prod`: קודם `pricing.py` בלבד (01:48), ואחר כך גם `investor_app.py` בשורה 2269 ובסביבתה (01:55). ‏`prices.py` לפי סעיף 2 ב-01:48 | צ'אט | #59, ‏#60 |
 
+### מיפוי cost class (הוכרע 02:05–02:16; מחליף את הכרעה 13 ואת בחירות C2/C3)
+
+ה-class של בנייה קובע שלושה דברים בפועל: (א) allowlist של מודלים, (ב) תקרת תקציב לבנייה, (ג) קרדיטים. מימוש: #59 (`633158b`).
+
+| # | הכרעה | ערך | מימוש |
+|---|---|---|---|
+| 19 | class לכל תוכנית (בלי ברירת מחדל STANDARD) | Free→LIGHT · Amateur→LIGHT · Pro→STANDARD · Studio→HEAVY · Enterprise→EXTREME | `pricing.M5_BUILD_COST_CLASS` |
+| 20 | קרדיטים לבנייה לפי class | ZERO 20 · LIGHT 45 · STANDARD 200 · ADVANCED 300 · HEAVY 500 · EXTREME 1200 | `M5_CLASS_BUILD_CREDITS`; ב-reserve, ב-approval וב-preview |
+| 21 | קרדיטים לתוכנית | Free 150 · Amateur 1000 · Pro 4500 · Studio 10000 | `PLAN_CATALOG` |
+| 22 | Free | ZERO + LIGHT, 150 קרדיטים (כ-3 בנייות בחודש) | `PLAN_CATALOG` |
+| 23 | Enterprise | EXTREME, פטור מרצפת המרווח (תמחור בחוזה) | `MARGIN_FLOOR_EXEMPT_PLANS` |
+| 24 | תקרת תקציב מודלים לבנייה, **soft cap** (לא דוחה בנייה, רק רושם חריגה) | ZERO $0.05 · LIGHT $0.35 · STANDARD $1.60 · ADVANCED $3.00 · HEAVY $5.50 · EXTREME $18.00. לכל class יש משתנה env נפרד: `OMNI_BUILD_LLM_CAP_<CLASS>_USD` | `m5_class_llm_cap`, ‏`m5_llm_budget` |
+| 25 | חריגה של יותר מפי 2 מהתקרה | התרעה בלוג (`LLM_SPEND_ALERT`) | `pricing.llm_overage`, ‏`worker_tasks.llm_cap_overage` |
+| 26 | רצפת 60% לא יורדת. אם תקרה שוברת את הרצפה, התקציב נחתך לגובה הרצפה (אפשרות 1) | — | `m5_llm_budget` |
+| 27 | יעד מרווח במקרה הגרוע (כל התקרה מנוצלת) | Amateur 72% · Pro 63% · Studio 62% | מושג: 73.2% / 63.6% / 63.2% |
+| 28 | טסט חובה ב-CI: אותה משימה עולה פחות ב-Amateur מאשר ב-Studio, והמרווח נשמר בשלושת ה-tiers | — | `tests/test_m5_plan_build_class.py::SameTaskTierTests` |
+
+**allowlist (בחירה של Claude, כלל מחיר):** מקסימום מחיר output ל-1M טוקנים: ZERO ‏$0 · LIGHT ‏$1.50 · STANDARD ‏$10 · ADVANCED/HEAVY/EXTREME ללא תקרה. אלה אותם ספים שמופיעים ב-`docs/MODEL_PRICES.md`. עם ה-catalog הנוכחי:
+- ל-LIGHT נשארים `gemini-3-1-flash-lite` ו-`openai-gpt-6-luna`.
+- STANDARD ומעלה מקבלים את כל 6 המודלים, כך שבין Pro ל-Studio אין כרגע הבדל ב-allowlist, רק בתקציב ובקרדיטים.
+
+**בעיה פתוחה, Free:** ל-Free אין הכנסה, והרצפה חלה עליו (רק Enterprise פטור). לכן תקציב המודלים שלו הוא **$0**: בנייה של Free יכולה לרוץ רק על מסלולים בעלות אפסית. כדי לתת ל-Free ‏3 בנייות LIGHT בתשלום (עד $0.35 לבנייה, כלומר עד $1.05 למשתמש בחודש), צריך לפטור גם את Free מהרצפה. **זו הכרעה שעוד לא התקבלה.**
+
+**פער שקיבל הכרעה:** בתשובה הראשונה נכתב "Free 300", ובשנייה "Free 150 (= 3 בנייות)". נבחר 150, וזה אושר בהודעה של 02:16.
+
 ## 2026-10-19 — בחירות של Claude (לא הכרעות CEO, פתוחות לשינוי)
 
 | # | בחירה | סיבה | איפה |
 |---|---|---|---|
 | C1 | Studio→**HEAVY** | ההנחיה אמרה "HEAVY/PREMIUM", אבל `PREMIUM` לא קיים ב-`CostClass` | `pricing.M5_BUILD_COST_CLASS` |
-| C2 | Free ו-Enterprise נשארים עם STANDARD בנתיב M5, כמו לפני ההכרעה | לא נכללו במיפוי. Free נחסם ממילא בבדיקת ההכנסה. Enterprise מתיר כל class. ב-internal QA אין בדיקת class | `m5_build_cost_class` |
-| C3 | כל בנייה של M5 עולה 60 קרדיטים בכל class | חלוקת קרדיטים לפי class לא נקבעה | `_M5_BUILD_CREDITS` |
+| C2 | ~~Free ו-Enterprise נשארים עם STANDARD בנתיב M5~~ **הוחלף בהכרעות 19, 22 ו-23** | לא נכללו במיפוי. Free נחסם ממילא בבדיקת ההכנסה. Enterprise מתיר כל class. ב-internal QA אין בדיקת class | `m5_build_cost_class` |
+| C3 | ~~כל בנייה של M5 עולה 60 קרדיטים בכל class~~ **הוחלף בהכרעה 20** | חלוקת קרדיטים לפי class לא נקבעה | `_M5_BUILD_CREDITS` |
 | C4 | `BASIC` ו-`BUSINESS` נשארו כ-aliases, ו-`_missing_` ממפה את `'basic'`/`'business'` | ב-DB וב-Stripe metadata שמורים הערכים הישנים. כך אין צורך במיגרציה | `pricing.PlanCode` |
 | C5 | בבחירת env, השם החדש גובר על הישן | כך הוגדר בהכרעה 14. ב-Vercel לא מוגדר אף אחד מהשמות, כך שאין השפעה כרגע | `_env_decimal_renamed` |
 | C6 | חיפוש מחיר בלי provider שמוצא כמה ספקים זורק `AmbiguousPrice` ולא בוחר אחד מהם | בחירה שקטה הייתה מחזירה מחיר שגוי | `prices.price_at` |
@@ -43,6 +68,7 @@
 
 ## השלכות פתוחות
 
-- **התווית של ה-class לא קובעת אילו מודלים ירוצו.** ‏`cost_class` משמש רק ב-`reserve` וב-fingerprint. ההוצאה בפועל נקבעת לפי `OMNI_EXTERNAL_BUDGET_USD` ורצפת המרווח. כלומר בנייה של Amateur ב-LIGHT משתמשת באותו ניתוב ובאותו תקציב כמו בנייה ב-STANDARD.
+- ~~ה-class הוא תווית בלבד~~ **תוקן ב-#59:** ה-class קובע allowlist, תקציב וקרדיטים. **תנאי ל-worker:** ‏`bind_budget` רק מוריד תקציב ולעולם לא מעלה אותו. אם `OMNI_EXTERNAL_BUDGET_USD` ב-`WORKER_ENV` נמוך מתקרת ה-class (למשל $0.50 מול $5.50 של Studio), התקרה של ה-worker גוברת, וההבדל בין ה-tiers נעלם בזמן ריצה. כדי שה-tiers יהיו אמיתיים עד הסוף, הערך הזה צריך להיות לפחות $18.
+- **approvals ישנים:** ה-budget fingerprint כולל עכשיו את הקרדיטים של ה-class. approval שנוצר לפני הפריסה (עם 60 קרדיטים) לא יתאים יותר, והלקוח יתבקש לאשר מחדש. הכשל חוסם בצורה בטוחה ולא גורם לחיוב שגוי.
 - **idempotency:** ה-fingerprint של הצעת המחיר כולל את `cost_class`. בנייה שנוצרה לפני הפריסה ומשוחזרת אחריה עם אותו מפתח תקבל `idempotency_conflict`.
 - **`email-verification/request`** מחזיר 400 במקום 401. מתועד בטסט ב-#50, לא תוקן.
