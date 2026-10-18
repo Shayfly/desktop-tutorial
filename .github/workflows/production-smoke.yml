@@ -14,13 +14,20 @@ concurrency:
 
 jobs:
   smoke:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
       - name: Verify live production API
         env:
           BASE_URL: https://148aiv28.vercel.app
+        shell: bash
         run: |
+          exec > >(tee /tmp/report.txt) 2>&1
           python3 - <<'PY'
           import http.cookiejar
           import json
@@ -65,7 +72,19 @@ jobs:
                               print("::add-mask::" + value, flush=True)
               except (ValueError, TypeError):
                   pass
-              print(f"{method} {path}\nHTTP: {status}\nBODY_RAW: {body}", flush=True)
+              # Never persist live session tokens in a committed report.
+              try:
+                  safe = json.loads(body)
+                  if isinstance(safe, dict):
+                      for key in ("token", "access_token", "refresh_token"):
+                          if key in safe:
+                              safe[key] = "[REDACTED]"
+                      report_body = json.dumps(safe, ensure_ascii=False)
+                  else:
+                      report_body = body
+              except (ValueError, TypeError):
+                  report_body = body
+              print(f"{method} {path}\\nHTTP: {status}\\nBODY_RAW: {report_body}", flush=True)
               return status, body, header_map
 
           def check(name, actual, ok):
@@ -104,3 +123,27 @@ jobs:
               print(f"| {name} | {result} | {http} |")
           sys.exit(1 if len(rows) != 5 or any(row[1] != "PASS" for row in rows) else 0)
           PY
+
+      - name: summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Production Smoke — $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f /tmp/report.txt ]; then cat /tmp/report.txt >> "$GITHUB_STEP_SUMMARY"; else echo "No report generated" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: publish results
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          mkdir -p smoke
+          { echo "# Production Smoke — $(date -u +%FT%TZ)"; echo; echo "run: $GITHUB_RUN_ID"; echo '```'; if [ -f /tmp/report.txt ]; then cat /tmp/report.txt; else echo "No report generated"; fi; echo '```'; } > smoke/last-run.md
+          git config user.name "smoke-bot"
+          git config user.email "smoke-bot@148ai.dev"
+          git add smoke/last-run.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: smoke results [skip ci]"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
