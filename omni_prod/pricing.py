@@ -10,10 +10,23 @@ import os
 
 class PlanCode(str, Enum):
     FREE = 'free'
-    BASIC = 'basic'
+    AMATEUR = 'amateur'
     PRO = 'pro'
-    BUSINESS = 'business'
+    STUDIO = 'studio'
     ENTERPRISE = 'enterprise'
+    # Deprecated aliases (CEO 2026-10-19: Basic->Amateur, Business->Studio).
+    # They resolve to the new members so existing references keep working.
+    BASIC = 'amateur'
+    BUSINESS = 'studio'
+
+    @classmethod
+    def _missing_(cls, value):
+        # Rows persisted before the rename (creator_subscriptions.plan_code,
+        # billing events, Stripe metadata) still say 'basic' / 'business'.
+        legacy = {'basic': cls.AMATEUR, 'business': cls.STUDIO}
+        if isinstance(value, str):
+            return legacy.get(value.strip().lower())
+        return None
 
 
 class CostClass(str, Enum):
@@ -109,25 +122,28 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
             'export with 148AI branding', 'community/self-service support',
         ),
     ),
-    PlanCode.BASIC: PlanDefinition(
-        PlanCode.BASIC, 'Basic', _env_decimal('OMNI_PRICE_BASIC_USD','12'), _env_decimal('OMNI_PRICE_BASIC_ANNUAL_USD','120'), 900, _env_decimal('OMNI_PROVIDER_CAP_BASIC_USD','2.50'), 10, 1,
-        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD), 'subtle-required', False, False, 'standard',
+    PlanCode.AMATEUR: PlanDefinition(
+        PlanCode.AMATEUR, 'Amateur', _env_decimal('OMNI_PRICE_AMATEUR_USD','29'), _env_decimal('OMNI_PRICE_AMATEUR_ANNUAL_USD','290'), 900, _env_decimal('OMNI_PROVIDER_CAP_AMATEUR_USD','2.50'), 10, 1,
+        # CEO 2026-10-19: economy/light only; STANDARD starts at Pro.
+        (CostClass.ZERO, CostClass.LIGHT), 'subtle-required', False, False, 'standard',
         (
-            'everything in Free', 'budgeted local/open-weight AI', 'standard code repair',
+            'everything in Free', 'budgeted local/open-weight AI', 'light code repair',
             'limited image/audio materialization', 'private projects', 'email support',
         ),
     ),
     PlanCode.PRO: PlanDefinition(
-        PlanCode.PRO, 'Pro', _env_decimal('OMNI_PRICE_PRO_USD','39'), _env_decimal('OMNI_PRICE_PRO_ANNUAL_USD','390'), 4000, _env_decimal('OMNI_PROVIDER_CAP_PRO_USD','10'), 50, 1,
-        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD, CostClass.ADVANCED, CostClass.HEAVY),
+        PlanCode.PRO, 'Pro', _env_decimal('OMNI_PRICE_PRO_USD','99'), _env_decimal('OMNI_PRICE_PRO_ANNUAL_USD','990'), 4000, _env_decimal('OMNI_PROVIDER_CAP_PRO_USD','10'), 50, 1,
+        # CEO 2026-10-19: Pro goes up to STANDARD.
+        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD),
         'optional', True, False, 'priority',
         (
-            'everything in Basic', 'advanced model routing', 'deep repair loops', 'image/audio/music/voice',
+            'everything in Amateur', 'standard model routing', 'deep repair loops', 'image/audio/music/voice',
             'video/3D within usage budget', 'mobile/game pipelines', 'remove visible 148AI branding', 'priority builds',
         ),
     ),
-    PlanCode.BUSINESS: PlanDefinition(
-        PlanCode.BUSINESS, 'Business', _env_decimal('OMNI_PRICE_BUSINESS_USD','99'), _env_decimal('OMNI_PRICE_BUSINESS_ANNUAL_USD','990'), 12000, _env_decimal('OMNI_PROVIDER_CAP_BUSINESS_USD','25'), 250, 5,
+    PlanCode.STUDIO: PlanDefinition(
+        PlanCode.STUDIO, 'Studio', _env_decimal('OMNI_PRICE_STUDIO_USD','299'), _env_decimal('OMNI_PRICE_STUDIO_ANNUAL_USD','2990'), 12000, _env_decimal('OMNI_PROVIDER_CAP_STUDIO_USD','25'), 250, 5,
+        # CEO 2026-10-19: Studio may use every cost class.
         tuple(CostClass), 'white-label-eligible', True, True, 'high',
         (
             'everything in Pro', '5 seats', 'team/RBAC workflows', 'API access', 'white-label exports',
@@ -314,7 +330,7 @@ def catalog_payload() -> dict:
     return {
         'currency': 'USD',
         'pricing_status': 'prelaunch-proposed-configurable',
-        'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.BASIC, PlanCode.PRO, PlanCode.BUSINESS, PlanCode.ENTERPRISE)],
+        'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO, PlanCode.ENTERPRISE)],
         'principles': [
             'Free uses zero-paid-provider paths only.',
             'System bugs and missed original requirements do not consume customer credits.',

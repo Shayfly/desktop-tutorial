@@ -23,14 +23,28 @@ SECRET='v28-test-'+'s'*48
 
 
 class PricingAndBrandingTests(unittest.TestCase):
-    def test_plan_catalog_has_free_basic_pro_business(self):
+    def test_plan_catalog_has_free_amateur_pro_studio(self):
+        # CEO 2026-10-19: Free $0 / Amateur $29 / Pro $99 / Studio $299; annual = 10 months.
         self.assertEqual(PLAN_CATALOG[PlanCode.FREE].monthly_price_usd, Decimal('0'))
-        self.assertEqual(PLAN_CATALOG[PlanCode.BASIC].monthly_price_usd, Decimal('12'))
-        self.assertEqual(PLAN_CATALOG[PlanCode.PRO].monthly_price_usd, Decimal('39'))
-        self.assertEqual(PLAN_CATALOG[PlanCode.BUSINESS].monthly_price_usd, Decimal('99'))
-        self.assertGreaterEqual(PLAN_CATALOG[PlanCode.BASIC].variable_margin_floor(), Decimal('.75'))
+        self.assertEqual(PLAN_CATALOG[PlanCode.AMATEUR].monthly_price_usd, Decimal('29'))
+        self.assertEqual(PLAN_CATALOG[PlanCode.PRO].monthly_price_usd, Decimal('99'))
+        self.assertEqual(PLAN_CATALOG[PlanCode.STUDIO].monthly_price_usd, Decimal('299'))
+        for code in (PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO):
+            p = PLAN_CATALOG[code]
+            self.assertEqual(p.annual_price_usd, p.monthly_price_usd * 10)
+        self.assertEqual(PLAN_CATALOG[PlanCode.AMATEUR].name, 'Amateur')
+        self.assertEqual(PLAN_CATALOG[PlanCode.STUDIO].name, 'Studio')
+        self.assertGreaterEqual(PLAN_CATALOG[PlanCode.AMATEUR].variable_margin_floor(), Decimal('.75'))
         self.assertGreaterEqual(PLAN_CATALOG[PlanCode.PRO].variable_margin_floor(), Decimal('.70'))
-        self.assertGreaterEqual(PLAN_CATALOG[PlanCode.BUSINESS].variable_margin_floor(), Decimal('.70'))
+        self.assertGreaterEqual(PLAN_CATALOG[PlanCode.STUDIO].variable_margin_floor(), Decimal('.70'))
+
+    def test_legacy_plan_codes_still_parse(self):
+        # Rows written before the rename keep loading (no data migration needed).
+        self.assertIs(PlanCode('basic'), PlanCode.AMATEUR)
+        self.assertIs(PlanCode('business'), PlanCode.STUDIO)
+        self.assertIs(PlanCode.BASIC, PlanCode.AMATEUR)
+        self.assertIs(PlanCode.BUSINESS, PlanCode.STUDIO)
+        self.assertEqual([c.value for c in PlanCode], ['free', 'amateur', 'pro', 'studio', 'enterprise'])
 
     def test_free_blocks_paid_provider_and_bug_repair_is_credit_free(self):
         s=SubscriptionService(); uid='u1'
