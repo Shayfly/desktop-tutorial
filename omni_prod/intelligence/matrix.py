@@ -69,7 +69,7 @@ def build(catalog: list[dict] | None = None, as_of: date = AS_OF) -> dict:
     by_name = {c['name']: c for c in catalog}
     rows = []
     for e in INVENTORY:
-        price = prices.price_at(e.provider_model_id, as_of)
+        price = prices.price_at(e.provider_model_id, as_of, provider=e.provider_key)
         life = lifecycle.state(e.provider_model_id, as_of)
         health = _health_of(e)
         cat = by_name.get(e.model_key)
@@ -97,7 +97,7 @@ def build(catalog: list[dict] | None = None, as_of: date = AS_OF) -> dict:
             {'effective_from': str(price.effective_from), 'effective_until': str(price.effective_until) if price.effective_until else None,
              'source_url': price.source_url, 'verified_at': price.verified_at},
             'price_in_force': None if price is None else price.to_dict(),
-            'price_changes_announced': [r.to_dict() for r in prices.history(e.provider_model_id) if r.effective_from > as_of],
+            'price_changes_announced': [r.to_dict() for r in prices.history(e.provider_model_id, provider=e.provider_key) if r.effective_from > as_of],
             'deprecation_state': life, 'replacement_model': (lifecycle.BY_MODEL.get(e.provider_model_id).successor
                                                              if e.provider_model_id in lifecycle.BY_MODEL else None),
             'deprecation_warning': lifecycle.warning(e.provider_model_id, as_of),
@@ -182,7 +182,7 @@ def validate(matrix: dict | None = None, catalog: list[dict] | None = None) -> l
             problems.append(f'{c["name"]}: catalog model {c["model"]} != inventory {e.provider_model_id}')
         if (e.credential_reference_names or ('',))[0] != c.get('api_key_env'):
             problems.append(f'{c["name"]}: credential reference differs from the catalog api_key_env')
-        row = prices.price_at(c['model'], AS_OF)
+        row = prices.price_at(c['model'], AS_OF, provider=c.get('provider'))
         if row is None:
             problems.append(f'{c["name"]}: routable model without a source-backed price')
         elif (Decimal(str(c['input_per_million'])) != row.input_per_million

@@ -128,7 +128,8 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
             max_out = int(item.get('max_output_tokens', 8192))
             gov = govern(model=model, base_url=str(item.get('base_url', '')),
                          input_per_million=Decimal(str(item['input_per_million'])),
-                         output_per_million=Decimal(str(item['output_per_million'])), when=when)
+                         output_per_million=Decimal(str(item['output_per_million'])), when=when,
+                         provider=item.get('provider'))
         except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
         if not gov.routable or not eligible(task, model_id=model, quality=quality):

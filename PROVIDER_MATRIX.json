@@ -931,8 +931,24 @@
     "Vercel project 148aiv28 environment variable names (read 2026-10-11, values not read) @ 2026-10-11: REPLICATE_API_TOKEN present (Preview, sensitive); no LLM provider key on Vercel",
     "Vercel Preview deployment p40n0qijl, GET /api/v28/providers/replicate/check @ 2026-10-06: authenticated account check connection_verified=true; no prediction was ever submitted"
    ],
-   "price_schedule_reference": null,
-   "price_in_force": null,
+   "price_schedule_reference": {
+    "effective_from": "2026-10-01",
+    "effective_until": null,
+    "source_url": "https://replicate.com/pricing",
+    "verified_at": "2026-10-19"
+   },
+   "price_in_force": {
+    "provider": "replicate",
+    "model": "black-forest-labs/flux-schnell",
+    "effective_from": "2026-10-01",
+    "source_url": "https://replicate.com/pricing",
+    "verified_at": "2026-10-19",
+    "applicable_tier": "paid standard",
+    "currency": "USD",
+    "reasoning_accounting": "billed as output tokens",
+    "per_image": "0.003",
+    "units_note": "$3.00 per thousand output images"
+   },
    "price_changes_announced": [],
    "deprecation_state": "ACTIVE",
    "replacement_model": null,

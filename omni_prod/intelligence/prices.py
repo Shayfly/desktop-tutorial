@@ -4,7 +4,12 @@ Every row comes from the provider's official pricing page, read on
 `verified_at`. Future price changes are included only when that page states
 them (Gemini 3.8 Flash doubles on 2027-01-01). History is never edited: a new
 price is a new row with a later `effective_from`, so the cost of any past call
-can be reconstructed with `price_at(model, when)`.
+can be reconstructed with `price_at(model, when, provider=...)`.
+
+Rows are keyed by (provider, model): the same model id can be sold by more than
+one provider (Claude direct from Anthropic and resold by Venice). A lookup that
+names no provider and matches several providers raises `AmbiguousPrice`
+instead of silently picking one.
 
 Billing shapes differ per modality; a row carries only the units its provider
 bills (tokens, images, seconds of audio/video, songs, minutes). A missing
@@ -21,6 +26,7 @@ GOOGLE = 'https://ai.google.dev/gemini-api/docs/pricing'
 OPENAI = 'https://developers.openai.com/api/docs/pricing'
 ANTHROPIC = 'https://platform.claude.com/docs/en/about-claude/pricing'
 REPLICATE_FLUX = 'https://replicate.com/black-forest-labs/flux-schnell'
+REPLICATE_PRICING = 'https://replicate.com/pricing'
 VENICE = 'https://docs.venice.ai/overview/pricing'
 VERIFIED = '2026-10-11'
 
@@ -124,11 +130,23 @@ SCHEDULE: tuple[PriceRow, ...] = (
     _row('venice', 'gemini-3-7-flash', src=VENICE, verified='2026-10-19', inp='0.94', cached='0.09', out='4.69', note='not connected'),
     _row('venice', 'gemini-3-8-flash', src=VENICE, verified='2026-10-19', inp='0.94', cached='0.09', out='4.69', note='not connected'),
     _row('venice', 'gemini-4-argon', src=VENICE, verified='2026-10-19', inp='2.50', cached='0.13', out='12.50', note='not connected'),
+    # Venice resells Claude under the SAME model ids as Anthropic: only a
+    # provider-scoped lookup can tell them apart (see AmbiguousPrice).
+    _row('venice', 'claude-sonnet-5-5', src=VENICE, verified='2026-10-19', inp='2.00', cached='0.10', out='10.00', note='not connected'),
+    _row('venice', 'claude-haiku-5-5', src=VENICE, verified='2026-10-19', inp='0.10', cached='0.01', out='0.50', note='<=100k context; >100k is 0.50/0.05/2.50; not connected'),
+    _row('venice', 'claude-opus-5-5', src=VENICE, verified='2026-10-19', inp='4.00', cached='0.20', out='20.00', note='not connected'),
+    # -- Replicate (connected image route: providers/replicate_connection.py)
+    _row('replicate', 'black-forest-labs/flux-schnell', src=REPLICATE_PRICING, verified='2026-10-19', image='0.003',
+         note='$3.00 per thousand output images'),
 )
 
 
 class PriceMissing(LookupError):
     """No source-backed price: paid managed execution must not start."""
+
+
+class AmbiguousPrice(ValueError):
+    """The model id is priced by more than one provider and no provider was named."""
 
 
 def _day(when) -> date:
@@ -139,31 +157,35 @@ def _day(when) -> date:
     return when
 
 
-def price_at(model: str, when=None, schedule=SCHEDULE) -> PriceRow | None:
+def price_at(model: str, when=None, schedule=SCHEDULE, *, provider: str | None = None) -> PriceRow | None:
     day = _day(when)
-    rows = [r for r in schedule if r.model == model and r.active_on(day)]
+    rows = [r for r in schedule if r.model == model and r.active_on(day)
+            and (provider is None or r.provider == provider)]
+    if provider is None and len({r.provider for r in rows}) > 1:
+        raise AmbiguousPrice(f'{model} is priced by {sorted({r.provider for r in rows})}; name the provider')
     if len(rows) > 1:
-        raise ValueError(f'overlapping price rows for {model} on {day}')
+        raise ValueError(f'overlapping price rows for {provider or rows[0].provider}/{model} on {day}')
     return rows[0] if rows else None
 
 
-def require_price(model: str, when=None) -> PriceRow:
-    row = price_at(model, when)
+def require_price(model: str, when=None, *, provider: str | None = None) -> PriceRow:
+    row = price_at(model, when, provider=provider)
     if row is None:
-        raise PriceMissing(f'no source-backed price for {model}; paid execution refused')
+        raise PriceMissing(f'no source-backed price for {provider + "/" if provider else ""}{model}; paid execution refused')
     return row
 
 
-def history(model: str, schedule=SCHEDULE) -> list[PriceRow]:
-    return sorted((r for r in schedule if r.model == model), key=lambda r: r.effective_from)
+def history(model: str, schedule=SCHEDULE, *, provider: str | None = None) -> list[PriceRow]:
+    return sorted((r for r in schedule if r.model == model and (provider is None or r.provider == provider)),
+                  key=lambda r: r.effective_from)
 
 
 def validate(schedule=SCHEDULE) -> list[str]:
     """Overlaps, missing sources, negative prices, rows with no billable unit."""
     problems = []
-    by_model: dict[str, list[PriceRow]] = {}
+    by_model: dict[tuple[str, str], list[PriceRow]] = {}
     for r in schedule:
-        by_model.setdefault(r.model, []).append(r)
+        by_model.setdefault((r.provider, r.model), []).append(r)
         if not r.source_url.startswith('https://'):
             problems.append(f'{r.model}: source_url must be an https URL')
         units = [r.input_per_million, r.output_per_million, r.per_image, r.per_audio_second, r.per_video_second,
@@ -174,9 +196,9 @@ def validate(schedule=SCHEDULE) -> list[str]:
             problems.append(f'{r.model}: negative price')
         if r.effective_until is not None and r.effective_until <= r.effective_from:
             problems.append(f'{r.model}: empty effective range')
-    for model, rows in by_model.items():
+    for (provider, model), rows in by_model.items():
         rows.sort(key=lambda r: r.effective_from)
         for a, b in zip(rows, rows[1:]):
             if a.effective_until is None or a.effective_until > b.effective_from:
-                problems.append(f'{model}: overlapping rows from {a.effective_from} and {b.effective_from}')
+                problems.append(f'{provider}/{model}: overlapping rows from {a.effective_from} and {b.effective_from}')
     return problems

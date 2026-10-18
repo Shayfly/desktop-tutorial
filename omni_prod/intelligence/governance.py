@@ -43,7 +43,8 @@ def managed(base_url: str) -> bool:
     return (urlsplit(base_url).hostname or '') in MANAGED_HOSTS
 
 
-def govern(*, model: str, base_url: str, input_per_million: Decimal, output_per_million: Decimal, when=None) -> Governed:
+def govern(*, model: str, base_url: str, input_per_million: Decimal, output_per_million: Decimal, when=None,
+           provider: str | None = None) -> Governed:
     notes = []
     life = lifecycle.state(model, when)
     warn = lifecycle.warning(model, when)
@@ -52,7 +53,7 @@ def govern(*, model: str, base_url: str, input_per_million: Decimal, output_per_
     if not managed(base_url):
         return Governed(input_per_million, output_per_million, life != lifecycle.RETIRED, life, 'catalog (unmanaged host)',
                         tuple(notes))
-    row = prices.price_at(model, when)
+    row = prices.price_at(model, when, provider=provider)
     enforce = os.getenv('OMNI_PRICE_GOVERNANCE', 'enforce') != 'off'
     if row is None or row.input_per_million is None or row.output_per_million is None:
         notes.append(f'no source-backed token price for {model}')
