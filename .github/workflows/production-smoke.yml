@@ -61,18 +61,9 @@ jobs:
                   status = resp.status
                   body = resp.read().decode("utf-8", errors="replace")
                   header_map = dict(resp.headers.items())
-              # Protect session secrets in GitHub Actions logs while keeping
-              # the server's JSON response otherwise unmodified.
-              try:
-                  parsed = json.loads(body)
-                  if isinstance(parsed, dict):
-                      for key in ("token", "access_token", "refresh_token"):
-                          value = parsed.get(key)
-                          if isinstance(value, str) and value:
-                              print("::add-mask::" + value, flush=True)
-              except (ValueError, TypeError):
-                  pass
-              # Never persist live session tokens in a committed report.
+              # Never print or persist live session tokens. The raw token is
+              # never written to stdout (stdout is tee'd into the committed
+              # report), so no ::add-mask:: line is emitted.
               try:
                   safe = json.loads(body)
                   if isinstance(safe, dict):
@@ -134,11 +125,21 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: publish results
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() }}
         shell: bash
         run: |
           mkdir -p smoke
-          { echo "# Production Smoke — $(date -u +%FT%TZ)"; echo; echo "run: $GITHUB_RUN_ID"; echo '```'; if [ -f /tmp/report.txt ]; then cat /tmp/report.txt; else echo "No report generated"; fi; echo '```'; } > smoke/last-run.md
+          if [ -f /tmp/report.txt ]; then
+            # Defense in depth: drop any mask lines and redact JWT-shaped strings.
+            grep -v '^::add-mask::' /tmp/report.txt | sed -E 's/eyJhbGciOi[A-Za-z0-9._-]*/[REDACTED_JWT]/g' > /tmp/report.clean.txt
+          else
+            echo "No report generated" > /tmp/report.clean.txt
+          fi
+          { echo "# Production Smoke — $(date -u +%FT%TZ)"; echo; echo "run: $GITHUB_RUN_ID"; echo '```'; cat /tmp/report.clean.txt; echo '```'; } > smoke/last-run.md
+          if grep -q -e '::add-mask::' -e 'eyJhbGciOi' smoke/last-run.md; then
+            echo "leak guard tripped" >&2
+            exit 1
+          fi
           git config user.name "smoke-bot"
           git config user.email "smoke-bot@148ai.dev"
           git add smoke/last-run.md
