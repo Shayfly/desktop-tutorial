@@ -40,7 +40,7 @@
 | ערוץ | מה נכתב | סיכון | מצב |
 |---|---|---|---|
 | `.github/workflows/production-smoke.yml` → `smoke/last-run.md` (commit ו-push ל-`main`) | גוף **גולמי** (`BODY_RAW`) של תשובות Production | כל שדה שיתווסף לתשובה ייחשף אוטומטית | `7afaa75` מסנן `::add-mask::` ו-JWT. `db_host` של Production נחשף, וזה מותר (host אינו סודי). user id ואימייל של חשבון smoke נחשפים. |
-| Actions logs | stdout של workflows | בריפו ציבורי, logs של workflows גלויים לכולם | `migrate.py` מדפיס host ו-fingerprint. `write-env.sh` מדפיס שמות בלבד. |
+| Actions logs | stdout של workflows | בריפו ציבורי, logs של workflows גלויים לכולם | `migrate.py` מדפיס host ו-fingerprint. `write-env.sh` מדפיס **לא רק שמות**: את שמות כל המשתנים, את רשימת המודלים עם `CONFIGURED`/`NOT_CONFIGURED` לכל מפתח (`:73-74`), ואת **ערכי** ה-build knobs: תקציב חיצוני, מספר קריאות, routing ואיכות מינימלית (`:96-98`). אלה לא סודות, אבל הם חשופים בלוגים הציבוריים. (תוקן אחרי ביקורת Codex.) |
 | Vercel bot comments על PRs | קישורי Preview | Preview פתוח לציבור, אלא אם Deployment Protection פעיל | לא נבדק כאן |
 
 כלל לערוצים אוטומטיים: **allowlist של שדות, לא denylist.** דוח שנכנס ל-Git מכיל רק סטטוס, קוד HTTP ושמות בדיקות, לא גוף תשובה.
@@ -52,8 +52,12 @@
 3. **אימייל אישי** ב-`docs/DECISIONS_2026-10-07_HE.md:27`.
 4. **מזהי פרויקטים של Vercel** ב-`STATUS.md:1274` וב-`STATUS.md:1278`.
 5. **כתובות IP ציבוריות** (נוסף אחרי ביקורת Codex, P1; ה-regex שלי היה שבור ופספס אותן). הערכים לא מועתקים לכאן:
-   - **IP של ה-worker:** בצורה מקווקוות או מנוקדת, ב-10 קבצים. מתוכם **2 בקוד**: `omni_prod/preview_router.py:15` ו-`omni_prod/runtime_bindings.py:163`. השאר: `STATUS.md:754`, `:825`, `:826`, `:1150`, `:1152`, ‏`docs/AGENT_SKILL_STATUS.md:45`, ‏`docs/AUDIT_ACCESS.md:12`, ‏`docs/STATUS_REVIEW_2026-10-08_HE.md:207`.
-   - IP ציבורי נוסף ב-`STATUS.md:825`.
+   - **IP של ה-worker:** בצורה מקווקוות או מנוקדת, **10 מופעים ב-7 קבצים**. מתוכם 2 בקוד ו-1 בטסט:
+     - קוד: `omni_prod/preview_router.py:15`, ‏`omni_prod/runtime_bindings.py:163`
+     - טסט: `tests/test_preview_router.py:10`
+     - מסמכים: `STATUS.md:754`, ‏`:826`, ‏`:1150`, ‏`:1152`, ‏`docs/AGENT_SKILL_STATUS.md:45`, ‏`docs/AUDIT_ACCESS.md:12`, ‏`docs/STATUS_REVIEW_2026-10-08_HE.md:207`
+     (תוקן בסבב Codex השני: הרשימה הקודמת השמיטה את הטסט ומנתה קבצים לא נכון.)
+   - IP ציבורי נוסף, שאינו של ה-worker, ב-`STATUS.md:825`.
    - הסעיף נוגע ל-IP של שרת, לא ל-host של DB, ולכן הכרעת ה-CEO ש"host אינו סודי" לא חלה עליו. **טעון הכרעה.**
 
 לא נמצאו בקבצים המעוקבים (`main` @ `1f744ae`): מפתחות בפורמט `sk-…`/`gsk_…`/`AKIA…`/`ghp_…`/`xox…`, ‏private keys, connection strings אמיתיים עם סיסמה, או קבצי `.env` מלבד `*.env.example`. הבדיקה נעשתה ב-regex בלבד, על ה-tree הנוכחי ועל היסטוריית `smoke/last-run.md`. זו לא סריקה מלאה של כל ההיסטוריה. ה-regex של ה-IP פספס בריצה הראשונה, כך שאין להסתמך על הסריקה הזו כהוכחה.
