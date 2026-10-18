@@ -1,0 +1,106 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify live production API
+        env:
+          BASE_URL: https://148aiv28.vercel.app
+        run: |
+          python3 - <<'PY'
+          import http.cookiejar
+          import json
+          import os
+          import secrets
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["BASE_URL"].rstrip("/")
+          jar = http.cookiejar.CookieJar()
+          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+          rows = []
+
+          def request(method, path, payload=None):
+              headers = {"Accept": "application/json"}
+              data = None
+              if payload is not None:
+                  data = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
+              try:
+                  resp = opener.open(req, timeout=25)
+              except urllib.error.HTTPError as exc:
+                  resp = exc
+              except Exception as exc:
+                  print(f"{method} {path}\nHTTP: NO_RESPONSE\nERROR: {type(exc).__name__}: {exc}", flush=True)
+                  return None, None, {}
+              with resp:
+                  status = resp.status
+                  body = resp.read().decode("utf-8", errors="replace")
+                  header_map = dict(resp.headers.items())
+              # Protect session secrets in GitHub Actions logs while keeping
+              # the server's JSON response otherwise unmodified.
+              try:
+                  parsed = json.loads(body)
+                  if isinstance(parsed, dict):
+                      for key in ("token", "access_token", "refresh_token"):
+                          value = parsed.get(key)
+                          if isinstance(value, str) and value:
+                              print("::add-mask::" + value, flush=True)
+              except (ValueError, TypeError):
+                  pass
+              print(f"{method} {path}\nHTTP: {status}\nBODY_RAW: {body}", flush=True)
+              return status, body, header_map
+
+          def check(name, actual, ok):
+              result = "PASS" if ok else "FAIL"
+              rows.append((name, result, str(actual)))
+              print(f"CHECK {name}: {result}", flush=True)
+
+          status, body, _ = request("GET", "/api/v28/deployment")
+          try:
+              schema = json.loads(body)["schema"]
+              schema_ok = (schema.get("compatible") is True and schema.get("missing") == [])
+          except (TypeError, ValueError, KeyError, AttributeError):
+              schema_ok = False
+          check("deployment schema", status, status == 200 and schema_ok)
+
+          status, body, _ = request("GET", "/api/v28/me")
+          check("unauthenticated me", status, status == 401)
+
+          suffix = str(int(time.time())) + "-" + secrets.token_hex(6)
+          credentials = {"email": "smoke-" + suffix + "@example.com",
+                         "password": "Sm0ke!" + secrets.token_urlsafe(24)}
+          # The application currently defines these endpoints under /auth/.
+          status, body, _ = request("POST", "/api/v28/auth/register", credentials)
+          check("register", status, status == 200)
+
+          jar.clear()
+          status, body, hdr = request("POST", "/api/v28/auth/login", credentials)
+          has_cookie = bool([cookie for cookie in jar if cookie.name == "148ai_session"])
+          check("login and Set-Cookie", status, status == 200 and has_cookie)
+
+          status, body, _ = request("GET", "/api/v28/me")
+          check("authenticated me", status, status == 200)
+
+          print("\n| Test | PASS/FAIL | HTTP |\n|---|---|---|")
+          for name, result, http in rows:
+              print(f"| {name} | {result} | {http} |")
+          sys.exit(1 if len(rows) != 5 or any(row[1] != "PASS" for row in rows) else 0)
+          PY
