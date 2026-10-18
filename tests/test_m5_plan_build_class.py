@@ -142,10 +142,25 @@ class SameTaskTierTests(unittest.TestCase):
 
 
 class OtherPlanTests(unittest.TestCase):
-    def test_free_builds_light_but_has_no_paid_model_budget(self):
+    def test_free_can_run_a_paid_build_up_to_the_light_cap(self):
+        # CEO 2026-10-19 02:22: Free is margin-floor exempt like Enterprise; the cap stays.
         cc, credits = m5_build_terms(PlanCode.FREE)
         self.assertEqual((cc, credits), (CostClass.LIGHT, 45))
-        self.assertEqual(m5_llm_budget(PLAN_CATALOG[PlanCode.FREE], cc, credits), (Decimal('0'), 'no_revenue'))
+        budget, basis = m5_llm_budget(PLAN_CATALOG[PlanCode.FREE], cc, credits)
+        self.assertEqual((budget, basis), (Decimal('0.35'), 'class_cap'))
+        d = _reserve('free', cc.value, credits, budget)
+        self.assertTrue(d.allowed, d.reason)
+        self.assertEqual(d.credits, 45)
+
+    def test_free_cannot_exceed_the_light_cap_or_three_builds(self):
+        self.assertFalse(_reserve('free', 'standard', 200, Decimal('0.35')).allowed)      # class lock
+        plan = PLAN_CATALOG[PlanCode.FREE]
+        self.assertEqual(plan.paid_provider_budget_usd, Decimal('1.05'))                  # 3 x $0.35 per month
+        svc = PostgresSubscriptionService(pool=None)
+        cur = _Cursor([('free', svc._cycle_now(), 135, Decimal('1.05')), None])          # after 3 builds
+        d = svc.reserve(cur, build_id='b4', user_id='u1', project_id='p1', cost_class='light', credits=45,
+                        estimated_provider_cost_usd=Decimal('0.35'))
+        self.assertFalse(d.allowed)
 
     def test_enterprise_is_extreme_and_margin_exempt(self):
         cc, credits = m5_build_terms(PlanCode.ENTERPRISE)

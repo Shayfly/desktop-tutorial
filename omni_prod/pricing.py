@@ -126,11 +126,12 @@ def _env_decimal_renamed(name: str, legacy_name: str, default: str) -> Decimal:
 
 PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     PlanCode.FREE: PlanDefinition(
-        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, Decimal('0'), 2, 1,
-        # CEO 2026-10-19: Free = ZERO + LIGHT, 150 credits (~3 LIGHT builds/month).
+        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, _env_decimal('OMNI_PROVIDER_CAP_FREE_USD','1.05'), 2, 1,
+        # CEO 2026-10-19: Free = ZERO + LIGHT, 150 credits (~3 LIGHT builds/month),
+        # margin-floor exempt; monthly paid-provider cap = 3 builds x $0.35 LIGHT cap.
         (CostClass.ZERO, CostClass.LIGHT), 'required', False, False, 'standard',
         (
-            'deterministic/local zero-paid-provider builds', 'version history', 'rights/IP checks',
+            'up to 3 light builds a month', 'version history', 'rights/IP checks',
             'export with 148AI branding', 'community/self-service support',
         ),
     ),
@@ -207,8 +208,9 @@ M5_CLASS_MAX_OUTPUT_PER_MILLION: dict[CostClass, Decimal | None] = {
     CostClass.ADVANCED: None, CostClass.HEAVY: None, CostClass.EXTREME: None,
 }
 
-# Priced by contract, not by the catalog: exempt from the 60% build-margin floor.
-MARGIN_FLOOR_EXEMPT_PLANS = frozenset({PlanCode.ENTERPRISE})
+# Exempt from the 60% build-margin floor (CEO 2026-10-19): Enterprise is priced by
+# contract; Free gets its class cap as an acquisition cost (<= $0.35/build).
+MARGIN_FLOOR_EXEMPT_PLANS = frozenset({PlanCode.ENTERPRISE, PlanCode.FREE})
 
 # Actual model spend above this multiple of the class cap is logged as an alert.
 LLM_OVERAGE_ALERT_MULTIPLE = Decimal('2')
@@ -459,7 +461,7 @@ def catalog_payload() -> dict:
         'pricing_status': 'prelaunch-proposed-configurable',
         'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO, PlanCode.ENTERPRISE)],
         'principles': [
-            'Free uses zero-paid-provider paths only.',
+            'Free includes a small capped allowance of light paid-model builds.',
             'System bugs and missed original requirements do not consume customer credits.',
             'Paid-provider spend is hard-capped per plan before execution.',
             'Heavy media/compute is metered; no unlimited GPU promise.',

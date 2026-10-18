@@ -42,6 +42,9 @@ class DiscoveryEndpointTests(unittest.TestCase):
         self.repo = _MemRepo()
         v28 = MagicMock()
         v28.resolve_project_key.return_value = (SimpleNamespace(id='usr_1'), 'tenant')
+        # plan_for must return a real plan: build terms are derived from its code.
+        from omni_prod.pricing import PLAN_CATALOG, PlanCode
+        v28.subscriptions.plan_for.return_value = PLAN_CATALOG[PlanCode.PRO]
         self.patches = [patch.object(investor_app, '_v28', v28), patch.object(investor_app, '_v28_bearer', return_value='tok'),
                         patch.object(investor_app, '_brief_repo', return_value=self.repo)]
         for p in self.patches:

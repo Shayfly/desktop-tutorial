@@ -1954,7 +1954,7 @@ def _project_context(key: str):
     return ctx
 
 
-def _supervisor(key: str):
+def _supervisor(key: str, account_id: str | None = None):
     """Paid intake runs only through durable reservations on the worker (Issue #12):
     no model gateway is built on the API host."""
     from .conversation.supervisor import ConversationSupervisor
@@ -1965,9 +1965,22 @@ def _supervisor(key: str):
         from .intake.budget import ReservationService
         from .intake.worker_route import rq_enqueue
         reservations, enqueue = ReservationService(_v28_pool), rq_enqueue(redis_url)
+    # CEO 2026-10-19: the chat quotes the credits a build costs on THIS plan
+    # (pricing.m5_build_terms), not a fixed 60.
+    credits = _M5_BUILD_CREDITS
+    budget_usd = Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50')
+    if account_id is not None:
+        from .pricing import m5_build_terms, m5_llm_budget
+        try:
+            plan = _v28.subscriptions.plan_for(account_id)
+            cost_class, credits = m5_build_terms(plan.code)
+            budget_usd = m5_llm_budget(plan, cost_class, credits)[0]   # same budget the build will reserve
+        except Exception:
+            logging.getLogger(__name__).warning('intake: plan build terms unavailable for %s; showing defaults',
+                                                account_id, exc_info=True)
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
-                                  credits=_M5_BUILD_CREDITS, context=_project_context(key),
-                                  budget_usd=Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50'),
+                                  credits=credits, context=_project_context(key),
+                                  budget_usd=budget_usd,
                                   reservations=reservations, enqueue=enqueue)
 
 
@@ -2043,7 +2056,7 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         if latest is None or latest.revision != req.brief_revision:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
-        turn = _supervisor(key).turn(project_id=project_id, account_id=account.id, message=req.message,
+        turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
                                      answers=req.answers, request_key=req.request_key, lang=lang,
                                      attachments=attached)
     except StaleBrief as exc:
