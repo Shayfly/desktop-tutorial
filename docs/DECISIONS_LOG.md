@@ -44,13 +44,33 @@
 | 27 | יעד מרווח במקרה הגרוע (כל התקרה מנוצלת) | Amateur 72% · Pro 63% · Studio 62% | מושג: 73.2% / 63.6% / 63.2% |
 | 28 | טסט חובה ב-CI: אותה משימה עולה פחות ב-Amateur מאשר ב-Studio, והמרווח נשמר בשלושת ה-tiers | — | `tests/test_m5_plan_build_class.py::SameTaskTierTests` |
 
-**allowlist (בחירה של Claude, כלל מחיר):** מקסימום מחיר output ל-1M טוקנים: ZERO ‏$0 · LIGHT ‏$1.50 · STANDARD ‏$10 · ADVANCED/HEAVY/EXTREME ללא תקרה. אלה אותם ספים שמופיעים ב-`docs/MODEL_PRICES.md`. עם ה-catalog הנוכחי:
+**~~allowlist (בחירה של Claude, כלל מחיר)~~ (הוחלף בהכרעה 31):** מקסימום מחיר output ל-1M טוקנים: ZERO ‏$0 · LIGHT ‏$1.50 · STANDARD ‏$10 · ADVANCED/HEAVY/EXTREME ללא תקרה. אלה אותם ספים שמופיעים ב-`docs/MODEL_PRICES.md`. עם ה-catalog הנוכחי:
 - ל-LIGHT נשארים `gemini-3-1-flash-lite` ו-`openai-gpt-6-luna`.
 - STANDARD ומעלה מקבלים את כל 6 המודלים, כך שבין Pro ל-Studio אין כרגע הבדל ב-allowlist, רק בתקציב ובקרדיטים.
 
-**בעיה פתוחה, Free:** ל-Free אין הכנסה, והרצפה חלה עליו (רק Enterprise פטור). לכן תקציב המודלים שלו הוא **$0**: בנייה של Free יכולה לרוץ רק על מסלולים בעלות אפסית. כדי לתת ל-Free ‏3 בנייות LIGHT בתשלום (עד $0.35 לבנייה, כלומר עד $1.05 למשתמש בחודש), צריך לפטור גם את Free מהרצפה. **זו הכרעה שעוד לא התקבלה.**
+**~~בעיה פתוחה, Free~~ (נפתרה בהכרעה 29):** ל-Free אין הכנסה, והרצפה חלה עליו (רק Enterprise פטור). לכן תקציב המודלים שלו הוא **$0**: בנייה של Free יכולה לרוץ רק על מסלולים בעלות אפסית. כדי לתת ל-Free ‏3 בנייות LIGHT בתשלום (עד $0.35 לבנייה, כלומר עד $1.05 למשתמש בחודש), צריך לפטור גם את Free מהרצפה. **זו הכרעה שעוד לא התקבלה.**
 
 **פער שקיבל הכרעה:** בתשובה הראשונה נכתב "Free 300", ובשנייה "Free 150 (= 3 בנייות)". נבחר 150, וזה אושר בהודעה של 02:16.
+
+### תיקונים (הוכרע 02:22; מחליף חלקים מהכרעות 19–28)
+
+מימוש: #59 (`d8b3a8c`, ‏`f8006fe`).
+
+| # | הכרעה | ערך | מימוש / טסט |
+|---|---|---|---|
+| 29 | **Free פטור מרצפת המרווח**, כמו Enterprise. התקרה של LIGHT ($0.35) נשארת | Free יכול לבצע בנייה בתשלום עד $0.35 | `MARGIN_FLOOR_EXEMPT_PLANS`; טסט `test_free_can_run_a_paid_build_up_to_the_light_cap` |
+| 30 | **תקציב ה-class הוא הקובע ב-worker.** ה-env הוא תקרה עולמית בלבד: כשהוא נמוך מתקציב ה-class נרשמת התרעה ב-log, ואין חסימה שקטה | `WORKER_BUDGET_BELOW_CLASS` (WARNING) | `routed_gateway.bind_budget`; טסט `test_pro_keeps_its_class_budget_when_worker_env_is_lower` (env ‏$0.50, ‏Pro מקבל $1.60) |
+| 31 | **ספי allowlist** (מחיר output מקסימלי ל-1M טוקנים) | LIGHT ≤ $1.50 · STANDARD ≤ $5 · ADVANCED ≤ $8 · HEAVY ו-EXTREME ללא תקרה · ZERO ‏$0 | `M5_CLASS_MAX_OUTPUT_PER_MILLION`; טסט `test_pro_and_studio_get_different_allowlists` |
+| 32 | הצ'אט של ה-intake מציג את הקרדיטים של ה-class (במקום 60 קבוע) | — | `investor_app._supervisor`; טסט `tests/test_intake_credits_by_plan.py` |
+
+**ל-#31:** בהתחלה הוצע LIGHT ≤ $1. בסף כזה היה נשאר ל-Amateur ול-Free רק `gpt-6-luna`, שמסומן `INSUFFICIENT_CREDIT` ‏(אין קרדיט ב-OpenAI) ו-`UNVERIFIED`. התוצאה הייתה שכל בנייה שלהם נכשלת. לכן הוכרע LIGHT ≤ $1.50.
+
+**allowlist בפועל (catalog נוכחי):**
+- **Amateur ו-Free** (LIGHT): `gemini-3-1-flash-lite`, ‏`openai-gpt-6-luna`.
+- **Pro** (STANDARD): 4 מודלים: ‏`gemini-3-1-flash-lite`, ‏`gemini-3-5-flash-lite`, ‏`gemini-3-8-flash`, ‏`openai-gpt-6-luna`.
+- **Studio** (HEAVY): כל 6 המודלים, כלומר גם `openai-gpt-6-1-sol` ו-`anthropic-claude-sonnet-5-5`.
+
+ההכרעה מסמנת כמוחלפים את הפריט "allowlist (בחירה של Claude)" ואת "בעיה פתוחה, Free" שבסעיף הקודם.
 
 ## 2026-10-19 — בחירות של Claude (לא הכרעות CEO, פתוחות לשינוי)
 
@@ -65,10 +85,11 @@
 | C7 | קרדיטים, תקרות ספקים, פרויקטים ומושבים לא שונו | לא הוכרעו. המרווחים שנקבעו (הכרעה 9) גוזרים תקרות של כ-$2.48 / $23.46 / $114.52 לחודש | `docs/PRICING.md` |
 | C8 | המחיר של Replicate סומן כ-verified ב-2026-10-19 | אומת ידנית מול `replicate.com/pricing` ("$3.00 / thousand output images"). אין snapshot | `prices.py` |
 | C9 | התגית VERIFIED הוסרה ממחירי Venice ומהמתחרים | אין snapshot שאפשר לשחזר ממנו. ‏#57 הוא צילום טקסט, לא byte-exact | #54, ‏#56, ‏#57 |
+| C10 | ל-Free נקבעה תקרה חודשית של $1.05 להוצאה על ספקים (3 × $0.35), שניתנת לשינוי ב-`OMNI_PROVIDER_CAP_FREE_USD` | בלעדיה `reserve` היה חוסם את הבנייה בתשלום שהוכרעה ב-#29, כי התקרה הקודמת של Free הייתה $0 | `PLAN_CATALOG` |
 
 ## השלכות פתוחות
 
-- ~~ה-class הוא תווית בלבד~~ **תוקן ב-#59:** ה-class קובע allowlist, תקציב וקרדיטים. **תנאי ל-worker:** ‏`bind_budget` רק מוריד תקציב ולעולם לא מעלה אותו. אם `OMNI_EXTERNAL_BUDGET_USD` ב-`WORKER_ENV` נמוך מתקרת ה-class (למשל $0.50 מול $5.50 של Studio), התקרה של ה-worker גוברת, וההבדל בין ה-tiers נעלם בזמן ריצה. כדי שה-tiers יהיו אמיתיים עד הסוף, הערך הזה צריך להיות לפחות $18.
+- ~~ה-class הוא תווית בלבד~~ **תוקן ב-#59:** ה-class קובע allowlist, תקציב וקרדיטים. **~~תנאי ל-worker~~ (נפתר בהכרעה 30):** ‏`bind_budget` רק מוריד תקציב ולעולם לא מעלה אותו. אם `OMNI_EXTERNAL_BUDGET_USD` ב-`WORKER_ENV` נמוך מתקרת ה-class (למשל $0.50 מול $5.50 של Studio), התקרה של ה-worker גוברת, וההבדל בין ה-tiers נעלם בזמן ריצה. כדי שה-tiers יהיו אמיתיים עד הסוף, הערך הזה צריך להיות לפחות $18.
 - **approvals ישנים:** ה-budget fingerprint כולל עכשיו את הקרדיטים של ה-class. approval שנוצר לפני הפריסה (עם 60 קרדיטים) לא יתאים יותר, והלקוח יתבקש לאשר מחדש. הכשל חוסם בצורה בטוחה ולא גורם לחיוב שגוי.
 - **idempotency:** ה-fingerprint של הצעת המחיר כולל את `cost_class`. בנייה שנוצרה לפני הפריסה ומשוחזרת אחריה עם אותו מפתח תקבל `idempotency_conflict`.
 - **`email-verification/request`** מחזיר 400 במקום 401. מתועד בטסט ב-#50, לא תוקן.
