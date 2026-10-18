@@ -14,7 +14,16 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from omni_prod import investor_app
-from omni_prod.investor_app import _repo_summary, is_sensitive_path
+
+
+# Resolved per call, not at import: a missing contract symbol must fail only these
+# tests, never abort pytest collection for the whole suite.
+def is_sensitive_path(path):
+    return investor_app.is_sensitive_path(path)
+
+
+def _repo_summary(repo):
+    return investor_app._repo_summary(repo)
 
 ENV_SECRET = "OMNI_SECRET_KEY=sk-live-DO-NOT-LEAK-1234567890"
 ENV_PROD_SECRET = "DATABASE_URL=postgres://admin:hunter2@prod-db.internal:5432/omni"
