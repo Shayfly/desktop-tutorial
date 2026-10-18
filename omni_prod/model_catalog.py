@@ -145,7 +145,7 @@ def parse_model_catalog(raw: str, env: Mapping[str, str], *, when=None) -> tuple
         enabled = bool(item.get('enabled', True))
         from .intelligence.governance import govern
         gov = govern(model=model, base_url=base_url, input_per_million=input_price,
-                     output_per_million=output_price, when=when)
+                     output_per_million=output_price, when=when, provider=item.get('provider'))
         input_price, output_price = gov.input_per_million, gov.output_per_million
         enabled = enabled and gov.routable
         key = (env.get(key_env) or '').strip()

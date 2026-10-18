@@ -85,10 +85,13 @@ def resolve(*, project_spent: Decimal = Decimal('0'), daily_spent: Decimal = Dec
     return IntakeMode(DETERMINISTIC, 'no model route (set OMNI_INTAKE_VIA_WORKER=1)', **caps)
 
 
-def estimate_message_cost(model: str = RECOMMENDED_MODEL, when=None) -> dict:
+def estimate_message_cost(model: str = RECOMMENDED_MODEL, when=None, provider: str | None = None) -> dict:
     """Upper-bound estimate for one intake message from the source-backed price table."""
-    from ..intelligence.prices import price_at
-    row = price_at(model, when)
+    from ..intelligence.prices import AmbiguousPrice, price_at
+    try:
+        row = price_at(model, when, provider=provider)
+    except AmbiguousPrice:
+        return {'model': model, 'status': 'PRICE_AMBIGUOUS'}
     if row is None or row.input_per_million is None or row.output_per_million is None:
         return {'model': model, 'status': 'PRICE_UNVERIFIED'}
     cost = (Decimal(EST_INPUT_TOKENS) * row.input_per_million +

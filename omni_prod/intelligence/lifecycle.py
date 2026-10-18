@@ -91,13 +91,13 @@ def warning(model: str, when=None) -> str | None:
     return None
 
 
-def migration_plan(model: str, *, capabilities: dict | None = None, when=None) -> dict:
+def migration_plan(model: str, *, capabilities: dict | None = None, when=None, provider: str | None = None) -> dict:
     """Compatibility + price comparison for a successor. Never applies it."""
     from .prices import price_at
     entry = BY_MODEL.get(model)
     if entry is None or not entry.successor:
         return {'model': model, 'successor': None, 'action': 'none'}
-    old, new = price_at(model, when), price_at(entry.successor, when)
+    old, new = price_at(model, when, provider=provider), price_at(entry.successor, when, provider=provider)
     caps = capabilities or {}
     return {
         'model': model, 'successor': entry.successor, 'shutdown': str(entry.shutdown) if entry.shutdown else None,
