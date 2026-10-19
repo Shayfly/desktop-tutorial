@@ -29,6 +29,14 @@ const path=require('path');
     return route.fulfill({status:404,body:''});
    });
    await page.goto('http://fixture.test/fixture');
+   assert.equal(await page.locator('#email').getAttribute('name'),'email');
+   assert.equal(await page.locator('#email').getAttribute('autocomplete'),'username');
+   assert.equal(await page.locator('#password').getAttribute('name'),'password');
+   assert.equal(await page.locator('#password').getAttribute('autocomplete'),'current-password');
+   await page.evaluate(()=>authSubmit('register')); // empty fields: no request, mode changes
+   assert.equal(await page.locator('#password').getAttribute('autocomplete'),'new-password');
+   await page.evaluate(()=>authSubmit('login'));
+   assert.equal(await page.locator('#password').getAttribute('autocomplete'),'current-password');
    await page.evaluate(d=>{S.projectId='p';S.lang='he';S.disc=d;S.chat={messages:[]};S.tab='req';
      S.signedIn=true;S.me={email:'fixture@example.test'};showView();renderDiscovery();renderTabs();openTab('req');},fixture);
    await page.locator('#discoveryPanel button').filter({hasText:'שינוי'}).first().click();

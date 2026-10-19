@@ -341,22 +341,27 @@ function signOutLocal() {
   showView();
 }
 async function authSubmit(kind) {
+  // Password managers distinguish registration from sign-in by autocomplete mode.
+  $('password').autocomplete = kind === 'register' ? 'new-password' : 'current-password';
   const email = $('email').value.trim(), password = $('password').value;
   const msg = $('authMsg'); msg.className = 'msg'; msg.textContent = '';
   if (!email.includes('@') || password.length < 10) { msg.textContent = t('needEmail'); return; }
   try {
     const path = kind === 'register' ? '/api/v28/auth/register' : '/api/v28/auth/login';
     await api(path, { method: 'POST', body: { email, password } });
-    $('password').value = '';
+    await enterWorkspace();
     $('password').type = 'password';
     $('passwordToggle').setAttribute('aria-pressed', 'false');
     $('passwordToggle').setAttribute('aria-label', t('showPassword'));
-    await enterWorkspace();
+    // Clearing before the successful SPA transition prevents some password
+    // managers from recognizing sign-in/registration. Clear shortly after.
+    setTimeout(() => { if ($('password').value === password) $('password').value = ''; }, 2500);
   } catch (e) {
     msg.textContent = explain(e);
     const exists = e instanceof ApiError && [400, 409].includes(e.status)
       && /already exists/i.test(String(e.message || ''));
     if (kind === 'register' && exists) {
+      $('password').autocomplete = 'current-password';
       $('authTitle').textContent = t('signinTitle');
       $('email').focus();
     }
