@@ -53,3 +53,7 @@
 3. **`internal-entitlement` מריץ מיגרציות** בכל הפעלה, כולל `list`, **וגם אוטומטית ב-push לענף pre-staging.**
 4. **ברירת המחדל של `migrate-target` מיושנת.** מי שמריץ עם `apply` בלי לשנות `ref` מריץ מיגרציות מענף ישן.
 5. `db_host` של Production חשוף ב-`/api/v28/deployment`. **הוכרע (CEO, 2026-10-19): host אינו סודי.** מקור: הנחיית המייסד בצ'אט עם Claude (2026-10-19, 00:52 Asia/Jerusalem). זו לא רשומה שניתן לאמת בריפו, ונדרש comment של `@Shayfly` על PR #49.
+
+## ⚠ אזהרת הפרדת סביבות — ראיות CI מ־2026-10-19
+
+`smoke/db-identity.md` (run `39208780505`) מדווח ש־worker הרץ משתמש ב־host `ep-floral-bread-b1weu1th-pooler.c-5.eu-central-1.aws.neon.tech`, מסד `neondb`, endpoint `ep-floral-bread-b1weu1th`; Production מדווח host ישיר `ep-floral-bread-b1weu1th.c-5.eu-central-1.aws.neon.tech`, עם אותו endpoint. **אין בידוד Neon endpoint בין ה־worker לבין Production**. fingerprints טקסטואליים שונים (`d2eb0b8c775f` מול `5fabb3bf756d`) בגלל הסיומת `-pooler`, ולכן אין להשתמש בהשוואתם המילולית כהוכחת הפרדה. אימות DB מלא כולל שם מסד וענף Neon; עד לקבלת הוכחת בידוד יש להתייחס למיגרציות worker כעלולות לשנות את מסד Production. אין להריץ מיגרציות Staging בהנחה שהוא מבודד.
