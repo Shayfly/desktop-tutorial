@@ -1,0 +1,95 @@
+# DECISIONS_LOG — יומן הכרעות
+
+כל שורה מציינת **מי** הכריע, **מקור** ההכרעה, ו**איפה** היא ממומשת או מתועדת. ההכרעות הקודמות נמצאות ב-`docs/DECISIONS_2026-10-07_HE.md`.
+
+**מקור "צ'אט":** הנחיות שהמייסד מסר ל-Claude Code בצ'אט, בשעון Asia/Jerusalem. לכמה מהן יש ראיה עמידה בריפו: תגובה על PR שפורסמה בשם הבעלים, עם השורה "נכתב ע"י Claude Code בשם הבעלים." **ההכרעות האלה לא אומתו באופן עצמאי.**
+
+## 2026-10-19 — הכרעות CEO
+
+| # | הכרעה | מקור | מימוש / תיעוד |
+|---|---|---|---|
+| 1 | Claude אחראי על `tests/**` ו-`docs/**`, ולא נוגע ב-`omni_prod/**` בלי אישור חריג. עובד בתור משלו ולא ממתין ל-Copilot או לאימות | צ'אט 00:24, 00:34 | — |
+| 2 | חוזה סינון הסודות ב-`_repo_summary` (`is_sensitive_path`) נעול. ההכרעה לגבי `config.json` הושארה ל-Claude | צ'אט 00:34, 00:44 | PR #47 (אדום עד מימוש) |
+| 3 | 13 נתיבים ציבוריים הוכרעו: 6 נתיבי `/api/v28/auth/*`, ‏`launch/readiness`, ‏`/_omni/metrics`, ‏`/api/source/*` (410), ‏`/api/v28/source/client/*`, ‏`/api/status`, ‏`/api/v28/deployment` | צ'אט 00:48, 00:52; [תגובה על #48](https://github.com/Shayfly/desktop-tutorial/pull/48#issuecomment-6256005877) | `docs/PUBLIC_ROUTES.md` (#48) |
+| 4 | host של DB אינו סודי. גם ה-fingerprint אינו סודי | צ'אט 00:52; [תגובה על #49](https://github.com/Shayfly/desktop-tutorial/pull/49#issuecomment-6256006017) | `docs/DB_TARGETS.md` (#49), ‏`docs/SECRETS_POLICY.md` (#51) |
+| 5 | ביטול הסשנים שדלפו ב-`ba2bb23`: "התקבל" | צ'אט 00:52 | #51. **האירוע נשאר פתוח עד שיהיה probe או ראיה מה-DB** |
+| 6 | מחירון: Free $0 / Amateur $29 / Pro $99 / Studio $299. המחיר השנתי שווה ל-10 חודשים, כלומר חודשיים חינם | צ'אט 01:10; [תגובה על #55](https://github.com/Shayfly/desktop-tutorial/pull/55#issuecomment-6256006199) | `omni_prod/pricing.py` (#59), ‏`docs/PLANS.md` (#55) |
+| 7 | Amateur ו-Pro בקרדיטים מוגבלים. Enterprise נשאר בחוזה ולא מוסר | צ'אט 01:22; תגובה על #55 | #55, ‏#59 |
+| 8 | מיפוי שמות: Basic→Amateur, ‏Business→Studio | צ'אט 01:22, 01:48 | #55, ‏#59 |
+| 9 | מרווחים סופיים: Amateur 86.8%, ‏Pro 72.4%, ‏Studio 58%. ההנחות שמאחוריהם לא נמסרו | צ'אט 01:22 | `docs/PRICING.md` (#56) |
+| 10 | פרסום `PRICING.md` (פנימי) בריפו הציבורי | צ'אט 01:22; [תגובה על #56](https://github.com/Shayfly/desktop-tutorial/pull/56#issuecomment-6256153156) | #56 |
+| 11 | [תגובה על #54](https://github.com/Shayfly/desktop-tutorial/pull/54#issuecomment-6256033733) ("המסמך פנימי"). **הערה:** #54 הוא MODEL_PRICES, והתוכן מתאים ל-#56. ההכרעה הייתה להשאיר את התגובה כפי שהיא | צ'אט 01:34, 01:48 | — |
+| 12 | cost classes: ‏Amateur ‏ZERO+LIGHT · Pro עד STANDARD · Studio הכול | צ'אט 01:37, 01:48 | `pricing.py` (#59); טסט: `tests/test_amateur_cost_class_lock.py` |
+| 13 | נתיב הבנייה של M5 בוחר class לפי התוכנית: Amateur→LIGHT · Pro→STANDARD · Studio→HEAVY. ‏`reserve` לא יחסום בנייה לגיטימית | צ'אט 01:55 | `pricing.M5_BUILD_COST_CLASS`, ‏`investor_app.py:~2269` (#59); טסט: `tests/test_m5_plan_build_class.py` |
+| 14 | תמיכה לאחור ב-env: גם `OMNI_PRICE_BASIC_*` / `OMNI_PRICE_BUSINESS_*` נקראים, ובנוסף לשמות החדשים | צ'אט 01:55 | `pricing._env_decimal_renamed` (#59) |
+| 15 | הקוד ממשיך לפנות ל-Gemini דרך Google, ומחירי Google נשארים. Venice נוסף כ-provider נפרד, עם מזהי המודלים שלו | צ'אט 01:48 | `prices.py` (#60) |
+| 16 | מפתח החיפוש של מחירים יהיה `(provider, model)`. Claude דרך Venice נוסף בלי לשבור את `anthropic` | צ'אט 01:55 | `prices.py` וכל הקוראים (#60); טסטי collision |
+| 17 | אסור שספק מחובר יפעל בלי רשומת מחיר. ל-Replicate ‏flux-schnell נוספה שורה | צ'אט 01:55 | `prices.py` (#60); שמירה: `test_every_connection_tested_model_has_a_price_row` |
+| 18 | אישורי חריגה ל-`omni_prod`: קודם `pricing.py` בלבד (01:48), ואחר כך גם `investor_app.py` בשורה 2269 ובסביבתה (01:55). ‏`prices.py` לפי סעיף 2 ב-01:48 | צ'אט | #59, ‏#60 |
+
+### מיפוי cost class (הוכרע 02:05–02:16; מחליף את הכרעה 13 ואת בחירות C2/C3)
+
+ה-class של בנייה קובע שלושה דברים בפועל: (א) allowlist של מודלים, (ב) תקרת תקציב לבנייה, (ג) קרדיטים. מימוש: #59 (`633158b`).
+
+| # | הכרעה | ערך | מימוש |
+|---|---|---|---|
+| 19 | class לכל תוכנית (בלי ברירת מחדל STANDARD) | Free→LIGHT · Amateur→LIGHT · Pro→STANDARD · Studio→HEAVY · Enterprise→EXTREME | `pricing.M5_BUILD_COST_CLASS` |
+| 20 | קרדיטים לבנייה לפי class | ZERO 20 · LIGHT 45 · STANDARD 200 · ADVANCED 300 · HEAVY 500 · EXTREME 1200 | `M5_CLASS_BUILD_CREDITS`; ב-reserve, ב-approval וב-preview |
+| 21 | קרדיטים לתוכנית | Free 150 · Amateur 1000 · Pro 4500 · Studio 10000 | `PLAN_CATALOG` |
+| 22 | Free | ZERO + LIGHT, 150 קרדיטים (כ-3 בנייות בחודש) | `PLAN_CATALOG` |
+| 23 | Enterprise | EXTREME, פטור מרצפת המרווח (תמחור בחוזה) | `MARGIN_FLOOR_EXEMPT_PLANS` |
+| 24 | תקרת תקציב מודלים לבנייה, **soft cap** (לא דוחה בנייה, רק רושם חריגה) | ZERO $0.05 · LIGHT $0.35 · STANDARD $1.60 · ADVANCED $3.00 · HEAVY $5.50 · EXTREME $18.00. לכל class יש משתנה env נפרד: `OMNI_BUILD_LLM_CAP_<CLASS>_USD` | `m5_class_llm_cap`, ‏`m5_llm_budget` |
+| 25 | חריגה של יותר מפי 2 מהתקרה | התרעה בלוג (`LLM_SPEND_ALERT`) | `pricing.llm_overage`, ‏`worker_tasks.llm_cap_overage` |
+| 26 | רצפת 60% לא יורדת. אם תקרה שוברת את הרצפה, התקציב נחתך לגובה הרצפה (אפשרות 1) | — | `m5_llm_budget` |
+| 27 | יעד מרווח במקרה הגרוע (כל התקרה מנוצלת) | Amateur 72% · Pro 63% · Studio 62% | מושג: 73.2% / 63.6% / 63.2% |
+| 28 | טסט חובה ב-CI: אותה משימה עולה פחות ב-Amateur מאשר ב-Studio, והמרווח נשמר בשלושת ה-tiers | — | `tests/test_m5_plan_build_class.py::SameTaskTierTests` |
+
+**~~allowlist (בחירה של Claude, כלל מחיר)~~ (הוחלף בהכרעה 31):** מקסימום מחיר output ל-1M טוקנים: ZERO ‏$0 · LIGHT ‏$1.50 · STANDARD ‏$10 · ADVANCED/HEAVY/EXTREME ללא תקרה. אלה אותם ספים שמופיעים ב-`docs/MODEL_PRICES.md`. עם ה-catalog הנוכחי:
+- ל-LIGHT נשארים `gemini-3-1-flash-lite` ו-`openai-gpt-6-luna`.
+- STANDARD ומעלה מקבלים את כל 6 המודלים, כך שבין Pro ל-Studio אין כרגע הבדל ב-allowlist, רק בתקציב ובקרדיטים.
+
+**~~בעיה פתוחה, Free~~ (נפתרה בהכרעה 29):** ל-Free אין הכנסה, והרצפה חלה עליו (רק Enterprise פטור). לכן תקציב המודלים שלו הוא **$0**: בנייה של Free יכולה לרוץ רק על מסלולים בעלות אפסית. כדי לתת ל-Free ‏3 בנייות LIGHT בתשלום (עד $0.35 לבנייה, כלומר עד $1.05 למשתמש בחודש), צריך לפטור גם את Free מהרצפה. **זו הכרעה שעוד לא התקבלה.**
+
+**פער שקיבל הכרעה:** בתשובה הראשונה נכתב "Free 300", ובשנייה "Free 150 (= 3 בנייות)". נבחר 150, וזה אושר בהודעה של 02:16.
+
+### תיקונים (הוכרע 02:22; מחליף חלקים מהכרעות 19–28)
+
+מימוש: #59 (`d8b3a8c`, ‏`f8006fe`).
+
+| # | הכרעה | ערך | מימוש / טסט |
+|---|---|---|---|
+| 29 | **Free פטור מרצפת המרווח**, כמו Enterprise. התקרה של LIGHT ($0.35) נשארת | Free יכול לבצע בנייה בתשלום עד $0.35 | `MARGIN_FLOOR_EXEMPT_PLANS`; טסט `test_free_can_run_a_paid_build_up_to_the_light_cap` |
+| 30 | **תקציב ה-class הוא הקובע ב-worker.** ה-env הוא תקרה עולמית בלבד: כשהוא נמוך מתקציב ה-class נרשמת התרעה ב-log, ואין חסימה שקטה | `WORKER_BUDGET_BELOW_CLASS` (WARNING) | `routed_gateway.bind_budget`; טסט `test_pro_keeps_its_class_budget_when_worker_env_is_lower` (env ‏$0.50, ‏Pro מקבל $1.60) |
+| 31 | **ספי allowlist** (מחיר output מקסימלי ל-1M טוקנים) | LIGHT ≤ $1.50 · STANDARD ≤ $5 · ADVANCED ≤ $8 · HEAVY ו-EXTREME ללא תקרה · ZERO ‏$0 | `M5_CLASS_MAX_OUTPUT_PER_MILLION`; טסט `test_pro_and_studio_get_different_allowlists` |
+| 32 | הצ'אט של ה-intake מציג את הקרדיטים של ה-class (במקום 60 קבוע) | — | `investor_app._supervisor`; טסט `tests/test_intake_credits_by_plan.py` |
+
+**ל-#31:** בהתחלה הוצע LIGHT ≤ $1. בסף כזה היה נשאר ל-Amateur ול-Free רק `gpt-6-luna`, שמסומן `INSUFFICIENT_CREDIT` ‏(אין קרדיט ב-OpenAI) ו-`UNVERIFIED`. התוצאה הייתה שכל בנייה שלהם נכשלת. לכן הוכרע LIGHT ≤ $1.50.
+
+**allowlist בפועל (catalog נוכחי):**
+- **Amateur ו-Free** (LIGHT): `gemini-3-1-flash-lite`, ‏`openai-gpt-6-luna`.
+- **Pro** (STANDARD): 4 מודלים: ‏`gemini-3-1-flash-lite`, ‏`gemini-3-5-flash-lite`, ‏`gemini-3-8-flash`, ‏`openai-gpt-6-luna`.
+- **Studio** (HEAVY): כל 6 המודלים, כלומר גם `openai-gpt-6-1-sol` ו-`anthropic-claude-sonnet-5-5`.
+
+ההכרעה מסמנת כמוחלפים את הפריט "allowlist (בחירה של Claude)" ואת "בעיה פתוחה, Free" שבסעיף הקודם.
+
+## 2026-10-19 — בחירות של Claude (לא הכרעות CEO, פתוחות לשינוי)
+
+| # | בחירה | סיבה | איפה |
+|---|---|---|---|
+| C1 | Studio→**HEAVY** | ההנחיה אמרה "HEAVY/PREMIUM", אבל `PREMIUM` לא קיים ב-`CostClass` | `pricing.M5_BUILD_COST_CLASS` |
+| C2 | ~~Free ו-Enterprise נשארים עם STANDARD בנתיב M5~~ **הוחלף בהכרעות 19, 22 ו-23** | לא נכללו במיפוי. Free נחסם ממילא בבדיקת ההכנסה. Enterprise מתיר כל class. ב-internal QA אין בדיקת class | `m5_build_cost_class` |
+| C3 | ~~כל בנייה של M5 עולה 60 קרדיטים בכל class~~ **הוחלף בהכרעה 20** | חלוקת קרדיטים לפי class לא נקבעה | `_M5_BUILD_CREDITS` |
+| C4 | `BASIC` ו-`BUSINESS` נשארו כ-aliases, ו-`_missing_` ממפה את `'basic'`/`'business'` | ב-DB וב-Stripe metadata שמורים הערכים הישנים. כך אין צורך במיגרציה | `pricing.PlanCode` |
+| C5 | בבחירת env, השם החדש גובר על הישן | כך הוגדר בהכרעה 14. ב-Vercel לא מוגדר אף אחד מהשמות, כך שאין השפעה כרגע | `_env_decimal_renamed` |
+| C6 | חיפוש מחיר בלי provider שמוצא כמה ספקים זורק `AmbiguousPrice` ולא בוחר אחד מהם | בחירה שקטה הייתה מחזירה מחיר שגוי | `prices.price_at` |
+| C7 | קרדיטים, תקרות ספקים, פרויקטים ומושבים לא שונו | לא הוכרעו. המרווחים שנקבעו (הכרעה 9) גוזרים תקרות של כ-$2.48 / $23.46 / $114.52 לחודש | `docs/PRICING.md` |
+| C8 | המחיר של Replicate סומן כ-verified ב-2026-10-19 | אומת ידנית מול `replicate.com/pricing` ("$3.00 / thousand output images"). אין snapshot | `prices.py` |
+| C9 | התגית VERIFIED הוסרה ממחירי Venice ומהמתחרים | אין snapshot שאפשר לשחזר ממנו. ‏#57 הוא צילום טקסט, לא byte-exact | #54, ‏#56, ‏#57 |
+| C10 | ל-Free נקבעה תקרה חודשית של $1.05 להוצאה על ספקים (3 × $0.35), שניתנת לשינוי ב-`OMNI_PROVIDER_CAP_FREE_USD` | בלעדיה `reserve` היה חוסם את הבנייה בתשלום שהוכרעה ב-#29, כי התקרה הקודמת של Free הייתה $0 | `PLAN_CATALOG` |
+
+## השלכות פתוחות
+
+- ~~ה-class הוא תווית בלבד~~ **תוקן ב-#59:** ה-class קובע allowlist, תקציב וקרדיטים. **~~תנאי ל-worker~~ (נפתר בהכרעה 30):** ‏`bind_budget` רק מוריד תקציב ולעולם לא מעלה אותו. אם `OMNI_EXTERNAL_BUDGET_USD` ב-`WORKER_ENV` נמוך מתקרת ה-class (למשל $0.50 מול $5.50 של Studio), התקרה של ה-worker גוברת, וההבדל בין ה-tiers נעלם בזמן ריצה. כדי שה-tiers יהיו אמיתיים עד הסוף, הערך הזה צריך להיות לפחות $18.
+- **approvals ישנים:** ה-budget fingerprint כולל עכשיו את הקרדיטים של ה-class. approval שנוצר לפני הפריסה (עם 60 קרדיטים) לא יתאים יותר, והלקוח יתבקש לאשר מחדש. הכשל חוסם בצורה בטוחה ולא גורם לחיוב שגוי.
+- **idempotency:** ה-fingerprint של הצעת המחיר כולל את `cost_class`. בנייה שנוצרה לפני הפריסה ומשוחזרת אחריה עם אותו מפתח תקבל `idempotency_conflict`.
+- **`email-verification/request`** מחזיר 400 במקום 401. מתועד בטסט ב-#50, לא תוקן.
