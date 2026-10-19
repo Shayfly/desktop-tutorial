@@ -6,6 +6,9 @@ name: venice-snapshot
 # committed blob hashes to the downloaded bytes, commits with [skip ci].
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/venice-snapshot.yml']
 
 permissions:
   contents: write
