@@ -126,22 +126,47 @@ class RoutedModelGateway:
                                                        None if primary is None else primary.endpoint.name,
                                                        [r.endpoint.name for r in fallback]))
 
+    def restrict_to_cost_class(self, cost_class) -> dict:
+        """CEO 2026-10-19: a build may route only to models its class admits
+        (pricing.M5_CLASS_MAX_OUTPUT_PER_MILLION). Narrows, never widens, the
+        catalog; an empty result leaves no external route (fail closed)."""
+        from .pricing import m5_model_allowed
+        before = [m.endpoint.name for m in self.ranked]
+        self.ranked = tuple(m for m in self.ranked if m5_model_allowed(cost_class, m.option.output_per_million))
+        kept = [m.endpoint.name for m in self.ranked]
+        return {'cost_class': getattr(cost_class, 'value', str(cost_class)), 'allowed_models': kept,
+                'excluded_models': [n for n in before if n not in kept]}
+
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
-        """Lower (never raise) the whole-build external budget to what was
-        reserved for this build at admission. The worker's own environment can
-        never authorize more model spend than the durable reservation covers."""
+        """Set the whole-build external budget to what was reserved for this
+        build at admission (CEO 2026-10-19: the build's class budget decides).
+
+        The reservation is the durable, margin-checked authorization, so it is
+        the effective budget in both directions:
+        * worker env above it  -> lowered to the reservation (as before);
+        * worker env below it  -> raised to the reservation, with a WARNING
+          (WORKER_BUDGET_BELOW_CLASS) instead of silently starving the tier.
+        Kill switches are unaffected: zero_cost_mode, allow_external_fallback
+        and the per-build call limit still apply (model_policy.authorize_model_call)."""
         ceiling = Decimal(str(ceiling_usd))
         if ceiling < 0:
             raise ValueError('budget ceiling cannot be negative')
         before = self.policy.external_budget_usd
-        effective = min(before, ceiling)
+        effective = ceiling
+        env_below = before < ceiling
+        if env_below:
+            import logging
+            logging.getLogger(__name__).warning(
+                'WORKER_BUDGET_BELOW_CLASS worker OMNI_EXTERNAL_BUDGET_USD=%s < reserved class budget=%s; '
+                'using the reserved budget', before, ceiling)
         if effective != before:
             self.policy = dataclasses.replace(self.policy, external_budget_usd=effective)
             p = self.policy
             self.policy_version = content_version('model-use', p.zero_cost_mode, p.allow_external_fallback,
                                                   str(p.external_budget_usd), p.max_external_calls_per_build)
         return {'worker_env_budget_usd': str(before), 'reserved_llm_usd': str(ceiling),
-                'effective_budget_usd': str(effective), 'policy_version': self.policy_version}
+                'effective_budget_usd': str(effective), 'worker_env_below_reservation': env_below,
+                'policy_version': self.policy_version}
 
     @property
     def last_usage(self):
