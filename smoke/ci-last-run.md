@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T13:29:42Z)
+# v24-ci — last main run (2026-10-19T15:34:08Z)
 
-- commit: `7f11309011514cf634846ab1dd3bac3cf2750d7d`
-- run_id: [39259908158](https://github.com/Shayfly/desktop-tutorial/actions/runs/39259908158) (attempt 1)
+- commit: `628271601a3e4b750725841b475007e9aaac40e4`
+- run_id: [39278265343](https://github.com/Shayfly/desktop-tutorial/actions/runs/39278265343) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1788 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1797 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -52,6 +52,7 @@
 | `test_db_fingerprint` | PASS | 4 | 0 | 0 |
 | `test_demand_driven_infrastructure` | PASS | 17 | 0 | 0 |
 | `test_dependency_policy` | PASS | 17 | 0 | 0 |
+| `test_deploy_rollback_snapshot` | PASS | 9 | 0 | 0 |
 | `test_deployment_endpoint_public` | PASS | 2 | 0 | 0 |
 | `test_deployment_verification` | PASS | 51 | 0 | 0 |
 | `test_discovery_and_approval` | PASS | 9 | 0 | 7 |
