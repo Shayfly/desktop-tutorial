@@ -109,3 +109,14 @@
 | #47 → #52 | `09406ea` / `1b22676` | טסט / `omni_prod/investor_app.py` | **לא מוזג**: CI של #47 אדום (test, validate: הטסט אדום עד שיהיה מימוש; תנאי ב). ‏#52 נוגע ב-`omni_prod/**` (תנאי א) | — | ממתין |
 | #57 | `a97d5b8` | `docs/venice_prices_snapshot.*` | **לא נכלל בבאצ'**: `pg=failure` על ה-head (תנאי ב) | — | — |
 | #75 | `3163dc2` | `.github/workflows/deploy-worker.yml`, טסט | **לא מוזג**: workflows (תנאי א) | — | ממתין למאט |
+
+### המשך הגל — 2026-10-20 00:57 (main ירוק ב-`0ee20fe`; ‏rule ב שוחרר עבור #47, #50, #57)
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #76 (באצ' הדוקס) | `2cdae51` | `docs/` | מוזג ב-`0ee20fe`. ‏customer-ui נפל פעם אחת (job 118323597983); הרצה חוזרת עברה (118328825858). העץ זהה ל-head שעבר פעמיים ב-PR | `0ee20fe` | מייסד, צ'אט 00:16 |
+| #57 | `a97d5b8` | `docs/venice_prices_snapshot.md`, `.tsv` | **מוזג**. ‏`pg` הורץ שוב פעם אחת (117810289395 → 118332213063 success), בלי rebase. CI על main ירוק | `3234ca4` | מייסד, צ'אט 00:57 |
+| #47 | `09406ea` | `tests/test_repo_summary_secrets.py` | **לא מוזג**. הכשל דטרמיניסטי: טסט החוזה מוצא דליפה של `config.json` ו-`.env` ב-`_repo_summary`, והוא אדום עד שימוזג #52 (נוגע ב-`omni_prod`, ממתין למאט). מיזוג יצבע את main באדום (תנאי ג) | — | ממתין ל-#52 |
+| #50 | `575bde6` | `tests/test_pr39_cookie_fallback_real_routes.py` | **לא מוזג**. ה-base הוא הענף של #39, לא main. ‏assertions אמיתיים נכשלים (`400 != 401`, `200 != 401`, `401 != 200`): אפיון של #39 מול קוד בלי #39 | — | ממתין ל-#39 (מאט) |
+
+**פלייק customer-ui (נמדד, לא תוקן):** `tests/customer_flow_browser.cjs` רץ 25 פעמים מקומית (Playwright 1.56.1, Chromium 1194). **4/25 נכשלו** (16%), כולם בשורה 34: click על כפתור "שינוי" הראשון ב-`#discoveryPanel`, ‏`TimeoutError`, ‏"element is not visible". זה **לא** ה-`setTimeout` של 150ms ב-`/approvals` (שורה 23), שקורה מאוחר יותר.
