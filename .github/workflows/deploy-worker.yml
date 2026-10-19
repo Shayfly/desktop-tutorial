@@ -56,6 +56,13 @@ jobs:
           docker compose config --services | grep -qx intake-worker
           echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
 
+      # 2026-10-19: `docker compose build` moves the compose tags and the running containers' image objects then
+      # disappear, so the drain could no longer save a rollback image (run 39262167302). Snapshot every running
+      # consumer as omni-rollback/<svc>:prev FIRST: tag -> commit -> rebuild from the running container's revision
+      # (accepted only if 3 code hashes match). Stops nothing; idempotent.
+      - name: Snapshot running consumers as rollback images (before the build)
+        run: bash infra/worker-host/snapshot-rollback.sh
+
       - name: Build images
         working-directory: infra/worker-host
         run: docker compose build
