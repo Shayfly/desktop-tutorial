@@ -1,0 +1,36 @@
+name: sandbox-callers-probe (no spend)
+# Real-sandbox probe of the four in-sandbox scripts from fix/sandbox-scripts-as-files-2026-10-19 (2026-10-19).
+# Builds the branch into a SEPARATE tag (omni-probe/worker:<sha>): the compose images and the running consumers are
+# not touched, nothing is stopped. Runs infra/worker-host/probe-sandbox-callers.py in it, with the host's .env and
+# network, against the real sandbox runner. No model call, no database, no spend.
+on:
+  push:
+    branches: [ci/sandbox-callers-probe-2026-10-19]
+    paths: [.github/workflows/sandbox-callers-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 20
+    env:
+      FIX_SHA: 1a38e5b2494f542c88df8d33ff695b0521020faf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FIX_SHA }}
+          path: _probe_src
+          persist-credentials: false
+      - shell: bash
+        run: |
+          set -uo pipefail
+          SRC="$GITHUB_WORKSPACE/_probe_src"; TAG="omni-probe/worker:${FIX_SHA:0:12}"
+          cd "$GITHUB_WORKSPACE/infra/worker-host"          # the deployed compose project and its .env (never printed)
+          docker build -q -t "$TAG" -f "$SRC/Dockerfile" "$SRC" >/dev/null || { echo "::error title=probe::image build failed"; exit 1; }
+          printf 'services:\n  worker:\n    image: %s\n' "$TAG" > "$RUNNER_TEMP/probe-override.yml"
+          docker compose -f docker-compose.yml -f "$RUNNER_TEMP/probe-override.yml" run --rm --no-deps -T worker \
+            python - < "$SRC/infra/worker-host/probe-sandbox-callers.py" 2>&1 \
+            | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' | grep -E '^::|Traceback|Error' | tail -20
+          rc=${PIPESTATUS[0]}
+          docker image rm "$TAG" >/dev/null 2>&1 || true      # only the probe tag
+          exit $rc
