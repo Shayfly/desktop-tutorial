@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T07:52:37Z)
+# v24-ci — last main run (2026-10-19T13:29:42Z)
 
-- commit: `3a4310c8074cc98bace520c3627add3650c6c328`
-- run_id: [39218361751](https://github.com/Shayfly/desktop-tutorial/actions/runs/39218361751) (attempt 1)
+- commit: `7f11309011514cf634846ab1dd3bac3cf2750d7d`
+- run_id: [39259908158](https://github.com/Shayfly/desktop-tutorial/actions/runs/39259908158) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1781 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1788 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -170,6 +170,7 @@
 | `test_replicate_connection` | PASS | 10 | 0 | 0 |
 | `test_replicate_image_test` | PASS | 8 | 0 | 0 |
 | `test_requirement_ledger` | PASS | 7 | 0 | 0 |
+| `test_reservation_worker_sigterm` | PASS | 2 | 0 | 0 |
 | `test_sandbox_cleanup` | PASS | 4 | 0 | 0 |
 | `test_sandbox_runner_health` | PASS | 8 | 0 | 0 |
 | `test_secret_scan_ci_exemption` | PASS | 7 | 0 | 0 |
@@ -209,7 +210,7 @@
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
 | `test_worker_budget_binding` | PASS | 5 | 0 | 0 |
-| `test_worker_deploy_recovery` | PASS | 24 | 0 | 4 |
+| `test_worker_deploy_recovery` | PASS | 29 | 0 | 4 |
 | `test_worker_entrypoint` | PASS | 8 | 0 | 0 |
 | `test_worker_repository_parity` | PASS | 10 | 0 | 0 |
 | `test_workspace_version_conflict` | PASS | 14 | 0 | 0 |
