@@ -14,7 +14,7 @@ jobs:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 20
     env:
-      FIX_SHA: 1a38e5b2494f542c88df8d33ff695b0521020faf
+      FIX_SHA: 7b647a239d7efbd1573ad177df10d4b8343cbd00
     steps:
       - uses: actions/checkout@v4
         with:
