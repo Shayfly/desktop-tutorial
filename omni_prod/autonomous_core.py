@@ -170,6 +170,10 @@ class AutonomousProductEngine:
             msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
             if aid == SUMMARY_FAILURE_ID:
                 continue
+            # A crashed or silent post-build check ranks as its own layer (VerificationGroup red-team fix).
+            for suffix in ('_EXCEPTION', '_unspecified'):
+                if aid.endswith(suffix):
+                    aid = aid[:-len(suffix)]
             if aid in later:
                 s = later[aid]
             elif aid == 'BEHAVIOR':

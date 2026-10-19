@@ -6,7 +6,7 @@ Dimensions are separate: implementation · configuration · verification (scope 
 
 Roles (61): VERIFIED 1, STALE 15, CONNECTED 3, DEFINED 42
 
-Skills in the §9 catalog (137): VERIFIED 8, STALE 28, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
+Skills in the §9 catalog (137): VERIFIED 7, STALE 29, TESTED 17, IMPLEMENTED 7, NOT_IMPLEMENTED 77
 
 ## management
 
@@ -154,7 +154,7 @@ Skills in the §9 catalog (137): VERIFIED 8, STALE 28, TESTED 17, IMPLEMENTED 7,
 | frontend.build | code | EXECUTABLE | STALE | GeneratorAgent | code.generate | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI at beb67b4; code changed since: omni_prod/autonomous_agents.py | — |
 | backend.build | code | EXECUTABLE | STALE | GeneratorAgent | code.generate | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI at beb67b4; code changed since: omni_prod/autonomous_agents.py | — |
 | dependencies.lock | code | VALIDATOR | STALE | DependencyGateExecutor | — | STALE — was verified for: prompt -> build contract (task list); model-generated code; sandbox tests passed; version committed to R2; preview served a real UI at beb67b4; code changed since: omni_prod/dependency_policy.py | allowlist gate (no install step) |
-| diff.review | code | VALIDATOR | VERIFIED | ProductReviewExecutor | code.generate | VERIFIED for: model review of the code (fresh: golden-rehearsal@dbd1232) | reviews the whole code, not a diff |
+| diff.review | code | VALIDATOR | STALE | ProductReviewExecutor | code.generate | STALE — was verified for: model review of the code at dbd1232; code changed since: omni_prod/product_review.py | reviews the whole code, not a diff |
 | migration.create | data | EXECUTABLE | NOT_IMPLEMENTED | — | — | none | not implemented (generated apps) |
 | migration.verify | data | VALIDATOR | NOT_IMPLEMENTED | — | — | none | not implemented |
 | data.constraints | data | INSTRUCTION | STALE | DATA_INTEGRITY | — | STALE — was verified for: prompt -> ready build (library, business rules); HTTP acceptance: create/read/conflict/return/delete at b0a0cfa; code changed since: omni_prod/skills_runtime.py | library build: duplicate member answered 409 |
