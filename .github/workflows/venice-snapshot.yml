@@ -1,0 +1,63 @@
+name: venice-snapshot
+
+# Byte-exact capture of Venice's pricing page (source for omni_prod/intelligence
+# /prices.py 'venice' rows and docs/venice_prices_snapshot.md). Saves the raw
+# response body unchanged to docs/venice_prices_snapshot.raw.md, verifies the
+# committed blob hashes to the downloaded bytes, commits with [skip ci].
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: venice-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SRC: https://docs.venice.ai/overview/pricing.md
+      OUT: docs/venice_prices_snapshot.raw.md
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Download (no transformation)
+        id: dl
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp)
+          # No --compressed: the body is stored exactly as served (identity encoding).
+          code=$(curl -sS -L --fail --max-time 60 -H 'Accept-Encoding: identity' -o "$tmp" -w '%{http_code}' "$SRC")
+          [ "$code" = 200 ] || { echo "::error title=venice-snapshot::HTTP $code"; exit 1; }
+          [ -s "$tmp" ] || { echo "::error title=venice-snapshot::empty body"; exit 1; }
+          sha=$(sha256sum "$tmp" | cut -d' ' -f1); size=$(stat -c %s "$tmp")
+          mkdir -p docs; cp "$tmp" "$OUT"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"; echo "size=$size" >> "$GITHUB_OUTPUT"
+          echo "::notice title=venice-snapshot download::http=$code bytes=$size sha256=$sha"
+      - name: Commit [skip ci] and verify byte-exact
+        shell: bash
+        env:
+          SHA: ${{ steps.dl.outputs.sha256 }}
+          SIZE: ${{ steps.dl.outputs.size }}
+        run: |
+          set -euo pipefail
+          git config user.name "ci-bot"; git config user.email "ci-bot@148ai.dev"
+          git add "$OUT"
+          if git diff --cached --quiet; then
+            echo "::notice title=venice-snapshot::unchanged since last snapshot"
+          else
+            git commit -m "chore: Venice pricing raw snapshot sha256=${SHA:0:12} [skip ci]" \
+                       -m "source: $SRC" -m "bytes: $SIZE" -m "sha256: $SHA"
+            for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep $((i*5)); done
+          fi
+          committed=$(git show "HEAD:$OUT" | sha256sum | cut -d' ' -f1)
+          if [ "$committed" = "$SHA" ]; then
+            echo "::notice title=venice-snapshot verify::BYTE_EXACT committed=$committed commit=$(git rev-parse --short HEAD)"
+          else
+            echo "::error title=venice-snapshot verify::MISMATCH downloaded=$SHA committed=$committed"; exit 1
+          fi
