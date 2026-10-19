@@ -1,15 +1,14 @@
-# v24-ci — last main run (2026-10-19T17:37:09Z)
+# v24-ci — last main run (2026-10-19T17:51:37Z)
 
-- commit: `baf070a59b7b8b5922ffa0032fff0b23e92ef761`
-- run_id: [39295200919](https://github.com/Shayfly/desktop-tutorial/actions/runs/39295200919) (attempt 1)
+- commit: `1efc84222e8a53e2adcddeffc4bfbfbfa733e88f`
+- run_id: [39297332114](https://github.com/Shayfly/desktop-tutorial/actions/runs/39297332114) (attempt 1)
 - test job: **FAILURE**
-- tests: **FAIL** — 1799 passed, 3 failed, 181 skipped
+- tests: **FAIL** — 1800 passed, 2 failed, 181 skipped
 - AcceptanceW: **FAIL**
 
 ## Failing tests
 
 - FAIL `tests.test_agent_os.TruthMatrixTests.test_model_instruction_alone_is_not_verified`
-- FAIL `tests.test_conversation_os.DepartmentTests.test_every_agent_in_exactly_one_department_and_files_current`
 - FAIL `tests.test_m4_acceptance.AcceptanceW.test_W_every_non_fastapi_test_module_passes`
 
 ## CostClass behavioural proofs
@@ -44,7 +43,7 @@
 | `test_company_loss` | PASS | 5 | 0 | 0 |
 | `test_consistency_gate` | PASS | 14 | 0 | 0 |
 | `test_content_only_site` | PASS | 17 | 0 | 0 |
-| `test_conversation_os` | FAIL | 33 | 1 | 4 |
+| `test_conversation_os` | PASS | 34 | 0 | 4 |
 | `test_conversation_ux` | PASS | 5 | 0 | 0 |
 | `test_crash_recovery_and_change_parity` | PASS | 0 | 0 | 5 |
 | `test_customer_economics_views` | PASS | 11 | 0 | 0 |
