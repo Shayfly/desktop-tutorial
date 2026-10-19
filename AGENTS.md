@@ -7,3 +7,19 @@ Inspect the whole repository, establish a passing baseline, and implement the re
 Keep an honest STATUS.md with four categories: implemented and independently verified; implemented but awaiting external live verification; blocked by a named credential/service; not implemented. Record the exact commands and evidence. Implement only what you can validate, and explicitly show remaining work. Never claim "production ready" until the launch acceptance criteria pass in the intended environment.
 
 For Vercel, verify current official platform constraints before selecting the architecture. Host the web experience and suitable API/control plane on Vercel. Execute untrusted generated code and long builds in a properly isolated external sandbox/worker or a verified Vercel sandbox solution; do not put a host Docker socket in a publicly reachable function. Make all persisted state durable outside ephemeral function storage.
+
+## Path ownership between agents (founder decisions, binding)
+
+Each agent changes only the paths it owns. Anything else needs the founder's explicit approval for that task. A one-time approval is not ownership. No agent merges a PR on its own.
+
+| Owner | Paths | Granted |
+|---|---|---|
+| Claude Code | `tests/**`, `docs/**` | 2026-10-18 |
+| Claude Code | `infra/worker-host/**`, `.github/workflows/deploy-worker.yml` | 2026-10-19 |
+| GitHub Copilot | `.github/workflows/v24-ci.yml` | 2026-10-19 |
+
+Frozen until the founder says otherwise, regardless of owner:
+- the browser-probe step ("Prove the browser sandbox clicks through a product") in `deploy-worker.yml`;
+- `.github/workflows/148ai-rebuild-safe-rollback-images.yml`.
+
+`omni_prod/**` has no standing owner. Each change there is approved per task and per file.
