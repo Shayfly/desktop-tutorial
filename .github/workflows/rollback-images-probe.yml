@@ -36,3 +36,6 @@ jobs:
             budget=$(docker exec "$cid" printenv OMNI_EXTERNAL_BUDGET_USD 2>/dev/null || echo unset)
             echo "::notice title=running $s::container image object $st $info budget_env=$budget"
           done
+          # 2026-10-19 16:45: who removes the running image objects? (read-only)
+          echo "::notice title=images::$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedSince}}' | grep -E 'omni|worker' | tr '\n' ';' | head -c 900)"
+          echo "::notice title=image-events::$(timeout 10 docker events --since 90m --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter type=image --format '{{.Time}} {{.Action}} {{.Actor.ID}} {{index .Actor.Attributes "name"}}' 2>&1 | grep -E 'delete|untag|prune' | tail -15 | tr '\n' ';' | head -c 900)"
