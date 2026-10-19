@@ -56,6 +56,13 @@ jobs:
           docker compose config --services | grep -qx intake-worker
           echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
 
+      # 2026-10-19: `docker compose build` moves the compose tags and the running containers' image objects then
+      # disappear, so the drain could no longer save a rollback image (run 39262167302). Snapshot every running
+      # consumer as omni-rollback/<svc>:prev FIRST: tag -> commit -> rebuild from the running container's revision
+      # (accepted only if 3 code hashes match). Stops nothing; idempotent.
+      - name: Snapshot running consumers as rollback images (before the build)
+        run: bash infra/worker-host/snapshot-rollback.sh
+
       - name: Build images
         working-directory: infra/worker-host
         run: docker compose build
@@ -79,6 +86,53 @@ jobs:
             echo "INPUT rules for 80/443:"; iptables -S INPUT | grep -E "dport (80|443)" || true'
           docker pull -q python:3.11-slim
           docker pull -q node:20-slim
+
+      # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
+      # then SignatureDoesNotMatch) after minutes of paid generation. This writes,
+      # reads back and deletes one small object through the same S3ArtifactStore
+      # the worker uses, so a bad storage credential fails the deploy instead of
+      # a customer build. Reports only error codes and the endpoint's shape.
+      # 2026-10-19: runs BEFORE the drain (new image + new .env, nothing stopped yet), so a bad storage credential
+      # stops the deploy while the old consumers are still serving instead of after they were replaced.
+      - name: Prove artifact storage accepts writes
+        working-directory: infra/worker-host
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os, sys, uuid
+          from urllib.parse import urlsplit
+          from omni_prod.storage import S3ArtifactStore
+
+          endpoint = os.environ["OMNI_S3_ENDPOINT"]; bucket = os.environ["OMNI_S3_BUCKET"]
+          ak = os.environ["OMNI_S3_ACCESS_KEY"]; sk = os.environ["OMNI_S3_SECRET_KEY"]
+          parts = urlsplit(endpoint)
+          hexchars = set("0123456789abcdef")
+          shape = (f"scheme={parts.scheme} host_suffix={'.'.join((parts.hostname or '').split('.')[-3:])} "
+                   f"path={parts.path or '-'!r} bucket_len={len(bucket)} ak_len={len(ak)} sk_len={len(sk)} "
+                   f"ak_hex={set(ak) <= hexchars} sk_hex={set(sk) <= hexchars}")
+
+          def attempt(url):
+              store = S3ArtifactStore(endpoint=url, bucket=bucket, access_key=ak, secret_key=sk)
+              key = f"_deploy-probe/{uuid.uuid4().hex}.txt"
+              try:
+                  store.put_bytes(key, b"deploy-probe")
+                  ok = store.get_bytes(key) == b"deploy-probe"
+                  store.client.delete_object(Bucket=bucket, Key=key)
+                  return "PASS" if ok else "READBACK_MISMATCH"
+              except Exception as exc:
+                  code = getattr(exc, "response", {}).get("Error", {}).get("Code") or type(exc).__name__
+                  return f"FAIL {code}"
+
+          configured = attempt(endpoint)
+          print(f"configured endpoint: {configured}; {shape}")
+          if configured == "PASS":
+              print(f"::notice title=storage-probe::PASS write, read-back and delete in the artifact bucket ({shape})")
+              sys.exit(0)
+          host_only = f"{parts.scheme}://{parts.hostname}"
+          alt = attempt(host_only) if parts.path not in ("", "/") else "same-as-configured"
+          print(f"::error title=storage-probe::configured endpoint {configured}; host-only endpoint {alt}; {shape}")
+          sys.exit(1)
+          PY
 
       # Directive 2026-10-09 §18: never replace a worker in the middle of a build
       # or change. `docker stop` sends SIGTERM; an RQ worker then makes a warm
@@ -236,51 +290,6 @@ jobs:
         run: |
           set -uo pipefail
           docker compose exec -T preview-worker python -m omni_prod.preview_durability 2>&1 | grep -E '^::' || echo "::warning title=preview-data::self-test produced no result"
-
-      # Golden E2E #1 reached artifact upload twice and failed on R2 (key length,
-      # then SignatureDoesNotMatch) after minutes of paid generation. This writes,
-      # reads back and deletes one small object through the same S3ArtifactStore
-      # the worker uses, so a bad storage credential fails the deploy instead of
-      # a customer build. Reports only error codes and the endpoint's shape.
-      - name: Prove artifact storage accepts writes
-        working-directory: infra/worker-host
-        run: |
-          set -euo pipefail
-          docker compose run --rm --no-deps -T worker python - <<'PY'
-          import os, sys, uuid
-          from urllib.parse import urlsplit
-          from omni_prod.storage import S3ArtifactStore
-
-          endpoint = os.environ["OMNI_S3_ENDPOINT"]; bucket = os.environ["OMNI_S3_BUCKET"]
-          ak = os.environ["OMNI_S3_ACCESS_KEY"]; sk = os.environ["OMNI_S3_SECRET_KEY"]
-          parts = urlsplit(endpoint)
-          hexchars = set("0123456789abcdef")
-          shape = (f"scheme={parts.scheme} host_suffix={'.'.join((parts.hostname or '').split('.')[-3:])} "
-                   f"path={parts.path or '-'!r} bucket_len={len(bucket)} ak_len={len(ak)} sk_len={len(sk)} "
-                   f"ak_hex={set(ak) <= hexchars} sk_hex={set(sk) <= hexchars}")
-
-          def attempt(url):
-              store = S3ArtifactStore(endpoint=url, bucket=bucket, access_key=ak, secret_key=sk)
-              key = f"_deploy-probe/{uuid.uuid4().hex}.txt"
-              try:
-                  store.put_bytes(key, b"deploy-probe")
-                  ok = store.get_bytes(key) == b"deploy-probe"
-                  store.client.delete_object(Bucket=bucket, Key=key)
-                  return "PASS" if ok else "READBACK_MISMATCH"
-              except Exception as exc:
-                  code = getattr(exc, "response", {}).get("Error", {}).get("Code") or type(exc).__name__
-                  return f"FAIL {code}"
-
-          configured = attempt(endpoint)
-          print(f"configured endpoint: {configured}; {shape}")
-          if configured == "PASS":
-              print(f"::notice title=storage-probe::PASS write, read-back and delete in the artifact bucket ({shape})")
-              sys.exit(0)
-          host_only = f"{parts.scheme}://{parts.hostname}"
-          alt = attempt(host_only) if parts.path not in ("", "/") else "same-as-configured"
-          print(f"::error title=storage-probe::configured endpoint {configured}; host-only endpoint {alt}; {shape}")
-          sys.exit(1)
-          PY
 
       # "Listening on" proves the worker started; this proves it consumes the
       # queue. A probe job (stdlib socket.gethostname, no side effects, no
