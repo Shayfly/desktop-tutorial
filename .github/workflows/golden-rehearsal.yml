@@ -31,20 +31,29 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Rehearse one build
+        timeout-minutes: 25                 # the job keeps 5 minutes for the artifact; a hung build never holds the runner
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
         env:
           PROMPT: ${{ inputs.prompt }}
           MODELS: ${{ inputs.models }}
         run: |
+          # GitHub runs this with `bash -e`: a failed rehearsal (exit 1) must not stop the step before its output and
+          # taxonomy are written (run 39309736314 lost both). Errors are handled explicitly; the exit code is kept.
+          set +e
           set -uo pipefail
           docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" worker \
             python -c 'import os, sys; from omni_prod.rehearsal import main; sys.exit(main([os.environ["PROMPT"]]))' 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' > "$RUNNER_TEMP/rehearsal.out"
-          rc=${PIPESTATUS[0]}
+          rc=${PIPESTATUS[0]}                # the REHEARSAL's exit code (docker compose run), never the sed or a later command
+          readonly rc
+          echo "rehearsal exit code: $rc"
           grep -E '^(::notice|::error|Traceback|  File|[A-Za-z]+Error)' "$RUNNER_TEMP/rehearsal.out" | tail -40
           # 2026-10-19: failure taxonomy + one build record for first_pass_yield (no product content, no secrets)
           mkdir -p "$RUNNER_TEMP/taxonomy"
-          RUN_ID="${{ github.run_id }}" COMMIT="${{ github.sha }}" python3 - "$RUNNER_TEMP/rehearsal.out" "$RUNNER_TEMP/taxonomy" <<'PY'
+          export RUN_ID="${{ github.run_id }}" COMMIT="${{ github.sha }}"
+          if command -v python3 >/dev/null; then PYRUN=(python3); else      # host without python: the pinned slim image
+            PYRUN=(docker run --rm -i -e RUN_ID -e COMMIT -v "$RUNNER_TEMP:$RUNNER_TEMP" python:3.11-slim python3); fi
+          "${PYRUN[@]}" - "$RUNNER_TEMP/rehearsal.out" "$RUNNER_TEMP/taxonomy" <<'PY'
           import json, os, sys, datetime
           rep = None
           for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
@@ -64,6 +73,19 @@ jobs:
               fh.write(json.dumps(build) + '\n')
           with open(os.path.join(sys.argv[2], 'failures.jsonl'), 'w') as fh:
               fh.writelines(json.dumps(f) + '\n' for f in failures)
+          import collections
+          dist = collections.Counter((f['layer'], f['failure_type']) for f in failures)
+          rounds = collections.defaultdict(list)
+          for f in failures:
+              rounds[f['round_index']].append(f"{f['layer']}/{f['failure_type']}{'' if f['was_repaired'] else ' (not repaired)'}")
+          summary = (f"outcome={build['outcome']} first_pass={build['first_pass']} repair_rounds={build['repair_rounds']} "
+                     f"spend_usd={build.get('spend_usd')} seconds={build.get('seconds')} failures={len(failures)} | "
+                     + '; '.join(f"{l}/{t}={n}" for (l, t), n in sorted(dist.items())) + ' | by round: '
+                     + '; '.join(f"r{k}: {', '.join(v)}" for k, v in sorted(rounds.items())))
+          print('TAXONOMY-SUMMARY ' + summary)                                   # stdout: in the job log either way
+          for f in failures:
+              print('TAXONOMY ' + json.dumps(f))
+          print('::warning title=taxonomy summary::' + summary.replace('%', '%25')[:3000])
           PY
           exit $rc
 
@@ -90,13 +112,21 @@ jobs:
           ref: main
           persist-credentials: true
       - uses: actions/download-artifact@v4
+        continue-on-error: true            # a missing artifact is evidence too: the build is recorded as no_artifact
         with:
           name: rehearsal-taxonomy
           path: taxonomy
       - name: Append and report first_pass_yield
+        if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
-          mkdir -p smoke
+          mkdir -p smoke taxonomy
+          if [ ! -s taxonomy/builds.jsonl ]; then
+            printf '{"run_id": "%s", "commit": "%s", "outcome": "no_artifact", "first_pass": false, "repair_rounds": null}\n' \
+              "${{ github.run_id }}" "$(echo '${{ github.sha }}' | cut -c1-12)" > taxonomy/builds.jsonl
+            : > taxonomy/failures.jsonl
+            echo "::warning title=publish-taxonomy::no taxonomy artifact from the rehearsal job; recorded as no_artifact"
+          fi
           cat taxonomy/failures.jsonl >> smoke/failure-taxonomy.jsonl
           cat taxonomy/builds.jsonl >> smoke/rehearsal-builds.jsonl
           python3 - <<'PY'
@@ -106,6 +136,8 @@ jobs:
           fp = sum(1 for b in builds if b.get('first_pass'))
           last = builds[-1]
           by_layer = collections.Counter(f['layer'] for f in fails if f['run_id'] == last['run_id'])
+          dist = collections.Counter((f['layer'], f['failure_type']) for f in fails if f['run_id'] == last['run_id'])
+          print('TAXONOMY-DISTRIBUTION ' + json.dumps({f'{l}/{t}': n for (l, t), n in sorted(dist.items())}))
           print(f"::notice title=first_pass_yield::{fp}/{len(builds)} = {fp / len(builds):.0%} over all recorded rehearsals; "
                 f"this run: outcome={last.get('outcome')} first_pass={last.get('first_pass')} "
                 f"repair_rounds={last.get('repair_rounds')} failures_by_layer={dict(by_layer)}")
