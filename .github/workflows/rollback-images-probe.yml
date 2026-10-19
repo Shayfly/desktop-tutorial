@@ -39,3 +39,9 @@ jobs:
           # 2026-10-19 16:45: who removes the running image objects? (read-only)
           echo "::notice title=images::$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedSince}}' | grep -E 'omni|worker' | tr '\n' ';' | head -c 900)"
           echo "::notice title=image-events::$(timeout 10 docker events --since 90m --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter type=image --format '{{.Time}} {{.Action}} {{.Actor.ID}} {{index .Actor.Attributes "name"}}' 2>&1 | grep -E 'delete|untag|prune' | tail -15 | tr '\n' ';' | head -c 900)"
+          # 2026-10-19 18:10: why does "Confirm deployment scope" exit 255? (read-only, no checkout, names only)
+          cd "$GITHUB_WORKSPACE/infra/worker-host" 2>/dev/null && {
+            echo "::notice title=scope-head::$(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD 2>&1) env_file=$([ -f .env ] && echo present || echo MISSING) env_staging=$(grep -cx 'OMNI_ENV=staging' .env 2>/dev/null) intake=$(grep -cx 'OMNI_INTAKE_MODEL=1' .env 2>/dev/null) compose=$(docker compose version --short 2>&1)"
+            out=$(docker compose config --services 2>&1); rc=$?
+            echo "::notice title=scope-config::rc=$rc $(printf '%s' "$out" | grep -v '=' | tr '\n' ' ' | head -c 600)"
+          }
