@@ -88,11 +88,11 @@ class PostBuildChecksReachTheRepairerTogether(unittest.TestCase):
     ENV = {'OMNI_SANDBOX_RUNNER_URL': 'http://sandbox.invalid', 'OMNI_SANDBOX_SHARED_SECRET': 'x' * 40,
            'OMNI_CONSISTENCY_GATE': '0', 'OMNI_MIN_QUALITY_SCORE': '0'}
 
-    def build(self, script):
+    def build(self, script, gateway=None):
         calls = []
         with mock.patch.dict(os.environ, self.ENV), \
                 mock.patch.object(investor_app, 'RemoteSandboxRepositoryExecutor', fake_remote(script, calls)):
-            executor = investor_app._verification_executor(None)
+            executor = investor_app._verification_executor(gateway)
             repairer = Repairer()
             engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=repairer,
                                              executor=executor, max_repair_rounds=1)
@@ -143,3 +143,33 @@ class PostBuildChecksReachTheRepairerTogether(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RedTeamGroupGaps(PostBuildChecksReachTheRepairerTogether):
+    """Red team 2026-10-19: a crashing check must not stop the group; a failure without a record must not pass."""
+
+    def test_an_exception_in_one_check_becomes_its_failure_and_the_others_still_run(self):
+        from omni_prod.preview_smoke import PreviewReadyExecutor
+
+        def boom(self, **kw):
+            raise TimeoutError('preview start timed out')
+        with mock.patch.object(PreviewReadyExecutor, 'check', boom):
+            result, repairer, calls = self.build({'browser_ok': False})
+        self.assertIn('browser-probe', calls)                                   # the rest of the group ran
+        self.assertEqual(repairer.received[0], ['PREVIEW_EXCEPTION', 'ALSO_FAILING'])
+        self.assertIn('TimeoutError: preview start timed out', repairer.messages[0]['PREVIEW_EXCEPTION'])
+        self.assertIn('BROWSER', repairer.messages[0]['ALSO_FAILING'])
+        self.assertEqual(AutonomousProductEngine.progress(result.report)[0], 4)  # ranked as preview, its own layer
+
+    def test_a_failed_check_without_a_failure_record_does_not_pass(self):
+        from omni_prod.browser_probe import BrowserFlowExecutor
+
+        def silent(self, *, repository, spec, report):
+            return ExecutionReport(False, (), '')
+        with mock.patch.object(BrowserFlowExecutor, 'check', silent):
+            result, repairer, calls = self.build({})
+        self.assertNotEqual(result.status, 'ready')
+        self.assertIn('BROWSER_unspecified', repairer.received[0])
+        self.assertEqual(AutonomousProductEngine.progress(result.report)[0], 6)
+        layers = {(r['layer'], r['failure_type']) for r in self.engine.failure_taxonomy}
+        self.assertIn(('browser', 'check_failed_unspecified'), layers)

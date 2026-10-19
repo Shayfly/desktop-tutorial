@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 25, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 6, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 50, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 77, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 49, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -25,7 +25,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 28, INTEGRATION
 | Identity & Authentication Agent (`identity_auth_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | generated-app auth is not generated or verified; platform identity only |
 | Integration Agent (`integration_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | no generated-app integration path |
 | Coding Agent (`coding_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| Code Review Agent (`code_review_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Code Review Agent (`code_review_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py |  |
 | QA Agent (`qa_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
 | Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
@@ -272,7 +272,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 76, UNIT_TESTED 28, INTEGRATION
 | `secret_detection` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | static |
 | `secret_exposure_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `dependency_vulnerability_scan` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
-| `xss_check` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | review + instruction, no dynamic XSS probe |
+| `xss_check` | Security | **IMPLEMENTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py | review + instruction, no dynamic XSS probe |
 | `csrf_check` | Security | **UNIT_TESTED** | security_agent | unit tests only | platform API only |
 | `sql_injection_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `ssrf_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |

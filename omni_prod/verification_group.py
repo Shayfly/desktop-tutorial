@@ -29,6 +29,38 @@ def _summary_line(report) -> str:
     return f'{f.acceptance_id}: {" ".join(f.message.split())[:220]}{more}'
 
 
+_LAYER_IDS = {'PreviewReadyExecutor': 'PREVIEW', 'BehaviorAcceptanceExecutor': 'BEHAVIOR', 'BrowserFlowExecutor': 'BROWSER',
+              'VisualQAExecutor': 'VISUAL', 'ProductReviewExecutor': 'REVIEW'}
+
+
+def layer_id(stage) -> str:
+    name = type(stage).__name__
+    return _LAYER_IDS.get(name, name.replace('Executor', '').upper() or 'STAGE')
+
+
+def _run_stage(stage, *, repository, spec, base, others_failed):
+    """One stage's check that can neither stop the group nor pass by accident (red team, 2026-10-19):
+    an exception becomes that stage's failure ('<LAYER>_EXCEPTION'), and passed=False without any failure record
+    gets one ('<LAYER>_unspecified')."""
+    lid = layer_id(stage)
+    try:
+        if getattr(type(stage), 'group_context', False):   # the review: told whether the others failed this round
+            r = stage.check(repository=repository, spec=spec, report=base, others_failed=others_failed)
+        else:
+            r = stage.check(repository=repository, spec=spec, report=base)
+    except Exception as exc:                                # e.g. TimeoutError in preview must not skip the rest
+        return ExecutionReport(False, (AcceptanceFailure(
+            f'{lid}_EXCEPTION', f'{lid.lower()} check raised {type(exc).__name__}: {str(exc)[:300]}',
+            'The check itself crashed before it could judge the product; the other checks still ran.'),), base.build_log)
+    if r is None or not isinstance(getattr(r, 'passed', None), bool):
+        return ExecutionReport(False, (AcceptanceFailure(f'{lid}_unspecified', f'{lid.lower()} check returned no report'),),
+                               base.build_log)
+    if not r.passed and not r.failures:                     # a failure with no record is still a failure
+        return ExecutionReport(False, (AcceptanceFailure(f'{lid}_unspecified',
+                                                         f'{lid.lower()} check failed without saying why'),), r.build_log)
+    return r
+
+
 class VerificationGroup:
     def __init__(self, threshold, stages):
         if not stages:
@@ -50,8 +82,8 @@ class VerificationGroup:
             return base                         # a threshold failure: the post-build checks do not run
         failed = []
         for order, stage in enumerate(self._stages):          # every stage runs; none returns early
-            r = stage.check(repository=repository, spec=spec, report=base)
-            if not r.passed and r.failures:
+            r = _run_stage(stage, repository=repository, spec=spec, base=base, others_failed=bool(failed))
+            if not r.passed:                                    # _run_stage guarantees at least one failure record
                 failed.append((_stage_rank(r), order, r))
         if not failed:
             return base

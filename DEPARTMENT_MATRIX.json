@@ -1,9 +1,9 @@
 {
  "schema": "department-matrix/1",
  "summary": {
-  "IMPLEMENTED": 12,
+  "IMPLEMENTED": 13,
   "NOT_IMPLEMENTED": 3,
-  "PARTIAL": 3
+  "PARTIAL": 2
  },
  "departments": [
   {
@@ -290,8 +290,9 @@
    },
    "support_agents": {},
    "skills": {
+    "IMPLEMENTED": 1,
     "NOT_IMPLEMENTED": 16,
-    "REAL_SERVER_VERIFIED": 5,
+    "REAL_SERVER_VERIFIED": 4,
     "UNIT_TESTED": 4
    },
    "missing_roles": [
@@ -309,13 +310,13 @@
   {
    "key": "D12",
    "name": "QA & Test Engineering",
-   "readiness": "PARTIAL",
+   "readiness": "IMPLEMENTED",
    "responsibilities": "unit, integration, E2E, browser, regression",
    "core_agents": {
     "qa_agent": "IMPLEMENTED",
     "behavioral_acceptance_agent": "IMPLEMENTED",
     "browser_rehearsal_agent": "IMPLEMENTED",
-    "code_review_agent": "REAL_SERVER_VERIFIED"
+    "code_review_agent": "IMPLEMENTED"
    },
    "support_agents": {
     "repair_agent": "IMPLEMENTED",

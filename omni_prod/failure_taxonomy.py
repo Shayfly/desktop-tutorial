@@ -17,11 +17,18 @@ LAYERS = {'CONSISTENCY': 'consistency', 'UNSUPPORTED_DEPENDENCY': 'dependency', 
 
 
 def layer_of(acceptance_id: str) -> str:
+    for suffix in ('_EXCEPTION', '_unspecified'):          # a crashed / silent post-build check keeps its layer
+        if acceptance_id.endswith(suffix) and acceptance_id[:-len(suffix)] in LAYERS:
+            return LAYERS[acceptance_id[:-len(suffix)]]
     return LAYERS.get(acceptance_id, 'sandbox')       # acceptance ids (A1, ...) come from the sandbox build/verify
 
 
-def failure_type(message: str) -> str:
+def failure_type(message: str, acceptance_id: str = '') -> str:
     """'the product misbehaves in a real browser: form ...' -> 'the_product_misbehaves_in_a_real_browser'."""
+    if acceptance_id.endswith('_EXCEPTION'):
+        return 'check_exception'
+    if acceptance_id.endswith('_unspecified'):
+        return 'check_failed_unspecified'
     head = (message or '').split(':', 1)[0].lower()
     head = re.sub(r"'[^']*'|\"[^\"]*\"|\d+", ' ', head)          # drop quoted names and numbers
     words = re.sub(r'[^a-z() ]+', ' ', head).split()
@@ -38,7 +45,7 @@ def records(rounds) -> list[dict]:
             if f.acceptance_id == SUMMARY_FAILURE_ID:
                 continue
             depth = AutonomousProductEngine.progress(ExecutionReport(False, (f,)))[0]
-            rows.append({'layer': layer_of(f.acceptance_id), 'failure_type': failure_type(f.message),
+            rows.append({'layer': layer_of(f.acceptance_id), 'failure_type': failure_type(f.message, f.acceptance_id),
                          'round_index': idx, 'chain_depth': depth})
         keyed.append((idx, rows))
     out = []
