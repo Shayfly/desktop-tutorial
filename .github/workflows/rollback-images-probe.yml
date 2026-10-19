@@ -47,3 +47,9 @@ jobs:
             out=$(docker compose config --services 2>&1); rc=$?
             echo "::warning title=scope-config::rc=$rc $(printf '%s' "$out" | grep -v '=' | tr '\n' ' ' | head -c 600)"
           }
+          # 2026-10-19 19:25: rehearsal 39280924963 finished its step but the job never completed on GitHub. Read its
+          # output from the runner's own page logs (read-only; only ::notice/::error lines, already redacted by the step).
+          D=/home/omni/actions-runner/_diag/pages
+          f=$(grep -l 'title=outcome' "$D"/*.log 2>/dev/null | xargs -r ls -t 2>/dev/null | head -n 1)
+          echo "::warning title=rehearsal-log::file=${f:-none} runner_busy=$(pgrep -fc 'Runner.Worker' 2>/dev/null)"
+          [ -n "$f" ] && grep -E '::(notice|error)' "$f" | sed -E 's/^[^:]*(::(notice|error))/\1/; s/::notice /::warning /; s/::error /::warning /' | grep -v 'Node.js' | head -n 9
