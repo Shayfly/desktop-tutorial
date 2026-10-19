@@ -32,5 +32,7 @@ jobs:
           for s in worker intake-worker intake-maintain preview-worker; do
             cid=$(docker ps -q -f "name=^/omni-worker-${s}-1$"); [ -n "$cid" ] || { echo "::notice title=running $s::not running"; continue; }
             iid=$(docker inspect -f '{{.Image}}' "$cid"); docker image inspect "$iid" >/dev/null 2>&1 && st=present || st=MISSING
-            echo "::notice title=running $s::container image object $st"
+            info=$(docker inspect -f 'status={{.State.Status}} started={{.State.StartedAt}} restarts={{.RestartCount}} image={{.Config.Image}}' "$cid")
+            budget=$(docker exec "$cid" printenv OMNI_EXTERNAL_BUDGET_USD 2>/dev/null || echo unset)
+            echo "::notice title=running $s::container image object $st $info budget_env=$budget"
           done
