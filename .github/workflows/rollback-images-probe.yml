@@ -40,8 +40,10 @@ jobs:
           echo "::notice title=images::$(docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.CreatedSince}}' | grep -E 'omni|worker' | tr '\n' ';' | head -c 900)"
           echo "::notice title=image-events::$(timeout 10 docker events --since 90m --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter type=image --format '{{.Time}} {{.Action}} {{.Actor.ID}} {{index .Actor.Attributes "name"}}' 2>&1 | grep -E 'delete|untag|prune' | tail -15 | tr '\n' ';' | head -c 900)"
           # 2026-10-19 18:10: why does "Confirm deployment scope" exit 255? (read-only, no checkout, names only)
-          cd "$GITHUB_WORKSPACE/infra/worker-host" 2>/dev/null && {
-            echo "::notice title=scope-head::$(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD 2>&1) env_file=$([ -f .env ] && echo present || echo MISSING) env_staging=$(grep -cx 'OMNI_ENV=staging' .env 2>/dev/null) intake=$(grep -cx 'OMNI_INTAKE_MODEL=1' .env 2>/dev/null) compose=$(docker compose version --short 2>&1)"
+          echo "::notice title=scope-paths::ws=$GITHUB_WORKSPACE exists=$([ -d "$GITHUB_WORKSPACE" ] && echo y || echo n) top=$(ls -A "$GITHUB_WORKSPACE" 2>&1 | head -c 300 | tr '\n' ' ') envs=$(ls -d "$(dirname "$GITHUB_WORKSPACE")"/*/infra/worker-host/.env 2>&1 | tr '\n' ' ')"
+          for d in "$GITHUB_WORKSPACE" "$(dirname "$GITHUB_WORKSPACE")"/*; do [ -f "$d/infra/worker-host/.env" ] && { W=$d; break; }; done
+          cd "${W:-/nonexistent}/infra/worker-host" 2>/dev/null && {
+            echo "::notice title=scope-head::$(git -C "$W" rev-parse --short HEAD 2>&1) env_file=$([ -f .env ] && echo present || echo MISSING) env_staging=$(grep -cx 'OMNI_ENV=staging' .env 2>/dev/null) intake=$(grep -cx 'OMNI_INTAKE_MODEL=1' .env 2>/dev/null) compose=$(docker compose version --short 2>&1)"
             out=$(docker compose config --services 2>&1); rc=$?
             echo "::notice title=scope-config::rc=$rc $(printf '%s' "$out" | grep -v '=' | tr '\n' ' ' | head -c 600)"
           }
