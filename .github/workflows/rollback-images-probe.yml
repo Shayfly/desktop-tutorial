@@ -1,0 +1,36 @@
+name: rollback-images-probe (read-only)
+# Read-only: do omni-rollback/<svc>:prev images exist, with a revision label,
+# and do worker_tasks.py / model_gateway.py / preview_router.py hash the same
+# as in the running consumer? Nothing is built, stopped, tagged or restarted.
+on:
+  push:
+    branches: [ci/rollback-images-probe-2026-10-19]
+    paths: [.github/workflows/rollback-images-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - shell: bash
+        run: |
+          set -uo pipefail
+          FILES="omni_prod/worker_tasks.py omni_prod/model_gateway.py omni_prod/preview_router.py"
+          H='import hashlib,sys;from pathlib import Path;print(" ".join(hashlib.sha256(Path("/app",p).read_bytes()).hexdigest()[:12] for p in sys.argv[1:]))'
+          for s in worker intake-worker intake-maintain preview-worker; do
+            img="omni-rollback/$s:prev"
+            if ! docker image inspect "$img" >/dev/null 2>&1; then echo "::warning title=rollback $s::$img MISSING"; continue; fi
+            rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$img" 2>/dev/null)
+            created=$(docker image inspect -f '{{.Created}}' "$img")
+            cid=$(docker ps -q -f "name=^/omni-worker-${s}-1$")
+            run_h=$( [ -n "$cid" ] && docker exec "$cid" python -c "$H" $FILES 2>/dev/null || echo "no-running-container")
+            img_h=$(docker run --rm --network none --entrypoint python "$img" -c "$H" $FILES 2>/dev/null || echo "cannot-read-image")
+            v=$([ "$run_h" = "$img_h" ] && echo MATCH || echo MISMATCH)
+            echo "::notice title=rollback $s::exists revision=${rev:-NONE} created=$created hashes=$v running=[$run_h] image=[$img_h]"
+          done
+          for s in worker intake-worker intake-maintain preview-worker; do
+            cid=$(docker ps -q -f "name=^/omni-worker-${s}-1$"); [ -n "$cid" ] || { echo "::notice title=running $s::not running"; continue; }
+            iid=$(docker inspect -f '{{.Image}}' "$cid"); docker image inspect "$iid" >/dev/null 2>&1 && st=present || st=MISSING
+            echo "::notice title=running $s::container image object $st"
+          done
