@@ -1,7 +1,7 @@
-# v24-ci — last main run (2026-10-19T06:29:25Z)
+# v24-ci — last main run (2026-10-19T07:21:49Z)
 
-- commit: `816ad1902c1d84323caa888313cd4e1050c3f82d`
-- run_id: [39209784804](https://github.com/Shayfly/desktop-tutorial/actions/runs/39209784804) (attempt 1)
+- commit: `6aeda9a82c52eab8add705cd54ff3f48059015fd`
+- run_id: [39215087266](https://github.com/Shayfly/desktop-tutorial/actions/runs/39215087266) (attempt 1)
 - test job: **SUCCESS**
 - tests: **PASS** — 1750 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
@@ -9,6 +9,13 @@
 ## Failing tests
 
 - none
+
+## CostClass behavioural proofs
+
+- `test_m5_plan_build_class::test_amateur_costs_less_than_studio_for_the_same_task`: **NOT FOUND**
+- `test_worker_budget_binding::test_pro_keeps_its_class_budget_when_worker_env_is_lower`: **NOT FOUND**
+- `test_m5_plan_build_class::test_pro_and_studio_get_different_allowlists`: **NOT FOUND**
+- `test_m5_plan_build_class::test_margin_holds_on_every_paid_tier_in_the_worst_case`: **NOT FOUND**
 
 ## Per module
 
