@@ -42,8 +42,17 @@ if a[0] == 'inspect':
 if a[0] == 'tag':
     sys.exit(1 if a[2].split('/')[1].split(':')[0] in cfg.get('tag_fails', []) else 0)
 if a[:2] == ['image', 'inspect']:
-    svc = a[2].split('/')[1].split(':')[0]
-    sys.exit(1 if (cfg.get('no_rollback_image') or svc in cfg.get('missing_images', [])) else 0)
+    svc = a[-1].split('/')[1].split(':')[0]
+    if cfg.get('no_rollback_image') or svc in cfg.get('missing_images', []): sys.exit(1)
+    if '-f' in a: print(cfg.get('rollback_label', {}).get(svc, ''))
+    sys.exit(0)
+if a[0] == 'exec':
+    svc = a[1][4:]
+    if svc in cfg.get('exec_fails', []): sys.exit(1)
+    print(cfg.get('running_hash', {}).get(svc, '')); sys.exit(0)
+if a[0] == 'run':
+    ref = next(x for x in a if x.startswith('omni-rollback/')); svc = ref.split('/')[1].split(':')[0]
+    print(cfg.get('image_hash', {}).get(svc, '')); sys.exit(0)
 if a[:2] == ['compose', 'stop']:
     open(os.path.join(st, 'stopped'), 'w').close(); sys.exit(cfg.get('stop_rc', 0))
 if is_compose and 'up' in a:
@@ -478,6 +487,60 @@ class _RqFree:
     def __getattr__(self, name):                       # rq calls: smembers/zrange/... -> empty
         return lambda *a, **k: []
 
+
+
+class VerifiedExistingRollbackTests(unittest.TestCase):
+    """2026-10-19: a running consumer whose image object is gone may be drained only if an existing
+    omni-rollback/<svc>:prev carries a revision label and its worker_tasks.py, model_gateway.py and
+    preview_router.py hash identically to the running container. Anything else refuses as before."""
+
+    REV = '2a2bba6645bb05f4889420760f11127441a0d253'
+    HASH = 'aaa bbb ccc'
+
+    def cfg(self, **over):
+        c = {'services': list(SERVICES), 'tag_fails': list(SERVICES),
+             'rollback_label': {s: self.REV for s in SERVICES},
+             'running_hash': {s: self.HASH for s in SERVICES}, 'image_hash': {s: self.HASH for s in SERVICES}}
+        c.update(over)
+        return c
+
+    def test_verified_existing_rollback_images_allow_the_drain(self):
+        r, log, st = run('drain.sh', self.cfg())
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((st / 'drain-failed').exists())
+        self.assertIn('compose stop', log.read_text())
+        recorded = (st / 'prev-images').read_text().split('\n')
+        for s in SERVICES:
+            self.assertIn(f'{s} cid-{s} omni-rollback/{s}:prev', recorded)
+            self.assertIn(f'{s}: its image object is gone; using the existing omni-rollback/{s}:prev (revision {self.REV}', r.stdout)
+        # the image check runs offline
+        self.assertIn('run --rm --network none --entrypoint python omni-rollback/worker:prev', log.read_text())
+
+    def test_each_unverified_condition_refuses_and_stops_nothing(self):
+        cases = (
+            ({'rollback_label': {**{s: self.REV for s in SERVICES}, 'worker': ''}}, 'omni-rollback/worker:prev has no revision label'),
+            ({'rollback_label': {**{s: self.REV for s in SERVICES}, 'worker': '<no value>'}}, 'has no revision label'),
+            ({'image_hash': {**{s: self.HASH for s in SERVICES}, 'preview-worker': 'aaa bbb XXX'}},
+             'omni-rollback/preview-worker:prev code differs from the running preview-worker'),
+            ({'exec_fails': ['intake-worker']}, 'cannot hash the code of the running intake-worker'),
+            ({'image_hash': {**{s: self.HASH for s in SERVICES}, 'intake-maintain': ''}}, 'cannot hash the code of omni-rollback/intake-maintain:prev'),
+            ({'missing_images': ['worker']}, 'no existing omni-rollback/worker:prev'),
+        )
+        for over, text in cases:
+            with self.subTest(text=text):
+                r, log, st = run('drain.sh', self.cfg(**over))
+                self.assertEqual(r.returncode, 1, (over, r.stdout))
+                failed = (st / 'drain-failed').read_text()
+                self.assertIn('cannot save a rollback image for', failed)
+                self.assertIn(text, failed)
+                self.assertNotIn('compose stop', log.read_text(), 'nothing may be stopped when no rollback is verified')
+                self.assertEqual((st / 'prev-images').read_text(), '')
+
+    def test_a_successful_tag_never_uses_the_fallback(self):
+        r, log, st = run('drain.sh', self.cfg(tag_fails=[]))
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn('its image object is gone', r.stdout)
+        self.assertNotIn('exec ', log.read_text())
 
 if __name__ == '__main__':
     unittest.main()

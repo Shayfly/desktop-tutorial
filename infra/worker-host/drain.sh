@@ -24,6 +24,27 @@ refuse() {
   exit 1
 }
 
+# Fallback (2026-10-19): the running container's own image object can be gone (pruned) while a
+# source-equivalent rollback image already exists (.github/workflows/148ai-rebuild-safe-rollback-images.yml).
+# Accept that existing omni-rollback/<svc>:prev ONLY if it carries a revision label AND the shipped code files
+# hash identically in the running container and in that image. Otherwise refuse exactly as before.
+VERIFY_FILES=(omni_prod/worker_tasks.py omni_prod/model_gateway.py omni_prod/preview_router.py)
+HASH_PY='import hashlib,sys;from pathlib import Path;print(" ".join(hashlib.sha256(Path("/app",p).read_bytes()).hexdigest() for p in sys.argv[1:]))'
+verified_existing_rollback() {  # $1 service, $2 container id. stdout: revision on success, reason on failure.
+  local s=$1 cid=$2 ref="omni-rollback/$1:prev" rev run_h img_h
+  docker image inspect "$ref" >/dev/null 2>&1 || { echo "no existing $ref"; return 1; }
+  rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$ref" 2>/dev/null)
+  if [ -z "$rev" ] || [ "$rev" = "<no value>" ]; then echo "$ref has no revision label"; return 1; fi
+  if ! run_h=$(docker exec "$cid" python -c "$HASH_PY" "${VERIFY_FILES[@]}" 2>/dev/null) || [ -z "$run_h" ]; then
+    echo "cannot hash the code of the running $s"; return 1
+  fi
+  if ! img_h=$(docker run --rm --network none --entrypoint python "$ref" -c "$HASH_PY" "${VERIFY_FILES[@]}" 2>/dev/null) || [ -z "$img_h" ]; then
+    echo "cannot hash the code of $ref"; return 1
+  fi
+  [ "$run_h" = "$img_h" ] || { echo "$ref code differs from the running $s"; return 1; }
+  echo "$rev"
+}
+
 busy=0
 prep=()
 for s in "${SERVICES[@]}"; do
@@ -36,7 +57,12 @@ for s in "${SERVICES[@]}"; do
     prep+=("cannot inspect the image of $s"); continue
   fi
   if ! docker tag "$img" "omni-rollback/$s:prev" >/dev/null 2>&1; then
-    prep+=("cannot save a rollback image for $s"); continue
+    if why=$(verified_existing_rollback "$s" "$cid"); then
+      echo "::notice title=drain::$s: its image object is gone; using the existing omni-rollback/$s:prev (revision $why; ${#VERIFY_FILES[@]} code hashes match the running container)"
+      img="omni-rollback/$s:prev"
+    else
+      prep+=("cannot save a rollback image for $s ($why)"); continue
+    fi
   fi
   echo "$s $cid $img" >> "$STATE/prev-images"
   [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = "true" ] && busy=$((busy + 1))
