@@ -1412,6 +1412,11 @@ def v28_request_email_verification(request: Request) -> dict:
         account = _v28.account(token)
         _m5_identity_service().request_email_verification(account.id)
         return {'accepted': True}
+    except HTTPException:
+        # 401 from _v28_bearer (no/invalid session) and 503 from
+        # _m5_identity_service keep their status; the generic branch below
+        # used to rewrap them as 400 "401: authentication required".
+        raise
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
     except Exception as exc:
