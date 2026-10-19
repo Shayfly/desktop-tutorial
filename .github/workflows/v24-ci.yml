@@ -2,8 +2,13 @@ name: v24-ci
 "on": [push, pull_request]
 
 concurrency:
-  group: v24-ci-${{ github.ref }}
+  # push and pull_request runs of the same ref are separate groups; within a
+  # group runs queue instead of cancelling each other.
+  group: v24-ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
+
+permissions:
+  contents: read      # default for every job; only publish-report gets write
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,6 +25,14 @@ jobs:
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - run: python -m compileall -q omni_prod tests
       - run: python -m pytest -q --junitxml=pytest-report.xml
+      - name: Keep the test report for the published summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: pytest-report.xml
+          if-no-files-found: warn
+          retention-days: 7
       - name: Publish failing tests as annotations
         if: failure()
         # Job logs are not reachable from every review environment; annotations are.
@@ -39,6 +52,80 @@ jobs:
         run: python -m omni_prod.agent_os.audit
       - run: python scripts/run_hostile_static_suite.py
       - run: python scripts/run_international_gate.py
+  publish-report:
+    # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
+    # main pushes only; the commit carries [skip ci] so it never re-triggers CI.
+    needs: test
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      # This job pushes the report, so its checkout keeps credentials
+      # (the test jobs keep persist-credentials: false and a read-only token).
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-report
+          path: report
+        continue-on-error: true
+      - name: Write smoke/ci-last-run.md
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          COMMIT: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p smoke
+          python - <<'PY'
+          import os, collections, datetime, xml.etree.ElementTree as ET
+          path = 'report/pytest-report.xml'
+          lines = [f"# v24-ci — last main run ({datetime.datetime.now(datetime.timezone.utc):%Y-%m-%dT%H:%M:%SZ})", '',
+                   f"- commit: `{os.environ['COMMIT']}`",
+                   f"- run_id: [{os.environ['RUN_ID']}]({os.environ['RUN_URL']}) (attempt {os.environ['RUN_ATTEMPT']})",
+                   f"- test job: **{os.environ['TEST_RESULT'].upper()}**"]
+          if not os.path.exists(path):
+              lines += ['', 'No pytest report was produced (the run failed before pytest finished).']
+          else:
+              per = collections.defaultdict(lambda: collections.Counter()); failed = []
+              for c in ET.parse(path).getroot().iter('testcase'):
+                  mod = (c.get('classname') or '').split('.')[1] if '.' in (c.get('classname') or '') else (c.get('classname') or '?')
+                  kind = 'fail' if (c.find('failure') is not None or c.find('error') is not None) else ('skip' if c.find('skipped') is not None else 'pass')
+                  per[mod][kind] += 1
+                  if kind == 'fail':
+                      failed.append(f"{c.get('classname')}.{c.get('name')}")
+              tot = sum((v for v in per.values()), collections.Counter())
+              verdict = 'PASS' if not failed else 'FAIL'
+              acc = [n for n in failed if 'AcceptanceW' in n]
+              seen = any('AcceptanceW' in (c.get('classname') or '') for c in ET.parse(path).getroot().iter('testcase'))
+              lines += [f"- tests: **{verdict}** — {tot['pass']} passed, {tot['fail']} failed, {tot['skip']} skipped",
+                        f"- AcceptanceW: **{'FAIL' if acc else ('PASS' if seen else 'NOT RUN')}**", '',
+                        '## Failing tests', '']
+              lines += [f"- FAIL `{n}`" for n in failed] or ['- none']
+              lines += ['', '## Per module', '', '| module | PASS/FAIL | passed | failed | skipped |', '|---|---|---|---|---|']
+              for m in sorted(per):
+                  v = per[m]
+                  lines.append(f"| `{m}` | {'FAIL' if v['fail'] else 'PASS'} | {v['pass']} | {v['fail']} | {v['skip']} |")
+          lines += ['', '_Test names and counts only; failure messages are not published._']
+          open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+          PY
+      - name: Commit [skip ci]
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@148ai.dev"
+          git add smoke/ci-last-run.md
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chore: v24-ci results [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error title=publish-report::could not push smoke/ci-last-run.md"; exit 1
   compose-config:
     runs-on: ubuntu-latest
     steps:
