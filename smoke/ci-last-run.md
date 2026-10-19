@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T18:30:45Z)
+# v24-ci — last main run (2026-10-19T18:52:48Z)
 
-- commit: `236a7ce4cd20ddbbcac79251554b90f495d8cae4`
-- run_id: [39302676829](https://github.com/Shayfly/desktop-tutorial/actions/runs/39302676829) (attempt 1)
+- commit: `43c34bca9c91ca5795f9019675bdbdaf808e917c`
+- run_id: [39305786016](https://github.com/Shayfly/desktop-tutorial/actions/runs/39305786016) (attempt 1)
 - test job: **FAILURE**
-- tests: **FAIL** — 1800 passed, 2 failed, 181 skipped
+- tests: **FAIL** — 1823 passed, 2 failed, 181 skipped
 - AcceptanceW: **FAIL**
 
 ## Failing tests
@@ -64,6 +64,7 @@
 | `test_evidence_json` | PASS | 5 | 0 | 0 |
 | `test_failure_injection` | PASS | 12 | 0 | 0 |
 | `test_failure_replay` | PASS | 5 | 0 | 0 |
+| `test_failure_taxonomy` | PASS | 12 | 0 | 0 |
 | `test_financial_journal_guard` | PASS | 2 | 0 | 0 |
 | `test_golden_mod_path_live_postgres` | PASS | 0 | 0 | 6 |
 | `test_history_without_artifact_download` | PASS | 1 | 0 | 0 |
@@ -147,6 +148,7 @@
 | `test_modifier_engine` | PASS | 10 | 0 | 0 |
 | `test_overlay` | PASS | 4 | 0 | 0 |
 | `test_plan_driven_execution` | PASS | 13 | 0 | 14 |
+| `test_plan_repair_budget` | PASS | 5 | 0 | 0 |
 | `test_preview_access` | PASS | 0 | 0 | 5 |
 | `test_preview_data_durability` | PASS | 9 | 0 | 0 |
 | `test_preview_router` | PASS | 4 | 0 | 0 |
@@ -209,6 +211,7 @@
 | `test_v7_semantic_marker_provenance` | PASS | 3 | 0 | 0 |
 | `test_v7_visitor_no_login_boundary` | PASS | 3 | 0 | 0 |
 | `test_vercel_entrypoint` | PASS | 3 | 0 | 0 |
+| `test_verification_group` | PASS | 6 | 0 | 0 |
 | `test_visual_edit` | PASS | 14 | 0 | 5 |
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
