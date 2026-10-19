@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T07:35:08Z)
+# v24-ci — last main run (2026-10-19T07:52:37Z)
 
-- commit: `d90949cf21d7e0566e7cf08699bc6a82a82accc1`
-- run_id: [39216550298](https://github.com/Shayfly/desktop-tutorial/actions/runs/39216550298) (attempt 1)
+- commit: `3a4310c8074cc98bace520c3627add3650c6c328`
+- run_id: [39218361751](https://github.com/Shayfly/desktop-tutorial/actions/runs/39218361751) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1778 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1781 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -209,7 +209,7 @@
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
 | `test_worker_budget_binding` | PASS | 5 | 0 | 0 |
-| `test_worker_deploy_recovery` | PASS | 21 | 0 | 4 |
+| `test_worker_deploy_recovery` | PASS | 24 | 0 | 4 |
 | `test_worker_entrypoint` | PASS | 8 | 0 | 0 |
 | `test_worker_repository_parity` | PASS | 10 | 0 | 0 |
 | `test_workspace_version_conflict` | PASS | 14 | 0 | 0 |
