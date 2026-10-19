@@ -36,6 +36,9 @@ jobs:
           PROMPT: ${{ inputs.prompt }}
           MODELS: ${{ inputs.models }}
         run: |
+          # GitHub runs this with `bash -e`: a failed rehearsal (exit 1) must not stop the step before its output and
+          # taxonomy are written (run 39309736314 lost both). Errors are handled explicitly; the exit code is kept.
+          set +e
           set -uo pipefail
           docker compose run --rm --no-deps -T -e OMNI_EXTERNAL_BUDGET_USD=0.50 -e OMNI_EXTERNAL_CALLS_PER_BUILD=40 -e OMNI_MODEL_ONLY="$MODELS" -e PROMPT="$PROMPT" worker \
             python -c 'import os, sys; from omni_prod.rehearsal import main; sys.exit(main([os.environ["PROMPT"]]))' 2>&1 \
@@ -44,7 +47,10 @@ jobs:
           grep -E '^(::notice|::error|Traceback|  File|[A-Za-z]+Error)' "$RUNNER_TEMP/rehearsal.out" | tail -40
           # 2026-10-19: failure taxonomy + one build record for first_pass_yield (no product content, no secrets)
           mkdir -p "$RUNNER_TEMP/taxonomy"
-          RUN_ID="${{ github.run_id }}" COMMIT="${{ github.sha }}" python3 - "$RUNNER_TEMP/rehearsal.out" "$RUNNER_TEMP/taxonomy" <<'PY'
+          export RUN_ID="${{ github.run_id }}" COMMIT="${{ github.sha }}"
+          if command -v python3 >/dev/null; then PYRUN=(python3); else      # host without python: the pinned slim image
+            PYRUN=(docker run --rm -i -e RUN_ID -e COMMIT -v "$RUNNER_TEMP:$RUNNER_TEMP" python:3.11-slim python3); fi
+          "${PYRUN[@]}" - "$RUNNER_TEMP/rehearsal.out" "$RUNNER_TEMP/taxonomy" <<'PY'
           import json, os, sys, datetime
           rep = None
           for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
