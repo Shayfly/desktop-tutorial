@@ -15,6 +15,7 @@ import json
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .preview_runtime import NotPreviewable, parse_preview_contract
+from .sandbox_script import staged_script
 
 PREVIEW_FAILURE_ID = 'PREVIEW'
 SMOKE_SECONDS = 20
@@ -121,7 +122,8 @@ class PreviewReadyExecutor:
             self.last_smoke = {'status': 'NOT_RUN', 'reason': 'no sandbox runtime to start this product'}
             return report  # contract valid; no sandbox runtime to start it in here
         try:
-            result = run(repository, ('python', '-c', _SMOKE), 'preview-smoke')
+            staged, argv = staged_script(repository, 'preview_smoke', _SMOKE)
+            result = run(staged, argv, 'preview-smoke')
         except Exception as exc:  # sandbox unavailable: the build cannot be verified
             self.last_smoke = {'status': 'FAIL', 'reason': f'could not run: {exc}'[:300]}
             return ExecutionReport(False, (AcceptanceFailure(PREVIEW_FAILURE_ID, f'preview smoke test could not run: {exc}'),),

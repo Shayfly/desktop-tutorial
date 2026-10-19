@@ -246,12 +246,14 @@ jobs:
           from omni_prod.browser_fixtures import fixture_repository
           from omni_prod.browser_probe import BROWSER_PROFILE, PROBE, parse_probe_output
           from omni_prod.remote_sandbox import RemoteSandboxConfig, RemoteSandboxRepositoryExecutor
+          from omni_prod.sandbox_script import staged_script   # J2 policy: no newline in argv, so no `python -c PROBE`
           ex = RemoteSandboxRepositoryExecutor(RemoteSandboxConfig(
               os.environ["OMNI_SANDBOX_RUNNER_URL"], os.environ["OMNI_SANDBOX_SHARED_SECRET"], timeout_seconds=200))
           seen = {}
           for name, kw in (("working", {}), ("message-bug", {"feedback_bug": True})):
               try:
-                  r = ex._run(fixture_repository(**kw), ("python", "-c", PROBE), f"deploy-browser-{name}", profile=BROWSER_PROFILE)
+                  repo, argv = staged_script(fixture_repository(**kw), "browser_probe", PROBE)
+                  r = ex._run(repo, argv, f"deploy-browser-{name}", profile=BROWSER_PROFILE)
                   out = parse_probe_output(r["stdout"])
                   seen[name] = sorted({f["kind"] for f in out["findings"]}) if out else ("no result: " + (r["stdout"] + r["stderr"])[-300:])
               except Exception as exc:

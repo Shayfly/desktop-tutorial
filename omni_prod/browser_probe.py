@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
+from .sandbox_script import staged_script
 
 BROWSER_FAILURE_ID = 'BROWSER'
 BROWSER_PROFILE = 'browser'
@@ -178,7 +179,8 @@ class BrowserFlowExecutor:
             self.last_probe = {'status': 'unavailable', 'reason': 'no sandbox runner'}
             return report
         try:
-            result = run(repository, ('python', '-c', PROBE), 'browser-probe', profile=BROWSER_PROFILE)
+            staged, argv = staged_script(repository, 'browser_probe', PROBE)
+            result = run(staged, argv, 'browser-probe', profile=BROWSER_PROFILE)
         except TypeError:
             self.last_probe = {'status': 'unavailable', 'reason': 'sandbox runner has no browser profile'}
             return report

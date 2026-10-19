@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 25, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 6, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 43, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 36, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -248,13 +248,13 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
-| `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `page_load_test` | Browser | **UNIT_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/preview_smoke.py |  |
 | `click_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `form_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | fills forms by field type |
 | `navigation_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `mobile_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 390x844; layout rules enforced |
-| `desktop_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 1440x900; layout rules enforced |
-| `responsive_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | overflow/offscreen/viewport; enforced |
+| `mobile_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | 390x844; layout rules enforced |
+| `desktop_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | 1440x900; layout rules enforced |
+| `responsive_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | overflow/offscreen/viewport; enforced |
 | `javascript_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `network_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | 5xx answers |
 | `browser_persistence_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
@@ -381,9 +381,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `load_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
 | `keyboard_navigation_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `semantic_html_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `label_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | unlabelled_field rule, advisory |
-| `contrast_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | WCAG AA ratio, advisory |
-| `touch_target_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | mobile 24x24 CSS px, advisory |
+| `label_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | unlabelled_field rule, advisory |
+| `contrast_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | WCAG AA ratio, advisory |
+| `touch_target_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | mobile 24x24 CSS px, advisory |
 | `screen_reader_structure_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `focus_order_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `translation` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |
