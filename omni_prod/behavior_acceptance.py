@@ -131,7 +131,14 @@ class BehaviorAcceptanceExecutor:
 
     def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
-        if not report.passed or not self._enabled:
+        if not report.passed:
+            return report
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report):
+        """This stage's own check on a report in which everything before it passed (VerificationGroup runs it
+        directly; execute() keeps the standalone short-circuit)."""
+        if not self._enabled:
             return report
         from .preview_runtime import NotPreviewable, parse_preview_contract, parse_web_saas_acceptance_plan
         try:

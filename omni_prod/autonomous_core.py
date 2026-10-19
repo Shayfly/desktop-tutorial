@@ -12,6 +12,13 @@ class AcceptanceFailure:
     message: str
     evidence: str = ''
 
+# A one-line summary of the OTHER failing post-build checks of a round (VerificationGroup): it tells the repairer what
+# else fails without counting as a verification stage, so progress() skips it.
+SUMMARY_FAILURE_ID = 'ALSO_FAILING'
+# Absolute cap on repair rounds whatever the plan (Studio = 8): bounds spend if a ceiling is ever misconfigured.
+REPAIR_ROUNDS_HARD_MAX = 8
+
+
 @dataclass(frozen=True)
 class ExecutionReport:
     passed: bool
@@ -33,7 +40,7 @@ class Executor(Protocol):
 
 class AutonomousProductEngine:
     def __init__(self, *, architect, generator, repairer, executor: Executor,
-                 max_repair_rounds: int = 3):
+                 max_repair_rounds: int = 3, repair_ceiling: int = 3):
         if isinstance(max_repair_rounds, bool) or not isinstance(max_repair_rounds, int) or max_repair_rounds < 0:
             raise ValueError('max_repair_rounds must be a non-negative integer')
         self.architect = architect
@@ -42,7 +49,11 @@ class AutonomousProductEngine:
         self.executor = executor
         # J3/T05: initial build + at most three repair candidates, each verified.
         # Clamp even stale environment overrides; never spend on a fourth repair.
-        self.max_repair_rounds = min(max_repair_rounds, 3)
+        # 2026-10-19 seam: a caller that knows the plan may pass repair_ceiling (pricing.repair_rounds_for_plan, up to
+        # REPAIR_ROUNDS_HARD_MAX). No caller does yet, so the ceiling stays 3 everywhere.
+        if isinstance(repair_ceiling, bool) or not isinstance(repair_ceiling, int) or not 0 <= repair_ceiling <= REPAIR_ROUNDS_HARD_MAX:
+            raise ValueError(f'repair_ceiling must be an integer 0..{REPAIR_ROUNDS_HARD_MAX}')
+        self.max_repair_rounds = min(max_repair_rounds, repair_ceiling)
 
     @staticmethod
     def _summary(repo: dict[str, str], failures=()) -> dict:
@@ -87,6 +98,18 @@ class AutonomousProductEngine:
                 # In verified strict mode, never claim READY without round evidence.
                 raise
 
+    def _observed_failures(self, report):
+        """Every failure of a verified round for the taxonomy: the post-build group's full list when the round's
+        report summarised some of them (ALSO_FAILING), otherwise the report's own failures."""
+        if report.passed:
+            return []
+        own = [f for f in report.failures if f.acceptance_id != SUMMARY_FAILURE_ID]
+        if len(own) == len(report.failures):
+            return own
+        group = getattr(self.executor, 'group_failures', None) or ()
+        seen = {(f.acceptance_id, f.message) for f in own}
+        return own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+
     @staticmethod
     def progress(report) -> tuple[int, int]:
         """How far a candidate got through the verification chain (build ->
@@ -102,6 +125,8 @@ class AutonomousProductEngine:
         later = {'REVIEW': 9, 'QUALITY': 8, 'VISUAL': 7, 'BROWSER': 6}
         for f in report.failures:
             msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
+            if aid == SUMMARY_FAILURE_ID:
+                continue
             if aid in later:
                 s = later[aid]
             elif aid == 'BEHAVIOR':
@@ -135,6 +160,7 @@ class AutonomousProductEngine:
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
         report = self.executor.execute(repository=repo, spec=spec)
+        self._taxonomy_rounds = [(0, self._observed_failures(report))]
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
@@ -178,6 +204,7 @@ class AutonomousProductEngine:
                 break
             seen.add(fingerprint)
             new_report = self.executor.execute(repository=candidate, spec=spec)
+            self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
             worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
             self._snapshot(rounds, candidate, new_report,
                            'passed' if new_report.passed else ('discarded' if worse else 'adopted'))
@@ -198,6 +225,9 @@ class AutonomousProductEngine:
                 best_repo, best_report = repo, report
         if not report.passed:
             repo, report = best_repo, best_report
+        from .failure_taxonomy import records
+        self.failure_taxonomy = records(self._taxonomy_rounds)
+        self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
         return AutonomousResult(
             'ready' if report.passed else 'failed',
             spec,

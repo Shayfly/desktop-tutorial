@@ -178,6 +178,28 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
 # CEO 2026-10-19: what an M5 build is, per plan. One class per plan; every
 # plan is listed (no silent STANDARD default) and each class must be inside
 # that plan's allowed_cost_classes, or reserve() refuses the build.
+# Repair budget per plan (founder decision 2026-10-19): the SEAM only, not active. Until OMNI_PLAN_REPAIR_BUDGET=1
+# every plan gets DEFAULT_REPAIR_ROUNDS (today's behaviour); the plan values are switched on only after the failure
+# taxonomy (smoke/failure-taxonomy.jsonl) shows more rounds pay off. Plans not listed get the default.
+DEFAULT_REPAIR_ROUNDS = 3
+PLAN_REPAIR_ROUNDS: dict[PlanCode, int] = {PlanCode.AMATEUR: 3, PlanCode.PRO: 5, PlanCode.STUDIO: 8}
+
+
+def plan_repair_budget_enabled() -> bool:
+    return os.getenv('OMNI_PLAN_REPAIR_BUDGET', '0') == '1'
+
+
+def repair_rounds_for_plan(plan, *, enabled: bool | None = None) -> int:
+    """Repair rounds a build of `plan` may use. Off (the default): DEFAULT_REPAIR_ROUNDS for every plan."""
+    if not (plan_repair_budget_enabled() if enabled is None else enabled):
+        return DEFAULT_REPAIR_ROUNDS
+    try:
+        code = plan if isinstance(plan, PlanCode) else PlanCode(str(plan).lower())
+    except ValueError:
+        return DEFAULT_REPAIR_ROUNDS
+    return PLAN_REPAIR_ROUNDS.get(code, DEFAULT_REPAIR_ROUNDS)
+
+
 M5_BUILD_COST_CLASS: dict[PlanCode, CostClass] = {
     PlanCode.FREE: CostClass.LIGHT,
     PlanCode.AMATEUR: CostClass.LIGHT,
