@@ -93,3 +93,19 @@
 - **approvals ישנים:** ה-budget fingerprint כולל עכשיו את הקרדיטים של ה-class. approval שנוצר לפני הפריסה (עם 60 קרדיטים) לא יתאים יותר, והלקוח יתבקש לאשר מחדש. הכשל חוסם בצורה בטוחה ולא גורם לחיוב שגוי.
 - **idempotency:** ה-fingerprint של הצעת המחיר כולל את `cost_class`. בנייה שנוצרה לפני הפריסה ומשוחזרת אחריה עם אותו מפתח תקבל `idempotency_conflict`.
 - **`email-verification/request`** מחזיר 400 במקום 401. מתועד בטסט ב-#50, לא תוקן.
+
+## 2026-10-20 — גל מיזוגים (הרשאת מייסד, צ'אט 00:16)
+
+כללי הגל: מיזוג רק על ה-SHA המדויק של ה-head אחרי CI ירוק, ואז המתנה ל-CI ירוק על main. PR שנוגע ב-`omni_prod/**` או ב-`.github/workflows/**` ממתין לאודיט הגולמי של מאט. בלי rebase "לריפוי".
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #65 | `a59211d` | `AGENTS.md` | **מוזג**. CI על main ירוק (test, validate, pg, smoke, compose-config, customer-ui, verify) | `8f4530c` | מייסד, צ'אט 00:16 |
+| #48 #49 #51 #54 #55 #56 #61 #62 | `1b2fc41` `1760f9e` `ec6e17b` `883c8db` `818b5ee` `56288aa` `57b9c6a` `4df51b3` | `docs/` בלבד (PUBLIC_ROUTES, DB_TARGETS, SECRETS_POLICY, MODEL_PRICES, PLANS, PRICING, PROVIDERS_INVENTORY, DECISIONS_LOG) | **באצ' דוקס**, מיזוג אחד. כל head ירוק, אין קבצים חופפים | ראו את PR הבאצ' | מייסד, צ'אט 00:16 |
+| #63 | `ea9abfc` | `omni_prod/investor_app.py`, טסט | **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א), ונכתב ע"י Claude, כך שנדרש מבט שני | — | ממתין למאט |
+| #43 | `ef5051a` | `.github/workflows/backup-restore.yml` | **לא מוזג**: workflows (תנאי א) | — | ממתין למאט |
+| #46 | `dceae0f` | `.github/workflows/production-smoke.yml` | **לא מוזג**: workflows (תנאי א). גם #45 נוגע באותו קובץ (תנאי ד) | — | ממתין למאט |
+| #39 → #50 | `67f6d77` / `575bde6` | `omni_prod/browser_session.py`, `investor_app.py` / טסט | **לא מוזג**: #39 נוגע ב-`omni_prod/**` (תנאי א). ‏#50 תלוי בו, וה-CI שלו אדום (test, customer-ui; תנאי ב) | — | ממתין למאט |
+| #47 → #52 | `09406ea` / `1b22676` | טסט / `omni_prod/investor_app.py` | **לא מוזג**: CI של #47 אדום (test, validate: הטסט אדום עד שיהיה מימוש; תנאי ב). ‏#52 נוגע ב-`omni_prod/**` (תנאי א) | — | ממתין |
+| #57 | `a97d5b8` | `docs/venice_prices_snapshot.*` | **לא נכלל בבאצ'**: `pg=failure` על ה-head (תנאי ב) | — | — |
+| #75 | `3163dc2` | `.github/workflows/deploy-worker.yml`, טסט | **לא מוזג**: workflows (תנאי א) | — | ממתין למאט |
