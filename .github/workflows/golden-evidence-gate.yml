@@ -1,0 +1,64 @@
+name: Golden E2E evidence gate
+
+# A trusted live E2E producer uploads golden-e2e-evidence in the SAME run,
+# then calls this reusable workflow with needs: <producer> and if: always().
+# The diagnostic rehearsal is not such a producer: it creates no project/R2 artifact.
+on:
+  workflow_call:
+    inputs:
+      build_id:
+        required: true
+        type: string
+      expected_commit:
+        required: true
+        type: string
+      max_cost_usd:
+        required: true
+        type: string
+      max_elapsed_ms:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download evidence from this run
+        uses: actions/download-artifact@v4
+        continue-on-error: true  # Still emit four FAILs and UNKNOWN when the artifact is missing.
+        with:
+          name: golden-e2e-evidence
+          path: golden-evidence
+      - name: Enforce all four Golden E2E requirements
+        shell: bash
+        env:
+          EXPECTED_BUILD: ${{ inputs.build_id }}
+          EXPECTED_RUN: ${{ github.run_id }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          MAX_COST: ${{ inputs.max_cost_usd }}
+          MAX_ELAPSED: ${{ inputs.max_elapsed_ms }}
+        run: |
+          set -euo pipefail
+          python tools/verify_golden_evidence.py golden-evidence/manifest.json \
+            --build-id "$EXPECTED_BUILD" --run-id "$EXPECTED_RUN" --commit "$EXPECTED_COMMIT" \
+            --max-cost-usd "$MAX_COST" --max-elapsed-ms "$MAX_ELAPSED" \
+            | tee golden-evidence-result.json
+      - name: Preserve the verdict even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-evidence-verdict
+          path: golden-evidence-result.json
+          if-no-files-found: error
+          retention-days: 14
