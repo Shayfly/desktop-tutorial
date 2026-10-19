@@ -717,21 +717,26 @@ def _verification_executor(gateway=None):
     executor=ConsistencyGateExecutor(executor,enabled=os.getenv('OMNI_CONSISTENCY_GATE','1')!='0')
     from .dependency_policy import DependencyGateExecutor
     executor=DependencyGateExecutor(executor)
+    # Threshold = consistency + dependency gates + sandbox build/verify (short-circuits). The four checks below run
+    # TOGETHER when it passed and report all failures at once (VerificationGroup, founder decision 2026-10-19).
+    threshold=executor
     # The product must be startable for preview (contract + real start in the sandbox).
     from .preview_smoke import PreviewReadyExecutor
-    executor=PreviewReadyExecutor(executor)
+    preview=PreviewReadyExecutor(threshold)
     # Autonomous completion §1: the behavioural acceptance plan runs against
     # the started app inside the sandbox; a failure is repaired, not reported.
     from .behavior_acceptance import BehaviorAcceptanceExecutor
-    executor=BehaviorAcceptanceExecutor(executor,enabled=os.getenv('OMNI_BEHAVIOR_ACCEPTANCE','1')!='0')
+    behaviour=BehaviorAcceptanceExecutor(preview,enabled=os.getenv('OMNI_BEHAVIOR_ACCEPTANCE','1')!='0')
     # Directive 2026-10-09 §17: a real browser clicks through the product
     # (forms submitted twice, JS errors, feedback that disappears).
     from .browser_probe import BrowserFlowExecutor
-    executor=BrowserFlowExecutor(executor,enabled=os.getenv('OMNI_BROWSER_CHECK','1')!='0')
+    browser=BrowserFlowExecutor(behaviour,enabled=os.getenv('OMNI_BROWSER_CHECK','1')!='0')
     # Production Assurance v2 §6: desktop + mobile DOM audit and screenshots
     # (shadow mode until replay shows which rules may block).
     from .visual_qa import VisualQAExecutor
-    executor=VisualQAExecutor(executor,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
+    visual=VisualQAExecutor(browser,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
+    from .verification_group import VerificationGroup
+    executor=VerificationGroup(threshold,(preview,behaviour,browser,visual))
     # Quality shortfalls are repairable like failed checks (release gate uses
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor

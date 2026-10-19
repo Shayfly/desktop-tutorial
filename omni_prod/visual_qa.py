@@ -201,7 +201,14 @@ class VisualQAExecutor:
 
     def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
-        if not report.passed or not self._enabled:
+        if not report.passed:
+            return report
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report):
+        """This stage's own check on a report in which everything before it passed (VerificationGroup runs it
+        directly; execute() keeps the standalone short-circuit)."""
+        if not self._enabled:
             return report
         run = getattr(self._inner, '_run', None)
         if not callable(run):

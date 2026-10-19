@@ -12,6 +12,11 @@ class AcceptanceFailure:
     message: str
     evidence: str = ''
 
+# A one-line summary of the OTHER failing post-build checks of a round (VerificationGroup): it tells the repairer what
+# else fails without counting as a verification stage, so progress() skips it.
+SUMMARY_FAILURE_ID = 'ALSO_FAILING'
+
+
 @dataclass(frozen=True)
 class ExecutionReport:
     passed: bool
@@ -102,6 +107,8 @@ class AutonomousProductEngine:
         later = {'REVIEW': 9, 'QUALITY': 8, 'VISUAL': 7, 'BROWSER': 6}
         for f in report.failures:
             msg, aid = (getattr(f, 'message', '') or '').lower(), getattr(f, 'acceptance_id', '')
+            if aid == SUMMARY_FAILURE_ID:
+                continue
             if aid in later:
                 s = later[aid]
             elif aid == 'BEHAVIOR':

@@ -111,6 +111,11 @@ class PreviewReadyExecutor:
         report = self._inner.execute(repository=repository, spec=spec)
         if not report.passed:
             return report
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report):
+        """This stage's own check on a report in which everything before it passed (VerificationGroup runs it
+        directly; execute() keeps the standalone short-circuit)."""
         try:
             contract = parse_preview_contract(repository)
         except NotPreviewable as exc:
