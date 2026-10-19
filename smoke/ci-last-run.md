@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T07:21:49Z)
+# v24-ci — last main run (2026-10-19T07:35:08Z)
 
-- commit: `6aeda9a82c52eab8add705cd54ff3f48059015fd`
-- run_id: [39215087266](https://github.com/Shayfly/desktop-tutorial/actions/runs/39215087266) (attempt 1)
+- commit: `d90949cf21d7e0566e7cf08699bc6a82a82accc1`
+- run_id: [39216550298](https://github.com/Shayfly/desktop-tutorial/actions/runs/39216550298) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1750 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1778 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -12,10 +12,10 @@
 
 ## CostClass behavioural proofs
 
-- `test_m5_plan_build_class::test_amateur_costs_less_than_studio_for_the_same_task`: **NOT FOUND**
-- `test_worker_budget_binding::test_pro_keeps_its_class_budget_when_worker_env_is_lower`: **NOT FOUND**
-- `test_m5_plan_build_class::test_pro_and_studio_get_different_allowlists`: **NOT FOUND**
-- `test_m5_plan_build_class::test_margin_holds_on_every_paid_tier_in_the_worst_case`: **NOT FOUND**
+- `test_m5_plan_build_class::test_amateur_costs_less_than_studio_for_the_same_task`: **PASS**
+- `test_worker_budget_binding::test_pro_keeps_its_class_budget_when_worker_env_is_lower`: **PASS**
+- `test_m5_plan_build_class::test_pro_and_studio_get_different_allowlists`: **PASS**
+- `test_m5_plan_build_class::test_margin_holds_on_every_paid_tier_in_the_worst_case`: **PASS**
 
 ## Per module
 
@@ -25,6 +25,7 @@
 | `test_acceptance_coverage` | PASS | 3 | 0 | 0 |
 | `test_actual_cost_settlement` | PASS | 14 | 0 | 2 |
 | `test_agent_os` | PASS | 15 | 0 | 5 |
+| `test_amateur_cost_class_lock` | PASS | 5 | 0 | 0 |
 | `test_architect_assignment_gate` | PASS | 5 | 0 | 0 |
 | `test_architect_spec_shape` | PASS | 4 | 0 | 0 |
 | `test_architect_website_no_crud` | PASS | 1 | 0 | 0 |
@@ -68,6 +69,7 @@
 | `test_intake_assistant_he` | PASS | 18 | 0 | 0 |
 | `test_intake_budget_pg` | PASS | 2 | 0 | 23 |
 | `test_intake_complexity` | PASS | 11 | 0 | 0 |
+| `test_intake_credits_by_plan` | PASS | 2 | 0 | 0 |
 | `test_intake_explicit_intent_regression` | PASS | 3 | 0 | 0 |
 | `test_intake_family_intent` | PASS | 2 | 0 | 0 |
 | `test_intake_palette_preservation` | PASS | 4 | 0 | 0 |
@@ -123,6 +125,7 @@
 | `test_m5_managed_web_saas_profile` | PASS | 18 | 0 | 0 |
 | `test_m5_media_provider_adapters` | PASS | 21 | 0 | 0 |
 | `test_m5_migration_numbering` | PASS | 4 | 0 | 0 |
+| `test_m5_plan_build_class` | PASS | 20 | 0 | 0 |
 | `test_m5_planner_target_detection` | PASS | 7 | 0 | 0 |
 | `test_m5_product_architect` | PASS | 8 | 0 | 0 |
 | `test_m5_project_lifecycle` | PASS | 6 | 0 | 0 |
@@ -195,7 +198,7 @@
 | `test_v25_unified_v10_parity` | PASS | 19 | 0 | 0 |
 | `test_v26_universal_pro` | PASS | 10 | 0 | 0 |
 | `test_v27_rights_company_os` | PASS | 15 | 0 | 0 |
-| `test_v28_148ai_launch` | PASS | 22 | 0 | 0 |
+| `test_v28_148ai_launch` | PASS | 23 | 0 | 0 |
 | `test_v7_content_only_provenance` | PASS | 2 | 0 | 0 |
 | `test_v7_readiness_regression` | PASS | 10 | 0 | 0 |
 | `test_v7_semantic_intake_architect` | PASS | 10 | 0 | 0 |
