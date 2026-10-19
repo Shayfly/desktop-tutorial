@@ -53,3 +53,12 @@ jobs:
           f=$(grep -l 'title=outcome' "$D"/*.log 2>/dev/null | xargs -r ls -t 2>/dev/null | head -n 1)
           echo "::warning title=rehearsal-log::file=${f:-none} runner_busy=$(pgrep -fc 'Runner.Worker' 2>/dev/null)"
           [ -n "$f" ] && grep -E '::(notice|error)' "$f" | sed -E 's/^[^:]*(::(notice|error))/\1/; s/::notice /::warning /; s/::error /::warning /' | grep -v 'Node.js' | head -n 9
+          # 2026-10-19 23:20: step-4 exit 255 x3. Hypothesis: `docker compose config --services | grep -qx worker` under
+          # pipefail -- grep -q exits on the first match, compose gets SIGPIPE, docker reports 255. Read-only repetition.
+          cd "$GITHUB_WORKSPACE/infra/worker-host" && {
+            declare -A seen=(); for i in $(seq 1 300); do ( set -o pipefail; docker compose config --services | grep -qx worker ); rc=$?; seen[$rc]=$(( ${seen[$rc]:-0} + 1 )); done
+            pipe=$(for k in "${!seen[@]}"; do printf 'rc%s=%s ' "$k" "${seen[$k]}"; done)
+            declare -A seen2=(); for i in $(seq 1 100); do out=$(docker compose config --services); rc=$?; echo "$out" | grep -qx worker; seen2["$rc/$?"]=$(( ${seen2["$rc/$?"]:-0} + 1 )); done
+            nopipe=$(for k in "${!seen2[@]}"; do printf 'rc%s=%s ' "$k" "${seen2[$k]}"; done)
+            echo "::warning title=scope-sigpipe::pipe+grep -q (300x): $pipe | captured first (100x, compose/grep): $nopipe | services=$(docker compose config --services | tr '\n' ' ')"
+          }
