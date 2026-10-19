@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-19T19:40:42Z)
+# v24-ci — last main run (2026-10-19T20:19:15Z)
 
-- commit: `70aff06f72617449256d645a4e82b2414aa0755a`
-- run_id: [39312202914](https://github.com/Shayfly/desktop-tutorial/actions/runs/39312202914) (attempt 1)
+- commit: `ed7db3f7ee1422211ec02f9313805dc4efe8a529`
+- run_id: [39317523953](https://github.com/Shayfly/desktop-tutorial/actions/runs/39317523953) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1825 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1845 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -174,6 +174,7 @@
 | `test_replicate_image_test` | PASS | 8 | 0 | 0 |
 | `test_requirement_ledger` | PASS | 7 | 0 | 0 |
 | `test_reservation_worker_sigterm` | PASS | 2 | 0 | 0 |
+| `test_round_preflight` | PASS | 12 | 0 | 0 |
 | `test_sandbox_callers_real_policy` | PASS | 5 | 0 | 0 |
 | `test_sandbox_cleanup` | PASS | 4 | 0 | 0 |
 | `test_sandbox_runner_health` | PASS | 8 | 0 | 0 |
@@ -210,7 +211,7 @@
 | `test_v7_semantic_marker_provenance` | PASS | 3 | 0 | 0 |
 | `test_v7_visitor_no_login_boundary` | PASS | 3 | 0 | 0 |
 | `test_vercel_entrypoint` | PASS | 3 | 0 | 0 |
-| `test_verification_group` | PASS | 6 | 0 | 0 |
+| `test_verification_group` | PASS | 14 | 0 | 0 |
 | `test_visual_edit` | PASS | 14 | 0 | 5 |
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
