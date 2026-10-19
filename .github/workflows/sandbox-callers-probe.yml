@@ -14,7 +14,7 @@ jobs:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 20
     env:
-      FIX_SHA: 7b647a239d7efbd1573ad177df10d4b8343cbd00
+      FIX_SHA: daa6c4cbc8cd926686f7cc21705a6f40d0283031
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,8 +28,9 @@ jobs:
           cd "$GITHUB_WORKSPACE/infra/worker-host"          # the deployed compose project and its .env (never printed)
           docker build -q -t "$TAG" -f "$SRC/Dockerfile" "$SRC" >/dev/null || { echo "::error title=probe::image build failed"; exit 1; }
           printf 'services:\n  worker:\n    image: %s\n' "$TAG" > "$RUNNER_TEMP/probe-override.yml"
+          git -C "$SRC" fetch -q --depth 1 origin 7b647a239d7efbd1573ad177df10d4b8343cbd00 && git -C "$SRC" show 7b647a239d7efbd1573ad177df10d4b8343cbd00:infra/worker-host/probe-sandbox-callers.py > "$RUNNER_TEMP/probe.py"
           docker compose -f docker-compose.yml -f "$RUNNER_TEMP/probe-override.yml" run --rm --no-deps -T worker \
-            python - < "$SRC/infra/worker-host/probe-sandbox-callers.py" 2>&1 \
+            python - < "$RUNNER_TEMP/probe.py" 2>&1 \
             | sed -E 's/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{16,}/[redacted]/g' | grep -E '^::|Traceback|Error' | tail -20
           rc=${PIPESTATUS[0]}
           docker image rm "$TAG" >/dev/null 2>&1 || true      # only the probe tag
