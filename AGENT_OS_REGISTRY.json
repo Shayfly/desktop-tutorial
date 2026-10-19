@@ -3519,19 +3519,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_acceptance_coverage.py",
-    "tests/test_release_policy.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "deploy-worker run 38083162363"
-   ],
-   "last_verified_at": "2026-10-10T20:15Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "contract_test",
@@ -3626,15 +3620,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "edge_case_test",
@@ -3659,15 +3651,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "auth_test",
@@ -3853,15 +3843,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "requirement_traceability_test",
@@ -3873,15 +3861,13 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "browser_launch",
@@ -3913,17 +3899,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_preview_smoke.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099"
-   ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "click_test",
@@ -3987,16 +3969,13 @@
    ],
    "gap": "390x844; layout rules enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "desktop_view_test",
@@ -4008,16 +3987,13 @@
    ],
    "gap": "1440x900; layout rules enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "responsive_test",
@@ -4029,16 +4005,13 @@
    ],
    "gap": "overflow/offscreen/viewport; enforced",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "javascript_error_detection",
@@ -4050,15 +4023,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "deploy-worker run 38083162363"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-10T20:15Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "network_error_detection",
@@ -4115,16 +4086,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py",
-   "evidence": [],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
-    "postdeploy-checks run 37961193099",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "evidence": [
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "failure_classification",
@@ -4293,11 +4261,11 @@
    "status": "REAL_SERVER_VERIFIED",
    "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows; discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, p",
    "evidence": [
-    "postdeploy-checks verify-replay run 38083686082",
+    "postdeploy-checks verify-replay run 39307232830",
     "postdeploy-checks run 37961193099"
    ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "secret_exposure_check",
@@ -6132,16 +6100,13 @@
    ],
    "gap": "unlabelled_field rule, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "contrast_test",
@@ -6153,16 +6118,13 @@
    ],
    "gap": "WCAG AA ratio, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "touch_target_test",
@@ -6174,16 +6136,13 @@
    ],
    "gap": "mobile 24x24 CSS px, advisory",
    "missing_contract_fields": [],
-   "status": "INTEGRATION_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_visual_qa.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 38083686082"
-   ],
-   "last_verified_at": "2026-10-10T20:26Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "screen_reader_structure_test",
@@ -7685,10 +7644,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 82,
-   "UNIT_TESTED": 30,
-   "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 36,
+   "IMPLEMENTED": 76,
+   "UNIT_TESTED": 28,
+   "INTEGRATION_TESTED": 0,
+   "REAL_SERVER_VERIFIED": 50,
    "LIVE": 0,
    "BLOCKED": 9
   }

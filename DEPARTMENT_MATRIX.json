@@ -101,8 +101,8 @@
    },
    "support_agents": {},
    "skills": {
-    "INTEGRATION_TESTED": 3,
-    "NOT_IMPLEMENTED": 4
+    "NOT_IMPLEMENTED": 4,
+    "REAL_SERVER_VERIFIED": 3
    },
    "missing_roles": [
     "ux_research_agent"
@@ -325,11 +325,10 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 16,
-    "INTEGRATION_TESTED": 3,
+    "IMPLEMENTED": 10,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 2,
-    "UNIT_TESTED": 8
+    "REAL_SERVER_VERIFIED": 13,
+    "UNIT_TESTED": 6
    },
    "missing_roles": [],
    "missing_adapters": [
