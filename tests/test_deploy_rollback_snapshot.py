@@ -197,3 +197,11 @@ class WorkflowOrderTests(unittest.TestCase):
         self.assertLess(snap, self.idx(n, 'Build images'))
         self.assertLess(snap, self.idx(n, 'Drain workers'))
 
+
+class StorageProbeOrderTests(unittest.TestCase):
+    def test_storage_probe_runs_after_the_build_and_before_the_drain(self):
+        n = WorkflowOrderTests.steps(self)
+        probe = WorkflowOrderTests.idx(self, n, 'Prove artifact storage accepts writes')
+        self.assertLess(WorkflowOrderTests.idx(self, n, 'Build images'), probe)
+        self.assertLess(probe, WorkflowOrderTests.idx(self, n, 'Refuse to drain'))
+        self.assertLess(probe, WorkflowOrderTests.idx(self, n, 'Drain workers'))
