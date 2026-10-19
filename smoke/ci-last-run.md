@@ -1,15 +1,14 @@
-# v24-ci — last main run (2026-10-19T18:52:48Z)
+# v24-ci — last main run (2026-10-19T19:16:58Z)
 
-- commit: `43c34bca9c91ca5795f9019675bdbdaf808e917c`
-- run_id: [39305786016](https://github.com/Shayfly/desktop-tutorial/actions/runs/39305786016) (attempt 1)
-- test job: **FAILURE**
-- tests: **FAIL** — 1823 passed, 2 failed, 181 skipped
-- AcceptanceW: **FAIL**
+- commit: `ae3a34e5e83296d98b27696feec298022bb45a77`
+- run_id: [39308870918](https://github.com/Shayfly/desktop-tutorial/actions/runs/39308870918) (attempt 1)
+- test job: **SUCCESS**
+- tests: **PASS** — 1825 passed, 0 failed, 181 skipped
+- AcceptanceW: **PASS**
 
 ## Failing tests
 
-- FAIL `tests.test_agent_os.TruthMatrixTests.test_model_instruction_alone_is_not_verified`
-- FAIL `tests.test_m4_acceptance.AcceptanceW.test_W_every_non_fastapi_test_module_passes`
+- none
 
 ## CostClass behavioural proofs
 
@@ -25,7 +24,7 @@
 | `integration` | PASS | 6 | 0 | 34 |
 | `test_acceptance_coverage` | PASS | 3 | 0 | 0 |
 | `test_actual_cost_settlement` | PASS | 14 | 0 | 2 |
-| `test_agent_os` | FAIL | 14 | 1 | 5 |
+| `test_agent_os` | PASS | 15 | 0 | 5 |
 | `test_amateur_cost_class_lock` | PASS | 5 | 0 | 0 |
 | `test_architect_assignment_gate` | PASS | 5 | 0 | 0 |
 | `test_architect_spec_shape` | PASS | 4 | 0 | 0 |
@@ -109,7 +108,7 @@
 | `test_m49_clean_room` | PASS | 0 | 0 | 1 |
 | `test_m49_lifecycle` | PASS | 0 | 0 | 1 |
 | `test_m49_sandbox_security` | PASS | 0 | 0 | 3 |
-| `test_m4_acceptance` | FAIL | 21 | 1 | 1 |
+| `test_m4_acceptance` | PASS | 22 | 0 | 1 |
 | `test_m4_modification_engine` | PASS | 12 | 0 | 0 |
 | `test_m4_worker` | PASS | 11 | 0 | 0 |
 | `test_m4d1_atomic_accept` | PASS | 13 | 0 | 1 |
