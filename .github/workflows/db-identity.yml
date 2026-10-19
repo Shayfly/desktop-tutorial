@@ -1,0 +1,48 @@
+name: db-identity (read-only)
+
+# Which database does the RUNNING staging worker actually use? Read-only:
+# docker exec into the live worker container (its real env), one read-only
+# transaction, no writes, no migration. Prints host + fingerprint (not secret,
+# CEO 2026-10-19) and the applied migration range as annotations.
+# Compare with Production: GET /api/v28/deployment -> schema.db_fingerprint.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/db-identity-2026-10-19]
+    paths: [.github/workflows/db-identity.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Worker database identity (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          c=$(docker ps --format '{{.Names}}' | grep -E 'worker-1$' | grep -v intake | head -1 || true)
+          if [ -z "$c" ]; then echo "::error title=db-identity::no running worker container"; docker ps --format '{{.Names}}'; exit 2; fi
+          echo "::notice title=db-identity container::$c"
+          docker exec -i "$c" python - <<'PY'
+          import os, psycopg
+          from omni_prod.schema_manifest import db_identity
+          url = os.environ.get("OMNI_DATABASE_URL", "").strip()
+          if not url:
+              print("::error title=db-identity::OMNI_DATABASE_URL is not set in the worker"); raise SystemExit(2)
+          with psycopg.connect(url, connect_timeout=10, options="-c default_transaction_read_only=on") as conn:
+              ident = db_identity(conn)
+              exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
+              applied = sorted(int(r[0]) for r in conn.execute("SELECT version FROM schema_migrations").fetchall()) if exists else []
+              ro = conn.execute("SHOW transaction_read_only").fetchone()[0]
+          print(f"::notice title=db-identity::host={ident['db_host']} fingerprint={ident['db_fingerprint']}")
+          print(f"::notice title=db-identity migrations::applied_max={applied[-1] if applied else None} count={len(applied)} "
+                f"present_38_41={[v for v in (38,39,40,41) if v in applied]}")
+          print(f"::notice title=db-identity env::OMNI_ENV={os.getenv('OMNI_ENV')} transaction_read_only={ro}")
+          PRODUCTION_FP = "5fabb3bf756d"   # docs/DB_TARGETS.md (smoke/last-run.md, 2026-10-18)
+          same = ident["db_fingerprint"] == PRODUCTION_FP
+          print(f"::{'warning' if same else 'notice'} title=db-identity verdict::"
+                f"{'SAME AS PRODUCTION' if same else 'DIFFERENT FROM PRODUCTION'} ({PRODUCTION_FP})")
+          PY
