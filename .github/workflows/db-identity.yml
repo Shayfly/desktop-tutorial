@@ -27,16 +27,34 @@ jobs:
           if [ -z "$c" ]; then echo "::error title=db-identity::no running worker container"; docker ps --format '{{.Names}}'; exit 2; fi
           echo "::notice title=db-identity container::$c"
           docker exec -i "$c" python - <<'PY'
-          import os, psycopg
-          from omni_prod.schema_manifest import db_identity
+          import os, re, sys, traceback
+          def _fail(stage, exc):
+              msg = re.sub(r'postgres(ql)?://\S+', 'postgresql://[redacted]', str(exc)).replace('\n', ' ')[:300]
+              print(f"::error title=db-identity {stage}::{type(exc).__name__}: {msg}")
+              raise SystemExit(1)
+          try:
+              import psycopg
+          except Exception as e: _fail('import psycopg', e)
+          try:
+              from omni_prod.schema_manifest import db_identity
+          except Exception:
+              # Older worker images predate db_identity: compute it the same way.
+              import hashlib
+              def db_identity(conn):
+                  host = getattr(getattr(conn, 'info', None), 'host', None)
+                  dbname = conn.execute('SELECT current_database()').fetchone()[0]
+                  return {'db_host': host, 'db_fingerprint': hashlib.sha256(f'{host or ""}|{dbname or ""}'.encode()).hexdigest()[:12]}
+              print("::notice title=db-identity::worker image has no schema_manifest.db_identity; using the same formula inline")
           url = os.environ.get("OMNI_DATABASE_URL", "").strip()
           if not url:
               print("::error title=db-identity::OMNI_DATABASE_URL is not set in the worker"); raise SystemExit(2)
-          with psycopg.connect(url, connect_timeout=10, options="-c default_transaction_read_only=on") as conn:
-              ident = db_identity(conn)
-              exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
-              applied = sorted(int(r[0]) for r in conn.execute("SELECT version FROM schema_migrations").fetchall()) if exists else []
-              ro = conn.execute("SHOW transaction_read_only").fetchone()[0]
+          try:
+              with psycopg.connect(url, connect_timeout=10, options="-c default_transaction_read_only=on") as conn:
+                  ident = db_identity(conn)
+                  exists = conn.execute("SELECT to_regclass('schema_migrations') IS NOT NULL").fetchone()[0]
+                  applied = sorted(int(r[0]) for r in conn.execute("SELECT version FROM schema_migrations").fetchall()) if exists else []
+                  ro = conn.execute("SHOW transaction_read_only").fetchone()[0]
+          except Exception as e: _fail('query', e)
           print(f"::notice title=db-identity::host={ident['db_host']} fingerprint={ident['db_fingerprint']}")
           print(f"::notice title=db-identity migrations::applied_max={applied[-1] if applied else None} count={len(applied)} "
                 f"present_38_41={[v for v in (38,39,40,41) if v in applied]}")
