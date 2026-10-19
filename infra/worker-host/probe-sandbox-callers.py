@@ -53,6 +53,7 @@ http.server.ThreadingHTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_f
 '''
 STEPS = [
     {"id": "s1", "kind": "api_smoke", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200},
+    {"id": "s1b", "kind": "responsive", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200},
     {"id": "s2", "kind": "data_create", "acceptance_ids": ["A2"], "method": "POST", "path": "/api/items",
      "json": {"name": "יוסי"}, "expect_status": 201, "capture": {"created_id": "id"}},
     {"id": "s3", "kind": "data_read", "acceptance_ids": ["A2"], "method": "GET", "path": "/api/items",
