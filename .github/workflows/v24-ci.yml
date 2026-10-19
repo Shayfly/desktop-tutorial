@@ -107,6 +107,27 @@ jobs:
                         f"- AcceptanceW: **{'FAIL' if acc else ('PASS' if seen else 'NOT RUN')}**", '',
                         '## Failing tests', '']
               lines += [f"- FAIL `{n}`" for n in failed] or ['- none']
+              # CostClass behavioural proofs: each named test reported on its own.
+              # (test module, test name) -> PASS / FAIL / SKIPPED / NOT FOUND.
+              proofs = [
+                  ('test_m5_plan_build_class', 'test_amateur_costs_less_than_studio_for_the_same_task'),
+                  ('test_worker_budget_binding', 'test_pro_keeps_its_class_budget_when_worker_env_is_lower'),
+                  ('test_m5_plan_build_class', 'test_pro_and_studio_get_different_allowlists'),
+                  ('test_m5_plan_build_class', 'test_margin_holds_on_every_paid_tier_in_the_worst_case'),
+              ]
+              all_cases = list(ET.parse(path).getroot().iter('testcase'))
+              lines += ['', '## CostClass behavioural proofs', '']
+              for pmod, pname in proofs:
+                  hits = [c for c in all_cases if c.get('name') == pname and pmod in (c.get('classname') or '')]
+                  if not hits:
+                      state = 'NOT FOUND'
+                  elif any(h.find('failure') is not None or h.find('error') is not None for h in hits):
+                      state = 'FAIL'
+                  elif all(h.find('skipped') is not None for h in hits):
+                      state = 'SKIPPED'
+                  else:
+                      state = 'PASS'
+                  lines.append(f"- `{pmod}::{pname}`: **{state}**")
               lines += ['', '## Per module', '', '| module | PASS/FAIL | passed | failed | skipped |', '|---|---|---|---|---|']
               for m in sorted(per):
                   v = per[m]
