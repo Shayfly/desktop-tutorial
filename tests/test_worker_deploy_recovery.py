@@ -85,7 +85,7 @@ class DrainTests(unittest.TestCase):
     def test_clean_drain_stops_all_four_consumers_and_records_images(self):
         r, log, st = run('drain.sh', {'services': list(SERVICES)})
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        stop = [l for l in log.read_text().splitlines() if l.startswith('compose stop')][0]
+        stop = ' '.join(l for l in log.read_text().splitlines() if l.startswith('compose stop'))   # maintain first, then the rest
         for s in SERVICES:
             self.assertIn(s, stop)
         self.assertEqual(len((st / 'prev-images').read_text().splitlines()), 4)
@@ -544,3 +544,44 @@ class VerifiedExistingRollbackTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MaintainStoppedFirstTests(unittest.TestCase):
+    """2026-10-19: intake-maintain (no jobs of its own) is stopped first with a short timeout, so an old container that
+    ignores SIGTERM as PID 1 no longer holds the drain for the whole deadline."""
+
+    def _stops(self, log):
+        return [l for l in log.read_text().splitlines() if l.startswith('compose stop')]
+
+    def test_maintain_is_stopped_first_with_a_short_timeout_then_the_rest(self):
+        r, log, st = run('drain.sh', {'services': list(SERVICES)}, {'MAINTAIN_STOP_SECONDS': '3'})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        stops = self._stops(log)
+        self.assertEqual(stops[0], 'compose stop -t 3 intake-maintain')
+        self.assertNotIn('intake-maintain', stops[1])
+        for s in ('worker', 'intake-worker', 'preview-worker'):
+            self.assertIn(s, stops[1])
+        self.assertEqual(len((st / 'prev-images').read_text().splitlines()), 4)
+
+    def test_maintain_exit_137_after_its_short_timeout_does_not_fail_the_drain(self):
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'intake-maintain': 137}})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('intake-maintain exit 137: killed after', r.stdout)
+
+    def test_a_job_consumer_exit_137_still_fails_and_maintain_still_running_fails(self):
+        for cfg, text in (({'exit': {'worker': 137, 'intake-maintain': 137}}, 'worker exit 137'),
+                          ({'still_running': 'intake-maintain'}, 'intake-maintain still running')):
+            r, log, st = run('drain.sh', {'services': list(SERVICES), **cfg})
+            self.assertEqual(r.returncode, 1, (cfg, r.stdout))
+            self.assertIn(text, (st / 'drain-failed').read_text())
+
+    def test_a_refusal_before_the_stop_still_stops_nothing(self):
+        cmd, _ = gate_stub([3])
+        r, log, st = run('drain.sh', {'services': list(SERVICES)}, {'ACTIVE_JOBS_CMD': cmd})
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn('running work appeared', r.stdout)
+        self.assertEqual(self._stops(log), [])
+
+    def test_compose_runs_intake_maintain_under_init(self):
+        svc = yaml.safe_load((HOST / 'docker-compose.yml').read_text())['services']['intake-maintain']
+        self.assertIs(svc.get('init'), True)

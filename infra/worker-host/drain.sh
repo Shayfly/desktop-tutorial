@@ -81,17 +81,35 @@ case "$gate_rc" in
 esac
 
 start=$(date +%s)
-docker compose stop -t "$DEADLINE" "${SERVICES[@]}"
+reasons=()
+# intake-maintain is a maintenance loop with no jobs of its own (relay outbox -> queue, reconcile expired leases;
+# a pass cut short is redone by the next one). Stop it first with a short timeout: a container still running the
+# old code ignores SIGTERM as PID 1 and would otherwise hold the drain for the whole deadline (2026-10-19).
+MAINTAIN_STOP="${MAINTAIN_STOP_SECONDS:-20}"
+maintain_killed_ok=0
+rest=()
+for s in "${SERVICES[@]}"; do [ "$s" = intake-maintain ] || rest+=("$s"); done
+if grep -q '^intake-maintain ' "$STATE/prev-images"; then
+  docker compose stop -t "$MAINTAIN_STOP" intake-maintain
+  m_rc=$?
+  [ "$m_rc" -eq 0 ] || reasons+=("docker compose stop intake-maintain exited $m_rc")
+  maintain_killed_ok=1
+  echo "drain: intake-maintain stopped first after $(( $(date +%s) - start ))s (timeout ${MAINTAIN_STOP}s)"
+fi
+docker compose stop -t "$DEADLINE" "${rest[@]}"
 rc=$?
 waited=$(( $(date +%s) - start ))
 
-reasons=()
 [ "$rc" -eq 0 ] || reasons+=("docker compose stop exited $rc")
 while read -r s cid img; do
   [ -n "${s:-}" ] || continue
   read -r running code oom <<<"$(docker inspect -f '{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}' "$cid" 2>/dev/null || echo 'unknown 0 false')"
   [ "$running" = "false" ] || reasons+=("$s still running after drain")
-  [ "$code" != "137" ] || reasons+=("$s exit 137 (a job was killed at the ${DEADLINE}s deadline)")
+  if [ "$code" = "137" ] && [ "$s" = intake-maintain ] && [ "$maintain_killed_ok" -eq 1 ]; then
+    echo "::notice title=drain::intake-maintain exit 137: killed after ${MAINTAIN_STOP}s (no jobs of its own; old code ignores SIGTERM)"
+  else
+    [ "$code" != "137" ] || reasons+=("$s exit 137 (a job was killed at the ${DEADLINE}s deadline)")
+  fi
   [ "$oom" != "true" ] || reasons+=("$s was OOM-killed")
   echo "drain: $s exit=$code oom=$oom running=$running"
 done < "$STATE/prev-images"

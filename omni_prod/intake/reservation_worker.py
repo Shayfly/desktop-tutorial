@@ -148,7 +148,6 @@ def relay_main(argv: list[str] | None = None) -> int:
     maintain = relay pending outbox rows, then reconcile expired leases (one pass each loop)."""
     import argparse
     import sys
-    import time
     ap = argparse.ArgumentParser()
     ap.add_argument('cmd', choices=('relay', 'reconcile', 'maintain'))
     ap.add_argument('--loop', type=float, default=0.0)
@@ -164,8 +163,23 @@ def relay_main(argv: list[str] | None = None) -> int:
     def enqueue(rid):
         from ..queueing import enqueue_build
         enqueue_build(redis_url, RQ_JOB, rid, job_id=rid, queue_name=INTAKE_QUEUE, timeout=120)
+
+    # SIGTERM = graceful stop (2026-10-19). As PID 1 in its container Python gets no default SIGTERM action, so
+    # without this `docker compose stop` waited the whole drain deadline and then SIGKILLed it (exit 137). The
+    # current pass is never interrupted: the flag is checked between passes and wakes the sleep immediately.
+    import signal
+    import threading
+    stop = threading.Event()
+
+    def _on_term(signum, _frame):
+        stop.set()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            signal.signal(sig, _on_term)
+        except ValueError:   # not the main thread (embedded use): keep the default handling
+            pass
     try:
-        while True:
+        while not stop.is_set():
             try:
                 out = {}
                 if args.cmd in ('relay', 'maintain'):
@@ -179,7 +193,9 @@ def relay_main(argv: list[str] | None = None) -> int:
                     return 1
             if not args.loop:
                 return 0
-            time.sleep(args.loop)
+            stop.wait(args.loop)
+        print(f'intake {args.cmd}: stop signal received, exiting', flush=True)
+        return 0
     finally:
         pool.close()
 

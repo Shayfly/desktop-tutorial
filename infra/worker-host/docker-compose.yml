@@ -99,6 +99,8 @@ services:
       context: ../..
     restart: unless-stopped
     command: ["python", "-m", "omni_prod.intake.reservation_worker", "maintain", "--loop", "10"]
+    # PID 1 gets no default SIGTERM action: tini forwards the stop signal (exit 137 at the drain deadline, 2026-10-19).
+    init: true
     env_file: .env
     environment:
       OMNI_CREATOR_PERSISTENCE: postgres
