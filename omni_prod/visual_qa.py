@@ -34,6 +34,7 @@ import os
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .browser_probe import BROWSER_PROFILE
+from .sandbox_script import staged_script
 
 VISUAL_FAILURE_ID = 'VISUAL'
 VIEWPORTS = {'desktop': {'width': 1440, 'height': 900, 'mobile': False},
@@ -209,7 +210,8 @@ class VisualQAExecutor:
         viewports, status = {}, 'PASS'
         for name in VIEWPORTS:
             try:
-                result = run(repository, ('python', '-c', SCRIPT, name), f'visual-{name}', profile=BROWSER_PROFILE)
+                staged, argv = staged_script(repository, 'visual_qa', SCRIPT, name)
+                result = run(staged, argv, f'visual-{name}', profile=BROWSER_PROFILE)
             except Exception as exc:
                 viewports[name] = {'status': 'NOT_RUN', 'reason': f'{type(exc).__name__}: {exc}'[:200]}
                 status = 'NOT_RUN'

@@ -28,6 +28,7 @@ import json
 from pathlib import Path
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
+from .sandbox_script import staged_script
 
 BEHAVIOR_FAILURE_ID = 'BEHAVIOR'
 _RUNNER_SOURCE = (Path(__file__).with_name('web_saas_acceptance.py')).read_text(encoding='utf-8')
@@ -157,7 +158,8 @@ class BehaviorAcceptanceExecutor:
         staged = dict(repository)
         staged['.omni/_behavior_run.json'] = json.dumps(config, ensure_ascii=False)
         try:
-            result = run(staged, ('python', '-c', _SCRIPT), 'behavior-acceptance')
+            staged, argv = staged_script(staged, 'behavior_acceptance', _SCRIPT)
+            result = run(staged, argv, 'behavior-acceptance')
         except Exception as exc:
             return ExecutionReport(False, (AcceptanceFailure(BEHAVIOR_FAILURE_ID,
                                                              f'behavioural acceptance could not run: {exc}'),),
