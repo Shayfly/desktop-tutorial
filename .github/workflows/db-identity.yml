@@ -1,0 +1,102 @@
+name: db-identity
+
+# Which database does the staging worker use? Reads the .env the running
+# worker stack was actually started with (compose working_dir of the live
+# worker container); falls back to the container's own environment if that
+# file no longer exists. Prints host + first 8 hex of sha256(OMNI_DATABASE_URL)
+# (identifies the exact URL without revealing it) and the schema_manifest
+# fingerprint sha256(host|dbname)[:12]. Writes smoke/db-identity.md [skip ci].
+# No DB connection, no writes to the DB, nothing printed but host/hashes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: db-identity
+  cancel-in-progress: false
+
+jobs:
+  identity:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      # BEFORE any checkout: actions/checkout cleans the runner workspace,
+      # which can hold the deploy-generated .env.
+      - name: Read the worker's database URL (no checkout yet)
+        id: ident
+        shell: bash
+        run: |
+          set -euo pipefail
+          c=$(docker ps --format '{{.Names}}' | grep -E 'worker-1$' | grep -v intake | head -1 || true)
+          if [ -z "$c" ]; then echo "::error title=db-identity::no running worker container"; exit 2; fi
+          wd=$(docker inspect "$c" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null || true)
+          url=""; src=""
+          if [ -n "$wd" ] && [ -f "$wd/.env" ]; then
+            url=$(grep -E '^OMNI_DATABASE_URL=' "$wd/.env" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+            src="$wd/.env (deploy-generated)"
+          fi
+          if [ -z "$url" ]; then
+            url=$(docker exec "$c" printenv OMNI_DATABASE_URL 2>/dev/null || true)
+            src="container $c environment (.env not found at ${wd:-unknown})"
+          fi
+          if [ -z "$url" ]; then echo "::error title=db-identity::OMNI_DATABASE_URL not found"; exit 2; fi
+          out=$(URL="$url" python3 - <<'PY'
+          import hashlib, os
+          from urllib.parse import urlsplit
+          u = os.environ['URL']; p = urlsplit(u)
+          host = p.hostname or ''; db = (p.path or '/').lstrip('/') or ''
+          print(f"host={host}")
+          print(f"dbname={db}")
+          print(f"url_sha256_8={hashlib.sha256(u.encode()).hexdigest()[:8]}")
+          print(f"db_fingerprint={hashlib.sha256(f'{host}|{db}'.encode()).hexdigest()[:12]}")
+          # Neon: '<endpoint>-pooler.<region>' and '<endpoint>.<region>' are the same database.
+          ep = host.split('.')[0].removesuffix('-pooler')
+          print(f"neon_endpoint={ep}")
+          PY
+          )
+          unset url
+          echo "$out" >> "$GITHUB_OUTPUT"
+          echo "source=$src" >> "$GITHUB_OUTPUT"
+          while IFS= read -r l; do echo "::notice title=db-identity::$l"; done <<< "$out"
+          echo "::notice title=db-identity source::$src"
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: db-identity-report
+      - name: Write smoke/db-identity.md and commit [skip ci]
+        working-directory: db-identity-report
+        env:
+          HOST: ${{ steps.ident.outputs.host }}
+          DBNAME: ${{ steps.ident.outputs.dbname }}
+          SHA8: ${{ steps.ident.outputs.url_sha256_8 }}
+          FP: ${{ steps.ident.outputs.db_fingerprint }}
+          EP: ${{ steps.ident.outputs.neon_endpoint }}
+          SRC: ${{ steps.ident.outputs.source }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p smoke
+          {
+            echo "# db-identity — staging worker database ($(date -u +%FT%TZ))"
+            echo
+            echo "- run_id: [${GITHUB_RUN_ID}](${RUN_URL})"
+            echo "- source: ${SRC}"
+            echo "- host: \`${HOST}\`"
+            echo "- dbname: \`${DBNAME}\`"
+            echo "- sha256(OMNI_DATABASE_URL)[:8]: \`${SHA8}\`"
+            echo "- db_fingerprint sha256(host|dbname)[:12]: \`${FP}\`"
+            echo "- Neon endpoint (pooler suffix removed): \`${EP}\`"
+            echo
+            echo "Compare with Production: GET /api/v28/deployment -> schema.db_host / schema.db_fingerprint."
+            echo "A '-pooler' host and the direct host of the same Neon endpoint are the same database"
+            echo "but produce different db_fingerprint values; compare the Neon endpoint."
+          } > smoke/db-identity.md
+          git config user.name "ci-bot"; git config user.email "ci-bot@148ai.dev"
+          git add smoke/db-identity.md
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chore: db-identity results [skip ci]"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && exit 0; sleep $((i*5)); done
+          echo "::error title=db-identity::push failed"; exit 1
