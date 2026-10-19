@@ -36,13 +36,15 @@ class VerificationGroup:
         self._threshold = threshold
         self._stages = tuple(stages)
         self._inner = self._stages[-1]          # chain walkers (find_in_chain) and attribute lookups go through here
+        self.group_failures = ()                # every failure of the last round, in full (failure taxonomy)
 
     def __getattr__(self, item):
-        if item.startswith('__') or item in ('_inner', '_threshold', '_stages'):
+        if item.startswith('__') or item in ('_inner', '_threshold', '_stages', 'group_failures'):
             raise AttributeError(item)
         return getattr(self._inner, item)
 
     def execute(self, *, repository, spec):
+        self.group_failures = ()
         base = self._threshold.execute(repository=repository, spec=spec)
         if not base.passed:
             return base                         # a threshold failure: the post-build checks do not run
@@ -54,6 +56,7 @@ class VerificationGroup:
         if not failed:
             return base
         failed.sort(key=lambda t: (t[0], t[1]))                 # most severe first (progress() rank), then chain order
+        self.group_failures = tuple(f for _, _, r in failed for f in r.failures)
         worst = failed[0][2]
         failures = list(worst.failures)                         # the most severe stage in full
         if len(failed) > 1:                                     # + ONE line about everything else that failed

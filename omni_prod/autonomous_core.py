@@ -92,6 +92,18 @@ class AutonomousProductEngine:
                 # In verified strict mode, never claim READY without round evidence.
                 raise
 
+    def _observed_failures(self, report):
+        """Every failure of a verified round for the taxonomy: the post-build group's full list when the round's
+        report summarised some of them (ALSO_FAILING), otherwise the report's own failures."""
+        if report.passed:
+            return []
+        own = [f for f in report.failures if f.acceptance_id != SUMMARY_FAILURE_ID]
+        if len(own) == len(report.failures):
+            return own
+        group = getattr(self.executor, 'group_failures', None) or ()
+        seen = {(f.acceptance_id, f.message) for f in own}
+        return own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+
     @staticmethod
     def progress(report) -> tuple[int, int]:
         """How far a candidate got through the verification chain (build ->
@@ -142,6 +154,7 @@ class AutonomousProductEngine:
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
         report = self.executor.execute(repository=repo, spec=spec)
+        self._taxonomy_rounds = [(0, self._observed_failures(report))]
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
@@ -185,6 +198,7 @@ class AutonomousProductEngine:
                 break
             seen.add(fingerprint)
             new_report = self.executor.execute(repository=candidate, spec=spec)
+            self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
             worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
             self._snapshot(rounds, candidate, new_report,
                            'passed' if new_report.passed else ('discarded' if worse else 'adopted'))
@@ -205,6 +219,9 @@ class AutonomousProductEngine:
                 best_repo, best_report = repo, report
         if not report.passed:
             repo, report = best_repo, best_report
+        from .failure_taxonomy import records
+        self.failure_taxonomy = records(self._taxonomy_rounds)
+        self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
         return AutonomousResult(
             'ready' if report.passed else 'failed',
             spec,

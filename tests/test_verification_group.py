@@ -46,6 +46,9 @@ def fake_remote(script, calls):
 
         def _run(self, repository, argv, build_id, profile='default'):
             calls.append(build_id)
+            if script.get('ok_after_repair') and repository.get('app.py') != 'print("v0")\n':
+                return {'returncode': 0, 'stdout': {'behavior-acceptance': BEHAVIOUR_PASS, 'browser-probe': BROWSER_OK}
+                        .get(build_id, VISUAL_OK if build_id.startswith('visual') else ''), 'stderr': ''}
             if build_id == 'preview-smoke':
                 ok = script.get('preview_ok', True)
                 return {'returncode': 0 if ok else 1, 'stdout': '' if ok else 'PREVIEW-SMOKE app exited before answering',
@@ -94,6 +97,7 @@ class PostBuildChecksReachTheRepairerTogether(unittest.TestCase):
             engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=repairer,
                                              executor=executor, max_repair_rounds=1)
             result = engine.build('league table')
+        self.engine = engine
         return result, repairer, calls
 
     GROUP = {'PREVIEW', 'BEHAVIOR', 'BROWSER', 'VISUAL', 'ALSO_FAILING'}
