@@ -55,6 +55,7 @@ jobs:
           [ -n "$f" ] && grep -E '::(notice|error)' "$f" | sed -E 's/^[^:]*(::(notice|error))/\1/; s/::notice /::warning /; s/::error /::warning /' | grep -v 'Node.js' | head -n 9
           # 2026-10-19 23:20: step-4 exit 255 x3. Hypothesis: `docker compose config --services | grep -qx worker` under
           # pipefail -- grep -q exits on the first match, compose gets SIGPIPE, docker reports 255. Read-only repetition.
+          set +e
           cd "$GITHUB_WORKSPACE/infra/worker-host" && {
             declare -A seen=(); for i in $(seq 1 300); do ( set -o pipefail; docker compose config --services | grep -qx worker ); rc=$?; seen[$rc]=$(( ${seen[$rc]:-0} + 1 )); done
             pipe=$(for k in "${!seen[@]}"; do printf 'rc%s=%s ' "$k" "${seen[$k]}"; done)
