@@ -98,6 +98,49 @@ class AutonomousProductEngine:
                 # In verified strict mode, never claim READY without round evidence.
                 raise
 
+    def _preflight(self, repo, spec, round_index):
+        """Remove statically visible defects before the chain runs, WITHOUT spending a repair round (round_preflight).
+        A narrow repairer call may only touch the affected files; if it does not resolve the issue the repository goes
+        on as it was for that issue and the chain reports the failure (a real round). Disabled: OMNI_ROUND_PREFLIGHT=0."""
+        import os
+        if os.getenv('OMNI_ROUND_PREFLIGHT', '1') == '0' or self.repairer is None:
+            return repo
+        from . import round_preflight as pf
+        checks = (
+            ('preflight_syntax', lambda r: pf.syntax_errors(r),
+             lambda found: pf.syntax_failure(found), lambda found: {e['file'] for e in found}),
+            ('preflight_plan_coverage', lambda r: pf.plan_coverage_gaps(r, spec),
+             lambda found: pf.plan_failure(found), lambda found: {pf.PLAN_PATH}),
+        )
+        for kind, detect, describe, allowed in checks:
+            found = detect(repo)
+            if not found:
+                continue
+            fixed = False
+            for _ in range(pf.MAX_FIXES_PER_ISSUE):
+                failure = describe(found)
+                transform = getattr(self, 'repository_transform', None)
+                if transform is not None and hasattr(transform, 'redact_text'):
+                    failure = {k: transform.redact_text(v) if isinstance(v, str) else v for k, v in failure.items()}
+                try:
+                    patch = self.repairer.repair(spec=spec, repo_summary=self._repair_summary(repo, [failure]),
+                                                 failures=[failure])
+                except Exception:   # the cheap fix is optional; the real round still runs
+                    break
+                keep = allowed(found)
+                narrow = tuple(p for p in patch or () if getattr(p, 'path', None) in keep)
+                if not narrow:
+                    break
+                candidate = apply_patch(repo, narrow)
+                if transform is not None:
+                    candidate = transform(candidate)
+                if not detect(candidate):
+                    repo, fixed = candidate, True
+                    break
+            self._preflight_events.append({'layer': 'preflight', 'failure_type': kind, 'round_index': round_index,
+                                           'chain_depth': 0, 'was_repaired': fixed})
+        return repo
+
     def _observed_failures(self, report):
         """Every failure of a verified round for the taxonomy: the post-build group's full list when the round's
         report summarised some of them (ALSO_FAILING), otherwise the report's own failures."""
@@ -159,6 +202,8 @@ class AutonomousProductEngine:
         repo = apply_patch({}, initial)
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
+        self._preflight_events = []
+        repo = self._preflight(repo, spec, 0)
         report = self.executor.execute(repository=repo, spec=spec)
         self._taxonomy_rounds = [(0, self._observed_failures(report))]
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
@@ -203,6 +248,7 @@ class AutonomousProductEngine:
                                else 'no_progress_repository_cycle')
                 break
             seen.add(fingerprint)
+            candidate = self._preflight(candidate, spec, rounds)
             new_report = self.executor.execute(repository=candidate, spec=spec)
             self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
             worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
@@ -226,7 +272,8 @@ class AutonomousProductEngine:
         if not report.passed:
             repo, report = best_repo, best_report
         from .failure_taxonomy import records
-        self.failure_taxonomy = records(self._taxonomy_rounds)
+        self.failure_taxonomy = sorted(records(self._taxonomy_rounds) + self._preflight_events,
+                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
         self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
         return AutonomousResult(
             'ready' if report.passed else 'failed',

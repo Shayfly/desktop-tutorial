@@ -88,11 +88,11 @@ class PostBuildChecksReachTheRepairerTogether(unittest.TestCase):
     ENV = {'OMNI_SANDBOX_RUNNER_URL': 'http://sandbox.invalid', 'OMNI_SANDBOX_SHARED_SECRET': 'x' * 40,
            'OMNI_CONSISTENCY_GATE': '0', 'OMNI_MIN_QUALITY_SCORE': '0'}
 
-    def build(self, script):
+    def build(self, script, gateway=None):
         calls = []
         with mock.patch.dict(os.environ, self.ENV), \
                 mock.patch.object(investor_app, 'RemoteSandboxRepositoryExecutor', fake_remote(script, calls)):
-            executor = investor_app._verification_executor(None)
+            executor = investor_app._verification_executor(gateway)
             repairer = Repairer()
             engine = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=repairer,
                                              executor=executor, max_repair_rounds=1)

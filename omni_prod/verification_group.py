@@ -50,7 +50,10 @@ class VerificationGroup:
             return base                         # a threshold failure: the post-build checks do not run
         failed = []
         for order, stage in enumerate(self._stages):          # every stage runs; none returns early
-            r = stage.check(repository=repository, spec=spec, report=base)
+            if getattr(type(stage), 'group_context', False):   # the review: told whether the others failed this round
+                r = stage.check(repository=repository, spec=spec, report=base, others_failed=bool(failed))
+            else:
+                r = stage.check(repository=repository, spec=spec, report=base)
             if not r.passed and r.failures:
                 failed.append((_stage_rank(r), order, r))
         if not failed:

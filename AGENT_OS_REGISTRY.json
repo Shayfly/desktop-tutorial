@@ -356,9 +356,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_review.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
@@ -4304,9 +4305,10 @@
    ],
    "gap": "review + instruction, no dynamic XSS probe",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_review.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7634,20 +7636,20 @@
   "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 25,
+   "IMPLEMENTED": 26,
    "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 6,
+   "REAL_SERVER_VERIFIED": 5,
    "LIVE": 0,
    "BLOCKED": 4
   },
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 76,
+   "IMPLEMENTED": 77,
    "UNIT_TESTED": 28,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 50,
+   "REAL_SERVER_VERIFIED": 49,
    "LIVE": 0,
    "BLOCKED": 9
   }

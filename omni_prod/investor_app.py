@@ -735,17 +735,18 @@ def _verification_executor(gateway=None):
     # (shadow mode until replay shows which rules may block).
     from .visual_qa import VisualQAExecutor
     visual=VisualQAExecutor(browser,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
+    stages=[preview,behaviour,browser,visual]
+    # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists and static checks. Since 2026-10-19 it
+    # is the LAST post-build check of the group (after the build it always runs; its findings go to the same repair).
+    if gateway is not None:
+        from .product_review import ProductReviewExecutor
+        stages.append(ProductReviewExecutor(visual,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2'))))
     from .verification_group import VerificationGroup
-    executor=VerificationGroup(threshold,(preview,behaviour,browser,visual))
+    executor=VerificationGroup(threshold,tuple(stages))
     # Quality shortfalls are repairable like failed checks (release gate uses
     # the same assess_repository and minimum).
     from .quality_gate import QualityAwareExecutor
     executor=QualityAwareExecutor(executor,minimum_score=int(os.getenv('OMNI_MIN_QUALITY_SCORE','80')))
-    # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists
-    # and static checks; blocking findings go back to repair (bounded).
-    if gateway is not None:
-        from .product_review import ProductReviewExecutor
-        executor=ProductReviewExecutor(executor,gateway=gateway,max_reviews=int(os.getenv('OMNI_MAX_REVIEW_ROUNDS','2')))
     return executor
 
 def _provider_health():

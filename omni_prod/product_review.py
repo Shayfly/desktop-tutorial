@@ -83,16 +83,27 @@ class ProductReviewExecutor:
                         'source': 'reviewer'})
         return out, meta
 
+    # VerificationGroup (2026-10-19): the review is one of the post-build checks and tells the group it wants to know
+    # whether the other checks failed in the same round.
+    group_context = True
+
     def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
         if not report.passed:
             return report
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report, others_failed: bool = False):
+        """The review on a report in which the build passed. `max_reviews` bounds the review ROUNDS that block: a round
+        counts only when the review is what still blocks (others_failed=False), exactly as when it ran last. While
+        other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
         findings = [f.to_dict() for f in static_findings(repository, self._context(spec))]
         llm, meta = self._llm_findings(repository, spec)
         findings += llm
         blocking = [f for f in findings if f['severity'] == 'blocking']
-        enforce = len([r for r in self.reviews if r['enforced']]) < self._max_reviews
+        enforce = others_failed or len([r for r in self.reviews if r['enforced'] and not r.get('alongside')]) < self._max_reviews
         self.reviews.append({'round': len(self.reviews) + 1, 'enforced': bool(blocking) and enforce, **meta,
+                             'alongside': others_failed,
                              'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
         if not blocking or not enforce:
             return report
