@@ -62,9 +62,15 @@ def plan_coverage_gaps(repository: dict[str, str], spec) -> dict | None:
     kinds = {s.get('kind') for s in steps}
     missing_ids = [a for a in wanted if a not in covered]
     missing_kinds = [k for k in plan.required_kinds if k not in kinds]
-    if not missing_ids and not missing_kinds:
+    # The runner's OWN per-step validation (web_saas_acceptance._validate_plan), with the same acceptance ids the
+    # behaviour check passes it (spec.acceptance). Paid run 39377332673: round 0 was rejected with "step S5 must
+    # reference contract acceptance_ids" -- every id was covered by OTHER steps, so the coverage check above passed
+    # and a defect visible by reading the file cost a full repair round, with no behaviour step run at all.
+    from .web_saas_acceptance import _validate_plan
+    invalid = _validate_plan(plan.personas, set(wanted))
+    if not invalid and not missing_ids and not missing_kinds:
         return None
-    return {'invalid': None, 'missing_acceptance_ids': missing_ids, 'missing_kinds': missing_kinds}
+    return {'invalid': invalid, 'missing_acceptance_ids': missing_ids, 'missing_kinds': missing_kinds}
 
 
 def syntax_failure(errors: list[dict]) -> dict:
@@ -77,7 +83,7 @@ def syntax_failure(errors: list[dict]) -> dict:
 def plan_failure(gaps: dict) -> dict:
     parts = []
     if gaps.get('invalid'):
-        parts.append(f"the plan does not parse: {gaps['invalid']}")
+        parts.append(f"the plan is invalid: {gaps['invalid']}")
     if gaps.get('missing_acceptance_ids'):
         parts.append('no step covers acceptance ids ' + ', '.join(gaps['missing_acceptance_ids']))
     if gaps.get('missing_kinds'):
