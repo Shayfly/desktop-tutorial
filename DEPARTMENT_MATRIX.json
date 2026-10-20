@@ -101,8 +101,9 @@
    },
    "support_agents": {},
    "skills": {
+    "INTEGRATION_TESTED": 1,
     "NOT_IMPLEMENTED": 4,
-    "REAL_SERVER_VERIFIED": 3
+    "REAL_SERVER_VERIFIED": 2
    },
    "missing_roles": [
     "ux_research_agent"
