@@ -28,7 +28,22 @@ const path=require('path');
     if(u.pathname.startsWith('/assets/'))return route.fulfill({path:path.join(__dirname,'../omni_prod',u.pathname)});
     return route.fulfill({status:404,body:''});
    });
+   // boot() asks /api/v28/me, which this fixture answers 401. If that 401 is handled AFTER the signed-in state
+   // below is injected, app.js signs the "user" out and the edit button disappears (CI flake on 0ee20fe).
+   // Wait until the app has finished handling it: the body promise resolves, the app's 401 handling runs as
+   // microtasks, and this marker resolves one macrotask later -- after all of them.
+   await page.addInitScript(()=>{
+     const f=window.fetch.bind(window);
+     window.fetch=(input,init)=>{
+       const p=f(input,init);
+       if(String(input).endsWith('/api/v28/me'))window.__meHandled=p.then(r=>{const t=r.text.bind(r);
+         r.text=()=>{const body=t();window.__meHandled=body.then(()=>new Promise(res=>setTimeout(res,0)),()=>{});return body;};
+         return r;},()=>{});
+       return p;};
+   });
    await page.goto('http://fixture.test/fixture');
+   await page.waitForFunction(()=>window.__meHandled!==undefined);
+   await page.evaluate(async()=>{let m;do{m=window.__meHandled;await m;}while(m!==window.__meHandled);});
    await page.evaluate(d=>{S.projectId='p';S.lang='he';S.disc=d;S.chat={messages:[]};S.tab='req';
      S.signedIn=true;S.me={email:'fixture@example.test'};showView();renderDiscovery();renderTabs();openTab('req');},fixture);
    await page.locator('#discoveryPanel button').filter({hasText:'שינוי'}).first().click();
