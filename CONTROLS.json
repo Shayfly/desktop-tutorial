@@ -11,8 +11,29 @@
   "review": "a PR touching a control without its row is rejected"
  },
  "split": "C01-C08 automatic; all others review",
- "count_note": "v3 as written: 30 controls (C01-C29, C31), 8 of 30 automatic -- C30 is S01, a step, not a control. With C32 (founder 2026-10-20): 31 controls, 8 automatic, 23 review.",
- "canary_definition": "a canary proves the control BLOCKS: it injects the failure image and requires the suite to go red; a path that exists is not evidence (S01, 2026-10-20). The 21 rows S01 did not check are verified by their canaries, not separately.",
+ "count_note": "8 of 31 -> 8 of 30, C30->S01, 20/10. (v3 counted C30; S01 is a step, not a control.) Since then C32 was added (founder 2026-10-20): 31 controls, 8 automatic, 23 review.",
+ "canary_definition": {
+  "he": "קנרית = הוכחה שהבקרה חוסמת. לא הוכחה שהנתיב קיים. כלומר: לא \"הנתיב נמצא\" -> ירוק. אלא שבירת הנתיב -> אדום. אם הצעד ממשיך הלאה כשהנתיב חסר — הקנרית נכשלת, גם אם הנתיב קיים כרגע.",
+  "en": "a canary proves the control BLOCKS, not that its path exists: break the path -> red. If the step goes on when the path is missing, the canary fails, even if the path exists now.",
+  "review_of_existing_rows": "every existing canary row is re-read against this definition; where it proves existence and not blocking, it is rewritten."
+ },
+ "stop_signs": [
+  "אם עד סוף ב׳1 עוד לא עברנו ריצה חיה אחת ירוקה — עוצרים הכל ועוברים למוצר.",
+  "ואם ב׳1 גולש ליותר משלושה ימי עבודה — עוצרים באמצע, גם אם לא סיימנו."
+ ],
+ "stop_signs_action": "לא מוחקים כלום. מפסיקים להוסיף שורות, ומשלימים רק את מה שכבר פתוח. ב׳2 וב׳3 מחכים.",
+ "open_items": [
+  {
+   "id": "O01",
+   "what": "אורך OMNI_SECRET_KEY ב-worker לא ידוע — לאמת ולהוסיף ל-C23",
+   "how": "PR #94 prints it at deploy (::notice secret-lengths, length only, never blocking)"
+  },
+  {
+   "id": "O02",
+   "what": "קלוד הוא נקודת כשל יחידה במיזוג",
+   "goes_to": "ו׳"
+  }
+ ],
  "s01": {
   "alias": "C30",
   "what": "path verification step (not a control, not counted)",
@@ -513,7 +534,9 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": null,
+   "decision_2026_10_20": "require status checks ON for test and validate only (not customer-ui, not pg: both flaky); no \"Require a pull request\" (the CI bot pushes to main). Enabled by the owner (admin).",
+   "canary_drill": "monthly: try to merge on red; must be refused"
   },
   {
    "id": "C17",
