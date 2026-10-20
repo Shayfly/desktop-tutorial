@@ -142,3 +142,14 @@
 |---|---|---|---|---|
 | #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py`, `tests/test_expect_text_contains_list.py`, רג'יסטרים שנוצרו מחדש | CI ירוק. **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | ממתין למאט או לאישור מייסד |
 | #75 | `3163dc2` | `.github/workflows/deploy-worker.yml`, טסט | **לא נגעתי**: הטקסט של שני החסמים של מאט לא נמצא ב-PR, ב-repo או בשיחה | ממתין לטקסט |
+
+### 2026-10-20 13:09 — preflight (#85), ‏#75 EOF, ‏json_schema
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #85 | `717cd83` | `omni_prod/round_preflight.py`, `tests/test_round_preflight.py` | CI ירוק. **לא מוזג**: תנאי א | ממתין למאט |
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py` + טסט | **לא מוזג**, החלטת מייסד 13:09: לא ממזגים בלי אודיט | ממתין למאט |
+| #75 | `3b7bdf2` | `tests/test_deploy_rollback_snapshot.py`: הוסרה שורה ריקה אחת ב-EOF (`git diff --check`: 2 → 0) | CI ירוק. **לא מוזג**: על exit=42 מאט עוד צריך לפסוק | ממתין למאט |
+
+- ‏exit=42, שוחזר עם docker מזויף: config_error OLD=1 / NEW=42; ‏missing_worker 1/1; ‏missing_intake 1/1; ‏ok 0/0. ב-OLD, ‏pipefail מחזיר את ה-1 של grep ומסתיר את קוד היציאה של docker. ב-NEW, הקוד של docker עובר כמו שהוא. בשני המקרים הצעד נכשל.
+- ‏gpt-6-luna: לפי התיעוד של OpenAI, ‏structured_outputs נתמך ב-`v1/chat/completions` (וגם `response_format: json_schema` עם `strict`). לא נשלחה קריאה, ולא שיניתי דבר.
