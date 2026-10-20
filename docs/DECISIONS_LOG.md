@@ -219,3 +219,11 @@
   - **(ב)** read-only נאכף: קונטיינר `--read-only`, ‏`--cap-drop ALL`, ‏`SET TRANSACTION READ ONLY`, ו-hook של botocore שמאפשר רק GetObject.
   - **(ג)** ה-zips מועלים כארטיפקט.
 - ‏#89: טסט קיים (`tests/test_preview_smoke.py:134`) חיפש את הנוסח הישן "placeholder page". הוא עודכן כך שידרוש את (a) ואת (b) גם יחד (`a0e567b`).
+
+### 2026-10-20 22:07 — ‏plan_code (#91), ‏409 ב-#90, ה-guard של boto3 (#88)
+
+- **‏#90 תופס את שתי הקריאות.** הרצתי את הבדיקה על `app.py` האמיתי מ-R2. בסבב 0: ‏`app.py:41` ‏`send_error(409, 'תור תפוס')` ו-`app.py:49` ‏`send_error(404, 'לא נמצא')`. בסבב 2: שורות 37 ו-45. ‏#90 לא השתנה בגלל זה.
+- **ה-guard של boto3 ב-#88 רץ ב-CI.** שני ה-jobs (`v24-ci/test`, ‏`v11-overlay-ci/validate`) מתקינים את `requirements-production.txt`, ובו `boto3==1.43.94`. ‏`cb4f89b` הופך את הטסט ללא-ניתן-לדילוג ב-GitHub Actions (בלי boto3: שגיאה, לא דילוג). ‏`test` ו-`validate` ירוקים על `cb4f89b`, כלומר ה-guard נבדק מול boto3 אמיתי. את ה-junit עצמו לא קראתי: הורדת ארטיפקט חסומה מכאן (blob 403).
+- **‏#91 `99430c1`:** בדיקת `plan_code` ב-consistency gate. ה-fixture הוא ה-index.html וה-app.py האמיתיים של סבב 0. ‏CI ירוק. **לא מוזג**: תנאי א. הוא נוגע באותו קובץ כמו #90, ולכן לפי תנאי ד ממזגים אחד ומבססים מחדש את השני.
+- ‏#89: ה-head השתנה (`cb4a020` → `a0e567b`) אחרי שמאט התחיל לבדוק. ביקשתי אודיט מחדש ב-PR.
+- הענף הזמני `run/inspect-bld_4f3b` עוד קיים. מחיקה חסומה מכאן (git push --delete וגם refs API מחזירים 403). ה-trigger שלו הוסר.
