@@ -393,9 +393,18 @@ def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:
     if response.status != expected_status:
         raise AssertionError(f'expected HTTP {expected_status}, got {response.status}')
     if 'expect_text_contains' in step:
-        needle = str(step['expect_text_contains'])
-        if not _text_contains(response.text(), needle):
-            raise AssertionError(f'response text missing {needle!r}')
+        # A string, or a list/tuple of strings that must ALL appear. Paid run 39377332673 (2026-10-20): the plan gave
+        # ['viewport', 'width=device-width'], the old str() searched for the Python repr of the list, and a page that
+        # had both strings failed three repair rounds.
+        wanted = step['expect_text_contains']
+        needles = [str(x) for x in wanted] if isinstance(wanted, (list, tuple)) else [str(wanted)]
+        if not needles or not all(needles):
+            raise AssertionError('expect_text_contains is empty: quote the text the page must show')
+        body = response.text()
+        missing = [n for n in needles if not _text_contains(body, n)]
+        if missing:
+            raise AssertionError(f'response text missing {missing[0]!r}' if len(needles) == 1
+                                 else f'response text missing {missing!r} (all of {needles!r} must appear)')
     if 'expect_json_contains' in step:
         actual = response.json()
         expected = step['expect_json_contains']

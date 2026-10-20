@@ -332,18 +332,16 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "steps written by the model; platform enforces required kinds",
    "parts": [
     {
      "part": "skill:behavioral_acceptance_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py"
     }
    ]
   },
@@ -1140,8 +1138,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 9,
-  "REAL_SERVER_VERIFIED": 15,
+  "IMPLEMENTED": 10,
+  "REAL_SERVER_VERIFIED": 14,
   "UNIT_TESTED": 4,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
