@@ -23,3 +23,37 @@ Frozen until the founder says otherwise, regardless of owner:
 - `.github/workflows/148ai-rebuild-safe-rollback-images.yml`.
 
 `omni_prod/**` has no standing owner. Each change there is approved per task and per file.
+
+## Four working rules (founder, 2026-10-20; from docs/HANDOFF_FROM_VENICE_DESKTOP_HE.md §30.5)
+
+A rule without enforcement is a wish. Each rule says what is forbidden, how it is enforced **today**, and where the enforcement is still missing.
+
+1. **The red team does not write the fix.**
+   - *Forbidden:* the agent that reported a finding must not author the commit that fixes it.
+   - *Enforced today:* **NOT ENFORCED.** Every agent pushes as the same GitHub user, so GitHub cannot tell authors apart. There is no CODEOWNERS file and no branch protection.
+   - *Missing:* a `Found-by:` trailer on every finding-driven commit, plus a CI check that fails when `Found-by` names the same agent as the commit's `Co-Authored-By`.
+
+2. **The seam rule.**
+   - *Forbidden:* a test at a boundary (sandbox policy, the verification chain, the transport, money) that uses a permissive double instead of the real boundary code.
+   - *Enforced today:* **PARTIAL.** These tests cross the real boundary:
+     - `tests/test_sandbox_callers_real_policy.py`: the real `RemoteSandboxRepositoryExecutor._run` and `validate_command`;
+     - `tests/test_verification_group.py` and `tests/test_round_preflight.py`: the real `investor_app._verification_executor` chain.
+   - *Missing:* five fakes still bypass the real validator. They are `tests/test_preview_smoke.py`, `tests/test_browser_probe.py`, `tests/test_visual_qa.py`, `tests/test_behavior_acceptance_in_build.py` (`LocalSandbox`) and `tests/test_acceptance_coverage.py` (`_OkSandbox`). No check rejects a new one.
+
+3. **Status is derived, never hand-written.**
+   - *Forbidden:* editing a registry, matrix or status file by hand.
+   - *Enforced today:* **ENFORCED in CI.** The committed file must equal what the generator produces, or the `test` and `validate` jobs fail:
+
+     | Generator | Files | Test |
+     |---|---|---|
+     | `python -m omni_prod.agent_os.audit --write` | `AGENT_OS_REGISTRY.json`, `TRUTH_MATRIX.json` | `tests/test_agent_os.py` |
+     | `python -m omni_prod.agent_os.departments --write` | `DEPARTMENT_MATRIX.json` | `tests/test_conversation_os.py` |
+     | `python -m omni_prod.registry_audit --write` | `docs/AGENT_SKILL_STATUS.md` | `tests/test_registry_audit.py` |
+     | `python -m omni_prod.intelligence.matrix --write` | `PROVIDER_MATRIX.json` | `tests/test_intelligence_plane.py` |
+
+   - *Missing:* `STATUS.md` and the `smoke/*.md` reports are not covered.
+
+4. **A critical path that has not run for 7 days is broken.**
+   - *Forbidden:* reporting a critical path (deploy-worker, golden rehearsal, Golden E2E, postdeploy verify-replay, backup-restore) as working when its last successful run is older than 7 days.
+   - *Enforced today:* **NOT ENFORCED.** No scheduled job checks run age. The data exists (the workflow run history; `smoke/rehearsal-builds.jsonl` timestamps), but nothing reads it.
+   - *Missing:* a daily scheduled check that marks a path BROKEN when its last green run is older than 7 days.
