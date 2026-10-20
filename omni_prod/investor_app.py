@@ -86,6 +86,8 @@ from .stripe_billing import StripeCheckoutClient, StripeSubscriptionWebhookProce
 from .launch_readiness_v28 import launch_readiness_payload
 from .brand_native_clients import android_client, ios_client
 
+from .secret_redaction import install_log_redaction
+install_log_redaction()        # C27: every log record of the API process goes through the single redaction layer
 app = FastAPI(title='148AI', version='28.0.0')
 _metrics=MetricsRegistry()
 configure_observability(app,_metrics)

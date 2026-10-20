@@ -38,6 +38,9 @@ NON_SECRET_FLAGS = (
 
 
 def redact(text: str) -> str:
+    # C27: the single layer first (omni_prod.secret_redaction), then the stricter rules of an exported file.
+    from .secret_redaction import redact as base_redact
+    text = base_redact(text)
     text = re.sub(r'AIza[0-9A-Za-z_-]{20,}', '[redacted-google-key]', text)
     text = re.sub(r'(rediss?|postgres(?:ql)?)://\S+', r'\1://[redacted]', text)
     text = re.sub(r'(?i)(key|token|secret|password|authorization)(["\' :=]+)[^\s"\',]+', r'\1\2[redacted]', text)
