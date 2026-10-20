@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-20T10:22:40Z)
+# v24-ci — last main run (2026-10-20T14:55:56Z)
 
-- commit: `73d6417d38768d785dad022386aee0e28578ed23`
-- run_id: [39406864867](https://github.com/Shayfly/desktop-tutorial/actions/runs/39406864867) (attempt 1)
+- commit: `6f7811937a8f586911b56fd976bec8b14ec7b325`
+- run_id: [39442907363](https://github.com/Shayfly/desktop-tutorial/actions/runs/39442907363) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1845 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1851 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -61,6 +61,7 @@
 | `test_entitlements` | PASS | 7 | 0 | 0 |
 | `test_evidence_export` | PASS | 6 | 0 | 4 |
 | `test_evidence_json` | PASS | 5 | 0 | 0 |
+| `test_expect_text_contains_list` | PASS | 6 | 0 | 0 |
 | `test_failure_injection` | PASS | 12 | 0 | 0 |
 | `test_failure_replay` | PASS | 5 | 0 | 0 |
 | `test_failure_taxonomy` | PASS | 12 | 0 | 0 |
