@@ -182,7 +182,11 @@ class ReaderAgainstFakes(unittest.TestCase):
         self.assertIn('round 2', notes[0][0])
 
 
-@unittest.skipIf(importlib.util.find_spec('boto3') is None, 'boto3 not installed here (it is in requirements.txt)')
+# Skippable ONLY outside CI: both CI jobs install requirements-production.txt (boto3==1.43.94), and a skip there would
+# leave the S3 write guard untested without anyone noticing (founder 2026-10-20 22:07). In GitHub Actions a missing
+# boto3 is an error, not a skip.
+@unittest.skipIf(importlib.util.find_spec('boto3') is None and not os.environ.get('GITHUB_ACTIONS'),
+                 'boto3 not installed here (local only; never skipped in CI)')
 class TheS3GuardRefusesWritesOnARealClient(unittest.TestCase):
     def test_put_and_delete_are_refused_before_any_request(self):
         import boto3
