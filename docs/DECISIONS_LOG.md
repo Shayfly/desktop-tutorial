@@ -153,3 +153,14 @@
 
 - ‏exit=42, שוחזר עם docker מזויף: config_error OLD=1 / NEW=42; ‏missing_worker 1/1; ‏missing_intake 1/1; ‏ok 0/0. ב-OLD, ‏pipefail מחזיר את ה-1 של grep ומסתיר את קוד היציאה של docker. ב-NEW, הקוד של docker עובר כמו שהוא. בשני המקרים הצעד נכשל.
 - ‏gpt-6-luna: לפי התיעוד של OpenAI, ‏structured_outputs נתמך ב-`v1/chat/completions` (וגם `response_format: json_schema` עם `strict`). לא נשלחה קריאה, ולא שיניתי דבר.
+
+### 2026-10-20 17:49 — מיזוג #84, ניתוב luna (#86)
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py` + טסט + רג'יסטרים | **מוזג**. מאט סגר את תנאי א על ה-head הזה (תגובה ב-PR, 10:12Z). CI על main ירוק | `6f78119` | מאט (תנאי א) + מייסד 17:49 |
+| #86 | `74b2ca3` | `omni_prod/intelligence/{task_policy,inventory,matrix}.py`, ‏`PROVIDER_MATRIX.*`, 2 טסטים | CI ירוק. **לא מוזג**: תנאי א | — | ממתין למאט |
+| #82 | `1bded16` | `.github/workflows/intake-budget-pg.yml` | מאט סגר. ממתין, לפי הוראת המייסד ("אחרי המשחררים") | — | — |
+
+- ה-allowlist של cost class light הוא לפי מחיר בלבד: `omni_prod/pricing.py:228-231` (LIGHT <= $1.50/M output), והוא מופעל ב-`omni_prod/routed_gateway.py:129-138`. שני המודלים שהוא מכניס נמצאים מתחת לרף של codegen (85), ולכן `ranked_routes` בחר את הזול מביניהם, luna.
+- החלטה: ‏`deny_models` ב-`task_policy`. ‏gpt-6-luna לא משמש ל-codegen, ל-repair ול-modification, באף cost class.
