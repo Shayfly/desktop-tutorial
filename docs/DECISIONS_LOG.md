@@ -164,3 +164,13 @@
 
 - ה-allowlist של cost class light הוא לפי מחיר בלבד: `omni_prod/pricing.py:228-231` (LIGHT <= $1.50/M output), והוא מופעל ב-`omni_prod/routed_gateway.py:129-138`. שני המודלים שהוא מכניס נמצאים מתחת לרף של codegen (85), ולכן `ranked_routes` בחר את הזול מביניהם, luna.
 - החלטה: ‏`deny_models` ב-`task_policy`. ‏gpt-6-luna לא משמש ל-codegen, ל-repair ול-modification, באף cost class.
+
+### 2026-10-20 18:36 — מיזוג #75, ‏#85 (reproduction), מונה ה-CSS (#87)
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #75 | `3b7bdf2` | `.github/workflows/deploy-worker.yml`, טסט | **מוזג**. ה-PR היה עדיין draft (405), סומן ready ואז מוזג. מאט סגר את תנאי א ופסק על exit=42 (ACCEPTED), ‏14:52Z. CI על main ירוק | `3b9fbad` | מאט + מייסד 18:36 |
+| #85 | `65cd729` | + `tests/test_preflight_propagation_real_behaviour.py` (SHA-256 `77173ab2…28c3`) | CI ירוק. reproduction של BASE מול HEAD פורסם ב-PR (comment 6294778479). **לא מוזג**: ה-HOLD של מאט עדיין פתוח | — | ממתין למאט |
+| #87 | `e1a9864` | `omni_prod/skills_runtime.py` (`css_declaration_count`), טסטים, רג'יסטרים | CI ירוק, אחרי הרצה חוזרת אחת של `pg` (118724171626 → 118730212315). **לא מוזג**: תנאי א | — | ממתין למאט |
+
+- החלטה ב-review: מתקנים את המונה. הסף 40, ה-tokens וה-`@media` נשארים חוסמים, תחת המכסה הקיימת (2 סבבים, ואז אזהרה).
