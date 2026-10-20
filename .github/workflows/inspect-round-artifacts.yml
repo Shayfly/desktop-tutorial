@@ -1,0 +1,180 @@
+name: Inspect round artifacts (read-only)
+
+# Founder 2026-10-20 21:24: the repair rounds of a build are stored in object storage (R2) as
+# build-rounds/<build_id>/<NN>-<sha12>.zip (worker_tasks.install_round_snapshots), but nothing outside the worker
+# could read them, so questions about the real HTML/CSS/app of a round were answered by guessing.
+#
+# READ-ONLY: reads build_jobs.evidence_json->round_snapshots, GETs each zip from the artifact bucket through the RUNNING
+# worker image with its own .env (the same credentials the storage-probe uses), verifies the bytes and the repository
+# checksum, and prints the files as annotations (job logs are not readable from the review sessions). It never writes
+# to the bucket or the database, never stops, starts or execs into a container, and never runs the product's code.
+# Provider-key-shaped strings are redacted before anything is printed.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "bld_<32 hex>"
+        required: true
+      rounds:
+        description: "round indexes to print, comma separated, or 'all'"
+        required: false
+        default: "all"
+      files:
+        description: "which files to print in full: 'front' (*.html *.htm *.css *.js + app.py) or 'all' text files"
+        required: false
+        default: "front"
+
+concurrency:
+  group: inspect-round-artifacts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    # GitHub keeps at most 10 annotations per level per step (and a bounded number per job): each matrix slice
+    # re-reads the same zips and prints its own 50 (5 steps x 10), so up to 200 annotations of 3500 characters.
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        slice: [0, 1, 2, 3]
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: Read the round zips (no writes)
+        env:
+          BID: ${{ inputs.build_id }}
+          ROUNDS: ${{ inputs.rounds }}
+          FILES: ${{ inputs.files }}
+        run: |
+          set -euo pipefail
+          [[ "$BID" =~ ^bld_[0-9a-f]{32}$ ]] || { echo "::error title=input::build_id must be bld_<32 hex>"; exit 1; }
+          [[ "$ROUNDS" =~ ^(all|[0-9]{1,2}(,[0-9]{1,2})*)$ ]] || { echo "::error title=input::rounds must be 'all' or 0,1,2"; exit 1; }
+          [[ "$FILES" =~ ^(front|all)$ ]] || { echo "::error title=input::files must be front or all"; exit 1; }
+          IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")
+          OUT="$RUNNER_TEMP/rounds"; rm -rf "$OUT"; mkdir -p "$OUT" && chmod 777 "$OUT"
+          docker run --rm -i --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+            -e BID="$BID" -e ROUNDS="$ROUNDS" -e FILES="$FILES" -v "$OUT:/out" "$IMG" python - <<'PY'
+          import hashlib, io, json, os, re, zipfile
+          from omni_prod.investor_app import _v28_pool
+          from omni_prod.evidence_export import _default_store
+          from omni_prod.workspace import _checksum
+          bid, files_mode = os.environ["BID"], os.environ["FILES"]
+          want = None if os.environ["ROUNDS"] == "all" else {int(x) for x in os.environ["ROUNDS"].split(",")}
+          SECRET = re.compile(r"(AIza|sk-ant-|sk-|r8_|ghp_|github_pat_)[0-9A-Za-z_-]{16,}")
+          FRONT = (".html", ".htm", ".css", ".js")
+          notes = []
+          def note(title, msg):
+              notes.append((title, SECRET.sub("[redacted]", str(msg))))
+          with _v28_pool.connection() as c:
+              row = c.execute("SELECT status, evidence_json->'round_snapshots' FROM build_jobs WHERE id = %s", (bid,)).fetchone()
+          if row is None:
+              note("rounds", f"no build {bid}")
+          snaps = (row[1] or []) if row else []
+          note("rounds", json.dumps({"build": bid, "status": row[0] if row else None,
+                                     "snapshots": [{k: s.get(k) for k in ("round", "decision", "failing", "key", "sha256")} for s in snaps]}))
+          store = _default_store(os.environ)
+          if store is None:
+              note("rounds", "no object store configured on the worker (.env has no OMNI_S3_*)")
+          for s in snaps:
+              idx, key = s.get("round"), s.get("key")
+              if want is not None and idx not in want:
+                  continue
+              if not key or store is None:
+                  note(f"round {idx}", f"no key stored for this round: {s}")
+                  continue
+              try:
+                  resp = store.client.get_object(Bucket=store.bucket, Key=key)
+                  data = resp["Body"].read()
+                  meta = (resp.get("Metadata") or {}).get("sha256")
+                  with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                      repo = {n: zf.read(n).decode("utf-8", errors="replace") for n in zf.namelist()}
+              except Exception as exc:
+                  note(f"round {idx}", f"GET {key} failed: {type(exc).__name__}: {str(exc)[:300]}")
+                  continue
+              digest = hashlib.sha256(data).hexdigest()
+              note(f"round {idx} manifest", json.dumps({
+                  "key": key, "decision": s.get("decision"), "failing": s.get("failing"),
+                  "zip_bytes": len(data), "zip_sha256": digest, "metadata_sha256_matches": meta == digest,
+                  "repository_sha256_recorded": s.get("sha256"), "repository_sha256_recomputed": _checksum(repo),
+                  "files": {n: len(t) for n, t in sorted(repo.items())}}, ensure_ascii=False))
+              chosen = [n for n in sorted(repo) if files_mode == "all" or n.lower().endswith(FRONT) or n == "app.py"]
+              for n in chosen:
+                  text, size = repo[n], 3500
+                  chunks = [text[i:i + size] for i in range(0, len(text), size)] or [""]
+                  for i, chunk in enumerate(chunks, 1):
+                      note(f"round {idx} {n} [{i}/{len(chunks)}]", chunk)
+          # 10 annotations per level per step: write them in groups the next steps print
+          for g in range(0, len(notes), 10):
+              with open(f"/out/{g // 10:03d}.jsonl", "w", encoding="utf-8") as fh:
+                  for t, m in notes[g:g + 10]:
+                      fh.write(json.dumps([t, m], ensure_ascii=False) + "\n")
+          print(f"prepared {len(notes)} annotations in {(len(notes) + 9) // 10} groups")
+          if len(notes) > 200:
+              print(f"::warning title=truncated::{len(notes)} annotations prepared, only 200 are printed; narrow rounds or files")
+          PY
+          [ "${{ matrix.slice }}" = 0 ] && ls "$OUT" | wc -l | xargs -I{} echo "::notice title=groups::{} annotation groups prepared (slice k prints groups 5k..5k+4)" || true
+
+      - name: Print part 0
+        env: {PART: "0"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Print part 1
+        env: {PART: "1"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Print part 2
+        env: {PART: "2"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Print part 3
+        env: {PART: "3"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Print part 4
+        env: {PART: "4"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Clean up
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/rounds"
