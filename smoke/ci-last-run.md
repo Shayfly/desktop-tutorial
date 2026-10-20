@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-20T16:02:27Z)
+# v24-ci — last main run (2026-10-20T18:06:14Z)
 
-- commit: `1f3eb8a88e46f6d98894612c87e0d6d414764aca`
-- run_id: [39453008012](https://github.com/Shayfly/desktop-tutorial/actions/runs/39453008012) (attempt 1)
+- commit: `a00e8036be23a190bc397955595aa29fa89ddcac`
+- run_id: [39471079092](https://github.com/Shayfly/desktop-tutorial/actions/runs/39471079092) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1852 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1859 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -149,6 +149,7 @@
 | `test_overlay` | PASS | 4 | 0 | 0 |
 | `test_plan_driven_execution` | PASS | 13 | 0 | 14 |
 | `test_plan_repair_budget` | PASS | 5 | 0 | 0 |
+| `test_preflight_propagation_real_behaviour` | PASS | 2 | 0 | 0 |
 | `test_preview_access` | PASS | 0 | 0 | 5 |
 | `test_preview_data_durability` | PASS | 9 | 0 | 0 |
 | `test_preview_router` | PASS | 4 | 0 | 0 |
@@ -175,7 +176,7 @@
 | `test_replicate_image_test` | PASS | 8 | 0 | 0 |
 | `test_requirement_ledger` | PASS | 7 | 0 | 0 |
 | `test_reservation_worker_sigterm` | PASS | 2 | 0 | 0 |
-| `test_round_preflight` | PASS | 12 | 0 | 0 |
+| `test_round_preflight` | PASS | 17 | 0 | 0 |
 | `test_sandbox_callers_real_policy` | PASS | 5 | 0 | 0 |
 | `test_sandbox_cleanup` | PASS | 4 | 0 | 0 |
 | `test_sandbox_runner_health` | PASS | 8 | 0 | 0 |
