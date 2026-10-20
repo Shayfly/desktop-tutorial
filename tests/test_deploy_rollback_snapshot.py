@@ -217,4 +217,3 @@ class ScopeCheckIsNotRacyTests(unittest.TestCase):
         code = '\n'.join(l for l in step['run'].splitlines() if not l.lstrip().startswith('#'))
         self.assertIsNone(re.search(r'docker[^\n|]*\|\s*grep -q', code), code)
         self.assertIn('services=$(docker compose config --services)', code)
-
