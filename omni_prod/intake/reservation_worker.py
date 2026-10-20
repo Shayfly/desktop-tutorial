@@ -46,10 +46,9 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...]):
     # model_runtime_config.py:37-38 reads them. It used to hard-code zero_cost_mode=False / allow_external_fallback=True,
     # so OMNI_ZERO_COST_MODE=1 stopped every build call and let every intake call through. Refusing HERE means no
     # gateway, so execute_reservation releases the reservation before mark_executing and before any provider contact.
-    from ..model_policy import ModelPolicyViolation
-    if os.getenv('OMNI_ZERO_COST_MODE', '1') == '1' or os.getenv('OMNI_ALLOW_EXTERNAL_FALLBACK', '0') != '1':
-        raise ModelPolicyViolation('external model spend disabled on this worker (OMNI_ZERO_COST_MODE=1 or '
-                                   'OMNI_ALLOW_EXTERNAL_FALLBACK!=1)')
+    from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+    if not external_spend_enabled():
+        raise ModelPolicyViolation(SPEND_DISABLED)
     cfg = ModelRuntimeConfig.from_env()
     ranked = tuple(m for m in cfg.catalog if m.option.model in models)
     policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True, external_budget_usd=quoted_usd,

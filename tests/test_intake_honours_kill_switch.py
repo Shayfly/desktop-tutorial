@@ -108,3 +108,33 @@ class ExecuteReservationReleasesBeforeAnyContact(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReplicateImageTestHonoursTheSwitches(unittest.TestCase):
+    """C32 scope: the Replicate image test (investor_app.py v28_replicate_image_test_start) spends money outside the
+    build path and honoured no switch."""
+
+    def service(self, env_extra, calls):
+        from omni_prod.providers.image_provider import MemorySubmissionJournal
+        from omni_prod.providers.replicate_image_test import ReplicateImageTest
+
+        def transport(req, timeout=None):
+            calls.append(req.full_url)
+            raise AssertionError('the provider must not be contacted')
+        return ReplicateImageTest(env={'REPLICATE_API_TOKEN': 'test-only', **env_extra},
+                                  journal=MemorySubmissionJournal(), store=None, urlopen=transport)
+
+    def test_switch_off_refuses_before_any_request(self):
+        for extra in ({}, {'OMNI_ZERO_COST_MODE': '1', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'},
+                      {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '0'}):
+            calls = []
+            with self.assertRaises(ModelPolicyViolation):
+                self.service(extra, calls).start('acct', confirmed=True)
+            self.assertEqual(calls, [], extra)
+
+    def test_switch_on_reaches_the_provider(self):
+        calls = []
+        with self.assertRaises(Exception) as cm:                 # the stub transport refuses, after being contacted
+            self.service({'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'}, calls).start('acct', confirmed=True)
+        self.assertNotIsInstance(cm.exception, ModelPolicyViolation)
+        self.assertEqual(len(calls), 1)

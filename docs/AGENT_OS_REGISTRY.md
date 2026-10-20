@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 46, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 81, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 45, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -316,7 +316,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 28, INTEGRATION
 | `unused_reservation_release` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/subscription_store.py |  |
 | `margin_calculation` | Economics | **UNIT_TESTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/economics_report.py | margin UNKNOWN until revenue exists; costs from the ledger |
 | `cost_anomaly_detection` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
-| `budget_guard` | Economics | **REAL_SERVER_VERIFIED** | cost_economics_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds;  | ceiling bound to the reservation |
+| `budget_guard` | Economics | **IMPLEMENTED** | cost_economics_agent | real-server evidence is stale; code changed since: omni_prod/model_policy.py | ceiling bound to the reservation |
 | `budget_escalation` | Economics | **NOT_IMPLEMENTED** | cost_economics_agent | no implementation | not implemented |
 | `reconciliation` | Economics | **UNIT_TESTED** | cost_economics_agent | unit tests only | QA ledger |
 | `worker_health_check` | Infrastructure | **IMPLEMENTED** | infrastructure_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |

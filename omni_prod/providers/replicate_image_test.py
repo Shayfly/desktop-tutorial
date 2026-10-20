@@ -55,6 +55,7 @@ class ReplicateImageTest:
             journal=journal, urlopen=urlopen, fetcher=fetcher)
         self.journal = journal
         self.store = store
+        self.env = env
 
     def key(self, account_id):
         return PREFIX + hashlib.sha256(str(account_id).encode()).hexdigest()
@@ -85,6 +86,10 @@ class ReplicateImageTest:
             raise ValueError('Confirm one image at a maximum provider price of $0.003')
         if self.provider is None:
             raise ValueError('REPLICATE_API_TOKEN is missing')
+        # C32 (2026-10-20): a paid call outside the build path must honour the kill switches too.
+        from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+        if not external_spend_enabled(self.env):
+            raise ModelPolicyViolation(SPEND_DISABLED)
         requirement = CapabilityRequirement(id='replicate-test', key='media.image.generate',
             purpose='single image connection test', required=True, quantity=1, constraints={'prompt': PROMPT})
         handle = self.provider.submit(requirement, idempotency_key=self.key(account_id))
