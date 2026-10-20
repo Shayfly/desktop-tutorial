@@ -172,3 +172,38 @@ class ReviewerRouting(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CssDeclarationCountTests(unittest.TestCase):
+    """Paid run 39377332673: `prop: value;` only -> the last declaration of every minified block was dropped."""
+    BUILD_CSS = (':root{--primary:#1d4ed8;--primary-hover:#1e40af;--bg:#f6f7f9;--text:#333;--muted:#666;--white:#fff;'
+                 '--radius:12px;--shadow:0 4px 6px rgba(0,0,0,0.05)}body{font-family:Heebo,system-ui,sans-serif;'
+                 'background:var(--bg);color:var(--text)}.btn{padding:8px;border:0}')
+
+    def test_the_build_css_counts_13_not_10(self):
+        import re
+        from omni_prod.skills_runtime import css_declaration_count
+        self.assertEqual(len(re.findall(r'[a-z-]+\s*:\s*[^;{}]+;', self.BUILD_CSS)), 10)     # the old count
+        self.assertEqual(css_declaration_count(self.BUILD_CSS), 13)
+
+    def test_media_blocks_selectors_comments_and_data_urls(self):
+        from omni_prod.skills_runtime import css_declaration_count
+        css = ('/* a:b; c:d */ a:hover{color:red} @media (max-width:640px){main{padding:12px;margin:0}} '
+               'i{background:url(data:image/png;base64,AAA;BBB);width:1px;} p{}')
+        self.assertEqual(css_declaration_count(css), 5)    # color, padding, margin, background, width
+
+    def test_a_minified_design_system_is_no_longer_reported_as_the_browser_default(self):
+        rules = ''.join(f'.c{i}{{color:#111;background:#fff;padding:{i}px;border-radius:8px}}' for i in range(10))
+        page = ('<html lang="he" dir="rtl"><head><style>:root{--p:#0f766e}' + rules
+                + '@media (max-width:640px){main{padding:12px}}</style></head><body></body></html>')
+        found = [f for f in static_findings({'index.html': page}, {'request': 'אתר'}) if f.skill == 'skill.visual_design']
+        self.assertEqual(found, [])                         # 41 declarations; the old count saw 30 and blocked
+
+    def test_media_is_still_required(self):
+        rules = ''.join(f'.c{i}{{color:#111;background:#fff;padding:{i}px;border-radius:8px}}' for i in range(12))
+        page = '<html lang="he" dir="rtl"><head><style>:root{--p:#0f766e}' + rules + '</style></head><body></body></html>'
+        found = [f for f in static_findings({'index.html': page}, {'request': 'אתר'}) if f.skill == 'skill.visual_design']
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0].severity, 'blocking')
+        self.assertIn('no responsive rule (@media) for phones', found[0].problem)
+        self.assertNotIn('CSS declarations', found[0].problem)
