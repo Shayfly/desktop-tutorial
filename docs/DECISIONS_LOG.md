@@ -129,3 +129,9 @@
 | #83 | `3535a0f` | `omni_prod/postdeploy_checks.py`, `tests/test_postdeploy_r2_artifact.py` | **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | — | ממתין למאט |
 
 **תקציב QA (spend-audit, run 39375470852, $0):** ‏`qa_used_usd` ‏(`omni_prod/qa_budget.py:102-121`), נבדק ב-`authorize_qa_build` ‏(`:181-183`) מול `OMNI_QA_BUDGET_TOTAL_USD=10`: ‏used=5.26698025 (all-time). ‏`settled_provider_cost_usd` של 34 בנייות: 12.311130.
+
+### 2026-10-20 08:46 — אפשרות (ג): E2E בתשלום בלי R2
+
+- ה-worker הפרוס היה `4b019d8`, מאחור לעומת main: 215 שורות ב-`omni_prod`. ‏`pg` על `6781b9d` רץ שוב פעם אחת (118473633457 → 118476560774, success). ‏deploy-worker רץ על `4d488b4`, ‏run 39377073605: success, כל ה-probes עברו (PASS).
+- ‏postdeploy-checks, ‏stage=paid, ‏max_usd=0.50, ‏run 39377332673 על `4d488b4`: **FAIL**. הבנייה `bld_65ee693e356847d89ab50300415d6861` עצרה ב-verification_failed אחרי 3 סבבי תיקון (max_repair_rounds). אין גרסה, אין preview, ו-R2 לא רלוונטי. העלות: $0.04756005 (metered = settled; שוריינו 0.35). לא היה כשל תחביר בסבב 0, ולכן לא הייתה הרצה שנייה. ‏inspect-build: ‏run 39378559811, ‏$0.
+- ממצא, לא תוקן: `omni_prod/web_saas_acceptance.py:396-398` מבצע `str(step['expect_text_contains'])`. כשהשלב מכיל רשימה, הבדיקה מחפשת את המחרוזת `"['viewport', 'width=device-width']"`, שלא קיימת. ה-HTML של הבנייה מכיל `<meta name="viewport" content="width=device-width, ...">`, כך שבסבבים 1–3 BEHAVIOR/A5 נכשל כנראה כשל שווא.
