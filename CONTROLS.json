@@ -1,0 +1,583 @@
+{
+ "schema": "controls/1",
+ "source": "v3 + C31, approved; Venice (VP) to Venice (CEO), 2026-10-20",
+ "types": {
+  "canary": "CI",
+  "drill": "production, scheduled",
+  "assertion": "config check"
+ },
+ "enforcement": {
+  "automatic": "CI derives the layers programmatically",
+  "review": "a PR touching a control without its row is rejected"
+ },
+ "split": "C01-C08 automatic; all others review",
+ "count_note": "v3 says \"8 of 31 self-enforcing, 23 on the review rule\"; the register lists 30 controls (C01-C29, C31): C30 is \"not a control, a first step\" (v3 line 70). Actual: 8 automatic, 22 review.",
+ "c30": {
+  "date": "2026-10-20",
+  "by": "Claude",
+  "scope": [
+   "C07",
+   "C08",
+   "C14",
+   "C19",
+   "C23",
+   "C24",
+   "C25",
+   "C26",
+   "C27"
+  ],
+  "note": "per-control result in controls[].c30; the paths of controls not flagged in v3 are as v3 wrote them and were not verified here"
+ },
+ "kill_switches_found": [
+  {
+   "name": "OMNI_ZERO_COST_MODE",
+   "read": "omni_prod/model_runtime_config.py:37",
+   "enforced": "omni_prod/model_policy.py:39",
+   "default": "1 (blocked)",
+   "stops": "external model calls of builds",
+   "not_for": "intake (omni_prod/intake/reservation_worker.py:47)"
+  },
+  {
+   "name": "OMNI_ALLOW_EXTERNAL_FALLBACK",
+   "read": "omni_prod/model_runtime_config.py:38",
+   "enforced": "omni_prod/model_policy.py:39",
+   "default": "0 (blocked)",
+   "stops": "external model calls of builds",
+   "not_for": "intake (omni_prod/intake/reservation_worker.py:47)"
+  },
+  {
+   "name": "OMNI_INTAKE_MODEL",
+   "read": "omni_prod/intake/reservation_worker.py:136; omni_prod/intake/mode.py:66; omni_prod/intake/interpreter.py:344; omni_prod/investor_app.py:1969",
+   "default": "0 (infra/worker-host/docker-compose.yml:93)",
+   "stops": "the intake model"
+  }
+ ],
+ "not_kill_switches": [
+  {
+   "name": "OMNI_ENABLE_LIVE_BUILD",
+   "why": "hard-coded \"1\" at infra/worker-host/docker-compose.yml:66; .env cannot turn it off"
+  },
+  {
+   "name": "OMNI_EXTERNAL_BUDGET_USD",
+   "why": "raised to the class reservation by bind_budget (omni_prod/routed_gateway.py:149-156)"
+  }
+ ],
+ "global_stop_switch": null,
+ "meta_canary": {
+  "file": "tools/canary_meta.py",
+  "how": "dedicated CI job: break a control on purpose and require the suite to fail",
+  "enforcement": "review"
+ },
+ "incidents": [
+  {
+   "id": "I01",
+   "what": "budget drift: counter 5.27 vs settled 12.31",
+   "file": "omni_prod/qa_budget.py",
+   "owner": "Claude",
+   "when": "now",
+   "question": "against what is the budget enforced, and is the reservation blocked"
+  }
+ ],
+ "governance": {
+  "review": "quarterly, owner CEO",
+  "retirement": "a control that no longer exists is deleted",
+  "agents_md_rule": [
+   "a control without a canary is not a control",
+   "a control without a scheduled drill is a dead control"
+  ]
+ },
+ "controls": [
+  {
+   "id": "C10",
+   "control": "rollback",
+   "file_v3": ".github/workflows/deploy-worker.yml",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "quarterly",
+   "failure_image": "deploy known SHA -> deploy a second -> rollback -> verify (probes + live build) -> back to main; mine: a rollback before 038 needs DROP TABLE + DELETE from schema_migrations; stop if migrate does not behave as documented",
+   "enforcement": "review",
+   "group": "b0",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C20",
+   "control": "evidence tool: a failed download fails",
+   "file_v3": ".github/workflows/inspect-round-artifacts.yml",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "wrong R2 address",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C21",
+   "control": "a step exit code propagates failure",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a command returning 1 in a pipe",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C22",
+   "control": "publish runs even when a step failed",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step failing before publish",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C23",
+   "control": "pre-flight on secret lengths",
+   "file_v3": "write-env.sh",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a secret of the wrong length",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS_NON_BLOCKING",
+    "paths": [
+     "infra/worker-host/write-env.sh:120",
+     "infra/worker-host/write-env.sh:133",
+     "infra/worker-host/write-env.sh:135",
+     "infra/worker-host/write-env.sh:136"
+    ],
+    "notes": "Length checks exist only for the R2 keys (OMNI_S3_ACCESS_KEY 32, OMNI_S3_SECRET_KEY 64) and are ::warning, they do not fail (\"The storage probe decides\"). Blocking shape checks for every variable: spaces :109, quotes :112, non-ASCII :115, exit :141."
+   }
+  },
+  {
+   "id": "C24",
+   "control": "taxonomy is written on failure too",
+   "file_v3": "taxonomy writer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build that fails early",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "REHEARSAL_ONLY",
+    "paths": [
+     "omni_prod/rehearsal.py:62",
+     "omni_prod/autonomous_core.py:279",
+     ".github/workflows/golden-rehearsal.yml:102",
+     ".github/workflows/golden-rehearsal.yml:104",
+     ".github/workflows/golden-rehearsal.yml:125",
+     ".github/workflows/golden-rehearsal.yml:130"
+    ],
+    "notes": "Only on the rehearsal path. rehearsal.py:62 writes it after engine.build even when build raised, but the taxonomy is computed only at the end of build() (autonomous_core.py:279): a build that raises early yields [] and the rounds before the exception are lost. publish-taxonomy runs if: always() and records no_artifact. Live builds (worker_tasks.py) write no taxonomy: does not exist there."
+   }
+  },
+  {
+   "id": "C25",
+   "control": "validate_command rejects \\n",
+   "file_v3": "the validator",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a command with a newline",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/sandbox_request_policy.py:79",
+     "omni_prod/sandbox_request_policy.py:80",
+     "omni_prod/remote_sandbox.py:41",
+     "omni_prod/sandbox_service.py:67"
+    ],
+    "notes": "Rejected on both sides: the client before sending (remote_sandbox.py:41) and the runner on receipt (sandbox_service.py:67). Real-boundary test: tests/test_sandbox_callers_real_policy.py."
+   }
+  },
+  {
+   "id": "C26",
+   "control": "tenant isolation",
+   "file_v3": "the preview layer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "two tenants on one resource",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/preview_access.py:109",
+     "omni_prod/preview_access.py:123",
+     "omni_prod/preview_router.py:146",
+     "omni_prod/preview_runtime.py:403",
+     "omni_prod/preview_durability.py:101",
+     "omni_prod/preview_durability.py:104"
+    ],
+    "notes": "Access: a token is valid only for its own preview_id (SQL :123), enforced by the router (:146). Data: a per-project data dir (preview_runtime.py:403); the deploy probe preview-data checks another project sees 0 (preview_durability.py:101-104, PASS in deploy 39472683855)."
+   }
+  },
+  {
+   "id": "C27",
+   "control": "no secret in logs",
+   "file_v3": "the redaction layer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "printing a secret variable",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "NO_SINGLE_LAYER",
+    "paths": [
+     "omni_prod/secret_redaction.py:10",
+     "omni_prod/secret_redaction.py:7",
+     "omni_prod/evidence_export.py:40",
+     ".github/workflows/build-evidence.yml:54",
+     ".github/workflows/postdeploy-checks.yml:95"
+    ],
+    "notes": "No redaction layer exists: no logging filter in omni_prod; separate redactors at the listed points. secret_redaction.redact (used by structured_event, acceptance_pipeline, training_data) does not match Google keys (AIza...): _GENERIC_KEY (:7) covers only sk-/pk-/rk-."
+   }
+  },
+  {
+   "id": "C01",
+   "control": "pass/fail derivation of the group",
+   "file_v3": "omni_prod/verification_group.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a layer returning failure",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C02",
+   "control": "expect_text_contains on a list",
+   "file_v3": "omni_prod/web_saas_acceptance.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "missing text",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C03",
+   "control": "the preview check",
+   "file_v3": "omni_prod/preview_smoke.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "stub page",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C04",
+   "control": "plan validator",
+   "file_v3": "omni_prod/web_saas_acceptance.py:_validate_plan",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step without acceptance_ids",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C05",
+   "control": "plan against code",
+   "file_v3": "omni_prod/consistency_gate.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "plan with create, code without a form",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C06",
+   "control": "latin-1 in the status line",
+   "file_v3": "omni_prod/consistency_gate.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "send_error with Hebrew",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C07",
+   "control": "the threshold gate",
+   "file_v3": "the build chain",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a failing build",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/investor_app.py:716",
+     "omni_prod/investor_app.py:719",
+     "omni_prod/investor_app.py:722",
+     "omni_prod/verification_group.py:80",
+     "omni_prod/verification_group.py:82"
+    ],
+    "notes": "threshold = ConsistencyGate (:716-717) -> DependencyGate (:719) -> sandbox; the group runs it first and returns its failure without running preview/behaviour/browser/visual/review (verification_group.py:80-82). Test: tests/test_verification_group.py::test_10_a_build_failure_does_not_run_the_group."
+   }
+  },
+  {
+   "id": "C08",
+   "control": "sandbox build/verify",
+   "file_v3": "sandbox execution",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a syntax error",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/remote_sandbox.py:65",
+     "omni_prod/remote_sandbox.py:73",
+     "omni_prod/remote_sandbox.py:77",
+     "omni_prod/sandbox_executor.py:46",
+     "omni_prod/investor_app.py:705"
+    ],
+    "notes": "Production: RemoteSandboxRepositoryExecutor.execute (:65; build commands :73-76, verify :77-) when OMNI_SANDBOX_RUNNER_URL is set (investor_app.py:705-708); the local Docker SandboxRepositoryExecutor (sandbox_executor.py:46) only without it. A syntax error is caught earlier, by the consistency gate."
+   }
+  },
+  {
+   "id": "C09",
+   "control": "R2 artifact check",
+   "file_v3": "omni_prod/postdeploy_checks.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "missing artifact or mismatched SHA",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C11",
+   "control": "drain refuses without a verified rollback",
+   "file_v3": ".github/workflows/deploy-worker.yml",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "unverified rollback",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C12",
+   "control": "the budget guard refuses",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build above the cap",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C13",
+   "control": "the counter counts correctly",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "known sum -> exact count",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C14",
+   "control": "cost is written for every build",
+   "file_v3": "the cost writer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build that produces a cost row",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/worker_tasks.py:335",
+     "omni_prod/worker_tasks.py:821",
+     "omni_prod/worker_tasks.py:844",
+     "omni_prod/worker_tasks.py:869",
+     "omni_prod/worker_tasks.py:893",
+     "omni_prod/worker_tasks.py:920",
+     "omni_prod/subscription_store.py:378",
+     "omni_prod/attempt_ledger.py:271"
+    ],
+    "notes": "Per build: resolve_billing (:335) at the 5 build exits found (821, 844, 869, 893, 920; modifications 1182, 1193) -> settle -> UPDATE credit_reservations (subscription_store.py:378). Per call: INSERT task_attempts (attempt_ledger.py:271). Not verified: a path that raises before these exits."
+   }
+  },
+  {
+   "id": "C15",
+   "control": "no evidence -> charged",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build without FREE_TIER_EVIDENCE",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C16",
+   "control": "main protection blocks a merge on red",
+   "file_v3": "GitHub settings",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "owner (admin)",
+   "frequency": "every CI",
+   "failure_image": "merge while a check is red",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C17",
+   "control": "backup is created and restored",
+   "file_v3": "backup scheduler",
+   "type": "drill",
+   "owner": "CEO",
+   "executor": "Claude",
+   "frequency": "weekly",
+   "failure_image": "restore into an empty DB",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C18",
+   "control": "the alert fires",
+   "file_v3": "",
+   "type": "drill",
+   "owner": "CEO",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "kill the worker container; queued builds stop; recovery under 2 min; tested: the alert arrives, not that the system recovers",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C19",
+   "control": "kill switch",
+   "file_v3": "OMNI_ZERO_COST_MODE",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "turn it on and watch",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": true,
+   "c30": {
+    "status": "EXISTS_NOT_FOR_INTAKE",
+    "paths": [
+     "omni_prod/model_runtime_config.py:37",
+     "omni_prod/model_policy.py:39",
+     "omni_prod/readiness.py:30",
+     "omni_prod/intake/reservation_worker.py:47",
+     "omni_prod/intake/reservation_worker.py:136"
+    ],
+    "notes": "Read at model_runtime_config.py:37 (default 1 = blocked), enforced before every external build call (model_policy.py:39). Does NOT apply to intake: reservation_worker.py:47 builds a policy with zero_cost_mode=False, allow_external_fallback=True regardless of the env. Shown 2026-10-20: with ZERO_COST=1 and ALLOW_EXTERNAL=0 the build call is blocked (ModelPolicyViolation) and the intake call is authorized. Intake stops only with OMNI_INTAKE_MODEL != 1 (reservation_worker.py:136)."
+   }
+  },
+  {
+   "id": "C28",
+   "control": "editing a secret does not delete other keys",
+   "file_v3": "WORKER_ENV_OVERRIDES",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "an edit adding a key -> all others present",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C29",
+   "control": "every long step has a timeout",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step over N seconds without timeout-minutes",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  },
+  {
+   "id": "C31",
+   "control": "enforcement of the registry itself",
+   "file_v3": "tools/registry_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "remove a canary row from a registered control -> red; no overdue drill",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false
+  }
+ ]
+}
