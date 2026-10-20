@@ -11,8 +11,11 @@
   "review": "a PR touching a control without its row is rejected"
  },
  "split": "C01-C08 automatic; all others review",
- "count_note": "v3 says \"8 of 31 self-enforcing, 23 on the review rule\"; the register lists 30 controls (C01-C29, C31): C30 is \"not a control, a first step\" (v3 line 70). Actual: 8 automatic, 22 review.",
- "c30": {
+ "count_note": "v3 as written: 30 controls (C01-C29, C31), 8 of 30 automatic -- C30 is S01, a step, not a control. With C32 (founder 2026-10-20): 31 controls, 8 automatic, 23 review.",
+ "canary_definition": "a canary proves the control BLOCKS: it injects the failure image and requires the suite to go red; a path that exists is not evidence (S01, 2026-10-20). The 21 rows S01 did not check are verified by their canaries, not separately.",
+ "s01": {
+  "alias": "C30",
+  "what": "path verification step (not a control, not counted)",
   "date": "2026-10-20",
   "by": "Claude",
   "scope": [
@@ -26,7 +29,7 @@
    "C26",
    "C27"
   ],
-  "note": "per-control result in controls[].c30; the paths of controls not flagged in v3 are as v3 wrote them and were not verified here"
+  "note": "per-control result in controls[].s01; the other rows are verified by their canaries"
  },
  "kill_switches_found": [
   {
@@ -34,16 +37,14 @@
    "read": "omni_prod/model_runtime_config.py:37",
    "enforced": "omni_prod/model_policy.py:39",
    "default": "1 (blocked)",
-   "stops": "external model calls of builds",
-   "not_for": "intake (omni_prod/intake/reservation_worker.py:47)"
+   "stops": "external model calls of builds; with PR #93 also the intake and the Replicate image test (C32)"
   },
   {
    "name": "OMNI_ALLOW_EXTERNAL_FALLBACK",
    "read": "omni_prod/model_runtime_config.py:38",
    "enforced": "omni_prod/model_policy.py:39",
    "default": "0 (blocked)",
-   "stops": "external model calls of builds",
-   "not_for": "intake (omni_prod/intake/reservation_worker.py:47)"
+   "stops": "the same as OMNI_ZERO_COST_MODE; either one alone blocks"
   },
   {
    "name": "OMNI_INTAKE_MODEL",
@@ -98,7 +99,8 @@
    "failure_image": "deploy known SHA -> deploy a second -> rollback -> verify (probes + live build) -> back to main; mine: a rollback before 038 needs DROP TABLE + DELETE from schema_migrations; stop if migrate does not behave as documented",
    "enforcement": "review",
    "group": "b0",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C20",
@@ -111,7 +113,8 @@
    "failure_image": "wrong R2 address",
    "enforcement": "review",
    "group": "b1",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C21",
@@ -124,7 +127,8 @@
    "failure_image": "a command returning 1 in a pipe",
    "enforcement": "review",
    "group": "b1",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C22",
@@ -137,7 +141,8 @@
    "failure_image": "a step failing before publish",
    "enforcement": "review",
    "group": "b1",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C23",
@@ -151,7 +156,8 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS_NON_BLOCKING",
     "paths": [
      "infra/worker-host/write-env.sh:120",
@@ -174,7 +180,8 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "REHEARSAL_ONLY",
     "paths": [
      "omni_prod/rehearsal.py:62",
@@ -199,7 +206,8 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS",
     "paths": [
      "omni_prod/sandbox_request_policy.py:79",
@@ -222,7 +230,8 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS",
     "paths": [
      "omni_prod/preview_access.py:109",
@@ -247,7 +256,8 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "NO_SINGLE_LAYER",
     "paths": [
      "omni_prod/secret_redaction.py:10",
@@ -270,7 +280,8 @@
    "failure_image": "a layer returning failure",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C02",
@@ -283,7 +294,8 @@
    "failure_image": "missing text",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C03",
@@ -296,7 +308,8 @@
    "failure_image": "stub page",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C04",
@@ -309,7 +322,8 @@
    "failure_image": "a step without acceptance_ids",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C05",
@@ -322,7 +336,8 @@
    "failure_image": "plan with create, code without a form",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C06",
@@ -335,7 +350,8 @@
    "failure_image": "send_error with Hebrew",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C07",
@@ -349,7 +365,8 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS",
     "paths": [
      "omni_prod/investor_app.py:716",
@@ -373,7 +390,8 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS",
     "paths": [
      "omni_prod/remote_sandbox.py:65",
@@ -396,7 +414,8 @@
    "failure_image": "missing artifact or mismatched SHA",
    "enforcement": "review",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C11",
@@ -409,7 +428,8 @@
    "failure_image": "unverified rollback",
    "enforcement": "review",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C12",
@@ -422,7 +442,8 @@
    "failure_image": "a build above the cap",
    "enforcement": "review",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C13",
@@ -435,7 +456,8 @@
    "failure_image": "known sum -> exact count",
    "enforcement": "review",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C14",
@@ -449,7 +471,8 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS",
     "paths": [
      "omni_prod/worker_tasks.py:335",
@@ -475,7 +498,8 @@
    "failure_image": "a build without FREE_TIER_EVIDENCE",
    "enforcement": "review",
    "group": "b2",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C16",
@@ -488,7 +512,8 @@
    "failure_image": "merge while a check is red",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C17",
@@ -501,7 +526,8 @@
    "failure_image": "restore into an empty DB",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C18",
@@ -514,7 +540,8 @@
    "failure_image": "kill the worker container; queued builds stop; recovery under 2 min; tested: the alert arrives, not that the system recovers",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C19",
@@ -528,7 +555,8 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": true,
-   "c30": {
+   "canary": null,
+   "s01": {
     "status": "EXISTS_NOT_FOR_INTAKE",
     "paths": [
      "omni_prod/model_runtime_config.py:37",
@@ -551,7 +579,8 @@
    "failure_image": "an edit adding a key -> all others present",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   },
   {
    "id": "C29",
@@ -564,7 +593,33 @@
    "failure_image": "a step over N seconds without timeout-minutes",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
+  },
+  {
+   "id": "C32",
+   "control": "every paid external call honours the kill switch",
+   "file_v3": "omni_prod/model_policy.py:external_spend_enabled",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "switch off -> the call is refused before the provider is contacted",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": true,
+   "canary": null,
+   "s01": {
+    "status": "FIX_IN_PR_93",
+    "paths": [
+     "omni_prod/model_runtime_config.py:37",
+     "omni_prod/model_policy.py:39",
+     "omni_prod/intake/reservation_worker.py:47",
+     "omni_prod/providers/replicate_image_test.py:83",
+     "omni_prod/investor_app.py:767"
+    ],
+    "notes": "Scope map of paid external calls (2026-10-20): builds/QA/specialist review (investor_app.py:767-768, cfg.policy -> model_policy.py:39) honour it; the intake (reservation_worker.py:47) and the Replicate image test (replicate_image_test.py:83 -> image_provider.py submit) did NOT. PR #93 makes both ask model_policy.external_spend_enabled. Not live: image_provider.build_image_capability_stage has no production caller."
+   }
   },
   {
    "id": "C31",
@@ -577,7 +632,8 @@
    "failure_image": "remove a canary row from a registered control -> red; no overdue drill",
    "enforcement": "review",
    "group": "b3",
-   "path_flagged_in_v3": false
+   "path_flagged_in_v3": false,
+   "canary": null
   }
  ]
 }
