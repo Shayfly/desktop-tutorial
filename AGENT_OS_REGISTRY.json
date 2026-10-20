@@ -3621,13 +3621,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
-   "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
+    "postdeploy-checks verify-replay run 39307232830",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-19T19:05Z",
-   "last_verified_commit": "4b019d8"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "edge_case_test",
@@ -3844,13 +3846,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
-   "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
+    "postdeploy-checks verify-replay run 39307232830",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-19T19:05Z",
-   "last_verified_commit": "4b019d8"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "requirement_traceability_test",
@@ -3862,13 +3866,15 @@
    ],
    "gap": "acceptance IDs -> steps",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
-   "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py",
+   "evidence": [],
+   "stale_evidence": [
+    "postdeploy-checks verify-replay run 39307232830",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
-   "last_verified_at": "2026-10-19T19:05Z",
-   "last_verified_commit": "4b019d8"
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "browser_launch",
@@ -7646,10 +7652,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 77,
+   "IMPLEMENTED": 80,
    "UNIT_TESTED": 28,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 49,
+   "REAL_SERVER_VERIFIED": 46,
    "LIVE": 0,
    "BLOCKED": 9
   }

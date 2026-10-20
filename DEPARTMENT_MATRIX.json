@@ -326,9 +326,9 @@
     "system_test_orchestrator": "UNIT_TESTED"
    },
    "skills": {
-    "IMPLEMENTED": 10,
+    "IMPLEMENTED": 13,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 13,
+    "REAL_SERVER_VERIFIED": 10,
     "UNIT_TESTED": 6
    },
    "missing_roles": [],

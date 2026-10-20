@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 77, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 49, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 46, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -232,7 +232,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 77, UNIT_TESTED 28, INTEGRATION
 | `e2e_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `e2e_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `regression_test` | QA | **UNIT_TESTED** | qa_agent | unit tests only |  |
-| `negative_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `negative_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py |  |
 | `edge_case_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `api_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
 | `auth_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
@@ -245,8 +245,8 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 77, UNIT_TESTED 28, INTEGRATION
 | `restart_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both |  |
 | `resume_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/maintenance.py | build restarts from the beginning |
 | `cancellation_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/postdeploy_checks.py |  |
-| `behavioral_acceptance_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
-| `requirement_traceability_test` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | acceptance IDs -> steps |
+| `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
+| `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
 | `click_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
