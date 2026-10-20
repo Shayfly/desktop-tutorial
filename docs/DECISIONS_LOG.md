@@ -120,3 +120,12 @@
 | #50 | `575bde6` | `tests/test_pr39_cookie_fallback_real_routes.py` | **לא מוזג**. ה-base הוא הענף של #39, לא main. ‏assertions אמיתיים נכשלים (`400 != 401`, `200 != 401`, `401 != 200`): אפיון של #39 מול קוד בלי #39 | — | ממתין ל-#39 (מאט) |
 
 **פלייק customer-ui (נמדד, לא תוקן):** `tests/customer_flow_browser.cjs` רץ 25 פעמים מקומית (Playwright 1.56.1, Chromium 1194). **4/25 נכשלו** (16%), כולם בשורה 34: click על כפתור "שינוי" הראשון ב-`#discoveryPanel`, ‏`TimeoutError`, ‏"element is not visible". זה **לא** ה-`setTimeout` של 150ms ב-`/approvals` (שורה 23), שקורה מאוחר יותר.
+
+### 2026-10-20 08:31 — מיזוג #81, בדיקת R2 (#83), תקציב QA
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #81 | `513e08f` | `tests/customer_flow_browser.cjs` | **מוזג**. טסט בלבד. CI על ה-head ירוק; CI על main ירוק (test, customer-ui, pg, validate, compose-config, smoke, verify) | `1b9a229` | מייסד, צ'אט 08:31 |
+| #83 | `3535a0f` | `omni_prod/postdeploy_checks.py`, `tests/test_postdeploy_r2_artifact.py` | **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | — | ממתין למאט |
+
+**תקציב QA (spend-audit, run 39375470852, $0):** ‏`qa_used_usd` ‏(`omni_prod/qa_budget.py:102-121`), נבדק ב-`authorize_qa_build` ‏(`:181-183`) מול `OMNI_QA_BUDGET_TOTAL_USD=10`: ‏used=5.26698025 (all-time). ‏`settled_provider_cost_usd` של 34 בנייות: 12.311130.
