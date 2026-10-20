@@ -534,6 +534,55 @@ def stage_paid_create(state: dict) -> None:
     state.update(paid_project=project, paid_build=built['build_id'])
 
 
+def r2_artifact_check(build_id: str, version_id: str, *, store=None, rows=None) -> tuple[bool, dict]:
+    """GET the built version's artifact from object storage (R2) and compare its SHA-256 with what the build recorded.
+
+    Recorded at build time: `project_versions.repository_sha256` + `artifact_key` (workspace.commit) and
+    `build_stage_results.artifact_sha256` (release_policy.persist). Read back now: the object's bytes, their SHA-256
+    against the object's own `sha256` metadata, and the repository checksum recomputed from the unzipped files.
+    Every value is reported; any missing value is a failure, never a pass.
+    """
+    import hashlib
+    import io
+    import zipfile
+    from .workspace import _checksum
+    out: dict = {'build_id': build_id, 'version_id': version_id}
+    if rows is None:
+        v = sql('SELECT repository_sha256, artifact_key FROM project_versions WHERE id = %s', (version_id,))
+        s = sql('SELECT DISTINCT artifact_sha256 FROM build_stage_results WHERE build_id = %s', (build_id,))
+        rows = (v[0] if v else (None, None), [r[0] for r in s])
+    (recorded, key), stage_shas = rows
+    out.update(recorded_repository_sha256=recorded, artifact_key=key, stage_results_sha256=stage_shas)
+    if store is None:
+        from .evidence_export import _default_store
+        store = _default_store(os.environ)
+    if store is None or not recorded or not key:
+        out['error'] = 'no object store configured' if store is None else 'version has no recorded sha256/artifact_key'
+        return False, out
+    try:
+        resp = store.client.get_object(Bucket=store.bucket, Key=key)
+        data = resp['Body'].read()
+        meta = (resp.get('Metadata') or {}).get('sha256')
+        repo = {}
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            for name in zf.namelist():
+                repo[name] = zf.read(name).decode('utf-8')
+    except Exception as exc:
+        out['error'] = f'{type(exc).__name__}: {str(exc)[:300]}'
+        return False, out
+    got = _checksum(repo)
+    out.update(object_bytes=len(data), object_sha256=hashlib.sha256(data).hexdigest(), object_metadata_sha256=meta,
+               files=len(repo), recomputed_repository_sha256=got)
+    ok = (got == recorded and key == f'repositories/{recorded}.zip' and meta == out['object_sha256']
+          and stage_shas == [recorded])
+    return ok, out
+
+
+def record_r2_artifact(build_id: str, version_id: str) -> bool:
+    ok, out = r2_artifact_check(build_id, version_id)
+    return record('R2 artifact matches the recorded SHA-256', ok, out)
+
+
 def stage_paid_verify(state: dict) -> None:
     token, project, b = state['token'], state['paid_project'], state['paid_build']
     s, d = api('GET', f'/api/v28/projects/{project}/builds/{b}', None, token)
@@ -557,6 +606,7 @@ def stage_paid_verify(state: dict) -> None:
     vid = d.get('result_version_id')
     if not vid:
         return
+    record_r2_artifact(b, vid)
     view, err = preview_launch(token, project, vid, seconds=240)
     if not view or view.get('status') != 'RUNNING':
         record('preview of the built version', False, err or view)
