@@ -169,7 +169,8 @@ class ProviderMatrixTests(unittest.TestCase):
     def test_inflated_states_are_rejected(self):
         import dataclasses
         from omni_prod.intelligence import inventory
-        luna = next(e for e in INVENTORY if e.model_key == 'openai-gpt-6-luna')
+        # gpt-6.1-sol: still no successful call in any ledger observation (luna has one since 2026-10-20)
+        luna = next(e for e in INVENTORY if e.model_key == 'openai-gpt-6-1-sol')
         inflated = dataclasses.replace(luna, verification_state=S.REAL_EXECUTION_VERIFIED, health_note='')
         haiku = next(e for e in INVENTORY if e.model_key == 'anthropic-claude-haiku-5-5')
         fake_conn = dataclasses.replace(haiku, connection_state=S.CONNECTION_TESTED)
@@ -190,10 +191,11 @@ class ProviderMatrixTests(unittest.TestCase):
     def test_truthful_summary(self):
         m = matrix.build()
         verified = {r['provider_model_id'] for r in m['models'] if r['verification_state'] == S.REAL_EXECUTION_VERIFIED}
-        self.assertEqual(verified, {'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'})
+        self.assertEqual(verified, {'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite',
+                                    'gpt-6-luna'})          # 6 ok calls, inspect-build 39378559811 (2026-10-20)
         self.assertNotIn(S.PRODUCTION_LIVE, json.dumps(m['summary']))
         blocked = {r['provider_model_id'] for r in m['models'] if r['availability'] == S.INSUFFICIENT_CREDIT}
-        self.assertEqual(blocked, {'gpt-6-luna', 'gpt-6.1-sol', 'claude-sonnet-5-5'})
+        self.assertEqual(blocked, {'gpt-6.1-sol', 'claude-sonnet-5-5'})
 
 
 class TaskPolicyRoutingTests(unittest.TestCase):

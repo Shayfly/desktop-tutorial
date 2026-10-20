@@ -10,20 +10,20 @@
    "NOT_CONNECTED": 7
   },
   "verification_state": {
-   "REAL_EXECUTION_VERIFIED": 3,
-   "UNVERIFIED": 11
+   "REAL_EXECUTION_VERIFIED": 4,
+   "UNVERIFIED": 10
   },
   "availability": {
-   "AVAILABLE": 2,
+   "AVAILABLE": 3,
    "DEPRECATED": 1,
-   "INSUFFICIENT_CREDIT": 3,
+   "INSUFFICIENT_CREDIT": 2,
    "NOT_ROUTED": 8
   },
   "implementation_status": {
-   "BLOCKED": 3,
+   "BLOCKED": 2,
    "IMPLEMENTED": 4,
    "NOT_IMPLEMENTED": 4,
-   "REAL_SERVER_VERIFIED": 3
+   "REAL_SERVER_VERIFIED": 4
   },
   "models": 14
  },
@@ -355,7 +355,9 @@
    "intended_task_types": [
     "general",
     "conversation",
-    "intake_extraction"
+    "intake_extraction",
+    "architecture",
+    "review"
    ],
    "execution_adapter": "routed_gateway (OpenAI reasoning dialect)",
    "adapter_implementation_path": "omni_prod/routed_gateway.py, omni_prod/model_gateway.py",
@@ -367,8 +369,8 @@
     "he",
     "en"
    ],
-   "context_window": null,
-   "maximum_output_tokens": 16384,
+   "context_window": 1050000,
+   "maximum_output_tokens": 128000,
    "supports_tool_calls": false,
    "supports_structured_output": true,
    "supports_streaming": false,
@@ -381,15 +383,16 @@
    "credential_scope": "worker",
    "credential_state": "CREDENTIAL_PRESENT",
    "connection_state": "CONNECTION_TESTED",
-   "verification_state": "UNVERIFIED",
-   "implementation_status": "BLOCKED",
-   "health": "CREDIT_EXHAUSTED",
-   "availability": "INSUFFICIENT_CREDIT",
-   "last_verified_at": "2026-10-10T20:24Z",
+   "verification_state": "REAL_EXECUTION_VERIFIED",
+   "implementation_status": "REAL_SERVER_VERIFIED",
+   "health": "HEALTHY",
+   "availability": "AVAILABLE",
+   "last_verified_at": "2026-10-20T05:54Z",
    "evidence_reference": [
     "deploy-worker run 38083162363 (annotation \"model catalog\") @ 2026-10-10T20:17Z (commit 67a0765): all six catalog routes CONFIGURED on the worker; OPENAI_API_KEY and ANTHROPIC_API_KEY added from GitHub secrets",
     "model-probe run 37814803770 (annotations) @ 2026-10-08T17:12Z (commit ff6b4f6): gemini-3.8-flash, gemini-3.5-flash-lite, gemini-3.1-flash-lite answered OK; gpt-6-luna and gpt-6.1-sol HTTP 429 \"no credits remaining\"; claude-sonnet-5-5 HTTP 400 \"credit balance is too low\"",
-    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10"
+    "postdeploy-checks economics run 38083624196 (annotation \"economics by model\") @ 2026-10-10T20:24Z (commit 67a0765): attempt ledger: gemini-3.8-flash 36 ok / 88 calls; gemini-3.1-flash-lite 115 ok / 117; gemini-3.5-flash-lite 2 ok / 2; gpt-6-luna 0 ok / 18; gpt-6.1-sol 0 ok / 10; claude-sonnet-5-5 0 ok / 10",
+    "postdeploy-checks inspect-build run 39378559811 (annotation \"attempts\") of paid run 39377332673 @ 2026-10-20T05:54Z (commit 4d488b4): build bld_65ee693e356847d89ab50300415d6861: gpt-6-luna 6 ok / 10 provider calls (architecture 1/1, review 4/4, narrow pre-flight repair 1/1; codegen 0/1 and full repair 0/3: the model returned invalid JSON, finish_reason=stop, 22-38k characters); gemini-3.1-flash-lite 4 ok / 4 (codegen 1, repair 3)"
    ],
    "price_schedule_reference": {
     "effective_from": "2026-10-01",
@@ -419,7 +422,7 @@
    "commercial_plan": "OpenAI API (pay-as-you-go)",
    "commercial_usage_constraints": "OpenAI API terms: customer owns outputs; API data not used for training by default",
    "security_constraints": "secret references only; customer screenshots never sent to third-party AI; prompts carry no secrets",
-   "known_limitations": "no successful call: account has no credit",
+   "known_limitations": "never used for codegen/repair/modification (task_policy.CODE_WRITING_DENY): 4 of 4 large code answers were invalid JSON in paid run 39377332673; small answers 6 of 6 correct. Context and output limits from https://developers.openai.com/api/docs/models/gpt-6-luna (read 2026-10-20); the catalog still caps one call at 16384 output tokens",
    "fallback_eligibility": "escalation",
    "in_worker_catalog": true,
    "catalog_quality": 70,
@@ -430,13 +433,10 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "codegen",
-    "repair",
-    "modification",
     "review"
    ],
-   "current_operational_status": "configured but blocked: provider account has no credit",
-   "blocker": "HTTP 429 no credits remaining (2026-10-08); 0 ok / 18 in the ledger"
+   "current_operational_status": "routing real builds",
+   "blocker": ""
   },
   {
    "provider_key": "openai",
@@ -1292,6 +1292,7 @@
    "preferred_floor": 70,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1301,6 +1302,7 @@
    "preferred_floor": 70,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1310,6 +1312,7 @@
    "preferred_floor": 70,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1319,6 +1322,7 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1328,6 +1332,7 @@
    "preferred_floor": 70,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": true
   },
@@ -1337,6 +1342,7 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1346,6 +1352,9 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [
+    "gpt-6-luna"
+   ],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1355,6 +1364,9 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [
+    "gpt-6-luna"
+   ],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1364,6 +1376,9 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [
+    "gpt-6-luna"
+   ],
    "independent_of": [],
    "deterministic_first": false
   },
@@ -1373,6 +1388,7 @@
    "preferred_floor": 85,
    "mandatory_floor": 70,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [
     "codegen",
     "repair",
@@ -1386,6 +1402,7 @@
    "preferred_floor": 85,
    "mandatory_floor": 85,
    "allow_models": [],
+   "deny_models": [],
    "independent_of": [
     "codegen",
     "repair",
