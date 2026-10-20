@@ -185,3 +185,14 @@
 - ‏deploy-worker: ‏run 39472683855 על `8a3ea4a` (מכיל את #85 ואת #86): success, כל ה-probes עברו (PASS).
 - ‏postdeploy-checks, ‏stage=paid, ‏max_usd=0.50: ‏run 39473090833 ‏**FAIL**. הבנייה `bld_4f3b3514edd34776b096bf20fd66cc58` עצרה ב-verification_failed אחרי 3 סבבי תיקון. סבב 0 נכשל על PREVIEW (דף placeholder), לא על תחביר, ולכן לא הייתה הרצה שנייה. העלות: $0.02940445 ב-10 קריאות, כולן ok, ואף קריאה של luna ל-codegen או ל-repair. ‏inspect-build: ‏run 39473867717.
 - לא מוזגו, לריצה הבאה: #87, #83, #39, #52, #80.
+
+### 2026-10-20 21:24 — ראיות מ-run 39473090833, ‏#88 (קריאת R2)
+
+**ראיות (inspect-build 39473867717):**
+- **‏#86 עבד.** כל 6 קריאות ה-codegen וה-repair הלכו ל-gemini-3.1-flash-lite וכולן ok, בלי אף כשל JSON. ‏gpt-6-luna קיבל רק architecture (1) ו-review (3), כולן ok.
+- **‏responsive עבר בסבב 3** (`S5 responsive: HTTP 200 matched expectations`). התיקון של #84 (רשימה ב-`expect_text_contains`) נוגע בדיוק בצעד הזה. אם הצעד בהרצה הזו השתמש ברשימה או במחרוזת, עוד לא נקרא; זה יתברר מה-zip, דרך #88.
+- **‏preflight נקרא:** קריאת repair אחת לפני האימות הראשון (סבב 0), וקריאה נוספת בסבב 2. ה-inspect לא מראה אם זה היה תיקון syntax או תיקון plan, ולכן זה עוד לא ראיה ש-#85 עצמו פעל.
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #88 | `2d6c1b4` | `.github/workflows/inspect-round-artifacts.yml`, `tests/test_inspect_round_artifacts_workflow.py` | **לא מוזג, לא הורץ**: תנאי א | ממתין למאט |
