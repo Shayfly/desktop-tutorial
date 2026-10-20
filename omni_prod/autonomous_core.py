@@ -192,6 +192,24 @@ class AutonomousProductEngine:
         return (stage, -len(report.failures))
 
     def build(self, prompt: str) -> AutonomousResult:
+        """C24 (2026-10-20): the failure taxonomy and first_pass are written whatever happens. They used to be computed
+        only at the very end of a successful _build(), so a build that raised (a model or sandbox error) left the
+        previous build's values or nothing at all, and the rounds already verified were lost."""
+        self._taxonomy_rounds, self._preflight_events = [], []
+        self.failure_taxonomy, self.first_pass = [], None
+        try:
+            return self._build(prompt)
+        finally:
+            self._refresh_taxonomy()
+
+    def _refresh_taxonomy(self) -> None:
+        from .failure_taxonomy import records
+        rounds = getattr(self, '_taxonomy_rounds', None) or []
+        self.failure_taxonomy = sorted(records(rounds) + list(getattr(self, '_preflight_events', None) or []),
+                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
+        self.first_pass = bool(rounds) and not rounds[0][1]          # no verified round 0 -> not a first pass
+
+    def _build(self, prompt: str) -> AutonomousResult:
         """Generate, verify, repair.
 
         Basic stop-loss (founder decision 2026-10-07): the sandbox is
@@ -206,7 +224,6 @@ class AutonomousProductEngine:
         repo = apply_patch({}, initial)
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
-        self._preflight_events = []
         repo = self._preflight(repo, spec, 0)
         report = self.executor.execute(repository=repo, spec=spec)
         self._taxonomy_rounds = [(0, self._observed_failures(report))]
@@ -275,10 +292,7 @@ class AutonomousProductEngine:
                 best_repo, best_report = repo, report
         if not report.passed:
             repo, report = best_repo, best_report
-        from .failure_taxonomy import records
-        self.failure_taxonomy = sorted(records(self._taxonomy_rounds) + self._preflight_events,
-                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
-        self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
+        self._refresh_taxonomy()
         return AutonomousResult(
             'ready' if report.passed else 'failed',
             spec,
