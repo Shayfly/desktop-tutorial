@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-20T18:06:14Z)
+# v24-ci — last main run (2026-10-20T18:11:43Z)
 
-- commit: `a00e8036be23a190bc397955595aa29fa89ddcac`
-- run_id: [39471079092](https://github.com/Shayfly/desktop-tutorial/actions/runs/39471079092) (attempt 1)
+- commit: `921d20f131ac5acd09ebf947c6775d0d803fe823`
+- run_id: [39471892033](https://github.com/Shayfly/desktop-tutorial/actions/runs/39471892033) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 1859 passed, 0 failed, 181 skipped
+- tests: **PASS** — 1864 passed, 0 failed, 181 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -88,6 +88,7 @@
 | `test_janitor_redispatch` | PASS | 3 | 0 | 1 |
 | `test_legacy_paths_guard` | PASS | 3 | 0 | 0 |
 | `test_live_build_stores_spec` | PASS | 2 | 0 | 0 |
+| `test_luna_not_for_code_writing` | PASS | 5 | 0 | 0 |
 | `test_m2_native_logic` | PASS | 7 | 0 | 0 |
 | `test_m3_preview_logic` | PASS | 85 | 0 | 0 |
 | `test_m495_asset_evidence` | PASS | 2 | 0 | 0 |
