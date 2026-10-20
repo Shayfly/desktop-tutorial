@@ -11,6 +11,7 @@ reported with an exact `file:line` and a concrete fix instead of a generic
                 behavioural acceptance plan calls exist on the server side
   static        local scripts/styles/images the page references exist or are served
   manifest      files named in .omni/project.json commands exist
+  http_reason   http.server send_error/send_response is not given a reason phrase that latin-1 cannot encode
 
 Every check is conservative: when the repository's shape is not understood
 (no server source, dynamic paths) the check is skipped, never guessed. The
@@ -376,8 +377,54 @@ def _accessibility(repo: dict[str, str], out: list[Finding]) -> None:
                                    'add alt (empty alt="" for decoration)', blocking=False))
 
 
+# ------------------------------------------------------------ http_reason --
+_REASON_METHODS = ('send_error', 'send_response', 'send_response_only')
+
+
+def _literal_text(node) -> str | None:
+    """The text of a string literal, or the literal parts of an f-string; None for anything computed."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        return ''.join(v.value for v in node.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
+    return None
+
+
+def _http_reason(repo: dict[str, str], out: list[Finding]) -> None:
+    """Paid run 39473090833 (2026-10-20): `self.send_error(404, "לא נמצא")`. http.server writes the reason phrase into
+    the status line encoded as latin-1, so the handler raised UnicodeEncodeError, the connection closed without a
+    response, and the behaviour check saw "RemoteDisconnected" on POST and DELETE for three repair rounds although the
+    traceback was in the server log. Only literals are judged (a computed message is never guessed); tests are skipped.
+    The `explain` argument of send_error goes into the UTF-8 body and is fine."""
+    for path, text in sorted(repo.items()):
+        if not path.endswith('.py') or _is_test(path) or not any(m in text for m in _REASON_METHODS):
+            continue
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue                                    # the syntax check reports it
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in _REASON_METHODS):
+                continue
+            arg = node.args[1] if len(node.args) > 1 else next(
+                (k.value for k in node.keywords if k.arg == 'message'), None)
+            phrase = _literal_text(arg) if arg is not None else None
+            if not phrase:
+                continue
+            try:
+                phrase.encode('latin-1')
+            except UnicodeEncodeError:
+                out.append(Finding(
+                    'http_reason', path, node.lineno,
+                    f'{node.func.attr}() reason phrase {phrase[:40]!r} is not latin-1: http.server raises '
+                    'UnicodeEncodeError and closes the connection without a response',
+                    f'keep the status line ASCII and put the text in the body: self.send_error(code, explain={phrase[:40]!r}) '
+                    'or send_response(code) followed by a UTF-8 body'))
+
+
 # -------------------------------------------------------------------- API --
-CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'accessibility')
+CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'http_reason', 'accessibility')
 
 
 def scan(repo: dict[str, str]) -> ConsistencyReport:
@@ -388,6 +435,7 @@ def scan(repo: dict[str, str]) -> ConsistencyReport:
     _routes(repo, out, report); report.checks_run.append('routes')
     _static(repo, out); report.checks_run.append('static')
     _manifest(repo, out); report.checks_run.append('manifest')
+    _http_reason(repo, out); report.checks_run.append('http_reason')
     _accessibility(repo, out); report.checks_run.append('accessibility')
     return report
 
