@@ -135,3 +135,10 @@
 - ה-worker הפרוס היה `4b019d8`, מאחור לעומת main: 215 שורות ב-`omni_prod`. ‏`pg` על `6781b9d` רץ שוב פעם אחת (118473633457 → 118476560774, success). ‏deploy-worker רץ על `4d488b4`, ‏run 39377073605: success, כל ה-probes עברו (PASS).
 - ‏postdeploy-checks, ‏stage=paid, ‏max_usd=0.50, ‏run 39377332673 על `4d488b4`: **FAIL**. הבנייה `bld_65ee693e356847d89ab50300415d6861` עצרה ב-verification_failed אחרי 3 סבבי תיקון (max_repair_rounds). אין גרסה, אין preview, ו-R2 לא רלוונטי. העלות: $0.04756005 (metered = settled; שוריינו 0.35). לא היה כשל תחביר בסבב 0, ולכן לא הייתה הרצה שנייה. ‏inspect-build: ‏run 39378559811, ‏$0.
 - ממצא, לא תוקן: `omni_prod/web_saas_acceptance.py:396-398` מבצע `str(step['expect_text_contains'])`. כשהשלב מכיל רשימה, הבדיקה מחפשת את המחרוזת `"['viewport', 'width=device-width']"`, שלא קיימת. ה-HTML של הבנייה מכיל `<meta name="viewport" content="width=device-width, ...">`, כך שבסבבים 1–3 BEHAVIOR/A5 נכשל כנראה כשל שווא.
+
+### 2026-10-20 09:23 — תיקון expect_text_contains (#84), הכרעות
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py`, `tests/test_expect_text_contains_list.py`, רג'יסטרים שנוצרו מחדש | CI ירוק. **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | ממתין למאט או לאישור מייסד |
+| #75 | `3163dc2` | `.github/workflows/deploy-worker.yml`, טסט | **לא נגעתי**: הטקסט של שני החסמים של מאט לא נמצא ב-PR, ב-repo או בשיחה | ממתין לטקסט |
