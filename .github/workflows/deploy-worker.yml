@@ -52,8 +52,12 @@ jobs:
             echo "::error title=Prototype staging only::This source revision must not deploy onto non-staging worker"; exit 1; }
           grep -qx 'OMNI_INTAKE_MODEL=1' .env || {
             echo "::error title=Intake disabled::Cannot replace intake worker with a disabled model mode"; exit 1; }
-          docker compose config --services | grep -qx worker
-          docker compose config --services | grep -qx intake-worker
+          # Capture first, then search: `docker compose config --services | grep -qx worker` under pipefail exited 255
+          # in 15 of 300 runs on the host (grep -q stops reading at the first match, compose gets SIGPIPE, docker
+          # reports 255) -- the step-4 flake of runs 39275019633, 39295236360, 39318357566 (probe 39318597963).
+          services=$(docker compose config --services)
+          grep -qx worker <<<"$services"
+          grep -qx intake-worker <<<"$services"
           echo "::notice title=Staging::Releasing tested candidate; founder AI intake remains enabled"
 
       # 2026-10-19: `docker compose build` moves the compose tags and the running containers' image objects then
