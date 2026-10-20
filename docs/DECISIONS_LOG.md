@@ -196,3 +196,15 @@
 | PR | head SHA | קבצים | תוצאה | אישר |
 |---|---|---|---|---|
 | #88 | `2d6c1b4` | `.github/workflows/inspect-round-artifacts.yml`, `tests/test_inspect_round_artifacts_workflow.py` | **לא מוזג, לא הורץ**: תנאי א | ממתין למאט |
+
+### 2026-10-20 21:38 — ראיה (תיקון מייסד), ‏#89, ‏#90
+
+**ראיה, כפי שתוקנה:** ש-responsive עבר בסבב 3 של run 39473090833 זו ראיה ל-#84, לא ל-#85. ‏#85 עוד לא הוכח בהרצה חיה.
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #89 | `cb4a020` | `omni_prod/preview_smoke.py`, `tests/test_preview_verdict_names_condition.py`, רג'יסטרים | הודעת ה-preview מציינת איזה תנאי נכשל: (a) קצר מדי ו/או (b) בלי רכיב אינטראקטיבי. הכלל לא השתנה. **לא מוזג**: תנאי א | ממתין למאט |
+| #90 | `6c74bdc` | `omni_prod/consistency_gate.py` (`http_reason`), `tests/test_consistency_http_reason.py`, רג'יסטרים | ‏`send_error`/`send_response` עם reason שאינו latin-1 נחסם לפני ה-sandbox. **לא מוזג**: תנאי א | ממתין למאט |
+
+- ‏#89 ו-#90 נוגעים שניהם בקבצי הרג'יסטרים שנוצרים אוטומטית. לפי תנאי ד: ממזגים אחד, מחכים ל-main ירוק, ואת השני מבססים מחדש (rebase) ומריצים שוב את ה-generators.
+- ‏app.py של run 39473090833 נכתב על ידי המודל (gemini-3.1-flash-lite). אין לו תבנית בנתיב הבנייה; ‏`app.py` קבוע מופיע רק ב-fixtures של טסטים.
