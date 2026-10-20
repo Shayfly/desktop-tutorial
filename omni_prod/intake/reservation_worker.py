@@ -42,6 +42,14 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...]):
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
     from ..routed_gateway import RoutedModelGateway
+    # C32 (2026-10-20): the intake honours the same kill switches as builds, read exactly as
+    # model_runtime_config.py:37-38 reads them. It used to hard-code zero_cost_mode=False / allow_external_fallback=True,
+    # so OMNI_ZERO_COST_MODE=1 stopped every build call and let every intake call through. Refusing HERE means no
+    # gateway, so execute_reservation releases the reservation before mark_executing and before any provider contact.
+    from ..model_policy import ModelPolicyViolation
+    if os.getenv('OMNI_ZERO_COST_MODE', '1') == '1' or os.getenv('OMNI_ALLOW_EXTERNAL_FALLBACK', '0') != '1':
+        raise ModelPolicyViolation('external model spend disabled on this worker (OMNI_ZERO_COST_MODE=1 or '
+                                   'OMNI_ALLOW_EXTERNAL_FALLBACK!=1)')
     cfg = ModelRuntimeConfig.from_env()
     ranked = tuple(m for m in cfg.catalog if m.option.model in models)
     policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True, external_budget_usd=quoted_usd,
@@ -104,6 +112,10 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
     try:   # building the gateway never contacts a provider
         gateway = (gateway_factory or build_gateway)(r.quoted_usd, models)
     except Exception as exc:
+        from ..model_policy import ModelPolicyViolation
+        if isinstance(exc, ModelPolicyViolation):     # a kill switch, not a missing route: say which
+            svc.release(r.id, reason=f'blocked by policy: {exc}'[:200])
+            return {'ok': False, 'error': 'external model spend disabled', 'state': B.RELEASED}
         svc.release(r.id, reason=f'no model route: {type(exc).__name__}')
         return {'ok': False, 'error': 'no model route', 'state': B.RELEASED}
     if not svc.mark_executing(r, lease_seconds=lease_seconds):
