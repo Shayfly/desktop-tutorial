@@ -144,7 +144,12 @@ sandbox_secret=$(sed -n 's/^OMNI_SANDBOX_SHARED_SECRET=//p' .env | head -n 1)
 if [ "${#sandbox_secret}" -lt 32 ]; then
   length_error "OMNI_SANDBOX_SHARED_SECRET has ${#sandbox_secret} characters; the sandbox runner refuses every run below 32 (omni_prod/sandbox_service.py:52)."
 fi
-unset ak sk sandbox_secret
+# OMNI_SECRET_KEY (founder 2026-10-20): preflight.py:38 requires >= 48, but its length on this worker is unknown, so it
+# is DISCOVERED here first (name + length, a notice, never blocking). Once a deploy has shown it, it can join the
+# blocking checks above without risking a deploy.
+secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
+echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
+unset ak sk sandbox_secret secret_key
 if [ "$problems" -ne 0 ]; then
   echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
   exit 1

@@ -62,3 +62,13 @@ class SecretLengthsBlock(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SecretKeyLengthIsDiscoveredNotEnforced(unittest.TestCase):
+    def test_the_length_is_printed_and_never_blocks(self):
+        for value, shown in (('k' * 50, 50), ('k' * 10, 10), (None, 0)):
+            code, out = run(OMNI_SECRET_KEY=value)
+            self.assertEqual(code, 0, out)
+            self.assertIn(f'::notice title=secret-lengths::OMNI_SECRET_KEY={shown} characters', out)
+            if value:
+                self.assertNotIn(value, out)
