@@ -1,0 +1,32 @@
+name: customer-ui flake measurement (no fix)
+# 2026-10-20: tests/customer_flow_browser.cjs 25x with the exact customer-ui setup of v24-ci.yml:162-181
+# (Node 22, playwright@1.62.1, Chromium from playwright install). Measurement only; branch is never merged.
+on:
+  push:
+    branches: [ci/customer-ui-flake-measure]
+    paths: [.github/workflows/customer-ui-flake-measure.yml]
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: npm install --no-save --package-lock=false playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - name: 25 runs
+        shell: bash
+        run: |
+          set +e
+          pass=0; fail=0; where=""
+          echo "playwright $(node -e "console.log(require('playwright/package.json').version)")"
+          for i in $(seq 1 25); do
+            node tests/customer_flow_browser.cjs > "run$i.txt" 2>&1 && pass=$((pass+1)) || {
+              fail=$((fail+1)); line=$(grep -m1 -o 'customer_flow_browser.cjs:[0-9]*' "run$i.txt"); err=$(grep -m1 -oE 'TimeoutError|AssertionError[^:]*|Error: [^ ]+' "run$i.txt")
+              where="$where run$i=${line:-?}/${err:-?}"; echo "=== run $i FAILED"; grep -v '^\s*at ' "run$i.txt" | head -12; }
+          done
+          echo "::warning title=customer-ui flake (playwright 1.62.1)::pass=$pass fail=$fail of 25;$where"
