@@ -1,3 +1,32 @@
+# 2026-10-19 — Red-team verification boundaries and Golden evidence gate
+
+**Implemented and independently verified locally:** stdlib evidence validator
+`tools/verify_golden_evidence.py`, its adversarial CLI tests, and reproducible
+verification-boundary probes. Four sections must PASS: Hebrew customer input,
+R2 write/readback, same-version browser preview/acceptance, and exact cost/time
+with complete accounting. Missing/unvalidated cost is UNKNOWN, never zero.
+
+**Implemented, awaiting external live verification:** reusable workflow
+`.github/workflows/golden-evidence-gate.yml`. It is not yet called by a live
+producer. Supplied bundles must come from a trusted collector outside the
+generated sandbox; file hashes do not authenticate a fabricated receipt.
+
+**Not implemented in this change:** the live evidence collector/caller wiring
+and fixes for the reported production verification boundaries. No new
+credential/service blocker was established; no live readiness claim is made.
+
+Baseline: main `1d2cd37d73e1a75a2daa8d9b5ba93845bbd2c3cc`.
+Validation: `python -m unittest -v tests.test_golden_evidence_gate
+tests.test_verification_group`: 24 tests OK. `python -m pytest -q
+--junitxml=<scratch-report>`: 1843 passed, 181 skipped, 442 subtests passed,
+one dependency deprecation warning; no failures. Skipped tests are not live
+evidence. `python tools/redteam_verification_boundaries.py`: intentional
+exit 1, 26 injected boundary violations across seven finding families (the
+two previously accepted findings included), not 26 independent live defects.
+Raw probe output: `smoke/redteam-verification-boundaries-20261019.json`.
+Details: `docs/REDTEAM_VERIFICATION_BOUNDARIES_2026-10-19.md` and
+`docs/GOLDEN_EVIDENCE_GATE.md`.
+
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
 ## PR #34 follow-up — caller-stable build idempotency
