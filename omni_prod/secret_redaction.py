@@ -35,11 +35,34 @@ def redact(text: str) -> str:
 
 
 _INSTALLED = '_omni_redacting_factory'
+WITHHELD = '[log record withheld: redaction failed]'
+UNFORMATTABLE = '[log message could not be formatted; arguments withheld] '
+
+
+def _redact_record(record: logging.LogRecord) -> None:
+    """Every text a handler can print from the record, redacted in place: message, traceback, stack."""
+    try:
+        message = record.getMessage()
+    except Exception:                           # broken format string: the raw args never reach a handler
+        message = UNFORMATTABLE + str(record.msg)
+    record.msg, record.args = redact(message), None
+    if record.exc_info:                         # logger.exception / exc_info=True: render the traceback now, redacted
+        record.exc_text = redact(logging.Formatter().formatException(record.exc_info))
+        record.exc_info = None                  # no formatter can re-render it raw
+    elif record.exc_text:
+        record.exc_text = redact(record.exc_text)
+    if record.stack_info:
+        record.stack_info = redact(record.stack_info)
 
 
 def install_log_redaction() -> None:
-    """Redact every log record at creation (idempotent). The formatted message replaces msg/args, so a secret passed
-    as a %-argument is redacted too; exception text is redacted when it is formatted into the message by the caller."""
+    """Redact every log record at creation (idempotent), FAIL-CLOSED (#96).
+
+    The formatted message replaces msg/args, so a %-argument is redacted too; the traceback (exc_info) and stack_info are
+    rendered and redacted here, before any handler sees them. If formatting fails, the arguments are dropped. If
+    redaction itself fails, the whole record is replaced by WITHHELD: nothing unredacted is ever passed on.
+    Not covered: records built without the factory (logging.makeLogRecord, e.g. from a socket) and custom `extra=` fields.
+    """
     current = logging.getLogRecordFactory()
     if getattr(current, _INSTALLED, False):
         return
@@ -47,10 +70,10 @@ def install_log_redaction() -> None:
     def factory(*args, **kwargs):
         record = current(*args, **kwargs)
         try:
-            message = record.getMessage()
-        except Exception:                      # a broken format string: leave the record as it is
-            return record
-        record.msg, record.args = redact(message), None
+            _redact_record(record)
+        except Exception:                       # the redactor broke: withhold, never pass the raw record on
+            record.msg, record.args = WITHHELD, None
+            record.exc_info = record.exc_text = record.stack_info = None
         return record
     setattr(factory, _INSTALLED, True)
     logging.setLogRecordFactory(factory)
