@@ -72,6 +72,9 @@ class C34NetworkNamespaceCanary(unittest.TestCase):
             line = next((l for l in p.stdout.splitlines() if l.startswith('GRANDCHILD ')), None)
             assert line, f'no result: rc={p.returncode} {p.stdout[-1500:]} {p.stderr[-1500:]}'
             cls.out = json.loads(line[len('GRANDCHILD '):])
+            if os.environ.get('GITHUB_ACTIONS') == 'true':  # the evidence as an annotation (job logs are not readable, O14)
+                print('::notice title=C34 netns canary (subprocess outside the Python guard)::' + json.dumps(cls.out),
+                      flush=True)
             return
         if not netns_available():
             if os.environ.get('OMNI_TEST_REQUIRE_NETNS') == '1':

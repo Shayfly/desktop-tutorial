@@ -74,8 +74,10 @@ def main(argv: list[str]) -> int:
         env = {k: v for k, v in os.environ.items() if k != INSIDE and k.lower() not in (
             'http_proxy', 'https_proxy', 'all_proxy')}
         env.update({'OMNI_TEST_HERMETIC': '1', 'OMNI_TEST_NETNS': '1'})
-        print(f'netns_run: isolated (interfaces {interfaces()}; {PROBE_ADDR[0]} unreachable); running {cmd[0]}',
-              file=sys.stderr, flush=True)
+        banner = f'netns_run: isolated (interfaces {interfaces()}; {PROBE_ADDR[0]} unreachable); running {cmd[0]}'
+        print(banner, file=sys.stderr, flush=True)
+        if os.environ.get('GITHUB_ACTIONS') == 'true':     # readable as an annotation (job logs are not, O14)
+            print(f'::notice title=C34 netns_run::{banner}', flush=True)
         os.execvpe(cmd[0], cmd, env)
     unshare = shutil.which('unshare')
     if not unshare:
