@@ -328,8 +328,8 @@
    "skills": {
     "IMPLEMENTED": 13,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 10,
-    "UNIT_TESTED": 6
+    "REAL_SERVER_VERIFIED": 9,
+    "UNIT_TESTED": 7
    },
    "missing_roles": [],
    "missing_adapters": [

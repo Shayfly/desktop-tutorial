@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 28, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 46, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 45, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -248,7 +248,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 80, UNIT_TESTED 28, INTEGRATION
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
-| `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `page_load_test` | Browser | **UNIT_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/preview_smoke.py |  |
 | `click_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `form_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | fills forms by field type |
 | `navigation_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |

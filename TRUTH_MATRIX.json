@@ -304,17 +304,17 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_preview_smoke.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:page_load_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py"
     }
    ]
   },
@@ -1139,8 +1139,8 @@
  ],
  "counts": {
   "IMPLEMENTED": 10,
-  "REAL_SERVER_VERIFIED": 14,
-  "UNIT_TESTED": 4,
+  "REAL_SERVER_VERIFIED": 13,
+  "UNIT_TESTED": 5,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
  },

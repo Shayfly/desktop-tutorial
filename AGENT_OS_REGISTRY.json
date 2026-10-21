@@ -3906,13 +3906,17 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py",
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_preview_smoke.py"
    ],
-   "last_verified_at": "2026-10-19T19:05Z",
-   "last_verified_commit": "4b019d8"
+   "stale_evidence": [
+    "postdeploy-checks verify-replay run 39307232830",
+    "postdeploy-checks run 37961193099"
+   ],
+   "last_verified_at": "2026-10-09T16:43Z",
+   "last_verified_commit": "039574f"
   },
   {
    "skill_key": "click_test",
@@ -7653,9 +7657,9 @@
   "skills": {
    "NOT_IMPLEMENTED": 264,
    "IMPLEMENTED": 80,
-   "UNIT_TESTED": 28,
+   "UNIT_TESTED": 29,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 46,
+   "REAL_SERVER_VERIFIED": 45,
    "LIVE": 0,
    "BLOCKED": 9
   }
