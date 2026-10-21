@@ -1,0 +1,55 @@
+name: Diag bot push (C16 watch sign)
+
+# Diagnostic only (founder 2026-10-21): reproduces the bots' direct push to main with the same identity
+# (GITHUB_TOKEN, contents: write) and prints git's exact answer as annotations, because job logs cannot be read
+# from the session. Then pushes the same report commit to the unprotected branch `bot-reports` (the no-secret route).
+# Runs only on pushes to this branch; never merged.
+on:
+  push:
+    branches: [diag/bot-push]
+
+permissions:
+  contents: read
+
+jobs:
+  push-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - name: Report commit (same shape as v24-ci publish-report)
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@148ai.dev"
+          mkdir -p smoke
+          printf '# push diagnostic %s\n\nrun %s; report file only.\n' "$(date -u +%FT%TZ)" "$GITHUB_RUN_ID" > smoke/push-diagnostic.md
+          git add smoke/push-diagnostic.md
+          git commit -q -m "chore: push diagnostic [skip ci]"
+          git log --oneline -1
+      - name: A. push to main as GITHUB_TOKEN (expected rejected)
+        run: |
+          set +e
+          git push origin HEAD:main > /tmp/main.txt 2>&1; rc=$?
+          echo "::notice title=A main rc::$rc"
+          while IFS= read -r l; do echo "::notice title=A main::$l"; done < /tmp/main.txt
+          exit 0
+      - name: B. push the same commit to bot-reports (no secret route)
+        run: |
+          set +e
+          git push origin HEAD:refs/heads/bot-reports > /tmp/br.txt 2>&1; rc=$?
+          echo "::notice title=B bot-reports rc::$rc"
+          while IFS= read -r l; do echo "::notice title=B bot-reports::$l"; done < /tmp/br.txt
+          exit 0
+      - name: C. what the token sees for main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          gh api repos/${{ github.repository }}/branches/main -q '"protected=\(.protected) checks=\(.protection.required_status_checks.contexts)"' > /tmp/c.txt 2>&1
+          while IFS= read -r l; do echo "::notice title=C branch::$l"; done < /tmp/c.txt
+          exit 0
