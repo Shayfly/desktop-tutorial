@@ -38,10 +38,13 @@ NON_SECRET_FLAGS = (
 
 
 def redact(text: str) -> str:
-    # C27: the single layer first (omni_prod.secret_redaction), then the stricter rules of an exported file.
-    from .secret_redaction import redact as base_redact
-    text = base_redact(text)
+    # C27: this file must run on its own (python - < evidence_export.py, no package import), so it cannot call
+    # omni_prod.secret_redaction; it covers at least the same secret shapes, and
+    # tests/test_redaction_single_layer.py::...parity fails if the two drift apart.
     text = re.sub(r'AIza[0-9A-Za-z_-]{20,}', '[redacted-google-key]', text)
+    text = re.sub(r'\b(?:ghp|gho|ghs|ghu|ghr)_[A-Za-z0-9]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b|\br8_[A-Za-z0-9]{20,}\b'
+                  r'|\b(?:sk|pk|rk)-[A-Za-z0-9_-]{12,}\b', '[redacted-token]', text)
+    text = re.sub(r'(?i)\b([a-z][a-z0-9+.-]*://)[^/\s:@]*:[^@\s/]+@', r'\1[redacted]@', text)
     text = re.sub(r'(rediss?|postgres(?:ql)?)://\S+', r'\1://[redacted]', text)
     text = re.sub(r'(?i)(key|token|secret|password|authorization)(["\' :=]+)[^\s"\',]+', r'\1\2[redacted]', text)
     return re.sub(r'[A-Za-z0-9+/_-]{48,}', '[redacted-long-value]', text)

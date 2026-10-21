@@ -73,10 +73,13 @@ class EveryLoggerGoesThroughIt(unittest.TestCase):
         src = open(secret_redaction.__file__.replace('secret_redaction.py', 'investor_app.py'), encoding='utf-8').read()
         self.assertIn('install_log_redaction()', src)
 
-    def test_evidence_export_applies_the_layer_first(self):
+    def test_evidence_export_parity_with_the_layer(self):
+        # evidence_export runs as a single file (no package import), so it keeps its own redactor: it must remove every
+        # secret shape the layer removes.
         from omni_prod.evidence_export import redact as export_redact
         for name, text in SECRETS.items():
             self.assertNotIn(LEAKS[name], export_redact(text), name)
+            self.assertNotIn(LEAKS[name], redact(text), name)
 
 
 if __name__ == '__main__':
