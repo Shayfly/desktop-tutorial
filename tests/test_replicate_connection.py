@@ -37,7 +37,9 @@ def test_replicate_official_model_submit_uses_input_only_and_resumes():
         assert json.loads(req.data) == {'input': {'prompt': 'Original blue bird icon', 'output_format': 'png', 'num_outputs': 1}}
         return io.BytesIO(b'{"id":"prediction-123","status":"starting"}')
 
-    provider = build_image_provider({'REPLICATE_API_TOKEN': 'test-only-token'},
+    # C32 (#93): spend allowed here on purpose; the closed-switch case is tests/test_image_provider_honours_kill_switch.py
+    provider = build_image_provider({'REPLICATE_API_TOKEN': 'test-only-token',
+                                     'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'},
         journal=MemorySubmissionJournal(), urlopen=transport)
     assert provider is not None
     req = CapabilityRequirement(id='icon', key='media.image.generate', purpose='icon',

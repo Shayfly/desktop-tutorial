@@ -11,6 +11,7 @@ from ..provider_contracts import ProviderTaskHandle
 
 PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise, no people, no text.'
 PREFIX = 'replicate-smoke-v1-'
+SWITCHES = ('OMNI_ZERO_COST_MODE', 'OMNI_ALLOW_EXTERNAL_FALLBACK')    # C32 kill switches (model_policy)
 
 
 def r2_config_diagnostic(env, store):
@@ -51,7 +52,9 @@ class ReplicateImageTest:
     def __init__(self, *, env, journal, store, urlopen=None, fetcher=None):
         # This test always uses the publicly priced default model, irrespective
         # of custom build-provider settings. Never submit an unpriced model.
-        self.provider = build_image_provider({'REPLICATE_API_TOKEN': env.get('REPLICATE_API_TOKEN', '')},
+        # The switches travel with the token (C32 #93): the provider checks them again before its own request.
+        self.provider = build_image_provider({'REPLICATE_API_TOKEN': env.get('REPLICATE_API_TOKEN', ''),
+                                              **{k: env[k] for k in SWITCHES if k in env}},
             journal=journal, urlopen=urlopen, fetcher=fetcher)
         self.journal = journal
         self.store = store
