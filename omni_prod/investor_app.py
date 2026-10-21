@@ -2170,7 +2170,9 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     if row is None or row.revision != revision:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the new summary.'})
     if not row.complete:
-        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.'})
+        # O10: name what is missing (pending question ids and contradictions), not only that something is.
+        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.',
+                                         **d.missing(row.brief)})
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
@@ -2222,7 +2224,7 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
             budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan',
                                                    credits=build_credits))
     except ApprovalError as exc:
-        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
 
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
@@ -2416,7 +2418,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                         credits=credits),
                                     build_id=build_id)
                             except ApprovalError as exc:
-                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))
