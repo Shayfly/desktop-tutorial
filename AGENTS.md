@@ -55,5 +55,5 @@ A rule without enforcement is a wish. Each rule says what is forbidden, how it i
 
 4. **A critical path that has not run for 7 days is broken.**
    - *Forbidden:* reporting a critical path (deploy-worker, golden rehearsal, Golden E2E, postdeploy verify-replay, backup-restore) as working when its last successful run is older than 7 days.
-   - *Enforced today:* **NOT ENFORCED.** No scheduled job checks run age. The data exists (the workflow run history; `smoke/rehearsal-builds.jsonl` timestamps), but nothing reads it.
+   - *Enforced today:* **NOT ENFORCED.** No scheduled job checks run age. The data exists (the workflow run history; `smoke/rehearsal-builds.jsonl` timestamps, on the `bot-reports` branch since 2026-10-21), but nothing reads it.
    - *Missing:* a daily scheduled check that marks a path BROKEN when its last green run is older than 7 days.
