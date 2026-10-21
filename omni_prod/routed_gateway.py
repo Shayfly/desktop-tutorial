@@ -111,6 +111,8 @@ class RoutedModelGateway:
         # Which catalog routes served which task in this build, so the QA
         # reviewer can prefer a model other than the one that wrote the code.
         self.models_by_task: dict[str, set[str]] = {}
+        # T3: every rejected JSON answer, raw and diagnosed (bounded: the last 10, each up to 200k characters).
+        self.rejected_json: list[dict] = []
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
@@ -236,6 +238,13 @@ class RoutedModelGateway:
                 self._release_rejected(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
             record.failure_reason = f'{type(exc).__name__}: {exc}'[:500]
+            if hasattr(exc, 'raw') and hasattr(exc, 'diagnostic'):          # ModelJSONRejected: keep what was said
+                import hashlib
+                raw = exc.raw or ''
+                self.rejected_json = (self.rejected_json + [{
+                    'model': route.endpoint.name, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
+                    'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
+                    'raw': raw[:200_000], 'raw_truncated': len(raw) > 200_000}])[-10:]
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
                                     request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):
