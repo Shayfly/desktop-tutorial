@@ -12,6 +12,7 @@
  },
  "split": "C01-C08 automatic; all others review",
  "count_note": "8 of 30",
+ "count_note_frozen": "count_note is the v3 contract, frozen: it never moves. count_now is the live state (founder 2026-10-21).",
  "count_note_scope": "v3 as approved by the founder 2026-10-20: 30 controls (C01-C29, C31), 8 automatic (C01-C08), 22 review. C30 was renamed S01: a step, not a control. History: v3 had counted C30, so \"8 of 31\" became \"8 of 30\" (20/10).",
  "count_now": {
   "controls": 31,
@@ -649,8 +650,14 @@
    "path_flagged_in_v3": false,
    "canary": null,
    "status": "LIVE since 2026-10-20 night: require status checks = test + validate only; no required pull request; customer-ui and pg not required (flaky)",
-   "drill": "monthly: a merge on red must fail; owner and executor: the owner",
-   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance"
+   "drill": "monthly: a merge on red must fail, attempted by a NON-ADMIN identity (the bot's GITHUB_TOKEN merging the red-on-purpose drill PR #99, expected HTTP 405); an attempt by the admin identity proves nothing (enforce_admins is off) and does not count as the drill; owner and executor: the owner",
+   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance",
+   "enforced_by": {
+    "non_admin": "GitHub: required test + validate. Proved 2026-10-21 for the bot identity: direct push to main -> GH006 \"2 of 2 required status checks are expected\"; merge of red PR #99 -> HTTP 405 \"2 of 2 required status checks are failing.\" (PR #98, comment 6316647617)",
+    "admin": "PROCESS, not GitHub: the merging session acts as the repo admin (Shayfly) and enforce_admins is off, so \"merge only on green\" is rule ב (CI green on the exact head SHA), not a GitHub rule.",
+    "enforce_admins": "false; kept off (founder 2026-10-21): documented, not changed"
+   },
+   "watch_result": "fired 2026-10-21 (first merge after the protection, 8634a57): the bots' direct pushes to main were rejected (GH006). Resolved by route A, no bypass, no new secret, no settings change: the bots push to the report-only branch bot-reports (PR #98, pending audit)."
   },
   {
    "id": "C17",
