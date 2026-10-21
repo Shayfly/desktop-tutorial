@@ -12,6 +12,11 @@
  },
  "split": "C01-C08 automatic; all others review",
  "count_note": "8 of 31 -> 8 of 30, C30->S01, 20/10. (v3 counted C30; S01 is a step, not a control.) Since then C32 was added (founder 2026-10-20): 31 controls, 8 automatic, 23 review.",
+ "adopted": "2026-10-20",
+ "c31_boundary": {
+  "he": "הלינט מוכיח ששורת קנרית קיימת ומצביעה על טסט קיים — לא שהקנרית נכשלת כשהבקרה נשברת. זה התרגיל.",
+  "en": "registry_lint proves a canary row exists and names an existing test; it does NOT prove the canary fails when the control breaks. That is the drill (and the meta-canary, tools/canary_meta.py)."
+ },
  "canary_definition": {
   "he": "קנרית = הוכחה שהבקרה חוסמת. לא הוכחה שהנתיב קיים. כלומר: לא \"הנתיב נמצא\" -> ירוק. אלא שבירת הנתיב -> אדום. אם הצעד ממשיך הלאה כשהנתיב חסר — הקנרית נכשלת, גם אם הנתיב קיים כרגע.",
   "en": "a canary proves the control BLOCKS, not that its path exists: break the path -> red. If the step goes on when the path is missing, the canary fails, even if the path exists now.",
@@ -225,7 +230,7 @@
    "enforcement": "review",
    "group": "b0",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C20",
@@ -239,7 +244,7 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "PR #88 (inspect-round-artifacts) not merged"
   },
   {
    "id": "C21",
@@ -253,7 +258,7 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C22",
@@ -267,7 +272,7 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C23",
@@ -281,7 +286,6 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "EXISTS_NON_BLOCKING",
     "paths": [
@@ -291,7 +295,8 @@
      "infra/worker-host/write-env.sh:136"
     ],
     "notes": "Length checks exist only for the R2 keys (OMNI_S3_ACCESS_KEY 32, OMNI_S3_SECRET_KEY 64) and are ::warning, they do not fail (\"The storage probe decides\"). Blocking shape checks for every variable: spaces :109, quotes :112, non-ASCII :115, exit :141."
-   }
+   },
+   "canary_pending": "PR #94 (write-env lengths) not merged"
   },
   {
    "id": "C24",
@@ -305,7 +310,6 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "REHEARSAL_ONLY",
     "paths": [
@@ -317,7 +321,8 @@
      ".github/workflows/golden-rehearsal.yml:130"
     ],
     "notes": "Only on the rehearsal path. rehearsal.py:62 writes it after engine.build even when build raised, but the taxonomy is computed only at the end of build() (autonomous_core.py:279): a build that raises early yields [] and the rounds before the exception are lost. publish-taxonomy runs if: always() and records no_artifact. Live builds (worker_tasks.py) write no taxonomy: does not exist there."
-   }
+   },
+   "canary_pending": "PR #95 (taxonomy) not merged"
   },
   {
    "id": "C25",
@@ -331,7 +336,9 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "canary": null,
+   "canary": [
+    "tests/test_j1_j2_existing_engine_integration.py::ContractAndSandboxTests::test_sandbox_rejects_shell_command_controls"
+   ],
    "s01": {
     "status": "EXISTS",
     "paths": [
@@ -355,7 +362,6 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "EXISTS",
     "paths": [
@@ -367,7 +373,8 @@
      "omni_prod/preview_durability.py:104"
     ],
     "notes": "Access: a token is valid only for its own preview_id (SQL :123), enforced by the router (:146). Data: a per-project data dir (preview_runtime.py:403); the deploy probe preview-data checks another project sees 0 (preview_durability.py:101-104, PASS in deploy 39472683855)."
-   }
+   },
+   "canary_pending": "not written yet"
   },
   {
    "id": "C27",
@@ -381,7 +388,6 @@
    "enforcement": "review",
    "group": "b1",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "NO_SINGLE_LAYER",
     "paths": [
@@ -392,7 +398,8 @@
      ".github/workflows/postdeploy-checks.yml:95"
     ],
     "notes": "No redaction layer exists: no logging filter in omni_prod; separate redactors at the listed points. secret_redaction.redact (used by structured_event, acceptance_pipeline, training_data) does not match Google keys (AIza...): _GENERIC_KEY (:7) covers only sk-/pk-/rk-."
-   }
+   },
+   "canary_pending": "PR #96 (redaction) not merged"
   },
   {
    "id": "C01",
@@ -406,7 +413,9 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": [
+    "tests/test_verification_group.py::RedTeamGroupGaps::test_a_failed_check_without_a_failure_record_does_not_pass"
+   ]
   },
   {
    "id": "C02",
@@ -420,7 +429,9 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": [
+    "tests/test_expect_text_contains_list.py::ExpectTextContainsListTests::test_every_item_must_appear"
+   ]
   },
   {
    "id": "C03",
@@ -434,7 +445,7 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "PR #89 (preview verdict) not merged"
   },
   {
    "id": "C04",
@@ -448,7 +459,10 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": [
+    "tests/test_round_preflight.py::PreflightRunsTheRunnersOwnStepValidation::test_the_round_0_defect_of_run_39377332673_is_found_statically",
+    "tests/test_preflight_propagation_real_behaviour.py::PreflightFallbackReachesTheRealBehaviourCheck::test_an_unresolved_plan_reaches_behaviour_as_it_is_and_costs_a_real_round"
+   ]
   },
   {
    "id": "C05",
@@ -462,7 +476,7 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "PR #91 (plan_code) not merged"
   },
   {
    "id": "C06",
@@ -476,7 +490,7 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "PR #90 (http_reason) not merged"
   },
   {
    "id": "C07",
@@ -490,7 +504,9 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "canary": null,
+   "canary": [
+    "tests/test_verification_group.py::PostBuildChecksReachTheRepairerTogether::test_10_a_build_failure_does_not_run_the_group"
+   ],
    "s01": {
     "status": "EXISTS",
     "paths": [
@@ -515,7 +531,6 @@
    "enforcement": "automatic",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "EXISTS",
     "paths": [
@@ -526,7 +541,8 @@
      "omni_prod/investor_app.py:705"
     ],
     "notes": "Production: RemoteSandboxRepositoryExecutor.execute (:65; build commands :73-76, verify :77-) when OMNI_SANDBOX_RUNNER_URL is set (investor_app.py:705-708); the local Docker SandboxRepositoryExecutor (sandbox_executor.py:46) only without it. A syntax error is caught earlier, by the consistency gate."
-   }
+   },
+   "canary_pending": "not written yet"
   },
   {
    "id": "C09",
@@ -540,7 +556,7 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "PR #83 (R2 artifact check) not merged"
   },
   {
    "id": "C11",
@@ -554,7 +570,7 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C12",
@@ -568,7 +584,10 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": [
+    "tests/test_qa_budget.py::AuthorizeTests::test_total_cap",
+    "tests/test_qa_budget.py::AuthorizeTests::test_per_build_cap_denies_before_any_query"
+   ]
   },
   {
    "id": "C13",
@@ -582,7 +601,7 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C14",
@@ -596,7 +615,6 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "EXISTS",
     "paths": [
@@ -610,7 +628,8 @@
      "omni_prod/attempt_ledger.py:271"
     ],
     "notes": "Per build: resolve_billing (:335) at the 5 build exits found (821, 844, 869, 893, 920; modifications 1182, 1193) -> settle -> UPDATE credit_reservations (subscription_store.py:378). Per call: INSERT task_attempts (attempt_ledger.py:271). Not verified: a path that raises before these exits."
-   }
+   },
+   "canary_pending": "not written yet"
   },
   {
    "id": "C15",
@@ -624,7 +643,9 @@
    "enforcement": "review",
    "group": "b2",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary": [
+    "tests/test_qa_budget.py::SinceNeedsEvidenceTests::test_date_without_evidence_is_ignored_and_reported"
+   ]
   },
   {
    "id": "C16",
@@ -638,10 +659,10 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null,
    "status": "LIVE since 2026-10-20 night: require status checks = test + validate only; no required pull request; customer-ui and pg not required (flaky)",
    "drill": "monthly: a merge on red must fail; owner and executor: the owner",
-   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance"
+   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance",
+   "canary_pending": "not written yet"
   },
   {
    "id": "C17",
@@ -655,7 +676,7 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C18",
@@ -669,7 +690,7 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C19",
@@ -683,7 +704,6 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "EXISTS_NOT_FOR_INTAKE",
     "paths": [
@@ -694,7 +714,8 @@
      "omni_prod/intake/reservation_worker.py:136"
     ],
     "notes": "Read at model_runtime_config.py:37 (default 1 = blocked), enforced before every external build call (model_policy.py:39). Does NOT apply to intake: reservation_worker.py:47 builds a policy with zero_cost_mode=False, allow_external_fallback=True regardless of the env. Shown 2026-10-20: with ZERO_COST=1 and ALLOW_EXTERNAL=0 the build call is blocked (ModelPolicyViolation) and the intake call is authorized. Intake stops only with OMNI_INTAKE_MODEL != 1 (reservation_worker.py:136)."
-   }
+   },
+   "canary_pending": "not written yet"
   },
   {
    "id": "C28",
@@ -708,7 +729,7 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C29",
@@ -722,7 +743,7 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   },
   {
    "id": "C32",
@@ -736,7 +757,6 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": true,
-   "canary": null,
    "s01": {
     "status": "FIX_IN_PR_93",
     "paths": [
@@ -747,7 +767,8 @@
      "omni_prod/investor_app.py:767"
     ],
     "notes": "Scope map of paid external calls (2026-10-20): builds/QA/specialist review (investor_app.py:767-768, cfg.policy -> model_policy.py:39) honour it; the intake (reservation_worker.py:47) and the Replicate image test (replicate_image_test.py:83 -> image_provider.py submit) did NOT. PR #93 makes both ask model_policy.external_spend_enabled. Not live: image_provider.build_image_capability_stage has no production caller."
-   }
+   },
+   "canary_pending": "PR #93 (kill switch scope) not merged"
   },
   {
    "id": "C31",
@@ -761,7 +782,7 @@
    "enforcement": "review",
    "group": "b3",
    "path_flagged_in_v3": false,
-   "canary": null
+   "canary_pending": "not written yet"
   }
  ]
 }
