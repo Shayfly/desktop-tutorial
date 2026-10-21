@@ -1,7 +1,7 @@
-# db-identity — staging worker database (2026-10-19T06:14:43Z)
+# db-identity — staging worker database (2026-10-21T13:27:51Z)
 
-- run_id: [39208780505](https://github.com/Shayfly/desktop-tutorial/actions/runs/39208780505)
-- source: container omni-worker-worker-1 environment (.env not found at /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host)
+- run_id: [39608189126](https://github.com/Shayfly/desktop-tutorial/actions/runs/39608189126)
+- source: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host/.env (deploy-generated)
 - host: `ep-floral-bread-b1weu1th-pooler.c-5.eu-central-1.aws.neon.tech`
 - dbname: `neondb`
 - sha256(OMNI_DATABASE_URL)[:8]: `4dbc8f3f`
