@@ -64,9 +64,11 @@ jobs:
     steps:
       # This job pushes the report, so its checkout keeps credentials
       # (the test jobs keep persist-credentials: false and a read-only token).
+      # Route A (founder 2026-10-21): the report goes to the report-only branch bot-reports, never to main.
+      # main is protected (required test + validate), so GitHub itself rejects a bot push there (GH006).
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: bot-reports
           persist-credentials: true
       - uses: actions/download-artifact@v4
         with:
@@ -143,7 +145,7 @@ jobs:
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "chore: v24-ci results [skip ci]"
           for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git pull --rebase origin bot-reports && git push origin HEAD:bot-reports && exit 0
             sleep $((i * 5))
           done
           echo "::error title=publish-report::could not push smoke/ci-last-run.md"; exit 1
