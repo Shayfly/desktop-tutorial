@@ -235,7 +235,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "codegen",
     "repair",
     "modification",
     "review"
@@ -333,7 +332,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "codegen",
     "repair",
     "modification",
     "review"
@@ -1350,7 +1348,7 @@
    "task": "codegen",
    "description": "write the product code",
    "preferred_floor": 85,
-   "mandatory_floor": 70,
+   "mandatory_floor": 85,
    "allow_models": [],
    "deny_models": [
     "gpt-6-luna"

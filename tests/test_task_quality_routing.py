@@ -28,8 +28,22 @@ class TaskRoutingTests(unittest.TestCase):
         return [r.endpoint.name for r, _, _ in self.gw.ranked_routes(self.kw, task)]
 
     def test_codegen_and_repair_prefer_quality_with_cheaper_escalation(self):
-        self.assertEqual(self.order('codegen'), ['flash', 'lite'])
         self.assertEqual(self.order('repair'), ['flash', 'lite'])
+
+    def test_codegen_floor_85_is_mandatory_on_the_active_routing_path(self):
+        # T5: ranked_routes (the path the gateway actually calls) must drop a
+        # model below 85 for codegen entirely, not merely sort it last, and the
+        # OMNI_MODEL_TASK_MIN_QUALITY ops knob must not be able to lower it.
+        self.assertEqual(self.order('codegen'), ['flash'])
+        with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"codegen": 0}'}):
+            self.assertEqual(self.order('codegen'), ['flash'])
+
+    def test_codegen_with_only_a_sub_85_model_has_no_route(self):
+        gw = RoutedModelGateway(primary=None, fallback=(), ranked=(_model('lite', 70, '0.25', '1.5'),),
+                                routing_policy=RoutingPolicy(minimum_quality=70, prefer_cost=True),
+                                policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
+                                                      external_budget_usd=Decimal('1'), max_external_calls_per_build=10))
+        self.assertEqual(gw.ranked_routes(self.kw, 'codegen'), [])
 
     def test_architecture_prefers_the_stronger_model(self):
         # Wave A (founder directive 2026-10-11): architecture no longer goes to
@@ -41,8 +55,8 @@ class TaskRoutingTests(unittest.TestCase):
             self.assertEqual(self.order(task), ['lite', 'flash'], task)
 
     def test_env_override(self):
-        with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"codegen": 0}'}):
-            self.assertEqual(self.order('codegen'), ['lite', 'flash'])
+        with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"repair": 0}'}):
+            self.assertEqual(self.order('repair'), ['lite', 'flash'])
 
 
 if __name__ == '__main__':

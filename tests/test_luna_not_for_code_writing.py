@@ -31,8 +31,11 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
         self.assertIn('gpt-6-luna', {m.option.model for m in self.light.ranked})
 
     def test_codegen_repair_and_modification_go_to_flash_lite_in_the_light_class(self):
-        for task in ('codegen', 'repair', 'modification'):
+        for task in ('repair', 'modification'):
             self.assertEqual(models(self.light, task), ['gemini-3.1-flash-lite'], task)
+
+    def test_codegen_has_no_route_in_the_light_class_because_its_floor_is_mandatory_85(self):
+        self.assertEqual(models(self.light, 'codegen'), [])
 
     def test_luna_is_never_offered_for_code_writing_in_any_class(self):
         for cc in CostClass:

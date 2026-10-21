@@ -206,11 +206,11 @@ class PersistenceTests(unittest.TestCase):
 
     def test_rows_and_insert(self):
         gw = _gw()
-        TaskTaggedGateway(gw, "codegen").complete(system="s", user="u")
+        TaskTaggedGateway(gw, "repair").complete(system="s", user="u")   # codegen's floor is a mandatory 85 (T5)
         rows = ledger_rows(gw.recorder.records, build_id="bld_1", tenant_id="t", project_id="p",
                            reservation_id="bld_1", final_outcome="READY")
         row = dict(zip(_COLUMNS, rows[0]))
-        self.assertEqual((row["task_id"], row["final_outcome"]), ("bld_1:codegen", "READY"))
+        self.assertEqual((row["task_id"], row["final_outcome"]), ("bld_1:repair", "READY"))
         self.assertEqual(json.loads(row["candidate_set"])[0]["name"], "cheap")
         self.assertNotIn("secret-", json.dumps(row, default=str))  # key values never reach the ledger
 

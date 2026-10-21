@@ -54,13 +54,21 @@ jobs:
       - run: python scripts/run_international_gate.py
   publish-report:
     # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
-    # main pushes only; the commit carries [skip ci] so it never re-triggers CI.
+    # main pushes only. The bot never pushes to main: the report goes to the
+    # ci/v24-report branch and a PR, which main's protection reviews/merges like
+    # any other. The condition stays refs/heads/main on purpose: that is the run
+    # whose result is being reported; the branch push is a different ref, so it
+    # never re-enters this job. The merged report commit lands on main again, so
+    # the message guard below stops that push from opening another report PR.
     needs: test
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && !startsWith(github.event.head_commit.message, 'chore: v24-ci results')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      contents: write        # push the ci/v24-report branch (never main)
+      pull-requests: write   # open the report PR
     steps:
       # This job pushes the report, so its checkout keeps credentials
       # (the test jobs keep persist-credentials: false and a read-only token).
@@ -135,18 +143,25 @@ jobs:
           lines += ['', '_Test names and counts only; failure messages are not published._']
           open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
           PY
-      - name: Commit [skip ci]
+      - name: Commit the report to a branch and open a PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT_BRANCH: ci/v24-report
         run: |
           git config user.name "ci-bot"
           git config user.email "ci-bot@148ai.dev"
           git add smoke/ci-last-run.md
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "chore: v24-ci results [skip ci]"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            sleep $((i * 5))
-          done
-          echo "::error title=publish-report::could not push smoke/ci-last-run.md"; exit 1
+          git checkout -b "$REPORT_BRANCH"
+          git commit -m "chore: v24-ci results"
+          # Bot-owned branch; each report supersedes the previous one. main is never touched.
+          git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
+          if [ -n "$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')" ]; then
+            echo "report PR already open; branch updated"; exit 0
+          fi
+          gh pr create --base main --head "$REPORT_BRANCH" \
+            --title "chore: v24-ci results" \
+            --body "Automated CI result report (smoke/ci-last-run.md). Merge through main's normal protection."
   compose-config:
     runs-on: ubuntu-latest
     steps:

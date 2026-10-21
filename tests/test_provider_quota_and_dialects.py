@@ -140,7 +140,7 @@ class QuotaTests(unittest.TestCase):
 class BudgetFitTests(unittest.TestCase):
     def test_a_route_that_does_not_fit_gives_way_to_a_cheaper_one(self):
         s = Script({})
-        models = (_model('cheap', 70, '0.10', '0.50'), _model('dear', 90, '2', '10'))
+        models = (_model('cheap', 85, '0.10', '0.50'), _model('dear', 90, '2', '10'))   # codegen floor 85 is mandatory (T5)
         gw = _gw(s, models, budget='0.05')  # dear worst case: 10000 x $10/M = $0.10
         self.assertEqual(gw.complete_json(system='s', user='u', max_tokens=10000, task='codegen'), {'ok': 'cheap'})
         self.assertEqual(s.calls, ['cheap'])

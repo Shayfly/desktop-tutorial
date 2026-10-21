@@ -115,8 +115,11 @@ class SameTaskTierTests(unittest.TestCase):
         a_max = max(m.option.output_per_million for m in amateur.ranked)
         s_max = max(m.option.output_per_million for m in studio.ranked)
         self.assertLess(a_max, s_max)
+        # T5: codegen's quality floor (85) is mandatory, so the light class (Amateur) has no codegen route at all
+        self.assertIsNone(_cheapest_call_cost(amateur))
+        self.assertIsNotNone(_cheapest_call_cost(studio))
         # cheapest admissible call for the same task never costs more on Amateur
-        self.assertLessEqual(_cheapest_call_cost(amateur), _cheapest_call_cost(studio))
+        self.assertLessEqual(_cheapest_call_cost(amateur, 'repair'), _cheapest_call_cost(studio, 'repair'))
 
     def test_margin_holds_on_every_paid_tier_in_the_worst_case(self):
         for code in PAID:
