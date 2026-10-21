@@ -1,6 +1,11 @@
-"""Hermetic mode for local tests (owner 2026-10-21): OMNI_TEST_HERMETIC=1 blocks every outbound network connection.
+"""Hermetic mode, SOCKET LEVEL (owner 2026-10-21; scope corrected after Matt's review): OMNI_TEST_HERMETIC=1 makes
+this Python process refuse outbound connections and name lookups, loudly (HermeticViolation).
 
-Not a "mocked provider": the process cannot reach the network at all, except loopback and Unix sockets (local test
+What it is NOT: an operating-system block. A subprocess that does not import omni_prod (curl, a shell, `python -I`) is
+not covered by it. The network-level block is tools/netns_run.py (a network namespace with only loopback), which CI
+uses for the unit tests and which also sets this variable; this module adds the loud in-process error on top.
+
+Not a "mocked provider": in-process code cannot reach the network, except loopback and Unix sockets (local test
 servers, the CI Postgres/Redis on 127.0.0.1) and the hosts named in OMNI_TEST_HERMETIC_ALLOW (comma separated, e.g. the
 compose service names `postgres,redis`). Proxy variables are removed: a loopback proxy
 would otherwise tunnel out. Installed from omni_prod/__init__.py, so it covers every process that imports
