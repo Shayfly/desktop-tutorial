@@ -242,11 +242,18 @@ class WebSaaSAcceptanceRunner:
                         raise ValueError('path must be a relative absolute-path beginning with one /')
                     headers = _resolve(step.get('headers') or {}, variables)
                     body = _resolve(step.get('json'), variables)
-                    resp = self.transport.request(
-                        method=method, url=base_url + path, headers=headers, json_body=body,
-                        timeout_seconds=float(step.get('timeout_seconds', self.timeout_seconds)),
-                    )
-                    detail = _assert_response(step, resp)
+                    timeout = float(step.get('timeout_seconds', self.timeout_seconds))
+                    if step.get('concurrent'):
+                        # T8: N identical requests at the same instant; the SERVER must accept exactly
+                        # expect_accepted of them and refuse the rest (a UI that blocks double clicks proves nothing).
+                        resp, detail = _concurrent(self.transport, step, method=method, url=base_url + path,
+                                                   headers=headers, body=body, timeout=timeout)
+                    else:
+                        resp = self.transport.request(
+                            method=method, url=base_url + path, headers=headers, json_body=body,
+                            timeout_seconds=timeout,
+                        )
+                        detail = _assert_response(step, resp)
                     _capture(step.get('capture') or {}, resp, variables)
                     passed = True
                     passed_ids.update(acceptance_ids)
@@ -343,6 +350,15 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
                 return f'step {step_id} uses unsupported HTTP method {method}'
             if not ids:
                 return f'step {step_id} must reference contract acceptance_ids'
+            if 'concurrent' in step:
+                n = step.get('concurrent')
+                if not isinstance(n, int) or isinstance(n, bool) or not 2 <= n <= 5:
+                    return f'step {step_id}: concurrent must be an integer from 2 to 5'
+                if method not in {'POST', 'PUT', 'PATCH'}:
+                    return f'step {step_id}: concurrent applies to POST, PUT or PATCH'
+                accepted = step.get('expect_accepted', 1)
+                if not isinstance(accepted, int) or isinstance(accepted, bool) or not 0 <= accepted <= n:
+                    return f'step {step_id}: expect_accepted must be an integer from 0 to concurrent'
             unknown = sorted(set(ids) - contract_ids)
             if unknown:
                 return f'step {step_id} references unknown acceptance id(s): {",".join(unknown)}'
@@ -386,6 +402,43 @@ def _resolve(value: Any, variables: Mapping[str, Any]) -> Any:
     if isinstance(value, dict):
         return {str(k): _resolve(v, variables) for k, v in value.items()}
     return value
+
+
+def _concurrent(transport, step: Mapping[str, Any], *, method: str, url: str, headers, body, timeout: float):
+    """T8 (founder 2026-10-21): fire `concurrent` identical requests released by one barrier. Exactly
+    `expect_accepted` (default 1) must answer `expect_status` (default 200) and every other one
+    `expect_conflict_status` (default 409). Returns (an accepted response for capture, detail)."""
+    import threading
+    n = int(step['concurrent'])
+    accepted_status = int(step.get('expect_status', 200))
+    conflict_status = int(step.get('expect_conflict_status', 409))
+    want = int(step.get('expect_accepted', 1))
+    barrier = threading.Barrier(n)
+    results: list = [None] * n
+
+    def fire(i):
+        try:
+            barrier.wait(timeout=timeout)
+            results[i] = transport.request(method=method, url=url, headers=headers, json_body=body,
+                                           timeout_seconds=timeout)
+        except Exception as exc:                       # a crash or a dropped connection is an outcome too
+            results[i] = exc
+
+    threads = [threading.Thread(target=fire, args=(i,), daemon=True) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout * 2 + 5)
+    statuses = [getattr(r, 'status', type(r).__name__) for r in results]
+    ok = [r for r in results if getattr(r, 'status', None) == accepted_status]
+    refused = [r for r in results if getattr(r, 'status', None) == conflict_status]
+    if len(ok) != want or len(ok) + len(refused) != n:
+        raise AssertionError(f'{n} concurrent {method} requests: expected exactly {want} x HTTP {accepted_status} and '
+                             f'the rest HTTP {conflict_status}, got {statuses} (the server must lock and check the '
+                             'overlap inside one transaction; blocking in the page is not enough)')
+    if ok and 'expect_json_contains' in step and not _json_contains(ok[0].json(), step['expect_json_contains']):
+        raise AssertionError(f"the accepted response does not contain {step['expect_json_contains']!r}")
+    return (ok[0] if ok else refused[0]), f'{n} concurrent requests: {statuses} (exactly {want} accepted)'
 
 
 def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:

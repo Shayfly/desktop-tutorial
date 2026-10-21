@@ -4312,7 +4312,7 @@
    "gap": "review + instruction, no dynamic XSS probe",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/product_review.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/product_review.py, omni_prod/skills_runtime.py",
    "evidence": [],
    "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
