@@ -11,7 +11,15 @@
   "review": "a PR touching a control without its row is rejected"
  },
  "split": "C01-C08 automatic; all others review",
- "count_note": "8 of 31 -> 8 of 30, C30->S01, 20/10. (v3 counted C30; S01 is a step, not a control.) Since then C32 was added (founder 2026-10-20): 31 controls, 8 automatic, 23 review.",
+ "count_note": "8 of 30",
+ "count_note_scope": "v3 as approved by the founder 2026-10-20: 30 controls (C01-C29, C31), 8 automatic (C01-C08), 22 review. C30 was renamed S01: a step, not a control. History: v3 had counted C30, so \"8 of 31\" became \"8 of 30\" (20/10).",
+ "count_now": {
+  "controls": 31,
+  "automatic": 8,
+  "review": 23,
+  "why_differs": "C32 (kill switches / external spend) was added by the founder on 2026-10-20 after the v3 count; C32 is review, so the automatic count is unchanged.",
+  "checked_by": "tests/test_controls_counts.py"
+ },
  "canary_definition": {
   "he": "קנרית = הוכחה שהבקרה חוסמת. לא הוכחה שהנתיב קיים. כלומר: לא \"הנתיב נמצא\" -> ירוק. אלא שבירת הנתיב -> אדום. אם הצעד ממשיך הלאה כשהנתיב חסר — הקנרית נכשלת, גם אם הנתיב קיים כרגע.",
   "en": "a canary proves the control BLOCKS, not that its path exists: break the path -> red. If the step goes on when the path is missing, the canary fails, even if the path exists now.",
@@ -192,7 +200,8 @@
  "meta_canary": {
   "file": "tools/canary_meta.py",
   "how": "dedicated CI job: break a control on purpose and require the suite to fail",
-  "enforcement": "review"
+  "enforcement": "review",
+  "status": "not written yet: tools/canary_meta.py does not exist at this head; nothing runs it"
  },
  "incidents": [
   {
