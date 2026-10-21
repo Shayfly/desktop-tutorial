@@ -57,13 +57,14 @@
    "what": "משפחת המתגים לא מוגדרת בפרודקשן: בפרודקשן יש טוקן Replicate פעיל והוצאה אמיתית, בלי אף מתג שמאשר אותה. הבקרה קיימת בכל מקום חוץ מהמקום שבו היא קובעת.",
    "evidence": "Vercel read live 2026-10-21: production has REPLICATE_API_TOKEN; OMNI_ZERO_COST_MODE and OMNI_INTAKE_MODEL are preview-only; OMNI_ALLOW_EXTERNAL_FALLBACK=1 was added to production by the owner (updatedAt 1792561683752). With exactly those values the #93 Replicate path (fdf8b79) REFUSES before any request: ZERO_COST_MODE unset -> default 1. With ZERO_COST_MODE=0 it reaches POST api.replicate.com/.../predictions.",
    "blocks": "merge of #93 (it would stop the production Replicate test)",
-   "status": "OPEN: the family is not complete in production (OMNI_INTAKE_MODEL still unset, O07)"
+   "status": "OPEN, blocked on C32 (#93): the family is not complete in production (OMNI_INTAKE_MODEL still unset, O07)"
   },
   {
    "id": "O07",
    "control": "C32",
    "what": "OMNI_INTAKE_MODEL לא מוגדר בפרודקשן",
    "condition": "נחסם ברגע ש-C32 עובר לפרודקשן",
+   "status": "OPEN, blocked on C32 (#93)",
    "evidence": "Vercel 2026-10-21: OMNI_INTAKE_MODEL and OMNI_INTAKE_VIA_WORKER are preview-only. On main the production API already runs the deterministic intake without them (investor_app.py:1969: model intake needs both =1); the model intake itself runs on the worker (reservation_worker.py:136), whose env is separate."
   }
  ],
@@ -73,7 +74,8 @@
    "control": "C32",
    "what": "בנייה מהפרודקשן שבורה: _m5_build_economics_quote -> from_env() זורק ValueError כשהמתג לא מוגדר, והנקודות הקצה לא תופסות.",
    "found_by": "נמצא בתיעוד, לא בטסט",
-   "status": "distinguishing proof GREEN at code level with production values; live endpoint not called",
+   "status": "OPEN. Distinguishing proof GREEN at code level with production values (approved 2026-10-21); closes only with a live call to the production endpoints v28_build_contract_preview, approval, async",
+   "executor": "owner (an authenticated production session)",
    "proof": "ModelRuntimeConfig.from_env() with the Vercel production values: BEFORE (ZERO unset, calls=40) RAISES ValueError \"zero_cost_mode forbids external model spend\"; NOW (OMNI_ZERO_COST_MODE=0 encrypted record L3gBASzzJqzv3JIv, production deployment dpl_AUTCYpBEez6j6rhJBJDQxnypUjHW created 8 s after it) OK: zero_cost_mode=False allow_external=True budget=0.50 calls=40.",
    "not_done": "the production endpoints (v28_build_contract_preview / approval / async) were not called: that needs an authenticated production session"
   },
@@ -81,7 +83,8 @@
    "id": "O09",
    "control": "C32",
    "what": "איזה worker ותור מריצים בנייה שנשלחה מהפרודקשן — לא נבדק",
-   "risk": "if it is the same worker as staging, a real build from production reaches it"
+   "risk": "if it is the same worker as staging, a real build from production reaches it",
+   "status": "OPEN (approved as open)"
   }
  ],
  "production_switch_change_2026_10_21": {
@@ -141,6 +144,21 @@
  "kill_switches_found": [
   {
    "name": "OMNI_ZERO_COST_MODE",
+   "vercel_records": [
+    {
+     "target": "preview",
+     "type": "plain",
+     "value": "0",
+     "id": "OY4E6ccM4WxX1EIA"
+    },
+    {
+     "target": "production",
+     "type": "encrypted",
+     "value": "0 (read by id, 2026-10-21)",
+     "id": "L3gBASzzJqzv3JIv",
+     "note": "ENCRYPTED: the value does not show in the env listing. It is NOT missing; read it by id (GET /v1/projects/<project>/env/L3gBASzzJqzv3JIv). Production deployment dpl_AUTCYpBEez6j6rhJBJDQxnypUjHW was created 8 s after it."
+    }
+   ],
    "read": "omni_prod/model_runtime_config.py:37",
    "enforced": "omni_prod/model_policy.py:39",
    "default": "1 (blocked)",
