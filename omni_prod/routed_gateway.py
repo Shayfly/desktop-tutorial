@@ -113,6 +113,7 @@ class RoutedModelGateway:
         self.models_by_task: dict[str, set[str]] = {}
         # T3: every rejected JSON answer, raw and diagnosed (bounded: the last 10, each up to 200k characters).
         self.rejected_json: list[dict] = []
+        self.rejected_json_manifest: list[dict] = []   # every rejection of the build (no raw text): the evidence row
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
@@ -241,10 +242,19 @@ class RoutedModelGateway:
             if hasattr(exc, 'raw') and hasattr(exc, 'diagnostic'):          # ModelJSONRejected: keep what was said
                 import hashlib
                 raw = exc.raw or ''
-                self.rejected_json = (self.rejected_json + [{
-                    'model': route.endpoint.name, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
-                    'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
-                    'raw': raw[:200_000], 'raw_truncated': len(raw) > 200_000}])[-10:]
+                entry = {'model': route.endpoint.name, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
+                         'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
+                         'raw_chars': len(raw), 'raw': raw[:200_000], 'raw_truncated': len(raw) > 200_000}
+                # Matt on #105: memory is not evidence. A durable sink (the worker: object storage, per build) gets
+                # the FULL raw answer at the moment it is rejected, so it survives the build crashing later.
+                sink = getattr(self, 'rejected_json_sink', None)
+                if sink is not None:
+                    try:
+                        entry['key'] = sink(entry, raw)
+                    except Exception as sink_exc:            # recorded, never silent: the evidence is then NOT durable
+                        entry['store_error'] = f'{type(sink_exc).__name__}: {sink_exc}'[:300]
+                self.rejected_json = (self.rejected_json + [entry])[-10:]
+                self.rejected_json_manifest.append({k: v for k, v in entry.items() if k != 'raw'})   # all, without raw
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
                                     request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):

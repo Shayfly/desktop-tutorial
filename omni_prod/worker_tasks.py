@@ -159,6 +159,35 @@ def install_round_snapshots(engine, workspace, build_id: str, sink: list, contro
     engine.round_hook = hook
 
 
+def install_rejected_json_sink(gateway, workspace, build_id: str) -> None:
+    """T3 / Matt on #105: every model answer rejected as JSON is written to object storage at the moment it is
+    rejected (the FULL raw text and its diagnosis), under build-model-json/<build>/; the build evidence carries the
+    manifest (rejected_json_evidence). Without storage nothing is installed and the manifest says so."""
+    store = getattr(workspace, 'storage', None)
+    if gateway is None or store is None or not callable(getattr(store, 'put_bytes', None)):
+        return
+    import hashlib
+    counter = {'n': 0}
+
+    def sink(entry: dict, raw: str) -> str:
+        body = json.dumps({**{k: v for k, v in entry.items() if k != 'raw'}, 'raw': raw}, ensure_ascii=False).encode()
+        key = (f"build-model-json/{build_id}/{counter['n']:02d}-{entry['task']}-"
+               f"{hashlib.sha256(body).hexdigest()[:12]}.json")
+        counter['n'] += 1
+        store.put_bytes(key, body)
+        return key
+    gateway.rejected_json_sink = sink
+
+
+def rejected_json_evidence(gateway) -> dict:
+    """Manifest of the rejected JSON answers of THIS build (the raw text lives at each key)."""
+    rows = list(getattr(gateway, 'rejected_json_manifest', None) or [])
+    durable = getattr(gateway, 'rejected_json_sink', None) is not None
+    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'task', 'raw_sha256', 'raw_chars', 'key', 'store_error')}
+                                    | {'reason': (r.get('diagnostic') or {}).get('reason')} for r in rows],
+            'rejected_model_json_durable': durable}
+
+
 def visual_evidence(engine) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .visual_qa import VisualQAExecutor
@@ -693,6 +722,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             raise RuntimeError('strict durable round evidence backend unavailable')
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
+        install_rejected_json_sink(gateway, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
@@ -790,7 +820,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'repair_rounds': result.repair_rounds,
             'repair_stop_reason': getattr(result, 'stop_reason', None) or None,
             'build_log_tail': result.report.build_log[-4000:],
-            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
@@ -826,7 +856,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
@@ -851,7 +881,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'infrastructure': exc.evidence,
                            'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -875,7 +905,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': exc.evidence,
                            'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -899,7 +929,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'model_budget_binding': model_budget_binding},
