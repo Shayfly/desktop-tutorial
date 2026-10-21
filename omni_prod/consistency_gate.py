@@ -11,6 +11,8 @@ reported with an exact `file:line` and a concrete fix instead of a generic
                 behavioural acceptance plan calls exist on the server side
   static        local scripts/styles/images the page references exist or are served
   manifest      files named in .omni/project.json commands exist
+  plan_code     what the acceptance plan makes users do (create, update, delete) exists in the code: the server
+                handles the method, and the page has a control and client code that sends it
 
 Every check is conservative: when the repository's shape is not understood
 (no server source, dynamic paths) the check is skipped, never guessed. The
@@ -301,6 +303,79 @@ def _static(repo: dict[str, str], out: list[Finding]) -> None:
                                f'add {rel} to the repository or remove the reference'))
 
 
+# --------------------------------------------------------------- plan_code --
+# Paid run 39473090833 (R2 read 39477884309, 2026-10-20): the plan had data_create (S3 POST /api/appointments) and
+# data_delete (S4 DELETE /api/appointments/1); index.html said "you can book in the form below" and contained no form,
+# no input, no button and no script. Preview rejected it twice and behaviour failed, for three rounds. All of that is
+# visible by reading the files: plan against code, like the round pre-flight's plan checks (#85).
+_UI_KINDS = {'data_create': ('POST',), 'data_update': ('PUT', 'PATCH'), 'data_delete': ('DELETE',)}
+_CONTROL = re.compile(r'<(?:form|input|button|select|textarea)\b|createElement\(\s*[\'"`](?:form|input|button|select|textarea)'
+                      r'[\'"`]\s*\)', re.I)
+
+
+def _client_sends(method: str, text: str) -> bool:
+    m = method.lower()
+    return bool(re.search(r'[\'"`]%s[\'"`]' % method, text, re.I)                       # fetch(u, {method: 'DELETE'})
+                or re.search(r'<form\b[^>]*\bmethod\s*=\s*[\'"]?%s' % m, text, re.I)  # <form method="post">
+                or re.search(r'(?:axios|\$|http|api|client|request)\.%s\(' % m, text, re.I))
+
+
+def _server_handles(method: str, server: str) -> bool:
+    m = method.lower()
+    return bool(re.search(r'def\s+do_%s\b' % method, server)                             # http.server
+                or re.search(r'@\w+(?:\.\w+)*\.%s\(' % m, server)                       # @app.post( / @router.delete(
+                or re.search(r'methods\s*=\s*[\[(][^\])]*[\'"]%s[\'"]' % method, server, re.I)
+                or re.search(r'[\'"]%s[\'"]' % method, server)                             # dispatch on the method name
+                or re.search(r'\b(?:app|router|server|r)\.%s\(' % m, server))               # express / hono
+
+
+def _plan_code(repo: dict[str, str], out: list[Finding], report: ConsistencyReport) -> None:
+    try:
+        plan = json.loads(repo.get('.omni/project.json') or '{}').get('web_saas_acceptance') or {}
+    except (json.JSONDecodeError, AttributeError):
+        return                                                    # the syntax/manifest checks report it
+    steps = [st for p in (plan.get('personas') or []) for st in ((p or {}).get('steps') or []) if isinstance(st, dict)]
+    needed = {}                                                   # kind -> first step of that kind
+    for st in steps:
+        if st.get('kind') in _UI_KINDS:
+            needed.setdefault(st['kind'], st)
+    if not needed:
+        return
+    server = _server_text(repo)
+    pages = {p: t for p, t in repo.items() if not _is_test(p) and (
+        p.endswith(_CLIENT_SUFFIXES) or (p.endswith('.py') and _PY_HTML.search(t)))}
+    if not server.strip() or not pages:
+        report.skipped['plan_code'] = 'no server source' if not server.strip() else 'no page source'
+        return
+    def describe(st):
+        return f"{st.get('id')} ({st.get('kind')}: {str(st.get('method', 'GET')).upper()} {st.get('path')})"
+    for kind, st in sorted(needed.items()):
+        method = str(st.get('method', _UI_KINDS[kind][0])).upper()
+        if not _server_handles(method, server):
+            out.append(Finding('plan_code', '.omni/project.json', None,
+                               f'acceptance step {describe(st)}: the server has no {method} handler',
+                               f'handle {method} for {st.get("path")} on the server (e.g. def do_{method}(self) '
+                               'with http.server)'))
+    ui_text = '\n'.join(pages.values())
+    if not _CONTROL.search(ui_text):
+        page = next((p for p in sorted(pages) if p.endswith(('.html', '.htm'))), sorted(pages)[0])
+        out.append(Finding('plan_code', page, None,
+                           'the plan makes users ' + ', '.join(
+                               f"{k.split('_', 1)[1]} ({describe(needed[k])})" for k in sorted(needed))
+                           + ', but no page contains an interactive control (<form>, <input>, <button>, <select>, '
+                           '<textarea>, or createElement of one): there is nothing a user can use to do it',
+                           'build the form/buttons on the page served at / and wire them with fetch to the routes the '
+                           'plan calls; the page must be the working interface, not a description of it'))
+        return
+    for kind, st in sorted(needed.items()):
+        methods = (str(st.get('method')).upper(),) if st.get('method') else _UI_KINDS[kind]
+        if not any(_client_sends(m, ui_text) for m in methods):
+            out.append(Finding('plan_code', '.omni/project.json', None,
+                               f'acceptance step {describe(st)}: no page code sends {"/".join(methods)}',
+                               f'make the page call {st.get("path")} with method {methods[0]} '
+                               f"(fetch(url, {{method: '{methods[0]}'}}) or <form method=\"{methods[0].lower()}\">)"))
+
+
 # ---------------------------------------------------------------- manifest --
 def _manifest(repo: dict[str, str], out: list[Finding]) -> None:
     raw = repo.get('.omni/project.json')
@@ -377,7 +452,7 @@ def _accessibility(repo: dict[str, str], out: list[Finding]) -> None:
 
 
 # -------------------------------------------------------------------- API --
-CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'accessibility')
+CHECKS = ('syntax', 'imports', 'routes', 'static', 'manifest', 'plan_code', 'accessibility')
 
 
 def scan(repo: dict[str, str]) -> ConsistencyReport:
@@ -388,6 +463,7 @@ def scan(repo: dict[str, str]) -> ConsistencyReport:
     _routes(repo, out, report); report.checks_run.append('routes')
     _static(repo, out); report.checks_run.append('static')
     _manifest(repo, out); report.checks_run.append('manifest')
+    _plan_code(repo, out, report); report.checks_run.append('plan_code')
     _accessibility(repo, out); report.checks_run.append('accessibility')
     return report
 
