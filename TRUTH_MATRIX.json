@@ -928,18 +928,16 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks run 37961193099"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:budget_guard",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stor"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/model_policy.py"
     }
    ]
   },
@@ -1138,8 +1136,8 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 10,
-  "REAL_SERVER_VERIFIED": 14,
+  "IMPLEMENTED": 11,
+  "REAL_SERVER_VERIFIED": 13,
   "UNIT_TESTED": 4,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3

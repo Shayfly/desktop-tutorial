@@ -3156,6 +3156,7 @@ def v28_r2_config_diagnostic(request: Request):
 
 @app.post('/api/v28/providers/replicate/image-test')
 def v28_replicate_image_test_start(req: ReplicateImageTestRequest, request: Request):
+    from .model_policy import ModelPolicyViolation
     account_id, service = _replicate_image_test_context(request)
     # Cookies alone cannot authorize a cross-origin paid POST.
     if request.headers.get('origin') != str(request.base_url).rstrip('/'):
@@ -3170,6 +3171,8 @@ def v28_replicate_image_test_start(req: ReplicateImageTestRequest, request: Requ
         return service.start(account_id, confirmed=True)
     except HTTPException:
         raise
+    except ModelPolicyViolation as exc:      # C32: the kill switch, said as such (nothing was sent, nothing billed)
+        raise HTTPException(503, f'{exc}. No image request was sent.') from None
     except Exception:
         raise HTTPException(503, 'Image submission failed or is uncertain. Do not create another token; refresh test status.') from None
 

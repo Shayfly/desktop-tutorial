@@ -11,6 +11,7 @@ from ..provider_contracts import ProviderTaskHandle
 
 PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise, no people, no text.'
 PREFIX = 'replicate-smoke-v1-'
+SWITCHES = ('OMNI_ZERO_COST_MODE', 'OMNI_ALLOW_EXTERNAL_FALLBACK')    # C32 kill switches (model_policy)
 
 
 def r2_config_diagnostic(env, store):
@@ -51,10 +52,13 @@ class ReplicateImageTest:
     def __init__(self, *, env, journal, store, urlopen=None, fetcher=None):
         # This test always uses the publicly priced default model, irrespective
         # of custom build-provider settings. Never submit an unpriced model.
-        self.provider = build_image_provider({'REPLICATE_API_TOKEN': env.get('REPLICATE_API_TOKEN', '')},
+        # The switches travel with the token (C32 #93): the provider checks them again before its own request.
+        self.provider = build_image_provider({'REPLICATE_API_TOKEN': env.get('REPLICATE_API_TOKEN', ''),
+                                              **{k: env[k] for k in SWITCHES if k in env}},
             journal=journal, urlopen=urlopen, fetcher=fetcher)
         self.journal = journal
         self.store = store
+        self.env = env
 
     def key(self, account_id):
         return PREFIX + hashlib.sha256(str(account_id).encode()).hexdigest()
@@ -85,6 +89,10 @@ class ReplicateImageTest:
             raise ValueError('Confirm one image at a maximum provider price of $0.003')
         if self.provider is None:
             raise ValueError('REPLICATE_API_TOKEN is missing')
+        # C32 (2026-10-20): a paid call outside the build path must honour the kill switches too.
+        from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+        if not external_spend_enabled(self.env):
+            raise ModelPolicyViolation(SPEND_DISABLED)
         requirement = CapabilityRequirement(id='replicate-test', key='media.image.generate',
             purpose='single image connection test', required=True, quantity=1, constraints={'prompt': PROMPT})
         handle = self.provider.submit(requirement, idempotency_key=self.key(account_id))
