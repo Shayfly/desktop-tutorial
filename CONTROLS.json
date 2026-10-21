@@ -32,6 +32,46 @@
    "id": "O02",
    "what": "קלוד הוא נקודת כשל יחידה במיזוג",
    "goes_to": "ו׳"
+  },
+  {
+   "id": "O03",
+   "control": "C10",
+   "what": "מוקש 038 — מסלול ה-DROP+DELETE לא נבדק: אין קוד לפני 038 ב-repo",
+   "evidence": "migrations 038-041 entered with the graft root ba2bb23; every SHA in history has them"
+  },
+  {
+   "id": "O04",
+   "control": "C10",
+   "what": "שורת pending migrations: none לא נקראה — לאמת שהשורה עצמה מודפסת",
+   "evidence": "drill runs 39492342815/39492678328/39493057663/39495052838: migrate step success, no AHEAD warning; job logs are not readable from the review session, only annotations"
+  },
+  {
+   "id": "O05",
+   "control": "C10",
+   "what": "recover.sh — התאוששות מכשל לא נבדקה; התרגיל בדק rollback מתוכנן בלבד",
+   "evidence": "no step failed in the drill, so the recover step was skipped in all 4 deploys"
+  }
+ ],
+ "drills_run": [
+  {
+   "control": "C10",
+   "date": "2026-10-20",
+   "result": "PASS (approved 2026-10-21)",
+   "rollback_sha": "4d488b4f80eec013f3fb87ce1baa71303827a83f",
+   "runs": [
+    "39492342815",
+    "39492678328",
+    "39493057663",
+    "39493396519",
+    "39494999472",
+    "39495052838"
+   ],
+   "proof": "after the rollback the live build routed codegen to gpt-6-luna (code before #86); on main it goes to gemini-3.1-flash-lite",
+   "not_proven": [
+    "O03",
+    "O04",
+    "O05"
+   ]
   }
  ],
  "s01": {
@@ -525,9 +565,9 @@
   {
    "id": "C16",
    "control": "main protection blocks a merge on red",
-   "file_v3": "GitHub settings",
+   "file_v3": "GitHub settings (branch protection of main)",
    "type": "assertion",
-   "owner": "Claude",
+   "owner": "owner (admin)",
    "executor": "owner (admin)",
    "frequency": "every CI",
    "failure_image": "merge while a check is red",
@@ -535,8 +575,9 @@
    "group": "b3",
    "path_flagged_in_v3": false,
    "canary": null,
-   "decision_2026_10_20": "require status checks ON for test and validate only (not customer-ui, not pg: both flaky); no \"Require a pull request\" (the CI bot pushes to main). Enabled by the owner (admin).",
-   "canary_drill": "monthly: try to merge on red; must be refused"
+   "status": "LIVE since 2026-10-20 night: require status checks = test + validate only; no required pull request; customer-ui and pg not required (flaky)",
+   "drill": "monthly: a merge on red must fail; owner and executor: the owner",
+   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance"
   },
   {
    "id": "C17",
