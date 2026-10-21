@@ -152,6 +152,34 @@ def main():
     judged('positive_group_fails_when_one_real_stage_reports_no_checks', VerificationGroup(Transport(), (
         BrowserFlowExecutor(Transport(stdout='OMNI_BROWSER_PROBE {"forms":[],"findings":[]}')),
         BehaviorAcceptanceExecutor(Transport(stdout=behavior_ok)))), 'NO_CHECKS')
+    # ---- Matt's #103 HOLD: a content site is judged (not refused), and no path returns the input report unjudged.
+    page_ok = 'OMNI_BROWSER_PROBE ' + json.dumps({'forms': [], 'findings': [], 'page_errors': [], 'server_errors': []})
+    page_js = 'OMNI_BROWSER_PROBE ' + json.dumps({'forms': [], 'page_errors': ['TypeError: x is undefined'],
+        'server_errors': [], 'findings': [{'kind': 'page_error', 'message': 'uncaught JavaScript error: TypeError'}]})
+    judged('positive_content_site_page_observed_no_forms', BrowserFlowExecutor(Transport(stdout=page_ok)), 'PASS')
+    judged('content_site_with_a_javascript_error', BrowserFlowExecutor(Transport(stdout=page_js)), 'FAIL')
+    no_plan_repo = {k: v for k, v in REPO.items() if k != '.omni/project.json'}
+    no_plan_repo['.omni/project.json'] = json.dumps({'schema_version': 2, 'runtime': 'python:3.11-slim',
+                                                     'start': ['python', 'app.py'], 'port': 8000, 'health_path': '/'})
+    node_repo = dict(REPO)
+    node_repo['.omni/project.json'] = json.dumps({**json.loads(REPO['.omni/project.json']), 'runtime': 'node:20-slim',
+                                                  'start': ['node', 'app.js']})
+    no_acceptance = SimpleNamespace(acceptance=[], requirements=[])
+
+    def judged_on(case, stage, repo, spec, expected):
+        try:
+            r = stage.execute(repository=repo, spec=spec)
+            got = stage_verdict(r)
+            extra.append({'case': case, 'expected': expected, 'observed': {'verdict': got, 'passed': r.passed,
+                          'failure_ids': [f.acceptance_id for f in r.failures]}, 'boundary_violated': got != expected})
+        except Exception as exc:
+            extra.append({'case': case, 'expected': expected, 'observed': {'exception': f'{type(exc).__name__}: {exc}'[:200]},
+                          'boundary_violated': True})
+    judged_on('behavior_no_acceptance_and_no_plan', BehaviorAcceptanceExecutor(Transport(stdout=behavior_ok)),
+              no_plan_repo, no_acceptance, 'NO_CHECKS')
+    judged_on('behavior_non_python_runtime', BehaviorAcceptanceExecutor(Transport(stdout=behavior_ok)),
+              node_repo, SPEC, 'FAIL')
+    judged_on('preview_non_python_runtime', PreviewReadyExecutor(Transport()), node_repo, SPEC, 'FAIL')
     for error in (BuildCancelled('synthetic cancel'), AttemptLedgerUnavailable('synthetic ledger down'),
                   ModelPolicyViolation('synthetic budget')):        # the GROUP re-raises control exceptions too
         def raises(exc=error, **kwargs):

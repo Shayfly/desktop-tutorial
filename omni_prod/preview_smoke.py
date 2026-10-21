@@ -125,7 +125,8 @@ class PreviewReadyExecutor:
         run = getattr(self._inner, '_run', None)
         if not contract.runtime.startswith('python') or not callable(run):
             self.last_smoke = {'status': 'NOT_RUN', 'reason': 'no sandbox runtime to start this product'}
-            return report  # contract valid; no sandbox runtime to start it in here
+            from .verification_verdict import unverified        # T4: NOT_RUN is not PASS (release policy says so too)
+            return unverified(PREVIEW_FAILURE_ID, f'no sandbox runtime for {contract.runtime!r}', report.build_log)
         try:
             staged, argv = staged_script(repository, 'preview_smoke', _SMOKE)
             result = run(staged, argv, 'preview-smoke')

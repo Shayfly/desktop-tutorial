@@ -211,9 +211,13 @@ class BrowserFlowExecutor:
             self.last_probe = {'status': 'unavailable', 'reason': f"probe exited {result.get('returncode')}", 'tail': tail}
             return unverified(BROWSER_FAILURE_ID, f"the probe exited {result.get('returncode')} (a PASS payload "
                               'does not override a failed process)', report.build_log)
-        if not probe['forms'] and not probe['findings']:
+        # T4 + Matt 2026-10-21: the page itself is a real check. The probe prints only after "/" loaded and was observed
+        # for JavaScript and server errors (page_errors / server_errors), so a product without forms (a content site)
+        # is judged on that, not refused. NO_CHECKS only when the evidence shows neither a page observation nor a form.
+        page_observed = isinstance(probe.get('page_errors'), list) and isinstance(probe.get('server_errors'), list)
+        if not probe['forms'] and not probe['findings'] and not page_observed:
             self.last_probe = {'status': 'no_checks', 'forms': 0, 'findings': []}
-            return no_checks(BROWSER_FAILURE_ID, 'no form was exercised on "/"', report.build_log)
+            return no_checks(BROWSER_FAILURE_ID, 'neither the page nor any form was observed on "/"', report.build_log)
         blocking = [f for f in probe.get('findings', []) if f.get('kind') in BLOCKING]
         self.last_probe = {'status': 'failed' if blocking else 'passed', 'forms': len(probe.get('forms', [])),
                            'findings': probe.get('findings', [])}
