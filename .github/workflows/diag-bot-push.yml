@@ -1,9 +1,8 @@
 name: Diag bot push (C16 watch sign)
 
-# Diagnostic only (founder 2026-10-21): reproduces the bots' direct push to main with the same identity
-# (GITHUB_TOKEN, contents: write) and prints git's exact answer as annotations, because job logs cannot be read
-# from the session. Then pushes the same report commit to the unprotected branch `bot-reports` (the no-secret route).
-# Runs only on pushes to this branch; never merged.
+# Diagnostic only (founder 2026-10-21). Runs only on pushes to this branch; never merged.
+# Run 1 (86a56a3): the bots' direct push to main -> GH006. Run 2 (this): route A, exactly as PR #98 writes it,
+# plus the C16 drill: the bot identity tries to merge the red-on-purpose PR #99.
 on:
   push:
     branches: [diag/bot-push]
@@ -12,7 +11,35 @@ permissions:
   contents: read
 
 jobs:
-  push-probe:
+  v24-publish-report:          # the commit/push block of v24-ci.yml publish-report @ #98, verbatim
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bot-reports
+          persist-credentials: true
+      - name: Write smoke/ci-last-run.md (diagnostic content)
+        run: |
+          mkdir -p smoke
+          printf '# v24-ci — route A diagnostic run %s (%s)\n\nNot a CI result: proves the push path of PR #98.\n' "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > smoke/ci-last-run.md
+      - name: Commit [skip ci]
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@148ai.dev"
+          git add smoke/ci-last-run.md
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chore: v24-ci results [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin bot-reports && git push origin HEAD:bot-reports && echo "::notice title=v24 route A::push rc=0 $(git rev-parse HEAD)" && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error title=publish-report::could not push smoke/ci-last-run.md"; exit 1
+
+  smoke-publish:               # the publish block of production-smoke.yml @ #98, verbatim after the report is written
+    needs: v24-publish-report
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -22,34 +49,57 @@ jobs:
         with:
           ref: main
           persist-credentials: true
-      - name: Report commit (same shape as v24-ci publish-report)
+      - name: publish results
+        shell: bash
         run: |
-          git config user.name "ci-bot"
-          git config user.email "ci-bot@148ai.dev"
           mkdir -p smoke
-          printf '# push diagnostic %s\n\nrun %s; report file only.\n' "$(date -u +%FT%TZ)" "$GITHUB_RUN_ID" > smoke/push-diagnostic.md
-          git add smoke/push-diagnostic.md
-          git commit -q -m "chore: push diagnostic [skip ci]"
-          git log --oneline -1
-      - name: A. push to main as GITHUB_TOKEN (expected rejected)
+          { echo "# Production Smoke — route A diagnostic $(date -u +%FT%TZ)"; echo; echo "run: $GITHUB_RUN_ID"; echo '```'; echo "not a smoke result"; echo '```'; } > smoke/last-run.md
+          if grep -q -e '::add-mask::' -e 'eyJhbGciOi' smoke/last-run.md; then
+            echo "leak guard tripped" >&2
+            exit 1
+          fi
+          cp smoke/last-run.md /tmp/last-run.md
+          git checkout -q -- smoke/last-run.md
+          git fetch -q origin bot-reports
+          git checkout -q -B bot-reports origin/bot-reports
+          mkdir -p smoke && cp /tmp/last-run.md smoke/last-run.md
+          git config user.name "smoke-bot"
+          git config user.email "smoke-bot@148ai.dev"
+          git add smoke/last-run.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: smoke results [skip ci]"
+            git pull --rebase origin bot-reports
+            git push origin HEAD:bot-reports
+            echo "::notice title=smoke route A::push rc=$? $(git rev-parse HEAD)"
+          fi
+
+  c16-red-merge-drill:         # non-admin identity tries to merge the red-on-purpose PR #99
+    needs: smoke-publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: main before
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: echo "::notice title=main before::$(gh api repos/${{ github.repository }}/commits/main -q .sha)"
+      - name: PR 99 state
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          gh api repos/${{ github.repository }}/pulls/99 -q '"head=\(.head.sha) state=\(.state) mergeable_state=\(.mergeable_state)"' | while IFS= read -r l; do echo "::notice title=PR 99::$l"; done
+      - name: merge attempt as GITHUB_TOKEN (expected HTTP 405)
+        env: {GH_TOKEN: "${{ github.token }}"}
         run: |
           set +e
-          git push origin HEAD:main > /tmp/main.txt 2>&1; rc=$?
-          echo "::notice title=A main rc::$rc"
-          while IFS= read -r l; do echo "::notice title=A main::$l"; done < /tmp/main.txt
+          HEAD=$(gh api repos/${{ github.repository }}/pulls/99 -q .head.sha)
+          gh api -i -X PUT repos/${{ github.repository }}/pulls/99/merge -f merge_method=merge -f sha="$HEAD" > /tmp/m.txt 2>&1
+          echo "::notice title=merge rc::$?"
+          grep -E '^HTTP/|"message"|"status"' /tmp/m.txt | head -5 | while IFS= read -r l; do echo "::notice title=merge answer::$l"; done
+          tail -c 600 /tmp/m.txt | tr '\n' ' ' | sed 's/^/::notice title=merge body::/'; echo
           exit 0
-      - name: B. push the same commit to bot-reports (no secret route)
+      - name: main after
+        env: {GH_TOKEN: "${{ github.token }}"}
         run: |
-          set +e
-          git push origin HEAD:refs/heads/bot-reports > /tmp/br.txt 2>&1; rc=$?
-          echo "::notice title=B bot-reports rc::$rc"
-          while IFS= read -r l; do echo "::notice title=B bot-reports::$l"; done < /tmp/br.txt
-          exit 0
-      - name: C. what the token sees for main
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set +e
-          gh api repos/${{ github.repository }}/branches/main -q '"protected=\(.protected) checks=\(.protection.required_status_checks.contexts)"' > /tmp/c.txt 2>&1
-          while IFS= read -r l; do echo "::notice title=C branch::$l"; done < /tmp/c.txt
-          exit 0
+          echo "::notice title=main after::$(gh api repos/${{ github.repository }}/commits/main -q .sha)"
+          echo "::notice title=PR 99 after::$(gh api repos/${{ github.repository }}/pulls/99 -q '"state=\(.state) merged=\(.merged)"')"
