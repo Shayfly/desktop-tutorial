@@ -196,3 +196,49 @@
 | PR | head SHA | קבצים | תוצאה | אישר |
 |---|---|---|---|---|
 | #88 | `2d6c1b4` | `.github/workflows/inspect-round-artifacts.yml`, `tests/test_inspect_round_artifacts_workflow.py` | **לא מוזג, לא הורץ**: תנאי א | ממתין למאט |
+
+### 2026-10-20 21:38 — ראיה (תיקון מייסד), ‏#89, ‏#90
+
+**ראיה, כפי שתוקנה:** ש-responsive עבר בסבב 3 של run 39473090833 זו ראיה ל-#84, לא ל-#85. ‏#85 עוד לא הוכח בהרצה חיה.
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #89 | `cb4a020` | `omni_prod/preview_smoke.py`, `tests/test_preview_verdict_names_condition.py`, רג'יסטרים | הודעת ה-preview מציינת איזה תנאי נכשל: (a) קצר מדי ו/או (b) בלי רכיב אינטראקטיבי. הכלל לא השתנה. **לא מוזג**: תנאי א | ממתין למאט |
+| #90 | `6c74bdc` | `omni_prod/consistency_gate.py` (`http_reason`), `tests/test_consistency_http_reason.py`, רג'יסטרים | ‏`send_error`/`send_response` עם reason שאינו latin-1 נחסם לפני ה-sandbox. **לא מוזג**: תנאי א | ממתין למאט |
+
+- ‏#89 ו-#90 נוגעים שניהם בקבצי הרג'יסטרים שנוצרים אוטומטית. לפי תנאי ד: ממזגים אחד, מחכים ל-main ירוק, ואת השני מבססים מחדש (rebase) ומריצים שוב את ה-generators.
+- ‏app.py של run 39473090833 נכתב על ידי המודל (gemini-3.1-flash-lite). אין לו תבנית בנתיב הבנייה; ‏`app.py` קבוע מופיע רק ב-fixtures של טסטים.
+
+### 2026-10-20 21:47 — קריאת R2 (run 39477884309), הכרעת ה-preview, תיקוני #88
+
+- **ההרצה, לפי הוראת המייסד: לפני התיקונים.** ה-workflow של #88 (`2d6c1b4`) הורץ פעם אחת מענף זמני `run/inspect-bld_4f3b`, עם push trigger (dispatch לא אפשרי ל-workflow שלא נמצא ב-main). אחרי ההרצה ה-trigger הוסר, אבל את הענף עצמו אי אפשר למחוק מכאן (403), והוא ממתין למחיקה.
+- **ההכרעה: ה-preview צדק. הדף הוא stub, לא כשל שווא.** ה-`index.html` של סבב 0 (738 תווים) ושל סבב 2 (781): כותרת, ‏`<p>ברוכים הבאים, ניתן לקבוע תור בטופס למטה.</p>`, ו-CSS. אין `<form>`, אין `<input>`, אין `<script>`, ואין קבצים מקושרים מלבד Google Fonts. ‏ה-zip מכיל רק 4 קבצים: `.omni/project.json`, ‏`app.py`, ‏`index.html`, ‏`test_app.py`. זה המקרה השלישי: (b) אמיתי. ה-checksums תואמים, ב-metadata וב-repository.
+- ב-`app.py` של שני הסבבים יש גם `send_error(409, "תור תפוס")` וגם `send_error(404, "לא נמצא")`. הבדיקה של #90 תופסת את שניהם.
+- **תיקוני #88 (`f6152ea`), לפי ה-HOLD של מאט:**
+  - **(א)** כל כשל קריאה או כשל integrity מכשיל את ה-job.
+  - **(ב)** read-only נאכף: קונטיינר `--read-only`, ‏`--cap-drop ALL`, ‏`SET TRANSACTION READ ONLY`, ו-hook של botocore שמאפשר רק GetObject.
+  - **(ג)** ה-zips מועלים כארטיפקט.
+- ‏#89: טסט קיים (`tests/test_preview_smoke.py:134`) חיפש את הנוסח הישן "placeholder page". הוא עודכן כך שידרוש את (a) ואת (b) גם יחד (`a0e567b`).
+
+### 2026-10-20 22:07 — ‏plan_code (#91), ‏409 ב-#90, ה-guard של boto3 (#88)
+
+- **‏#90 תופס את שתי הקריאות.** הרצתי את הבדיקה על `app.py` האמיתי מ-R2. בסבב 0: ‏`app.py:41` ‏`send_error(409, 'תור תפוס')` ו-`app.py:49` ‏`send_error(404, 'לא נמצא')`. בסבב 2: שורות 37 ו-45. ‏#90 לא השתנה בגלל זה.
+- **ה-guard של boto3 ב-#88 רץ ב-CI.** שני ה-jobs (`v24-ci/test`, ‏`v11-overlay-ci/validate`) מתקינים את `requirements-production.txt`, ובו `boto3==1.43.94`. ‏`cb4f89b` הופך את הטסט ללא-ניתן-לדילוג ב-GitHub Actions (בלי boto3: שגיאה, לא דילוג). ‏`test` ו-`validate` ירוקים על `cb4f89b`, כלומר ה-guard נבדק מול boto3 אמיתי. את ה-junit עצמו לא קראתי: הורדת ארטיפקט חסומה מכאן (blob 403).
+- **‏#91 `99430c1`:** בדיקת `plan_code` ב-consistency gate. ה-fixture הוא ה-index.html וה-app.py האמיתיים של סבב 0. ‏CI ירוק. **לא מוזג**: תנאי א. הוא נוגע באותו קובץ כמו #90, ולכן לפי תנאי ד ממזגים אחד ומבססים מחדש את השני.
+- ‏#89: ה-head השתנה (`cb4a020` → `a0e567b`) אחרי שמאט התחיל לבדוק. ביקשתי אודיט מחדש ב-PR.
+- הענף הזמני `run/inspect-bld_4f3b` עוד קיים. מחיקה חסומה מכאן (git push --delete וגם refs API מחזירים 403). ה-trigger שלו הוסר.
+
+### 2026-10-20 23:29 — C10: תרגיל rollback (הריצה הראשונה אי-פעם)
+
+| # | צעד | run | ref → SHA | תוצאה | זמן |
+|---|---|---|---|---|---|
+| 1 | פריסה ל-SHA ידוע | 39492342815 | `drill/c10-known` → `4d488b4` | success: migrate בלי AHEAD, כל ה-probes עברו (PASS) | 2:07 |
+| 2 | פריסה לשני | 39492678328 | `main` → `4ad2eab` | success | 2:13 |
+| 3 | rollback | 39493057663 | `drill/c10-known` → `4d488b4` | success | 2:07 |
+| 4 | אימות חי | 39493396519 + inspect 39494999472 | הקוד שרץ: `4d488b4` | הבנייה רצה מקצה לקצה ($0.052636 settled). התוצאה failed על REVIEW בלבד (איכות). **הוכחת הגרסה:** ‏codegen הלך ל-gpt-6-luna, כלומר קוד מלפני #86 | 10:22 |
+| 5 | חזרה ל-main | 39495052838 | `main` → `4ad2eab` | success | 2:07 |
+
+- **מוקש 038:** לא ניתן להגיע אליו מה-repo. מיגרציות 038–041 נכנסו ב-graft root `ba2bb23`, כך שאין בהיסטוריה קוד מלפני 038. מסלול ה-DROP לא נבדק.
+- **מיגרציות:** ‏migrate הצליח בכל הפריסות, בלי warning על AHEAD. את הפלט `pending migrations` לא קראתי: לוגים של jobs חסומים מכאן, ונקראו רק annotations.
+- **luna שוב:** 4 מתוך 4 תשובות codegen/repair של gpt-6-luna היו JSON שבור, בהרצה נוספת מעבר ל-39377332673.
+- **פתוח:** הענף `drill/c10-known` נשאר, כי מחיקה חסומה מכאן (403).
