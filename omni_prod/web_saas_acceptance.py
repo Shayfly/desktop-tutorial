@@ -359,6 +359,9 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
                 accepted = step.get('expect_accepted', 1)
                 if not isinstance(accepted, int) or isinstance(accepted, bool) or not 0 <= accepted <= n:
                     return f'step {step_id}: expect_accepted must be an integer from 0 to concurrent'
+                if accepted == 0 and ('expect_text_contains' in step or 'expect_json_contains' in step):
+                    return (f'step {step_id}: expect_text_contains / expect_json_contains apply to accepted responses, '
+                            'and expect_accepted is 0')
             unknown = sorted(set(ids) - contract_ids)
             if unknown:
                 return f'step {step_id} references unknown acceptance id(s): {",".join(unknown)}'
@@ -436,9 +439,15 @@ def _concurrent(transport, step: Mapping[str, Any], *, method: str, url: str, he
         raise AssertionError(f'{n} concurrent {method} requests: expected exactly {want} x HTTP {accepted_status} and '
                              f'the rest HTTP {conflict_status}, got {statuses} (the server must lock and check the '
                              'overlap inside one transaction; blocking in the page is not enough)')
-    if ok and 'expect_json_contains' in step and not _json_contains(ok[0].json(), step['expect_json_contains']):
-        raise AssertionError(f"the accepted response does not contain {step['expect_json_contains']!r}")
-    return (ok[0] if ok else refused[0]), f'{n} concurrent requests: {statuses} (exactly {want} accepted)'
+    # Matt on #106: the ordinary response contract holds for EVERY accepted response (status, expect_text_contains,
+    # expect_json_contains), not only the first one's JSON. With expect_accepted 0 the plan validator refuses those
+    # assertions (there is no accepted response to hold them), so nothing is ever silently skipped.
+    for i, r in enumerate(ok):
+        try:
+            _assert_response(step, r)
+        except AssertionError as exc:
+            raise AssertionError(f'accepted response {i + 1} of {len(ok)}: {exc}') from None
+    return (ok[0] if ok else refused[0]), f'{n} concurrent requests: {statuses} (exactly {want} accepted, each matched)'
 
 
 def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:

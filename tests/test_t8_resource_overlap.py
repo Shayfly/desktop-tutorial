@@ -197,6 +197,53 @@ class T8ResourceOverlap(unittest.TestCase):
         self.assertTrue(self.locked['parallel_edit'].passed, self.locked['parallel_edit'].detail)
 
 
+class ConcurrentResponsesKeepTheResponseContract(unittest.TestCase):
+    """Matt on #106: a concurrent step applies expect_text_contains / expect_json_contains to EVERY accepted response."""
+
+    class Transport:
+        def __init__(self, bodies):
+            import threading
+            self.bodies, self.lock = list(bodies), threading.Lock()
+
+        def request(self, **kw):
+            from omni_prod.web_saas_acceptance import HttpResponse
+            with self.lock:
+                status, body = self.bodies.pop(0)
+            return HttpResponse(status=status, headers={'content-type': 'application/json'}, body=body.encode())
+
+    def check(self, step, bodies):
+        report = WebSaaSAcceptanceRunner(transport=self.Transport(bodies), required_kinds=('data_create',)).verify(
+            {'preview_url': 'http://127.0.0.1:1'}, {'acceptance': [{'id': 'A1'}]},
+            [{'id': 'p', 'steps': [{'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST',
+                                    'path': '/b', 'json': {}, 'concurrent': 2, 'expect_status': 201,
+                                    'expect_conflict_status': 409, **step}]}])
+        return report.checks[0]
+
+    def test_matts_counterexample_an_accepted_response_without_the_promised_text_fails(self):
+        c = self.check({'expect_text_contains': 'booking confirmed'}, [(201, ''), (409, '{"error": "taken"}')])
+        self.assertFalse(c.passed)
+        self.assertIn("accepted response 1 of 1: response text missing 'booking confirmed'", c.detail)
+
+    def test_with_the_promised_text_it_passes(self):
+        c = self.check({'expect_text_contains': 'booking confirmed'},
+                       [(201, '{"msg": "booking confirmed"}'), (409, '{"error": "taken"}')])
+        self.assertTrue(c.passed, c.detail)
+
+    def test_every_accepted_response_is_checked_not_only_the_first(self):
+        c = self.check({'expect_accepted': 2, 'expect_json_contains': {'ok': True}},
+                       [(201, '{"ok": true}'), (201, '{"ok": false}')])
+        self.assertFalse(c.passed)
+        self.assertIn('accepted response', c.detail)
+        self.assertIn('does not contain expected subset', c.detail)
+
+    def test_assertions_with_zero_accepted_are_refused_by_the_plan(self):
+        base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x',
+                'concurrent': 2, 'expect_accepted': 0}
+        self.assertIn('expect_accepted is 0', _validate_plan([{'id': 'p', 'steps': [{**base, 'expect_text_contains': 'x'}]}],
+                                                           {'A1'}))
+        self.assertIsNone(_validate_plan([{'id': 'p', 'steps': [base]}], {'A1'}))
+
+
 class ConcurrentStepValidation(unittest.TestCase):
     def step(self, **kw):
         base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x'}
