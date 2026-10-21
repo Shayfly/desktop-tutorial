@@ -428,10 +428,7 @@
    "failure_image": "missing text",
    "enforcement": "automatic",
    "group": "b2",
-   "path_flagged_in_v3": false,
-   "canary": [
-    "tests/test_expect_text_contains_list.py::ExpectTextContainsListTests::test_every_item_must_appear"
-   ]
+   "path_flagged_in_v3": false
   },
   {
    "id": "C03",
