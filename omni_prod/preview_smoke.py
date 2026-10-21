@@ -125,11 +125,14 @@ class PreviewReadyExecutor:
         run = getattr(self._inner, '_run', None)
         if not contract.runtime.startswith('python') or not callable(run):
             self.last_smoke = {'status': 'NOT_RUN', 'reason': 'no sandbox runtime to start this product'}
-            return report  # contract valid; no sandbox runtime to start it in here
+            from .verification_verdict import unverified        # T4: NOT_RUN is not PASS (release policy says so too)
+            return unverified(PREVIEW_FAILURE_ID, f'no sandbox runtime for {contract.runtime!r}', report.build_log)
         try:
             staged, argv = staged_script(repository, 'preview_smoke', _SMOKE)
             result = run(staged, argv, 'preview-smoke')
         except Exception as exc:  # sandbox unavailable: the build cannot be verified
+            from .verification_verdict import reraise_control
+            reraise_control(exc)  # T4: cancel / ledger / budget stop the build, they are not a preview result
             self.last_smoke = {'status': 'FAIL', 'reason': f'could not run: {exc}'[:300]}
             return ExecutionReport(False, (AcceptanceFailure(PREVIEW_FAILURE_ID, f'preview smoke test could not run: {exc}'),),
                                    report.build_log)

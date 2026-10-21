@@ -148,16 +148,20 @@ class BehaviorAcceptanceExecutor:
             return ExecutionReport(False, (AcceptanceFailure(BEHAVIOR_FAILURE_ID, f'invalid acceptance plan: {exc}',
                                                              PLAN_SHAPE),), report.build_log)
         acceptance = [{'id': a.id} for a in getattr(spec, 'acceptance', ())]
+        from .verification_verdict import no_checks, reraise_control, unverified
         if plan is None:
-            if not acceptance:
-                return report
+            if not acceptance:                  # T4 (Matt 2026-10-21): nothing to judge is a verdict, not a pass
+                self.last_report = {'status': 'NO_CHECKS', 'summary': 'no acceptance criteria and no plan'}
+                return no_checks(BEHAVIOR_FAILURE_ID, 'the product has no acceptance criteria and no behavioural plan',
+                                 report.build_log)
             return ExecutionReport(False, (AcceptanceFailure(
                 BEHAVIOR_FAILURE_ID, 'the product has no behavioural acceptance plan',
                 'Add a plan that exercises every acceptance criterion over HTTP.\n' + PLAN_SHAPE),), report.build_log)
         run = getattr(self._inner, '_run', None)
         if not contract.runtime.startswith('python') or not callable(run):
             self.last_report = {'status': 'NOT_RUN', 'summary': 'no sandbox runtime for this product'}
-            return report
+            return unverified(BEHAVIOR_FAILURE_ID, f'no sandbox runtime for {contract.runtime!r} (NOT_RUN is not PASS)',
+                              report.build_log)
         config = {'runner': _RUNNER_SOURCE, 'required_kinds': list(plan.required_kinds), 'scope': self.scope,
                   'acceptance': acceptance, 'personas': [dict(p) for p in plan.personas]}
         # The run gets a copy of the repository plus its configuration file;
@@ -168,6 +172,7 @@ class BehaviorAcceptanceExecutor:
             staged, argv = staged_script(staged, 'behavior_acceptance', _SCRIPT)
             result = run(staged, argv, 'behavior-acceptance')
         except Exception as exc:
+            reraise_control(exc)                       # T4: cancel / ledger / budget stop the build
             return ExecutionReport(False, (AcceptanceFailure(BEHAVIOR_FAILURE_ID,
                                                              f'behavioural acceptance could not run: {exc}'),),
                                    report.build_log)
@@ -183,6 +188,23 @@ class BehaviorAcceptanceExecutor:
             tail = (out + str(result.get('stderr', '')))[-900:]
             parsed = {'status': 'FAIL', 'summary': 'acceptance run produced no result', 'checks': [],
                       'server_log_tail': tail}
+        if not isinstance(parsed, dict) or not isinstance(parsed.get('checks', []), list):   # T4: schema first
+            self.last_report = {'status': 'FAIL', 'summary': 'malformed acceptance result'}
+            return unverified(BEHAVIOR_FAILURE_ID, 'malformed acceptance result (expected an object with a checks '
+                              'list)', report.build_log)
+        if parsed.get('status') == 'PASS' and int(result.get('returncode', 0) or 0) != 0:
+            self.last_report = {'status': 'FAIL', 'summary': f"runner exited {result.get('returncode')}"}
+            return unverified(BEHAVIOR_FAILURE_ID, f"the acceptance runner exited {result.get('returncode')} (a PASS "
+                              'payload does not override a failed process)', report.build_log)
+        checks = parsed.get('checks') or []
+        if parsed.get('status') == 'PASS' and not checks:
+            self.last_report = {'status': 'NO_CHECKS', 'summary': parsed.get('summary'), 'checks': []}
+            self.history.append({'status': 'NO_CHECKS', 'summary': parsed.get('summary')})
+            return no_checks(BEHAVIOR_FAILURE_ID, 'the acceptance run reported PASS with zero checks', report.build_log)
+        if parsed.get('status') == 'PASS' and not all(isinstance(c, dict) and c.get('passed') is True for c in checks):
+            self.last_report = {'status': 'FAIL', 'summary': 'PASS with a failed or malformed check'}
+            return unverified(BEHAVIOR_FAILURE_ID, 'the acceptance run reported PASS but not every check passed',
+                              report.build_log)
         self.last_report = {k: parsed.get(k) for k in ('status', 'summary', 'checks', 'missing_acceptance_ids',
                                                         'missing_kinds', 'not_required_kinds', 'covered_kinds')}
         self.history.append({'status': parsed.get('status'), 'summary': parsed.get('summary')})
