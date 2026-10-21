@@ -94,6 +94,15 @@
    "what": "איזה worker ותור מריצים בנייה שנשלחה מהפרודקשן — לא נבדק",
    "risk": "if it is the same worker as staging, a real build from production reaches it",
    "status": "OPEN (approved as open)"
+  },
+  {
+   "id": "O14",
+   "control": "all investigations",
+   "what": "CI job logs cannot be read from the session",
+   "tried_once": "gh run view --log-failed and GET /actions/jobs/{id}/logs (2026-10-21): the API answers with the signed redirect, so actions:read is NOT missing; the download hosts (results-receiver.actions.githubusercontent.com, productionresultssa*.blob.core.windows.net) are refused by the session egress proxy (CONNECT 403). WebFetch refuses the signed URL (too long).",
+   "fix": "owner only: allow those domains in claude.ai settings (Capabilities). Nothing in the repo or GitHub permissions fixes it.",
+   "workaround": "a workflow prints the lines it needs as ::notice annotations (readable via the check-runs API); used for GH006 (86a56a3) and the C16 drill (51e6ec5)",
+   "status": "PERMANENT LIMITATION unless the owner allowlists the domains"
   }
  ],
  "production_switch_change_2026_10_21": {
@@ -212,6 +221,17 @@
    "owner": "Claude",
    "when": "now",
    "question": "against what is the budget enforced, and is the reservation blocked"
+  },
+  {
+   "id": "I02",
+   "what": "pg (Focused PostgreSQL, Redis and build-idempotency regressions) failed twice on 2026-10-21, each time in one event only, and passed on a single rerun of the job with no new commit",
+   "runs": [
+    "39597237979 (8dc0bc1, PR #96)",
+    "39603340813 (53effc7, PR #98, which touches no Python)"
+   ],
+   "cause": "unproven: the job log cannot be read from the session (O14)",
+   "blocking": false,
+   "note": "pg is not a required check (C16); record only (founder 2026-10-21)"
   }
  ],
  "governance": {
@@ -220,7 +240,12 @@
   "agents_md_rule": [
    "a control without a canary is not a control",
    "a control without a scheduled drill is a dead control"
-  ]
+  ],
+  "merge_rule_2026_10_21": {
+   "decided": "founder 2026-10-21 16:25",
+   "rule": "main red does NOT stop merges while the red is only the bot report pushes and test + validate are green. When Matt removes a HOLD explicitly, merge without waiting for main, provided test + validate are green on the exact head SHA (rule ב).",
+   "narrows": "rule ג (main red -> stop the wave)"
+  }
  },
  "controls": [
   {
