@@ -53,7 +53,9 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     # codegen/repair answer of it (4 of 4, 22-38k characters) was invalid JSON and was thrown away; the cost-first
     # router picked it only because it is the cheapest model the light class admits. Small calls (architecture,
     # review, a narrow pre-flight fix) answered correctly 6 of 6 and stay allowed.
-    TaskClass('codegen', 'write the product code', 85, 70, deny_models=CODE_WRITING_DENY),
+    # T5 (founder 2026-10-21/22): codegen's floor 85 is MANDATORY (no model below it writes the product, not even as
+    # escalation). LIGHT reaches it through pricing.M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION (codegen only).
+    TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY),
     TaskClass('repair', 'fix failing checks', 85, 70, deny_models=CODE_WRITING_DENY),
     TaskClass('modification', 'change an existing product', 85, 70, deny_models=CODE_WRITING_DENY),
     TaskClass('review', 'QA review of generated code', 85, 70, require_independent_of=('codegen', 'repair', 'modification')),

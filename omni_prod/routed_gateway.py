@@ -129,13 +129,22 @@ class RoutedModelGateway:
     def restrict_to_cost_class(self, cost_class) -> dict:
         """CEO 2026-10-19: a build may route only to models its class admits
         (pricing.M5_CLASS_MAX_OUTPUT_PER_MILLION). Narrows, never widens, the
-        catalog; an empty result leaves no external route (fail closed)."""
-        from .pricing import m5_model_allowed
-        before = [m.endpoint.name for m in self.ranked]
-        self.ranked = tuple(m for m in self.ranked if m5_model_allowed(cost_class, m.option.output_per_million))
+        catalog; an empty result leaves no external route (fail closed). The one exception is per task and explicit:
+        pricing.M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION (T5: LIGHT codegen) adds models for that task only
+        (task_extra_ranked); every other task routes on the class list."""
+        from .pricing import M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION, _as_cost_class, m5_model_allowed
+        catalog = self.ranked
+        before = [m.endpoint.name for m in catalog]
+        self.ranked = tuple(m for m in catalog if m5_model_allowed(cost_class, m.option.output_per_million))
         kept = [m.endpoint.name for m in self.ranked]
+        # T5: a task-specific allowance (LIGHT codegen) adds models for THAT task only; ranked stays the class list.
+        self.task_extra_ranked = {
+            task: tuple(m for m in catalog if m not in self.ranked
+                        and m5_model_allowed(cost_class, m.option.output_per_million, task))
+            for task in M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION.get(_as_cost_class(cost_class), {})}
         return {'cost_class': getattr(cost_class, 'value', str(cost_class)), 'allowed_models': kept,
-                'excluded_models': [n for n in before if n not in kept]}
+                'excluded_models': [n for n in before if n not in kept],
+                'task_only_models': {t: [m.endpoint.name for m in ms] for t, ms in self.task_extra_ranked.items()}}
 
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Set the whole-build external budget to what was reserved for this
@@ -337,7 +346,7 @@ class RoutedModelGateway:
         requested = int(kwargs.get('max_tokens', 4096))
         policy = self.routing_policy
         candidates = []
-        for model in self.ranked:
+        for model in self.ranked + tuple(getattr(self, 'task_extra_ranked', {}).get(task, ())):
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
                 continue
