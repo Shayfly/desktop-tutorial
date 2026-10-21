@@ -206,7 +206,7 @@ class TaskPolicyRoutingTests(unittest.TestCase):
     def test_below_mandatory_floor_is_never_used_even_as_escalation(self):
         s = Script({'m-strong': [(500, 'down')], 'm-cheap': [(500, 'down')], 'm-weak': ['ok']})
         with self.assertRaises(ModelGatewayError):
-            _gw(s).complete(system='s', user='u', task='codegen')
+            _gw(s).complete(system='s', user='u', task='repair')
         self.assertNotIn('m-weak', s.calls)
         self.assertEqual(s.calls, ['m-strong', 'm-cheap'])  # escalation within the floor is explicit, recorded
 
