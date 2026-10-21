@@ -69,7 +69,10 @@ def main(argv: list[str]) -> int:
     if not cmd:
         die('no command')
     if os.environ.get(INSIDE) == '1':
-        loopback_up()
+        try:
+            loopback_up()
+        except OSError as exc:                   # not root in a fresh namespace, or not in one at all
+            die(f'cannot bring loopback up: {exc}')
         verify_isolated()
         env = {k: v for k, v in os.environ.items() if k != INSIDE and k.lower() not in (
             'http_proxy', 'https_proxy', 'all_proxy')}
