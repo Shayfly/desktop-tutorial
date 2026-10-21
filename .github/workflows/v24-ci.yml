@@ -56,8 +56,8 @@ jobs:
     # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
     # main pushes only. The bot never pushes to main: the report goes to the
     # ci/v24-report branch and a PR, which main's protection reviews/merges like
-    # any other. The condition stays refs/heads/main on purpose: that is the run
-    # whose result is being reported; the branch push is a different ref, so it
+    # any other, and auto-merges (squash) when its requirements are met. The
+    # condition stays refs/heads/main on purpose: that is the run whose result is being reported; the branch push is a different ref, so it
     # never re-enters this job. The merged report commit lands on main again, so
     # the message guard below stops that push from opening another report PR.
     needs: test
@@ -156,12 +156,17 @@ jobs:
           git commit -m "chore: v24-ci results"
           # Bot-owned branch; each report supersedes the previous one. main is never touched.
           git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
-          if [ -n "$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')" ]; then
-            echo "report PR already open; branch updated"; exit 0
+          PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head "$REPORT_BRANCH" \
+              --title "chore: v24-ci results" \
+              --body "Automated CI result report (smoke/ci-last-run.md). Auto-merges (squash) once main's protection is satisfied."
+            PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
           fi
-          gh pr create --base main --head "$REPORT_BRANCH" \
-            --title "chore: v24-ci results" \
-            --body "Automated CI result report (smoke/ci-last-run.md). Merge through main's normal protection."
+          # Auto-merge waits for main's required checks/reviews; it never bypasses them.
+          # The squash subject keeps the 'chore: v24-ci results' prefix the job guard relies on.
+          gh pr merge "$PR" --auto --squash --subject "chore: v24-ci results" \
+            || echo "::warning title=publish-report::auto-merge not enabled on PR #$PR (repo setting 'Allow auto-merge' or main protection missing); it needs a manual merge"
   compose-config:
     runs-on: ubuntu-latest
     steps:
