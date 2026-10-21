@@ -56,9 +56,31 @@
    "control": "C32",
    "what": "משפחת המתגים לא מוגדרת בפרודקשן: בפרודקשן יש טוקן Replicate פעיל והוצאה אמיתית, בלי אף מתג שמאשר אותה. הבקרה קיימת בכל מקום חוץ מהמקום שבו היא קובעת.",
    "evidence": "Vercel read live 2026-10-21: production has REPLICATE_API_TOKEN; OMNI_ZERO_COST_MODE and OMNI_INTAKE_MODEL are preview-only; OMNI_ALLOW_EXTERNAL_FALLBACK=1 was added to production by the owner (updatedAt 1792561683752). With exactly those values the #93 Replicate path (fdf8b79) REFUSES before any request: ZERO_COST_MODE unset -> default 1. With ZERO_COST_MODE=0 it reaches POST api.replicate.com/.../predictions.",
-   "blocks": "merge of #93 (it would stop the production Replicate test)"
+   "blocks": "merge of #93 (it would stop the production Replicate test)",
+   "status": "OPEN: the family is not complete in production (OMNI_INTAKE_MODEL still unset, O07)"
+  },
+  {
+   "id": "O07",
+   "control": "C32",
+   "what": "OMNI_INTAKE_MODEL לא מוגדר בפרודקשן",
+   "condition": "נחסם ברגע ש-C32 עובר לפרודקשן",
+   "evidence": "Vercel 2026-10-21: OMNI_INTAKE_MODEL and OMNI_INTAKE_VIA_WORKER are preview-only. On main the production API already runs the deterministic intake without them (investor_app.py:1969: model intake needs both =1); the model intake itself runs on the worker (reservation_worker.py:136), whose env is separate."
   }
  ],
+ "production_switch_change_2026_10_21": {
+  "decision": "OMNI_ALLOW_EXTERNAL_FALLBACK=1 and OMNI_ZERO_COST_MODE=0 on Vercel production (owner)",
+  "documented_before_running": true,
+  "what_starts_passing_on_production (code on main)": [
+   "build quote/approval/async: v28_build_contract_preview (investor_app.py:2228), v28_build_approval (:2193), v28_build_async (:2293) call _m5_build_economics_quote -> ModelRuntimeConfig.from_env() (:208). With production values (ZERO unset = 1, OMNI_EXTERNAL_CALLS_PER_BUILD=40) from_env RAISES ValueError(\"zero_cost_mode forbids external model spend\"), not caught there (only CostQuoteUnknown/PermissionError) -> these endpoints fail today. With ZERO=0 they work: builds can be quoted, approved and queued from production.",
+   "readiness: the zero_cost_mode gate (readiness.py:30) turns off on production.",
+   "with #93 merged: the Replicate image test (paid) on production."
+  ],
+  "what_stays_blocked_on_production": [
+   "API-side live build components: _model_gateway_and_executor (investor_app.py:766) requires OMNI_ENABLE_LIVE_BUILD=1, not set on Vercel.",
+   "model intake: needs OMNI_INTAKE_MODEL=1 and OMNI_INTAKE_VIA_WORKER=1 (investor_app.py:1969), preview-only (O07)."
+  ],
+  "note": "Builds queued from production are executed by a worker; which worker/queue production uses was not verified here."
+ },
  "drills_run": [
   {
    "control": "C10",
