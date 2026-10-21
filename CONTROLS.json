@@ -227,11 +227,14 @@
    "what": "pg (Focused PostgreSQL, Redis and build-idempotency regressions) failed twice on 2026-10-21, each time in one event only, and passed on a single rerun of the job with no new commit",
    "runs": [
     "39597237979 (8dc0bc1, PR #96)",
-    "39603340813 (53effc7, PR #98, which touches no Python)"
+    "39603340813 (53effc7, PR #98, which touches no Python)",
+    "39673791165 (01d16cb, PR #104: the run Matt read)",
+    "f6a507b, a620138, 80c0cce, 63238b8, b851b06 (one event each; logs not readable here, O14; same test not confirmed)"
    ],
-   "cause": "unproven: the job log cannot be read from the session (O14)",
+   "cause": "KNOWN (diagnosed 2026-10-22, founder: a finding, not a flake): pg job, step \"Focused PostgreSQL, Redis and build-idempotency regressions\", test tests/test_real_docker_drain_recovery.py::RealDockerDrainRecovery::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything (line 318) asserts Docker's own State.OOMKilled flag. The kernel OOM-kills the bounded allocator (a child process; container 48 MiB, no swap, 64 MiB touched) every time, but Docker does not always set the flag for a non-PID-1 kill: the failing run had \"exit=137 oom=false\". Reproduced as passing 8/8 in isolation on main @7996287 and #104 @01d16cb (diag/pg-oom, kernel shows the kill each time). Pre-existing on main; not caused by any PR.",
    "blocking": false,
-   "note": "pg is not a required check (C16); record only (founder 2026-10-21)"
+   "note": "pg is not a required check (C16); record only (founder 2026-10-21)",
+   "fix": "not now (founder 2026-10-22): pg is not a required check, so it does not block merges"
   }
  ],
  "governance": {
