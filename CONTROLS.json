@@ -67,6 +67,23 @@
    "evidence": "Vercel 2026-10-21: OMNI_INTAKE_MODEL and OMNI_INTAKE_VIA_WORKER are preview-only. On main the production API already runs the deterministic intake without them (investor_app.py:1969: model intake needs both =1); the model intake itself runs on the worker (reservation_worker.py:136), whose env is separate."
   }
  ],
+ "open_items_2": [
+  {
+   "id": "O08",
+   "control": "C32",
+   "what": "בנייה מהפרודקשן שבורה: _m5_build_economics_quote -> from_env() זורק ValueError כשהמתג לא מוגדר, והנקודות הקצה לא תופסות.",
+   "found_by": "נמצא בתיעוד, לא בטסט",
+   "status": "distinguishing proof GREEN at code level with production values; live endpoint not called",
+   "proof": "ModelRuntimeConfig.from_env() with the Vercel production values: BEFORE (ZERO unset, calls=40) RAISES ValueError \"zero_cost_mode forbids external model spend\"; NOW (OMNI_ZERO_COST_MODE=0 encrypted record L3gBASzzJqzv3JIv, production deployment dpl_AUTCYpBEez6j6rhJBJDQxnypUjHW created 8 s after it) OK: zero_cost_mode=False allow_external=True budget=0.50 calls=40.",
+   "not_done": "the production endpoints (v28_build_contract_preview / approval / async) were not called: that needs an authenticated production session"
+  },
+  {
+   "id": "O09",
+   "control": "C32",
+   "what": "איזה worker ותור מריצים בנייה שנשלחה מהפרודקשן — לא נבדק",
+   "risk": "if it is the same worker as staging, a real build from production reaches it"
+  }
+ ],
  "production_switch_change_2026_10_21": {
   "decision": "OMNI_ALLOW_EXTERNAL_FALLBACK=1 and OMNI_ZERO_COST_MODE=0 on Vercel production (owner)",
   "documented_before_running": true,
