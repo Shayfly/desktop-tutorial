@@ -278,7 +278,9 @@ class TruthMatrixTests(unittest.TestCase):
     def test_model_instruction_alone_is_not_verified(self):
         result = {s['skill_key']: s['status'] for s in audit.audit()['skills']}
         self.assertEqual(result['rtl_design'], 'IMPLEMENTED')              # still only an instruction to the model
-        self.assertEqual(result['contrast_test'], 'REAL_SERVER_VERIFIED')  # measured by visual_qa on the real server (verify-replay)
+        # measured by visual_qa on the real server (verify-replay @ 4b019d8); T4 changed visual_qa.py, so that live
+        # evidence is STALE until verify-replay runs again: the audit downgrades it instead of keeping the old claim.
+        self.assertEqual(result['contrast_test'], 'INTEGRATION_TESTED')
         self.assertEqual(result['signup'], NOT_IMPLEMENTED)   # generated apps; platform accounts are separate
 
 if __name__ == '__main__':

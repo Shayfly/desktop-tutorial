@@ -164,10 +164,12 @@ class BehaviorAcceptanceExecutor:
         # the product's own repository is not changed.
         staged = dict(repository)
         staged['.omni/_behavior_run.json'] = json.dumps(config, ensure_ascii=False)
+        from .verification_verdict import no_checks, reraise_control, unverified
         try:
             staged, argv = staged_script(staged, 'behavior_acceptance', _SCRIPT)
             result = run(staged, argv, 'behavior-acceptance')
         except Exception as exc:
+            reraise_control(exc)                       # T4: cancel / ledger / budget stop the build
             return ExecutionReport(False, (AcceptanceFailure(BEHAVIOR_FAILURE_ID,
                                                              f'behavioural acceptance could not run: {exc}'),),
                                    report.build_log)
@@ -183,6 +185,23 @@ class BehaviorAcceptanceExecutor:
             tail = (out + str(result.get('stderr', '')))[-900:]
             parsed = {'status': 'FAIL', 'summary': 'acceptance run produced no result', 'checks': [],
                       'server_log_tail': tail}
+        if not isinstance(parsed, dict) or not isinstance(parsed.get('checks', []), list):   # T4: schema first
+            self.last_report = {'status': 'FAIL', 'summary': 'malformed acceptance result'}
+            return unverified(BEHAVIOR_FAILURE_ID, 'malformed acceptance result (expected an object with a checks '
+                              'list)', report.build_log)
+        if parsed.get('status') == 'PASS' and int(result.get('returncode', 0) or 0) != 0:
+            self.last_report = {'status': 'FAIL', 'summary': f"runner exited {result.get('returncode')}"}
+            return unverified(BEHAVIOR_FAILURE_ID, f"the acceptance runner exited {result.get('returncode')} (a PASS "
+                              'payload does not override a failed process)', report.build_log)
+        checks = parsed.get('checks') or []
+        if parsed.get('status') == 'PASS' and not checks:
+            self.last_report = {'status': 'NO_CHECKS', 'summary': parsed.get('summary'), 'checks': []}
+            self.history.append({'status': 'NO_CHECKS', 'summary': parsed.get('summary')})
+            return no_checks(BEHAVIOR_FAILURE_ID, 'the acceptance run reported PASS with zero checks', report.build_log)
+        if parsed.get('status') == 'PASS' and not all(isinstance(c, dict) and c.get('passed') is True for c in checks):
+            self.last_report = {'status': 'FAIL', 'summary': 'PASS with a failed or malformed check'}
+            return unverified(BEHAVIOR_FAILURE_ID, 'the acceptance run reported PASS but not every check passed',
+                              report.build_log)
         self.last_report = {k: parsed.get(k) for k in ('status', 'summary', 'checks', 'missing_acceptance_ids',
                                                         'missing_kinds', 'not_required_kinds', 'covered_kinds')}
         self.history.append({'status': parsed.get('status'), 'summary': parsed.get('summary')})

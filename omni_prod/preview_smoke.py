@@ -130,6 +130,8 @@ class PreviewReadyExecutor:
             staged, argv = staged_script(repository, 'preview_smoke', _SMOKE)
             result = run(staged, argv, 'preview-smoke')
         except Exception as exc:  # sandbox unavailable: the build cannot be verified
+            from .verification_verdict import reraise_control
+            reraise_control(exc)  # T4: cancel / ledger / budget stop the build, they are not a preview result
             self.last_smoke = {'status': 'FAIL', 'reason': f'could not run: {exc}'[:300]}
             return ExecutionReport(False, (AcceptanceFailure(PREVIEW_FAILURE_ID, f'preview smoke test could not run: {exc}'),),
                                    report.build_log)

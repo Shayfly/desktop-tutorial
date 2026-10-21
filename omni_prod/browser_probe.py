@@ -181,24 +181,39 @@ class BrowserFlowExecutor:
         directly; execute() keeps the standalone short-circuit)."""
         if not self._enabled:
             return report
+        from .verification_verdict import no_checks, reraise_control, unverified
         run = getattr(self._inner, '_run', None)
         if not callable(run):
             self.last_probe = {'status': 'unavailable', 'reason': 'no sandbox runner'}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'no sandbox runner', report.build_log)       # T4: never a pass
         try:
             staged, argv = staged_script(repository, 'browser_probe', PROBE)
             result = run(staged, argv, 'browser-probe', profile=BROWSER_PROFILE)
         except TypeError:
             self.last_probe = {'status': 'unavailable', 'reason': 'sandbox runner has no browser profile'}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'sandbox runner has no browser profile', report.build_log)
         except Exception as exc:
+            reraise_control(exc)                       # T4: cancel / ledger / budget stop the build
             self.last_probe = {'status': 'unavailable', 'reason': f'{type(exc).__name__}: {exc}'[:300]}
-            return report
-        probe = parse_probe_output(str(result.get('stdout', '')))
+            return unverified(BROWSER_FAILURE_ID, f'{type(exc).__name__}: {exc}', report.build_log)
+        stdout = str(result.get('stdout', ''))
+        probe = parse_probe_output(stdout)
+        tail = (stdout + str(result.get('stderr', '')))[-600:]
         if probe is None:
-            tail = (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-600:]
             self.last_probe = {'status': 'unavailable', 'reason': 'probe produced no result', 'tail': tail}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'the probe produced no result', report.build_log)
+        if (not isinstance(probe, dict) or not isinstance(probe.get('forms'), list)
+                or not isinstance(probe.get('findings'), list)):
+            self.last_probe = {'status': 'unavailable', 'reason': 'malformed probe result', 'tail': tail}
+            return unverified(BROWSER_FAILURE_ID, 'malformed probe result (expected an object with forms and '
+                              'findings lists)', report.build_log)
+        if int(result.get('returncode', 0) or 0) != 0:
+            self.last_probe = {'status': 'unavailable', 'reason': f"probe exited {result.get('returncode')}", 'tail': tail}
+            return unverified(BROWSER_FAILURE_ID, f"the probe exited {result.get('returncode')} (a PASS payload "
+                              'does not override a failed process)', report.build_log)
+        if not probe['forms'] and not probe['findings']:
+            self.last_probe = {'status': 'no_checks', 'forms': 0, 'findings': []}
+            return no_checks(BROWSER_FAILURE_ID, 'no form was exercised on "/"', report.build_log)
         blocking = [f for f in probe.get('findings', []) if f.get('kind') in BLOCKING]
         self.last_probe = {'status': 'failed' if blocking else 'passed', 'forms': len(probe.get('forms', [])),
                            'findings': probe.get('findings', [])}
