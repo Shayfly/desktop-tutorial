@@ -19,6 +19,10 @@ SUMMARY_FAILURE_ID = 'ALSO_FAILING'
 REPAIR_ROUNDS_HARD_MAX = 8
 
 
+# #95: a failed report with no failures still yields a taxonomy row (layer sandbox, check_failed_unspecified).
+UNSPECIFIED_ROUND_FAILURE_ID = 'ROUND_unspecified'
+
+
 @dataclass(frozen=True)
 class ExecutionReport:
     passed: bool
@@ -148,10 +152,14 @@ class AutonomousProductEngine:
             return []
         own = [f for f in report.failures if f.acceptance_id != SUMMARY_FAILURE_ID]
         if len(own) == len(report.failures):
-            return own
-        group = getattr(self.executor, 'group_failures', None) or ()
-        seen = {(f.acceptance_id, f.message) for f in own}
-        return own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+            observed = own
+        else:
+            group = getattr(self.executor, 'group_failures', None) or ()
+            seen = {(f.acceptance_id, f.message) for f in own}
+            observed = own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+        # #95: a failed round that names no failure is still a failure in the taxonomy, never zero rows
+        return observed or [AcceptanceFailure(UNSPECIFIED_ROUND_FAILURE_ID, 'round failed without a diagnostic',
+                                              (report.build_log or '')[:500])]
 
     @staticmethod
     def progress(report) -> tuple[int, int]:
@@ -196,18 +204,25 @@ class AutonomousProductEngine:
         only at the very end of a successful _build(), so a build that raised (a model or sandbox error) left the
         previous build's values or nothing at all, and the rounds already verified were lost."""
         self._taxonomy_rounds, self._preflight_events = [], []
+        self._round0_passed = None
         self.failure_taxonomy, self.first_pass = [], None
+        result = None
         try:
-            return self._build(prompt)
+            result = self._build(prompt)
+            return result
         finally:
-            self._refresh_taxonomy()
+            self._refresh_taxonomy(result)
 
-    def _refresh_taxonomy(self) -> None:
+    def _refresh_taxonomy(self, result: 'AutonomousResult | None' = None) -> None:
         from .failure_taxonomy import records
         rounds = getattr(self, '_taxonomy_rounds', None) or []
         self.failure_taxonomy = sorted(records(rounds) + list(getattr(self, '_preflight_events', None) or []),
                                        key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
-        self.first_pass = bool(rounds) and not rounds[0][1]          # no verified round 0 -> not a first pass
+        # #95 FAILED_BUILD_REPORTED_FIRST_PASS: first pass = round 0 was verified AND its report passed AND the build
+        # returned ready. An empty failure list is not a pass (ExecutionReport(False, ()) is a failed round); a build
+        # that raised has no result and is never a first pass.
+        self.first_pass = (bool(rounds) and getattr(self, '_round0_passed', None) is True and not rounds[0][1]
+                           and result is not None and result.status == 'ready')
 
     def _build(self, prompt: str) -> AutonomousResult:
         """Generate, verify, repair.
@@ -227,6 +242,7 @@ class AutonomousProductEngine:
         repo = self._preflight(repo, spec, 0)
         report = self.executor.execute(repository=repo, spec=spec)
         self._taxonomy_rounds = [(0, self._observed_failures(report))]
+        self._round0_passed = bool(report.passed)
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
@@ -292,8 +308,7 @@ class AutonomousProductEngine:
                 best_repo, best_report = repo, report
         if not report.passed:
             repo, report = best_repo, best_report
-        self._refresh_taxonomy()
-        return AutonomousResult(
+        return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
             'ready' if report.passed else 'failed',
             spec,
             repo,

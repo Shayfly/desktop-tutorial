@@ -332,13 +332,15 @@ def spend_snapshot(gateway) -> tuple[Decimal, int]:
     return Decimal(str(spent)), calls
 
 
-def taxonomy_evidence(engine) -> dict:
+def taxonomy_evidence(engine, *, ready: bool = False) -> dict:
     """C24: the failure taxonomy and first_pass of THIS build, in its evidence, on success and on every failure exit
-    (they were recorded only by rehearsals; live builds never reached first_pass_yield)."""
+    (they were recorded only by rehearsals; live builds never reached first_pass_yield).
+    #95: first_pass is True only for a build this worker records as release-ready; every failure exit passes
+    ready=False, so a failed build is never counted as a first pass whatever the engine says."""
     if engine is None:
         return {'failure_taxonomy': [], 'first_pass': False, 'taxonomy_note': 'the engine was never built'}
     return {'failure_taxonomy': list(getattr(engine, 'failure_taxonomy', None) or []),
-            'first_pass': bool(getattr(engine, 'first_pass', False))}
+            'first_pass': bool(ready) and getattr(engine, 'first_pass', None) is True}
 
 
 def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
@@ -799,7 +801,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'infrastructure': infrastructure_evidence,
             'repair_rounds': result.repair_rounds,
             'repair_stop_reason': getattr(result, 'stop_reason', None) or None,
-            **taxonomy_evidence(engine),
+            **taxonomy_evidence(engine, ready=bool(ready and result.report.passed and result.status == 'ready')),
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
             'provider_usage': provider_usage_evidence(gateway),
