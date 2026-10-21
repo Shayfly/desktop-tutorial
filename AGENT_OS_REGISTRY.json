@@ -6108,9 +6108,12 @@
    ],
    "gap": "unlabelled_field rule, advisory",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "status": "INTEGRATION_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py",
    "evidence": [
+    "tests/test_visual_qa.py"
+   ],
+   "stale_evidence": [
     "postdeploy-checks verify-replay run 39307232830"
    ],
    "last_verified_at": "2026-10-19T19:05Z",
@@ -7654,8 +7657,8 @@
    "NOT_IMPLEMENTED": 264,
    "IMPLEMENTED": 80,
    "UNIT_TESTED": 28,
-   "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 46,
+   "INTEGRATION_TESTED": 1,
+   "REAL_SERVER_VERIFIED": 45,
    "LIVE": 0,
    "BLOCKED": 9
   }

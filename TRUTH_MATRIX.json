@@ -203,17 +203,17 @@
     "tests/test_consistency_gate.py"
    ],
    "evidence": [
-    "postdeploy-checks gate-replay run 38083647077"
+    "tests/test_consistency_gate.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "platform:consistency_gate",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: no false positive on stored working versions; repair prompt contains the code"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py"
     }
    ]
   },
@@ -442,17 +442,18 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "postdeploy-checks verify-replay run 39307232830",
+    "tests/test_visual_qa.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "INTEGRATION_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:label_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/consistency_gate.py"
     },
     {
      "part": "skill:contrast_test",
@@ -1139,8 +1140,9 @@
  ],
  "counts": {
   "IMPLEMENTED": 10,
-  "REAL_SERVER_VERIFIED": 14,
-  "UNIT_TESTED": 4,
+  "REAL_SERVER_VERIFIED": 12,
+  "UNIT_TESTED": 5,
+  "INTEGRATION_TESTED": 1,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
  },
