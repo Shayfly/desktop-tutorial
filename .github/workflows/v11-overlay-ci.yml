@@ -3,6 +3,7 @@ name: V11 Overlay CI
 on:
   push:
   pull_request:
+  workflow_dispatch:    # T7a: v24-ci's publish-report dispatches this on the report branch (GITHUB_TOKEN starts no run)
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
