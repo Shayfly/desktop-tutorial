@@ -76,8 +76,8 @@ jobs:
           SECRET = re.compile(r"(AIza|sk-ant-|sk-|r8_|ghp_|github_pat_)[0-9A-Za-z_-]{16,}")
           FRONT = (".html", ".htm", ".css", ".js")
           notes, errors = [], []
-          def note(title, msg):
-              notes.append((title, SECRET.sub("[redacted]", str(msg))))
+          def note(title, msg):          # title AND message (Matt on #88: a key-shaped FILENAME reached the title)
+              notes.append((SECRET.sub("[redacted]", str(title)), SECRET.sub("[redacted]", str(msg))))
           def fail(title, msg):
               errors.append(f"{title}: {msg}")
               note("FAIL " + title, msg)

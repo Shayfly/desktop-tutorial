@@ -152,6 +152,20 @@ class ReaderAgainstFakes(unittest.TestCase):
         self.assertFalse(any(re.search(r'AIza[0-9A-Za-z_-]{16,}', m) for _, m in notes))
         self.assertEqual(zips, [f'00-{key.rsplit("/", 1)[-1]}'])
 
+    def test_a_key_shaped_filename_is_redacted_in_the_title_too(self):
+        # T7c (Matt on #88): note(title, msg) redacted only msg; a chosen filename went into the annotation title.
+        from omni_prod.workspace import _checksum
+        leaky = 'sk-' + 'x' * 20 + '.js'
+        repo = {**REPO, leaky: 'console.log(1)'}
+        data, sha = make_zip(repo), _checksum(repo)
+        key = f'build-rounds/bld_x/00-{sha[:12]}.zip'
+        snaps = [{'round': 0, 'decision': 'initial', 'failing': [], 'key': key, 'sha256': sha}]
+        code, notes, _ = run_reader(Fakes(snaps, {key: (data, {'sha256': hashlib.sha256(data).hexdigest()})}))
+        self.assertEqual(code, 0)
+        self.assertFalse([t for t, _ in notes if 'sk-' + 'x' * 20 in t], [t for t, _ in notes])
+        self.assertIn('round 0 [redacted].js [1/1]', [t for t, _ in notes])          # the file is still shown, by name
+        self.assertFalse([m for _, m in notes if 'sk-' + 'x' * 20 in m])             # and the manifest's file list
+
     def test_a_wrong_metadata_checksum_fails_the_job(self):
         snaps, objects, key = good()
         objects[key] = (objects[key][0], {'sha256': '0' * 64})
@@ -201,6 +215,10 @@ class TheS3GuardRefusesWritesOnARealClient(unittest.TestCase):
                      lambda: client.delete_object(Bucket='b', Key='k')):
             with self.assertRaises(PermissionError):
                 call()
+        if os.environ.get('GITHUB_ACTIONS') == 'true':   # T7c: the named outcome, readable as an annotation (O14)
+            print(f'::notice title=T7c S3 guard on a real boto3 {boto3.__version__} client::'
+                  'PASS test_put_and_delete_are_refused_before_any_request (PutObject and DeleteObject refused '
+                  'before any request)', flush=True)
 
 
 if __name__ == '__main__':
