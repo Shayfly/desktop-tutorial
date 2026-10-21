@@ -1,0 +1,64 @@
+name: Diag pg OOM test (I02 / Matt HOLD on #104)
+
+# Diagnostic only, never merged. Runs ONLY tests/test_real_docker_drain_recovery.py::...test_5 (the OOM case) 4 times
+# on main @7996287 and 4 times on #104 @01d16cb, same services and env as intake-budget-pg.yml, and prints the result
+# and the test's EVIDENCE line as annotations (job logs are not readable from the session, O14).
+on:
+  push:
+    branches: [diag/pg-oom]
+
+permissions:
+  contents: read
+
+jobs:
+  oom:
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [7996287f59c4f427db24ed662b36fce20104f1cf, 01d16cbbe84895c3bdd5fcf722e19641a306a79b]
+        attempt: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      M4D2_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+      OMNI_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -q -r requirements-production.txt -r requirements-test.txt
+      - name: Migrations
+        env:
+          OMNI_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+        run: python -m omni_prod.migrate > /dev/null
+      - name: Host facts
+        run: |
+          echo "::notice title=host ${{ matrix.ref }} #${{ matrix.attempt }}::kernel=$(uname -r) cgroup=$(stat -fc %T /sys/fs/cgroup) docker=$(docker version -f '{{.Server.Version}}') mem_total=$(grep MemTotal /proc/meminfo | tr -s ' ') swap=$(grep SwapTotal /proc/meminfo | tr -s ' ') nproc=$(nproc)"
+      - name: The OOM test only
+        run: |
+          set +e
+          start=$(date +%s)
+          python -m pytest -q -s -rs "tests/test_real_docker_drain_recovery.py::RealDockerDrainRecovery::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything" > /tmp/out.txt 2>&1
+          rc=$?
+          secs=$(( $(date +%s) - start ))
+          echo "::notice title=RESULT ${{ matrix.ref }} #${{ matrix.attempt }}::rc=$rc seconds=$secs $(tail -1 /tmp/out.txt)"
+          grep -E "EVIDENCE|AssertionError|drain:" /tmp/out.txt | head -8 | while IFS= read -r l; do echo "::notice title=detail ${{ matrix.ref }} #${{ matrix.attempt }}::$l"; done
+          dmesg 2>/dev/null | grep -iE "oom|killed process" | tail -3 | while IFS= read -r l; do echo "::notice title=dmesg ${{ matrix.ref }} #${{ matrix.attempt }}::$l"; done
+          sudo dmesg 2>/dev/null | grep -iE "oom-kill|killed process|memory cgroup out of memory" | tail -3 | while IFS= read -r l; do echo "::notice title=kernel ${{ matrix.ref }} #${{ matrix.attempt }}::$l"; done
+          exit 0
