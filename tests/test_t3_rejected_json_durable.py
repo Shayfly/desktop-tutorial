@@ -46,7 +46,9 @@ class RejectedJsonIsDurable(unittest.TestCase):
         [(key, data)] = store.objects.items()
         self.assertTrue(key.startswith('build-model-json/bld_1/00-codegen-'))
         stored = json.loads(data)
-        self.assertEqual(stored['raw'], RAW)                                       # the whole answer, not a cut
+        self.assertEqual(stored['stored_text'], RAW)                               # the whole answer, not a cut
+        self.assertEqual((stored['build_id'], stored['stored_truncated'], stored['stored_redacted']), ('bld_1', False, False))
+        self.assertIsInstance(stored['attempt_seq'], int)
         self.assertIn('content after the first JSON value', stored['diagnostic']['reason'])
         ev = rejected_json_evidence(gw)
         self.assertTrue(ev['rejected_model_json_durable'])
@@ -55,6 +57,30 @@ class RejectedJsonIsDurable(unittest.TestCase):
         self.assertEqual(row['raw_sha256'], hashlib.sha256(RAW.encode()).hexdigest())
         self.assertNotIn('raw', row)                                               # the row stays small
         json.dumps(ev)                                                              # storable in evidence_json
+
+    def test_it_is_retrievable_after_the_gateway_is_gone(self):
+        store = Store()
+        gw = routed(RAW)
+        install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_9')
+        with self.assertRaises(ModelGatewayError):
+            gw.complete_json(system='s', user='u', task='codegen')
+        evidence = json.loads(json.dumps(rejected_json_evidence(gw)))             # what is written to evidence_json
+        del gw                                                                       # the worker's objects are gone
+        [row] = evidence['rejected_model_json']
+        stored = json.loads(store.objects[row['key']])                              # retrieved by the evidence key
+        self.assertEqual(hashlib.sha256(stored['stored_text'].encode()).hexdigest(), row['raw_sha256'])
+        self.assertEqual(stored['attempt_seq'], row['attempt_seq'])
+
+    def test_a_key_shaped_secret_is_redacted_in_the_store_and_says_so(self):
+        leaky = '{"files": []}\nkey=AIza' + 'x' * 30
+        gw, store = routed(leaky), Store()
+        install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
+        with self.assertRaises(ModelGatewayError):
+            gw.complete_json(system='s', user='u', task='codegen')
+        stored = json.loads(next(iter(store.objects.values())))
+        self.assertNotIn('AIza' + 'x' * 30, stored['stored_text'])
+        self.assertTrue(stored['stored_redacted'])
+        self.assertEqual(stored['raw_sha256'], hashlib.sha256(leaky.encode()).hexdigest())   # digest of the original
 
     def test_every_rejection_is_kept_not_only_the_last_ten(self):
         gw, store = routed(RAW), Store()

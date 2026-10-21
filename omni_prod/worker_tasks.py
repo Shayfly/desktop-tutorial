@@ -169,8 +169,20 @@ def install_rejected_json_sink(gateway, workspace, build_id: str) -> None:
     import hashlib
     counter = {'n': 0}
 
+    from .evidence_export import redact as export_redact      # covers Google keys (AIza...) on this base
+    from .secret_redaction import redact as layer_redact
+
+    def redact(text: str) -> str:
+        return export_redact(layer_redact(text))
+
     def sink(entry: dict, raw: str) -> str:
-        body = json.dumps({**{k: v for k, v in entry.items() if k != 'raw'}, 'raw': raw}, ensure_ascii=False).encode()
+        # Private build store (same access and retention as the round snapshots). The text is stored WHOLE (never
+        # truncated), through the redaction layer: raw_sha256 is the digest of the original answer, and
+        # stored_redacted says whether anything key-shaped was replaced.
+        text = redact(raw)
+        body = json.dumps({**{k: v for k, v in entry.items() if k not in ('raw', 'raw_truncated')}, 'build_id': build_id,
+                           'stored_text': text, 'stored_redacted': text != raw, 'stored_truncated': False},
+                          ensure_ascii=False).encode()
         key = (f"build-model-json/{build_id}/{counter['n']:02d}-{entry['task']}-"
                f"{hashlib.sha256(body).hexdigest()[:12]}.json")
         counter['n'] += 1
@@ -183,7 +195,8 @@ def rejected_json_evidence(gateway) -> dict:
     """Manifest of the rejected JSON answers of THIS build (the raw text lives at each key)."""
     rows = list(getattr(gateway, 'rejected_json_manifest', None) or [])
     durable = getattr(gateway, 'rejected_json_sink', None) is not None
-    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'task', 'raw_sha256', 'raw_chars', 'key', 'store_error')}
+    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'provider_model', 'attempt_seq', 'task', 'raw_sha256',
+                                                           'raw_chars', 'key', 'store_error')}
                                     | {'reason': (r.get('diagnostic') or {}).get('reason')} for r in rows],
             'rejected_model_json_durable': durable}
 

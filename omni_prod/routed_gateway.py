@@ -242,7 +242,8 @@ class RoutedModelGateway:
             if hasattr(exc, 'raw') and hasattr(exc, 'diagnostic'):          # ModelJSONRejected: keep what was said
                 import hashlib
                 raw = exc.raw or ''
-                entry = {'model': route.endpoint.name, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
+                entry = {'model': route.endpoint.name, 'provider_model': route.endpoint.model,
+                         'attempt_seq': record.attempt_seq, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
                          'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
                          'raw_chars': len(raw), 'raw': raw[:200_000], 'raw_truncated': len(raw) > 200_000}
                 # Matt on #105: memory is not evidence. A durable sink (the worker: object storage, per build) gets
