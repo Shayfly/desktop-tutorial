@@ -72,7 +72,7 @@ class Fakes:
         self.store = types.SimpleNamespace(client=Client(), bucket='b')
 
 
-def run_reader(fakes, rounds='all', files='front'):
+def run_reader(fakes, rounds='all', files='front', stdout=None):
     src = embedded(reader_run())
     with tempfile.TemporaryDirectory() as out:
         os.makedirs(os.path.join(out, 'zips'))
@@ -80,10 +80,12 @@ def run_reader(fakes, rounds='all', files='front'):
         with mock.patch.dict(os.environ, {'BID': 'bld_x', 'ROUNDS': rounds, 'FILES': files}), \
                 mock.patch('omni_prod.investor_app._v28_pool', fakes.pool, create=True), \
                 mock.patch('omni_prod.evidence_export._default_store', lambda env: fakes.store):
-            try:
-                exec(compile(src.replace('/out/', out + '/'), 'reader', 'exec'), {})
-            except SystemExit as exc:
-                code = exc.code
+            import contextlib
+            with contextlib.redirect_stdout(stdout if stdout is not None else io.StringIO()):
+                try:
+                    exec(compile(src.replace('/out/', out + '/'), 'reader', 'exec'), {})
+                except SystemExit as exc:
+                    code = exc.code
         notes = [json.loads(l) for f in sorted(os.listdir(out)) if f.endswith('.jsonl')
                  for l in open(os.path.join(out, f), encoding='utf-8')]
         zips = sorted(os.listdir(os.path.join(out, 'zips')))
@@ -152,6 +154,20 @@ class ReaderAgainstFakes(unittest.TestCase):
         self.assertFalse(any(re.search(r'AIza[0-9A-Za-z_-]{16,}', m) for _, m in notes))
         self.assertEqual(zips, [f'00-{key.rsplit("/", 1)[-1]}'])
 
+    def test_a_key_shaped_filename_is_redacted_in_the_title_too(self):
+        # T7c (Matt on #88): note(title, msg) redacted only msg; a chosen filename went into the annotation title.
+        from omni_prod.workspace import _checksum
+        leaky = 'sk-' + 'x' * 20 + '.js'
+        repo = {**REPO, leaky: 'console.log(1)'}
+        data, sha = make_zip(repo), _checksum(repo)
+        key = f'build-rounds/bld_x/00-{sha[:12]}.zip'
+        snaps = [{'round': 0, 'decision': 'initial', 'failing': [], 'key': key, 'sha256': sha}]
+        code, notes, _ = run_reader(Fakes(snaps, {key: (data, {'sha256': hashlib.sha256(data).hexdigest()})}))
+        self.assertEqual(code, 0)
+        self.assertFalse([t for t, _ in notes if 'sk-' + 'x' * 20 in t], [t for t, _ in notes])
+        self.assertIn('round 0 [redacted].js [1/1]', [t for t, _ in notes])          # the file is still shown, by name
+        self.assertFalse([m for _, m in notes if 'sk-' + 'x' * 20 in m])             # and the manifest's file list
+
     def test_a_wrong_metadata_checksum_fails_the_job(self):
         snaps, objects, key = good()
         objects[key] = (objects[key][0], {'sha256': '0' * 64})
@@ -171,6 +187,29 @@ class ReaderAgainstFakes(unittest.TestCase):
         code, notes, zips = run_reader(Fakes(snaps, {}))
         self.assertEqual(code, 1)
         self.assertIn('NoSuchKey', notes[0][1])
+        self.assertEqual(zips, [])
+
+    def test_a_failed_get_never_prints_a_key_shaped_token_in_any_annotation(self):
+        # Matt HOLD on #109 (T7C_RAW_ERROR_SUMMARY_BYPASSES_REDACTION): fail() kept the raw text in `errors`, and the
+        # ::error summary printed it, bypassing note(). The marker is in the object KEY and in the EXCEPTION text.
+        token = 'sk-' + 'Z' * 30
+        key = f'build-rounds/bld_x/00-{token}.zip'
+
+        class Fakes2(Fakes):
+            def __init__(self):
+                super().__init__([{'round': 0, 'decision': 'initial', 'failing': [], 'key': key, 'sha256': 'x'}], {})
+
+                def boom(Bucket, Key):
+                    raise PermissionError(f'AccessDenied for credential {token} on {Key}')
+                self.store.client.get_object = boom
+        out = io.StringIO()
+        code, notes, zips = run_reader(Fakes2(), stdout=out)
+        self.assertEqual(code, 1)                                                  # the failure still propagates
+        printed = out.getvalue()
+        self.assertIn('::error title=inspection failed::1 integrity/read failure(s)', printed)
+        self.assertIn('AccessDenied', printed)                                    # the failure detail is kept
+        self.assertNotIn(token, printed)                                          # ... without the token
+        self.assertNotIn(token, json.dumps(notes))                                # nor in any note annotation
         self.assertEqual(zips, [])
 
     def test_a_missing_build_a_missing_key_or_a_requested_absent_round_fails(self):
@@ -201,6 +240,10 @@ class TheS3GuardRefusesWritesOnARealClient(unittest.TestCase):
                      lambda: client.delete_object(Bucket='b', Key='k')):
             with self.assertRaises(PermissionError):
                 call()
+        if os.environ.get('GITHUB_ACTIONS') == 'true':   # T7c: the named outcome, readable as an annotation (O14)
+            print(f'::notice title=T7c S3 guard on a real boto3 {boto3.__version__} client::'
+                  'PASS test_put_and_delete_are_refused_before_any_request (PutObject and DeleteObject refused '
+                  'before any request)', flush=True)
 
 
 if __name__ == '__main__':
