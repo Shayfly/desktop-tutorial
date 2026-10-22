@@ -605,6 +605,11 @@ def stage_paid_verify(state: dict) -> None:
     record_agent_graph(b, 'ready', ('coding_agent', 'qa_agent', 'release_agent', 'quality_gate_agent'))
     vid = d.get('result_version_id')
     if not vid:
+        # T7b (Matt, #83): a "ready" build without a version used to return here with nothing recorded, so
+        # paid-verify exited 0 although neither the R2 artifact nor the preview was verified. It is a required failure.
+        record('built version for R2 + preview', False,
+               f"status={d.get('status')} but result_version_id is missing: the R2 artifact and the preview of the "
+               'built version were NOT verified')
         return
     record_r2_artifact(b, vid)
     view, err = preview_launch(token, project, vid, seconds=240)
