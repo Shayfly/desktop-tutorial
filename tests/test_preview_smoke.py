@@ -131,5 +131,7 @@ class LinkedAssetSmokeTests(__import__('unittest').TestCase):
     def test_shell_page_fails_and_shows_its_start(self):
         code, line = self._run(False)
         self.assertEqual(code, 1)
-        self.assertIn('placeholder page', line)
+        self.assertIn("is not the product's user interface", line)
+        self.assertIn('(a) too short', line)                    # 59 chars and no control: both conditions are named
+        self.assertIn('(b) no interactive control', line)
         self.assertIn('<div id="r">', line)

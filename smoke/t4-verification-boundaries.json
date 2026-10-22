@@ -1,6 +1,6 @@
 {
  "what": "T4 verification boundaries: per-case evidence (synthetic transport; no provider, no network)",
- "generated_from_commit_parent": "52f8502118b1e5088f443fc3e02c493389d21f19",
+ "generated_from_commit_parent": "7ac44c8e829334e0afc5a86e33d3c84183766f90",
  "command": "python3 -I tools/redteam_verification_boundaries.py",
  "exit_code": 0,
  "source_sha256": {
@@ -8,7 +8,7 @@
   "omni_prod/browser_probe.py": "2fba2146a944330f30e2b1a4693c6e7b0b7390ffc6429870461fb63cd173d9b0",
   "omni_prod/visual_qa.py": "8bc50c1bb6af62f7ee47587290c27fc3891c0c2d4132ebf6ddb9f5368fde4769",
   "omni_prod/behavior_acceptance.py": "e53d085bfc17bbb484a7da6ab256c52ac531c0e223e51374c22e5efb3334cef2",
-  "omni_prod/preview_smoke.py": "99f30307d985d2fcb4a5a6e9f9a141cbfcbab507b89cc25929559b8cd7c5e343",
+  "omni_prod/preview_smoke.py": "040d22a2acc6999ebcacdad16f7709c41cffab1740e05850402985ad6bb88b67",
   "omni_prod/verification_group.py": "e7ceaaae16d9641d37dcdc5addfdeca4d916621c3260d37914ee708806ce48b5",
   "tools/redteam_verification_boundaries.py": "b7bf43a075963c3d626b1817f23fc3ad9a34d0f7195bc1b123e3ecfe3e45fbf1"
  },

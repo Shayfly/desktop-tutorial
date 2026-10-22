@@ -74,11 +74,21 @@ if verdict == "OK":
         controls = ("<form", "<input", "<button", "<table", "<select", "<textarea",
                     "createelement('button", 'createelement("button', "createelement('input", 'createelement("input',
                     "createelement('table", 'createelement("table')
+        # Name WHICH condition failed (paid run 39473090833: a 738-char page was reported only by its size, but it
+        # had failed (b); the size was fine, and three repair rounds chased the wrong thing).
+        size = len(page.strip()) + len(assets.strip())
+        why = []
+        if size < 400:
+            why.append("(a) too short: %%d chars of HTML + %%d chars of linked scripts/styles = %%d, below 400"
+                       %% (len(page.strip()), len(assets.strip()), size))
+        if not any(t in whole for t in controls):
+            why.append("(b) no interactive control: none of <form, <input, <button, <table, <select, <textarea "
+                       "(nor createElement of button/input/table) appears in the page or its linked scripts/styles")
         if "text/html" not in ctype.lower() or ("<html" not in low and "<!doctype" not in low):
             verdict = "GET / did not return an HTML page (Content-Type %%r, starts %%r)" %% (ctype, page[:60])
-        elif len(page.strip()) + len(assets.strip()) < 400 or not any(t in whole for t in controls):
-            verdict = ("GET / returned a placeholder page, not the product's user interface "
-                       "(%%d chars of HTML, %%d chars of linked scripts/styles; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
+        elif why:
+            verdict = ("GET / is not the product's user interface: " + "; ".join(why)
+                       + " (page %%d chars, linked scripts/styles %%d chars; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
     except Exception as e:
         verdict = "GET / failed: %%s" %% e
 if p.poll() is None:
@@ -151,5 +161,11 @@ class PreviewReadyExecutor:
                 needs = ('GET / must render the whole product for a user: ' + '; '.join(texts) +
                          '. Build it as one complete HTML page (inline CSS and JavaScript allowed) with the forms, '
                          'buttons and tables these need, calling the app\'s JSON endpoints.\n')
-        failed = _failure(f'the app did not start for preview: {first}', needs + output)
+        # T7d (founder 2026-10-22): "did not start" was printed even when the app started and answered, and only its
+        # page failed the interface check; the message now says which of the two happened.
+        if 'user interface' in first or 'HTML page' in first:
+            lead = 'the app started for preview, but its page is not the product'
+        else:
+            lead = 'the app did not start for preview'
+        failed = _failure(f'{lead}: {first}', needs + output)
         return ExecutionReport(False, failed.failures, report.build_log + '\n' + output)
