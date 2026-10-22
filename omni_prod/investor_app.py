@@ -765,7 +765,7 @@ def _model_gateway_and_executor():
     # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
     if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
     cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
-    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy,health=_provider_health())
+    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary,declared_quality=cfg.primary_quality) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost,declared_quality=(cfg.fallback_quality[i] if i<len(cfg.fallback_quality) else None)) for i,ep in enumerate(cfg.fallback)),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy,health=_provider_health())
     executor=_verification_executor(gateway)
     return gateway,executor
 
@@ -2090,6 +2090,20 @@ def v28_project_memory(project_id: str, request: Request) -> dict:
     return snapshot(_v28_pool, project_id=project_id, internal_key=key, store=_conversation_store(), briefs=_brief_repo())
 
 
+def _capability_block_message(findings) -> str:
+    """Explain the existing refusal, preserving each named item and its remedy."""
+    rows = []
+    for finding in findings or []:
+        if isinstance(finding, dict):
+            item = finding.get('item') or 'Execution plan'
+            reason = finding.get('reason') or 'not supported yet'
+            action = finding.get('alternative') or 'Edit this requirement or contact support to enable the capability.'
+            rows.append(f'{item}: {reason}. Next: {action}')
+        else:
+            rows.append(f'Execution plan: {finding}. Next: review the requirements or contact support.')
+    return 'The build did not start. ' + (' '.join(rows) or 'Review the unsupported requirements or contact support.')
+
+
 def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None:
     """At build admission: the Chief Architect's plan for the approved brief,
     gated by feasibility. Deterministic and free; stored once per fingerprint."""
@@ -2118,8 +2132,9 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     plan = saved['plan']
     if os.getenv('OMNI_FEASIBILITY_GATE', 'enforce') == 'enforce' and not plan.get('executable'):
         blocked = [f for f in plan['feasibility']['findings'] if f['outcome'] not in ('FEASIBLE', 'FEASIBLE_WITH_CONSTRAINTS')]
+        findings = blocked or plan.get('graph_problems') or []
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
-                                         'findings': blocked or plan.get('graph_problems')})
+                                         'findings': findings, 'message': _capability_block_message(findings)})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
             'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
             # G3: the approved criteria travel with the plan; plan-governed builds test against them.
@@ -2170,7 +2185,9 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     if row is None or row.revision != revision:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the new summary.'})
     if not row.complete:
-        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.'})
+        # O10: name what is missing (pending question ids and contradictions), not only that something is.
+        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.',
+                                         **d.missing(row.brief)})
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
@@ -2185,7 +2202,7 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
-                                    'message': 'The approved requirements cannot be built yet. Review the unsupported requirements.',
+                                    'message': detail.get('message') or 'The approved requirements cannot be built yet. Review the unsupported requirements.',
                                     'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})
 
 
@@ -2222,7 +2239,7 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
             budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan',
                                                    credits=build_credits))
     except ApprovalError as exc:
-        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
 
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
@@ -2416,7 +2433,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                         credits=credits),
                                     build_id=build_id)
                             except ApprovalError as exc:
-                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))

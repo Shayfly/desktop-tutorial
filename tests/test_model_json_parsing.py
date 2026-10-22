@@ -35,9 +35,11 @@ class JsonAnswerTests(unittest.TestCase):
     def test_raw_newline_inside_a_code_string_is_accepted(self):
         self.assertEqual(_parse_json_object('{"code": "line1\nline2"}')[0], {'code': 'line1\nline2'})
 
-    def test_object_wrapped_in_prose_is_extracted(self):
-        out = _gateway('Here is the fix:\n{"files": []}\nGood luck').complete_json(system='s', user='u')
-        self.assertEqual(out, {'files': []})
+    def test_object_wrapped_in_prose_is_rejected_not_extracted(self):
+        # T3 (founder 2026-10-21): prose is not a known envelope; what the model said around the object is not ignored
+        with self.assertRaises(ModelGatewayError) as ctx:
+            _gateway('Here is the fix:\n{"files": []}\nGood luck').complete_json(system='s', user='u')
+        self.assertIn('content before the JSON value', str(ctx.exception))
 
     def test_truncated_answer_names_the_reason(self):
         with self.assertRaises(ModelGatewayError) as ctx:

@@ -299,9 +299,7 @@ function explain(err) {
       : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
-  if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
-    ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
-    : 'The build did not start: a requirement is not supported yet. Review the plan blockers or edit the request.';
+  if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -718,7 +716,7 @@ function renderPlan() {
       return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
     const title = b => {
-      if(b.code==='capability_not_feasible')return S.lang==='he'?'אחת הדרישות עדיין אינה נתמכת. יש לערוך אותה או להמתין להשלמת היכולת.':'A requirement is not supported yet. Edit it or wait for support.';
+      if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
       if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
       if (b.code.startsWith('infrastructure_')) {
         const kind = (p.infrastructure.find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
@@ -1379,14 +1377,25 @@ function renderArch() {
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
 }
+function capabilityBlockMessage(detail) {
+  const action = S.lang==='he' ? 'ערכו את הדרישה או פנו לתמיכה להשלמת היכולת.' : 'Edit the requirement or contact support to enable this capability.';
+  const rows = (Array.isArray(detail.findings) ? detail.findings : []).map(x => {
+    if(!x || typeof x!=='object' || typeof x.item!=='string' || !x.item.trim())return '';
+    // The existing Hebrew sign-in label already names the capability and offers an action.
+    if(S.lang==='he' && x.item.startsWith('sign-in'))return findingLabel(x);
+    return `${findingLabel(x)} ${x.alternative || action}`;
+  }).filter(Boolean);
+  const intro = S.lang==='he' ? 'הבנייה לא התחילה: ' : 'The build did not start: ';
+  return intro + (rows.length ? rows.join(' ') : (detail.message || action));
+}
 function findingLabel(x) {
-  if(S.lang!=='he')return `${x.item}: ${x.reason}`;
+  if(S.lang!=='he')return `${x.item}: ${x.reason || 'not supported yet'}`;
   if(x.item.startsWith('sign-in'))return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את הדרישה או להשאיר אותה להמשך.';
   if(x.item==='publishing')return 'פרסום בכתובת קבועה עדיין אינו זמין. קיימות תצוגה פרטית והורדת קוד.';
   if(x.item==='independent model review')return 'מודל הביקורת עשוי להיות מאותו ספק של מודל הכתיבה. בדיקות הקוד עדיין נדרשות לפני שחרור.';
   const names={'code generation':'יצירת קוד','behavioural acceptance':'בדיקות התנהגות','release policy':'מדיניות שחרור'};
   if(names[x.item])return `${names[x.item]}: ${x.outcome==='FEASIBLE_WITH_CONSTRAINTS'?'קיימות מגבלות שיש לבדוק':'דרושה בדיקה נוספת'}`;
-  return `${x.item}: ${x.reason}`;
+  return `${x.item}: ${x.reason || 'עדיין אינה נתמכת'}`;
 }
 const TT = {
   he: { requirements:'דרישות', plan_and_quote:'תוכנית והצעת מחיר', architecture:'ארכיטקטורה', implementation:'כתיבת הקוד',

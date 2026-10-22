@@ -28,7 +28,7 @@ class TaskRoutingTests(unittest.TestCase):
         return [r.endpoint.name for r, _, _ in self.gw.ranked_routes(self.kw, task)]
 
     def test_codegen_and_repair_prefer_quality_with_cheaper_escalation(self):
-        self.assertEqual(self.order('codegen'), ['flash', 'lite'])
+        self.assertEqual(self.order('codegen'), ['flash'])           # T5: below 85 is not even escalation for codegen
         self.assertEqual(self.order('repair'), ['flash', 'lite'])
 
     def test_architecture_prefers_the_stronger_model(self):
@@ -41,8 +41,12 @@ class TaskRoutingTests(unittest.TestCase):
             self.assertEqual(self.order(task), ['lite', 'flash'], task)
 
     def test_env_override(self):
+        # The ops knob lowers PREFERRED floors only: codegen's mandatory 85 is not overridable (T5) ...
         with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"codegen": 0}'}):
-            self.assertEqual(self.order('codegen'), ['lite', 'flash'])
+            self.assertEqual(self.order('codegen'), ['flash'])
+        # ... and on a task whose mandatory floor admits both, the knob still reorders.
+        with mock.patch.dict(os.environ, {'OMNI_MODEL_TASK_MIN_QUALITY': '{"repair": 0}'}):
+            self.assertEqual(self.order('repair'), ['lite', 'flash'])
 
 
 if __name__ == '__main__':

@@ -19,10 +19,16 @@ import os
 class ProviderRoute:
     endpoint: ModelEndpoint
     max_estimated_cost_usd: Decimal = Decimal('0')
+    # T5: the quality an operator explicitly declares for a configured (non-catalog) route. None = unknown, and an
+    # unknown route is never used for any task (every task has a mandatory floor >= 70).
+    declared_quality: int | None = None
 
     def __post_init__(self):
         if self.max_estimated_cost_usd < 0:
             raise ValueError('max_estimated_cost_usd cannot be negative')
+        if self.declared_quality is not None and not (isinstance(self.declared_quality, int)
+                                                      and 0 <= self.declared_quality <= 100):
+            raise ValueError('declared_quality must be an integer 0..100')
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,7 @@ class RoutedModelGateway:
             raise ValueError('primary route must be local/self-hosted')
         # ranked: CatalogModel entries (omni_prod.model_catalog). Only configured
         # entries are routable; order is chosen per call by price and quality.
+        self.cost_class = None
         self.ranked = tuple(m for m in ranked if getattr(m, 'endpoint', None) is not None)
         # Diagnostics only (rehearsal per provider): restrict routing to the
         # named catalog entries. Unset in the worker's normal environment.
@@ -111,6 +118,9 @@ class RoutedModelGateway:
         # Which catalog routes served which task in this build, so the QA
         # reviewer can prefer a model other than the one that wrote the code.
         self.models_by_task: dict[str, set[str]] = {}
+        # T3: every rejected JSON answer, raw and diagnosed (bounded: the last 10, each up to 200k characters).
+        self.rejected_json: list[dict] = []
+        self.rejected_json_manifest: list[dict] = []   # every rejection of the build (no raw text): the evidence row
         # M5 Task 8: provider-reported usage for every attempt that got a response.
         self.usage = ProviderUsageLedger()
         self.recorder = recorder or AttemptRecorder()
@@ -127,15 +137,15 @@ class RoutedModelGateway:
                                                        [r.endpoint.name for r in fallback]))
 
     def restrict_to_cost_class(self, cost_class) -> dict:
-        """CEO 2026-10-19: a build may route only to models its class admits
-        (pricing.M5_CLASS_MAX_OUTPUT_PER_MILLION). Narrows, never widens, the
-        catalog; an empty result leaves no external route (fail closed)."""
-        from .pricing import m5_model_allowed
-        before = [m.endpoint.name for m in self.ranked]
-        self.ranked = tuple(m for m in self.ranked if m5_model_allowed(cost_class, m.option.output_per_million))
+        """Bind the build class and restrict its catalog by the existing price ceiling."""
+        from .pricing import _as_cost_class, m5_model_allowed
+        self.cost_class = _as_cost_class(cost_class)
+        catalog = self.ranked
+        before = [m.endpoint.name for m in catalog]
+        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million))
         kept = [m.endpoint.name for m in self.ranked]
-        return {'cost_class': getattr(cost_class, 'value', str(cost_class)), 'allowed_models': kept,
-                'excluded_models': [n for n in before if n not in kept]}
+        return {'cost_class': self.cost_class.value, 'allowed_models': kept,
+                'excluded_models': [n for n in before if n not in kept], 'task_only_models': {}}
 
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Set the whole-build external budget to what was reserved for this
@@ -236,6 +246,23 @@ class RoutedModelGateway:
                 self._release_rejected(route, record)
             record.outcome = 'error' if usage is not None else self._outcome_of(exc)
             record.failure_reason = f'{type(exc).__name__}: {exc}'[:500]
+            if hasattr(exc, 'raw') and hasattr(exc, 'diagnostic'):          # ModelJSONRejected: keep what was said
+                import hashlib
+                raw = exc.raw or ''
+                entry = {'model': route.endpoint.name, 'provider_model': route.endpoint.model,
+                         'attempt_seq': record.attempt_seq, 'task': task or 'general', 'diagnostic': dict(exc.diagnostic),
+                         'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
+                         'raw_chars': len(raw), 'raw': raw[:200_000], 'raw_truncated': len(raw) > 200_000}
+                # Matt on #105: memory is not evidence. A durable sink (the worker: object storage, per build) gets
+                # the FULL raw answer at the moment it is rejected, so it survives the build crashing later.
+                sink = getattr(self, 'rejected_json_sink', None)
+                if sink is not None:
+                    try:
+                        entry['key'] = sink(entry, raw)
+                    except Exception as sink_exc:            # recorded, never silent: the evidence is then NOT durable
+                        entry['store_error'] = f'{type(sink_exc).__name__}: {sink_exc}'[:300]
+                self.rejected_json = (self.rejected_json + [entry])[-10:]
+                self.rejected_json_manifest.append({k: v for k, v in entry.items() if k != 'raw'})   # all, without raw
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, elapsed, str(exc)[:300],
                                     request_id=getattr(usage, 'request_id', None), **self._decision(route, method, reason)))
             if isinstance(exc, ModelGatewayError):
@@ -312,8 +339,8 @@ class RoutedModelGateway:
         models stay available as escalation when it is unavailable.
         OMNI_MODEL_TASK_MIN_QUALITY (JSON object) overrides the defaults.
         """
-        from .intelligence.task_policy import TASK_CLASSES
-        floors = {k: t.preferred_floor for k, t in TASK_CLASSES.items()}
+        from .intelligence.task_policy import TASK_CLASSES, task_class
+        floors = {k: task_class(k, cost_class=self.cost_class).preferred_floor for k in TASK_CLASSES}
         raw = os.getenv('OMNI_MODEL_TASK_MIN_QUALITY', '').strip()
         if raw:
             try:
@@ -321,6 +348,32 @@ class RoutedModelGateway:
             except (ValueError, AttributeError, TypeError):
                 pass
         return max(self.routing_policy.minimum_quality, floors.get(task, floors['general']))
+
+    def configured_quality(self, route: ProviderRoute) -> tuple[str, int] | None:
+        """(model id, quality) of a configured route: the routable catalog entry of the same model first, else the
+        quality the operator explicitly declared for it. None = no quality metadata: never eligible."""
+        ep = route.endpoint
+        for m in self.ranked:
+            if m.endpoint.model == ep.model or m.option.model == ep.model:
+                return m.option.model, int(m.option.quality)
+        if route.declared_quality is not None:
+            return ep.model, route.declared_quality
+        return None
+
+    def _configured_refusal(self, route: ProviderRoute, task: str) -> str | None:
+        """Why a configured primary/fallback may not serve this task, or None when it may."""
+        from .intelligence.task_policy import eligible, task_class
+        known = self.configured_quality(route)
+        floor = task_class(task, cost_class=self.cost_class).mandatory_floor
+        if known is None:
+            return f'quality unknown (no routable catalog entry and none declared); {task} requires >= {floor}'
+        model_id, quality = known
+        if quality < self.routing_policy.minimum_quality:
+            return f'quality {quality} below the routing minimum {self.routing_policy.minimum_quality}'
+        if not (eligible(task, model_id=model_id, quality=quality, cost_class=self.cost_class)
+                and eligible(task, model_id=route.endpoint.model, quality=quality, cost_class=self.cost_class)):
+            return f'{model_id} (quality {quality}) is not eligible for {task} (mandatory floor {floor} / deny list)'
+        return None
 
     def ranked_routes(self, kwargs: dict, task: str = 'general') -> list[tuple]:
         """Cheapest eligible catalog model first, with a conservative per-call cap.
@@ -344,7 +397,8 @@ class RoutedModelGateway:
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).
             from .intelligence.task_policy import eligible
-            if not eligible(task, model_id=option.model, quality=option.quality):
+            if not (eligible(task, model_id=option.model, quality=option.quality, cost_class=self.cost_class)
+                    and eligible(task, model_id=model.endpoint.model, quality=option.quality, cost_class=self.cost_class)):
                 continue
             if policy.maximum_latency_ms is not None and option.latency_ms > policy.maximum_latency_ms:
                 continue
@@ -409,17 +463,35 @@ class RoutedModelGateway:
             self.before_call(task)
         last_error: Exception | None = None
         routes = []
+        refused = []
+        # T5 (Matt HOLD on #107): the task's mandatory quality floor holds on EVERY route, not only the ranked
+        # catalog. A configured local primary or fallback has no quality of its own; it takes its quality from the
+        # routable catalog entry of the same model, and without one it is unknown and never used (fail closed).
         if self.primary is not None:
-            routes.append((self.primary, kwargs, 'local primary', None))
+            why_not = self._configured_refusal(self.primary, task)
+            if why_not:
+                refused.append((self.primary, why_not))
+            else:
+                routes.append((self.primary, kwargs, 'local primary', None))
         basis = 'cheapest' if self.routing_policy.prefer_cost else 'highest quality'
         floor = self.task_quality_floor(task)
         for rank, (route, call_kwargs, option) in enumerate(self.ranked_routes(kwargs, task)):
             why = (f'{basis} eligible catalog model for {task} (quality>={floor})' if rank == 0
                    else f'catalog escalation #{rank} after earlier route failed')
             routes.append((route, call_kwargs, why, option))
-        routes.extend((route, kwargs, 'configured fallback', None) for route in self.fallback)
+        for route in self.fallback:
+            why_not = self._configured_refusal(route, task)
+            if why_not:
+                refused.append((route, why_not))
+            else:
+                routes.append((route, kwargs, 'configured fallback', None))
+        for route, why_not in refused:
+            self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
+                                    f'not contacted: {why_not}'[:300],
+                                    **self._decision(route, method, 'below the task quality floor')))
         if not routes:
-            raise ModelGatewayError('no eligible model route for this request')
+            detail = '; '.join(f'{r.endpoint.model}: {w}' for r, w in refused)
+            raise ModelGatewayError('no eligible model route for this request' + (f' ({detail})' if detail else ''))
         candidate_set = [{'name': r.endpoint.name, 'model': r.endpoint.model,
                           'max_cost_usd': str(r.max_estimated_cost_usd)} for r, _, _, _ in routes]
         from .model_policy import ModelPolicyViolation

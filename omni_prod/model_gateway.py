@@ -12,6 +12,16 @@ class ModelGatewayError(RuntimeError):
     pass
 
 
+class ModelJSONRejected(ModelGatewayError):
+    """T3 (founder 2026-10-21): the answer was not exactly one JSON object in a known envelope. The raw answer and the
+    diagnosis travel with the error, so nothing the model said is thrown away unexplained."""
+
+    def __init__(self, message: str, *, raw: str, diagnostic: dict):
+        super().__init__(message)
+        self.raw = raw
+        self.diagnostic = diagnostic
+
+
 # Provider answers that mean "temporarily unable, nothing was done": the
 # request may be retried. Golden E2E #1 on Preview (2026-10-07) failed on
 # Gemini HTTP 503 "This model is currently experiencing high demand".
@@ -236,41 +246,84 @@ class OpenAICompatibleGateway:
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
         raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens)
-        text = raw.strip()
-        if text.startswith('```'):
-            lines = text.splitlines()
-            if lines and lines[0].startswith('```'):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == '```':
-                lines = lines[:-1]
-            text = '\n'.join(lines).strip()
-            if text.startswith('json'):
-                text = text[4:].lstrip()
-        obj, exc = _parse_json_object(text)
-        if exc is not None:
-            # Paid builds bld_2e55113c (2026-10-09): every repair answer of the
-            # strong model was refused with no reason; name it in the evidence.
-            finish = getattr(self, 'last_finish_reason', None)
-            raise ModelGatewayError(f'model did not return valid JSON ({exc.msg} at char {exc.pos} of {len(text)}; '
-                                    f'finish_reason={finish}; starts {text[:60]!r})') from exc
+        self.last_raw_response = raw                       # T3: the raw answer is kept, accepted or not
+        obj, diag = parse_model_json(raw)
+        diag['finish_reason'] = getattr(self, 'last_finish_reason', None)
+        self.last_json_diagnostic = diag
+        if obj is None:
+            # Paid builds bld_2e55113c (2026-10-09): name the reason in the evidence.
+            from .evidence_export import redact as _export_redact   # the excerpt lands in route events / attempt rows
+            from .secret_redaction import redact as _layer_redact
+            _redact = lambda t: _export_redact(_layer_redact(t))  # noqa: E731
+            raise ModelJSONRejected(f"model did not return valid JSON ({diag['reason']}; "
+                                    f"finish_reason={diag['finish_reason']}; starts {_redact(diag['starts'])!r})",
+                                    raw=raw, diagnostic=diag)
         if not isinstance(obj, dict):
-            raise ModelGatewayError('model JSON root must be object')
+            diag.update(verdict='rejected', reason='JSON root must be an object')
+            raise ModelJSONRejected('model JSON root must be object', raw=raw, diagnostic=diag)
         return obj
 
+    last_raw_response = None
+    last_json_diagnostic = None
 
-def _parse_json_object(text: str):
-    """(object, None) or (None, JSONDecodeError). Accepts, in order: the text
-    as JSON; the same with raw control characters inside strings (models put
-    literal newlines/tabs in code strings); the outermost {...} when the model
-    wrapped the object in prose; invalid backslash escapes doubled. Nothing
-    is invented beyond that."""
+
+_FENCE_OPEN = re.compile(r'\A```(?:json|JSON)?[ \t]*\n')
+_FENCE_CLOSE = re.compile(r'\n[ \t]*```[ \t]*\Z')
+
+
+def strip_envelope(raw: str) -> tuple[str, str]:
+    """(text, envelope). The ONLY deterministic cleanup (T3): surrounding whitespace / BOM, and one complete markdown
+    code fence (```json ... ``` or ``` ... ```) around the whole answer. Anything else is left as it is."""
+    text = (raw or '').lstrip('\ufeff').strip()
+    if _FENCE_OPEN.match(text) and _FENCE_CLOSE.search(text):
+        inner = _FENCE_CLOSE.sub('', _FENCE_OPEN.sub('', text, count=1), count=1)
+        return inner.strip(), 'markdown_fence'
+    return text, 'none'
+
+
+def parse_model_json(raw: str) -> tuple[object | None, dict]:
+    """(object or None, diagnostic). Exactly one JSON value, nothing before it and nothing after it. Content after the
+    first object (a second object, an explanation) or before it (prose) is NOT ignored: the answer is rejected and the
+    diagnostic says what was there. Two deterministic character-level repairs inside the value stay, and are recorded:
+    raw control characters in strings (strict=False) and invalid backslash escapes doubled (regexes in code)."""
+    text, envelope = strip_envelope(raw)
+    diag = {'raw_chars': len(raw or ''), 'envelope': envelope, 'repairs': [], 'leading_chars': 0, 'trailing_chars': 0,
+            'starts': text[:60], 'verdict': 'rejected', 'reason': ''}
+    obj, exc = _parse_json_object(text, diag)
+    if exc is None:
+        diag['verdict'] = 'accepted'
+        return obj, diag
+    diag['reason'] = f'{exc.msg} at char {exc.pos} of {len(text)}'
+    if envelope == 'none' and text.startswith('```'):
+        diag['reason'] = 'a markdown fence that does not close at the end of the answer (content after it, or truncated)'
+    return None, diag
+
+
+def _parse_json_object(text: str, diag: dict | None = None):
+    """(value, None) or (None, JSONDecodeError). See parse_model_json: one complete value, nothing around it."""
+    diag = {} if diag is None else diag
     first = None
-    for candidate in _json_candidates(text):
+    lead = len(text) - len(text.lstrip())
+    body = text.lstrip()
+    if body and body[0] not in '{[':
+        brace = body.find('{')
+        diag['leading_chars'] = brace if brace > 0 else len(body)
+        return None, json.JSONDecodeError('content before the JSON value (not a known envelope)', text, lead)
+    for candidate, repair in _json_candidates(body):
         for strict in (True, False):
             try:
-                return json.loads(candidate, strict=strict), None
+                obj, end = json.JSONDecoder(strict=strict).raw_decode(candidate)
             except json.JSONDecodeError as exc:
                 first = first or exc
+                continue
+            rest = candidate[end:]
+            if rest.strip():
+                diag['trailing_chars'] = len(rest.strip())
+                diag['trailing_starts'] = rest.strip()[:80]
+                return None, json.JSONDecodeError('content after the first JSON value (not a known envelope)',
+                                                  candidate, end)
+            diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
+            return obj, None
     return None, first
 
 
@@ -278,18 +331,14 @@ _BAD_ESCAPE = re.compile(r'(?<!\\)((?:\\\\)*)\\(?=[^"\\/bfnrtu])')
 
 
 def _json_candidates(text: str):
-    start, end = text.find('{'), text.rfind('}')
-    bases = [text]
-    if 0 <= start < end and (start > 0 or end < len(text) - 1):
-        bases.append(text[start:end + 1])
-    yield from bases
-    # A backslash before any other character is invalid JSON; models write
-    # them for regexes/paths in code ("\d+"). Doubling only those cannot change
-    # the meaning of valid JSON and recovers the literal the model wrote.
-    for base in bases:
-        fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', base)
-        if fixed != base:
-            yield fixed
+    """(candidate, repair). The text itself, then the same with invalid backslash escapes doubled. A backslash before
+    any other character is invalid JSON; models write them for regexes/paths in code ("\\d+"). Doubling only those
+    cannot change the meaning of valid JSON and recovers the literal the model wrote. No extraction of a {...} out of
+    surrounding text (T3)."""
+    yield text, None
+    fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', text)
+    if fixed != text:
+        yield fixed, 'invalid_escapes_doubled'
 
 
 def idempotency_key_for(*, build_id: str, task: str, attempt: int = 0, call_index: int = 0) -> str:

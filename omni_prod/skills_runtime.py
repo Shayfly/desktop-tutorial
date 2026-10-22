@@ -213,9 +213,26 @@ DATA_INTEGRITY = Skill(
     guidance=(
         'Data integrity: enforce business rules on the server (e.g. no two bookings in the same slot, no duplicate names '
         'when the request implies uniqueness) and answer 409 with a readable message on a conflict; acting on a missing '
-        'id answers 404. Data lives under DATA_DIR. The architect turns each such rule into an acceptance criterion.'),
+        'id answers 404. Data lives under DATA_DIR. The architect turns each such rule into an acceptance criterion. '
+        # T8 (founder 2026-10-21): a resource that can be booked for a time range.
+        'Bookable resources (a room, a slot, any resource with capacity): the overlap rule lives IN THE SERVER, inside '
+        'one write transaction, never only in the page. With SQLite (no SELECT ... FOR UPDATE) the equivalent is: '
+        'open the connection with isolation_level=None, run BEGIN IMMEDIATE (takes the write lock before reading), '
+        'SELECT the resource row, then SELECT any booking of that resource with start < :new_end AND end > :new_start '
+        '(on an edit also AND id != :id), and only if none exists INSERT/UPDATE, then COMMIT; on a conflict ROLLBACK '
+        'and answer 409 with a readable message. Add a BEFORE INSERT and a BEFORE UPDATE trigger that RAISE(ABORT) on '
+        'the same overlap, so the database itself refuses it. Serve with http.server.ThreadingHTTPServer and one '
+        'sqlite3 connection per request (timeout=10). Store start and end as UTC ISO-8601 ending in Z; the form gives '
+        'local Asia/Jerusalem date and time: convert with zoneinfo.ZoneInfo("Asia/Jerusalem") (daylight time included) '
+        'and show every time back in Asia/Jerusalem as DD/MM/YYYY HH:MM. Return start_utc/end_utc (Z) and '
+        'start_local/end_local (with the +02:00/+03:00 offset) in the JSON. The architect adds to the acceptance plan: '
+        'a step with "concurrent": 2 that POSTs the same booking twice at once and expects exactly one 201 and one 409 '
+        '("expect_status": 201, "expect_conflict_status": 409), an edit (PUT/PATCH) that moves a booking onto another '
+        'one and expects 409, and a create whose JSON answer has the exact expected start_utc.'),
     checklist=('Rules implied by the request (uniqueness, no double booking, valid ranges) are enforced by the server.',
-               'Missing ids give 404, conflicts 409, with a readable message.'),
+               'Missing ids give 404, conflicts 409, with a readable message.',
+               'Bookings: two simultaneous requests for one slot -> exactly one accepted (BEGIN IMMEDIATE + trigger); '
+               'an edit onto another booking -> 409; times stored UTC (Z), shown Asia/Jerusalem.'),
 )
 
 VISUAL_DESIGN = Skill(

@@ -138,6 +138,13 @@ class Contract(unittest.TestCase):
 
 
 class ReaderAgainstFakes(unittest.TestCase):
+    def test_an_existing_build_with_no_snapshots_cannot_report_success(self):
+        code, notes, zips = run_reader(Fakes([], {}), rounds='all')
+        self.assertEqual(code, 1)
+        self.assertTrue(any(title.startswith('FAIL ') and 'no round snapshots' in message
+                            for title, message in notes), notes)
+        self.assertEqual(zips, [])
+
     def test_clean_read_prints_verifies_redacts_and_saves_the_zip(self):
         snaps, objects, key = good()
         f = Fakes(snaps, objects)

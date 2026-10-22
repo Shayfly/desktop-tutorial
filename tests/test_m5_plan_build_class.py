@@ -62,7 +62,9 @@ def _gateway():
 
 def _cheapest_call_cost(gw, task='codegen'):
     routes = gw.ranked_routes(dict(TASK), task)
-    return routes[0][0].max_estimated_cost_usd if routes else None
+    if not routes:
+        raise AssertionError(f'No route for the measured task: {task}')
+    return routes[0][0].max_estimated_cost_usd
 
 
 class DecisionMappingTests(unittest.TestCase):
@@ -108,12 +110,17 @@ class SameTaskTierTests(unittest.TestCase):
         amateur, studio = _gateway(), _gateway()
         amateur.restrict_to_cost_class(a_cc)
         studio.restrict_to_cost_class(s_cc)
-        a_models = {m.endpoint.name for m in amateur.ranked}
-        s_models = {m.endpoint.name for m in studio.ranked}
+        a_codegen = amateur.ranked_routes(dict(TASK), 'codegen')
+        s_codegen = studio.ranked_routes(dict(TASK), 'codegen')
+        a_models = {route.endpoint.name for route, _, _ in a_codegen}
+        s_models = {route.endpoint.name for route, _, _ in s_codegen}
         self.assertTrue(a_models, 'Amateur must keep at least one routable model')
-        self.assertTrue(a_models < s_models, (a_models, s_models))
-        a_max = max(m.option.output_per_million for m in amateur.ranked)
-        s_max = max(m.option.output_per_million for m in studio.ranked)
+        self.assertTrue(s_models, 'Studio must keep a codegen route')
+        self.assertNotEqual(a_models, s_models)
+        # LIGHT's quality-70 lane and Studio's >=85 lane are intentionally not nested.
+        self.assertTrue(all(option.quality >= 85 for _, _, option in s_codegen))
+        a_max = max(option.output_per_million for _, _, option in a_codegen)
+        s_max = max(option.output_per_million for _, _, option in s_codegen)
         self.assertLess(a_max, s_max)
         # cheapest admissible call for the same task never costs more on Amateur
         self.assertLessEqual(_cheapest_call_cost(amateur), _cheapest_call_cost(studio))

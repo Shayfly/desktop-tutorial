@@ -15,6 +15,9 @@ class ModelRuntimeConfig:
     policy: ModelUsePolicy
     catalog: tuple[CatalogModel, ...] = ()
     routing: RoutingPolicy = RoutingPolicy()
+    # T5: explicitly declared quality of the configured routes (None = unknown -> never used for a task).
+    primary_quality: int | None = None
+    fallback_quality: tuple[int | None, ...] = ()
 
     @classmethod
     def from_env(cls) -> 'ModelRuntimeConfig':
@@ -34,6 +37,7 @@ class ModelRuntimeConfig:
             timeout_seconds=float(os.getenv('OMNI_LOCAL_MODEL_TIMEOUT', '120')),
             external=False,
         )
+        primary_quality = _declared_quality(os.getenv('OMNI_LOCAL_MODEL_QUALITY'), 'OMNI_LOCAL_MODEL_QUALITY')
         zero = os.getenv('OMNI_ZERO_COST_MODE', '1') == '1'
         allow = os.getenv('OMNI_ALLOW_EXTERNAL_FALLBACK', '0') == '1'
         budget = Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0'))
@@ -45,6 +49,7 @@ class ModelRuntimeConfig:
             max_external_calls_per_build=calls,
         )
         fallback = []
+        fallback_quality = []
         raw = os.getenv('OMNI_EXTERNAL_MODELS_JSON', '').strip()
         if raw:
             items = json.loads(raw)
@@ -59,4 +64,19 @@ class ModelRuntimeConfig:
                     timeout_seconds=float(item.get('timeout_seconds', 120)),
                     external=True,
                 ))
-        return cls(primary, tuple(fallback), policy, catalog, routing)
+                fallback_quality.append(_declared_quality(item.get('quality'), f"OMNI_EXTERNAL_MODELS_JSON[{item['name']}].quality"))
+        return cls(primary, tuple(fallback), policy, catalog, routing,
+                   primary_quality=primary_quality if primary is not None else None,
+                   fallback_quality=tuple(fallback_quality))
+
+
+def _declared_quality(raw, where: str) -> int | None:
+    if raw is None or str(raw).strip() == '':
+        return None
+    try:
+        value = int(str(raw).strip())
+    except ValueError as exc:
+        raise RuntimeError(f'{where} must be an integer 0..100') from exc
+    if not 0 <= value <= 100:
+        raise RuntimeError(f'{where} must be an integer 0..100')
+    return value

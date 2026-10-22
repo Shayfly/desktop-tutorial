@@ -3,6 +3,7 @@ name: V11 Overlay CI
 on:
   push:
   pull_request:
+  workflow_dispatch:    # T7a: v24-ci's publish-report dispatches this on the report branch (GITHUB_TOKEN starts no run)
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
@@ -29,8 +30,14 @@ jobs:
         run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Compile
         run: python -m compileall -q omni_prod tests
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
+      # C34 (owner + Matt 2026-10-21): the unit tests run with NO network at the operating-system level (a network
+      # namespace with only loopback); a subprocess cannot get out either. Fails closed if no namespace can be made.
+      - name: Allow unprivileged network namespaces (C34)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Unit tests (no network, C34)
+        env:
+          OMNI_TEST_REQUIRE_NETNS: '1'
+        run: python tools/netns_run.py -- python -m unittest discover -s tests -v
       - name: Prepare compose environment template
         run: cp .env.example .env
       - name: Validate production compose

@@ -95,6 +95,8 @@ jobs:
           if row is None:
               fail("rounds", f"no build {bid}")
           snaps = (row[1] or []) if row else []
+          if row is not None and not snaps:
+              fail("rounds", "no round snapshots are recorded for this build; no ZIP can be verified")
           note("rounds", json.dumps({"build": bid, "status": row[0] if row else None,
                                      "snapshots": [{k: s.get(k) for k in ("round", "decision", "failing", "key", "sha256")} for s in snaps]}))
           if want is not None:
