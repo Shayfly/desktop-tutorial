@@ -252,8 +252,11 @@ class OpenAICompatibleGateway:
         self.last_json_diagnostic = diag
         if obj is None:
             # Paid builds bld_2e55113c (2026-10-09): name the reason in the evidence.
+            from .evidence_export import redact as _export_redact   # the excerpt lands in route events / attempt rows
+            from .secret_redaction import redact as _layer_redact
+            _redact = lambda t: _export_redact(_layer_redact(t))  # noqa: E731
             raise ModelJSONRejected(f"model did not return valid JSON ({diag['reason']}; "
-                                    f"finish_reason={diag['finish_reason']}; starts {diag['starts']!r})",
+                                    f"finish_reason={diag['finish_reason']}; starts {_redact(diag['starts'])!r})",
                                     raw=raw, diagnostic=diag)
         if not isinstance(obj, dict):
             diag.update(verdict='rejected', reason='JSON root must be an object')

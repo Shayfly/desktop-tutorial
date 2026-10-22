@@ -179,9 +179,14 @@ def install_rejected_json_sink(gateway, workspace, build_id: str) -> None:
         # Private build store (same access and retention as the round snapshots). The text is stored WHOLE (never
         # truncated), through the redaction layer: raw_sha256 is the digest of the original answer, and
         # stored_redacted says whether anything key-shaped was replaced.
+        # Matt HOLD on #105 (T3_DIAGNOSTIC_REDACTION_BYPASS): EVERY text-bearing field of the stored object goes
+        # through the same layer, not only the raw answer -- diagnostic.starts / trailing_starts are excerpts of it.
         text = redact(raw)
-        body = json.dumps({**{k: v for k, v in entry.items() if k not in ('raw', 'raw_truncated')}, 'build_id': build_id,
-                           'stored_text': text, 'stored_redacted': text != raw, 'stored_truncated': False},
+        plain = {k: v for k, v in entry.items() if k not in ('raw', 'raw_truncated')}
+        meta = {**plain, **{k: redact_fields(plain[k]) for k in _REJECTED_TEXT_FIELDS if k in plain}}
+        body = json.dumps({**meta, 'build_id': build_id,
+                           'stored_text': text, 'stored_redacted': text != raw or meta != plain,
+                           'stored_truncated': False},
                           ensure_ascii=False).encode()
         key = (f"build-model-json/{build_id}/{counter['n']:02d}-{entry['task']}-"
                f"{hashlib.sha256(body).hexdigest()[:12]}.json")
@@ -191,14 +196,51 @@ def install_rejected_json_sink(gateway, workspace, build_id: str) -> None:
     gateway.rejected_json_sink = sink
 
 
+# Text-bearing fields of a rejection entry: excerpts of the model's answer (diagnostic.starts / trailing_starts /
+# reason) and exception text (store_error). Identifiers (key, raw_sha256, model ids) are not text and are kept exact.
+_REJECTED_TEXT_FIELDS = ('diagnostic', 'store_error')
+
+
+def redact_fields(value):
+    """The rejected-JSON redaction layer applied to every string inside a JSON-shaped value (keys kept)."""
+    from .evidence_export import redact as export_redact
+    from .secret_redaction import redact as layer_redact
+    if isinstance(value, str):
+        return export_redact(layer_redact(value))
+    if isinstance(value, dict):
+        return {k: redact_fields(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [redact_fields(v) for v in value]
+    return value
+
+
 def rejected_json_evidence(gateway) -> dict:
-    """Manifest of the rejected JSON answers of THIS build (the raw text lives at each key)."""
+    """Manifest of the rejected JSON answers of THIS build (the raw text lives at each key).
+
+    Matt HOLD on #105 (T3_DURABLE_FLAG_FALSE_SUCCESS): durability is what the writes ACHIEVED, not whether a sink is
+    installed. `rejected_model_json_durable` is True only when there were rejections and every one was stored;
+    None when nothing was rejected (nothing to make durable -- not a pass); False otherwise. The state names the
+    case: NO_REJECTIONS | ALL_STORED | PARTIAL | NONE_STORED | NO_STORE."""
     rows = list(getattr(gateway, 'rejected_json_manifest', None) or [])
-    durable = getattr(gateway, 'rejected_json_sink', None) is not None
-    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'provider_model', 'attempt_seq', 'task', 'raw_sha256',
-                                                           'raw_chars', 'key', 'store_error')}
-                                    | {'reason': (r.get('diagnostic') or {}).get('reason')} for r in rows],
-            'rejected_model_json_durable': durable}
+    installed = getattr(gateway, 'rejected_json_sink', None) is not None
+    stored = sum(1 for r in rows if r.get('key') and not r.get('store_error'))
+    if not rows:
+        state, durable = 'NO_REJECTIONS', None
+    elif not installed:
+        state, durable = 'NO_STORE', False
+    elif stored == len(rows):
+        state, durable = 'ALL_STORED', True
+    elif stored == 0:
+        state, durable = 'NONE_STORED', False
+    else:
+        state, durable = 'PARTIAL', False
+    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'provider_model', 'attempt_seq', 'task',
+                                                           'raw_sha256', 'raw_chars', 'key')}
+                                    | {'store_error': redact_fields(r.get('store_error')),
+                                       'reason': redact_fields((r.get('diagnostic') or {}).get('reason'))} for r in rows],
+            'rejected_model_json_durable': durable,
+            'rejected_model_json_durability': {'state': state, 'rejected': len(rows), 'stored': stored,
+                                               'failed': len(rows) - stored}}
 
 
 def visual_evidence(engine) -> dict | None:
