@@ -272,7 +272,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 29, INTEGRATION
 | `secret_detection` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | static |
 | `secret_exposure_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `dependency_vulnerability_scan` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
-| `xss_check` | Security | **IMPLEMENTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py | review + instruction, no dynamic XSS probe |
+| `xss_check` | Security | **IMPLEMENTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py, omni_prod/skills_runtime.py | review + instruction, no dynamic XSS probe |
 | `csrf_check` | Security | **UNIT_TESTED** | security_agent | unit tests only | platform API only |
 | `sql_injection_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `ssrf_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
