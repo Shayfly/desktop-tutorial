@@ -354,7 +354,7 @@ class RoutedModelGateway:
         quality the operator explicitly declared for it. None = no quality metadata: never eligible."""
         ep = route.endpoint
         for m in self.ranked:
-            if m.endpoint.name == ep.name or m.endpoint.model == ep.model or m.option.model == ep.model:
+            if m.endpoint.model == ep.model or m.option.model == ep.model:
                 return m.option.model, int(m.option.quality)
         if route.declared_quality is not None:
             return ep.model, route.declared_quality
@@ -370,7 +370,8 @@ class RoutedModelGateway:
         model_id, quality = known
         if quality < self.routing_policy.minimum_quality:
             return f'quality {quality} below the routing minimum {self.routing_policy.minimum_quality}'
-        if not eligible(task, model_id=model_id, quality=quality, cost_class=self.cost_class):
+        if not (eligible(task, model_id=model_id, quality=quality, cost_class=self.cost_class)
+                and eligible(task, model_id=route.endpoint.model, quality=quality, cost_class=self.cost_class)):
             return f'{model_id} (quality {quality}) is not eligible for {task} (mandatory floor {floor} / deny list)'
         return None
 
@@ -396,7 +397,8 @@ class RoutedModelGateway:
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).
             from .intelligence.task_policy import eligible
-            if not eligible(task, model_id=option.model, quality=option.quality, cost_class=self.cost_class):
+            if not (eligible(task, model_id=option.model, quality=option.quality, cost_class=self.cost_class)
+                    and eligible(task, model_id=model.endpoint.model, quality=option.quality, cost_class=self.cost_class)):
                 continue
             if policy.maximum_latency_ms is not None and option.latency_ms > policy.maximum_latency_ms:
                 continue

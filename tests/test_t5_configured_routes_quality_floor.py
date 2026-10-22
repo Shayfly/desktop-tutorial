@@ -174,5 +174,49 @@ class DeclaredQualityIsExplicitConfiguration(unittest.TestCase):
             ProviderRoute(endpoint('x', 'y'), declared_quality=101)
 
 
+class RouteNamesCannotBorrowModelQuality(unittest.TestCase):
+    def record_models(self, gw):
+        seen = []
+        original = gw.gateway_factory
+        def factory(ep):
+            provider = original(ep)
+            complete = provider.complete_json
+            def call(**kwargs):
+                seen.append(ep.model)
+                return complete(**kwargs)
+            provider.complete_json = provider.complete = call
+            return provider
+        gw.gateway_factory = factory
+        return seen
+
+    def test_primary_name_collision_does_not_contact_unknown_weak_or_denied_model(self):
+        for model, quality in (('unknown-model', None), ('weak-70', None), ('gpt-6-luna', 95)):
+            with self.subTest(model=model):
+                gw, _ = gateway(ranked=(QUALIFIED, WEAK), primary=ProviderRoute(
+                    endpoint('cat-strong', model, False), declared_quality=quality))
+                seen = self.record_models(gw)
+                gw.complete_json(task='codegen', **CALL)
+                self.assertEqual(seen, ['strong-90'])
+
+    def test_fallback_name_collision_does_not_contact_unknown_weak_or_denied_model(self):
+        for model, quality in (('unknown-model', None), ('weak-70', None), ('gpt-6-luna', 95)):
+            with self.subTest(model=model):
+                gw, _ = gateway(ranked=(QUALIFIED, WEAK), failing={'cat-strong'}, fallback=[ProviderRoute(
+                    endpoint('cat-strong', model), Decimal('0.05'), declared_quality=quality)])
+                seen = self.record_models(gw)
+                with self.assertRaises(ModelGatewayError):
+                    gw.complete_json(task='codegen', **CALL)
+                self.assertEqual(seen, ['strong-90'])
+
+    def test_catalog_actual_model_cannot_bypass_the_deny_list(self):
+        from dataclasses import replace
+        disguised = replace(QUALIFIED, endpoint=endpoint('cat-strong', 'gpt-6-luna'))
+        gw, _ = gateway(ranked=(disguised,))
+        seen = self.record_models(gw)
+        with self.assertRaises(ModelGatewayError):
+            gw.complete_json(task='codegen', **CALL)
+        self.assertEqual(seen, [])
+
+
 if __name__ == '__main__':
     unittest.main()
