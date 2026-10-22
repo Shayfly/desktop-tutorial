@@ -128,6 +128,64 @@ jobs:
                       publish("promoted version", f"{m[8]} files={v and v[0]} message={v and v[1]} created={v and v[2]}")
           PY
 
+      - name: Publish QA review findings and build contract (read-only)
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -uo pipefail
+          case "${BUILD_ID:-}" in ''|bld_[0-9a-f]*) ;; *) echo "::error::build_id must look like bld_<hex>"; exit 1;; esac
+          docker compose run --rm --no-deps -T -e BUILD_ID="${BUILD_ID:-}" worker python - <<'PY'
+          import json, os, re
+          import psycopg
+
+          def redact(text):
+              text = re.sub(r"AIza[0-9A-Za-z_-]{20,}", "[redacted-google-key]", text)
+              text = re.sub(r"(rediss?|postgres(?:ql)?)://\S+", r"\1://[redacted]", text)
+              text = re.sub(r"(?i)(key|token|secret|password|authorization)([\"' :=]+)[^\s\"',]+", r"\1\2[redacted]", text)
+              return re.sub(r"[A-Za-z0-9+/_-]{48,}", "[redacted-long-value]", text)
+
+          def publish(title, body, limit=3400):
+              body = redact(str(body))[:limit] or "<empty>"
+              print(f"::notice title={title}::" + body.replace("%", "%25").replace("\r", "").replace("\n", "%0A"))
+
+          bid = os.environ.get("BUILD_ID") or None
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              conn.read_only = True
+              row = conn.execute("SELECT id, evidence_json FROM build_jobs WHERE (%s::text IS NULL OR id = %s) "
+                                 "ORDER BY created_at DESC LIMIT 1", (bid, bid)).fetchone()
+          if not row:
+              print("::error::build not found"); raise SystemExit(1)
+          ev = row[1] if isinstance(row[1], dict) else json.loads(row[1] or "{}")
+          pr = ev.get("product_review") or {}
+          reviews = pr.get("reviews") if isinstance(pr, dict) else pr
+          lines = []
+          for r in (reviews or [])[-3:]:
+              if not isinstance(r, dict):
+                  continue
+              lines.append(f"review round={r.get('round')} enforced={r.get('enforced')} blocking={r.get('blocking')}")
+              for f in r.get("findings") or []:
+                  lines.append(f"- [{f.get('severity')}/{f.get('source', 'llm')}] {f.get('skill')} {f.get('file')}: {f.get('problem')} | fix: {f.get('fix')}")
+          publish("qa review findings", "\n".join(lines) or json.dumps(pr, ensure_ascii=False, default=str))
+          with psycopg.connect(os.environ["OMNI_DATABASE_URL"], connect_timeout=10) as conn:
+              conn.read_only = True
+              req = conn.execute("SELECT br.prompt, br.build_contract_id, bc.contract_json FROM build_requests br "
+                                 "LEFT JOIN m5_build_contracts bc ON bc.id = br.build_contract_id WHERE br.build_id = %s",
+                                 (row[0],)).fetchone()
+          if not req:
+              publish("contract", "no build_requests row"); raise SystemExit(0)
+          prompt, cid, c = req
+          c = c if isinstance(c, dict) else json.loads(c or "{}")
+          spec = c.get("product_spec") or {}
+          publish("build request prompt", f"contract={cid}\n{prompt or ''}"[:3300])
+          publish("contract summary", json.dumps({k: c.get(k) for k in ("status", "product_family", "target", "user_roles",
+                  "data_requirements", "required_integrations")} | {"title": spec.get("title"), "summary": spec.get("summary"),
+                  "contract_keys": sorted(c), "spec_keys": sorted(spec)}, ensure_ascii=False, default=str))
+          acc = spec.get("acceptance") or c.get("acceptance_criteria") or c.get("acceptance") or []
+          publish("contract acceptance", "\n".join(f"{a.get('id')}: {a.get('text') or a.get('description')}" for a in acc if isinstance(a, dict)) or str(acc)[:3000])
+          publish("contract prompt", str(c.get("prompt") or "")[:3300])
+          PY
+
       - name: Publish the latest promoted version's code (read-only)
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
         env:
