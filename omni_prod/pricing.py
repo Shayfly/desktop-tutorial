@@ -268,8 +268,20 @@ def m5_class_llm_cap(cost_class) -> Decimal:
     return cap
 
 
-def m5_model_allowed(cost_class, output_per_million) -> bool:
-    ceiling = M5_CLASS_MAX_OUTPUT_PER_MILLION[_as_cost_class(cost_class)]
+# T5 (founder 2026-10-22): codegen's quality floor is a mandatory 85, and no model the LIGHT class admits by price
+# reaches it (flash-lite 70, luna 70). The product must still write code in the free class, so LIGHT admits a dearer
+# model FOR CODEGEN ONLY, up to this output price (gemini-3.8-flash, quality 85, $3.75/M out). Every other task in LIGHT
+# keeps the class cap, so the cost of the other stages does not change.
+M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION: dict[CostClass, dict[str, Decimal]] = {
+    CostClass.LIGHT: {'codegen': Decimal('3.75')},
+}
+
+
+def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:
+    cc = _as_cost_class(cost_class)
+    ceiling = M5_CLASS_MAX_OUTPUT_PER_MILLION[cc]
+    if task is not None and task in M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION.get(cc, {}):
+        ceiling = M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION[cc][task]
     return ceiling is None or Decimal(str(output_per_million)) <= ceiling
 
 
