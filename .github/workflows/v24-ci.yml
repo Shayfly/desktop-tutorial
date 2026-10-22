@@ -1,5 +1,12 @@
 name: v24-ci
-"on": [push, pull_request]
+"on":
+  push:
+  pull_request:
+  # T7a: the report PR is opened with GITHUB_TOKEN, and GitHub starts NO workflow for events made with that token
+  # (pushes, pull requests). Without a run its required checks (test, validate) would stay "expected" forever and the
+  # auto-merge would never happen. workflow_dispatch is the one event GITHUB_TOKEN may start, so publish-report
+  # dispatches the required checks on the report branch itself; they run on the report commit like on any other.
+  workflow_dispatch:
 
 concurrency:
   # push and pull_request runs of the same ref are separate groups; within a
@@ -54,13 +61,22 @@ jobs:
       - run: python scripts/run_international_gate.py
   publish-report:
     # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
-    # main pushes only; the commit carries [skip ci] so it never re-triggers CI.
+    # main pushes only. The bot never pushes to main: the report goes to the
+    # ci/v24-report branch and a PR, which main's protection reviews/merges like
+    # any other, and auto-merges (squash) when its requirements are met. The
+    # condition stays refs/heads/main on purpose: that is the run whose result is being reported; the branch push is a different ref, so it
+    # never re-enters this job. The merged report commit lands on main again, so
+    # the message guard below stops that push from opening another report PR.
     needs: test
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && !startsWith(github.event.head_commit.message, 'chore: v24-ci results')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      contents: write        # push the ci/v24-report branch (never main)
+      pull-requests: write   # open the report PR
+      actions: write         # dispatch the required checks on the report branch (see "on:")
     steps:
       # This job pushes the report, so its checkout keeps credentials
       # (the test jobs keep persist-credentials: false and a read-only token).
@@ -135,18 +151,34 @@ jobs:
           lines += ['', '_Test names and counts only; failure messages are not published._']
           open('smoke/ci-last-run.md', 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
           PY
-      - name: Commit [skip ci]
+      - name: Commit the report to a branch and open a PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT_BRANCH: ci/v24-report
         run: |
           git config user.name "ci-bot"
           git config user.email "ci-bot@148ai.dev"
           git add smoke/ci-last-run.md
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "chore: v24-ci results [skip ci]"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            sleep $((i * 5))
-          done
-          echo "::error title=publish-report::could not push smoke/ci-last-run.md"; exit 1
+          git checkout -b "$REPORT_BRANCH"
+          git commit -m "chore: v24-ci results"
+          # Bot-owned branch; each report supersedes the previous one. main is never touched.
+          git push --force origin "HEAD:refs/heads/$REPORT_BRANCH"
+          PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head "$REPORT_BRANCH" \
+              --title "chore: v24-ci results" \
+              --body "Automated CI result report (smoke/ci-last-run.md). Auto-merges (squash) once main's protection is satisfied."
+            PR="$(gh pr list --head "$REPORT_BRANCH" --base main --state open --json number --jq '.[0].number')"
+          fi
+          # The required checks must RUN on the report commit (GITHUB_TOKEN events start no workflow): dispatch both.
+          gh workflow run v24-ci.yml --ref "$REPORT_BRANCH"
+          gh workflow run v11-overlay-ci.yml --ref "$REPORT_BRANCH"
+          echo "::notice title=publish-report::report PR #$PR on $REPORT_BRANCH @ $(git rev-parse --short HEAD); test and validate dispatched on it"
+          # Auto-merge waits for main's required checks/reviews; it never bypasses them.
+          # The squash subject keeps the 'chore: v24-ci results' prefix the job guard relies on.
+          gh pr merge "$PR" --auto --squash --subject "chore: v24-ci results" \
+            || echo "::warning title=publish-report::auto-merge not enabled on PR #$PR (repo setting 'Allow auto-merge' or main protection missing); it needs a manual merge"
   compose-config:
     runs-on: ubuntu-latest
     steps:
