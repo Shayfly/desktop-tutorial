@@ -140,11 +140,18 @@ jobs:
             echo "leak guard tripped" >&2
             exit 1
           fi
+          # Route A (founder 2026-10-21): results go to the report-only branch bot-reports, never to main
+          # (main is protected: required test + validate; a bot push there is rejected by GitHub, GH006).
+          cp smoke/last-run.md /tmp/last-run.md
+          git checkout -q -- smoke/last-run.md
+          git fetch -q origin bot-reports
+          git checkout -q -B bot-reports origin/bot-reports
+          mkdir -p smoke && cp /tmp/last-run.md smoke/last-run.md
           git config user.name "smoke-bot"
           git config user.email "smoke-bot@148ai.dev"
           git add smoke/last-run.md
           if ! git diff --cached --quiet; then
             git commit -m "chore: smoke results [skip ci]"
-            git pull --rebase origin main
-            git push origin HEAD:main
+            git pull --rebase origin bot-reports
+            git push origin HEAD:bot-reports
           fi

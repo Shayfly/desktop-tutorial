@@ -98,7 +98,7 @@ jobs:
           retention-days: 30
 
   # Appends this rehearsal to smoke/failure-taxonomy.jsonl (one line per failure) and smoke/rehearsal-builds.jsonl
-  # (one line per build) on main and reports first_pass_yield = first-pass builds / builds. [skip ci] commit.
+  # (one line per build) on bot-reports (route A, founder 2026-10-21; never main) and reports first_pass_yield = first-pass builds / builds. [skip ci] commit.
   publish-taxonomy:
     needs: rehearsal
     if: always() && github.event_name == 'workflow_dispatch'
@@ -109,7 +109,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: bot-reports
           persist-credentials: true
       - uses: actions/download-artifact@v4
         continue-on-error: true            # a missing artifact is evidence too: the build is recorded as no_artifact
@@ -145,5 +145,5 @@ jobs:
           git config user.name smoke-bot && git config user.email smoke-bot@148ai.dev
           git add smoke/failure-taxonomy.jsonl smoke/rehearsal-builds.jsonl
           git commit -q -m "chore: rehearsal taxonomy ${{ github.run_id }} [skip ci]"
-          for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
-          echo "::error title=publish-taxonomy::could not push the taxonomy to main"; exit 1
+          for i in 1 2 3; do git pull -q --rebase origin bot-reports && git push -q origin HEAD:bot-reports && exit 0; sleep 5; done
+          echo "::error title=publish-taxonomy::could not push the taxonomy to bot-reports"; exit 1

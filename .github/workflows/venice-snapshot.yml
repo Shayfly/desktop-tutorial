@@ -25,9 +25,10 @@ jobs:
       SRC: https://docs.venice.ai/overview/pricing.md
       OUT: docs/venice_prices_snapshot.raw.md
     steps:
+      # Route A (founder 2026-10-21): reports go to the report-only branch bot-reports, never to main (GH006).
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: bot-reports
       - name: Download (no transformation)
         id: dl
         shell: bash
@@ -56,7 +57,7 @@ jobs:
           else
             git commit -m "chore: Venice pricing raw snapshot sha256=${SHA:0:12} [skip ci]" \
                        -m "source: $SRC" -m "bytes: $SIZE" -m "sha256: $SHA"
-            for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep $((i*5)); done
+            for i in 1 2 3; do git pull --rebase origin bot-reports && git push origin HEAD:bot-reports && break; sleep $((i*5)); done
           fi
           committed=$(git show "HEAD:$OUT" | sha256sum | cut -d' ' -f1)
           if [ "$committed" = "$SHA" ]; then

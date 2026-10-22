@@ -64,9 +64,10 @@ jobs:
           echo "source=$src" >> "$GITHUB_OUTPUT"
           while IFS= read -r l; do echo "::notice title=db-identity::$l"; done <<< "$out"
           echo "::notice title=db-identity source::$src"
+      # Route A (founder 2026-10-21): reports go to the report-only branch bot-reports, never to main (GH006).
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: bot-reports
           path: db-identity-report
       - name: Write smoke/db-identity.md and commit [skip ci]
         working-directory: db-identity-report
@@ -101,5 +102,5 @@ jobs:
           git add smoke/db-identity.md
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "chore: db-identity results [skip ci]"
-          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && exit 0; sleep $((i*5)); done
+          for i in 1 2 3; do git pull --rebase origin bot-reports && git push origin HEAD:bot-reports && exit 0; sleep $((i*5)); done
           echo "::error title=db-identity::push failed"; exit 1
