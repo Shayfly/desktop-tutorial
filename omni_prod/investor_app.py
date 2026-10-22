@@ -2090,6 +2090,20 @@ def v28_project_memory(project_id: str, request: Request) -> dict:
     return snapshot(_v28_pool, project_id=project_id, internal_key=key, store=_conversation_store(), briefs=_brief_repo())
 
 
+def _capability_block_message(findings) -> str:
+    """Explain the existing refusal, preserving each named item and its remedy."""
+    rows = []
+    for finding in findings or []:
+        if isinstance(finding, dict):
+            item = finding.get('item') or 'Execution plan'
+            reason = finding.get('reason') or 'not supported yet'
+            action = finding.get('alternative') or 'Edit this requirement or contact support to enable the capability.'
+            rows.append(f'{item}: {reason}. Next: {action}')
+        else:
+            rows.append(f'Execution plan: {finding}. Next: review the requirements or contact support.')
+    return 'The build did not start. ' + (' '.join(rows) or 'Review the unsupported requirements or contact support.')
+
+
 def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None:
     """At build admission: the Chief Architect's plan for the approved brief,
     gated by feasibility. Deterministic and free; stored once per fingerprint."""
@@ -2118,8 +2132,9 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     plan = saved['plan']
     if os.getenv('OMNI_FEASIBILITY_GATE', 'enforce') == 'enforce' and not plan.get('executable'):
         blocked = [f for f in plan['feasibility']['findings'] if f['outcome'] not in ('FEASIBLE', 'FEASIBLE_WITH_CONSTRAINTS')]
+        findings = blocked or plan.get('graph_problems') or []
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
-                                         'findings': blocked or plan.get('graph_problems')})
+                                         'findings': findings, 'message': _capability_block_message(findings)})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
             'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
             # G3: the approved criteria travel with the plan; plan-governed builds test against them.
@@ -2187,7 +2202,7 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
-                                    'message': 'The approved requirements cannot be built yet. Review the unsupported requirements.',
+                                    'message': detail.get('message') or 'The approved requirements cannot be built yet. Review the unsupported requirements.',
                                     'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})
 
 
