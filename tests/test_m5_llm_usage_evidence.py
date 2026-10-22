@@ -175,7 +175,8 @@ def _routed(responses, *, external_fallback=True):
     ext = ModelEndpoint(name="ext", base_url="https://api.example/v1", model="m-ext", api_key="k", external=True)
     policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=external_fallback,
                             external_budget_usd=Decimal("5"), max_external_calls_per_build=10)
-    return RoutedModelGateway(primary=ProviderRoute(local), fallback=(ProviderRoute(ext, Decimal("0.25")),),
+    return RoutedModelGateway(primary=ProviderRoute(local, declared_quality=90),
+                              fallback=(ProviderRoute(ext, Decimal("0.25"), declared_quality=90),),
                               policy=policy, state=ModelUseState(), gateway_factory=factory)
 
 
@@ -253,7 +254,7 @@ class WorkerEvidenceTests(unittest.TestCase):
             return OpenAICompatibleGateway(endpoint, urlopen=boom)
 
         local = ModelEndpoint(name="local", base_url="http://127.0.0.1:1/v1", model="m")
-        gw = RoutedModelGateway(primary=ProviderRoute(local), gateway_factory=factory)
+        gw = RoutedModelGateway(primary=ProviderRoute(local, declared_quality=90), gateway_factory=factory)
         engine = AutonomousProductEngine(architect=ArchitectAgent(gw), generator=GeneratorAgent(gw),
                                          repairer=RepairAgent(gw), executor=MagicMock(), max_repair_rounds=1)
         harness = ContractBuildHarness(gateway=gw)
