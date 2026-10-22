@@ -268,8 +268,10 @@ def m5_class_llm_cap(cost_class) -> Decimal:
     return cap
 
 
-def m5_model_allowed(cost_class, output_per_million) -> bool:
-    ceiling = M5_CLASS_MAX_OUTPUT_PER_MILLION[_as_cost_class(cost_class)]
+def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:
+    # LIGHT no longer widens its price ceiling for codegen (founder 2026-10-22).
+    cc = _as_cost_class(cost_class)
+    ceiling = M5_CLASS_MAX_OUTPUT_PER_MILLION[cc]
     return ceiling is None or Decimal(str(output_per_million)) <= ceiling
 
 

@@ -22,7 +22,8 @@ def test_failed_write_ahead_never_dispatches_or_falls_back():
 
     gateway = RoutedModelGateway(
         fallback=tuple(ProviderRoute(ModelEndpoint(name, 'http://127.0.0.1:1/v1', 'fixture-model',
-                                                  api_key='fixture-only', external=True), Decimal('0.05'))
+                                                  api_key='fixture-only', external=True), Decimal('0.05'),
+                                     declared_quality=90)
                        for name in ('fixture-a', 'fixture-b')),
         gateway_factory=Provider,
         policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
