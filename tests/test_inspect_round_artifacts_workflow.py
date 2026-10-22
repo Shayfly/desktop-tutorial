@@ -72,7 +72,7 @@ class Fakes:
         self.store = types.SimpleNamespace(client=Client(), bucket='b')
 
 
-def run_reader(fakes, rounds='all', files='front'):
+def run_reader(fakes, rounds='all', files='front', stdout=None):
     src = embedded(reader_run())
     with tempfile.TemporaryDirectory() as out:
         os.makedirs(os.path.join(out, 'zips'))
@@ -80,10 +80,12 @@ def run_reader(fakes, rounds='all', files='front'):
         with mock.patch.dict(os.environ, {'BID': 'bld_x', 'ROUNDS': rounds, 'FILES': files}), \
                 mock.patch('omni_prod.investor_app._v28_pool', fakes.pool, create=True), \
                 mock.patch('omni_prod.evidence_export._default_store', lambda env: fakes.store):
-            try:
-                exec(compile(src.replace('/out/', out + '/'), 'reader', 'exec'), {})
-            except SystemExit as exc:
-                code = exc.code
+            import contextlib
+            with contextlib.redirect_stdout(stdout if stdout is not None else io.StringIO()):
+                try:
+                    exec(compile(src.replace('/out/', out + '/'), 'reader', 'exec'), {})
+                except SystemExit as exc:
+                    code = exc.code
         notes = [json.loads(l) for f in sorted(os.listdir(out)) if f.endswith('.jsonl')
                  for l in open(os.path.join(out, f), encoding='utf-8')]
         zips = sorted(os.listdir(os.path.join(out, 'zips')))
@@ -185,6 +187,29 @@ class ReaderAgainstFakes(unittest.TestCase):
         code, notes, zips = run_reader(Fakes(snaps, {}))
         self.assertEqual(code, 1)
         self.assertIn('NoSuchKey', notes[0][1])
+        self.assertEqual(zips, [])
+
+    def test_a_failed_get_never_prints_a_key_shaped_token_in_any_annotation(self):
+        # Matt HOLD on #109 (T7C_RAW_ERROR_SUMMARY_BYPASSES_REDACTION): fail() kept the raw text in `errors`, and the
+        # ::error summary printed it, bypassing note(). The marker is in the object KEY and in the EXCEPTION text.
+        token = 'sk-' + 'Z' * 30
+        key = f'build-rounds/bld_x/00-{token}.zip'
+
+        class Fakes2(Fakes):
+            def __init__(self):
+                super().__init__([{'round': 0, 'decision': 'initial', 'failing': [], 'key': key, 'sha256': 'x'}], {})
+
+                def boom(Bucket, Key):
+                    raise PermissionError(f'AccessDenied for credential {token} on {Key}')
+                self.store.client.get_object = boom
+        out = io.StringIO()
+        code, notes, zips = run_reader(Fakes2(), stdout=out)
+        self.assertEqual(code, 1)                                                  # the failure still propagates
+        printed = out.getvalue()
+        self.assertIn('::error title=inspection failed::1 integrity/read failure(s)', printed)
+        self.assertIn('AccessDenied', printed)                                    # the failure detail is kept
+        self.assertNotIn(token, printed)                                          # ... without the token
+        self.assertNotIn(token, json.dumps(notes))                                # nor in any note annotation
         self.assertEqual(zips, [])
 
     def test_a_missing_build_a_missing_key_or_a_requested_absent_round_fails(self):

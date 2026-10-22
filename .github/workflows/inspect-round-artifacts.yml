@@ -76,10 +76,14 @@ jobs:
           SECRET = re.compile(r"(AIza|sk-ant-|sk-|r8_|ghp_|github_pat_)[0-9A-Za-z_-]{16,}")
           FRONT = (".html", ".htm", ".css", ".js")
           notes, errors = [], []
+          def red(text):
+              return SECRET.sub("[redacted]", str(text))
           def note(title, msg):          # title AND message (Matt on #88: a key-shaped FILENAME reached the title)
-              notes.append((SECRET.sub("[redacted]", str(title)), SECRET.sub("[redacted]", str(msg))))
+              notes.append((red(title), red(msg)))
           def fail(title, msg):
-              errors.append(f"{title}: {msg}")
+              # Matt HOLD on #109: the error summary is an output too. Redacted BEFORE it enters any collection, so
+              # an object key or exception text with a key-shaped token can never reach the ::error annotation.
+              errors.append(red(f"{title}: {msg}"))
               note("FAIL " + title, msg)
           def only_get_object(model, **_):
               if getattr(model, "name", None) != "GetObject":
@@ -147,7 +151,8 @@ jobs:
           if len(notes) > 200:
               print(f"::warning title=truncated::{len(notes)} annotations prepared, only 200 are printed; the full zips are in the artifact")
           if errors:
-              print(f"::error title=inspection failed::{len(errors)} integrity/read failure(s): " + " | ".join(errors)[:3000])
+              # and again at the output boundary (defence in depth: nothing unredacted is ever printed)
+              print(f"::error title=inspection failed::{len(errors)} integrity/read failure(s): " + red(" | ".join(errors))[:3000])
               sys.exit(1)
           PY
           [ "${{ matrix.slice }}" = 0 ] && ls "$OUT" | grep -c jsonl | xargs -I{} echo "::notice title=groups::{} annotation groups prepared (slice k prints groups 5k..5k+4)" || true
