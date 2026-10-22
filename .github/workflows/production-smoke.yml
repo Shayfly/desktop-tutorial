@@ -14,14 +14,12 @@ concurrency:
 
 jobs:
   smoke:
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
       - name: Verify live production API
         env:
           BASE_URL: https://148aiv28.vercel.app
@@ -140,11 +138,13 @@ jobs:
             echo "leak guard tripped" >&2
             exit 1
           fi
-          git config user.name "smoke-bot"
-          git config user.email "smoke-bot@148ai.dev"
-          git add smoke/last-run.md
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: smoke results [skip ci]"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
+
+      # Keep each run's evidence without writing to protected main or starting another smoke run.
+      - name: Upload smoke evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: smoke/last-run.md
+          if-no-files-found: error
+          retention-days: 14
