@@ -141,10 +141,23 @@ jobs:
 
       # Keep each run's evidence without writing to protected main or starting another smoke run.
       - name: Upload smoke evidence
+        id: smoke_artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: production-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: smoke/last-run.md
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
+
+      - name: Link smoke evidence
+        if: ${{ always() }}
+        env:
+          ARTIFACT_URL: ${{ steps.smoke_artifact.outputs.artifact-url }}
+        shell: bash
+        run: |
+          if [ -n "$ARTIFACT_URL" ]; then
+            printf '\n[Download production smoke report](%s) — retained for 90 days.\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '\nSmoke artifact upload did not produce a link; inspect the upload step.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -38,9 +38,25 @@ class SmokePublication(unittest.TestCase):
         self.assertEqual(len(uploads), 1)
         upload = uploads[0]
         self.assertIn('always()', upload['if'])
+        self.assertEqual(upload['with']['retention-days'], 90)
+        self.assertEqual(upload['id'], 'smoke_artifact')
         self.assertEqual(upload['with']['path'], 'smoke/last-run.md')
         self.assertEqual(upload['with']['if-no-files-found'], 'error')
         self.assertEqual(job.get('permissions', {}).get('contents', 'read'), 'read')
+
+
+    def test_summary_links_the_uploaded_artifact(self):
+        steps = yaml.safe_load(WORKFLOW.read_text())['jobs']['smoke']['steps']
+        step = next(s for s in steps if s.get('name') == 'Link smoke evidence')
+        self.assertIn('steps.smoke_artifact.outputs.artifact-url', step['env']['ARTIFACT_URL'])
+        with tempfile.TemporaryDirectory() as temp:
+            summary = Path(temp) / 'summary.md'
+            url = 'https://github.invalid/artifacts/123'
+            result = subprocess.run(['bash', '-eo', 'pipefail', '-c', step['run']],
+                                    env={**os.environ, 'ARTIFACT_URL': url,
+                                         'GITHUB_STEP_SUMMARY': str(summary)}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('](' + url + ')', summary.read_text())
 
 
 if __name__ == '__main__':
