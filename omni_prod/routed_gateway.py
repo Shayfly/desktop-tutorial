@@ -77,6 +77,7 @@ class RoutedModelGateway:
             raise ValueError('primary route must be local/self-hosted')
         # ranked: CatalogModel entries (omni_prod.model_catalog). Only configured
         # entries are routable; order is chosen per call by price and quality.
+        self.cost_class = None
         self.ranked = tuple(m for m in ranked if getattr(m, 'endpoint', None) is not None)
         # Diagnostics only (rehearsal per provider): restrict routing to the
         # named catalog entries. Unset in the worker's normal environment.
@@ -136,24 +137,15 @@ class RoutedModelGateway:
                                                        [r.endpoint.name for r in fallback]))
 
     def restrict_to_cost_class(self, cost_class) -> dict:
-        """CEO 2026-10-19: a build may route only to models its class admits
-        (pricing.M5_CLASS_MAX_OUTPUT_PER_MILLION). Narrows, never widens, the
-        catalog; an empty result leaves no external route (fail closed). The one exception is per task and explicit:
-        pricing.M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION (T5: LIGHT codegen) adds models for that task only
-        (task_extra_ranked); every other task routes on the class list."""
-        from .pricing import M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION, _as_cost_class, m5_model_allowed
+        """Bind the build class and restrict its catalog by the existing price ceiling."""
+        from .pricing import _as_cost_class, m5_model_allowed
+        self.cost_class = _as_cost_class(cost_class)
         catalog = self.ranked
         before = [m.endpoint.name for m in catalog]
-        self.ranked = tuple(m for m in catalog if m5_model_allowed(cost_class, m.option.output_per_million))
+        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million))
         kept = [m.endpoint.name for m in self.ranked]
-        # T5: a task-specific allowance (LIGHT codegen) adds models for THAT task only; ranked stays the class list.
-        self.task_extra_ranked = {
-            task: tuple(m for m in catalog if m not in self.ranked
-                        and m5_model_allowed(cost_class, m.option.output_per_million, task))
-            for task in M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION.get(_as_cost_class(cost_class), {})}
-        return {'cost_class': getattr(cost_class, 'value', str(cost_class)), 'allowed_models': kept,
-                'excluded_models': [n for n in before if n not in kept],
-                'task_only_models': {t: [m.endpoint.name for m in ms] for t, ms in self.task_extra_ranked.items()}}
+        return {'cost_class': self.cost_class.value, 'allowed_models': kept,
+                'excluded_models': [n for n in before if n not in kept], 'task_only_models': {}}
 
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Set the whole-build external budget to what was reserved for this
@@ -347,8 +339,8 @@ class RoutedModelGateway:
         models stay available as escalation when it is unavailable.
         OMNI_MODEL_TASK_MIN_QUALITY (JSON object) overrides the defaults.
         """
-        from .intelligence.task_policy import TASK_CLASSES
-        floors = {k: t.preferred_floor for k, t in TASK_CLASSES.items()}
+        from .intelligence.task_policy import TASK_CLASSES, task_class
+        floors = {k: task_class(k, cost_class=self.cost_class).preferred_floor for k in TASK_CLASSES}
         raw = os.getenv('OMNI_MODEL_TASK_MIN_QUALITY', '').strip()
         if raw:
             try:
@@ -372,13 +364,13 @@ class RoutedModelGateway:
         """Why a configured primary/fallback may not serve this task, or None when it may."""
         from .intelligence.task_policy import eligible, task_class
         known = self.configured_quality(route)
-        floor = task_class(task).mandatory_floor
+        floor = task_class(task, cost_class=self.cost_class).mandatory_floor
         if known is None:
             return f'quality unknown (no routable catalog entry and none declared); {task} requires >= {floor}'
         model_id, quality = known
         if quality < self.routing_policy.minimum_quality:
             return f'quality {quality} below the routing minimum {self.routing_policy.minimum_quality}'
-        if not eligible(task, model_id=model_id, quality=quality):
+        if not eligible(task, model_id=model_id, quality=quality, cost_class=self.cost_class):
             return f'{model_id} (quality {quality}) is not eligible for {task} (mandatory floor {floor} / deny list)'
         return None
 
@@ -397,14 +389,14 @@ class RoutedModelGateway:
         requested = int(kwargs.get('max_tokens', 4096))
         policy = self.routing_policy
         candidates = []
-        for model in self.ranked + tuple(getattr(self, 'task_extra_ranked', {}).get(task, ())):
+        for model in self.ranked:
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
                 continue
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).
             from .intelligence.task_policy import eligible
-            if not eligible(task, model_id=option.model, quality=option.quality):
+            if not eligible(task, model_id=option.model, quality=option.quality, cost_class=self.cost_class):
                 continue
             if policy.maximum_latency_ms is not None and option.latency_ms > policy.maximum_latency_ms:
                 continue

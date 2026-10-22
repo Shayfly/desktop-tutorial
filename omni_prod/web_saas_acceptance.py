@@ -83,6 +83,13 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
 
 
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
+_WRITE_KINDS = frozenset({'data_create', 'data_update'})
+_BODY_METHODS = frozenset({'POST', 'PUT', 'PATCH'})
+
+
+def _empty_body(body: Any) -> bool:
+    """No body at all, or an empty one: nothing for a create/update endpoint to validate and store."""
+    return body is None or (isinstance(body, (str, bytes, Mapping, list, tuple)) and len(body) == 0)
 _VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
@@ -362,6 +369,12 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
                 if accepted == 0 and ('expect_text_contains' in step or 'expect_json_contains' in step):
                     return (f'step {step_id}: expect_text_contains / expect_json_contains apply to accepted responses, '
                             'and expect_accepted is 0')
+            if kind in _WRITE_KINDS and method in _BODY_METHODS and _empty_body(step.get('json')):
+                # Live run 1 (bld_15f930f7, 2026-10-22): a data_create step POSTed with no body, the app rightly
+                # answered 400, and a correct app could never pass. Refused here, before any request is sent.
+                return (f'step {step_id} ({kind}) sends {method} {step.get("path", "/")} without a json body: a '
+                        f'{kind} step must send, in "json", the data the endpoint needs, valid under the approved '
+                        'rules (for dates use ${today} or ${date_plus_N})')
             unknown = sorted(set(ids) - contract_ids)
             if unknown:
                 return f'step {step_id} references unknown acceptance id(s): {",".join(unknown)}'

@@ -31,9 +31,8 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
         self.assertIn('gpt-6-luna', {m.option.model for m in self.light.ranked})
 
     def test_codegen_repair_and_modification_never_go_to_luna_in_the_light_class(self):
-        # T5 (founder 2026-10-22): codegen's floor is a mandatory 85; LIGHT reaches it with gemini-3.8-flash for
-        # codegen only. Repair and modification keep flash-lite. Luna is never a candidate for any of them.
-        self.assertEqual(models(self.light, 'codegen'), ['gemini-3.8-flash'])
+        # Founder 2026-10-22: LIGHT keeps flash-lite for codegen; Luna remains excluded until measured.
+        self.assertEqual(models(self.light, 'codegen'), ['gemini-3.1-flash-lite'])
         for task in ('repair', 'modification'):
             self.assertEqual(models(self.light, task), ['gemini-3.1-flash-lite'], task)
 

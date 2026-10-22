@@ -14,11 +14,12 @@ class is now explicit:
 
 Unknown task names get the strictest generic policy ('general'), never 0.
 OMNI_MODEL_TASK_MIN_QUALITY (JSON) still overrides preferred floors (ops knob);
-mandatory floors are not overridable by environment.
+mandatory floors are not overridable by environment. The explicit LIGHT
+codegen policy (70 instead of 85) requires the bound build cost class.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -53,8 +54,7 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     # codegen/repair answer of it (4 of 4, 22-38k characters) was invalid JSON and was thrown away; the cost-first
     # router picked it only because it is the cheapest model the light class admits. Small calls (architecture,
     # review, a narrow pre-flight fix) answered correctly 6 of 6 and stay allowed.
-    # T5 (founder 2026-10-21/22): codegen's floor 85 is MANDATORY (no model below it writes the product, not even as
-    # escalation). LIGHT reaches it through pricing.M5_CLASS_TASK_MAX_OUTPUT_PER_MILLION (codegen only).
+    # Codegen defaults to 85. The explicit LIGHT exception is applied by task_class using the bound build class.
     TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY),
     TaskClass('repair', 'fix failing checks', 85, 70, deny_models=CODE_WRITING_DENY),
     TaskClass('modification', 'change an existing product', 85, 70, deny_models=CODE_WRITING_DENY),
@@ -68,12 +68,16 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
 # keep exactly their verified routing while escalation stays explicit.
 
 
-def task_class(task: str | None) -> TaskClass:
-    return TASK_CLASSES.get(task or 'general', TASK_CLASSES['general'])
+def task_class(task: str | None, *, cost_class=None) -> TaskClass:
+    tc = TASK_CLASSES.get(task or 'general', TASK_CLASSES['general'])
+    # Founder 2026-10-22: LIGHT uses its available model for codegen; other classes retain 85.
+    if tc.key == 'codegen' and getattr(cost_class, 'value', cost_class) == 'light':
+        return replace(tc, preferred_floor=70, mandatory_floor=70)
+    return tc
 
 
-def eligible(task: str, *, model_id: str, quality: int) -> bool:
-    tc = task_class(task)
+def eligible(task: str, *, model_id: str, quality: int, cost_class=None) -> bool:
+    tc = task_class(task, cost_class=cost_class)
     if quality < tc.mandatory_floor or model_id in tc.deny_models:
         return False
     return not tc.allow_models or model_id in tc.allow_models

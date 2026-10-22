@@ -23,7 +23,7 @@ PLAN_OK = {"schema_version": 2, "runtime": "python:3.11-slim", "start": ["python
            "health_path": "/", "web_saas_acceptance": {"product_family": "managed_web_saas_v1", "required_kinds": ["api_smoke"],
            "personas": [{"id": "v", "steps": [
                {"id": "s1", "kind": "api_smoke", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200},
-               {"id": "s2", "kind": "data_create", "acceptance_ids": ["A2"], "method": "POST", "path": "/x", "expect_status": 201}]}]}}
+               {"id": "s2", "kind": "data_create", "acceptance_ids": ["A2"], "method": "POST", "path": "/x", "json": {"name": "n"}, "expect_status": 201}]}]}}
 PLAN_MISSING_A2 = json.loads(json.dumps(PLAN_OK))
 PLAN_MISSING_A2['web_saas_acceptance']['personas'][0]['steps'].pop()
 BROKEN_TEST = 'def test_x():\n    assert "unterminated\n'

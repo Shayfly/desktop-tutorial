@@ -86,8 +86,10 @@ _GENERATOR_SYSTEM = (
     # or background infrastructure; such steps would be NOT_VERIFIED, not passed.
     'The plan is run against the real app inside the build and every failing step is sent back for repair, so its test data must be valid under the product\'s own rules (dates from today within the allowed window, phone numbers in local format, unique values where duplicates are refused) and expect_text_contains must quote text the page really shows. Never write a fixed calendar date in a step: use ${today}, ${date_plus_N} or ${date_minus_N} (N days from the day the plan runs), which the platform fills in. '
     'When the approved spec stack is self-contained (embedded SQLite), omit the integration kind and any external-integration or background-job steps: they are out of scope and are reported as not verified. '
-    'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used. Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
+    'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used, except that a data_create or data_update step sent with POST, PUT or PATCH must carry a non-empty "json" body with every field the endpoint requires, valid under the approved rules (a write step without a body is refused before the app is tested). Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
+    + 'Never call alert(), confirm() or prompt() in the product (also not in a repair): the build is rejected for it; show '
+    'every message inside the page, in a status element (role="status") or next to the field. '
     + GENERATION_CONSTRAINTS
     + CONTENT_ONLY_RULES
     + guidance_for('generator')
@@ -106,6 +108,8 @@ _REPAIR_SYSTEM = (
     'for dates -- and keep the rule in the app. '
     'You must write actual tests. If you fail to use pytest/jest, the build '
     'will be rejected permanently. '
+    + 'Never call alert(), confirm() or prompt() in the product (also not in a repair): the build is rejected for it; show '
+    'every message inside the page, in a status element (role="status") or next to the field. '
     + GENERATION_CONSTRAINTS
     + CONTENT_ONLY_RULES
     + guidance_for('repair')

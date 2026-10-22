@@ -91,12 +91,21 @@ def find_in_chain(executor, cls):
     return None
 
 
+def _sent(request) -> str:
+    """The request as sent; a write without a body says so, so the repairer cannot mistake it for valid data."""
+    text = str(request)
+    parts = text.split(' ', 2)
+    if len(parts) == 2 and parts[0].upper() in ('POST', 'PUT', 'PATCH'):
+        return text + ' (no body)'
+    return text
+
+
 def _failure_text(report: dict) -> tuple[str, str]:
     failed = [c for c in report.get('checks', []) if not c.get('passed')]
     lines = []
     for c in failed[:6]:
         lines.append(f"- step {c.get('step_id')} ({c.get('kind')}, acceptance {','.join(c.get('acceptance_ids') or [])}): "
-                     f"sent {c.get('request')!s} -> HTTP {c.get('http_status')}; {c.get('detail')}"
+                     f"sent {_sent(c.get('request'))} -> HTTP {c.get('http_status')}; {c.get('detail')}"
                      + (f"; answer: {c.get('response_excerpt')!s}"[:400] if c.get('response_excerpt') else ''))
     missing = []
     if report.get('missing_acceptance_ids'):
@@ -111,9 +120,11 @@ def _failure_text(report: dict) -> tuple[str, str]:
     message = 'behavioural acceptance failed: ' + str(report.get('summary', ''))[:300]
     detail = ('The real app was started and the acceptance plan was run against it over HTTP.\n'
               + '\n'.join(lines + missing)
-              + '\nFix the app so these requests behave as the product promises (validation that rejects a valid '
-                'request is a bug). Only correct a test step if the step itself is wrong for the approved '
-                'requirements; never remove coverage of an acceptance criterion.\n'
+              + '\nFor each failed step, first check the request it sent: a step that sends no body, missing '
+                'fields or data the approved rules refuse is a wrong step -- correct that step in '
+                '.omni/project.json (keep its kind and acceptance ids) and keep the rule in the app. Only when the '
+                'request is valid under the approved requirements is the app wrong: then fix the app (validation '
+                'that rejects a valid request is a bug). Never remove coverage of an acceptance criterion.\n'
               + 'Server log tail:\n' + str(report.get('server_log_tail', ''))[-900:] + '\n' + PLAN_SHAPE)
     return message, detail
 

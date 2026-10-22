@@ -215,7 +215,7 @@ class ConcurrentResponsesKeepTheResponseContract(unittest.TestCase):
         report = WebSaaSAcceptanceRunner(transport=self.Transport(bodies), required_kinds=('data_create',)).verify(
             {'preview_url': 'http://127.0.0.1:1'}, {'acceptance': [{'id': 'A1'}]},
             [{'id': 'p', 'steps': [{'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST',
-                                    'path': '/b', 'json': {}, 'concurrent': 2, 'expect_status': 201,
+                                    'path': '/b', 'json': {'name': 'booking'}, 'concurrent': 2, 'expect_status': 201,
                                     'expect_conflict_status': 409, **step}]}])
         return report.checks[0]
 
@@ -237,7 +237,7 @@ class ConcurrentResponsesKeepTheResponseContract(unittest.TestCase):
         self.assertIn('does not contain expected subset', c.detail)
 
     def test_assertions_with_zero_accepted_are_refused_by_the_plan(self):
-        base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x',
+        base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x', 'json': {'name': 'booking'},
                 'concurrent': 2, 'expect_accepted': 0}
         self.assertIn('expect_accepted is 0', _validate_plan([{'id': 'p', 'steps': [{**base, 'expect_text_contains': 'x'}]}],
                                                            {'A1'}))
@@ -246,7 +246,7 @@ class ConcurrentResponsesKeepTheResponseContract(unittest.TestCase):
 
 class ConcurrentStepValidation(unittest.TestCase):
     def step(self, **kw):
-        base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x'}
+        base = {'id': 's', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'method': 'POST', 'path': '/x', 'json': {'name': 'booking'}}
         return _validate_plan([{'id': 'p', 'steps': [{**base, **kw}]}], {'A1'})
 
     def test_bounds(self):
