@@ -19,6 +19,10 @@ SUMMARY_FAILURE_ID = 'ALSO_FAILING'
 REPAIR_ROUNDS_HARD_MAX = 8
 
 
+# #95: a failed report with no failures still yields a taxonomy row (layer sandbox, check_failed_unspecified).
+UNSPECIFIED_ROUND_FAILURE_ID = 'ROUND_unspecified'
+
+
 @dataclass(frozen=True)
 class ExecutionReport:
     passed: bool
@@ -148,10 +152,14 @@ class AutonomousProductEngine:
             return []
         own = [f for f in report.failures if f.acceptance_id != SUMMARY_FAILURE_ID]
         if len(own) == len(report.failures):
-            return own
-        group = getattr(self.executor, 'group_failures', None) or ()
-        seen = {(f.acceptance_id, f.message) for f in own}
-        return own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+            observed = own
+        else:
+            group = getattr(self.executor, 'group_failures', None) or ()
+            seen = {(f.acceptance_id, f.message) for f in own}
+            observed = own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+        # #95: a failed round that names no failure is still a failure in the taxonomy, never zero rows
+        return observed or [AcceptanceFailure(UNSPECIFIED_ROUND_FAILURE_ID, 'round failed without a diagnostic',
+                                              (report.build_log or '')[:500])]
 
     @staticmethod
     def progress(report) -> tuple[int, int]:
@@ -192,6 +200,31 @@ class AutonomousProductEngine:
         return (stage, -len(report.failures))
 
     def build(self, prompt: str) -> AutonomousResult:
+        """C24 (2026-10-20): the failure taxonomy and first_pass are written whatever happens. They used to be computed
+        only at the very end of a successful _build(), so a build that raised (a model or sandbox error) left the
+        previous build's values or nothing at all, and the rounds already verified were lost."""
+        self._taxonomy_rounds, self._preflight_events = [], []
+        self._round0_passed = None
+        self.failure_taxonomy, self.first_pass = [], None
+        result = None
+        try:
+            result = self._build(prompt)
+            return result
+        finally:
+            self._refresh_taxonomy(result)
+
+    def _refresh_taxonomy(self, result: 'AutonomousResult | None' = None) -> None:
+        from .failure_taxonomy import records
+        rounds = getattr(self, '_taxonomy_rounds', None) or []
+        self.failure_taxonomy = sorted(records(rounds) + list(getattr(self, '_preflight_events', None) or []),
+                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
+        # #95 FAILED_BUILD_REPORTED_FIRST_PASS: first pass = round 0 was verified AND its report passed AND the build
+        # returned ready. An empty failure list is not a pass (ExecutionReport(False, ()) is a failed round); a build
+        # that raised has no result and is never a first pass.
+        self.first_pass = (bool(rounds) and getattr(self, '_round0_passed', None) is True and not rounds[0][1]
+                           and result is not None and result.status == 'ready')
+
+    def _build(self, prompt: str) -> AutonomousResult:
         """Generate, verify, repair.
 
         Basic stop-loss (founder decision 2026-10-07): the sandbox is
@@ -206,10 +239,10 @@ class AutonomousProductEngine:
         repo = apply_patch({}, initial)
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
-        self._preflight_events = []
         repo = self._preflight(repo, spec, 0)
         report = self.executor.execute(repository=repo, spec=spec)
         self._taxonomy_rounds = [(0, self._observed_failures(report))]
+        self._round0_passed = bool(report.passed)
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
@@ -275,11 +308,7 @@ class AutonomousProductEngine:
                 best_repo, best_report = repo, report
         if not report.passed:
             repo, report = best_repo, best_report
-        from .failure_taxonomy import records
-        self.failure_taxonomy = sorted(records(self._taxonomy_rounds) + self._preflight_events,
-                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
-        self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
-        return AutonomousResult(
+        return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
             'ready' if report.passed else 'failed',
             spec,
             repo,
