@@ -158,5 +158,11 @@ class PreviewReadyExecutor:
                 needs = ('GET / must render the whole product for a user: ' + '; '.join(texts) +
                          '. Build it as one complete HTML page (inline CSS and JavaScript allowed) with the forms, '
                          'buttons and tables these need, calling the app\'s JSON endpoints.\n')
-        failed = _failure(f'the app did not start for preview: {first}', needs + output)
+        # T7d (founder 2026-10-22): "did not start" was printed even when the app started and answered, and only its
+        # page failed the interface check; the message now says which of the two happened.
+        if 'user interface' in first or 'HTML page' in first:
+            lead = 'the app started for preview, but its page is not the product'
+        else:
+            lead = 'the app did not start for preview'
+        failed = _failure(f'{lead}: {first}', needs + output)
         return ExecutionReport(False, failed.failures, report.build_log + '\n' + output)
