@@ -66,3 +66,13 @@ jobs:
               print(f'::error title=skipped::{s}')
           sys.exit(1 if skipped or not cases else 0)
           PY
+      # 2026-10-20: the job log is not readable from the agent environment, so a failure of the step above left
+      # no evidence of WHICH test failed (4 flakes on docs-only PRs). Keep the junit report on every outcome.
+      - name: Upload the junit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intake-pg-junit
+          path: intake-pg.xml
+          if-no-files-found: warn
+          retention-days: 14
