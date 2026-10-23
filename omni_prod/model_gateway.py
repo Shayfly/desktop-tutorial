@@ -351,8 +351,6 @@ def _parse_json_object(text: str, diag: dict | None = None):
                 status = 'benign_prose'
             diag['tail_status'] = status
             return obj, None
-            diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
-            return obj, None
     return None, first
 
 
