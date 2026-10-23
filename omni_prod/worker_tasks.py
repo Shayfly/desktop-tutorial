@@ -240,7 +240,13 @@ def rejected_json_evidence(gateway) -> dict:
                                        'reason': redact_fields((r.get('diagnostic') or {}).get('reason'))} for r in rows],
             'rejected_model_json_durable': durable,
             'rejected_model_json_durability': {'state': state, 'rejected': len(rows), 'stored': stored,
-                                               'failed': len(rows) - stored}}
+                                               'failed': len(rows) - stored},
+            'accepted_model_json': [
+                {k: redact_fields(v) if k in ('diagnostic', 'store_error') else v for k, v in r.items()}
+                for r in getattr(gateway, 'accepted_json_manifest', [])],
+            'accepted_model_json_durable': (
+                all(bool(r.get('key')) and not r.get('store_error') for r in gateway.accepted_json_manifest)
+                if getattr(gateway, 'accepted_json_manifest', []) else None)}
 
 
 def visual_evidence(engine) -> dict | None:
