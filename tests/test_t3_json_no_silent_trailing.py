@@ -84,15 +84,20 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
         from omni_prod.model_policy import ModelUsePolicy
         from omni_prod.routed_gateway import ProviderRoute, RoutedModelGateway
         ep = ModelEndpoint(name='m', base_url='https://x.invalid', model='m', api_key='k', external=False)
-        content = 'not json\nand one more thing'
+        content = '{"files": []}\nand one more thing'
         gw = RoutedModelGateway(primary=ProviderRoute(ep, declared_quality=90), policy=ModelUsePolicy(
             zero_cost_mode=True, allow_external_fallback=False, external_budget_usd=Decimal('0'),
             max_external_calls_per_build=0), gateway_factory=lambda endpoint: gateway(content))
-        with self.assertRaises(ModelGatewayError):
-            gw.complete_json(system='s', user='u', task='codegen')
-        [kept] = gw.rejected_json
-        self.assertEqual((kept['model'], kept['task'], kept['raw']), ('m', 'codegen', content))
-        self.assertIn('content before the JSON value', kept['diagnostic']['reason'])
+        self.assertEqual(gw.complete_json(system='s', user='u', task='codegen'), {'files': []})
+        [kept] = gw.accepted_json_manifest
+        self.assertEqual(kept['diagnostic']['tail_status'], 'benign_prose')
+        self.assertEqual(kept['diagnostic']['tail'], '\\nand one more thing')
+
+    def test_actual_invalid_json_is_still_rejected(self):
+        content = 'not json\\nand one more thing'
+        gw = gateway(content)
+        with self.assertRaises(ModelJSONRejected):
+            gw.complete_json(system='s', user='u')
 
 
 if __name__ == '__main__':
