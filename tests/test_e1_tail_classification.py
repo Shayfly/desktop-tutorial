@@ -17,6 +17,16 @@ class TailClassification(unittest.TestCase):
         self.verify('{"files": []}  ', 'benign_empty', 'accepted')
         self.verify('{"files": []}   \\n', 'benign_empty', 'accepted')
 
+    def test_empty_tail_forms_are_classified_by_shape(self):
+        root = '{"files": []}'
+        for suffix in ('  ', '\n', '\\n', '\\t', '\\n\\t', '  \\n  '):
+            with self.subTest(suffix=repr(suffix)):
+                obj, diag = parse_model_json(root + suffix)
+                self.assertEqual(obj, {'files': []})
+                self.assertEqual(diag['tail_status'], 'benign_empty')
+                self.assertEqual(diag['verdict'], 'accepted')
+                self.assertFalse(diag['tail_conflict'])
+
     def test_benign_prose(self):
         self.verify('{"files": []} AND ALSO', 'benign_prose', 'accepted_with_unexplained_tail')
 

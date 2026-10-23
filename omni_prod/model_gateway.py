@@ -324,7 +324,7 @@ def _parse_json_object(text: str, diag: dict | None = None):
             diag['trailing_starts'] = tail[:80]
             diag['tail_conflict'] = False
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
-            if not tail or re.fullmatch(r'(?:\\\\[nrt]|\\s)+', tail):
+            if not re.sub(r'\\[nrt]', ' ', tail).strip():
                 # Literal escaped whitespace emitted after JSON is a known empty envelope.
                 # Preserve it verbatim in diag['tail'] for evidence.
                 status = 'benign_empty'
