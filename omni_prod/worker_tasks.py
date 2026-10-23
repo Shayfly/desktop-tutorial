@@ -906,7 +906,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
             'behavior_acceptance': behavior_evidence(engine),
-            'consistency_gate': consistency_evidence(engine),
+            'consistency_gate': consistency_evidence(engine, gateway),
             'preview_smoke': preview_smoke_evidence(engine),
             'visual_qa': visual_evidence(engine),
             'quality_report': quality_report.to_dict() if quality_report is not None else None,

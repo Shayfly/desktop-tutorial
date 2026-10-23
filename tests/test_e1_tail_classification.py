@@ -61,5 +61,27 @@ class TailClassification(unittest.TestCase):
                             'conflict_second_object' in f['message']
                             for f in report['advisories']))
 
+
+    def test_worker_build_evidence_contains_consistency_conflict(self):
+        from types import SimpleNamespace
+        from omni_prod.consistency_gate import ConsistencyGateExecutor
+        from omni_prod.worker_tasks import consistency_evidence, rejected_json_evidence
+        wrapper = ConsistencyGateExecutor(SimpleNamespace(), enabled=True)
+        engine = SimpleNamespace(executor=wrapper)
+        gateway = SimpleNamespace(accepted_json_manifest=[{
+            'task': 'codegen', 'attempt_seq': 11, 'diagnostic': {
+                'tail_status': 'conflict_second_object', 'tail_conflict': True,
+                'tail': '{"other":true}'}}])
+        manifest = {
+            'consistency_gate': consistency_evidence(engine, gateway),
+            **rejected_json_evidence(gateway),
+        }
+        self.assertIn('model_json_tail', manifest['consistency_gate']['last']['checks_run'])
+        self.assertTrue(any(
+            item['check'] == 'model_json_tail' and 'conflict_second_object' in item['message']
+            for item in manifest['consistency_gate']['last']['advisories']))
+        self.assertEqual(manifest['model_json_tail_conflicts'][0]['tail_status'],
+                         'conflict_second_object')
+
 if __name__ == '__main__':
     unittest.main()
