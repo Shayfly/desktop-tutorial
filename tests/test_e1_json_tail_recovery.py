@@ -27,14 +27,16 @@ class E1TailRecovery(unittest.TestCase):
         self.assertEqual(obj['files'][0]['path'], '.omni/project.json')
         self.assertEqual(diagnostic['verdict'], 'accepted_with_unexplained_tail')
         self.assertEqual(diagnostic['trailing_chars'], 18)
-        self.assertEqual(diagnostic['tail_status'], 'unexplained')
+        self.assertEqual(diagnostic['tail_status'], 'benign_prose')
         self.assertEqual(diagnostic['tail'], raw[7807:])
 
     def test_second_object_is_recorded_not_mislabelled_as_clean(self):
         obj, diagnostic = parse_model_json('{"files":[]}{"other":true}')
         self.assertEqual(obj, {'files': []})
-        self.assertEqual(diagnostic['tail_status'], 'unexplained')
+        self.assertEqual(diagnostic['tail_status'], 'conflict_second_object')
         self.assertEqual(diagnostic['tail'], '{"other":true}')
+        self.assertTrue(diagnostic['tail_conflict'])
+        self.assertEqual(diagnostic['verdict'], 'accepted_with_conflict')
 
     def test_bad_first_object_is_not_recovered(self):
         obj, diagnostic = parse_model_json('{"files": invalid}tail')
