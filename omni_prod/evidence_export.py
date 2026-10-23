@@ -160,11 +160,16 @@ def export(conn, build_id: str, env: dict[str, str] | None = None, store: Any = 
                                          for e in (ev.get('model_route_events') or []) if isinstance(e, dict)][-30:])},
         'repair': {'rounds': ev.get('repair_rounds'), 'stop_reason': ev.get('repair_stop_reason'),
                    'release_ready': ev.get('release_ready'), 'snapshots': _clean(ev.get('repair_snapshots') or ev.get('round_snapshots'))},
-        'model_json_responses': {'accepted': _clean(ev.get('accepted_model_json') or []),
-                                 'rejected': _clean(ev.get('rejected_model_json') or []),
+        'model_json_responses': {'accepted': _clean(ev.get('accepted_model_json') or [], 250000),
+                                 'rejected': _clean(ev.get('rejected_model_json') or [], 250000),
                                  'accepted_durable': ev.get('accepted_model_json_durable'),
                                  'rejected_durable': ev.get('rejected_model_json_durable'),
                                  'note': 'Full redacted raw text is held at each object-store key.'},
+        'model_json_tail_conflicts': _clean(ev.get('model_json_tail_conflicts') or []),
+        'model_json_tail_counts': {kind: sum(1 for row in (ev.get('accepted_model_json') or [])
+                                               if (row.get('diagnostic') or {}).get('tail_status') == kind)
+                                   for kind in ('benign_empty', 'benign_prose', 'benign_second_object_match',
+                                                'conflict_second_object', 'malformed_tail')},
         'evidence_keys': sorted(ev),
         'runtime': runtime(env),
     }
