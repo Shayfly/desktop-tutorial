@@ -244,6 +244,11 @@ def rejected_json_evidence(gateway) -> dict:
             'accepted_model_json': [
                 {k: redact_fields(v) if k in ('diagnostic', 'store_error') else v for k, v in r.items()}
                 for r in getattr(gateway, 'accepted_json_manifest', [])],
+            'model_json_tail_conflicts': [
+                {'task': r.get('task'), 'attempt_seq': r.get('attempt_seq'), 'key': r.get('key'),
+                 'tail_status': (r.get('diagnostic') or {}).get('tail_status')}
+                for r in getattr(gateway, 'accepted_json_manifest', [])
+                if (r.get('diagnostic') or {}).get('tail_conflict')],
             'accepted_model_json_durable': (
                 all(bool(r.get('key')) and not r.get('store_error') for r in gateway.accepted_json_manifest)
                 if getattr(gateway, 'accepted_json_manifest', []) else None)}
