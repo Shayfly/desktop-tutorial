@@ -14,7 +14,7 @@ class E1TailRecovery(unittest.TestCase):
         suffix = '"}]}'
         body = prefix + ('x' * (7807 - len(prefix) - len(suffix))) + suffix
         assert len(body) == 7807
-        return body + 'UNEXPLAINED_TAIL_18'
+        return body + 'UNEXPLAINED_TAIL18'
 
     def test_real_error_shape_recovers_without_silent_tail_discard(self):
         raw = self.failed_shape()
