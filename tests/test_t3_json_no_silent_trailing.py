@@ -50,7 +50,8 @@ class TrailingContentIsNotIgnored(unittest.TestCase):
     def test_a_second_object(self):
         obj, d = parse_model_json('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
         self.assertEqual(obj, {'files': []})
-        self.assertEqual(d['tail_status'], 'unexplained')
+        self.assertEqual(d['tail_status'], 'conflict_second_object')
+        self.assertTrue(d['tail_conflict'])
         self.assertTrue(d['trailing_chars'] > 0)
 
     def test_prose_before_the_object(self):
