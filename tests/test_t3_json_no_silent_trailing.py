@@ -91,10 +91,10 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
         self.assertEqual(gw.complete_json(system='s', user='u', task='codegen'), {'files': []})
         [kept] = gw.accepted_json_manifest
         self.assertEqual(kept['diagnostic']['tail_status'], 'benign_prose')
-        self.assertEqual(kept['diagnostic']['tail'], '\\nand one more thing')
+        self.assertEqual(kept['diagnostic']['tail'], '\nand one more thing')
 
     def test_actual_invalid_json_is_still_rejected(self):
-        content = 'not json\\nand one more thing'
+        content = 'not json\nand one more thing'
         gw = gateway(content)
         with self.assertRaises(ModelJSONRejected):
             gw.complete_json(system='s', user='u')
