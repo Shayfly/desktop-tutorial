@@ -291,7 +291,7 @@ def parse_model_json(raw: str) -> tuple[object | None, dict]:
             'starts': text[:60], 'verdict': 'rejected', 'reason': ''}
     obj, exc = _parse_json_object(text, diag)
     if exc is None:
-        diag['verdict'] = 'accepted'
+        diag['verdict'] = 'accepted_with_unexplained_tail' if diag.get('tail_status') else 'accepted'
         return obj, diag
     diag['reason'] = f'{exc.msg} at char {exc.pos} of {len(text)}'
     if envelope == 'none' and text.startswith('```'):
@@ -320,8 +320,10 @@ def _parse_json_object(text: str, diag: dict | None = None):
             if rest.strip():
                 diag['trailing_chars'] = len(rest.strip())
                 diag['trailing_starts'] = rest.strip()[:80]
-                return None, json.JSONDecodeError('content after the first JSON value (not a known envelope)',
-                                                  candidate, end)
+                diag['tail_status'] = 'unexplained'
+                diag['tail'] = rest
+                diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
+                return obj, None
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
             return obj, None
     return None, first
