@@ -8,7 +8,7 @@ class TailClassification(unittest.TestCase):
         self.assertEqual(obj, {'files': []})
         self.assertEqual(diag['tail_status'], status)
         self.assertEqual(diag['verdict'], verdict)
-        self.assertEqual(diag['tail'], raw[len('{"files": []}'):])
+        self.assertEqual(diag['tail'], raw.strip()[len('{"files": []}'):])
         self.assertEqual(diag['trailing_chars'], len(diag['tail']))
         self.assertEqual(diag['trailing_starts'], diag['tail'][:80])
         return diag
