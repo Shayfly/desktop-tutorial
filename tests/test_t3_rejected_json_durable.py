@@ -17,8 +17,8 @@ from omni_prod.worker_tasks import install_rejected_json_sink, rejected_json_evi
 from tests.test_t3_json_no_silent_trailing import gateway as answering
 
 # Contract migration H1: RAW is genuinely malformed. Tail-bearing valid JSON is tested separately.
-RAW = 'not json\\nand one more thing'
-TAIL_RAW = '{"files": [{"path": "app.py", "content": "x"}]}\\n\\nI also changed config.py, see above.'
+RAW = 'not json\nand one more thing'
+TAIL_RAW = '{"files": [{"path": "app.py", "content": "x"}]}\n\nI also changed config.py, see above.'
 
 
 class Store:
