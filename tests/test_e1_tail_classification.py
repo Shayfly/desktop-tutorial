@@ -83,5 +83,31 @@ class TailClassification(unittest.TestCase):
         self.assertEqual(manifest['model_json_tail_conflicts'][0]['tail_status'],
                          'conflict_second_object')
 
+    def test_non_conflicting_build_evidence_unchanged_on_both_paths(self):
+        from types import SimpleNamespace
+        from omni_prod.consistency_gate import ConsistencyGateExecutor
+        from omni_prod.worker_tasks import consistency_evidence, rejected_json_evidence
+        for manifest_rows in ([], [{'task': 'codegen', 'attempt_seq': 11,
+                                      'diagnostic': {'tail_conflict': False,
+                                                     'tail_status': 'benign_prose'}}]):
+            with self.subTest(rows=manifest_rows):
+                gate = ConsistencyGateExecutor(SimpleNamespace(), enabled=True)
+                # Reproduce the pre-existing report shape, before evidence serialization.
+                gate.last_consistency = {'passed': True, 'checks_run': ['syntax'],
+                                         'skipped': {}, 'blocking': [], 'advisories': []}
+                gate.consistency_rounds = [{'passed': True, 'blocking': 0, 'advisories': 0}]
+                engine = SimpleNamespace(executor=gate)
+                gateway = SimpleNamespace(accepted_json_manifest=manifest_rows)
+                original = {'last': dict(gate.last_consistency),
+                            'rounds': list(gate.consistency_rounds)}
+                quality_path = consistency_evidence(engine, gateway)
+                build_path = {'consistency_gate': consistency_evidence(engine, gateway),
+                              **rejected_json_evidence(gateway)}
+                self.assertEqual(quality_path, original)
+                self.assertEqual(build_path['consistency_gate'], original)
+                self.assertNotIn('model_json_tail', quality_path['last']['checks_run'])
+                self.assertEqual(quality_path['last']['advisories'], [])
+                self.assertEqual(build_path['model_json_tail_conflicts'], [])
+
 if __name__ == '__main__':
     unittest.main()
