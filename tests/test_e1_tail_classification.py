@@ -9,12 +9,13 @@ class TailClassification(unittest.TestCase):
         self.assertEqual(diag['tail_status'], status)
         self.assertEqual(diag['verdict'], verdict)
         self.assertEqual(diag['tail'], raw.strip()[len('{"files": []}'):])
-        self.assertEqual(diag['trailing_chars'], len(diag['tail']))
-        self.assertEqual(diag['trailing_starts'], diag['tail'][:80])
+        self.assertEqual(diag['trailing_chars'], len(diag['tail'].strip()))
+        self.assertEqual(diag['trailing_starts'], diag['tail'].strip()[:80])
         return diag
 
     def test_benign_empty(self):
         self.verify('{"files": []}  ', 'benign_empty', 'accepted')
+        self.verify('{"files": []}   \\n', 'benign_empty', 'accepted')
 
     def test_benign_prose(self):
         self.verify('{"files": []} AND ALSO', 'benign_prose', 'accepted_with_unexplained_tail')
@@ -33,6 +34,32 @@ class TailClassification(unittest.TestCase):
     def test_negative_tail_not_silently_eaten(self):
         d = self.verify('{"files": []} SUSPICIOUS', 'benign_prose', 'accepted_with_unexplained_tail')
         self.assertEqual(d['tail'], ' SUSPICIOUS')
+
+
+    def test_required_whitespace_and_18_character_examples(self):
+        self.verify('{"files": []}\\n\\nNote: I also changed b.py', 'benign_prose', 'accepted_with_unexplained_tail')
+        self.verify('{"files": []}UNEXPLAINED_TAIL18', 'benign_prose', 'accepted_with_unexplained_tail')
+        self.verify('{"files": []}{"files": []}', 'benign_second_object_match', 'accepted_with_unexplained_tail')
+        self.verify('{"files": []}{"other":true}', 'conflict_second_object', 'accepted_with_conflict')
+        self.verify('{"files": []}  {"broken":}  ', 'malformed_tail', 'accepted_with_conflict')
+
+    def test_invalid_first_object_still_rejected(self):
+        obj, diag = parse_model_json('{"files": invalid}tail')
+        self.assertIsNone(obj)
+        self.assertEqual(diag['verdict'], 'rejected')
+
+    def test_existing_consistency_verification_reports_conflict(self):
+        from omni_prod.consistency_gate import ConsistencyGateExecutor
+        from types import SimpleNamespace
+        executor = ConsistencyGateExecutor(SimpleNamespace(), enabled=True)
+        executor.record_model_json_conflicts([{'task': 'codegen', 'attempt_seq': 3,
+                                               'tail_status': 'conflict_second_object'}])
+        report = executor.last_consistency
+        self.assertTrue(report['passed'])
+        self.assertIn('model_json_tail', report['checks_run'])
+        self.assertTrue(any(f['check'] == 'model_json_tail' and
+                            'conflict_second_object' in f['message']
+                            for f in report['advisories']))
 
 if __name__ == '__main__':
     unittest.main()

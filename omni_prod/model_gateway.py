@@ -319,11 +319,11 @@ def _parse_json_object(text: str, diag: dict | None = None):
                 continue
             rest = candidate[end:]
             diag['tail'] = rest
-            diag['trailing_chars'] = len(rest)
-            diag['trailing_starts'] = rest[:80]
+            tail = rest.strip()
+            diag['trailing_chars'] = len(tail)
+            diag['trailing_starts'] = tail[:80]
             diag['tail_conflict'] = False
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
-            tail = rest.strip()
             if not tail:
                 status = 'benign_empty'
             elif tail[0] in '{[':
@@ -344,6 +344,7 @@ def _parse_json_object(text: str, diag: dict | None = None):
                         except json.JSONDecodeError:
                             pass
                     if status == 'malformed_tail':
+                        # Local tail repair failed; treat as conflicting evidence, not a parser failure.
                         diag['tail_conflict'] = True
                 if status == 'conflict_second_object':
                     diag['tail_conflict'] = True

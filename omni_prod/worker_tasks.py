@@ -317,7 +317,7 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
     try:
         executor = getattr(engine, 'executor', None)
         evidence = {
-            'consistency_gate': consistency_evidence(engine),
+            'consistency_gate': consistency_evidence(engine, gateway),
             'preview_smoke': preview_smoke_evidence(engine),
             'behavior_acceptance': behavior_evidence(engine),
             'browser_check': getattr(executor, 'last_probe', None),
@@ -333,12 +333,19 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
         return None
 
 
-def consistency_evidence(engine) -> dict | None:
+def consistency_evidence(engine, gateway=None) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .consistency_gate import ConsistencyGateExecutor
     target = find_in_chain(getattr(engine, 'executor', None), ConsistencyGateExecutor)
     if target is None or not target.enabled:
         return None
+    if gateway is not None:
+        target.record_model_json_conflicts([
+            {'task': r.get('task'), 'attempt_seq': r.get('attempt_seq'),
+             'tail_status': (r.get('diagnostic') or {}).get('tail_status')}
+            for r in getattr(gateway, 'accepted_json_manifest', [])
+            if (r.get('diagnostic') or {}).get('tail_conflict')
+        ])
     return {'last': target.last_consistency, 'rounds': list(target.consistency_rounds)}
 from .modification_engine import CandidateModificationEngine
 from .provider_usage import ProviderUsageLedger

@@ -410,6 +410,32 @@ class ConsistencyGateExecutor:
         self.last_consistency = None
         self.consistency_rounds: list[dict] = []
 
+    def record_model_json_conflicts(self, conflicts: list[dict]) -> None:
+        """Attach model-answer conflicts to the existing consistency verification result.
+
+        This is advisory (the extracted first object remains usable) but visible
+        in the same report that release quality and build evidence consume.
+        """
+        if not conflicts:
+            return
+        if self.last_consistency is None:
+            self.last_consistency = {'passed': True, 'checks_run': [], 'skipped': {},
+                                     'blocking': [], 'advisories': []}
+        checks = self.last_consistency.setdefault('checks_run', [])
+        if 'model_json_tail' not in checks:
+            checks.append('model_json_tail')
+        advisories = self.last_consistency.setdefault('advisories', [])
+        existing = {(x.get('check'), x.get('message')) for x in advisories}
+        for item in conflicts:
+            message = ('model JSON tail conflict: task=' + str(item.get('task')) +
+                       ', attempt=' + str(item.get('attempt_seq')) +
+                       ', tail_status=' + str(item.get('tail_status')))
+            if ('model_json_tail', message) not in existing:
+                advisories.append(Finding('model_json_tail', 'model_response', None, message,
+                                         'review full redacted model response in build evidence',
+                                         blocking=False).__dict__)
+                existing.add(('model_json_tail', message))
+
     def __getattr__(self, item):
         return getattr(self._inner, item)
 
