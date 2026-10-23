@@ -273,6 +273,24 @@ class RoutedModelGateway:
         self.usage.record(usage)
         self._fill(record, gateway, usage, option, elapsed)
         self._settle(route, record)
+        # E1: persist ALL parsed JSON answers, including accepted ones and unexplained tails.
+        # Reuse the same private, redacted, build-scoped object-store sink as rejected answers.
+        if method == 'complete_json' and isinstance(getattr(gateway, 'last_raw_response', None), str):
+            import hashlib
+            raw = gateway.last_raw_response
+            diagnostic = dict(getattr(gateway, 'last_json_diagnostic', None) or {})
+            entry = {'model': route.endpoint.name, 'provider_model': route.endpoint.model,
+                     'attempt_seq': record.attempt_seq, 'task': task or 'general',
+                     'diagnostic': diagnostic,
+                     'raw_sha256': hashlib.sha256(raw.encode('utf-8', 'replace')).hexdigest(),
+                     'raw_chars': len(raw)}
+            sink = getattr(self, 'rejected_json_sink', None)
+            if sink is not None:
+                try:
+                    entry['key'] = sink(entry, raw)
+                except Exception as sink_exc:
+                    entry['store_error'] = f'{type(sink_exc).__name__}: {sink_exc}'[:300]
+            self.accepted_json_manifest = getattr(self, 'accepted_json_manifest', []) + [entry]
         record.outcome = 'ok'
         if route.endpoint.external:
             self.health.record_success(route.endpoint.name)

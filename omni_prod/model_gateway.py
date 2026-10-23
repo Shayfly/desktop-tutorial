@@ -291,7 +291,8 @@ def parse_model_json(raw: str) -> tuple[object | None, dict]:
             'starts': text[:60], 'verdict': 'rejected', 'reason': ''}
     obj, exc = _parse_json_object(text, diag)
     if exc is None:
-        diag['verdict'] = 'accepted'
+        diag['verdict'] = ('accepted_with_conflict' if diag.get('tail_conflict') else
+                           'accepted_with_unexplained_tail' if diag.get('tail_status') != 'benign_empty' else 'accepted')
         return obj, diag
     diag['reason'] = f'{exc.msg} at char {exc.pos} of {len(text)}'
     if envelope == 'none' and text.startswith('```'):
@@ -317,12 +318,41 @@ def _parse_json_object(text: str, diag: dict | None = None):
                 first = first or exc
                 continue
             rest = candidate[end:]
-            if rest.strip():
-                diag['trailing_chars'] = len(rest.strip())
-                diag['trailing_starts'] = rest.strip()[:80]
-                return None, json.JSONDecodeError('content after the first JSON value (not a known envelope)',
-                                                  candidate, end)
+            diag['tail'] = rest
+            tail = rest.strip()
+            diag['trailing_chars'] = len(tail)
+            diag['trailing_starts'] = tail[:80]
+            diag['tail_conflict'] = False
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
+            if not re.sub(r'\\[nrt]', ' ', tail).strip():
+                # Literal escaped whitespace emitted after JSON is a known empty envelope.
+                # Preserve it verbatim in diag['tail'] for evidence.
+                status = 'benign_empty'
+            elif tail[0] in '{[':
+                try:
+                    # A second complete value only; partial values are never treated as matches.
+                    second = json.loads(tail)
+                    status = 'benign_second_object_match' if second == obj else 'conflict_second_object'
+                except json.JSONDecodeError:
+                    status = 'malformed_tail'
+                    # One bounded, deterministic repair pass for malformed trailing JSON.
+                    fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', tail)
+                    if fixed != tail:
+                        try:
+                            second = json.loads(fixed)
+                            status = ('benign_second_object_match' if second == obj
+                                      else 'conflict_second_object')
+                            diag['repairs'].append('tail_invalid_escapes_doubled')
+                        except json.JSONDecodeError:
+                            pass
+                    if status == 'malformed_tail':
+                        # Local tail repair failed; treat as conflicting evidence, not a parser failure.
+                        diag['tail_conflict'] = True
+                if status == 'conflict_second_object':
+                    diag['tail_conflict'] = True
+            else:
+                status = 'benign_prose'
+            diag['tail_status'] = status
             return obj, None
     return None, first
 
