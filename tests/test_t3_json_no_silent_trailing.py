@@ -42,13 +42,15 @@ class TrailingContentIsNotIgnored(unittest.TestCase):
         return ctx.exception.diagnostic
 
     def test_an_explanation_after_the_object(self):
-        d = self.rejected('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
-        self.assertIn('content after the first JSON value', d['reason'])
+        obj, d = parse_model_json('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
+        self.assertEqual(obj['files'][0]['path'], 'a.py')
+        self.assertEqual(d['verdict'], 'accepted_with_unexplained_tail')
         self.assertEqual(d['trailing_starts'], 'Note: I also changed b.py')
 
     def test_a_second_object(self):
-        d = self.rejected('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
-        self.assertIn('content after the first JSON value', d['reason'])
+        obj, d = parse_model_json('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
+        self.assertEqual(obj, {'files': []})
+        self.assertEqual(d['tail_status'], 'unexplained')
         self.assertTrue(d['trailing_chars'] > 0)
 
     def test_prose_before_the_object(self):
@@ -82,7 +84,7 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
         from omni_prod.model_policy import ModelUsePolicy
         from omni_prod.routed_gateway import ProviderRoute, RoutedModelGateway
         ep = ModelEndpoint(name='m', base_url='https://x.invalid', model='m', api_key='k', external=False)
-        content = '{"files": []}\nand one more thing'
+        content = 'not json\nand one more thing'
         gw = RoutedModelGateway(primary=ProviderRoute(ep, declared_quality=90), policy=ModelUsePolicy(
             zero_cost_mode=True, allow_external_fallback=False, external_budget_usd=Decimal('0'),
             max_external_calls_per_build=0), gateway_factory=lambda endpoint: gateway(content))
@@ -90,7 +92,7 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
             gw.complete_json(system='s', user='u', task='codegen')
         [kept] = gw.rejected_json
         self.assertEqual((kept['model'], kept['task'], kept['raw']), ('m', 'codegen', content))
-        self.assertIn('content after the first JSON value', kept['diagnostic']['reason'])
+        self.assertIn('content before the JSON value', kept['diagnostic']['reason'])
 
 
 if __name__ == '__main__':
