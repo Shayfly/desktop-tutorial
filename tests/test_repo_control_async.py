@@ -100,3 +100,49 @@ def test_two_concurrent_jobs_then_queue(tmp_path):
             time.sleep(.01)
         with module.JOBS_LOCK:
             assert all(module.JOBS[j]["status"]=="done" for j in ids)
+
+def test_deadline_while_repo_lock_busy_job_endpoint_remains_responsive(tmp_path):
+    import http.server
+    import json
+    import urllib.request
+    module.ROOT=tmp_path
+    (tmp_path/".git").mkdir()
+    module.TOKEN="t"*48
+    server=http.server.ThreadingHTTPServer(("127.0.0.1",0),module.Handler)
+    server_thread=threading.Thread(target=server.serve_forever,daemon=True)
+    server_thread.start()
+    taken=threading.Event()
+    release=threading.Event()
+    def hold_lock():
+        with module.LOCK:
+            taken.set()
+            release.wait(3)
+    holder=threading.Thread(target=hold_lock)
+    holder.start()
+    jid=None
+    original_timeout=module.JOB_TIMEOUT
+    try:
+        assert taken.wait(1)
+        module.JOB_TIMEOUT=0.15
+        jid=module.launch_job([["ls"]])
+        assert jid
+        url=f"http://127.0.0.1:{server.server_port}/job?id={jid}&token={module.TOKEN}"
+        deadline=time.monotonic()+1.5
+        snapshot=None
+        while time.monotonic()<deadline:
+            with urllib.request.urlopen(url,timeout=0.5) as response:
+                snapshot=json.load(response)
+            if snapshot["status"]=="done":
+                break
+            time.sleep(.02)
+        assert snapshot["status"]=="done"
+        assert snapshot["result"]["exit_code"]==124
+        assert not release.is_set(), "job only expired after lock was released"
+    finally:
+        module.JOB_TIMEOUT=original_timeout
+        release.set()
+        holder.join()
+        server.shutdown();server.server_close();server_thread.join()
+        if jid:
+            with module.JOBS_LOCK:
+                module.JOBS.pop(jid,None)

@@ -240,22 +240,56 @@ def launch_job(parts):
                       "sha":None,"dirty":None,
                       "created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
     def worker():
-        with ACTIVE:
-            deadline=admitted+JOB_TIMEOUT
-            # Serialize every async worktree read against writes and checkout.
-            with LOCK:
-                metadata_sha=git("rev-parse","HEAD")
-                metadata_dirty=git("status","--porcelain")
+        deadline=admitted+JOB_TIMEOUT
+        def expired():
+            return {"exit_code":124,"stdout":"","stderr":"job timeout 120s",
+                    "truncated":True}
+        def finish(result, sha=None, dirty=None):
+            with JOBS_LOCK:
+                JOBS[job_id].update(status="done", result=result, sha=sha, dirty=dirty)
+        remaining=deadline-time.monotonic()
+        if remaining<=0 or not ACTIVE.acquire(timeout=remaining):
+            finish(expired())
+            return
+        try:
+            remaining=deadline-time.monotonic()
+            if remaining<=0 or not LOCK.acquire(timeout=remaining):
+                finish(expired())
+                return
+            try:
+                # Git metadata calls consume the same deadline as queue and lock waits.
+                remaining=deadline-time.monotonic()
+                if remaining<=0:
+                    finish(expired())
+                    return
+                metadata_sha=run(["git","rev-parse","HEAD"],git_credentials=True,timeout=remaining)
+                if metadata_sha["exit_code"]==124:
+                    finish(expired())
+                    return
                 sha=metadata_sha["stdout"].strip() if metadata_sha["exit_code"]==0 else None
+                remaining=deadline-time.monotonic()
+                if remaining<=0:
+                    finish(expired(),sha=sha)
+                    return
+                metadata_dirty=run(["git","status","--porcelain"],git_credentials=True,timeout=remaining)
+                if metadata_dirty["exit_code"]==124:
+                    finish(expired(),sha=sha)
+                    return
                 dirty=bool(metadata_dirty["stdout"].strip()) if metadata_dirty["exit_code"]==0 else None
+                if time.monotonic()>=deadline:
+                    finish(expired(),sha=sha,dirty=dirty)
+                    return
                 with JOBS_LOCK:
                     JOBS[job_id].update(status="running",sha=sha,dirty=dirty)
                 try:
                     result=run_pipeline(parts,deadline=deadline)
                 except Exception:
                     result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
-                with JOBS_LOCK:
-                    JOBS[job_id].update(status="done",result=result)
+                finish(result,sha=sha,dirty=dirty)
+            finally:
+                LOCK.release()
+        finally:
+            ACTIVE.release()
     threading.Thread(target=worker,daemon=True,name="repo-job-"+job_id[:8]).start()
     return job_id
 
