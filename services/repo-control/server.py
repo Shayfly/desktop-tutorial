@@ -81,6 +81,7 @@ class Handler(BaseHTTPRequestHandler):
         pathname=urlsplit(self.path).path
         supplied=q.get("token",[""])[0]
         header=self.headers.get("Authorization","")
+        if pathname=="/health" and self.command=="GET": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
         if not TOKEN or not (hmac.compare_digest(supplied,TOKEN) or hmac.compare_digest(header,"Bearer "+TOKEN)):
             return self.reply(401,{"error":"unauthorized"})
         if pathname=="/health": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
