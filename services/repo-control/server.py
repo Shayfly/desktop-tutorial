@@ -14,13 +14,12 @@ LOCK=threading.RLock()
 MAX=50*1024
 ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg"}
 GIT_READ={"status","diff","log","show","rev-parse","branch"}
-DENY={"-exec","-execdir","-ok","-okdir","--exec","--output","-c","-f","--file","--config","-o","--pager","--external-diff"}
 def audit(action, result, detail=""):
     item={"at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"action":action,"result":result,"detail":str(detail)[:150]}
     # No URL, token, command, file body, or GitHub API response in application logs.
     print(json.dumps(item),flush=True)
 
-def run(args, *, git_credentials=False, timeout=120):
+def run(args, *, git_credentials=False, timeout=120, input_bytes=None):
     """Bounded-memory subprocess capture; on timeout kill the whole process group."""
     env = os.environ.copy()
     for name in ("GITHUB_PAT", "SERVICE_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
@@ -32,8 +31,12 @@ def run(args, *, git_credentials=False, timeout=120):
         env["GIT_ASKPASS"] = "/app/askpass.sh"
     try:
         proc = subprocess.Popen(args, cwd=ROOT, env=env, shell=False,
+                                stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 start_new_session=True)
+        if input_bytes is not None:
+            proc.stdin.write(input_bytes)
+            proc.stdin.close()
         output = {"stdout": bytearray(), "stderr": bytearray()}
         truncated = False
         selector = selectors.DefaultSelector()
@@ -80,6 +83,69 @@ def run(args, *, git_credentials=False, timeout=120):
     except OSError as exc:
         return {"exit_code":127, "stdout":"","stderr":type(exc).__name__,
                 "truncated":False}
+
+
+def validate_segment(argv):
+    """A guardrail against accidental mutations, not a sandbox."""
+    if not argv or argv[0] not in ALLOWED:
+        return False
+    cmd = argv[0]
+    opts = argv[1:]
+    if cmd == "git":
+        return len(opts) >= 1 and opts[0] in GIT_READ and not any(
+            x in ("-c", "--config", "--external-diff", "--output") for x in opts)
+    if cmd == "python3":
+        if opts[:2] in (["-m", "pytest"], ["-m", "compileall"]):
+            return True
+        return bool(opts and opts[0].endswith(".py") and not opts[0].startswith("-")
+                    and safe_script(opts[0]))
+    if cmd == "find":
+        return not any(x in ("-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint",
+                            "-fprint0", "-fprintf", "-fls") for x in opts)
+    if cmd == "sed":
+        return not any(x == "-i" or x.startswith("-i") or x.startswith("--in-place") for x in opts)
+    if cmd == "awk":
+        return not any(x in ("-i", "--include") for x in opts)
+    return not (cmd in ("grep", "rg") and any(x in ("--include-from",) for x in opts))
+
+def safe_script(name):
+    try:
+        path = repo_path(name)
+        return path.is_file() and path.suffix == ".py"
+    except (OSError, ValueError):
+        return False
+
+def split_pipeline(command):
+    lexer = shlex.shlex(command, posix=True, punctuation_chars="|")
+    lexer.whitespace_split = True
+    args = list(lexer)
+    if not args or "||" in args:
+        raise ValueError("invalid pipeline")
+    parts = [[]]
+    for token in args:
+        if token == "|":
+            if not parts[-1]:
+                raise ValueError("empty pipeline stage")
+            parts.append([])
+        else:
+            parts[-1].append(token)
+    if len(parts) > 5 or not parts[-1]:
+        raise ValueError("invalid pipeline")
+    return parts
+
+def run_pipeline(parts):
+    """Stages execute without shell; intermediate streams capped and marked."""
+    previous = None
+    accumulated_truncated = False
+    for stage in parts:
+        result = run(stage, input_bytes=previous)
+        accumulated_truncated = accumulated_truncated or result["truncated"]
+        if result["exit_code"] != 0:
+            result["truncated"] = accumulated_truncated
+            return result
+        previous = result["stdout"].encode("utf-8", "replace")
+    result["truncated"] = accumulated_truncated
+    return result
 
 def repo_path(name):
     if not name or name.startswith("/"): raise ValueError("invalid relative path")
@@ -160,12 +226,11 @@ class Handler(BaseHTTPRequestHandler):
                     saved=autosave(name);audit("write","ok" if saved["ok"] else "partial",name)
                     return self.reply(200 if saved["ok"] else 503,{"written":name,"bytes":len(data),"git_persistence":saved})
                 if pathname=="/run" and self.command=="GET":
-                    argv=shlex.split(q.get("cmd",[""])[0])
-                    if not argv or argv[0] not in ALLOWED or any(x in DENY or x.startswith("-exec") for x in argv[1:]):
-                        return self.reply(403,{"error":"command not allowed"})
-                    if argv[0]=="git" and (len(argv)<2 or argv[1] not in GIT_READ):return self.reply(403,{"error":"git read only"})
-                    if argv[0]=="python3" and argv[1:3] not in (["-m","pytest"],["-m","compileall"]):return self.reply(403,{"error":"python3 restricted"})
-                    return self.reply(200,run(argv))
+                    parts=split_pipeline(q.get("cmd",[""])[0])
+                    if not all(validate_segment(argv) for argv in parts):
+                        audit("run:denied","blocked","command allowlist or mutating flag")
+                        return self.reply(403,{"error":"command not allowed; write via /write"})
+                    return self.reply(200,run_pipeline(parts))
                 if pathname=="/git" and self.command in ("GET","POST"):
                     op=q.get("op",[""])[0]
                     commands={"status":["git","status","--short","--branch"],"diff":["git","diff","--no-ext-diff"],"log":["git","log","-10","--oneline"],"pull":["git","pull","--ff-only"],"add":["git","add","--all"],"push":["git","push"]}

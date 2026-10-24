@@ -55,3 +55,23 @@ def test_push_failure_not_success(tmp_path):
         {"exit_code":1,"stdout":"","stderr":"remote rejected"}]):
         result=module.autosave("file.txt")
     assert result["ok"] is False and result["phase"]=="push"
+
+def test_read_options_and_mutations():
+    assert module.validate_segment(["grep","-c","needle","text.txt"])
+    assert module.validate_segment(["grep","-o","needle","text.txt"])
+    assert module.validate_segment(["wc","-c","text.txt"])
+    assert not module.validate_segment(["sed","-i","s/a/b/","a.txt"])
+    assert not module.validate_segment(["find",".","-delete"])
+    assert not module.validate_segment(["find",".","-exec","sh","-c","echo bad",";"])
+    assert not module.validate_segment(["bash","-c","id"])
+
+def test_pipe_and_python_script(tmp_path):
+    module.ROOT=tmp_path
+    (tmp_path/"simple.py").write_text("print('ok-script')\n")
+    assert module.validate_segment(["python3","simple.py"])
+    assert not module.validate_segment(["python3","-c","print(1)"])
+    assert not module.validate_segment(["python3","../escape.py"])
+    parts=module.split_pipeline("find . | head -n 1")
+    assert parts == [["find","."],["head","-n","1"]]
+    assert module.run_pipeline(parts)["exit_code"] == 0
+    assert module.run(["python3","simple.py"])["stdout"].strip()=="ok-script"
