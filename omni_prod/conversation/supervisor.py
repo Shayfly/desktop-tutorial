@@ -107,6 +107,7 @@ class Turn:
     cost_state: str = 'CONFIRMED_ZERO'
     reservation_id: str | None = None
     explained: bool = False                        # this answer explained why the open question matters
+    understanding: dict | None = None              # M7: what the intake agent understood, with the customer's words
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -114,7 +115,7 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation}
+                'interpretation': self.interpretation, 'understanding': self.understanding}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -405,13 +406,25 @@ class ConversationSupervisor:
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
+        # M7: one agent reads the whole conversation and says what it understood ("ביקשת" with the customer's
+        # words, "הנחנו" for defaults). It proposes; the customer corrects. It never binds without a source.
+        from ..intake.conversation_agent import IntakeConversationAgent
+        said = [m['content'] for m in self.store.messages_for(project_id) if m.get('role') == 'customer']
+        understanding = IntakeConversationAgent(said).turn() if said else None
+        turn.understanding = understanding.to_dict() if understanding else None
         parts = []
+        if understanding is not None and lang == 'he' and understanding.product_kind is not None:
+            lead = understanding.reply
+            for q in understanding.asked:          # the discovery questions below stay the authoritative ones
+                lead = lead.replace(' ' + q['proposal'], '')
+            parts.append(lead)
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
         if interp is not None and interp.reply and not res.conflicts:
             parts.append(interp.reply)
         stated = [x for x in res.applied if x['field'] not in {c['field'] for c in res.corrected}]
-        if stated:
+        led_by_agent = bool(parts) and understanding is not None and lang == 'he'
+        if stated and not led_by_agent:                  # the agent already said it, with the customer's words
             parts.append(f'{T["got"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in stated[:6]) + '.')
         if res.corrected:
             parts.append(f'{T["corrected"]}: ' + '; '.join(_label(c['field'], c['new'], lang) for c in res.corrected[:4]) + '.')
@@ -423,7 +436,7 @@ class ConversationSupervisor:
                 parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
                                                   proposed=_label(c['field'], c['proposed'], lang)))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
-        if short:
+        if short and not led_by_agent:
             more = len(res.assumed) - len(short[:3])
             parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
                          + '.' + (T['more'].format(n=more) if more > 0 else ''))
