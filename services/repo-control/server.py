@@ -16,6 +16,7 @@ JOBS={}
 JOBS_LOCK=threading.Lock()
 MAX_JOBS=32
 MAX_ACTIVE_JOBS=2
+JOB_TIMEOUT=120
 ACTIVE=threading.BoundedSemaphore(MAX_ACTIVE_JOBS)
 
 ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg"}
@@ -139,19 +140,25 @@ def split_pipeline(command):
         raise ValueError("invalid pipeline")
     return parts
 
-def run_pipeline(parts):
-    """Stages execute without shell; intermediate streams capped and marked."""
+def run_pipeline(parts, *, deadline=None):
+    """One deadline shared by all pipeline stages, including queued time."""
+    if deadline is None:
+        deadline = time.monotonic() + JOB_TIMEOUT
     previous = None
-    accumulated_truncated = False
+    truncated = False
     for stage in parts:
-        result = run(stage, input_bytes=previous)
-        accumulated_truncated = accumulated_truncated or result["truncated"]
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {"exit_code":124,"stdout":"","stderr":"job timeout 120s","truncated":True}
+        result = run(stage, input_bytes=previous, timeout=remaining)
+        truncated = truncated or result["truncated"]
         if result["exit_code"] != 0:
-            result["truncated"] = accumulated_truncated
+            result["truncated"] = truncated
             return result
         previous = result["stdout"].encode("utf-8", "replace")
-    result["truncated"] = accumulated_truncated
+    result["truncated"] = truncated
     return result
+
 
 def repo_path(name):
     if not name or name.startswith("/"): raise ValueError("invalid relative path")
@@ -219,7 +226,8 @@ def gh_pr(title,head,base):
         return {"ok":False,"http_status":e.code,"error":"GitHub pull request API rejected request"}
 
 def launch_job(parts):
-    """Returns immediately; output retained in process memory until restart/eviction."""
+    """Queued/running/done in memory; the deadline begins at admission."""
+    admitted = time.monotonic()
     with JOBS_LOCK:
         if len(JOBS) >= MAX_JOBS:
             finished=[key for key,value in JOBS.items() if value["status"]=="done"]
@@ -228,16 +236,26 @@ def launch_job(parts):
             else:
                 return None
         job_id=uuid.uuid4().hex
-        JOBS[job_id]={"status":"running","result":None,"created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        JOBS[job_id]={"status":"queued","result":None,
+                      "sha":None,"dirty":None,
+                      "created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
     def worker():
         with ACTIVE:
-            try:
-                result=run_pipeline(parts)
-            except Exception:
-                result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
-            with JOBS_LOCK:
-                JOBS[job_id]["status"]="done"
-                JOBS[job_id]["result"]=result
+            deadline=admitted+JOB_TIMEOUT
+            # Serialize every async worktree read against writes and checkout.
+            with LOCK:
+                metadata_sha=git("rev-parse","HEAD")
+                metadata_dirty=git("status","--porcelain")
+                sha=metadata_sha["stdout"].strip() if metadata_sha["exit_code"]==0 else None
+                dirty=bool(metadata_dirty["stdout"].strip()) if metadata_dirty["exit_code"]==0 else None
+                with JOBS_LOCK:
+                    JOBS[job_id].update(status="running",sha=sha,dirty=dirty)
+                try:
+                    result=run_pipeline(parts,deadline=deadline)
+                except Exception:
+                    result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
+                with JOBS_LOCK:
+                    JOBS[job_id].update(status="done",result=result)
     threading.Thread(target=worker,daemon=True,name="repo-job-"+job_id[:8]).start()
     return job_id
 
