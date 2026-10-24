@@ -25,3 +25,5 @@ Before writes, query `GET /preflight?token=...` for current branch and main push
 To avoid discovery by losing a write, **autosave and explicit push to main are blocked by service policy**; checkout a feature branch before calling /write. Merge through reviewed GitHub API/PR process.
 
 Preflight includes `branch` (the exact current branch) and `dirty` (true when uncommitted or untracked files exist; null if the status check fails). Following deployment, **restart the Render instance** to force the new clone depth; verify `/git?op=log` has multiple commits. Restart only after the new image is successfully deployed.
+
+Write protection runs **before opening the file**: on `main` or detached HEAD, `/write` returns 409 without changing its contents. For branches without an upstream, autosave uses `git push --set-upstream origin <branch>`; with upstream it uses `git push`. Tests verify both paths and a rejected push. The Docker smoke uses a synthetic `.git` directory and does **not** validate real clone, dependency installation or the entrypoint end-to-end.

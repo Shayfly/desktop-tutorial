@@ -184,9 +184,12 @@ def checkout_branch(branch, create=False):
 
 def git(*args): return run(["git",*args], git_credentials=True)
 def autosave(path):
-    if current_branch() == "main":
-        return {"ok":False,"phase":"preflight","reason":"main requires explicit branch checkout; do not autosave to main"}
-    for args in (("add","--",path),("commit","-m","autosave: "+path),("push",)):
+    branch = current_branch()
+    if not branch or branch == "main":
+        return {"ok":False,"phase":"preflight","reason":"checkout a named feature branch before autosave"}
+    upstream = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+    push_args = ("push",) if upstream["exit_code"] == 0 else ("push", "--set-upstream", "origin", branch)
+    for args in (("add","--",path),("commit","-m","autosave: "+path),push_args):
         r=git(*args)
         if r["exit_code"]!=0:
             if args[0]=="commit" and "nothing to commit" in r["stdout"]+r["stderr"]:
@@ -243,6 +246,10 @@ class Handler(BaseHTTPRequestHandler):
                     b=p.read_bytes();return self.reply(200,{"content":b.decode("utf-8","replace"),"b64":base64.b64encode(b).decode(),"bytes":len(b)})
                 if pathname=="/write" and self.command in ("GET","POST"):
                     name=q.get("path",[""])[0];p=repo_path(name)
+                    branch=current_branch()
+                    if not branch or branch=="main":
+                        audit("write:denied","blocked","non-feature branch")
+                        return self.reply(409,{"error":"checkout a named feature branch before writing"})
                     if p.is_symlink(): raise ValueError("symlink not allowed")
                     if self.command=="GET":
                         raw=q.get("b64",[""])[0]

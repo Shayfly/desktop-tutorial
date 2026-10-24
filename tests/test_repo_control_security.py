@@ -49,12 +49,47 @@ def test_disallowed_command_rejected_at_endpoint():
 
 def test_push_failure_not_success(tmp_path):
     module.ROOT=tmp_path
-    with patch.object(module,"git",side_effect=[
+    with patch.object(module,"current_branch",return_value="feature/test"), patch.object(module,"git",side_effect=[
+        {"exit_code":1,"stdout":"","stderr":"no upstream"},
         {"exit_code":0,"stdout":"","stderr":""},
         {"exit_code":0,"stdout":"","stderr":""},
-        {"exit_code":1,"stdout":"","stderr":"remote rejected"}]):
+        {"exit_code":1,"stdout":"","stderr":"remote rejected"}]) as mock_git:
         result=module.autosave("file.txt")
-    assert result["ok"] is False and result["phase"]=="push"
+    assert result["ok"] is False and result["phase"] == "push"
+    assert mock_git.call_args.args == ("push","--set-upstream","origin","feature/test")
+
+def test_push_existing_upstream(tmp_path):
+    module.ROOT=tmp_path
+    with patch.object(module,"current_branch",return_value="feature/test"), patch.object(module,"git",side_effect=[
+        {"exit_code":0,"stdout":"origin/feature/test","stderr":""},
+        {"exit_code":0,"stdout":"","stderr":""},
+        {"exit_code":0,"stdout":"","stderr":""},
+        {"exit_code":0,"stdout":"","stderr":""}]) as mock_git:
+        result=module.autosave("file.txt")
+    assert result["ok"] is True and result["phase"] == "push"
+    assert mock_git.call_args.args == ("push",)
+
+def test_write_main_does_not_touch_disk(tmp_path):
+    import http.server, threading, urllib.request, urllib.error, urllib.parse
+    module.TOKEN="t"*48
+    module.ROOT=tmp_path
+    (tmp_path/".git").mkdir()
+    target=tmp_path/"existing.txt"
+    target.write_bytes(b"original")
+    server=http.server.ThreadingHTTPServer(("127.0.0.1",0),module.Handler)
+    thread=threading.Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    try:
+        with patch.object(module,"current_branch",return_value="main"):
+            query=urllib.parse.urlencode({"path":"existing.txt","b64":"Y2hhbmdlZA==","token":module.TOKEN})
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{server.server_port}/write?"+query,timeout=3)
+                assert False,"main write unexpectedly accepted"
+            except urllib.error.HTTPError as exc:
+                assert exc.code==409
+        assert target.read_bytes()==b"original"
+    finally:
+        server.shutdown();server.server_close();thread.join()
 
 def test_read_options_and_mutations():
     assert module.validate_segment(["grep","-c","needle","text.txt"])
