@@ -17,3 +17,9 @@ No automatic GitHub merge endpoint is exposed. PR is created as draft and review
 ## /run stage rules
 
 Supports literal pipes (`find . | head -n 10`) as up to five **sequential** allowlisted stages without a shell. Each intermediate stage is capped to 50KB and marks `truncated=true` when incomplete. Mutating CLI switches `sed -i`, `sed --in-place`, `find -delete/-exec/-fprint` are blocked rather than silently dropping unsaved changes; changes must be made through `/write` for immediate autosave. Safe counting flags `grep -c`, `grep -o` and `wc -c` are allowed. `python3 relative_script.py` is permitted for a repository-local file: **this executes arbitrary repository code and may modify files; no read-only guarantee.** The allowlist and checks are guardrails, not a security boundary. PAT is not in `/run`'s environment but isolation of process-level credentials is not guaranteed.
+
+## Branches and main protection
+Clones the last 50 commits by default (new ephemeral instances only). Existing shallow clones must be replaced or fetched deeper separately.
+Before writes, query `GET /preflight?token=...` for current branch and main push dry-run verdict. A dry run cannot fully guarantee acceptance under branch protection: `dry_run_allowed_unverified` is **not** permission to push.
+`GET /git?op=checkout&branch=feature/name&create=1&token=...` creates a working branch; omit `create=1` to switch to an existing branch, fetching from origin first. Dirty worktrees refuse checkout.
+To avoid discovery by losing a write, **autosave and explicit push to main are blocked by service policy**; checkout a feature branch before calling /write. Merge through reviewed GitHub API/PR process.

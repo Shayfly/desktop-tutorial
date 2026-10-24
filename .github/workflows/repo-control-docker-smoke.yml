@@ -28,7 +28,7 @@ jobs:
         run: |
           docker run -d --name repo-control-smoke -p 127.0.0.1:18080:8000 \
             -e SERVICE_TOKEN=ci-only-not-a-real-secret-000000000000000000000000 \
-            --entrypoint python repo-control:ci /app/server.py
+            --entrypoint /bin/sh repo-control:ci -c 'mkdir -p /app/repo/.git && exec python /app/server.py'
           trap 'docker logs repo-control-smoke; docker rm -f repo-control-smoke' EXIT
           for i in $(seq 1 40); do
             if curl --fail --silent --show-error http://127.0.0.1:18080/health > health.json 2>/dev/null; then

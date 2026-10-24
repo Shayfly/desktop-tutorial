@@ -6,7 +6,7 @@ set -eu
 case "$REPO_URL" in https://github.com/*) ;; *) echo "REPO_URL must be https GitHub URL" >&2; exit 1;; esac
 case "$REPO_URL" in *'@'*) echo "Credentials are forbidden in REPO_URL" >&2; exit 1;; esac
 if [ ! -d "$REPO_DIR/.git" ]; then
-  GIT_ASKPASS=/app/askpass.sh GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "${REPO_BRANCH:-main}" "$REPO_URL" "$REPO_DIR"
+  GIT_ASKPASS=/app/askpass.sh GIT_TERMINAL_PROMPT=0 git clone --depth 50 --branch "${REPO_BRANCH:-main}" "$REPO_URL" "$REPO_DIR"
 fi
 cd "$REPO_DIR"
 git config user.name "${GIT_AUTHOR_NAME:-Repo Control}"

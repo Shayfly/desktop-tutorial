@@ -153,8 +153,37 @@ def repo_path(name):
     if ROOT not in p.parents or ".git" in Path(name).parts: raise ValueError("path outside repository")
     return p
 
+def current_branch():
+    value = git("branch", "--show-current")
+    return value["stdout"].strip() if value["exit_code"] == 0 else ""
+
+def main_push_preflight():
+    """Inform before writing; server-side rules may still change after the probe."""
+    branch = current_branch()
+    if branch != "main":
+        return {"branch":branch,"main_push":"not_applicable"}
+    result = git("push","--dry-run","origin","HEAD:refs/heads/main")
+    return {"branch":"main","main_push":"rejected" if result["exit_code"] else "dry_run_allowed_unverified",
+            "exit_code":result["exit_code"],
+            "warning":"dry-run is not proof that branch protection will allow a real push"}
+
+def checkout_branch(branch, create=False):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,120}", branch) or ".." in branch or branch.endswith((".","/")) or branch.startswith("-"):
+        raise ValueError("invalid branch")
+    dirty = git("status","--porcelain")
+    if dirty["exit_code"] or dirty["stdout"].strip():
+        raise ValueError("uncommitted work; checkout refused")
+    if create:
+        return git("switch","-c",branch)
+    remote = git("fetch","origin",branch)
+    if remote["exit_code"] != 0:
+        return remote
+    return git("switch",branch) if git("show-ref","--verify","--quiet","refs/heads/"+branch)["exit_code"] == 0 else git("switch","--track","-c",branch,"origin/"+branch)
+
 def git(*args): return run(["git",*args], git_credentials=True)
 def autosave(path):
+    if current_branch() == "main":
+        return {"ok":False,"phase":"preflight","reason":"main requires explicit branch checkout; do not autosave to main"}
     for args in (("add","--",path),("commit","-m","autosave: "+path),("push",)):
         r=git(*args)
         if r["exit_code"]!=0:
@@ -204,6 +233,8 @@ class Handler(BaseHTTPRequestHandler):
         if not (ROOT/".git").exists(): return self.reply(503,{"error":"clone not available"})
         try:
             with LOCK:
+                if pathname=="/preflight" and self.command=="GET":
+                    return self.reply(200,main_push_preflight())
                 if pathname=="/read" and self.command=="GET":
                     p=repo_path(q.get("path",[""])[0])
                     if not p.is_file() or p.stat().st_size>MAX: return self.reply(413,{"error":"not a readable file <=50KB"})
@@ -234,6 +265,14 @@ class Handler(BaseHTTPRequestHandler):
                 if pathname=="/git" and self.command in ("GET","POST"):
                     op=q.get("op",[""])[0]
                     commands={"status":["git","status","--short","--branch"],"diff":["git","diff","--no-ext-diff"],"log":["git","log","-10","--oneline"],"pull":["git","pull","--ff-only"],"add":["git","add","--all"],"push":["git","push"]}
+                    if op=="checkout":
+                        branch=q.get("branch",[""])[0]
+                        create=q.get("create",["0"])[0]=="1" or q.get("new",["0"])[0]=="1"
+                        result=checkout_branch(branch,create)
+                        audit("git:checkout","ok" if result["exit_code"]==0 else "failed",branch)
+                        return self.reply(200 if result["exit_code"]==0 else 409,result)
+                    if op=="push" and current_branch()=="main":
+                        return self.reply(409,{"error":"main push blocked by service policy; use a feature branch"})
                     if op=="commit":
                         msg=q.get("msg",[""])[0] if self.command=="GET" else self.headers.get("X-Commit-Message","")
                         if not msg or len(msg)>180 or "\n" in msg:raise ValueError("invalid commit message")

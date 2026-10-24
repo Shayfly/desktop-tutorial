@@ -75,3 +75,13 @@ def test_pipe_and_python_script(tmp_path):
     assert parts == [["find","."],["head","-n","1"]]
     assert module.run_pipeline(parts)["exit_code"] == 0
     assert module.run(["python3","simple.py"])["stdout"].strip()=="ok-script"
+
+def test_branch_checkout_validation():
+    import pytest
+    with pytest.raises(ValueError):
+        module.checkout_branch("../oops", True)
+
+def test_autosave_main_refused():
+    from unittest.mock import patch
+    with patch.object(module,"current_branch",return_value="main"):
+        assert module.autosave("test.txt")["phase"] == "preflight"
