@@ -1,5 +1,5 @@
 """Isolated, token-authenticated GET control plane. Never deploy with production credentials."""
-import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading, selectors, signal, time
+import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading, selectors, signal, time, uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs, quote
@@ -12,6 +12,13 @@ PAT=os.getenv("GITHUB_PAT","")
 PORT=int(os.getenv("PORT","8000"))
 LOCK=threading.RLock()
 MAX=50*1024
+JOBS={}
+JOBS_LOCK=threading.Lock()
+MAX_JOBS=32
+MAX_ACTIVE_JOBS=2
+JOB_TIMEOUT=120
+ACTIVE=threading.BoundedSemaphore(MAX_ACTIVE_JOBS)
+
 ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg"}
 GIT_READ={"status","diff","log","show","rev-parse","branch"}
 def audit(action, result, detail=""):
@@ -133,19 +140,25 @@ def split_pipeline(command):
         raise ValueError("invalid pipeline")
     return parts
 
-def run_pipeline(parts):
-    """Stages execute without shell; intermediate streams capped and marked."""
+def run_pipeline(parts, *, deadline=None):
+    """One deadline shared by all pipeline stages, including queued time."""
+    if deadline is None:
+        deadline = time.monotonic() + JOB_TIMEOUT
     previous = None
-    accumulated_truncated = False
+    truncated = False
     for stage in parts:
-        result = run(stage, input_bytes=previous)
-        accumulated_truncated = accumulated_truncated or result["truncated"]
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return {"exit_code":124,"stdout":"","stderr":"job timeout 120s","truncated":True}
+        result = run(stage, input_bytes=previous, timeout=remaining)
+        truncated = truncated or result["truncated"]
         if result["exit_code"] != 0:
-            result["truncated"] = accumulated_truncated
+            result["truncated"] = truncated
             return result
         previous = result["stdout"].encode("utf-8", "replace")
-    result["truncated"] = accumulated_truncated
+    result["truncated"] = truncated
     return result
+
 
 def repo_path(name):
     if not name or name.startswith("/"): raise ValueError("invalid relative path")
@@ -212,6 +225,74 @@ def gh_pr(title,head,base):
     except HTTPError as e:
         return {"ok":False,"http_status":e.code,"error":"GitHub pull request API rejected request"}
 
+def launch_job(parts):
+    """Queued/running/done in memory; the deadline begins at admission."""
+    admitted = time.monotonic()
+    with JOBS_LOCK:
+        if len(JOBS) >= MAX_JOBS:
+            finished=[key for key,value in JOBS.items() if value["status"]=="done"]
+            if finished:
+                del JOBS[finished[0]]
+            else:
+                return None
+        job_id=uuid.uuid4().hex
+        JOBS[job_id]={"status":"queued","result":None,
+                      "sha":None,"dirty":None,
+                      "created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    def worker():
+        deadline=admitted+JOB_TIMEOUT
+        def expired():
+            return {"exit_code":124,"stdout":"","stderr":"job timeout 120s",
+                    "truncated":True}
+        def finish(result, sha=None, dirty=None):
+            with JOBS_LOCK:
+                JOBS[job_id].update(status="done", result=result, sha=sha, dirty=dirty)
+        remaining=deadline-time.monotonic()
+        if remaining<=0 or not ACTIVE.acquire(timeout=remaining):
+            finish(expired())
+            return
+        try:
+            remaining=deadline-time.monotonic()
+            if remaining<=0 or not LOCK.acquire(timeout=remaining):
+                finish(expired())
+                return
+            try:
+                # Git metadata calls consume the same deadline as queue and lock waits.
+                remaining=deadline-time.monotonic()
+                if remaining<=0:
+                    finish(expired())
+                    return
+                metadata_sha=run(["git","rev-parse","HEAD"],git_credentials=True,timeout=remaining)
+                if metadata_sha["exit_code"]==124:
+                    finish(expired())
+                    return
+                sha=metadata_sha["stdout"].strip() if metadata_sha["exit_code"]==0 else None
+                remaining=deadline-time.monotonic()
+                if remaining<=0:
+                    finish(expired(),sha=sha)
+                    return
+                metadata_dirty=run(["git","status","--porcelain"],git_credentials=True,timeout=remaining)
+                if metadata_dirty["exit_code"]==124:
+                    finish(expired(),sha=sha)
+                    return
+                dirty=bool(metadata_dirty["stdout"].strip()) if metadata_dirty["exit_code"]==0 else None
+                if time.monotonic()>=deadline:
+                    finish(expired(),sha=sha,dirty=dirty)
+                    return
+                with JOBS_LOCK:
+                    JOBS[job_id].update(status="running",sha=sha,dirty=dirty)
+                try:
+                    result=run_pipeline(parts,deadline=deadline)
+                except Exception:
+                    result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
+                finish(result,sha=sha,dirty=dirty)
+            finally:
+                LOCK.release()
+        finally:
+            ACTIVE.release()
+    threading.Thread(target=worker,daemon=True,name="repo-job-"+job_id[:8]).start()
+    return job_id
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self,format,*args):
         # Never log raw request URLs; query-string token stays out of application logs.
@@ -237,6 +318,8 @@ class Handler(BaseHTTPRequestHandler):
         if pathname=="/health": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
         if not (ROOT/".git").exists(): return self.reply(503,{"error":"clone not available"})
         try:
+            if pathname in ("/run","/job"):
+                return self.dispatch_jobs(pathname,q)
             with LOCK:
                 if pathname=="/preflight" and self.command=="GET":
                     return self.reply(200,main_push_preflight())
@@ -265,12 +348,6 @@ class Handler(BaseHTTPRequestHandler):
                     with p.open("ab" if append=="1" else "wb") as f:f.write(data)
                     saved=autosave(name);audit("write","ok" if saved["ok"] else "partial",name)
                     return self.reply(200 if saved["ok"] else 503,{"written":name,"bytes":len(data),"git_persistence":saved})
-                if pathname=="/run" and self.command=="GET":
-                    parts=split_pipeline(q.get("cmd",[""])[0])
-                    if not all(validate_segment(argv) for argv in parts):
-                        audit("run:denied","blocked","command allowlist or mutating flag")
-                        return self.reply(403,{"error":"command not allowed; write via /write"})
-                    return self.reply(200,run_pipeline(parts))
                 if pathname=="/git" and self.command in ("GET","POST"):
                     op=q.get("op",[""])[0]
                     commands={"status":["git","status","--short","--branch"],"diff":["git","diff","--no-ext-diff"],"log":["git","log","-10","--oneline"],"pull":["git","pull","--ff-only"],"add":["git","add","--all"],"push":["git","push"]}
@@ -297,6 +374,25 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(201 if result["ok"] else 502,result)
         except (ValueError, OSError, binascii.Error) as e:
             return self.reply(400,{"error":str(e)})
+        return self.reply(404,{"error":"not found"})
+    def dispatch_jobs(self,pathname,q):
+        if pathname=="/job" and self.command=="GET":
+            job_id=q.get("id",[""])[0]
+            with JOBS_LOCK:
+                job=JOBS.get(job_id)
+                snapshot=dict(job) if job else None
+            return self.reply(200 if snapshot else 404,
+                              {"id":job_id,**snapshot} if snapshot else {"error":"job not found"})
+        if pathname=="/run" and self.command=="GET":
+            parts=split_pipeline(q.get("cmd",[""])[0])
+            if not all(validate_segment(argv) for argv in parts):
+                audit("run:denied","blocked","command allowlist or mutating flag")
+                return self.reply(403,{"error":"command not allowed; write via /write"})
+            if q.get("async",["0"])[0]=="1":
+                job_id=launch_job(parts)
+                if job_id is None: return self.reply(429,{"error":"job queue full"})
+                return self.reply(202,{"id":job_id,"status":"running"})
+            return self.reply(200,run_pipeline(parts))
         return self.reply(404,{"error":"not found"})
     def do_GET(self):self.dispatch()
     def do_POST(self):self.dispatch()
