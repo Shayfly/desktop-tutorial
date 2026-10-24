@@ -1,5 +1,5 @@
 """Isolated, token-authenticated GET control plane. Never deploy with production credentials."""
-import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading
+import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading, selectors, signal, time
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs, quote
@@ -20,17 +20,66 @@ def audit(action, result, detail=""):
     # No URL, token, command, file body, or GitHub API response in application logs.
     print(json.dumps(item),flush=True)
 
-def run(args):
+def run(args, *, git_credentials=False, timeout=120):
+    """Bounded-memory subprocess capture; on timeout kill the whole process group."""
+    env = os.environ.copy()
+    for name in ("GITHUB_PAT", "SERVICE_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
+        env.pop(name, None)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env.pop("GIT_ASKPASS", None)
+    if git_credentials:
+        env["GITHUB_PAT"] = PAT
+        env["GIT_ASKPASS"] = "/app/askpass.sh"
     try:
-        p=subprocess.run(args,cwd=ROOT,env={**os.environ,"GIT_TERMINAL_PROMPT":"0","GIT_ASKPASS":"/app/askpass.sh"},
-                         shell=False,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120)
-        output=p.stdout[:MAX]; err=p.stderr[:MAX-len(output)]
-        out=output.decode("utf-8","replace"); error=err.decode("utf-8","replace")
-        for secret in (PAT,TOKEN):
-            if secret: out=out.replace(secret,"[redacted]"); error=error.replace(secret,"[redacted]")
-        return {"exit_code":p.returncode,"stdout":out,"stderr":error,"truncated":len(p.stdout)+len(p.stderr)>MAX}
-    except subprocess.TimeoutExpired: return {"exit_code":124,"stdout":"","stderr":"timeout 120s","truncated":True}
-    except OSError as e: return {"exit_code":127,"stdout":"","stderr":type(e).__name__,"truncated":False}
+        proc = subprocess.Popen(args, cwd=ROOT, env=env, shell=False,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                start_new_session=True)
+        output = {"stdout": bytearray(), "stderr": bytearray()}
+        truncated = False
+        selector = selectors.DefaultSelector()
+        for key in ("stdout", "stderr"):
+            os.set_blocking(getattr(proc, key).fileno(), False)
+            selector.register(getattr(proc, key), selectors.EVENT_READ, key)
+        deadline = time.monotonic() + timeout
+        try:
+            while selector.get_map():
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired(args, timeout)
+                for event, _ in selector.select(timeout=min(0.25, max(0, deadline-time.monotonic()))):
+                    stream = event.fileobj
+                    chunk = os.read(stream.fileno(), 8192)
+                    if not chunk:
+                        selector.unregister(stream)
+                        stream.close()
+                        continue
+                    remaining = MAX - sum(len(v) for v in output.values())
+                    if len(chunk) > remaining:
+                        truncated = True
+                    if remaining > 0:
+                        output[event.data].extend(chunk[:remaining])
+            remaining_time = deadline - time.monotonic()
+            if remaining_time <= 0:
+                raise subprocess.TimeoutExpired(args, timeout)
+            code = proc.wait(timeout=remaining_time)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+            return {"exit_code":124, "stdout":"","stderr":"timeout 120s",
+                    "truncated":True}
+        finally:
+            selector.close()
+            for stream in (proc.stdout, proc.stderr):
+                if stream and not stream.closed: stream.close()
+        out = output["stdout"].decode("utf-8", "replace")
+        err = output["stderr"].decode("utf-8", "replace")
+        for credential in (PAT, TOKEN):
+            if credential:
+                out = out.replace(credential, "[redacted]")
+                err = err.replace(credential, "[redacted]")
+        return {"exit_code":code, "stdout":out, "stderr":err, "truncated":truncated}
+    except OSError as exc:
+        return {"exit_code":127, "stdout":"","stderr":type(exc).__name__,
+                "truncated":False}
 
 def repo_path(name):
     if not name or name.startswith("/"): raise ValueError("invalid relative path")
@@ -38,7 +87,7 @@ def repo_path(name):
     if ROOT not in p.parents or ".git" in Path(name).parts: raise ValueError("path outside repository")
     return p
 
-def git(*args): return run(["git",*args])
+def git(*args): return run(["git",*args], git_credentials=True)
 def autosave(path):
     for args in (("add","--",path),("commit","-m","autosave: "+path),("push",)):
         r=git(*args)
@@ -70,7 +119,8 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self,status,obj):
         body=json.dumps(obj,ensure_ascii=False).encode()
         for secret in (TOKEN,PAT):
-            if secret: body=body.replace(secret.encode(),b"[redacted]")
+            if secret:
+                body=body.replace(secret.encode(),b"[redacted]")
         self.send_response(status);self.send_header("Content-Type","application/json; charset=utf-8")
         self.send_header("Cache-Control","no-store");self.send_header("Pragma","no-cache")
         self.send_header("Referrer-Policy","no-referrer")
@@ -125,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
                         cmd=["git","commit","-m",msg]
                     else:cmd=commands.get(op)
                     if cmd is None:raise ValueError("unsupported git op")
-                    result=run(cmd)
+                    result=run(cmd, git_credentials=True)
                     if op in ("pull","add","commit","push"):audit("git:"+op,"ok" if result["exit_code"]==0 else "failed")
                     return self.reply(200 if result["exit_code"]==0 else 409,result)
                 if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0]=="create":

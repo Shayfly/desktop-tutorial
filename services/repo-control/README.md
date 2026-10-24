@@ -9,3 +9,7 @@ Each operation accepts `?token=SERVICE_TOKEN`; header Bearer is also supported. 
 `/run` includes: pytest, python3 restricted to `-m pytest` / `-m compileall`, git read subcommands (status/diff/log/show/branch/rev-parse), grep, find, ls, cat, head, tail, wc, diff, sed, awk, tree, pwd, rg. Commands may execute repository code (e.g. pytest and awk). Never run untrusted code, and do not use this instance for production workloads or secrets. A free Render instance and container filesystem are ephemeral; deployment requires manual connection of repo + PAT value.
 
 No automatic GitHub merge endpoint is exposed. PR is created as draft and reviewed through standard GitHub gates.
+
+## Security boundary (explicit)
+
+**/run is NOT a security boundary. Possession of the service token grants the capability to execute repository-controlled code**, especially via pytest. Keep this on an isolated non-production instance, with a dedicated least-privilege PAT, no production secrets. The command allowlist prevents accidental operations, not malicious code execution. The /run subprocess environment excludes GITHUB_PAT, GH_TOKEN, GITHUB_TOKEN and SERVICE_TOKEN; authenticated Git management runs in a separate credentials-enabled subprocess. This environment split does not protect the PAT against hostile code with access to the same OS user/process or service files; stronger isolation requires distinct OS security principals or containers.
