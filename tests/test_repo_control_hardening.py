@@ -92,7 +92,7 @@ def test_queue_timeout_not_command_timeout(tmp_path):
         assert result["result"]["exit_code"]==125
         assert result["queue_timeout"] is True
         assert result["timed_out"] is False
-        assert result["stage"]=="metadata"
+        assert result["stage"]=="queue"
         assert result["queued_seconds"]>=.1
     finally:
         release.set();th.join()
@@ -101,7 +101,7 @@ def test_queue_timeout_not_command_timeout(tmp_path):
 def test_short_metadata_deadline_reports_stage(tmp_path):
     mod.ROOT=tmp_path
     mod.JOBS.clear()
-    with patch.object(mod,"run",return_value={"exit_code":124,"stdout":"","stderr":"timeout 0.1s","truncated":False}):
+    with patch.object(mod,"run",return_value={"exit_code":124,"stdout":"","stderr":"timeout 0.1s","truncated":False,"_deadline_expired":True}):
         jid=mod.launch_job([["ls"]],timeout=.1)
         item=wait_done(jid)
         assert item["stage"]=="metadata"
