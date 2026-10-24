@@ -17,9 +17,11 @@ JOBS_LOCK=threading.Lock()
 MAX_JOBS=32
 MAX_ACTIVE_JOBS=2
 JOB_TIMEOUT=120
+JOB_QUEUE_MAX=600
+JOB_TIMEOUT_MAX=900
 ACTIVE=threading.BoundedSemaphore(MAX_ACTIVE_JOBS)
 
-ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg"}
+ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg","sort","uniq","echo"}
 GIT_READ={"status","diff","log","show","rev-parse","branch"}
 def audit(action, result, detail=""):
     item={"at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"action":action,"result":result,"detail":str(detail)[:150]}
@@ -81,7 +83,7 @@ def run(args, *, git_credentials=False, timeout=120, input_bytes=None):
                 if credential:
                     out=out.replace(credential,"[redacted]")
                     err=err.replace(credential,"[redacted]")
-            return {"exit_code":124,"stdout":out,"stderr":err+"\ntimeout 120s",
+            return {"exit_code":124,"stdout":out,"stderr":err+"\ntimeout "+str(round(timeout,3))+"s",
                     "truncated":True}
         finally:
             selector.close()
@@ -109,7 +111,7 @@ def validate_segment(argv):
         return len(opts) >= 1 and opts[0] in GIT_READ and not any(
             x in ("-c", "--config", "--external-diff", "--output") for x in opts)
     if cmd == "python3":
-        if opts[:2] in (["-m", "pytest"], ["-m", "compileall"]):
+        if opts[:2] in (["-m", "pytest"], ["-m", "compileall"]) or (len(opts)>=2 and opts[0]=="-c"):
             return True
         return bool(opts and opts[0].endswith(".py") and not opts[0].startswith("-")
                     and safe_script(opts[0]))
@@ -156,7 +158,7 @@ def run_pipeline(parts, *, deadline=None):
     for stage in parts:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            return {"exit_code":124,"stdout":"","stderr":"job timeout 120s","truncated":True}
+            return {"exit_code":124,"stdout":"","stderr":"job timeout "+str(round(JOB_TIMEOUT,3))+"s","truncated":True}
         result = run(stage, input_bytes=previous, timeout=remaining)
         truncated = truncated or result["truncated"]
         if result["exit_code"] != 0:
@@ -197,7 +199,7 @@ def checkout_branch(branch, create=False):
         raise ValueError("uncommitted work; checkout refused")
     if create:
         return git("switch","-c",branch)
-    remote = git("fetch","origin",branch)
+    remote = git("fetch","origin","+refs/heads/"+branch+":refs/remotes/origin/"+branch)
     if remote["exit_code"] != 0:
         return remote
     return git("switch",branch) if git("show-ref","--verify","--quiet","refs/heads/"+branch)["exit_code"] == 0 else git("switch","--track","-c",branch,"origin/"+branch)
@@ -232,9 +234,12 @@ def gh_pr(title,head,base):
     except HTTPError as e:
         return {"ok":False,"http_status":e.code,"error":"GitHub pull request API rejected request"}
 
-def launch_job(parts):
+def launch_job(parts, timeout=None):
     """Queued/running/done in memory; the deadline begins at admission."""
     admitted = time.monotonic()
+    timeout = JOB_TIMEOUT if timeout is None else timeout
+    if not (0 < timeout <= JOB_TIMEOUT_MAX):
+        raise ValueError("timeout out of range")
     with JOBS_LOCK:
         if len(JOBS) >= MAX_JOBS:
             finished=[key for key,value in JOBS.items() if value["status"]=="done"]
@@ -246,41 +251,63 @@ def launch_job(parts):
         JOBS[job_id]={"status":"queued","result":None,
                       "sha":None,"dirty":None,
                       "created_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                      "queued_seconds":0.0,"timed_out":False}
+                      "queued_seconds":0.0,"timed_out":False,"stage":None}
     def worker():
-        # Queue wait is measured; execution budget starts only after repo lock acquisition.
-        def finish(result,sha=None,dirty=None):
+        queue_deadline=admitted+JOB_QUEUE_MAX
+        def done(result,sha=None,dirty=None,stage="command",queue_timeout=False):
             with JOBS_LOCK:
                 JOBS[job_id].update(status="done",result=result,sha=sha,dirty=dirty,
-                                    timed_out=result.get("exit_code")==124)
-        with ACTIVE:
-            with LOCK:
+                                    stage=stage,timed_out=result.get("exit_code")==124,
+                                    queue_timeout=queue_timeout,
+                                    queued_seconds=round(time.monotonic()-admitted,3) if queue_timeout else JOBS[job_id]["queued_seconds"])
+        def queue_expired():
+            done({"exit_code":125,"stdout":"","stderr":"queue timeout "+str(JOB_QUEUE_MAX)+"s","truncated":False},
+                 stage="metadata",queue_timeout=True)
+        remaining=queue_deadline-time.monotonic()
+        if remaining<=0 or not ACTIVE.acquire(timeout=remaining):
+            queue_expired()
+            return
+        try:
+            remaining=queue_deadline-time.monotonic()
+            if remaining<=0 or not LOCK.acquire(timeout=remaining):
+                queue_expired()
+                return
+            try:
                 started=time.monotonic()
-                deadline=started+JOB_TIMEOUT
+                deadline=started+timeout
                 with JOBS_LOCK:
                     JOBS[job_id]["queued_seconds"]=round(started-admitted,3)
-                remaining=deadline-time.monotonic()
-                metadata_sha=run(["git","rev-parse","HEAD"],git_credentials=True,timeout=max(0.001,remaining))
-                if metadata_sha["exit_code"]==124:
-                    finish(metadata_sha)
+                def remaining(): return deadline-time.monotonic()
+                if remaining()<=0:
+                    done({"exit_code":124,"stdout":"","stderr":"timeout "+str(timeout)+"s","truncated":False},stage="metadata")
                     return
-                sha=metadata_sha["stdout"].strip() if metadata_sha["exit_code"]==0 else None
-                remaining=deadline-time.monotonic()
-                if remaining<=0:
-                    finish({"exit_code":124,"stdout":"","stderr":"timeout 120s","truncated":True},sha)
+                info=run(["git","rev-parse","HEAD"],git_credentials=True,timeout=remaining())
+                if info["exit_code"]==124:
+                    done(info,stage="metadata")
                     return
-                metadata_dirty=run(["git","status","--porcelain"],git_credentials=True,timeout=remaining)
-                if metadata_dirty["exit_code"]==124:
-                    finish(metadata_dirty,sha)
+                sha=info["stdout"].strip() if info["exit_code"]==0 else None
+                if remaining()<=0:
+                    done({"exit_code":124,"stdout":"","stderr":"timeout "+str(timeout)+"s","truncated":False},sha,stage="metadata")
                     return
-                dirty=bool(metadata_dirty["stdout"].strip()) if metadata_dirty["exit_code"]==0 else None
+                dirtyinfo=run(["git","status","--porcelain"],git_credentials=True,timeout=remaining())
+                if dirtyinfo["exit_code"]==124:
+                    done(dirtyinfo,sha,stage="metadata")
+                    return
+                dirty=bool(dirtyinfo["stdout"].strip()) if dirtyinfo["exit_code"]==0 else None
                 with JOBS_LOCK:
-                    JOBS[job_id].update(status="running",sha=sha,dirty=dirty)
+                    JOBS[job_id].update(status="running",sha=sha,dirty=dirty,stage="command")
+                if remaining()<=0:
+                    done({"exit_code":124,"stdout":"","stderr":"timeout "+str(timeout)+"s","truncated":False},sha,dirty)
+                    return
                 try:
                     result=run_pipeline(parts,deadline=deadline)
                 except Exception:
                     result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
-                finish(result,sha,dirty)
+                done(result,sha,dirty)
+            finally:
+                LOCK.release()
+        finally:
+            ACTIVE.release()
     threading.Thread(target=worker,daemon=True,name="repo-job-"+job_id[:8]).start()
     return job_id
 
@@ -380,9 +407,13 @@ class Handler(BaseHTTPRequestHandler):
                 audit("run:denied","blocked","command allowlist or mutating flag")
                 return self.reply(403,{"error":"command not allowed; write via /write"})
             if q.get("async",["0"])[0]=="1":
-                job_id=launch_job(parts)
+                requested=q.get("timeout",[""])[0]
+                seconds=JOB_TIMEOUT if not requested else float(requested)
+                if not (0 < seconds <= JOB_TIMEOUT_MAX):
+                    raise ValueError("timeout must be >0 and <=900")
+                job_id=launch_job(parts,timeout=seconds)
                 if job_id is None: return self.reply(429,{"error":"job queue full"})
-                return self.reply(202,{"id":job_id,"status":"running"})
+                return self.reply(202,{"id":job_id,"status":"queued"})
             return self.reply(200,run_pipeline(parts))
         return self.reply(404,{"error":"not found"})
     def do_GET(self):self.dispatch()

@@ -37,3 +37,6 @@ Async jobs have one **120-second end-to-end deadline starting at admission**, in
 ## Hardening: queue time and partial timeout output
 
 Queued jobs retain `queued` while they wait for ACTIVE and the repository lock. The 120-second execution budget starts **after both locks are acquired**, so time in the queue does not count against execution. The `queued_seconds` field records that wait. Async `/job` responses add `timed_out` (boolean). Python commands execute with `PYTHONUNBUFFERED=1`; output captured before SIGKILL is returned on exit 124. Results remain in process memory only. This behavior intentionally supersedes the previous admission-time deadline rule.
+
+## Revised queue contract
+Queue waiting has a separate 600-second ceiling (JOB_QUEUE_MAX). Queue expiry reports `queue_timeout=true`, `exit_code=125`; it does not consume command runtime. Command timeout defaults to 120 and accepts `timeout` up to 900 on async /run. `timed_out` means command/metadata timeout (exit 124), while `stage` distinguishes metadata from command. `truncated` indicates only capture exceeding 50KB, not a timeout. `python3 -c`, `sort`, `uniq`, `echo` are available; no shell execution. Redirect remains disabled pending persistence safety.
