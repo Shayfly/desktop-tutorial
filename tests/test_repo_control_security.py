@@ -85,3 +85,8 @@ def test_autosave_main_refused():
     from unittest.mock import patch
     with patch.object(module,"current_branch",return_value="main"):
         assert module.autosave("test.txt")["phase"] == "preflight"
+
+def test_preflight_dirty_and_branch():
+    from unittest.mock import patch
+    with patch.object(module,"current_branch",return_value="feature/xyz"), patch.object(module,"git",return_value={"exit_code":0,"stdout":" M a.py\n"}):
+        assert module.main_push_preflight() == {"branch":"feature/xyz","dirty":True,"main_push":"not_applicable"}

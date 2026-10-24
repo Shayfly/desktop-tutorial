@@ -160,10 +160,12 @@ def current_branch():
 def main_push_preflight():
     """Inform before writing; server-side rules may still change after the probe."""
     branch = current_branch()
+    status = git("status", "--porcelain")
+    dirty = bool(status["stdout"].strip()) if status["exit_code"] == 0 else None
     if branch != "main":
-        return {"branch":branch,"main_push":"not_applicable"}
+        return {"branch":branch,"dirty":dirty,"main_push":"not_applicable"}
     result = git("push","--dry-run","origin","HEAD:refs/heads/main")
-    return {"branch":"main","main_push":"rejected" if result["exit_code"] else "dry_run_allowed_unverified",
+    return {"branch":"main","dirty":dirty,"main_push":"rejected" if result["exit_code"] else "dry_run_allowed_unverified",
             "exit_code":result["exit_code"],
             "warning":"dry-run is not proof that branch protection will allow a real push"}
 

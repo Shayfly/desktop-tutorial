@@ -23,3 +23,5 @@ Clones the last 50 commits by default (new ephemeral instances only). Existing s
 Before writes, query `GET /preflight?token=...` for current branch and main push dry-run verdict. A dry run cannot fully guarantee acceptance under branch protection: `dry_run_allowed_unverified` is **not** permission to push.
 `GET /git?op=checkout&branch=feature/name&create=1&token=...` creates a working branch; omit `create=1` to switch to an existing branch, fetching from origin first. Dirty worktrees refuse checkout.
 To avoid discovery by losing a write, **autosave and explicit push to main are blocked by service policy**; checkout a feature branch before calling /write. Merge through reviewed GitHub API/PR process.
+
+Preflight includes `branch` (the exact current branch) and `dirty` (true when uncommitted or untracked files exist; null if the status check fails). Following deployment, **restart the Render instance** to force the new clone depth; verify `/git?op=log` has multiple commits. Restart only after the new image is successfully deployed.
