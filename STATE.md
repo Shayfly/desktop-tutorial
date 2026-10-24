@@ -10,6 +10,7 @@
 | main SHA | `9f9ccfbb58a2c3f4b77053fe5aebb31aa1f0d967` (אומת באמצעות חיפוש commits ב־GitHub) |
 | PR #121 (H1/E1) | [OPEN](https://github.com/Shayfly/desktop-tutorial/pull/121); HEAD `667da1a67b3f721a6e7aa03bb6f745427a62a382`; חמישה workflows success; **אין מיזוג** |
 | PR #122 (H3) | [OPEN](https://github.com/Shayfly/desktop-tutorial/pull/122); HEAD `bab9df183bdb80a7f2237e2b7ec3e5a3e6f30e12`; ללא אימות live revision |
+| PR #125 (M7, קלוד) | [OPEN](https://github.com/Shayfly/desktop-tutorial/pull/125); ענף `feat/m7-intake-conversation`; HEAD `d3ba3a8ec56914ba5623c0ff3c500dac2c6d6c29`; test/validate/pg ירוקים; ממתין לביקורת מאט; קבצים: `omni_prod/intake/`, `omni_prod/conversation/` + קובץ בדיקות חדש בלבד; לא נוגע ב־#121/#122/במריץ; **אין מיזוג** |
 | S1b | OPEN: `tail_attention`, מיפוי `evidence_durability` ו־`evaluated` בכותב **ובקוראים**; אין להפוך status=True בלי עבודה |
 | כרטיס S1b — קורא PASS | `omni_prod/release_policy.py:129–136` קורא `last.passed` בלי `evaluated`. **נכנס ל־S1b: לתקן גם את הקורא, לא רק את הכותב**; עדיין לא תוקן |
 | S2 / ביקורת #121 | HOLD עד S1b ירוק, קריאת דיף עצמאית ו־APPROVE מפורש של מאט |
