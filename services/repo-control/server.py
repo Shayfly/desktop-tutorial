@@ -1,5 +1,5 @@
 """Isolated, token-authenticated GET control plane. Never deploy with production credentials."""
-import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading, selectors, signal, time
+import base64, binascii, datetime, hmac, json, os, re, shlex, subprocess, threading, selectors, signal, time, uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs, quote
@@ -12,6 +12,12 @@ PAT=os.getenv("GITHUB_PAT","")
 PORT=int(os.getenv("PORT","8000"))
 LOCK=threading.RLock()
 MAX=50*1024
+JOBS={}
+JOBS_LOCK=threading.Lock()
+MAX_JOBS=32
+MAX_ACTIVE_JOBS=2
+ACTIVE=threading.BoundedSemaphore(MAX_ACTIVE_JOBS)
+
 ALLOWED={"pytest","python3","git","grep","find","ls","cat","head","tail","wc","diff","sed","awk","tree","pwd","rg"}
 GIT_READ={"status","diff","log","show","rev-parse","branch"}
 def audit(action, result, detail=""):
@@ -212,6 +218,29 @@ def gh_pr(title,head,base):
     except HTTPError as e:
         return {"ok":False,"http_status":e.code,"error":"GitHub pull request API rejected request"}
 
+def launch_job(parts):
+    """Returns immediately; output retained in process memory until restart/eviction."""
+    with JOBS_LOCK:
+        if len(JOBS) >= MAX_JOBS:
+            finished=[key for key,value in JOBS.items() if value["status"]=="done"]
+            if finished:
+                del JOBS[finished[0]]
+            else:
+                return None
+        job_id=uuid.uuid4().hex
+        JOBS[job_id]={"status":"running","result":None,"created_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    def worker():
+        with ACTIVE:
+            try:
+                result=run_pipeline(parts)
+            except Exception:
+                result={"exit_code":1,"stdout":"","stderr":"internal execution error","truncated":False}
+            with JOBS_LOCK:
+                JOBS[job_id]["status"]="done"
+                JOBS[job_id]["result"]=result
+    threading.Thread(target=worker,daemon=True,name="repo-job-"+job_id[:8]).start()
+    return job_id
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self,format,*args):
         # Never log raw request URLs; query-string token stays out of application logs.
@@ -237,6 +266,8 @@ class Handler(BaseHTTPRequestHandler):
         if pathname=="/health": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
         if not (ROOT/".git").exists(): return self.reply(503,{"error":"clone not available"})
         try:
+            if pathname in ("/run","/job"):
+                return self.dispatch_jobs(pathname,q)
             with LOCK:
                 if pathname=="/preflight" and self.command=="GET":
                     return self.reply(200,main_push_preflight())
@@ -265,12 +296,6 @@ class Handler(BaseHTTPRequestHandler):
                     with p.open("ab" if append=="1" else "wb") as f:f.write(data)
                     saved=autosave(name);audit("write","ok" if saved["ok"] else "partial",name)
                     return self.reply(200 if saved["ok"] else 503,{"written":name,"bytes":len(data),"git_persistence":saved})
-                if pathname=="/run" and self.command=="GET":
-                    parts=split_pipeline(q.get("cmd",[""])[0])
-                    if not all(validate_segment(argv) for argv in parts):
-                        audit("run:denied","blocked","command allowlist or mutating flag")
-                        return self.reply(403,{"error":"command not allowed; write via /write"})
-                    return self.reply(200,run_pipeline(parts))
                 if pathname=="/git" and self.command in ("GET","POST"):
                     op=q.get("op",[""])[0]
                     commands={"status":["git","status","--short","--branch"],"diff":["git","diff","--no-ext-diff"],"log":["git","log","-10","--oneline"],"pull":["git","pull","--ff-only"],"add":["git","add","--all"],"push":["git","push"]}
@@ -297,6 +322,25 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(201 if result["ok"] else 502,result)
         except (ValueError, OSError, binascii.Error) as e:
             return self.reply(400,{"error":str(e)})
+        return self.reply(404,{"error":"not found"})
+    def dispatch_jobs(self,pathname,q):
+        if pathname=="/job" and self.command=="GET":
+            job_id=q.get("id",[""])[0]
+            with JOBS_LOCK:
+                job=JOBS.get(job_id)
+                snapshot=dict(job) if job else None
+            return self.reply(200 if snapshot else 404,
+                              {"id":job_id,**snapshot} if snapshot else {"error":"job not found"})
+        if pathname=="/run" and self.command=="GET":
+            parts=split_pipeline(q.get("cmd",[""])[0])
+            if not all(validate_segment(argv) for argv in parts):
+                audit("run:denied","blocked","command allowlist or mutating flag")
+                return self.reply(403,{"error":"command not allowed; write via /write"})
+            if q.get("async",["0"])[0]=="1":
+                job_id=launch_job(parts)
+                if job_id is None: return self.reply(429,{"error":"job queue full"})
+                return self.reply(202,{"id":job_id,"status":"running"})
+            return self.reply(200,run_pipeline(parts))
         return self.reply(404,{"error":"not found"})
     def do_GET(self):self.dispatch()
     def do_POST(self):self.dispatch()
