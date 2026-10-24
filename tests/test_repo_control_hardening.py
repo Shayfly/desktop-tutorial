@@ -116,3 +116,48 @@ def test_checkout_explicit_remote_refspec():
         {"exit_code":0,"stdout":"","stderr":""}]) as mock_git:
         mod.checkout_branch("feature/test")
         assert mock_git.call_args_list[1].args == ("fetch","origin","+refs/heads/feature/test:refs/remotes/origin/feature/test")
+
+def test_code_124_does_not_automatically_mean_timeout(tmp_path):
+    mod.ROOT=tmp_path
+    (tmp_path/".git").mkdir()
+    mod.JOBS.clear()
+    with patch.object(mod,"run",side_effect=[
+        {"exit_code":0,"stdout":"abcd","stderr":"","truncated":False},
+        {"exit_code":0,"stdout":"","stderr":"","truncated":False},
+        {"exit_code":124,"stdout":"","stderr":"application exit","truncated":False}
+    ]):
+        jid=mod.launch_job([["echo","hello"]],timeout=3)
+        result=wait_done(jid)
+    assert result["stage"]=="command"
+    assert result["result"]["exit_code"]==124
+    assert result["timed_out"] is False
+
+def test_read_endpoints_skip_repo_lock_and_sync_timeout_is_rejected(tmp_path):
+    import http.server, json, urllib.parse, urllib.request, urllib.error
+    mod.ROOT=tmp_path
+    (tmp_path/".git").mkdir()
+    (tmp_path/"a.txt").write_text("available")
+    mod.TOKEN="t"*48
+    server=http.server.ThreadingHTTPServer(("127.0.0.1",0),mod.Handler)
+    thread=threading.Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    entered=threading.Event();release=threading.Event()
+    def holder():
+        with mod.LOCK:
+            entered.set();release.wait(3)
+    h=threading.Thread(target=holder);h.start()
+    assert entered.wait(1)
+    try:
+        base=f"http://127.0.0.1:{server.server_port}"
+        with urllib.request.urlopen(base+"/read?path=a.txt&token="+mod.TOKEN,timeout=1) as response:
+            assert json.load(response)["content"]=="available"
+        with urllib.request.urlopen(base+"/preflight?token="+mod.TOKEN,timeout=1) as response:
+            assert response.status==200
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(base+"/run?cmd=ls&timeout=5&token="+mod.TOKEN,timeout=1)
+        assert error.value.code==400
+    finally:
+        release.set();h.join();server.shutdown();server.server_close();thread.join()
+
+def test_fetch_allowed_and_queue_stage():
+    assert mod.validate_segment(["git","fetch","origin"])
