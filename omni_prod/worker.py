@@ -39,7 +39,8 @@ DECOY_PREFIX = "omni-stale-consumer-absorber:"
 def _say(message: str) -> None:
     # Plain stdout in RQ's own log format; logging.basicConfig would duplicate
     # every RQ log line through the root logger.
-    print(time.strftime("%H:%M:%S") + " " + message, flush=True)
+    from .secret_redaction import redact
+    print(time.strftime("%H:%M:%S") + " " + redact(message), flush=True)
 
 
 def worker_ttl_from_env(env=os.environ) -> int:
@@ -87,6 +88,8 @@ def queue_names_from_env(env=None) -> list[str]:
 
 
 def main():
+    from .secret_redaction import install_log_redaction
+    install_log_redaction()                       # C27: every log record of the worker process
     from redis import Redis
     from rq import Queue, Worker
 
