@@ -84,7 +84,7 @@ def run(args, *, git_credentials=False, timeout=120, input_bytes=None):
                     out=out.replace(credential,"[redacted]")
                     err=err.replace(credential,"[redacted]")
             return {"exit_code":124,"stdout":out,"stderr":err+"\ntimeout "+str(round(timeout,3))+"s",
-                    "truncated":True}
+                    "truncated":False}
         finally:
             selector.close()
             for stream in (proc.stdout, proc.stderr):
@@ -158,7 +158,7 @@ def run_pipeline(parts, *, deadline=None):
     for stage in parts:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            return {"exit_code":124,"stdout":"","stderr":"job timeout "+str(round(JOB_TIMEOUT,3))+"s","truncated":True}
+            return {"exit_code":124,"stdout":"","stderr":"job timeout (deadline exhausted)","truncated":False}
         result = run(stage, input_bytes=previous, timeout=remaining)
         truncated = truncated or result["truncated"]
         if result["exit_code"] != 0:
@@ -409,6 +409,7 @@ class Handler(BaseHTTPRequestHandler):
             if q.get("async",["0"])[0]=="1":
                 requested=q.get("timeout",[""])[0]
                 seconds=JOB_TIMEOUT if not requested else float(requested)
+                if not __import__("math").isfinite(seconds): raise ValueError("invalid timeout")
                 if not (0 < seconds <= JOB_TIMEOUT_MAX):
                     raise ValueError("timeout must be >0 and <=900")
                 job_id=launch_job(parts,timeout=seconds)

@@ -71,3 +71,48 @@ def test_job_timeout_flag(tmp_path):
         assert "partial" in job["result"]["stdout"]
     finally:
         mod.JOB_TIMEOUT=original
+
+def test_queue_timeout_not_command_timeout(tmp_path):
+    mod.ROOT=tmp_path
+    mod.JOBS.clear()
+    acquired=threading.Event()
+    release=threading.Event()
+    def holder():
+        with mod.LOCK:
+            acquired.set()
+            release.wait(3)
+    th=threading.Thread(target=holder)
+    th.start()
+    old=mod.JOB_QUEUE_MAX
+    try:
+        assert acquired.wait(1)
+        mod.JOB_QUEUE_MAX=.15
+        jid=mod.launch_job([["ls"]])
+        result=wait_done(jid)
+        assert result["result"]["exit_code"]==125
+        assert result["queue_timeout"] is True
+        assert result["timed_out"] is False
+        assert result["stage"]=="metadata"
+        assert result["queued_seconds"]>=.1
+    finally:
+        release.set();th.join()
+        mod.JOB_QUEUE_MAX=old
+
+def test_short_metadata_deadline_reports_stage(tmp_path):
+    mod.ROOT=tmp_path
+    mod.JOBS.clear()
+    with patch.object(mod,"run",return_value={"exit_code":124,"stdout":"","stderr":"timeout 0.1s","truncated":False}):
+        jid=mod.launch_job([["ls"]],timeout=.1)
+        item=wait_done(jid)
+        assert item["stage"]=="metadata"
+        assert item["timed_out"] is True
+        assert item["result"]["truncated"] is False
+
+def test_checkout_explicit_remote_refspec():
+    with patch.object(mod,"git",side_effect=[
+        {"exit_code":0,"stdout":"","stderr":""},
+        {"exit_code":0,"stdout":"","stderr":""},
+        {"exit_code":1,"stdout":"","stderr":""},
+        {"exit_code":0,"stdout":"","stderr":""}]) as mock_git:
+        mod.checkout_branch("feature/test")
+        assert mock_git.call_args_list[1].args == ("fetch","origin","+refs/heads/feature/test:refs/remotes/origin/feature/test")

@@ -101,7 +101,7 @@ def test_two_concurrent_jobs_then_queue(tmp_path):
         with module.JOBS_LOCK:
             assert all(module.JOBS[j]["status"]=="done" for j in ids)
 
-def test_deadline_while_repo_lock_busy_job_endpoint_remains_responsive(tmp_path):
+def test_queue_wait_does_not_consume_runtime_budget(tmp_path):
     import http.server
     import json
     import urllib.request
@@ -124,6 +124,8 @@ def test_deadline_while_repo_lock_busy_job_endpoint_remains_responsive(tmp_path)
     try:
         assert taken.wait(1)
         module.JOB_TIMEOUT=0.15
+        old_queue_max=module.JOB_QUEUE_MAX
+        module.JOB_QUEUE_MAX=0.15
         jid=module.launch_job([["ls"]])
         assert jid
         url=f"http://127.0.0.1:{server.server_port}/job?id={jid}&token={module.TOKEN}"
@@ -136,10 +138,13 @@ def test_deadline_while_repo_lock_busy_job_endpoint_remains_responsive(tmp_path)
                 break
             time.sleep(.02)
         assert snapshot["status"]=="done"
-        assert snapshot["result"]["exit_code"]==124
+        assert snapshot["result"]["exit_code"]==125
+        assert snapshot["queue_timeout"] is True
+        assert snapshot["timed_out"] is False
         assert not release.is_set(), "job only expired after lock was released"
     finally:
         module.JOB_TIMEOUT=original_timeout
+        module.JOB_QUEUE_MAX=old_queue_max
         release.set()
         holder.join()
         server.shutdown();server.server_close();server_thread.join()
