@@ -6,7 +6,7 @@ WORKDIR /app
 COPY services/repo-control/server.py /app/server.py
 COPY services/repo-control/entrypoint.sh /app/entrypoint.sh
 COPY services/repo-control/askpass.sh /app/askpass.sh
-RUN chmod 700 /app/entrypoint.sh /app/askpass.sh
+RUN chmod 755 /app/entrypoint.sh /app/askpass.sh
 USER svc
 ENV PORT=8000 REPO_DIR=/app/repo PYTHONUNBUFFERED=1 PYTHONPATH=/app/repo PATH=/home/svc/.local/bin:$PATH
 EXPOSE 8000
