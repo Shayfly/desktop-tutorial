@@ -4,6 +4,7 @@ The real worker sink (install_rejected_json_sink) writes the full raw answer to 
 it is rejected; the build evidence (rejected_json_evidence) carries the manifest with the key and the raw sha256. A store
 failure is recorded on the entry, never silent.
 """
+import base64
 import hashlib
 import json
 import unittest
@@ -16,7 +17,7 @@ from omni_prod.routed_gateway import ProviderRoute, RoutedModelGateway
 from omni_prod.worker_tasks import install_rejected_json_sink, rejected_json_evidence
 from tests.test_t3_json_no_silent_trailing import gateway as answering
 
-RAW = '{"files": [{"path": "app.py", "content": "x"}]}\n\nI also changed config.py, see above.'
+RAW = 'not json\nI also changed config.py, see above.'
 
 
 class Store:
@@ -49,7 +50,7 @@ class RejectedJsonIsDurable(unittest.TestCase):
         self.assertEqual(stored['stored_text'], RAW)                               # the whole answer, not a cut
         self.assertEqual((stored['build_id'], stored['stored_truncated'], stored['stored_redacted']), ('bld_1', False, False))
         self.assertIsInstance(stored['attempt_seq'], int)
-        self.assertIn('content after the first JSON value', stored['diagnostic']['reason'])
+        self.assertIn('content before the JSON value', stored['diagnostic']['reason'])
         ev = rejected_json_evidence(gw)
         self.assertIs(ev['rejected_model_json_durable'], True)
         self.assertEqual(ev['rejected_model_json_durability'], {'state': 'ALL_STORED', 'rejected': 1, 'stored': 1, 'failed': 0})
@@ -73,7 +74,7 @@ class RejectedJsonIsDurable(unittest.TestCase):
         self.assertEqual(stored['attempt_seq'], row['attempt_seq'])
 
     def test_a_key_shaped_secret_is_redacted_in_the_store_and_says_so(self):
-        leaky = '{"files": []}\nkey=AIza' + 'x' * 30
+        leaky = 'not json\nkey=AIza' + 'x' * 30
         gw, store = routed(leaky), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
         with self.assertRaises(ModelGatewayError):
@@ -158,10 +159,29 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
     diagnostic.trailing_starts (excerpts of the answer) were serialized verbatim next to it."""
 
     def assert_absent(self, blob):
+        # Base64 is reversible encoding, not redaction. Inspect decoded fields too:
+        # a substring scan of serialized JSON cannot detect an encoded credential.
         self.assertNotIn(TOKEN, blob if isinstance(blob, str) else json.dumps(blob, ensure_ascii=False, default=str))
+        if isinstance(blob, str):
+            try:
+                blob = json.loads(blob)
+            except (ValueError, TypeError):
+                return
+        if isinstance(blob, dict):
+            for key, value in blob.items():
+                if key.endswith('_b64') and isinstance(value, str):
+                    try:
+                        decoded = base64.b64decode(value, validate=True).decode('utf-8')
+                    except (ValueError, UnicodeError) as exc:
+                        self.fail(f'{key} must retain decodable UTF-8 evidence: {exc}')
+                    self.assertNotIn(TOKEN, decoded)
+                self.assert_absent(value)
+        elif isinstance(blob, (list, tuple)):
+            for value in blob:
+                self.assert_absent(value)
 
     def test_trailing_excerpt_is_redacted_in_the_stored_object(self):
-        gw, store = routed('{"files": []} ' + TOKEN + ' trailing'), Store()
+        gw, store = routed('{"files": []} {"value": "' + TOKEN + '"}'), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
         with self.assertRaises(ModelGatewayError):
             gw.complete_json(system='s', user='u', task='codegen')
@@ -169,7 +189,29 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assert_absent(data.decode())                                           # the WHOLE serialized object
         stored = json.loads(data)
         self.assertIn('trailing_starts', stored['diagnostic'])                      # the field is kept, redacted
+        self.assertEqual(stored['diagnostic']['tail_class'], 'conflict')
+        self.assertIn('tail_raw_utf8_b64', stored['diagnostic'])
+        self.assertIn('[redacted-google-key]', base64.b64decode(
+            stored['diagnostic']['tail_raw_utf8_b64']).decode('utf-8'))
         self.assertTrue(stored['stored_redacted'])
+        self.assert_absent(rejected_json_evidence(gw))
+
+    def test_base64_assertion_detects_encoded_secret(self):
+        for blob in ({'diagnostic': {'tail_raw_utf8_b64': base64.b64encode(TOKEN.encode()).decode()}},
+                     {TOKEN: 'a field name must still be scanned'}):
+            with self.subTest(blob=blob), self.assertRaises(AssertionError):
+                self.assert_absent(blob)
+
+    def test_non_secret_suffix_is_decodable_and_preserved_in_the_store(self):
+        tail = ' \n{"message":"שלום world, retained evidence with spaces and punctuation."}'
+        gw, store = routed('{"files": []}' + tail), Store()
+        install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
+        with self.assertRaises(ModelGatewayError):
+            gw.complete_json(system='s', user='u', task='codegen')
+        stored = json.loads(next(iter(store.objects.values())))
+        self.assertEqual(base64.b64decode(stored['diagnostic']['tail_raw_utf8_b64'],
+                                         validate=True).decode('utf-8'), tail)
+        self.assertFalse(stored['diagnostic']['tail_raw_redacted'])
 
     def test_leading_excerpt_is_redacted_in_object_evidence_and_route_events(self):
         gw, store = routed(TOKEN + ' {"files": []}'), Store()
@@ -194,7 +236,7 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assertIn('OSError: denied for credential', ev['rejected_model_json'][0]['store_error'])
 
     def test_identifiers_are_not_mangled_by_redaction(self):
-        gw, store = routed('{"files": []} ' + TOKEN), Store()
+        gw, store = routed('not json ' + TOKEN), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_' + 'a' * 32)
         with self.assertRaises(ModelGatewayError):
             gw.complete_json(system='s', user='u', task='codegen')
