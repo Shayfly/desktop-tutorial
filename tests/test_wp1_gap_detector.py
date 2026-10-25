@@ -11,7 +11,7 @@ from types import SimpleNamespace as P
 from omni_prod.conversation.store import MemoryConversationStore
 from omni_prod.conversation.supervisor import ConversationSupervisor
 from omni_prod.intake.artifact_fields import ARTIFACT_FIELDS, CONDITIONAL, fields_for
-from omni_prod.intake.gaps import FALLBACK, Questioner, Spec, fallback_text, language_of
+from omni_prod.intake.gaps import FALLBACK, MATERIAL, Questioner, Spec, fallback_text, language_of
 from tests.test_conversation_os import MemoryBriefs
 
 SALON = {'he': 'אני רוצה אתר למספרה שלי', 'ar': 'أريد موقعًا لصالون الحلاقة الخاص بي', 'en': 'I want a website for my barbershop'}
@@ -46,7 +46,7 @@ class Declarations(unittest.TestCase):
     def test_every_field_has_an_explicit_default_and_a_phrased_reason_when_material(self):
         for f in [f for fs in ARTIFACT_FIELDS.values() for f in fs] + list(CONDITIONAL.values()):
             self.assertTrue(f.default, f.name)
-            if f.material:
+            if f.base >= MATERIAL or f.raises or f.confirm:          # can be material for some request
                 for lang in FALLBACK:
                     self.assertIn(f.reason, FALLBACK[lang], (lang, f.name))
 
@@ -64,6 +64,13 @@ class TheOrderComesFromTheRequest(unittest.TestCase):
         self.assertEqual(q.field, 'languages')                               # Y, although X is declared first
         self.assertEqual(tourists.detect()['order'][0]['because'], 'תיירים')
         self.assertNotIn('audience', tourists.detect()['missing_material'])  # "tourists" already says who
+
+    def test_counterfactual_the_fixed_order_would_ask_x_the_detector_asks_y(self):
+        s = spec('website', 'אני רוצה אתר לתיירים שמגיעים לעיר')
+        open_now = set(s.detect()['missing_material'])
+        fixed = next(f.name for f in fields_for('website') if f.name in open_now | {'audience'})   # a questionnaire
+        self.assertEqual(fixed, 'audience')                                    # X
+        self.assertEqual(Questioner().next(s).field, 'languages')              # Y
 
     def test_a_booking_app_asks_about_stored_personal_details_first(self):
         s = spec('web_app', 'אני רוצה אפליקציה לקביעת תורים')
@@ -93,6 +100,20 @@ class MaterialityComesFromTheRequest(unittest.TestCase):
         self.assertEqual(g['proposed'], {'personal_data': 'yes'})
         self.assertEqual(g['missing_material'][0], 'personal_data')
         self.assertNotIn('personal_data', g['known'])                        # implied is not stated
+
+
+class NoFieldIsMaterialByDeclaration(unittest.TestCase):
+    def test_the_declaration_has_no_material_flag(self):
+        for f in [f for fs in ARTIFACT_FIELDS.values() for f in fs] + list(CONDITIONAL.values()):
+            self.assertFalse(hasattr(f, 'material'), f.name)
+
+    def test_a_button_colour_is_not_material_unless_this_request_makes_it_so(self):
+        plain = spec('website', 'אני רוצה אתר למספרה שלי')
+        self.assertEqual(plain.detect()['assumed']['color'], 'blue')
+        self.assertNotIn('color', plain.detect()['missing_material'])
+        brand = spec('website', 'אני רוצה אתר למספרה שלי בצבעי המותג')
+        self.assertIn('color', brand.detect()['missing_material'])             # material for THIS request
+        self.assertNotIn('color', brand.detect()['assumed'])
 
 
 class MandatoryBehaviour(unittest.TestCase):
@@ -172,6 +193,9 @@ class TheSupervisorIsDrivenByTheDetector(unittest.TestCase):
         self.assertEqual([q.field for q in t.questions], [t.gaps['question']['field']])
         self.assertEqual(t.gaps['question']['field'], 'languages')
         self.assertIn(t.gaps['question']['text'], t.reply)
+        shown = t.to_dict('he')                                                   # what the customer's app receives
+        self.assertEqual(shown['gaps']['question']['field'], 'languages')
+        self.assertEqual([q['field'] for q in shown['questions']], ['languages'])
 
 
 class ModelPhrasing(unittest.TestCase):

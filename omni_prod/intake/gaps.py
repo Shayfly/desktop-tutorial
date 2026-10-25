@@ -5,6 +5,8 @@ words as the source (sources.Ledger). The detector says WHAT is missing; the age
   missing + material      -> one question, in the customer's language, with a reason and "you decide"
   missing + not material  -> the field's explicit default, tagged as an assumption, never asked
   known (even in passing) -> never asked
+Materiality is the Spec's, per request: no field is material by declaration (artifact_fields.Field has no such
+flag); a field is material when THIS request's score reaches MATERIAL, and the missing ones are ordered by that score.
 Every question is logged with the field it is meant to fill; whether it filled it and whether it changed
 the artifact (spec fingerprint) is measured on the next turn. A question without a declared field is a failure.
 
@@ -20,6 +22,8 @@ from dataclasses import dataclass, field
 
 from .artifact_fields import CONDITIONAL, fields_for
 from .sources import ASSUMED, STATED, Ledger, Requirement, Span
+
+MATERIAL = 2      # a field is material FOR THIS REQUEST when its request score reaches this (implied -> 0)
 
 
 def language_of(text: str) -> str:
@@ -42,7 +46,11 @@ FALLBACK = {
            'what_is_stored': ('יישמרו פרטים אישיים כמו טלפון או מייל?', 'זה משנה מה נשמר ומי רואה את זה'),
            'saves_records': ('האתר רק מציג מידע, או שגם נשמר בו משהו מהמבקרים — טופס, הזמנה או רשימה?', 'זה קובע אם יש מאגר נתונים בכלל'),
            'link_scope': ('מי יקבל את הקישור — רק אתה, או שהוא פתוח לכולם?', 'נשמרים פרטים אישיים בלי התחברות, אז זה קובע מי יוכל לראות אותם'),
-           '_delegate': 'אפשר גם לכתוב "תחליט אתה".', '_because': 'כי'},
+           'brand_colour': ('אילו צבעים הם הצבעים של העסק?', 'ביקשת שהאתר ייראה כמו המותג שלך'),
+           'typeface': ('כמה גדול וקריא צריך להיות הטקסט?', 'מי שיקרא את האתר צריך טקסט נוח במיוחד'),
+           '_delegate': 'אפשר גם לכתוב "תחליט אתה".', '_because': 'כי', '_why': 'למה אני שואל',
+           '_confirm': 'רק לוודא:', '_understood': 'הבנתי מהבקשה',
+           '_values': {'yes': 'כן', 'no': 'לא', 'internal_link': 'רק אתה', 'public': 'פתוח לכולם', 'none': 'בלי'}},
     'ar': {'who_reads': ('لمن هذا الموقع؟', 'تُكتب النصوص والمحتوى لهم'),
            'text_direction': ('بأي لغة ستكون النصوص؟', 'هذا يحدد لغة واتجاه الكتابة في كل الصفحات'),
            'look_and_feel': ('ما الطابع الذي تريده للتصميم؟', 'هذا يغيّر الشكل بالكامل'),
@@ -50,7 +58,11 @@ FALLBACK = {
            'what_is_stored': ('هل ستُحفظ بيانات شخصية مثل الهاتف أو البريد؟', 'هذا يغيّر ما يُحفظ ومن يراه'),
            'saves_records': ('هل يعرض الموقع معلومات فقط، أم يحفظ شيئًا من الزوار — نموذجًا أو حجزًا أو قائمة؟', 'هذا يحدد إن كانت هناك قاعدة بيانات أصلًا'),
            'link_scope': ('من سيحصل على الرابط — أنت فقط أم الجميع؟', 'تُحفظ بيانات شخصية بلا تسجيل دخول، فهذا يحدد من يمكنه رؤيتها'),
-           '_delegate': 'يمكنك أيضًا أن تكتب "قرر أنت".', '_because': 'لأن'},
+           'brand_colour': ('ما هي ألوان علامتك التجارية؟', 'طلبت أن يشبه الموقع علامتك'),
+           'typeface': ('ما حجم النص ووضوحه المطلوب؟', 'من سيقرأ الموقع يحتاج نصًا مريحًا جدًا'),
+           '_delegate': 'يمكنك أيضًا أن تكتب "قرر أنت".', '_because': 'لأن', '_why': 'لماذا أسأل',
+           '_confirm': 'فقط للتأكد:', '_understood': 'فهمت من طلبك',
+           '_values': {'yes': 'نعم', 'no': 'لا', 'internal_link': 'أنت فقط', 'public': 'للجميع', 'none': 'بدون'}},
     'en': {'who_reads': ('Who is this site for?', 'the wording and content are written for them'),
            'text_direction': ('Which language should the texts be in?', 'it sets the language and direction of every page'),
            'look_and_feel': ('What feel should the design have?', 'it changes the whole look'),
@@ -58,7 +70,11 @@ FALLBACK = {
            'what_is_stored': ('Will personal details such as phone or email be stored?', 'it changes what is stored and who sees it'),
            'saves_records': ('Does the site only show information, or does it also save something from visitors — a form, a booking or a list?', 'it decides whether there is a database at all'),
            'link_scope': ('Who gets the link — only you, or everyone?', 'personal details are stored without sign-in, so it decides who can see them'),
-           '_delegate': 'You can also say "you decide".', '_because': 'because'},
+           'brand_colour': ('Which colours are your brand colours?', 'you asked for the site to look like your brand'),
+           'typeface': ('How large and readable should the text be?', 'the people reading it need especially easy text'),
+           '_delegate': 'You can also say "you decide".', '_because': 'because', '_why': 'Why I ask',
+           '_confirm': 'Just to confirm:', '_understood': 'I understood from your request',
+           '_values': {'yes': 'yes', 'no': 'no', 'internal_link': 'only you', 'public': 'everyone', 'none': 'none'}},
 }
 
 
@@ -78,6 +94,7 @@ class LogEntry:
     language: str
     source: str
     fingerprint_before: str
+    mode: str = 'ask'                     # ask | confirm (a proposed value) | explain (after "what?")
     filled: bool | None = None            # None until the customer answers
     changed_artifact: bool | None = None
 
@@ -158,21 +175,22 @@ class Spec:
         `pending` = discovery questions still open (conditional ones such as access_scope join the candidates)."""
         fields = list(self.fields) + [CONDITIONAL[n] for n in pending if n in CONDITIONAL
                                        and n not in {f.name for f in self.fields}]
-        known, missing, implied, assumed, proposed = {}, [], {}, {}, {}
+        known, missing, implied, assumed, proposed, score_of = {}, [], {}, {}, {}, {}
         for i, f in enumerate(fields):
             v = self.value(f.name)
             if v is not None:
                 known[f.name] = v
-                continue
-            if not f.material:
-                assumed[f.name] = f.default
                 continue
             value, words, score = self.assess(f)
             said = self.ledger.current(f.name)
             if value is None and said is not None and said.why == 'implied':
                 value, words = said.value, said.span.quote if said.span else None
             if value is not None and not f.confirm:
-                implied[f.name] = {'value': value, 'words': words}      # not material here: assumed, shown
+                implied[f.name] = {'value': value, 'words': words}      # implied by THIS request: not material here
+                continue
+            score_of[f.name] = score
+            if score < MATERIAL and not f.confirm:
+                assumed[f.name] = f.default                             # not noticeable for this request: default
                 continue
             if value is not None:
                 proposed[f.name] = value                                # sensitive: proposed, then confirmed
@@ -180,7 +198,7 @@ class Spec:
         missing.sort()
         return {'kind': self.kind, 'known': known, 'missing_material': [m[2] for m in missing],
                 'order': [{'field': m[2], 'score': m[3], 'because': m[4]} for m in missing],
-                'implied': implied, 'proposed': proposed, 'assumed': assumed}
+                'implied': implied, 'proposed': proposed, 'assumed': assumed, 'scores': score_of}
 
     def resolved(self) -> dict:
         g = self.detect()
@@ -201,8 +219,7 @@ class Spec:
         return {'questions': len(self.log),
                 'unmapped': sum(1 for e in self.log if e.field not in declared),
                 'redundant': sum(1 for e in self.log if e.filled is False),
-                'material_not_asked': sorted(f.name for f in self.fields if f.material and f.name not in asked
-                                             and self.ledger.current(f.name) is None)}
+                'material_not_asked': sorted(n for n in self.detect()['missing_material'] if n not in asked)}
 
 
 class Questioner:
@@ -216,21 +233,29 @@ class Questioner:
     def __init__(self, complete_json=None):
         self.complete_json = complete_json
 
-    def next(self, spec: Spec, pending=()) -> Question | None:
-        missing = spec.detect(pending)['missing_material']
+    def next(self, spec: Spec, pending=(), explain: bool = False) -> Question | None:
+        """The ONE next question. Its mode is the detector's too: confirm a value the request implies for a sensitive
+        field; explain why after "what?"; after two explanations in a row, just the question (never the same text)."""
+        g = spec.detect(pending)
+        missing = g['missing_material']
         if not missing:
             return None
         name = missing[0]                                    # the list is ordered for this request
         f = next(x for x in list(spec.fields) + list(CONDITIONAL.values()) if x.name == name)
         lang = language_of(' '.join(spec.ledger.messages[-2:]))
-        q = self._model(spec, f, lang) if self.complete_json is not None else None
+        last = spec.log[-1] if spec.log else None
+        mode = ('short' if explain and last is not None and last.field == name and last.mode == 'explain' else
+                'explain' if explain else 'confirm' if name in g['proposed'] else 'ask')
+        proposed = g['proposed'].get(name)
+        q = self._model(spec, f, lang, mode, proposed) if self.complete_json is not None else None
         if q is None or q.rejected:
-            q = Question(name, fallback_text(f.reason, lang), lang, 'fallback', q.rejected if q else '')
-        spec.log.append(LogEntry(len(spec.ledger.messages), q.field, lang, q.source, spec.fingerprint()))
+            q = Question(name, fallback_text(f.reason, lang, mode, proposed), lang, 'fallback', q.rejected if q else '')
+        spec.log.append(LogEntry(len(spec.ledger.messages), q.field, lang, q.source, spec.fingerprint(), mode))
         return q
 
-    def _model(self, spec: Spec, f, lang: str) -> Question:
+    def _model(self, spec: Spec, f, lang: str, mode: str = 'ask', proposed=None) -> Question:
         payload = {'language_of_customer': lang, 'missing': {'field': f.name, 'why_it_matters': f.reason},
+                   'mode': mode, 'proposed_value': proposed,
                    'known': spec.detect()['known'], 'last_customer_message': spec.ledger.messages[-1][:1000]}
         try:
             out = self.complete_json(system=self.SYSTEM, user=json.dumps(payload, ensure_ascii=False))
@@ -246,7 +271,14 @@ class Questioner:
         return Question(f.name, text, lang, 'model')
 
 
-def fallback_text(reason: str, lang: str) -> str:
+def fallback_text(reason: str, lang: str, mode: str = 'ask', proposed=None) -> str:
     t = FALLBACK.get(lang, FALLBACK['en'])
     question, why = t[reason]
+    if mode == 'explain':
+        return f'{t["_why"]}: {why}. {question} {t["_delegate"]}'
+    if mode == 'short':
+        return f'{question} {t["_delegate"]}'
+    if mode == 'confirm':
+        value = t['_values'].get(str(proposed), str(proposed))
+        return f'{t["_confirm"]} {question} ({t["_understood"]}: {value}.) {t["_delegate"]}'
     return f'{question} ({t["_because"]} {why}.) {t["_delegate"]}'

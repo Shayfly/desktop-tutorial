@@ -199,8 +199,15 @@ SHORT = {
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
+def _why_prefixes():
+    from ..intake.gaps import FALLBACK
+    return tuple(t['_why'] for t in FALLBACK.values())
+
+
+_WHY_PREFIXES = _why_prefixes()
 _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
-              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain)\s*[.!?]*\s*$')
+              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
+              r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
 
 
 def _short(field_: str, lang: str) -> str:
@@ -453,12 +460,15 @@ class ConversationSupervisor:
         elif res.asked:
             if row.complete:                                # the plan exists, but a material field is still open
                 turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
-            self._last_reply_was_why = False
-            repeated = self._repeats(project_id, res.asked)
-            explain = unsure or repeated
-            parts.extend(self._ask_line(res, row, lang, T, unsure=explain,
-                                        free=gap_q.text if gap_q is not None and not res.conflicts else None))
-            turn.explained = explain and not self._last_reply_was_why
+            if gap_q is not None and not res.conflicts:
+                parts.append(gap_q.text)                    # the detector's question, exactly as it is in turn.gaps
+                turn.explained = gap_q.text.startswith(_WHY_PREFIXES)
+            else:                                           # only a conflict with a confirmed value is asked back here
+                self._last_reply_was_why = False
+                repeated = self._repeats(project_id, res.asked)
+                explain = unsure or repeated
+                parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
+                turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
@@ -494,7 +504,7 @@ class ConversationSupervisor:
             brief.hints.setdefault(name, value)
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
-        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending)
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure)
         return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
 
     @staticmethod
@@ -525,7 +535,7 @@ class ConversationSupervisor:
         self._last_reply_was_why = bool(last.get('explained'))
         return bool(last.get('asked')) and last.get('asked') == [q.id for q in asked]
 
-    def _ask_line(self, res, row, lang, T, *, unsure: bool, free: str | None = None) -> list[str]:
+    def _ask_line(self, res, row, lang, T, *, unsure: bool) -> list[str]:
         """One short line per turn: verify a pre-selected value, explain why on
         "I don't know"/repeats, otherwise just ask. Never the same sentence twice."""
         q = res.asked[0]
@@ -542,11 +552,7 @@ class ConversationSupervisor:
         hint = row.brief.hints.get(q.field) if row is not None else None
         if hint and len(res.asked) == 1 and q.kind == 'choice':
             return [T['verify'].format(label=_label(q.field, hint, lang))]
-        if res.contradictions:
-            return [T['decide']]
-        if free:                                          # the gap detector's question, phrased for this request
-            return [free]
-        if q.id == 'access_scope':
+        if res.contradictions or q.id == 'access_scope':
             return [T['decide']]
         return [T['ask_one'] if len(res.asked) == 1 else T['ask'] + ':']
 
