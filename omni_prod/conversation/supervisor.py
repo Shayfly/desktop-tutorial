@@ -107,6 +107,7 @@ class Turn:
     cost_state: str = 'CONFIRMED_ZERO'
     reservation_id: str | None = None
     explained: bool = False                        # this answer explained why the open question matters
+    gaps: dict | None = None                       # WP1: what the artifact still needs, and the one next question
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -114,7 +115,7 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation}
+                'interpretation': self.interpretation, 'gaps': self.gaps}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -405,6 +406,7 @@ class ConversationSupervisor:
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
+        turn.gaps = self._gaps(project_id, message, interp)
         parts = []
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
@@ -451,6 +453,23 @@ class ConversationSupervisor:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
         return turn
+
+    def _gaps(self, project_id, message, interp) -> dict | None:
+        """WP1 (QUESTIONS-001): additive. Per-project spec held in this process only (no schema change in WP1)."""
+        from ..intake.families import classify_family
+        from ..intake.gaps import Questioner, Spec
+        if not message:
+            return None
+        specs = self.__dict__.setdefault('_gap_specs', {})
+        kind = getattr(interp, 'product_family', None) or classify_family(message)
+        spec = specs.get(project_id)
+        if spec is None or spec.kind != kind:
+            spec = specs[project_id] = Spec(kind, [])
+        spec.hear(message, getattr(interp, 'proposals', ()) or ())
+        model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')   # model mode is on for this turn
+        gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec)
+        return {**spec.detect(), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}
 
     @staticmethod
     def _finding_message(f, lang, T):
