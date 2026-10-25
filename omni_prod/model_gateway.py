@@ -256,7 +256,9 @@ class OpenAICompatibleGateway:
             from .secret_redaction import redact as _layer_redact
             _redact = lambda t: _export_redact(_layer_redact(t))  # noqa: E731
             raise ModelJSONRejected(f"model did not return valid JSON ({diag['reason']}; "
-                                    f"finish_reason={diag['finish_reason']}; starts {_redact(diag['starts'])!r})",
+                                    f"finish_reason={diag['finish_reason']}; starts {_redact(diag['starts'])!r}). "
+                                    'Return one JSON object only, using the requested schema. '
+                                    'Do not add text before the JSON. Preserve the requested content language.',
                                     raw=raw, diagnostic=diag)
         if not isinstance(obj, dict):
             diag.update(verdict='rejected', reason='JSON root must be an object')
@@ -282,7 +284,13 @@ def strip_envelope(raw: str) -> tuple[str, str]:
 
 
 def parse_model_json(raw: str) -> tuple[object | None, dict]:
-    """Decode the first complete JSON value, classifying any trailing content."""
+    """Decode a JSON value at the start of the known envelope; classify its tail.
+
+    Leading prose (including "Here is the JSON:" / "הנה ה-JSON:") is rejected:
+    searching for braces inside arbitrary prose can adopt an unrelated example.
+    Tail prose follows an already decoded value and remains accepted by #131.
+    Classification uses JSON syntax, never an alphabet or a natural-language allowlist.
+    """
     text, envelope = strip_envelope(raw)
     diag = {'raw_chars': len(raw or ''), 'envelope': envelope, 'repairs': [],
             'leading_chars': 0, 'trailing_chars': 0, 'starts': text[:60],
@@ -339,10 +347,14 @@ def _parse_json_object(text: str, diag: dict | None = None):
             diag['tail'] = rest
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
             diag['_local_span'] = (lead, lead + raw_end)
-            # Preserve *exact* bytes of the original suffix (UTF-8 representation)
-            # as evidence, in addition to the human-readable classification.
+            # Preserve the suffix as UTF-8 evidence, except credentials: Base64
+            # is reversible and must never be used to bypass secret redaction.
             import base64
-            diag['tail_raw_utf8_b64'] = base64.b64encode(rest.encode('utf-8')).decode('ascii')
+            from .evidence_export import redact as export_redact
+            from .secret_redaction import redact as layer_redact
+            safe_rest = export_redact(layer_redact(rest))
+            diag['tail_raw_utf8_b64'] = base64.b64encode(safe_rest.encode('utf-8')).decode('ascii')
+            diag['tail_raw_redacted'] = safe_rest != rest
             diag['tail_start'] = lead + raw_end
             if not tail or re.fullmatch(r'[,}\]\s]+', tail):
                 diag['tail_class'] = 'benign'

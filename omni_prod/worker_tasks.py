@@ -208,7 +208,17 @@ def redact_fields(value):
     if isinstance(value, str):
         return export_redact(layer_redact(value))
     if isinstance(value, dict):
-        return {k: redact_fields(v) for k, v in value.items()}
+        cleaned = {}
+        for k, v in value.items():
+            if k == 'tail_raw_utf8_b64' and isinstance(v, str):
+                # Redact the decoded text, then re-encode. Applying the generic
+                # long-token filter to Base64 destroys the retained evidence.
+                import base64
+                decoded = base64.b64decode(v, validate=True).decode('utf-8')
+                cleaned[k] = base64.b64encode(redact_fields(decoded).encode('utf-8')).decode('ascii')
+            else:
+                cleaned[k] = redact_fields(v)
+        return cleaned
     if isinstance(value, (list, tuple)):
         return [redact_fields(v) for v in value]
     return value

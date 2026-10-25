@@ -40,6 +40,48 @@ class JsonAnswerTests(unittest.TestCase):
         self.assertEqual(diag['tail_class'], 'prose')
         self.assertTrue(obj['files'])
 
+    def test_tail_evidence_redacts_before_encoding_for_all_classifications(self):
+        import base64
+        from omni_prod.model_gateway import parse_model_json
+        token = 'AIza' + 'Q' * 35
+        cases = [(' prose ' + token, 'prose'),
+                 ('{"value":"' + token + '"}', 'conflict'),
+                 ('{"value":"' + token + '"', 'malformed')]
+        for tail, classification in cases:
+            with self.subTest(classification=classification):
+                _, diag = parse_model_json('{"a":1}' + tail)
+                self.assertEqual(diag['tail_class'], classification)
+                decoded = base64.b64decode(diag['tail_raw_utf8_b64'], validate=True).decode()
+                self.assertNotIn(token, decoded)
+                self.assertIn('[redacted-google-key]', decoded)
+
+    def test_non_latin_tail_is_prose_and_keeps_utf8_evidence(self):
+        import base64
+        from omni_prod.model_gateway import parse_model_json
+        for tail in ('הקבצים מוכנים', 'الملفات جاهزة', 'こちらが結果です', 'Файлы готовы'):
+            with self.subTest(tail=tail):
+                obj, diag = parse_model_json('{"a":1}\n' + tail)
+                self.assertEqual(obj, {'a': 1})
+                self.assertEqual(diag['tail_class'], 'prose')
+                self.assertEqual(diag['trailing_starts'], tail)
+                self.assertEqual(diag['source_span'], [0, 7])
+                self.assertEqual(base64.b64decode(diag['tail_raw_utf8_b64']).decode(), '\n' + tail)
+
+    def test_leading_prose_has_the_same_rejection_and_repair_hint_in_any_language(self):
+        reasons = []
+        for prefix in ('הנה ה-JSON:', "Here's the JSON:", 'こちらがJSON:', 'إليك JSON:', 'Вот JSON:'):
+            with self.subTest(prefix=prefix):
+                gw = _gateway(prefix + '\n{"a":1}')
+                with self.assertRaises(ModelGatewayError) as ctx:
+                    gw.complete_json(system='s', user='u')
+                diag = ctx.exception.diagnostic
+                self.assertEqual(diag['verdict'], 'rejected')
+                self.assertEqual(diag['error_pos'], 0)
+                reasons.append(diag['reason'].split(' at char')[0])
+                self.assertIn('Return one JSON object only', str(ctx.exception))
+                self.assertIn('Do not add text before the JSON', str(ctx.exception))
+        self.assertEqual(len(set(reasons)), 1)
+
     def test_conflict_and_malformed_tail(self):
         from omni_prod.model_gateway import parse_model_json
         for raw, classification in (('{"a":1}{"a":2}', 'conflict'), ('{"a":1}{"a":', 'malformed')):

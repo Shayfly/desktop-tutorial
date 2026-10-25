@@ -4,6 +4,7 @@ The real worker sink (install_rejected_json_sink) writes the full raw answer to 
 it is rejected; the build evidence (rejected_json_evidence) carries the manifest with the key and the raw sha256. A store
 failure is recorded on the entry, never silent.
 """
+import base64
 import hashlib
 import json
 import unittest
@@ -158,10 +159,29 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
     diagnostic.trailing_starts (excerpts of the answer) were serialized verbatim next to it."""
 
     def assert_absent(self, blob):
+        # Base64 is reversible encoding, not redaction. Inspect decoded fields too:
+        # a substring scan of serialized JSON cannot detect an encoded credential.
         self.assertNotIn(TOKEN, blob if isinstance(blob, str) else json.dumps(blob, ensure_ascii=False, default=str))
+        if isinstance(blob, str):
+            try:
+                blob = json.loads(blob)
+            except (ValueError, TypeError):
+                return
+        if isinstance(blob, dict):
+            for key, value in blob.items():
+                if key.endswith('_b64') and isinstance(value, str):
+                    try:
+                        decoded = base64.b64decode(value, validate=True).decode('utf-8')
+                    except (ValueError, UnicodeError) as exc:
+                        self.fail(f'{key} must retain decodable UTF-8 evidence: {exc}')
+                    self.assertNotIn(TOKEN, decoded)
+                self.assert_absent(value)
+        elif isinstance(blob, (list, tuple)):
+            for value in blob:
+                self.assert_absent(value)
 
     def test_trailing_excerpt_is_redacted_in_the_stored_object(self):
-        gw, store = routed('not json ' + TOKEN + ' trailing'), Store()
+        gw, store = routed('{"files": []} {"value": "' + TOKEN + '"}'), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
         with self.assertRaises(ModelGatewayError):
             gw.complete_json(system='s', user='u', task='codegen')
@@ -169,7 +189,29 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assert_absent(data.decode())                                           # the WHOLE serialized object
         stored = json.loads(data)
         self.assertIn('trailing_starts', stored['diagnostic'])                      # the field is kept, redacted
+        self.assertEqual(stored['diagnostic']['tail_class'], 'conflict')
+        self.assertIn('tail_raw_utf8_b64', stored['diagnostic'])
+        self.assertIn('[redacted-google-key]', base64.b64decode(
+            stored['diagnostic']['tail_raw_utf8_b64']).decode('utf-8'))
         self.assertTrue(stored['stored_redacted'])
+        self.assert_absent(rejected_json_evidence(gw))
+
+    def test_base64_assertion_detects_encoded_secret(self):
+        for blob in ({'diagnostic': {'tail_raw_utf8_b64': base64.b64encode(TOKEN.encode()).decode()}},
+                     {TOKEN: 'a field name must still be scanned'}):
+            with self.subTest(blob=blob), self.assertRaises(AssertionError):
+                self.assert_absent(blob)
+
+    def test_non_secret_suffix_is_decodable_and_preserved_in_the_store(self):
+        tail = ' \n{"message":"שלום world, retained evidence with spaces and punctuation."}'
+        gw, store = routed('{"files": []}' + tail), Store()
+        install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
+        with self.assertRaises(ModelGatewayError):
+            gw.complete_json(system='s', user='u', task='codegen')
+        stored = json.loads(next(iter(store.objects.values())))
+        self.assertEqual(base64.b64decode(stored['diagnostic']['tail_raw_utf8_b64'],
+                                         validate=True).decode('utf-8'), tail)
+        self.assertFalse(stored['diagnostic']['tail_raw_redacted'])
 
     def test_leading_excerpt_is_redacted_in_object_evidence_and_route_events(self):
         gw, store = routed(TOKEN + ' {"files": []}'), Store()

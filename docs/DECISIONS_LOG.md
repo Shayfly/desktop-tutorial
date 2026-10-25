@@ -252,3 +252,22 @@
 - Report first_pass_yield as x/2, final accepted products as y/2, repair/call counts, total authorized and settled spend including failures, and cost per accepted product (undefined if y=0). Capture effective max_tokens and provider finish/stop reason where the existing evidence supplies them; missing values stay UNKNOWN.
 - Pilot interpretation:2/2 accepted supports keeping the LIGHT lane provisionally;0/2 accepted after the existing repair limit, or any false success or data loss, is a poor outcome requiring a stronger LIGHT model before raising the floor.1/2 is inconclusive and requires diagnosis, not a routing gate or an automatic policy change. Two cases are a directional pilot, not evidence of population-level reliability or readiness for100 users.
 - Status: protocol defined; pilot NOT RUN. No model-quality claim is inferred from the catalog score70 or from unit tests.
+
+
+### 2026-10-25 — LANG-001: רב-לשוניות, תיקון סטייה ברשומה (הכרעת הבעלים)
+
+הניסוח "פלטפורמה בעברית" היה טעות ברשומה. הכוונה המחייבת היא פלטפורמה **בכל שפה**; זה תיקון לתוכנית המקורית ואינו הרחבת היקף.
+
+1. **השיחה והממשק:** המשתמש כותב בכל שפה והמערכת עונה באותה שפה.
+2. **התוצר:** האפליקציה נבנית בשפת הלקוח, כולל RTL/LTR, תוויות ותוכן הדוגמה.
+3. **המחיר:** דולר בכל השפות. טריגר לחזרה להכרעת המטבע: לקוח שמשלם במטבע שאינו דולר.
+
+סדר הביצוע המחייב:
+
+1. הפרסר וה-intake מקבלים כל שפה.
+2. האפליקציה שנבנית בשפת הלקוח והכיווניות המתאימה.
+3. i18n מלא של הממשק.
+
+**כעת: שלב 1, ובפרסר בלבד במסגרת #131.** אין שינוי בקוד intake, בתמחור או בממשק. החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+הכרעת הפרסר זהה בכל שפה: טקסט חופשי לאחר JSON מסווג prose לפי תחביר, ללא תלות באלפבית; leading prose נדחה באותה שגיאת פרסר. הנחיית התיקון דורשת אובייקט JSON לפי הסכמה ושמירה על שפת התוכן המבוקשת.
