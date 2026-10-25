@@ -63,12 +63,14 @@ def test_job_timeout_flag(tmp_path):
     mod.JOBS.clear()
     original=mod.JOB_TIMEOUT
     try:
-        mod.JOB_TIMEOUT=.3
-        jid=mod.launch_job([["python3","-c","import time;print('partial');time.sleep(10)"]])
+        mod.JOB_TIMEOUT=1.5
+        jid=mod.launch_job([["python3","-c","import time;print('partial',flush=True);time.sleep(10)"]])
         job=wait_done(jid)
         assert job["result"]["exit_code"]==124
         assert job["timed_out"] is True
+        assert job["stage"]=="command"
         assert "partial" in job["result"]["stdout"]
+        assert job["result"]["truncated"] is False
     finally:
         mod.JOB_TIMEOUT=original
 

@@ -26,8 +26,25 @@ def test_output_memory_bounded(tmp_path):
 
 def test_process_group_timeout(tmp_path):
     module.ROOT=tmp_path
-    r=module.run(["python3","-c","import time;time.sleep(30)"],timeout=0.3)
-    assert r["exit_code"]==124 and r["truncated"]
+    import time
+    program=("import subprocess,sys,time;"
+             "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);"
+             "print(p.pid,flush=True);time.sleep(30)")
+    r=module.run(["python3","-c",program],timeout=0.8)
+    assert r["exit_code"]==124
+    assert r["truncated"] is False
+    assert r["stdout"].strip().isdigit(), "partial output lost on timeout"
+    child_pid=int(r["stdout"].strip())
+    def still_running(pid):
+        try:
+            stat=Path(f"/proc/{pid}/stat").read_text()
+        except FileNotFoundError:
+            return False
+        return stat.rsplit(")",1)[1].split()[0] != "Z"
+    until=time.monotonic()+2
+    while still_running(child_pid) and time.monotonic()<until:
+        time.sleep(.025)
+    assert not still_running(child_pid), "timed-out process left a running descendant"
 
 def test_disallowed_command_rejected_at_endpoint():
     import http.server, threading, urllib.request, urllib.error
@@ -104,7 +121,9 @@ def test_pipe_and_python_script(tmp_path):
     module.ROOT=tmp_path
     (tmp_path/"simple.py").write_text("print('ok-script')\n")
     assert module.validate_segment(["python3","simple.py"])
-    assert not module.validate_segment(["python3","-c","print(1)"])
+    assert module.validate_segment(["python3","-c","print(1)"])
+    assert not module.validate_segment(["bash","-c","print(1)"])
+    assert not module.validate_segment(["curl","https://example.com"])
     assert not module.validate_segment(["python3","../escape.py"])
     parts=module.split_pipeline("find . | head -n 1")
     assert parts == [["find","."],["head","-n","1"]]
