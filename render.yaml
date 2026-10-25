@@ -2,7 +2,7 @@ services:
   - type: web
     name: 148ai-repo-control
     runtime: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./services/repo-control/Dockerfile
     dockerContext: .
     healthCheckPath: /health
