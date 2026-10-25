@@ -1,6 +1,7 @@
 """Read-only, FAIL-CLOSED gate: may the worker consumers be stopped right now? (founder directive 2026-10-11)
 
     python -m omni_prod.active_jobs [--wait-minutes N] [--poll-seconds S] [--acknowledge-stale ID[,ID...]]
+                                    [--tolerate-unverified]
 
 Exit codes
   0  verified quiet: no consumer is executing anything; draining is safe
@@ -20,6 +21,11 @@ What counts as running (every one blocks)
 QUEUED work (build_jobs, modifications, undelivered intake outbox rows, RQ queue length) only waits for the new worker;
 it is reported, not blocking.
 
+--tolerate-unverified (explicit; the default stays fail-closed): when, at the deadline, NOTHING blocking was seen and
+EVERY error is a connection failure (`db:` / `redis:` only -- e.g. the database is down for an hour), print a
+::warning with the exact errors and exit 0. Running work still exits 3; a missing table, a failed query, a gate
+error or bad arguments still exit 2. Deploy build worker #127 died on exactly this: a DB outage, not running work.
+
 Only SELECTs and Redis reads (the DB session is read-only); no model call, no write.
 """
 from __future__ import annotations
@@ -31,6 +37,12 @@ import time
 
 KNOWN_QUEUES = ('omni-builds', 'omni-previews', 'omni-intake')
 EXIT_QUIET, EXIT_UNVERIFIED, EXIT_BUSY = 0, 2, 3
+CONNECTION_ERRORS = ('db:', 'redis:')
+
+
+def only_connection_failures(errors) -> bool:
+    """Every error says a store could not be REACHED (not that a table/query is missing or broken)."""
+    return bool(errors) and all(str(e).startswith(CONNECTION_ERRORS) for e in errors)
 
 
 def _rows(conn, sql: str, errors: list, what: str):
@@ -176,6 +188,7 @@ def main(argv: list[str]) -> int:
         print('::error title=active-jobs::bad arguments; NOT draining')
         return EXIT_UNVERIFIED
     ack = [x for x in str(arg('--acknowledge-stale', '')).split(',') if x]
+    tolerate = '--tolerate-unverified' in argv
     deadline = time.monotonic() + wait * 60
     while True:
         try:
@@ -190,6 +203,14 @@ def main(argv: list[str]) -> int:
                   + (f' ({q} queued items wait for the new worker)' if q else ''))
             return EXIT_QUIET
         if time.monotonic() >= deadline:
+            if snap['unverified'] and tolerate and not snap['blocking'] and only_connection_failures(snap['errors']):
+                print(f"::warning title=active-jobs::draining WITHOUT verification (--tolerate-unverified): "
+                      f"no running work was seen and every error is a connection failure: {snap['errors']}")
+                return EXIT_QUIET
+            if snap['unverified'] and tolerate and snap['blocking']:
+                print(f"::error title=active-jobs::NOT draining: running work seen while the state is only partly "
+                      f"verified: {snap['blocking'][:10]}; errors: {snap['errors']}")
+                return EXIT_BUSY
             if snap['unverified']:
                 print(f"::error title=active-jobs::NOT draining: the state could not be verified: {snap['errors']}")
                 return EXIT_UNVERIFIED

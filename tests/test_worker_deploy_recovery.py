@@ -542,6 +542,67 @@ class VerifiedExistingRollbackTests(unittest.TestCase):
         self.assertNotIn('its image object is gone', r.stdout)
         self.assertNotIn('exec ', log.read_text())
 
+class TolerateUnverifiedTests(unittest.TestCase):
+    """Deploy build worker #127: a DB outage made the drain gate exit 2 and killed the deploy although nothing ran.
+    --tolerate-unverified (explicit, never the default) turns connection-only unverified into a warned quiet; running
+    work still refuses (3) and a missing table still refuses (2). Without the flag nothing changes."""
+
+    CONN = ['db: connection failed (OperationalError)', 'redis: OMNI_REDIS_URL is not set, RQ state cannot be read']
+
+    def run_main(self, snap, *flags):
+        import contextlib, io
+        from unittest import mock
+        from omni_prod import active_jobs as A
+        full = {'blocking': [], 'busy': False, 'safe_to_drain': False, **snap}
+        full['unverified'] = bool(full.get('errors'))
+        out = io.StringIO()
+        with mock.patch.object(A, 'check_once', lambda ack: dict(full)), contextlib.redirect_stdout(out):
+            rc = A.main(['--wait-minutes', '0', *flags])
+        return rc, out.getvalue()
+
+    def test_the_flag_turns_connection_only_unverified_into_a_warned_quiet(self):
+        rc, out = self.run_main({'errors': list(self.CONN)}, '--tolerate-unverified')
+        self.assertEqual(rc, 0, out)
+        self.assertIn('::warning title=active-jobs::draining WITHOUT verification', out)
+        for e in self.CONN:
+            self.assertIn(e, out)                                              # the exact errors are shown
+        # running work seen (e.g. Redis up, a busy worker) still refuses with the flag
+        rc, out = self.run_main({'errors': [self.CONN[0]], 'blocking': ['rq_busy_workers:w1'], 'busy': True},
+                                '--tolerate-unverified')
+        self.assertEqual(rc, 3, out)
+        # anything that is not a connection failure still cannot be tolerated
+        for errors in (['intake_reservations: UndefinedTable'], [self.CONN[0], 'build_jobs: UndefinedTable'],
+                       ['gate: RuntimeError']):
+            with self.subTest(errors=errors):
+                self.assertEqual(self.run_main({'errors': errors}, '--tolerate-unverified')[0], 2)
+
+    def test_without_the_flag_the_behaviour_is_exactly_todays(self):
+        rc, out = self.run_main({'errors': list(self.CONN)})
+        self.assertEqual(rc, 2, out)
+        self.assertIn('::error title=active-jobs::NOT draining: the state could not be verified', out)
+        self.assertNotIn('::warning', out)
+        rc, _ = self.run_main({'errors': [self.CONN[0]], 'blocking': ['rq_busy_workers:w1'], 'busy': True})
+        self.assertEqual(rc, 2)                                                # unverified wins, as today
+        self.assertEqual(self.run_main({'errors': [], 'blocking': ['running_builds:b1'], 'busy': True})[0], 3)
+        self.assertEqual(self.run_main({'errors': [], 'safe_to_drain': True})[0], 0)
+
+    def test_the_real_command_with_an_unreachable_database(self):
+        env = {k: v for k, v in os.environ.items() if k not in ('OMNI_DATABASE_URL', 'OMNI_REDIS_URL')}
+        env['OMNI_DATABASE_URL'] = 'postgresql://postgres@127.0.0.1:1/none'
+        py = [sys.executable, '-m', 'omni_prod.active_jobs', '--wait-minutes', '0']
+        strict = subprocess.run(py, env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        tolerant = subprocess.run(py + ['--tolerate-unverified'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(strict.returncode, 2, strict.stdout + strict.stderr)
+        self.assertEqual(tolerant.returncode, 0, tolerant.stdout + tolerant.stderr)
+        self.assertIn('db: connection failed', tolerant.stdout)
+
+    def test_the_workflow_passes_the_flag_only_to_the_pre_drain_gate(self):
+        wf = yaml.safe_load((ROOT / '.github/workflows/deploy-worker.yml').read_text())
+        steps = {s.get('id'): s for s in wf['jobs']['deploy']['steps']}
+        self.assertIn('--tolerate-unverified', steps['idle']['run'])
+        self.assertNotIn('--tolerate-unverified', (HOST / 'drain.sh').read_text())   # the gates inside the drain stay strict
+
+
 if __name__ == '__main__':
     unittest.main()
 

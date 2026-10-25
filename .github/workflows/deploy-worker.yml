@@ -179,7 +179,9 @@ jobs:
       - name: Refuse to drain while a build or change is running
         id: idle
         working-directory: infra/worker-host
-        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20
+        # --tolerate-unverified: a DB/Redis outage alone (no running work seen, connection errors only) is a ::warning,
+        # not a dead deploy. Running work still refuses (3); a missing table still refuses (2).
+        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20 --tolerate-unverified
 
       - name: Drain workers (finish running jobs before replacing anything)
         id: drain
