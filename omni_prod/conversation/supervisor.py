@@ -394,6 +394,13 @@ class ConversationSupervisor:
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
+        # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
+        # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
+        # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
+        unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now)
+        res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
+                     [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else [])
         expected = row.revision if row else 0
         if row is None or new_brief.fingerprint() != row.fingerprint:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
@@ -406,7 +413,7 @@ class ConversationSupervisor:
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
-        turn.gaps = self._gaps(project_id, message, interp)
+        turn.gaps = gaps
         parts = []
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
@@ -430,7 +437,7 @@ class ConversationSupervisor:
             parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
                          + '.' + (T['more'].format(n=more) if more > 0 else ''))
         unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        if row.complete:
+        if row.complete and gap_q is None:
             turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
             feas = (turn.plan or {}).get('feasibility', {})
             if feas.get('buildable'):
@@ -444,32 +451,51 @@ class ConversationSupervisor:
                 parts.append(T['blocked'] + ': ' + '; '.join(
                     self._finding_message(f, lang, T) for f in blocked[:3]))
         elif res.asked:
+            if row.complete:                                # the plan exists, but a material field is still open
+                turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
             self._last_reply_was_why = False
             repeated = self._repeats(project_id, res.asked)
             explain = unsure or repeated
-            parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
+            parts.extend(self._ask_line(res, row, lang, T, unsure=explain,
+                                        free=gap_q.text if gap_q is not None and not res.conflicts else None))
             turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
         return turn
 
-    def _gaps(self, project_id, message, interp) -> dict | None:
-        """WP1 (QUESTIONS-001): additive. Per-project spec held in this process only (no schema change in WP1)."""
-        from ..intake.families import classify_family
+    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False):
+        """(gaps evidence, the one next Question or None). Per-project spec held in this process (WP1b: durable)."""
+        from ..intake.families import classify_family, named_family
         from ..intake.gaps import Questioner, Spec
-        if not message:
-            return None
+        from ..intake.interpreter import Proposal
+        said, proposals = message, list(getattr(interp, 'proposals', ()) or ())
+        if not message and answers:                   # a quick-reply button: its label is the customer's words
+            labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
+                      for q, v in answers.items() if q in d.BY_ID]
+            said = '; '.join(label for _, _, label in labels)
+            proposals = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
+            if any(v == d.DELEGATE for _, v, _ in labels):
+                said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+        if not said:
+            return None, None
         specs = self.__dict__.setdefault('_gap_specs', {})
-        kind = getattr(interp, 'product_family', None) or classify_family(message)
-        spec = specs.get(project_id)
-        if spec is None or spec.kind != kind:
-            spec = specs[project_id] = Spec(kind, [])
-        spec.hear(message, getattr(interp, 'proposals', ()) or ())
-        model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')   # model mode is on for this turn
+        kind, spec = named_family(said), specs.get(project_id)
+        if spec is None or (kind is not None and kind != spec.kind):
+            spec = specs[project_id] = Spec(kind or classify_family(said), [])
+        spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
+        pending = [q.field for q in d.pending(brief)]
+        g = spec.detect(pending)
+        for name, imp in g['implied'].items():        # implied by the request: an assumption in the brief, not asked
+            q = d.BY_ID.get(name)
+            if q is not None and name not in brief.fields and (q.kind == 'text' or imp['value'] in {o.value for o in q.options}):
+                brief.fields[name] = {'value': imp['value'], 'source': 'default', 'question_id': q.id, 'confidence': 'inferred'}
+        for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
+            brief.hints.setdefault(name, value)
+        model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
-        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec)
-        return {**spec.detect(), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending)
+        return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
 
     @staticmethod
     def _finding_message(f, lang, T):
@@ -499,7 +525,7 @@ class ConversationSupervisor:
         self._last_reply_was_why = bool(last.get('explained'))
         return bool(last.get('asked')) and last.get('asked') == [q.id for q in asked]
 
-    def _ask_line(self, res, row, lang, T, *, unsure: bool) -> list[str]:
+    def _ask_line(self, res, row, lang, T, *, unsure: bool, free: str | None = None) -> list[str]:
         """One short line per turn: verify a pre-selected value, explain why on
         "I don't know"/repeats, otherwise just ask. Never the same sentence twice."""
         q = res.asked[0]
@@ -516,7 +542,11 @@ class ConversationSupervisor:
         hint = row.brief.hints.get(q.field) if row is not None else None
         if hint and len(res.asked) == 1 and q.kind == 'choice':
             return [T['verify'].format(label=_label(q.field, hint, lang))]
-        if res.contradictions or q.id == 'access_scope':
+        if res.contradictions:
+            return [T['decide']]
+        if free:                                          # the gap detector's question, phrased for this request
+            return [free]
+        if q.id == 'access_scope':
             return [T['decide']]
         return [T['ask_one'] if len(res.asked) == 1 else T['ask'] + ':']
 
