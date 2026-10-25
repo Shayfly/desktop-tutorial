@@ -24,7 +24,7 @@ def test_output_memory_bounded(tmp_path):
     assert r["exit_code"]==0 and r["truncated"]
     assert len(r["stdout"].encode())<=module.MAX
 
-def test_process_group_timeout(tmp_path):
+def test_process_group_timeout_preserves_output_and_terminates_child(tmp_path):
     module.ROOT=tmp_path
     import time
     program=("import subprocess,sys,time;"
@@ -38,7 +38,8 @@ def test_process_group_timeout(tmp_path):
     def still_running(pid):
         try:
             stat=Path(f"/proc/{pid}/stat").read_text()
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
+            # A vanished /proc entry means the descendant has terminated.
             return False
         return stat.rsplit(")",1)[1].split()[0] != "Z"
     until=time.monotonic()+2
