@@ -263,9 +263,11 @@ def _schema_evidence(schema) -> dict:
     if not isinstance(schema, dict):
         return {'error_class': 'INVALID_RESPONSE_CONTRACT'}
     ev = {k: schema.get(k) for k in ('required', 'applied_max') if isinstance(schema.get(k), int)}
-    for k in ('status', 'required_name'):
+    for k in ('status', 'required_name', 'error', 'error_code', 'provider_status_basis'):
         if isinstance(schema.get(k), str) and re.fullmatch(r'[A-Za-z0-9_]{1,64}', schema[k]):
             ev[k] = schema[k]
+    if schema.get('provider_status') == 402:
+        ev['provider_status'] = 402
     if isinstance(schema.get('missing'), list):
         ev['missing'] = [v for v in schema['missing'] if isinstance(v, int)][:50]
     if isinstance(schema.get('schema_migrations_present'), bool):
