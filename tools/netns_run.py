@@ -9,7 +9,7 @@ route out: a connect fails at once with ENETUNREACH and a name lookup fails. Tha
 Python guard (omni_prod/hermetic.py, OMNI_TEST_HERMETIC=1, set here too) only adds a loud HermeticViolation for
 in-process code.
 
-Fail closed: if a namespace cannot be created, or the namespace still has an interface other than loopback, or a
+Fail closed: if a namespace cannot be created, or the namespace has an active non-loopback interface or route, or a
 connect to a non-loopback address does not fail, this exits 3 and runs nothing. There is no fallback to "unisolated".
 Install dependencies BEFORE calling this (there is no network inside).
 """
@@ -50,8 +50,33 @@ def loopback_up() -> None:
 
 def verify_isolated() -> None:
     names = interfaces()
-    if names != ['lo']:
-        die(f'the namespace has interfaces {names}, expected only lo')
+    # Linux may expose tunl0 (inert IP-in-IP tunnel) in a fresh netns.
+    # Its presence alone is not evidence of connectivity: require no addresses or routes.
+    if 'lo' not in names or set(names) - {'lo', 'tunl0'}:
+        die(f'unexpected netns interfaces {names}')
+    if 'tunl0' in names:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                fcntl.ioctl(sock, 0x8915, struct.pack('256s', b'tunl0'))  # SIOCGIFADDR
+            except OSError as exc:
+                if exc.errno not in (errno.EADDRNOTAVAIL, errno.ENODEV):
+                    die(f'tunl0 IPv4 inspection error: {exc}')
+            else:
+                die('tunl0 has an IPv4 address')
+            finally:
+                sock.close()
+            with open('/proc/net/if_inet6', encoding='utf-8') as fh:
+                if any(line.split()[-1] == 'tunl0' for line in fh if line.split()):
+                    die('tunl0 has an IPv6 address')
+            with open('/proc/net/route', encoding='utf-8') as fh:
+                if any(line.split()[0] == 'tunl0' for line in fh.readlines()[1:] if line.split()):
+                    die('tunl0 has an IPv4 route')
+            with open('/proc/net/ipv6_route', encoding='utf-8') as fh:
+                if any(line.split()[-1] == 'tunl0' for line in fh if line.split()):
+                    die('tunl0 has an IPv6 route')
+        except OSError as exc:
+            die(f'cannot verify tunl0 isolation: {exc}')
     s = socket.socket()
     s.settimeout(2)
     try:

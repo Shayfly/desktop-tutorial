@@ -91,8 +91,11 @@ class C34NetworkNamespaceCanary(unittest.TestCase):
     def test_the_subprocess_is_outside_the_python_guard(self):
         self.assertIsNone(self.out['guard_env'])          # proves the guard plays no part in what follows
 
-    def test_only_loopback_exists(self):
-        self.assertEqual(self.out['interfaces'], ['lo'])
+    def test_only_loopback_or_inert_tunl0_exists(self):
+        # tunl0 may exist in Render namespaces; netns_run itself rejects
+        # a tunl0 with any assigned address or route before running this canary.
+        self.assertIn('lo', self.out['interfaces'])
+        self.assertFalse(set(self.out['interfaces']) - {'lo', 'tunl0'})
 
     def test_a_raw_connect_fails_loudly(self):
         self.assertEqual(self.out['raw_ip'], 'ENETUNREACH')
@@ -107,7 +110,7 @@ class C34NetworkNamespaceCanary(unittest.TestCase):
     def test_the_runner_says_it_is_isolated(self):
         if self.stderr is None:
             self.skipTest('the suite itself runs inside netns_run; its banner is in the CI log')
-        self.assertIn("netns_run: isolated (interfaces ['lo']", self.stderr)
+        self.assertIn("netns_run: isolated (interfaces [", self.stderr)
 
 
 class NetnsRunnerFailsClosed(unittest.TestCase):
