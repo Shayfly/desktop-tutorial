@@ -282,50 +282,77 @@ def strip_envelope(raw: str) -> tuple[str, str]:
 
 
 def parse_model_json(raw: str) -> tuple[object | None, dict]:
-    """(object or None, diagnostic). Exactly one JSON value, nothing before it and nothing after it. Content after the
-    first object (a second object, an explanation) or before it (prose) is NOT ignored: the answer is rejected and the
-    diagnostic says what was there. Two deterministic character-level repairs inside the value stay, and are recorded:
-    raw control characters in strings (strict=False) and invalid backslash escapes doubled (regexes in code)."""
+    """Decode the first complete JSON value, classifying any trailing content."""
     text, envelope = strip_envelope(raw)
-    diag = {'raw_chars': len(raw or ''), 'envelope': envelope, 'repairs': [], 'leading_chars': 0, 'trailing_chars': 0,
-            'starts': text[:60], 'verdict': 'rejected', 'reason': ''}
+    diag = {'raw_chars': len(raw or ''), 'envelope': envelope, 'repairs': [],
+            'leading_chars': 0, 'trailing_chars': 0, 'starts': text[:60],
+            'verdict': 'rejected', 'reason': '', 'source_span': None, 'tail_class': 'benign'}
     obj, exc = _parse_json_object(text, diag)
     if exc is None:
+        if obj is None or obj == {}:
+            diag['reason'] = 'empty JSON value is not a successful answer'
+            return None, diag
+        start = (raw or '').find(text)
+        if start < 0: start = 0
+        local_span = diag.pop('_local_span')
+        diag['source_span'] = [start + local_span[0], start + local_span[1]]
         diag['verdict'] = 'accepted'
         return obj, diag
     diag['reason'] = f'{exc.msg} at char {exc.pos} of {len(text)}'
-    if envelope == 'none' and text.startswith('```'):
+    diag['error_pos'] = (raw or '').find(text) + exc.pos
+    if envelope == 'none' and text.startswith(chr(96)*3):
         diag['reason'] = 'a markdown fence that does not close at the end of the answer (content after it, or truncated)'
     return None, diag
 
-
 def _parse_json_object(text: str, diag: dict | None = None):
-    """(value, None) or (None, JSONDecodeError). See parse_model_json: one complete value, nothing around it."""
     diag = {} if diag is None else diag
-    first = None
     lead = len(text) - len(text.lstrip())
     body = text.lstrip()
-    if body and body[0] not in '{[':
+    if not body or body[0] not in '{[':
         brace = body.find('{')
         diag['leading_chars'] = brace if brace > 0 else len(body)
         return None, json.JSONDecodeError('content before the JSON value (not a known envelope)', text, lead)
+    first = None
     for candidate, repair in _json_candidates(body):
         for strict in (True, False):
-            try:
-                obj, end = json.JSONDecoder(strict=strict).raw_decode(candidate)
+            try: obj, end = json.JSONDecoder(strict=strict).raw_decode(candidate)
             except json.JSONDecodeError as exc:
                 first = first or exc
                 continue
-            rest = candidate[end:]
-            if rest.strip():
-                diag['trailing_chars'] = len(rest.strip())
-                diag['trailing_starts'] = rest.strip()[:80]
-                return None, json.JSONDecodeError('content after the first JSON value (not a known envelope)',
-                                                  candidate, end)
+            if len(candidate) != len(body):
+                return None, json.JSONDecodeError('exact source span unavailable after length-changing repair', text, lead)
+            rest = body[end:]
+            tail = rest.strip()
+            diag['trailing_chars'] = len(tail)
+            diag['trailing_starts'] = tail[:80]
+            diag['tail'] = rest
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
+            diag['_local_span'] = (lead, lead + end)
+            if not tail or re.fullmatch(r'[,}\]\s]+', tail):
+                diag['tail_class'] = 'benign'
+                return obj, None
+            if tail[0] in '{[':
+                try: second, second_end = json.JSONDecoder().raw_decode(tail)
+                except json.JSONDecodeError as exc:
+                    diag['tail_class'] = 'malformed'
+                    return None, json.JSONDecodeError('malformed trailing JSON', text, lead+end+len(rest)-len(rest.lstrip())+exc.pos)
+                if tail[second_end:].strip():
+                    diag['tail_class'] = 'malformed'
+                    return None, json.JSONDecodeError('extra trailing JSON data', text, lead+end+len(rest)-len(rest.lstrip())+second_end)
+                if second != obj:
+                    diag['tail_class'] = 'conflict'
+                    return None, json.JSONDecodeError('conflicting second JSON value', text, lead+end+len(rest)-len(rest.lstrip()))
+                diag['tail_class'] = 'benign'
+                return obj, None
+            if tail.startswith(chr(96)*3):
+                if tail == chr(96)*3:
+                    diag['tail_class'] = 'benign'
+                    return obj, None
+                diag['tail_class'] = 'malformed'
+                return None, json.JSONDecodeError('malformed trailing markdown fence', text, lead+end)
+            diag['tail_class'] = 'prose'
             return obj, None
     return None, first
-
 
 _BAD_ESCAPE = re.compile(r'(?<!\\)((?:\\\\)*)\\(?=[^"\\/bfnrtu])')
 

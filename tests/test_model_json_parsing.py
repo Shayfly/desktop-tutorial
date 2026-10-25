@@ -28,6 +28,25 @@ def _gateway(content, finish='stop'):
 
 
 class JsonAnswerTests(unittest.TestCase):
+    def test_7807_json_plus_18_char_tail_has_source_span(self):
+        from omni_prod.model_gateway import parse_model_json
+        prefix = '{"files":[{"content":"'
+        suffix = '"}]}'
+        original = prefix + 'x' * (7807-len(prefix)-len(suffix)) + suffix
+        raw = original + 'additional comment'
+        self.assertEqual(len(raw), 7825)
+        obj, diag = parse_model_json(raw)
+        self.assertEqual(diag['source_span'], [0, 7807])
+        self.assertEqual(diag['tail_class'], 'prose')
+        self.assertTrue(obj['files'])
+
+    def test_conflict_and_malformed_tail(self):
+        from omni_prod.model_gateway import parse_model_json
+        for raw, classification in (('{"a":1}{"a":2}', 'conflict'), ('{"a":1}{"a":', 'malformed')):
+            obj, diag = parse_model_json(raw)
+            self.assertIsNone(obj)
+            self.assertEqual(diag['tail_class'], classification)
+            self.assertIn('char', diag['reason'])
     def test_plain_and_fenced_objects(self):
         self.assertEqual(_gateway('{"a": 1}').complete_json(system='s', user='u'), {'a': 1})
         self.assertEqual(_gateway('```json\n{"a": 1}\n```').complete_json(system='s', user='u'), {'a': 1})
