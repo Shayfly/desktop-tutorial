@@ -320,14 +320,30 @@ def _parse_json_object(text: str, diag: dict | None = None):
                 first = first or exc
                 continue
             if len(candidate) != len(body):
-                return None, json.JSONDecodeError('exact source span unavailable after length-changing repair', text, lead)
-            rest = body[end:]
+                # Map the raw_decode end back to the original (unrepaired) text.
+                # The only length-changing repair inserts a backslash at known
+                # positions. Never confuse a repaired-string offset with source.
+                inserts = [m.start() + len(m.group(1)) for m in _BAD_ESCAPE.finditer(body)]
+                raw_end = end
+                for pos in inserts:
+                    if pos < raw_end:
+                        raw_end -= 1
+                if raw_end < 0 or raw_end > len(body):
+                    return None, json.JSONDecodeError('invalid repaired JSON span', text, lead)
+            else:
+                raw_end = end
+            rest = body[raw_end:]
             tail = rest.strip()
             diag['trailing_chars'] = len(tail)
             diag['trailing_starts'] = tail[:80]
             diag['tail'] = rest
             diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
-            diag['_local_span'] = (lead, lead + end)
+            diag['_local_span'] = (lead, lead + raw_end)
+            # Preserve *exact* bytes of the original suffix (UTF-8 representation)
+            # as evidence, in addition to the human-readable classification.
+            import base64
+            diag['tail_raw_utf8_b64'] = base64.b64encode(rest.encode('utf-8')).decode('ascii')
+            diag['tail_start'] = lead + raw_end
             if not tail or re.fullmatch(r'[,}\]\s]+', tail):
                 diag['tail_class'] = 'benign'
                 return obj, None

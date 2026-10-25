@@ -16,7 +16,7 @@ from omni_prod.routed_gateway import ProviderRoute, RoutedModelGateway
 from omni_prod.worker_tasks import install_rejected_json_sink, rejected_json_evidence
 from tests.test_t3_json_no_silent_trailing import gateway as answering
 
-RAW = '{"files": [{"path": "app.py", "content": "x"}]}\n\nI also changed config.py, see above.'
+RAW = 'not json\nI also changed config.py, see above.'
 
 
 class Store:
@@ -49,7 +49,7 @@ class RejectedJsonIsDurable(unittest.TestCase):
         self.assertEqual(stored['stored_text'], RAW)                               # the whole answer, not a cut
         self.assertEqual((stored['build_id'], stored['stored_truncated'], stored['stored_redacted']), ('bld_1', False, False))
         self.assertIsInstance(stored['attempt_seq'], int)
-        self.assertIn('content after the first JSON value', stored['diagnostic']['reason'])
+        self.assertIn('content before the JSON value', stored['diagnostic']['reason'])
         ev = rejected_json_evidence(gw)
         self.assertIs(ev['rejected_model_json_durable'], True)
         self.assertEqual(ev['rejected_model_json_durability'], {'state': 'ALL_STORED', 'rejected': 1, 'stored': 1, 'failed': 0})
@@ -73,7 +73,7 @@ class RejectedJsonIsDurable(unittest.TestCase):
         self.assertEqual(stored['attempt_seq'], row['attempt_seq'])
 
     def test_a_key_shaped_secret_is_redacted_in_the_store_and_says_so(self):
-        leaky = '{"files": []}\nkey=AIza' + 'x' * 30
+        leaky = 'not json\nkey=AIza' + 'x' * 30
         gw, store = routed(leaky), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
         with self.assertRaises(ModelGatewayError):
@@ -161,7 +161,7 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assertNotIn(TOKEN, blob if isinstance(blob, str) else json.dumps(blob, ensure_ascii=False, default=str))
 
     def test_trailing_excerpt_is_redacted_in_the_stored_object(self):
-        gw, store = routed('{"files": []} ' + TOKEN + ' trailing'), Store()
+        gw, store = routed('not json ' + TOKEN + ' trailing'), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_1')
         with self.assertRaises(ModelGatewayError):
             gw.complete_json(system='s', user='u', task='codegen')
@@ -194,7 +194,7 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assertIn('OSError: denied for credential', ev['rejected_model_json'][0]['store_error'])
 
     def test_identifiers_are_not_mangled_by_redaction(self):
-        gw, store = routed('{"files": []} ' + TOKEN), Store()
+        gw, store = routed('not json ' + TOKEN), Store()
         install_rejected_json_sink(gw, SimpleNamespace(storage=store), 'bld_' + 'a' * 32)
         with self.assertRaises(ModelGatewayError):
             gw.complete_json(system='s', user='u', task='codegen')

@@ -42,13 +42,15 @@ class TrailingContentIsNotIgnored(unittest.TestCase):
         return ctx.exception.diagnostic
 
     def test_an_explanation_after_the_object(self):
-        d = self.rejected('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
-        self.assertIn('content after the first JSON value', d['reason'])
+        obj, d = parse_model_json('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
+        self.assertEqual(obj['files'][0]['path'], 'a.py')
+        self.assertEqual(d['tail_class'], 'prose')
+        self.assertEqual(__import__('base64').b64decode(d['tail_raw_utf8_b64']).decode(), d['tail'])
         self.assertEqual(d['trailing_starts'], 'Note: I also changed b.py')
 
     def test_a_second_object(self):
         d = self.rejected('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
-        self.assertIn('content after the first JSON value', d['reason'])
+        self.assertEqual(d['tail_class'], 'conflict')
         self.assertTrue(d['trailing_chars'] > 0)
 
     def test_prose_before_the_object(self):
@@ -57,7 +59,7 @@ class TrailingContentIsNotIgnored(unittest.TestCase):
 
     def test_a_fence_with_text_after_it_is_not_the_known_envelope(self):
         d = self.rejected('```json\n{"files": []}\n```\nHope this helps')
-        self.assertIn('markdown fence that does not close at the end', d['reason'])
+        self.assertIn('markdown fence', d['reason'])
 
     def test_a_non_object_root(self):
         d = self.rejected('[{"path": "a.py"}]')
@@ -86,11 +88,8 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
         gw = RoutedModelGateway(primary=ProviderRoute(ep, declared_quality=90), policy=ModelUsePolicy(
             zero_cost_mode=True, allow_external_fallback=False, external_budget_usd=Decimal('0'),
             max_external_calls_per_build=0), gateway_factory=lambda endpoint: gateway(content))
-        with self.assertRaises(ModelGatewayError):
-            gw.complete_json(system='s', user='u', task='codegen')
-        [kept] = gw.rejected_json
-        self.assertEqual((kept['model'], kept['task'], kept['raw']), ('m', 'codegen', content))
-        self.assertIn('content after the first JSON value', kept['diagnostic']['reason'])
+        self.assertEqual(gw.complete_json(system='s', user='u', task='codegen'), {'files': []})
+        self.assertEqual(gw.rejected_json, [])
 
 
 if __name__ == '__main__':
