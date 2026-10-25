@@ -42,13 +42,16 @@ class TrailingContentIsNotIgnored(unittest.TestCase):
         return ctx.exception.diagnostic
 
     def test_an_explanation_after_the_object(self):
-        d = self.rejected('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
-        self.assertIn('content after the first JSON value', d['reason'])
+        obj, d = parse_model_json('{"files": [{"path": "a.py", "content": "x"}]}\n\nNote: I also changed b.py')
+        self.assertEqual(obj['files'][0]['path'], 'a.py')
+        self.assertEqual(d['verdict'], 'accepted_with_unexplained_tail')
         self.assertEqual(d['trailing_starts'], 'Note: I also changed b.py')
 
     def test_a_second_object(self):
-        d = self.rejected('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
-        self.assertIn('content after the first JSON value', d['reason'])
+        obj, d = parse_model_json('{"files": []}{"files": [{"path": "evil.py", "content": "x"}]}')
+        self.assertEqual(obj, {'files': []})
+        self.assertEqual(d['tail_status'], 'conflict_second_object')
+        self.assertTrue(d['tail_conflict'])
         self.assertTrue(d['trailing_chars'] > 0)
 
     def test_prose_before_the_object(self):
@@ -86,11 +89,16 @@ class TheRoutedGatewayKeepsTheRawAnswer(unittest.TestCase):
         gw = RoutedModelGateway(primary=ProviderRoute(ep, declared_quality=90), policy=ModelUsePolicy(
             zero_cost_mode=True, allow_external_fallback=False, external_budget_usd=Decimal('0'),
             max_external_calls_per_build=0), gateway_factory=lambda endpoint: gateway(content))
-        with self.assertRaises(ModelGatewayError):
-            gw.complete_json(system='s', user='u', task='codegen')
-        [kept] = gw.rejected_json
-        self.assertEqual((kept['model'], kept['task'], kept['raw']), ('m', 'codegen', content))
-        self.assertIn('content after the first JSON value', kept['diagnostic']['reason'])
+        self.assertEqual(gw.complete_json(system='s', user='u', task='codegen'), {'files': []})
+        [kept] = gw.accepted_json_manifest
+        self.assertEqual(kept['diagnostic']['tail_status'], 'benign_prose')
+        self.assertEqual(kept['diagnostic']['tail'], '\nand one more thing')
+
+    def test_actual_invalid_json_is_still_rejected(self):
+        content = 'not json\nand one more thing'
+        gw = gateway(content)
+        with self.assertRaises(ModelJSONRejected):
+            gw.complete_json(system='s', user='u')
 
 
 if __name__ == '__main__':

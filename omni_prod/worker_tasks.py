@@ -240,7 +240,18 @@ def rejected_json_evidence(gateway) -> dict:
                                        'reason': redact_fields((r.get('diagnostic') or {}).get('reason'))} for r in rows],
             'rejected_model_json_durable': durable,
             'rejected_model_json_durability': {'state': state, 'rejected': len(rows), 'stored': stored,
-                                               'failed': len(rows) - stored}}
+                                               'failed': len(rows) - stored},
+            'accepted_model_json': [
+                {k: redact_fields(v) if k in ('diagnostic', 'store_error') else v for k, v in r.items()}
+                for r in getattr(gateway, 'accepted_json_manifest', [])],
+            'model_json_tail_conflicts': [
+                {'task': r.get('task'), 'attempt_seq': r.get('attempt_seq'), 'key': r.get('key'),
+                 'tail_status': (r.get('diagnostic') or {}).get('tail_status')}
+                for r in getattr(gateway, 'accepted_json_manifest', [])
+                if (r.get('diagnostic') or {}).get('tail_conflict')],
+            'accepted_model_json_durable': (
+                all(bool(r.get('key')) and not r.get('store_error') for r in gateway.accepted_json_manifest)
+                if getattr(gateway, 'accepted_json_manifest', []) else None)}
 
 
 def visual_evidence(engine) -> dict | None:
@@ -306,7 +317,7 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
     try:
         executor = getattr(engine, 'executor', None)
         evidence = {
-            'consistency_gate': consistency_evidence(engine),
+            'consistency_gate': consistency_evidence(engine, gateway),
             'preview_smoke': preview_smoke_evidence(engine),
             'behavior_acceptance': behavior_evidence(engine),
             'browser_check': getattr(executor, 'last_probe', None),
@@ -322,12 +333,19 @@ def release_quality_report(build_id, engine, gateway, result, quality, security,
         return None
 
 
-def consistency_evidence(engine) -> dict | None:
+def consistency_evidence(engine, gateway=None) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .consistency_gate import ConsistencyGateExecutor
     target = find_in_chain(getattr(engine, 'executor', None), ConsistencyGateExecutor)
     if target is None or not target.enabled:
         return None
+    if gateway is not None:
+        target.record_model_json_conflicts([
+            {'task': r.get('task'), 'attempt_seq': r.get('attempt_seq'),
+             'tail_status': (r.get('diagnostic') or {}).get('tail_status')}
+            for r in getattr(gateway, 'accepted_json_manifest', [])
+            if (r.get('diagnostic') or {}).get('tail_conflict')
+        ])
     return {'last': target.last_consistency, 'rounds': list(target.consistency_rounds)}
 from .modification_engine import CandidateModificationEngine
 from .provider_usage import ProviderUsageLedger
@@ -888,7 +906,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
             'behavior_acceptance': behavior_evidence(engine),
-            'consistency_gate': consistency_evidence(engine),
+            'consistency_gate': consistency_evidence(engine, gateway),
             'preview_smoke': preview_smoke_evidence(engine),
             'visual_qa': visual_evidence(engine),
             'quality_report': quality_report.to_dict() if quality_report is not None else None,

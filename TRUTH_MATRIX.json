@@ -206,14 +206,14 @@
     "postdeploy-checks gate-replay run 38083647077"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "platform:consistency_gate",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: no false positive on stored working versions; repair prompt contains the code"
+     "status": "UNIT_TESTED",
+     "why": "previous gate-replay run 38083647077 pre-dates H1 consistency hook changes; new live route not yet verified"
     }
    ]
   },
@@ -1137,8 +1137,8 @@
  ],
  "counts": {
   "IMPLEMENTED": 11,
-  "REAL_SERVER_VERIFIED": 10,
-  "UNIT_TESTED": 5,
+  "REAL_SERVER_VERIFIED": 9,
+  "UNIT_TESTED": 6,
   "INTEGRATION_TESTED": 2,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
