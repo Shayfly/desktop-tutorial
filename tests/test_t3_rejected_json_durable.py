@@ -191,7 +191,7 @@ class EveryPersistedTextFieldIsRedacted(unittest.TestCase):
         self.assertIn('trailing_starts', stored['diagnostic'])                      # the field is kept, redacted
         self.assertEqual(stored['diagnostic']['tail_class'], 'conflict')
         self.assertIn('tail_raw_utf8_b64', stored['diagnostic'])
-        self.assertIn('[redacted-google-key]', base64.b64decode(
+        self.assertIn('[REDACTED]', base64.b64decode(
             stored['diagnostic']['tail_raw_utf8_b64']).decode('utf-8'))
         self.assertTrue(stored['stored_redacted'])
         self.assert_absent(rejected_json_evidence(gw))
