@@ -1,0 +1,15 @@
+name: agent loop
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: retarget stale bases
+        run: curl -sS --max-time 150 "https://one48ai-repo-control.onrender.com/pr?op=retarget&token=80724403057455170625704481920549936246397916847441"
+      - name: sweep clean ready
+        run: curl -sS --max-time 200 "https://one48ai-repo-control.onrender.com/pr?op=sweep&token=80724403057455170625704481920549936246397916847441"

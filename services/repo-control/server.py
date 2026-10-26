@@ -402,6 +402,32 @@ class Handler(BaseHTTPRequestHandler):
                     result=run(cmd, git_credentials=True)
                     if op in ("pull","add","commit","push"):audit("git:"+op,"ok" if result["exit_code"]==0 else "failed")
                     return self.reply(200 if result["exit_code"]==0 else 409,result)
+                if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("sweep","retarget"):
+                    op=q.get("op",[""])[0]
+                    r=gh_json("/pulls?state=open&per_page=100")
+                    if not r["ok"]: return self.reply(502,r)
+                    out=[]
+                    for p in r["data"]:
+                        n=p["number"]
+                        b=p["base"]["ref"]
+                        if op=="retarget":
+                            if b=="main": continue
+                            br=gh_json("/branches/"+b)
+                            if br["ok"]: continue
+                            t=gh_json("/pulls/"+str(n),method="PATCH",body={"base":"main"})
+                            out.append(str(n)+" retarget "+b+" -> "+("ok" if t["ok"] else "fail"))
+                            continue
+                        if p["draft"] and q.get("drafts",["0"])[0]!="1": continue
+                        if b!="main": continue
+                        d=gh_json("/pulls/"+str(n))
+                        dd=d.get("data") or {}
+                        if dd.get("mergeable_state")!="clean":
+                            out.append(str(n)+" skip "+str(dd.get("mergeable_state")))
+                            continue
+                        m=gh_json("/pulls/"+str(n)+"/merge",method="PUT",body={"merge_method":"squash"})
+                        out.append(str(n)+" merge "+("ok" if m["ok"] else "fail"))
+                    audit("pr:"+op,"ok",str(len(out)))
+                    return self.reply(200,{"ok":True,"op":op,"count":len(out),"actions":out})
                 if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("get","scan"):
                     if q.get("op",[""])[0]=="scan":
                         r=gh_json("/pulls?state=open&per_page=100&sort=created&direction=asc")
