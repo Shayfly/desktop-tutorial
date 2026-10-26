@@ -97,6 +97,8 @@ jobs:
         run: bash infra/worker-host/snapshot-rollback.sh
 
       - name: Build images
+        # Bound image preparation before any worker drain or service replacement.
+        timeout-minutes: 20
         working-directory: infra/worker-host
         run: docker compose build
 
