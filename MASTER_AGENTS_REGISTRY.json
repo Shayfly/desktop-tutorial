@@ -97,7 +97,7 @@
         "capability_plan",
         "correlation_id"
       ],
-      "key": "agent.product_architect",
+      "key": "agent.venice",
       "observability": [
         "correlation_id",
         "structured_events",
@@ -109,9 +109,68 @@
         "evidence_or_explicit_failure"
       ],
       "responsibilities": [
-        "compile product intent into architecture and acceptance plan"
+        "understanding mode: listen and fill the spec from the customer's words, one material question at a time, with a cost range from the first turn",
+        "planning mode (formerly agent.product_architect): compile the frozen, approved spec into architecture and acceptance plan; never while listening"
       ],
-      "role": "Product Architect",
+      "role": "Venice (understanding -> planning)",
+      "state_requirements": [
+        "project-scoped durable context",
+        "immutable build-contract revision"
+      ],
+      "status": "PARTIAL",
+      "success_criteria": [
+        "produce machine-verifiable evidence or explicit failure"
+      ],
+      "trigger_conditions": [
+        "build contract or capability plan requires one of the allowed skills"
+      ],
+      "verification_tests": [
+        "tests/test_m495_skills_agents_registry.py::RegistryGovernanceMetadataTests::test_canonical_agent_governance_metadata_is_complete"
+      ]
+    },
+    {
+      "allowed_skills": [
+        "skill.internal.release.gate"
+      ],
+      "budget_limits": {
+        "hard_ceiling_required": true,
+        "policy": "inherit_build_contract"
+      },
+      "dependency_agents": [
+        "agent.venice"
+      ],
+      "escalation_rules": [
+        "escalate material ambiguity, blocked capability, policy or budget violation"
+      ],
+      "forbidden_actions": [
+        "invent_success_without_evidence",
+        "exceed_authorized_budget",
+        "expose_secret_values",
+        "cross_tenant_boundary",
+        "silently_drop_required_capability"
+      ],
+      "forbidden_skills": [],
+      "inputs": [
+        "build_contract",
+        "project_context",
+        "capability_plan",
+        "correlation_id"
+      ],
+      "key": "agent.plan_verifier",
+      "observability": [
+        "correlation_id",
+        "structured_events",
+        "cost_usage_evidence",
+        "customer_safe_error_reference"
+      ],
+      "outputs": [
+        "structured_result",
+        "evidence_or_explicit_failure"
+      ],
+      "responsibilities": [
+        "independently check that a plan answers the approved spec and contains no requirement without a source"
+      ],
+      "role": "Plan Verifier",
       "state_requirements": [
         "project-scoped durable context",
         "immutable build-contract revision"
@@ -1583,5 +1642,5 @@
     }
   ],
   "schema_version": 1,
-  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
+  "truth_sha256": "776ee3654bc54ddade27af8de76d02e59e4685b6b74c93675a0e51867c78c3e4"
 }

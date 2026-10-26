@@ -81,7 +81,7 @@ class MasterAgentsRegistryTests(unittest.TestCase):
     def test_canonical_agent_roles_exist(self):
         agents = build_canonical_agents_registry(self.skills)
         required = {
-            "agent.chief_orchestrator", "agent.product_architect",
+            "agent.chief_orchestrator", "agent.venice", "agent.plan_verifier",
             "agent.clarification", "agent.capability_planner", "agent.cost_planner",
             "agent.design_director", "agent.code", "agent.backend",
             "agent.infrastructure", "agent.integration", "agent.asset_director",
@@ -92,6 +92,8 @@ class MasterAgentsRegistryTests(unittest.TestCase):
             "agent.deployment", "agent.cost_auditor",
         }
         self.assertTrue(required.issubset({agent.key for agent in agents.all()}))
+        # owner 2026-10-26: the product architect is Venice's planning mode, not a separate agent
+        self.assertNotIn("agent.product_architect", {agent.key for agent in agents.all()})
 
     def test_agents_cannot_reference_unknown_skills(self):
         bad = AgentDefinition(
