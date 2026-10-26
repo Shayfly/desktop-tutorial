@@ -1950,6 +1950,8 @@ class V28ConversationMessage(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
     brief_revision: int | None = Field(default=None, ge=1)
+    # Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint.
+    approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2102,9 +2104,14 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         if latest is None or latest.revision != req.brief_revision:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
-        turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                     answers=req.answers, request_key=req.request_key, lang=lang,
-                                     attachments=attached)
+        if req.approve_spec:
+            turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
+                                                             brief_fingerprint=req.approve_spec,
+                                                             request_key=req.request_key, lang=lang)
+        else:
+            turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
+                                                     answers=req.answers, request_key=req.request_key, lang=lang,
+                                                     attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
@@ -2160,6 +2167,19 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         return None
     store = _conversation_store()
     saved = store.plan_for(project_id, brief_fingerprint)
+    # Two gates (owner 2026-10-26): on a project whose conversation asked for spec approval, a build needs that
+    # approval for THIS fingerprint and the plan the verifier accepted. Projects that never saw gate 1, and plans
+    # saved before it (no 'spec_gate'), keep the earlier path unchanged.
+    from .intake import approval_flow as AF
+    messages = store.messages_for(project_id, limit=500)
+    if AF.on_two_gate_flow(messages):
+        if not AF.spec_approved(messages, brief_fingerprint):
+            raise HTTPException(409, detail={'error': 'spec_not_approved',
+                                             'message': 'Approve the spec in the conversation first; no plan is made before that.'})
+        gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
+        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):
+            raise HTTPException(409, detail={'error': 'plan_not_verified',
+                                             'message': 'The plan for this spec has not passed the verifier.'})
     if saved is None:
         try:
             contract = C.build(row.brief)
@@ -2238,7 +2258,8 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
         _bind_execution_plan(project_id, row.fingerprint)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
-        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid'}:
+        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid',
+                                                                 'spec_not_approved', 'plan_not_verified'}:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
