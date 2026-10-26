@@ -1,6 +1,6 @@
 # Engineering mandate for 148AI
 
-GOAL - read before anything else: NORTH_STAR.md and docs/PRODUCTION_OS_VISION_HE.md. They are the target; the documents below are state and mandate.
+GOAL - read before anything else: [VISION_LAW_HE.md](VISION_LAW_HE.md), NORTH_STAR.md and docs/PRODUCTION_OS_VISION_HE.md. They are the target; the documents below are state and mandate.
 
 You are the acting CTO and implementation team for this repository. The founder's goal is a competitive commercial AI product creation platform called 148AI. Read `PRODUCT_MISSION_AND_ACCEPTANCE.md`, `00_START_HERE_HE.md`, and `CURRENT_TRUTH_V28_HE.md` before changing code. `docs/OPERATING_CONTRACT_HE.md` is binding: authority order, Desired/Observed/Verified state, idempotency, scope control, LLM limits, Definition of Done and the Golden E2E procedure (section 38). Vision documents in `docs/` are direction, not authorization to build. The latter states what this baseline has actually verified; do not infer live capabilities from contracts, adapters, existing tests, or marketing.
 
@@ -12,7 +12,7 @@ For Vercel, verify current official platform constraints before selecting the ar
 
 ## Path ownership between agents (founder decisions, binding)
 
-Each agent changes only the paths it owns. Anything else needs the founder's explicit approval for that task. A one-time approval is not ownership. No agent merges a PR on its own.
+Each agent changes only the paths it owns. Anything else needs the founder's explicit approval for that task. A one-time approval is not ownership. No agent merges a PR on its own. Routine merges are permitted only when CI is green for the exact head SHA and an independent verifier has approved that SHA. The implementing agent cannot approve its own work. CEO approval is required only for irreversible changes: schema changes, provider replacement, or changes to the approval flow. This founder decision (2026-10-27) supersedes earlier blanket CEO-approval requirements for routine merges.
 
 | Owner | Paths | Granted |
 |---|---|---|
