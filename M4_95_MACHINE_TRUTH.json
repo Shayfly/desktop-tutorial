@@ -2750,11 +2750,19 @@
           "SUPABASE_URL",
           "SUPABASE_SERVICE_ROLE_KEY"
         ]
+      },
+      {
+        "category": "ai",
+        "key": "venice",
+        "optional": [],
+        "required_secrets": [
+          "VENICE_API_KEY1"
+        ]
       }
     ],
     "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME"
   },
-  "provider_definition_count": 17,
+  "provider_definition_count": 18,
   "registry_report": {
     "agent_governance_issues": [],
     "skill_governance_issues": [],
@@ -2763,7 +2771,7 @@
   },
   "registry_version": "m4.95-v2",
   "schema_version": 1,
-  "sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a",
+  "sha256": "ed3c2069466e4d9f7db6ba56ed6cb4192d32a73929b698d20545ab4532630e94",
   "skill_count": 104,
   "skills": [
     {

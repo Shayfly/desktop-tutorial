@@ -2449,7 +2449,7 @@ Not re-claimed as live in this environment: clean-room/lifecycle Postgres proof 
 
 The Golden E2E uses an in-process fake multimodal provider with structurally valid artifacts. It proves the universal execution/verification/evidence contract, **not** that a named commercial provider is LIVE.
 
-M4.95 machine truth SHA-256: `3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a`
+M4.95 machine truth SHA-256: `ed3c2069466e4d9f7db6ba56ed6cb4192d32a73929b698d20545ab4532630e94`
 
 ## M5 Production Vertical Slice — 2026-10-04
 
