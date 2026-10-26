@@ -244,7 +244,9 @@ def gh_json(path, method="GET", body=None):
     try:
         with urlopen(req,timeout=30) as r: return {"ok":True,"status":r.status,"data":json.load(r)}
     except HTTPError as e:
-        return {"ok":False,"http_status":e.code,"error":"GitHub API rejected request"}
+        try: detail=e.read().decode("utf-8","replace")[:300]
+        except Exception: detail=""
+        return {"ok":False,"http_status":e.code,"error":"GitHub API rejected request","detail":detail}
 def launch_job(parts, timeout=None):
     """Queued/running/done in memory; the deadline begins at admission."""
     admitted = time.monotonic()
@@ -400,6 +402,25 @@ class Handler(BaseHTTPRequestHandler):
                     result=run(cmd, git_credentials=True)
                     if op in ("pull","add","commit","push"):audit("git:"+op,"ok" if result["exit_code"]==0 else "failed")
                     return self.reply(200 if result["exit_code"]==0 else 409,result)
+                if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("get","scan"):
+                    if q.get("op",[""])[0]=="scan":
+                        r=gh_json("/pulls?state=open&per_page=100&sort=created&direction=asc")
+                        if not r["ok"]: return self.reply(502,r)
+                        lines=[]
+                        for p in r["data"]:
+                            n=p["number"]
+                            d=gh_json("/pulls/"+str(n))
+                            dd=d.get("data") or {}
+                            lines.append(" ".join([str(n),"DRAFT" if p["draft"] else "READY","base="+p["base"]["ref"],"state="+str(dd.get("mergeable_state")),"files="+str(dd.get("changed_files")),"auto="+("y" if p.get("auto_merge") else "n"),p["created_at"][:10],p["title"][:46]]))
+                        audit("pr:scan","ok",str(len(lines)))
+                        return self.reply(200,{"ok":True,"count":len(lines),"lines":lines})
+                    num=q.get("number",[""])[0]
+                    if not re.fullmatch(r"[0-9]+",num): raise ValueError("invalid pr number")
+                    d=gh_json("/pulls/"+num)
+                    if not d["ok"]: return self.reply(502,d)
+                    dd=d["data"]
+                    audit("pr:get","ok",num)
+                    return self.reply(200,{"ok":True,"number":dd["number"],"title":dd["title"],"draft":dd["draft"],"base":dd["base"]["ref"],"head":dd["head"]["ref"],"state":dd.get("mergeable_state"),"mergeable":dd.get("mergeable"),"files":dd.get("changed_files"),"adds":dd.get("additions"),"dels":dd.get("deletions"),"auto_merge":bool(dd.get("auto_merge")),"created":dd["created_at"][:10],"body":(dd.get("body") or "")[:200]})
                 if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("list","ready","merge"):
                     op=q.get("op",[""])[0]
                     num=q.get("number",[""])[0]
