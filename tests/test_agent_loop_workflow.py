@@ -45,7 +45,8 @@ class AgentLoopWorkflowTests(unittest.TestCase):
         self.assertIn('2 retarget old -> fail', summary)
 
     def test_success_and_no_work_pass(self):
-        for actions in ([], ['1 retarget fix/fail-label -> ok']):
+        for actions in ([], ['1 retarget fix/fail-label -> ok'],
+                        ['1 retarget old -> skip contained in main', '2 retarget old -> skip no commits between']):
             with self.subTest(actions=actions):
                 proc, summary = self.run_retarget({'ok': True, 'op': 'retarget', 'count': len(actions), 'actions': actions})
                 self.assertEqual(proc.returncode, 0, proc.stderr)

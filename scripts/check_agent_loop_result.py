@@ -15,7 +15,8 @@ def main(operation):
                 or data.get('count') != len(actions)):
             raise ValueError('invalid response contract')
         if operation == 'retarget':
-            failures = [a for a in actions if not a.endswith(' -> ok')]
+            # a PR already contained in main, or GitHub's 422 "no commits between", is a reported no-op, not a failure
+            failures = [a for a in actions if not (a.endswith(' -> ok') or ' -> skip ' in a)]
         else:
             failures = [a for a in actions if not (a.endswith(' merge ok') or ' skip ' in a)]
         failed = bool(failures)
@@ -29,6 +30,11 @@ def main(operation):
     if token:
         text = text.replace(token, '[REDACTED]')
     print(text, end='')
+    # Also as a check-run annotation, so the result is readable through the API without downloading the job log.
+    line = ('; '.join(actions) if actions else reason).replace('%', '%25').replace('\n', ' ')
+    if token:
+        line = line.replace(token, '[REDACTED]')
+    print(f"::{'error' if failed else 'notice'} title=agent-loop {operation} {status}::{reason}: {line[:900]}")
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with Path(summary).open('a', encoding='utf-8') as output:
