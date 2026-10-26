@@ -4455,3 +4455,13 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
 ./infra/postgres/026_media_provider_submissions.sql:14:    CONSTRAINT media_provider_submissions_task CHECK ((state = 'SUBMITTED') = (provider_task_id IS NOT NULL))
 ./infra/postgres/027_task_attempts.sql:21:    attempt_seq                 INTEGER NOT NULL CHECK (attempt_seq >= 0),
 ```
+
+
+## Docker — פלייק בהרצת drain/recovery (2026-10-27)
+
+- **סיווג האירוע:** פלייק; לפי תדריך הבעלים מ־2026-10-27, הרצה חוזרת עברה בלי שינוי קוד.
+- **חתימת הכשל המתועדת:** workflow `intake-budget-pg`, בדיקה `tests/test_real_docker_drain_recovery.py:318`: הציפייה `was OOM-killed` מול `preview-worker exit 137 (a job was killed at the 60s deadline)`; תוצאה: 1 failed, 190 passed.
+- **מקור חתימת הכשל:** [Issue #150](https://github.com/Shayfly/desktop-tutorial/issues/150). ההנחיה שם: להריץ שוב תחילה; אם ירוק, לתעד פלייק ולעצור.
+- **ראיית ההרצה החוזרת:** ״הרצה חוזרת עברה בלי שינוי קוד״ — דיווח הבעלים בתדריך. קישור לריצה, מספר attempt ו־SHA לא נמסרו ולא נמצאו בדיון #150 בעת התיעוד; לא מוצג כאן אימות עצמאי של לוג הריצה.
+- **היקף המסקנה:** סיווג האירוע המסוים, לא קביעה שכל כשל Docker או OOM הוא פלייק, ולא ביטול ממצאי OOM היסטוריים ב־CONTROLS.json.
+- **טיפול עתידי:** לקרוא רשומה זו לפני חקירה חוזרת של אותה חתימה. אין לחקור שוב את האירוע הסגור ללא ראיה חדשה; כשל שחוזר בריצה חוזרת, חתימה שונה או שינוי קוד מחייבים בדיקה מחדש. אין לשנות assertions או להחליש בדיקות על סמך הסיווג.
