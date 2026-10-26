@@ -115,7 +115,8 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation, 'gaps': self.gaps}
+                'interpretation': self.interpretation,
+                'gaps': {k: v for k, v in self.gaps.items() if k != 'spec'} if self.gaps else None}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -351,7 +352,8 @@ class ConversationSupervisor:
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
                                                'asked': [q.id for q in turn.questions],
                                                'explained': bool(getattr(turn, 'explained', False)),
-                                               'actions': turn.actions, 'plan_id': turn.plan_id},
+                                               'actions': turn.actions, 'plan_id': turn.plan_id,
+                                               **({'gap_spec': turn.gaps['spec']} if turn.gaps else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
                                cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
@@ -405,7 +407,7 @@ class ConversationSupervisor:
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
         unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now)
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now, source=source if message else None)
         res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
                      [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else [])
         expected = row.revision if row else 0
@@ -421,6 +423,9 @@ class ConversationSupervisor:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
+        qr = (turn.gaps or {}).get('question_reservation') or {}
+        if qr.get('actual_usd') and turn.cost_usd is not None:
+            turn.cost_usd = Decimal(str(turn.cost_usd)) + Decimal(qr['actual_usd'])
         parts = []
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
@@ -474,7 +479,7 @@ class ConversationSupervisor:
         turn.reply = ' '.join(parts)
         return turn
 
-    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False):
+    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False, source=None):
         """(gaps evidence, the one next Question or None). Per-project spec held in this process (WP1b: durable)."""
         from ..intake.families import classify_family, named_family
         from ..intake.gaps import Questioner, Spec
@@ -491,6 +496,14 @@ class ConversationSupervisor:
             return None, None
         specs = self.__dict__.setdefault('_gap_specs', {})
         kind, spec = named_family(said), specs.get(project_id)
+        for stored in reversed(self.store.messages_for(project_id)):
+            snap = (stored.get('interpretation') or {}).get('gap_spec') if stored.get('role') == 'assistant' else None
+            if snap:
+                try:
+                    spec = Spec.from_dict(snap)
+                except (ValueError, TypeError, KeyError):
+                    spec = None
+                break
         if spec is None or (kind is not None and kind != spec.kind):
             spec = specs[project_id] = Spec(kind or classify_family(said), [])
         spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
@@ -503,9 +516,14 @@ class ConversationSupervisor:
         for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
             brief.hints.setdefault(name, value)
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
-        gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
-        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure)
-        return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+        call = None
+        if model_turn:
+            call = getattr(source, 'complete_json', None) or getattr(getattr(source, 'gateway', None), 'complete_json', None)
+        q = Questioner(call).next(spec, pending, explain=unsure)
+        specs[project_id] = spec
+        return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics(),
+                'question_reservation': getattr(source, 'last_reservation', None) if call else None,
+                'spec': spec.to_dict()}, q
 
     @staticmethod
     def _finding_message(f, lang, T):

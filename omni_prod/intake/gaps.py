@@ -24,6 +24,7 @@ from .artifact_fields import CONDITIONAL, fields_for
 from .sources import ASSUMED, STATED, Ledger, Requirement, Span
 
 MATERIAL = 2      # a field is material FOR THIS REQUEST when its request score reaches this (implied -> 0)
+SCHEMA = 'gap-spec/1'
 
 
 def language_of(text: str) -> str:
@@ -212,6 +213,26 @@ class Spec:
         if entry is not None:
             entry.filled = (self.value(entry.field) is not None) if filled is None else filled
             entry.changed_artifact = self.fingerprint() != entry.fingerprint_before
+
+    def to_dict(self) -> dict:
+        """WP1b: the whole spec, stored with the assistant message so the next turn (any machine) continues it."""
+        return {'schema': SCHEMA, 'kind': self.kind, 'messages': list(self.ledger.messages),
+                'items': [{'key': r.key, 'value': r.value, 'status': r.status, 'why': r.why, 'superseded_by': r.superseded_by,
+                           'span': r.span.to_dict() if r.span else None} for r in self.ledger.items],
+                'log': [dict(e.__dict__) for e in self.log]}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Spec':
+        if not isinstance(data, dict) or data.get('schema') != SCHEMA:
+            raise ValueError('not a gap spec')
+        spec = cls(str(data['kind']), [str(m) for m in data.get('messages') or []])
+        for it in data.get('items') or []:
+            span = Span(**it['span']) if it.get('span') else None
+            # status is re-derived: a stored "stated" whose quote no longer verifies comes back unsourced
+            spec.ledger.add(Requirement(it['key'], it['value'], it['status'], span, why=it.get('why') or ''))
+            spec.ledger.items[-1].superseded_by = it.get('superseded_by')
+        spec.log = [LogEntry(**e) for e in data.get('log') or []]
+        return spec
 
     def metrics(self) -> dict:
         declared = {f.name for f in self.fields} | set(CONDITIONAL)

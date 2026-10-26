@@ -62,41 +62,17 @@ class ReservedWorkerInterpreter:
         except B.QuoteUnavailable as exc:
             base.dropped.append(f'model not used: {exc}')
             return base
-        try:
-            r = self.svc.reserve(idempotency_key=self._key(message), account_id=self.account_id,
-                                 project_id=self.project_id, quote_=quote, caps=self.caps, lane=self.lane,
-                                 campaign_id=self.campaign_id,
-                                 payload={'system': SYSTEM, 'user': user, 'max_tokens': MAX_OUTPUT_TOKENS,
-                                          'task': self.task,
-                                          'prompt_version': PROMPT_VERSION})
-        except B.BudgetExceeded as exc:
-            base.dropped.append(f'model not used: budget {exc.scope.split(":")[0]} exhausted')
-            return base
-        except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
-            base.dropped.append(f'model not used: {type(exc).__name__}')
-            return base
-        if r.state == B.RESERVED:
-            try:
-                self.enqueue(r.id)
-                self.svc.mark_enqueued(r.id)
-            except Exception as exc:    # queue down: nothing was sent, so give the money back now
-                self.svc.release(r.id, reason=f'enqueue failed: {type(exc).__name__}')
-                base.dropped.append('model not used: intake queue unavailable')
-                base.reservation_id = r.id
-                return base
-        deadline = self.clock() + self.wait
-        current = self.svc.get(r.id, account_id=self.account_id)
-        while current is not None and current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED) and \
-                self.clock() < deadline:
-            self.sleep(0.3)
-            current = self.svc.get(r.id, account_id=self.account_id)
-        base.reservation_id = r.id
-        if current is None or current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED):
+        r, current, note = self._reserve_and_wait(self._key(message), {'system': SYSTEM, 'user': user,
+                                                                       'max_tokens': MAX_OUTPUT_TOKENS},
+                                                  quote, PROMPT_VERSION)
+        if r is not None:
+            base.reservation_id = r.id
+        if note == 'pending':
             base.dropped.append('model reply not available in time; cost settles on the reservation')
             base.cost_usd, base.cost_state = None, 'PENDING'
             return base
-        if current.state == B.RELEASED:
-            base.dropped.append('model not used: ' + (current.failure_reason or 'released'))
+        if note:
+            base.dropped.append(note)
             return base
         cost = None if current.actual_usd is None else str(current.actual_usd)
         result = current.result or {}
@@ -111,6 +87,53 @@ class ReservedWorkerInterpreter:
             return base
         return merge(base, model, interpreter=f'model:{current.model or "?"}+deterministic', cost_usd=current.actual_usd,
                      cost_state=current.cost_state, reservation_id=r.id)
+
+
+    def _reserve_and_wait(self, key: str, payload: dict, quote, prompt_version: str):
+        """RESERVE -> enqueue -> wait. Returns (reservation, settled-or-None, note); note '' = a settled result."""
+        try:
+            r = self.svc.reserve(idempotency_key=key, account_id=self.account_id, project_id=self.project_id,
+                                 quote_=quote, caps=self.caps, lane=self.lane, campaign_id=self.campaign_id,
+                                 payload={**payload, 'task': self.task, 'prompt_version': prompt_version})
+        except B.BudgetExceeded as exc:
+            return None, None, f'model not used: budget {exc.scope.split(":")[0]} exhausted'
+        except Exception as exc:   # BudgetError, ValueError, schema/DB errors: fail closed, no paid call
+            return None, None, f'model not used: {type(exc).__name__}'
+        if r.state == B.RESERVED:
+            try:
+                self.enqueue(r.id)
+                self.svc.mark_enqueued(r.id)
+            except Exception as exc:    # queue down: nothing was sent, so give the money back now
+                self.svc.release(r.id, reason=f'enqueue failed: {type(exc).__name__}')
+                return r, None, 'model not used: intake queue unavailable'
+        deadline = self.clock() + self.wait
+        current = self.svc.get(r.id, account_id=self.account_id)
+        while current is not None and current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED) and \
+                self.clock() < deadline:
+            self.sleep(0.3)
+            current = self.svc.get(r.id, account_id=self.account_id)
+        if current is None or current.state not in (B.SETTLED, B.UNKNOWN, B.RELEASED):
+            return r, None, 'pending'
+        if current.state == B.RELEASED:
+            return r, current, 'model not used: ' + (current.failure_reason or 'released')
+        return r, current, ''
+
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 400, purpose: str = 'question') -> dict:
+        """WP1b: ONE reserved call for something other than interpretation (the next question's phrasing).
+        Same reservation service, caps and queue as interpret(); raises when there is no settled answer, so the
+        caller uses its fixed fallback. The last reservation is kept in `last_reservation` for evidence."""
+        quote = B.quote(system=system, user=user, max_tokens=max_tokens, task=self.task)
+        digest = hashlib.sha256((system + user).encode('utf-8')).hexdigest()[:24]
+        key = f'intake-{purpose}:{self.account_id}:{self.project_id}:{self.request_key or uuid.uuid4().hex}:{digest}'[:300]
+        r, current, note = self._reserve_and_wait(key, {'system': system, 'user': user, 'max_tokens': max_tokens},
+                                                  quote, f'{purpose}/1')
+        self.last_reservation = {'id': getattr(r, 'id', None), 'state': getattr(current, 'state', None),
+                                 'actual_usd': None if current is None or current.actual_usd is None
+                                 else str(current.actual_usd), 'note': note}
+        result = (current.result or {}) if current is not None else {}
+        if note or current.state == B.UNKNOWN or not result.get('ok') or not isinstance(result.get('raw'), dict):
+            raise RuntimeError(note or 'model reply not available')
+        return result['raw']
 
 
 def rq_enqueue(redis_url: str):
