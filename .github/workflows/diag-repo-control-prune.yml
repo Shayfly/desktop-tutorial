@@ -27,8 +27,8 @@ jobs:
               echo "::notice title=prune live at $now (attempt $i)::$body"
               exit 0
             fi
-            echo "::notice title=prune not live yet $now (attempt $i)::HTTP $code"
+            echo "prune not live yet $now (attempt $i): HTTP $code"; last="$code at $now"
             sleep 30
           done
-          echo "::error title=prune::the new route did not answer within 20 minutes"
+          echo "::error title=prune::the new route did not answer within 20 minutes (last: ${last:-none})"
           exit 1
