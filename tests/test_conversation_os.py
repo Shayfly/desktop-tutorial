@@ -300,11 +300,16 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(t2.questions[0].id, 'access_scope')   # contradiction surfaced, never assumed
         t3 = self.sup.turn(project_id='p1', account_id='a1', answers={'access_scope': 'internal_link'}, lang='he')
         self.assertTrue(t3.brief_row.complete)
-        self.assertIsNotNone(t3.plan_id)
-        self.assertEqual(t3.actions, [{'type': 'show_plan', 'brief_revision': t3.brief_row.revision}])
-        self.assertEqual([r.revision for r in self.briefs.rows['p1']], [1, 2, 3])   # every change is a revision
+        # QUESTIONS-001: the brief is complete, but the look (style, material) is still open for this request, so the
+        # gap detector asks it before the plan is offered; "you decide" takes the explicit default.
+        self.assertEqual([q.id for q in t3.questions], ['style'])
+        self.assertEqual(t3.actions, [])
+        t4 = self.say('תחליט אתה')
+        self.assertIsNotNone(t4.plan_id)
+        self.assertEqual(t4.actions, [{'type': 'show_plan', 'brief_revision': t4.brief_row.revision}])
+        self.assertEqual([r.revision for r in self.briefs.rows['p1']][:3], [1, 2, 3])   # every change is a revision
         roles = [m['role'] for m in self.store.messages_for('p1')]
-        self.assertEqual(roles.count('assistant'), 3)
+        self.assertEqual(roles.count('assistant'), 4)
 
     def test_english_questions_cost_missing_status_approve(self):
         self.say('I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data')

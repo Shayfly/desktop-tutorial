@@ -107,6 +107,7 @@ class Turn:
     cost_state: str = 'CONFIRMED_ZERO'
     reservation_id: str | None = None
     explained: bool = False                        # this answer explained why the open question matters
+    gaps: dict | None = None                       # WP1: what the artifact still needs, and the one next question
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -114,7 +115,7 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation}
+                'interpretation': self.interpretation, 'gaps': self.gaps}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -198,8 +199,15 @@ SHORT = {
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
+def _why_prefixes():
+    from ..intake.gaps import FALLBACK
+    return tuple(t['_why'] for t in FALLBACK.values())
+
+
+_WHY_PREFIXES = _why_prefixes()
 _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
-              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain)\s*[.!?]*\s*$')
+              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
+              r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
 
 
 def _short(field_: str, lang: str) -> str:
@@ -393,6 +401,13 @@ class ConversationSupervisor:
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
+        # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
+        # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
+        # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
+        unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now)
+        res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
+                     [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else [])
         expected = row.revision if row else 0
         if row is None or new_brief.fingerprint() != row.fingerprint:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
@@ -405,6 +420,7 @@ class ConversationSupervisor:
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
+        turn.gaps = gaps
         parts = []
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
@@ -428,7 +444,7 @@ class ConversationSupervisor:
             parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
                          + '.' + (T['more'].format(n=more) if more > 0 else ''))
         unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        if row.complete:
+        if row.complete and gap_q is None:
             turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
             feas = (turn.plan or {}).get('feasibility', {})
             if feas.get('buildable'):
@@ -442,15 +458,54 @@ class ConversationSupervisor:
                 parts.append(T['blocked'] + ': ' + '; '.join(
                     self._finding_message(f, lang, T) for f in blocked[:3]))
         elif res.asked:
-            self._last_reply_was_why = False
-            repeated = self._repeats(project_id, res.asked)
-            explain = unsure or repeated
-            parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
-            turn.explained = explain and not self._last_reply_was_why
+            if row.complete:                                # the plan exists, but a material field is still open
+                turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
+            if gap_q is not None and not res.conflicts:
+                parts.append(gap_q.text)                    # the detector's question, exactly as it is in turn.gaps
+                turn.explained = gap_q.text.startswith(_WHY_PREFIXES)
+            else:                                           # only a conflict with a confirmed value is asked back here
+                self._last_reply_was_why = False
+                repeated = self._repeats(project_id, res.asked)
+                explain = unsure or repeated
+                parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
+                turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
         return turn
+
+    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False):
+        """(gaps evidence, the one next Question or None). Per-project spec held in this process (WP1b: durable)."""
+        from ..intake.families import classify_family, named_family
+        from ..intake.gaps import Questioner, Spec
+        from ..intake.interpreter import Proposal
+        said, proposals = message, list(getattr(interp, 'proposals', ()) or ())
+        if not message and answers:                   # a quick-reply button: its label is the customer's words
+            labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
+                      for q, v in answers.items() if q in d.BY_ID]
+            said = '; '.join(label for _, _, label in labels)
+            proposals = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
+            if any(v == d.DELEGATE for _, v, _ in labels):
+                said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+        if not said:
+            return None, None
+        specs = self.__dict__.setdefault('_gap_specs', {})
+        kind, spec = named_family(said), specs.get(project_id)
+        if spec is None or (kind is not None and kind != spec.kind):
+            spec = specs[project_id] = Spec(kind or classify_family(said), [])
+        spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
+        pending = [q.field for q in d.pending(brief)]
+        g = spec.detect(pending)
+        for name, imp in g['implied'].items():        # implied by the request: an assumption in the brief, not asked
+            q = d.BY_ID.get(name)
+            if q is not None and name not in brief.fields and (q.kind == 'text' or imp['value'] in {o.value for o in q.options}):
+                brief.fields[name] = {'value': imp['value'], 'source': 'default', 'question_id': q.id, 'confidence': 'inferred'}
+        for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
+            brief.hints.setdefault(name, value)
+        model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
+        gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure)
+        return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
 
     @staticmethod
     def _finding_message(f, lang, T):
