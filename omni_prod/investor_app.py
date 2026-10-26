@@ -595,9 +595,47 @@ class V28ProjectDeleteRequest(BaseModel):
     reason: str = Field(default='user_request',max_length=200)
 
 
+def is_sensitive_path(path: str) -> bool:
+    basename = str(path).replace('\\', '/').rsplit('/', 1)[-1].lower()
+    return (basename == '.env' or basename.startswith('.env.')
+            or basename.startswith(('secrets.', 'credentials.'))
+            or basename == 'config.json'
+            or basename.endswith(('.pem', '.key', '.p12')))
+
+
+_REPO_SECRET_VALUE_RE = re.compile(
+    r'''(?i)(?P<prefix>["']?(?:api[_-]?key|token|secret|password)["']?\s*[:=]\s*)'''
+    r'''(?P<value>"(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?|[^\s,;}\]]+)'''
+)
+
+
+def _repo_summary_text(value: object) -> str:
+    try:
+        return value if isinstance(value, str) else str(value)
+    except Exception:
+        return ''
+
+
 def _repo_summary(repo: dict[str,str]) -> dict:
-    return {'file_count':len(repo),'total_chars':sum(len(v) for v in repo.values()),
-            'files':[{'path':k,'chars':len(v),'preview':v[:400]} for k,v in sorted(repo.items())]}
+    entries = [(_repo_summary_text(path), _repo_summary_text(value))
+               for path, value in repo.items()]
+    files = []
+    for path, value in sorted(entries, key=lambda entry: entry[0]):
+        file_summary = {'path': path, 'chars': len(value)}
+        if not is_sensitive_path(path):
+            preview = value[:400]
+
+            def redact(match: re.Match) -> str:
+                secret_value = match.group('value')
+                quote = secret_value[0] if secret_value[:1] in ('"', "'") else ''
+                closing_quote = quote if secret_value.endswith(quote) and len(secret_value) > 1 else ''
+                masked_value = f'{quote}[REDACTED]{closing_quote}'
+                return match.group('prefix') + masked_value
+
+            file_summary['preview'] = _REPO_SECRET_VALUE_RE.sub(redact, preview)
+        files.append(file_summary)
+    return {'file_count': len(repo), 'total_chars': sum(len(value) for _, value in entries),
+            'files': files}
 
 @app.get('/',response_class=HTMLResponse)
 def home()->str: return _HTML
