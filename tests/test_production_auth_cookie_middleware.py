@@ -45,6 +45,34 @@ def test_cookie_get_passes(client):
     assert r.status_code == 200 and r.json()['user_id'] == 'cookie-user'
 
 
+def test_invalid_bearer_uses_valid_cookie(client):
+    client.cookies.set(COOKIE, _token('cookie-user'))
+    r = client.get(PROTECTED, headers={'Authorization': 'Bearer invalid'})
+    assert r.status_code == 200 and r.json()['user_id'] == 'cookie-user'
+
+
+def test_malformed_authorization_uses_valid_cookie(client):
+    client.cookies.set(COOKIE, _token('cookie-user'))
+    r = client.get(PROTECTED, headers={'Authorization': 'Basic garbage'})
+    assert r.status_code == 200 and r.json()['user_id'] == 'cookie-user'
+
+
+def test_bad_bearer_cookie_fallback_enforces_csrf(client):
+    client.cookies.set(COOKIE, _token('cookie-user'))
+    r = client.post(PROTECTED, headers={'Authorization': 'Bearer invalid',
+                                        'Origin': 'https://evil.example'})
+    assert r.status_code == 403
+    r = client.post(PROTECTED, headers={'Authorization': 'Bearer invalid',
+                                        'Origin': 'http://testserver'})
+    assert r.status_code == 200 and r.json()['user_id'] == 'cookie-user'
+
+
+def test_invalid_bearer_and_invalid_cookie_is_401(client):
+    client.cookies.set(COOKIE, 'invalid-cookie')
+    r = client.get(PROTECTED, headers={'Authorization': 'Bearer invalid'})
+    assert r.status_code == 401
+
+
 def test_cookie_post_same_origin_passes(client):
     client.cookies.set(COOKIE, _token())
     r = client.post(PROTECTED, headers={'Origin': 'http://testserver'})
