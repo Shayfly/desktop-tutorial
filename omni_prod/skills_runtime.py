@@ -103,6 +103,23 @@ def _rtl_for_hebrew(repository: dict, context: dict) -> list[StaticFinding]:
     return []
 
 
+_CSS_COMMENT = re.compile(r'/\*.*?\*/', re.S)
+_CSS_URL = re.compile(r'url\([^)]*\)', re.I)
+_CSS_BLOCK = re.compile(r'\{([^{}]*)\}')                 # innermost blocks: rules, also inside @media
+_CSS_DECL = re.compile(r'^\s*-{0,2}[A-Za-z][\w-]*\s*:\s*\S')
+
+
+def css_declaration_count(css: str) -> int:
+    """Declarations in rule blocks, the last one of a block included whether or not it ends with ';'.
+
+    Paid run 39377332673 (2026-10-20): the old count matched only `prop: value;`, so in minified CSS
+    (`a{color:red}`) the last declaration of every block was dropped -- 10 of 13 on the build's own CSS -- and
+    the page was reported as "only 22-35 CSS declarations". url(...) contents (data: URIs carry ';') and comments
+    are removed first; a selector like `a:hover` is outside the braces and never counted."""
+    css = _CSS_URL.sub('url()', _CSS_COMMENT.sub('', css))
+    return sum(1 for block in _CSS_BLOCK.findall(css) for part in block.split(';') if _CSS_DECL.match(part))
+
+
 def _styled_page(repository: dict, context: dict) -> list[StaticFinding]:
     """Founder 2026-10-09: "no colour, not a real site that looks good". The
     page must carry a real design system, not the browser's default look."""
@@ -112,7 +129,7 @@ def _styled_page(repository: dict, context: dict) -> list[StaticFinding]:
         return []
     css = ' '.join(re.findall(r'<style[^>]*>(.*?)</style>', ' '.join(pages), re.S | re.I))
     css += ' '.join(c for p, c in files.items() if p.lower().endswith('.css'))
-    declarations = len(re.findall(r'[a-z-]+\s*:\s*[^;{}]+;', css))
+    declarations = css_declaration_count(css)
     problems = []
     if declarations < 40:
         problems.append(f'only {declarations} CSS declarations: the page shows the browser default look')
