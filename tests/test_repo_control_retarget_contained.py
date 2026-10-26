@@ -19,6 +19,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import check_agent_loop_result as checker  # noqa: E402
 
 SHA = {n: f"{n:040x}" for n in range(1, 6)}
+# GitHub's real 422 body for PATCH /pulls/{n} {"base": "main"} when the head has nothing beyond main (verbatim shape;
+# Matt's evidence on #145: "There are no new commits between ...", which an exact "No commits between" match missed).
+REAL_422 = ('{{"message":"Validation Failed","errors":[{{"resource":"PullRequest","code":"custom","message":'
+            '"There are no new commits between base branch \'main\' and head branch \'{0}\'."}}],'
+            '"documentation_url":"https://docs.github.com/rest/pulls/pulls#update-a-pull-request","status":"422"}}')
 PULLS = [{"number": n, "draft": False, "base": {"ref": "old/base"}, "head": {"ref": f"b{n}", "sha": SHA[n]}}
          for n in (1, 2, 3, 4)] + [{"number": 5, "draft": False, "base": {"ref": "main"}, "head": {"ref": "b5", "sha": SHA[5]}}]
 
@@ -40,9 +45,10 @@ class FakeGitHub:
             contained = path.endswith(SHA[1]) or path.endswith(SHA[5])
             return {"ok": True, "status": 200,
                     "data": {"status": "behind" if contained else "diverged", "ahead_by": 0 if contained else 2}}
+        if path.startswith("/compare/old/base...") and path != "/compare/old/base...main":
+            return {"ok": False, "http_status": 500, "error": "GitHub API rejected request", "detail": ""}   # unknown
         if method == "PATCH" and path == "/pulls/2":
-            return {"ok": False, "http_status": 422, "error": "GitHub API rejected request",
-                    "detail": '{"message":"Validation Failed","errors":[{"message":"No commits between main and b2"}]}'}
+            return {"ok": False, "http_status": 422, "error": "GitHub API rejected request", "detail": REAL_422.format("b2")}
         if method == "PATCH" and path == "/pulls/3":
             return {"ok": False, "http_status": 403, "error": "GitHub API rejected request", "detail": "forbidden"}
         if method in ("PATCH", "POST"):
@@ -134,3 +140,52 @@ def test_prune_lists_dead_targets_and_closes_them_only_when_applied():
     assert applied["actions"] == ["1 prune contained -> ok", "5 prune contained -> ok"]
     assert ("PATCH", "/pulls/1", {"state": "closed"}) in fake.calls
     assert ("PATCH", "/pulls/3", {"state": "closed"}) not in fake.calls     # not contained: kept
+
+
+def test_the_real_github_422_message_is_a_no_op():
+    """The test that was missing: GitHub's own wording, through the real gh_json error path."""
+    import io
+    from urllib.error import HTTPError
+    body = REAL_422.format("fix/x").encode()
+    err = HTTPError("https://api.github.com/repos/o/r/pulls/7", 422, "Unprocessable Entity", {}, io.BytesIO(body))
+    with patch.object(module, "PAT", "x"), patch.object(module, "urlopen", side_effect=err):
+        result = module.gh_json("/pulls/7", method="PATCH", body={"base": "main"})
+    assert result["http_status"] == 422 and "There are no new commits between" in result["detail"]
+    assert module.no_commits_between(result) is True
+    assert module.no_commits_between({"ok": False, "http_status": 422, "detail": "Validation Failed: base invalid"}) is False
+    assert module.no_commits_between({"ok": False, "http_status": 403, "detail": REAL_422.format("x")}) is False
+
+
+def test_precheck_direction_head_behind_main_is_skipped_without_patch():
+    calls = []
+
+    def gh(path, method="GET", body=None):
+        calls.append((method, path))
+        if path == f"/compare/main...{SHA[1]}":
+            return {"ok": True, "data": {"status": "behind", "ahead_by": 0, "behind_by": 7}}   # head is an ancestor
+        if path == f"/compare/{SHA[1]}...main":
+            return {"ok": True, "data": {"status": "ahead", "ahead_by": 7}}                    # the wrong direction
+        return {"ok": False, "http_status": 404, "detail": ""}
+    with patch.object(module, "gh_json", gh):
+        assert module.head_in_main({"head": {"sha": SHA[1]}, "base": {"ref": "main"}}) is True
+    assert ("GET", f"/compare/main...{SHA[1]}") in calls
+
+
+def test_precheck_ancestor_of_its_own_merged_base_is_enough_when_main_compare_is_unknown():
+    def gh(path, method="GET", body=None):
+        if path == f"/compare/main...{SHA[3]}":
+            return {"ok": False, "http_status": 502, "detail": ""}                               # cannot tell
+        if path == f"/compare/old/base...{SHA[3]}":
+            return {"ok": True, "data": {"status": "identical", "ahead_by": 0}}
+        return {"ok": False, "http_status": 404, "detail": ""}
+    with patch.object(module, "gh_json", gh):
+        pr = {"head": {"sha": SHA[3]}, "base": {"ref": "old/base"}}
+        assert module.head_in_main(pr) is True
+        assert module.head_in_main(pr, via_base=False) is None                    # prune closes only on main itself
+
+
+def test_a_contained_head_the_precheck_cannot_see_still_ends_as_a_no_op():
+    # compare unreadable -> the PATCH is sent -> GitHub's real 422 -> skip, never "-> fail"
+    out = call("op=retarget", FakeGitHub())
+    assert "2 retarget old/base -> skip no commits between" in out["actions"]
+    assert not any(a.startswith("2 ") and a.endswith("-> fail") for a in out["actions"])

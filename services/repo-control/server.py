@@ -244,24 +244,39 @@ def gh_json(path, method="GET", body=None):
     try:
         with urlopen(req,timeout=30) as r: return {"ok":True,"status":r.status,"data":json.load(r)}
     except HTTPError as e:
-        try: detail=e.read().decode("utf-8","replace")[:300]
+        try: detail=e.read().decode("utf-8","replace")[:1000]   # long enough for GitHub's validation message
         except Exception: detail=""
         return {"ok":False,"http_status":e.code,"error":"GitHub API rejected request","detail":detail}
-def head_in_main(pr):
-    """True when the PR head commit is already contained in main (ancestor of main, or identical): retargeting or
-    merging it is a no-op. None when it cannot be told (the caller then proceeds as before)."""
-    sha=(pr.get("head") or {}).get("sha") or ""
-    if not re.fullmatch(r"[0-9a-f]{40}",sha): return None
-    c=gh_json("/compare/main..."+sha)
+def _nothing_beyond(base, sha):
+    """True when <sha> has no commit that <base> lacks (it is an ancestor of base, or identical), by GitHub's compare
+    of base...sha: status behind/identical, or ahead_by == 0. None when the compare cannot be read."""
+    c=gh_json("/compare/"+base+"..."+sha)
     if not c["ok"]: return None
     d=c.get("data") or {}
     if d.get("status") in ("behind","identical"): return True
-    return d.get("ahead_by")==0 if isinstance(d.get("ahead_by"),int) else False
+    if isinstance(d.get("ahead_by"),int): return d["ahead_by"]==0
+    return None
+
+def head_in_main(pr, via_base=True):
+    """True when the PR head is already contained in main -- or (via_base) in its own base, which retarget only
+    reaches when that base is itself in main. Either check alone is enough to skip (no PATCH, no merge).
+    prune passes via_base=False: it closes PRs, so only containment in main itself counts. None = cannot tell."""
+    sha=(pr.get("head") or {}).get("sha") or ""
+    if not re.fullmatch(r"[0-9a-f]{40}",sha): return None
+    base=(pr.get("base") or {}).get("ref") or ""
+    checks=[_nothing_beyond("main",sha)]
+    if via_base and base and base!="main" and re.fullmatch(r"[A-Za-z0-9_./-]+",base):
+        checks.append(_nothing_beyond(base,sha))
+    if any(c is True for c in checks): return True
+    return None if any(c is None for c in checks) else False
+
+_NO_NEW_COMMITS=re.compile(r"no (?:new )?commits between",re.I)
 
 def no_commits_between(result):
-    """GitHub's 422 for a PR whose head has nothing beyond its base: a no-op, not a failure."""
+    """GitHub's 422 for a PR whose head has nothing beyond its base ("There are no new commits between base branch
+    'main' and head branch 'x'"): a no-op, not a failure. Matched as a robust substring, never an exact sentence."""
     return (not result.get("ok") and result.get("http_status")==422
-            and "no commits between" in str(result.get("detail","")).lower())
+            and bool(_NO_NEW_COMMITS.search(str(result.get("detail","")))))
 
 def launch_job(parts, timeout=None):
     """Queued/running/done in memory; the deadline begins at admission."""
@@ -451,7 +466,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not r["ok"]: return self.reply(502,r)
                     out=[]
                     for p in r["data"]:
-                        if head_in_main(p) is not True: continue
+                        if head_in_main(p, via_base=False) is not True: continue
                         n=str(p["number"])
                         if not apply:
                             out.append(n+" prune contained (dry run)")
