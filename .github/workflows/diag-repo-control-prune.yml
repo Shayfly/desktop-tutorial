@@ -1,0 +1,34 @@
+name: diag repo-control prune (dry run)
+# Read-only proof of the Render deployment of #145: polls /pr?op=prune WITHOUT apply until the new route answers
+# (the old service answers 404 "not found"), then prints the dry-run result as an annotation. Never applies.
+on:
+  push:
+    branches: [diag/repo-control-prune-dry-run]
+permissions:
+  contents: read
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
+    steps:
+      - name: poll op=prune (dry run) until the deployed service has the route
+        shell: bash
+        run: |
+          set -uo pipefail
+          [[ -n "$SERVICE_TOKEN" ]] || { echo "::error title=prune::SERVICE_TOKEN is empty"; exit 1; }
+          base="https://one48ai-repo-control.onrender.com"
+          for i in $(seq 1 40); do
+            code=$(curl -sS -o body.json -w '%{http_code}' --max-time 120 "$base/pr?op=prune&token=$SERVICE_TOKEN" || echo 000)
+            now=$(date -u +%H:%M:%SZ)
+            if [[ "$code" == "200" ]] && python3 -c 'import json,sys; d=json.load(open("body.json")); sys.exit(0 if d.get("op")=="prune" else 1)'; then
+              body=$(python3 -c 'import json,os; d=json.load(open("body.json")); t=os.environ["SERVICE_TOKEN"]; print(json.dumps(d).replace(t,"[REDACTED]")[:3000])')
+              echo "::notice title=prune live at $now (attempt $i)::$body"
+              exit 0
+            fi
+            echo "::notice title=prune not live yet $now (attempt $i)::HTTP $code"
+            sleep 30
+          done
+          echo "::error title=prune::the new route did not answer within 20 minutes"
+          exit 1
