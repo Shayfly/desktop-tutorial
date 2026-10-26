@@ -234,6 +234,17 @@ def gh_pr(title,head,base):
     except HTTPError as e:
         return {"ok":False,"http_status":e.code,"error":"GitHub pull request API rejected request"}
 
+def gh_json(path, method="GET", body=None):
+    if not PAT: raise ValueError("GITHUB_PAT not configured")
+    repo=os.getenv("GITHUB_REPO","Shayfly/desktop-tutorial")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",repo): raise ValueError("invalid GITHUB_REPO")
+    data=json.dumps(body).encode() if body is not None else None
+    req=Request("https://api.github.com/repos/"+repo+path,data=data,method=method,
+       headers={"Authorization":"Bearer "+PAT,"Accept":"application/vnd.github+json","Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"})
+    try:
+        with urlopen(req,timeout=30) as r: return {"ok":True,"status":r.status,"data":json.load(r)}
+    except HTTPError as e:
+        return {"ok":False,"http_status":e.code,"error":"GitHub API rejected request"}
 def launch_job(parts, timeout=None):
     """Queued/running/done in memory; the deadline begins at admission."""
     admitted = time.monotonic()
@@ -389,6 +400,23 @@ class Handler(BaseHTTPRequestHandler):
                     result=run(cmd, git_credentials=True)
                     if op in ("pull","add","commit","push"):audit("git:"+op,"ok" if result["exit_code"]==0 else "failed")
                     return self.reply(200 if result["exit_code"]==0 else 409,result)
+                if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("list","ready","merge"):
+                    op=q.get("op",[""])[0]
+                    num=q.get("number",[""])[0]
+                    if op=="list":
+                        r=gh_json("/pulls?state=open&per_page=100")
+                        if not r["ok"]: return self.reply(502,r)
+                        items=[{"n":p["number"],"title":p["title"][:90],"draft":p["draft"],"head":p["head"]["ref"],"base":p["base"]["ref"],"mergeable_state":p.get("mergeable_state"),"created":p["created_at"][:10]} for p in r["data"]]
+                        audit("pr:list","ok",str(len(items)))
+                        return self.reply(200,{"ok":True,"count":len(items),"pulls":items})
+                    if not re.fullmatch(r"[0-9]+",num): raise ValueError("invalid pr number")
+                    if op=="ready":
+                        r=gh_json("/pulls/"+num,method="PATCH",body={"draft":False})
+                        audit("pr:ready","ok" if r["ok"] else "failed",num)
+                        return self.reply(200 if r["ok"] else 502,r)
+                    r=gh_json("/pulls/"+num+"/merge",method="PUT",body={"merge_method":q.get("method",["squash"])[0]})
+                    audit("pr:merge","ok" if r["ok"] else "failed",num)
+                    return self.reply(200 if r["ok"] else 502,r)
                 if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0]=="create":
                     result=gh_pr(q.get("title",[""])[0],q.get("head",[""])[0],q.get("base",["main"])[0])
                     audit("pr:create","ok" if result["ok"] else "failed")
