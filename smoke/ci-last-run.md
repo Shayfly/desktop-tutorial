@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-26T07:21:46Z)
+# v24-ci — last main run (2026-10-26T10:57:10Z)
 
-- commit: `e55cf8aee256599a6d0284548610d77d21d3c551`
-- run_id: [40284663475](https://github.com/Shayfly/desktop-tutorial/actions/runs/40284663475) (attempt 1)
+- commit: `93136719c1f72d9a5d9568f08f45414c02cdbe50`
+- run_id: [40310581731](https://github.com/Shayfly/desktop-tutorial/actions/runs/40310581731) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 2001 passed, 0 failed, 187 skipped
+- tests: **PASS** — 2067 passed, 0 failed, 187 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -24,6 +24,7 @@
 | `integration` | PASS | 6 | 0 | 34 |
 | `test_acceptance_coverage` | PASS | 3 | 0 | 0 |
 | `test_actual_cost_settlement` | PASS | 14 | 0 | 2 |
+| `test_agent_loop_workflow` | PASS | 4 | 0 | 0 |
 | `test_agent_os` | PASS | 15 | 0 | 5 |
 | `test_amateur_cost_class_lock` | PASS | 5 | 0 | 0 |
 | `test_architect_assignment_gate` | PASS | 5 | 0 | 0 |
@@ -44,6 +45,7 @@
 | `test_company_loss` | PASS | 5 | 0 | 0 |
 | `test_consistency_gate` | PASS | 14 | 0 | 0 |
 | `test_content_only_site` | PASS | 17 | 0 | 0 |
+| `test_controls_counts` | PASS | 5 | 0 | 0 |
 | `test_conversation_os` | PASS | 34 | 0 | 4 |
 | `test_conversation_ux` | PASS | 5 | 0 | 0 |
 | `test_crash_recovery_and_change_parity` | PASS | 0 | 0 | 5 |
@@ -72,6 +74,7 @@
 | `test_golden_mod_path_live_postgres` | PASS | 0 | 0 | 6 |
 | `test_history_without_artifact_download` | PASS | 1 | 0 | 0 |
 | `test_infisical_secret_store` | PASS | 10 | 0 | 0 |
+| `test_inspect_round_artifacts_workflow` | PASS | 13 | 0 | 0 |
 | `test_intake_assistant_he` | PASS | 18 | 0 | 0 |
 | `test_intake_budget_pg` | PASS | 2 | 0 | 23 |
 | `test_intake_complexity` | PASS | 11 | 0 | 0 |
@@ -173,6 +176,8 @@
 | `test_r2_generated_credentials` | PASS | 9 | 0 | 0 |
 | `test_r2_storage_signing` | PASS | 2 | 0 | 0 |
 | `test_real_docker_drain_recovery` | PASS | 0 | 0 | 8 |
+| `test_redaction_fail_closed` | PASS | 8 | 0 | 0 |
+| `test_redaction_single_layer` | PASS | 5 | 0 | 0 |
 | `test_registry_audit` | PASS | 16 | 0 | 0 |
 | `test_rehearsal` | PASS | 3 | 0 | 0 |
 | `test_release_blocks_on_failed_acceptance` | PASS | 2 | 0 | 0 |
@@ -192,7 +197,7 @@
 | `test_sandbox_cleanup` | PASS | 4 | 0 | 0 |
 | `test_sandbox_runner_health` | PASS | 8 | 0 | 0 |
 | `test_secret_scan_ci_exemption` | PASS | 7 | 0 | 0 |
-| `test_skills_runtime_and_review` | PASS | 13 | 0 | 0 |
+| `test_skills_runtime_and_review` | PASS | 17 | 0 | 0 |
 | `test_spec_language` | PASS | 5 | 0 | 0 |
 | `test_spec_repository` | PASS | 5 | 0 | 0 |
 | `test_t3_json_no_silent_trailing` | PASS | 8 | 0 | 0 |
@@ -235,10 +240,11 @@
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
 | `test_worker_budget_binding` | PASS | 5 | 0 | 0 |
-| `test_worker_deploy_recovery` | PASS | 29 | 0 | 4 |
+| `test_worker_deploy_recovery` | PASS | 35 | 0 | 4 |
 | `test_worker_entrypoint` | PASS | 8 | 0 | 0 |
 | `test_worker_repository_parity` | PASS | 10 | 0 | 0 |
 | `test_workspace_version_conflict` | PASS | 14 | 0 | 0 |
+| `test_wp1_gap_detector` | PASS | 21 | 0 | 0 |
 | `test_write_env_secret_lengths` | PASS | 6 | 0 | 0 |
 
 _Test names and counts only; failure messages are not published._
