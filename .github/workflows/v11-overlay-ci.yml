@@ -30,6 +30,20 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: python -m pip install -r requirements-production.txt -r requirements-test.txt
+      # C31 (founder 2026-10-21): the registry enforces itself in this required check (C16). R4 compares with the
+      # registry on main, so a canary row cannot be removed or swapped for "pending" without going red.
+      # Boundary: the lint proves a canary row exists and names an existing test, not that the canary fails when the
+      # control breaks (that is the drill).
+      - name: Base registry from main (registry_lint R4)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: .base-main
+          persist-credentials: false
+          sparse-checkout: CONTROLS.json
+          sparse-checkout-cone-mode: false
+      - name: Registry lint (C31)
+        run: python tools/registry_lint.py CONTROLS.json --base .base-main/CONTROLS.json
       - name: Compile
         run: python -m compileall -q omni_prod tests
       # C34 (owner + Matt 2026-10-21): the unit tests run with NO network at the operating-system level (a network
