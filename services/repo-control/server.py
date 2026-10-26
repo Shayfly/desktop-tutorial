@@ -402,6 +402,31 @@ class Handler(BaseHTTPRequestHandler):
                     result=run(cmd, git_credentials=True)
                     if op in ("pull","add","commit","push"):audit("git:"+op,"ok" if result["exit_code"]==0 else "failed")
                     return self.reply(200 if result["exit_code"]==0 else 409,result)
+                if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0]=="rebase":
+                    num=q.get("number",[""])[0]
+                    if not re.fullmatch(r"[0-9]+",num): raise ValueError("invalid pr number")
+                    d=gh_json("/pulls/"+num)
+                    if not d["ok"]: return self.reply(502,d)
+                    dd=d["data"]
+                    hb=dd["head"]["ref"]
+                    if dd["base"]["ref"]!="main":
+                        t=gh_json("/pulls/"+num,method="PATCH",body={"base":"main"})
+                        if not t["ok"]: return self.reply(502,t)
+                    checkout_branch(hb)
+                    git("reset","--hard","origin/"+hb)
+                    r=git("rebase","origin/main")
+                    if r["exit_code"]!=0:
+                        if q.get("theirs",["0"])[0]=="1":
+                            git("rebase","--abort")
+                            r=git("rebase","-X","theirs","origin/main")
+                        if r["exit_code"]!=0:
+                            f=git("diff","--name-only","--diff-filter=U")
+                            git("rebase","--abort")
+                            audit("pr:rebase","conflict",num)
+                            return self.reply(409,{"ok":False,"pr":num,"branch":hb,"conflict":f["stdout"][:400]})
+                    p=git("push","--force","origin",hb)
+                    audit("pr:rebase","ok" if p["exit_code"]==0 else "failed",num)
+                    return self.reply(200,{"ok":p["exit_code"]==0,"pr":num,"branch":hb,"push_exit":p["exit_code"]})
                 if pathname=="/pr" and self.command=="GET" and q.get("op",[""])[0] in ("sweep","retarget"):
                     op=q.get("op",[""])[0]
                     r=gh_json("/pulls?state=open&per_page=100")
@@ -412,8 +437,8 @@ class Handler(BaseHTTPRequestHandler):
                         b=p["base"]["ref"]
                         if op=="retarget":
                             if b=="main": continue
-                            br=gh_json("/branches/"+b)
-                            if br["ok"]: continue
+                            c=gh_json("/compare/"+b+"...main")
+                            if not c["ok"] or (c["data"] or {}).get("status") not in ("identical","ahead"): continue
                             t=gh_json("/pulls/"+str(n),method="PATCH",body={"base":"main"})
                             out.append(str(n)+" retarget "+b+" -> "+("ok" if t["ok"] else "fail"))
                             continue
