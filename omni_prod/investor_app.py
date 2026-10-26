@@ -64,7 +64,7 @@ from .build_contract import BuildContractStatus
 from .build_contract_repository import MemoryBuildContractRepository, PostgresBuildContractRepository
 from .idempotency import request_fingerprint, validate_key
 from .creator_plan import build_plan_preview
-from .browser_session import SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
+from .browser_session import COOKIE_NAME, SessionTokenError, browser_session_readiness, cookie_settings, extract_session_token
 from .providers.managed_web_saas import managed_web_saas_readiness
 from .providers.image_provider import build_image_quote_resolver, image_provider_readiness
 from .providers.managed_web_saas import build_managed_web_saas_provisioner
@@ -100,14 +100,28 @@ async def production_auth(request:Request,call_next):
     if os.getenv('OMNI_ENV','development')=='production' and request.url.path.startswith('/api/') and not any(request.url.path==p or (p.endswith('/') and request.url.path.startswith(p)) for p in _PUBLIC_PREFIXES):
         from fastapi.responses import JSONResponse
         try:
-            token, _transport = extract_session_token(request, allowed_origins=_ALLOWED_ORIGINS)
+            try:
+                token, transport = extract_session_token(request, allowed_origins=_ALLOWED_ORIGINS)
+            except SessionTokenError:
+                if not request.cookies.get(COOKIE_NAME):
+                    raise
+                token, transport = extract_session_token(
+                    request, allowed_origins=_ALLOWED_ORIGINS, ignore_authorization=True)
+            try:
+                claims = verify_token(token, secret=os.getenv('OMNI_SECRET_KEY', ''))
+            except AuthError:
+                if transport != 'bearer' or not request.cookies.get(COOKIE_NAME):
+                    raise
+                # Never silently trust a cookie after failed Bearer auth: verify its
+                # signature and enforce CSRF on state-changing requests.
+                cookie_token, _ = extract_session_token(
+                    request, allowed_origins=_ALLOWED_ORIGINS, ignore_authorization=True)
+                claims = verify_token(cookie_token, secret=os.getenv('OMNI_SECRET_KEY', ''))
+            request.state.auth = claims
         except SessionTokenError as exc:
-            return JSONResponse({'detail':exc.detail},status_code=exc.status_code)
-        try:
-            claims=verify_token(token,secret=os.getenv('OMNI_SECRET_KEY',''))
-            request.state.auth=claims
+            return JSONResponse({'detail': exc.detail}, status_code=exc.status_code)
         except AuthError:
-            return JSONResponse({'detail':'invalid authentication'},status_code=401)
+            return JSONResponse({'detail': 'invalid authentication'}, status_code=401)
     return await call_next(request)
 # Audit 2026-10-10: legacy in-process paths (template "builds", an in-memory
 # hosted runtime, canned source templates, a file patch that skips every gate)
