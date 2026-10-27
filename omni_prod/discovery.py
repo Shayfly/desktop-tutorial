@@ -301,7 +301,17 @@ def _website_screens(prompt: str) -> str:
     return ', '.join(screens) if screens else 'אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו'
 
 
-def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
+def product_language_default(text: str) -> str | None:
+    """LANG-001 / C9 (CEO 2026-10-27): the product language follows the language the customer writes in.
+    Hebrew -> 'he', Latin script -> 'en'. Arabic or any other script -> None: no honest default exists yet
+    (RTL is verified for Hebrew only), so the product language is never assumed for them."""
+    from .intake.gaps import language_of
+    return {'he': 'he', 'en': 'en'}.get(language_of(text or ''))
+
+
+def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str | None:
+    if q.field == 'languages' and q.field not in hints:
+        return product_language_default(brief.prompt)
     if q.recommended == '__from_request__':
         return _website_screens(brief.prompt) if q.field == 'screens' and is_website(brief) else brief.prompt[:300]
     if q.field in _WEBSITE_DEFAULTS and q.field not in hints and is_website(brief):

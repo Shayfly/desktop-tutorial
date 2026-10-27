@@ -105,7 +105,8 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
             for q in d.pending(new):
                 # "You decide" never covers a material (security/privacy) choice:
                 # those need the customer's explicit answer.
-                if q.delegable and q.recommended is not None and not material(q.field, new.values()):
+                if q.delegable and q.recommended is not None and not material(q.field, new.values()) \
+                        and d._recommended(q, new, new.hints) is not None:          # C9: no honest default -> asked
                     new.fields[q.field] = {'value': d._recommended(q, new, new.hints), 'source': 'delegated',
                                            'question_id': q.id, 'confidence': 'recommended'}
                     res.assumed.append({'field': q.field, 'value': new.fields[q.field]['value'], 'source': 'delegated'})
@@ -116,7 +117,8 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
         while changed:
             changed = False
             for q in d.pending(new):
-                if q.delegable and q.recommended is not None and not material(q.field, new.values()):
+                if q.delegable and q.recommended is not None and not material(q.field, new.values()) \
+                        and d._recommended(q, new, new.hints) is not None:          # C9: no honest default -> asked
                     new.fields[q.field] = {'value': d._recommended(q, new, new.hints), 'source': 'default',
                                            'question_id': q.id, 'confidence': 'inferred'}
                     res.assumed.append({'field': q.field, 'value': new.fields[q.field]['value'], 'source': 'default'})

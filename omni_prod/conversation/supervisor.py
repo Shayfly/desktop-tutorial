@@ -32,7 +32,8 @@ from decimal import Decimal
 from .. import discovery as d
 from ..intake import agent as intake_agent
 from ..intake import contract as C
-from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env, language_of
+from ..intake.gaps import language_of as script_language
+from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
@@ -205,6 +206,17 @@ def _why_prefixes():
 
 
 _WHY_PREFIXES = _why_prefixes()
+# C9 (CEO 2026-10-27): products are built in Hebrew or English today; RTL is verified for Hebrew only. A customer
+# writing in Arabic or another language is told so honestly, in their language and in English, and the product
+# language is not assumed for them (discovery.product_language_default returns None).
+UNSUPPORTED_NOTICE = {
+    'ar': ('للتوضيح بصراحة: نبني المنتجات حاليًا بالعبرية أو بالإنجليزية فقط؛ المنتج بالعربية (من اليمين إلى اليسار) '
+           'غير مدعوم بعد. يمكنك المتابعة واختيار العبرية أو الإنجليزية لغةً للمنتج. '
+           'Honest note: products are built in Hebrew or English for now; an Arabic product is not supported yet.'),
+    'other': ('Honest note: products are built in Hebrew or English for now; a product in your language is not '
+              'supported yet. You can continue and choose Hebrew or English for the product.'),
+}
+
 _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
               r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
               r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
@@ -285,7 +297,8 @@ class ConversationSupervisor:
     def turn(self, *, project_id: str, account_id: str, message: str = '', answers: dict | None = None,
              request_key: str | None = None, lang: str | None = None, attachments: list | None = None) -> Turn:
         message = (message or '').strip()[:8000]
-        lang = lang or language_of(message or 'שלום')
+        # C9 (CEO 2026-10-27): by script (he | ar | en | other). The interpreter's he/en split read Arabic as Hebrew.
+        lang = lang or script_language(message or 'שלום')
         T = _TXT['he' if lang == 'he' else 'en']
         ctx = self.context(project_id) or {}
         row = self.briefs.latest(project_id)
@@ -471,6 +484,8 @@ class ConversationSupervisor:
                 turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
+        if lang not in ('he', 'en'):                                   # C9: say it honestly, never pretend
+            parts.insert(0, UNSUPPORTED_NOTICE.get(lang, UNSUPPORTED_NOTICE['other']))
         turn.reply = ' '.join(parts)
         return turn
 
