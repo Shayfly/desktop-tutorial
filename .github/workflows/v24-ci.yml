@@ -49,6 +49,11 @@ jobs:
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - run: python -m compileall -q omni_prod tests
       - run: python -m pytest -q --junitxml=pytest-report.xml
+        env:
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
+      - name: Evidence notices (readable as check-run annotations, no log access needed)
+        if: always()
+        run: cat evidence-notices.txt 2>/dev/null || echo "no evidence notices were written"
       - name: Keep the test report for the published summary
         if: always()
         uses: actions/upload-artifact@v4

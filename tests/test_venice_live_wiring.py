@@ -5,6 +5,7 @@ verifier -> only then the customer sees the plan ("Step 2 of 2") -> gate 2: the 
 overrun said in full -> build. The real ChiefArchitect, verifier and supervisor run; only the stores are in memory."""
 import copy
 import unittest
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +14,7 @@ from omni_prod.conversation.store import MemoryConversationStore
 from omni_prod.conversation.supervisor import ConversationSupervisor
 from omni_prod.intake import approval_flow as AF
 from omni_prod.planning.architect import ChiefArchitect
+from tests.evidence_notice import notice
 from tests.test_conversation_os import MemoryBriefs
 
 REQUEST = 'I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data'
@@ -219,6 +221,75 @@ class ServerGate(unittest.TestCase):
         investor_app._apply_execution_plan_gate(preview, 'p', SimpleNamespace(fingerprint='f' * 64))
         self.assertFalse(preview['can_build'])
         self.assertEqual(preview['blockers'][0]['code'], 'spec_not_approved')
+
+
+@unittest.skipIf(investor_app is None, 'needs fastapi (CI)')
+class ServerGateHTTP(unittest.TestCase):
+    """#154 evidence over real HTTP: POST /api/v28/projects/{id}/approvals through the FastAPI app. Only the
+    account lookup and the two stores are replaced; the route, _brief_prompt and _bind_execution_plan are real."""
+    def setUp(self):
+        from fastapi.testclient import TestClient
+        from omni_prod import discovery as d
+        b = d.start('מערכת משימות בעברית בלי התחברות', d.RECOMMEND)
+        self.row = SimpleNamespace(fingerprint=b.fingerprint(), revision=1, complete=True, brief=b)
+        self.store = MemoryConversationStore()
+        self.patches = [patch('omni_prod.conversation.store.schema_ready', return_value=True),
+                        patch.object(investor_app, '_conversation_store', return_value=self.store),
+                        patch.object(investor_app, '_brief_repo', return_value=SimpleNamespace(latest=lambda p: self.row)),
+                        patch.object(investor_app, '_discovery_account', return_value=SimpleNamespace(id='a'))]
+        for p in self.patches:
+            p.start()
+        self.addCleanup(lambda: [p.stop() for p in self.patches])
+        self.client = TestClient(investor_app.app, raise_server_exceptions=False)
+
+    def note(self, **interp):
+        self.store.add_message(project_id='p', account_id='a', role='assistant', content='x', interpretation=interp)
+
+    def approve(self):
+        r = self.client.post('/api/v28/projects/p/approvals', json={'build_contract_id': 'bc_x', 'brief_revision': 1})
+        try:
+            detail = r.json().get('detail')
+        except ValueError:
+            detail = None
+        return r.status_code, (detail if isinstance(detail, dict) else {'raw': str(detail or r.text)[:120]})
+
+    def verified_plan(self, accepted):
+        from omni_prod.intake import approval_flow as AF
+        from omni_prod.intake import contract as C
+        from omni_prod.planning.architect import ChiefArchitect
+        plan = ChiefArchitect().plan(C.build(self.row.brief), budget_usd=Decimal('0.50'), status='PROPOSED')
+        plan[AF.GATE_KEY] = {'verification': {'accepted': accepted}}
+        self.store.save_plan(project_id='p', brief_revision=1, brief_fingerprint=self.row.fingerprint, plan=plan)
+
+    def test_http_409_spec_not_approved(self):
+        self.note(gate='spec')
+        status, detail = self.approve()
+        self.assertEqual((status, detail.get('error')), (409, 'spec_not_approved'))
+        notice('gate-1 PASS', f'POST /approvals on the two-gate flow without spec approval -> HTTP {status} '
+                              f'{detail.get("error")}')
+
+    def test_http_409_plan_not_verified(self):
+        self.note(gate='spec')
+        self.note(spec_approved=self.row.fingerprint)
+        status, detail = self.approve()
+        self.assertEqual((status, detail.get('error')), (409, 'plan_not_verified'))   # no plan at all
+        self.verified_plan(accepted=False)
+        status2, detail2 = self.approve()
+        self.assertEqual((status2, detail2.get('error')), (409, 'plan_not_verified'))   # plan the verifier rejected
+        notice('gate-2 PASS', f'spec approved but no plan -> HTTP {status} {detail.get("error")}; '
+                              f'plan rejected by the verifier -> HTTP {status2} {detail2.get("error")}')
+
+    def test_positive_control_both_gates_satisfied_opens(self):
+        self.note(gate='spec')
+        self.note(spec_approved=self.row.fingerprint)
+        self.verified_plan(accepted=True)
+        bound = investor_app._bind_execution_plan('p', self.row.fingerprint)
+        self.assertEqual(bound['status'], 'APPROVED')
+        status, detail = self.approve()
+        self.assertNotIn(detail.get('error'), ('spec_not_approved', 'plan_not_verified'))
+        notice('gates positive control PASS', f'spec approved and verified plan -> plan bound {bound["plan_id"]}; '
+                                              f'/approvals passes both gates (next answer HTTP {status} '
+                                              f'{detail.get("error") or "ok"})')
 
 
 if __name__ == '__main__':
