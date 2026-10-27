@@ -73,7 +73,7 @@
    "expected": "price/quality routing, fallback, quota release",
    "files": {
     "tests/test_provider_quota_and_dialects.py": {
-     "min_tests": 23
+     "min_tests": 24
     }
    }
   },

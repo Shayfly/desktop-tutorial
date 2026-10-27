@@ -86,6 +86,8 @@ from .stripe_billing import StripeCheckoutClient, StripeSubscriptionWebhookProce
 from .launch_readiness_v28 import launch_readiness_payload
 from .brand_native_clients import android_client, ios_client
 
+from .secret_redaction import install_log_redaction
+install_log_redaction()        # C27: every log record of the API process goes through the single redaction layer
 app = FastAPI(title='148AI', version='28.0.0')
 _metrics=MetricsRegistry()
 configure_observability(app,_metrics)
@@ -593,9 +595,47 @@ class V28ProjectDeleteRequest(BaseModel):
     reason: str = Field(default='user_request',max_length=200)
 
 
+def is_sensitive_path(path: str) -> bool:
+    basename = str(path).replace('\\', '/').rsplit('/', 1)[-1].lower()
+    return (basename == '.env' or basename.startswith('.env.')
+            or basename.startswith(('secrets.', 'credentials.'))
+            or basename == 'config.json'
+            or basename.endswith(('.pem', '.key', '.p12')))
+
+
+_REPO_SECRET_VALUE_RE = re.compile(
+    r'''(?i)(?P<prefix>["']?(?:api[_-]?key|token|secret|password)["']?\s*[:=]\s*)'''
+    r'''(?P<value>"(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?|[^\s,;}\]]+)'''
+)
+
+
+def _repo_summary_text(value: object) -> str:
+    try:
+        return value if isinstance(value, str) else str(value)
+    except Exception:
+        return ''
+
+
 def _repo_summary(repo: dict[str,str]) -> dict:
-    return {'file_count':len(repo),'total_chars':sum(len(v) for v in repo.values()),
-            'files':[{'path':k,'chars':len(v),'preview':v[:400]} for k,v in sorted(repo.items())]}
+    entries = [(_repo_summary_text(path), _repo_summary_text(value))
+               for path, value in repo.items()]
+    files = []
+    for path, value in sorted(entries, key=lambda entry: entry[0]):
+        file_summary = {'path': path, 'chars': len(value)}
+        if not is_sensitive_path(path):
+            preview = value[:400]
+
+            def redact(match: re.Match) -> str:
+                secret_value = match.group('value')
+                quote = secret_value[0] if secret_value[:1] in ('"', "'") else ''
+                closing_quote = quote if secret_value.endswith(quote) and len(secret_value) > 1 else ''
+                masked_value = f'{quote}[REDACTED]{closing_quote}'
+                return match.group('prefix') + masked_value
+
+            file_summary['preview'] = _REPO_SECRET_VALUE_RE.sub(redact, preview)
+        files.append(file_summary)
+    return {'file_count': len(repo), 'total_chars': sum(len(value) for _, value in entries),
+            'files': files}
 
 @app.get('/',response_class=HTMLResponse)
 def home()->str: return _HTML
@@ -765,7 +805,7 @@ def _model_gateway_and_executor():
     # RepairAgent / ProductEvolutionAgent) instead of duplicating this block.
     if os.getenv('OMNI_ENABLE_LIVE_BUILD')!='1': raise RuntimeError('OMNI_ENABLE_LIVE_BUILD=1 is required')
     cfg=ModelRuntimeConfig.from_env(); fallback_cost=Decimal(os.getenv('OMNI_EXTERNAL_MAX_ESTIMATED_COST_USD_PER_CALL','0.25'))
-    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost) for ep in cfg.fallback),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy,health=_provider_health())
+    gateway=RoutedModelGateway(primary=ProviderRoute(cfg.primary,declared_quality=cfg.primary_quality) if cfg.primary is not None else None,fallback=tuple(ProviderRoute(ep,fallback_cost,declared_quality=(cfg.fallback_quality[i] if i<len(cfg.fallback_quality) else None)) for i,ep in enumerate(cfg.fallback)),ranked=cfg.catalog,routing_policy=cfg.routing,policy=cfg.policy,health=_provider_health())
     executor=_verification_executor(gateway)
     return gateway,executor
 
@@ -1910,6 +1950,8 @@ class V28ConversationMessage(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
     brief_revision: int | None = Field(default=None, ge=1)
+    # Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint.
+    approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2062,9 +2104,14 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         if latest is None or latest.revision != req.brief_revision:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
-        turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                     answers=req.answers, request_key=req.request_key, lang=lang,
-                                     attachments=attached)
+        if req.approve_spec:
+            turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
+                                                             brief_fingerprint=req.approve_spec,
+                                                             request_key=req.request_key, lang=lang)
+        else:
+            turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
+                                                     answers=req.answers, request_key=req.request_key, lang=lang,
+                                                     attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
@@ -2090,6 +2137,20 @@ def v28_project_memory(project_id: str, request: Request) -> dict:
     return snapshot(_v28_pool, project_id=project_id, internal_key=key, store=_conversation_store(), briefs=_brief_repo())
 
 
+def _capability_block_message(findings) -> str:
+    """Explain the existing refusal, preserving each named item and its remedy."""
+    rows = []
+    for finding in findings or []:
+        if isinstance(finding, dict):
+            item = finding.get('item') or 'Execution plan'
+            reason = finding.get('reason') or 'not supported yet'
+            action = finding.get('alternative') or 'Edit this requirement or contact support to enable the capability.'
+            rows.append(f'{item}: {reason}. Next: {action}')
+        else:
+            rows.append(f'Execution plan: {finding}. Next: review the requirements or contact support.')
+    return 'The build did not start. ' + (' '.join(rows) or 'Review the unsupported requirements or contact support.')
+
+
 def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None:
     """At build admission: the Chief Architect's plan for the approved brief,
     gated by feasibility. Deterministic and free; stored once per fingerprint."""
@@ -2106,6 +2167,19 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         return None
     store = _conversation_store()
     saved = store.plan_for(project_id, brief_fingerprint)
+    # Two gates (owner 2026-10-26): on a project whose conversation asked for spec approval, a build needs that
+    # approval for THIS fingerprint and the plan the verifier accepted. Projects that never saw gate 1, and plans
+    # saved before it (no 'spec_gate'), keep the earlier path unchanged.
+    from .intake import approval_flow as AF
+    messages = store.messages_for(project_id, limit=500)
+    if AF.on_two_gate_flow(messages):
+        if not AF.spec_approved(messages, brief_fingerprint):
+            raise HTTPException(409, detail={'error': 'spec_not_approved',
+                                             'message': 'Approve the spec in the conversation first; no plan is made before that.'})
+        gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
+        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):
+            raise HTTPException(409, detail={'error': 'plan_not_verified',
+                                             'message': 'The plan for this spec has not passed the verifier.'})
     if saved is None:
         try:
             contract = C.build(row.brief)
@@ -2118,8 +2192,9 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     plan = saved['plan']
     if os.getenv('OMNI_FEASIBILITY_GATE', 'enforce') == 'enforce' and not plan.get('executable'):
         blocked = [f for f in plan['feasibility']['findings'] if f['outcome'] not in ('FEASIBLE', 'FEASIBLE_WITH_CONSTRAINTS')]
+        findings = blocked or plan.get('graph_problems') or []
         raise HTTPException(409, detail={'error': 'capability_not_feasible', 'outcome': plan['feasibility']['outcome'],
-                                         'findings': blocked or plan.get('graph_problems')})
+                                         'findings': findings, 'message': _capability_block_message(findings)})
     return {'plan_id': saved['id'], 'graph': plan['execution_graph'], 'graph_fingerprint': plan['graph_fingerprint'],
             'feasibility': plan['feasibility']['outcome'], 'status': 'APPROVED',
             # G3: the approved criteria travel with the plan; plan-governed builds test against them.
@@ -2170,7 +2245,9 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     if row is None or row.revision != revision:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': 'The request changed; review the new summary.'})
     if not row.complete:
-        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.'})
+        # O10: name what is missing (pending question ids and contradictions), not only that something is.
+        raise HTTPException(409, detail={'error': 'brief_incomplete', 'message': 'Some questions are still open.',
+                                         **d.missing(row.brief)})
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
@@ -2181,11 +2258,12 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
         _bind_execution_plan(project_id, row.fingerprint)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
-        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid'}:
+        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid',
+                                                                 'spec_not_approved', 'plan_not_verified'}:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
-                                    'message': 'The approved requirements cannot be built yet. Review the unsupported requirements.',
+                                    'message': detail.get('message') or 'The approved requirements cannot be built yet. Review the unsupported requirements.',
                                     'findings': detail.get('findings') or [], 'problems': detail.get('problems') or []})
 
 
@@ -2222,7 +2300,7 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
             budget_fingerprint=_budget_fingerprint(contract, quote, 'internal_qa' if internal_qa else 'customer_plan',
                                                    credits=build_credits))
     except ApprovalError as exc:
-        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+        raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
 
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
@@ -2416,7 +2494,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                         credits=credits),
                                     build_id=build_id)
                             except ApprovalError as exc:
-                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc)}) from exc
+                                raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))

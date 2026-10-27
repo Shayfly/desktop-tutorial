@@ -104,7 +104,9 @@ services:
       labels:   # rollback ladder (snapshot-rollback.sh) reads the revision from the running container
         org.opencontainers.image.revision: ${OMNI_SOURCE_COMMIT:-unknown}
     restart: unless-stopped
-    command: ["python", "-m", "omni_prod.intake.reservation_worker", "maintain", "--loop", "10"]
+    # Prototype cost experiment: backup relay/reconcile every 30m, not the primary enqueue path.
+    # Accepted risk: a failed immediate enqueue may wait up to 30m and fail explicitly.
+    command: ["python", "-m", "omni_prod.intake.reservation_worker", "maintain", "--loop", "1800"]
     # PID 1 gets no default SIGTERM action: tini forwards the stop signal (exit 137 at the drain deadline, 2026-10-19).
     init: true
     env_file: .env
@@ -172,6 +174,8 @@ services:
     env_file: .env
     environment:
       OMNI_CREATOR_PERSISTENCE: postgres
+      # 30m sweep; revert to 60 on regression or stalled work.
+      OMNI_MAINTENANCE_INTERVAL_SECONDS: "1800"
       TMPDIR: /var/lib/omni-preview/tmp
     network_mode: host
     volumes:

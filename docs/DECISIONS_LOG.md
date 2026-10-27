@@ -120,3 +120,176 @@
 | #50 | `575bde6` | `tests/test_pr39_cookie_fallback_real_routes.py` | **לא מוזג**. ה-base הוא הענף של #39, לא main. ‏assertions אמיתיים נכשלים (`400 != 401`, `200 != 401`, `401 != 200`): אפיון של #39 מול קוד בלי #39 | — | ממתין ל-#39 (מאט) |
 
 **פלייק customer-ui (נמדד, לא תוקן):** `tests/customer_flow_browser.cjs` רץ 25 פעמים מקומית (Playwright 1.56.1, Chromium 1194). **4/25 נכשלו** (16%), כולם בשורה 34: click על כפתור "שינוי" הראשון ב-`#discoveryPanel`, ‏`TimeoutError`, ‏"element is not visible". זה **לא** ה-`setTimeout` של 150ms ב-`/approvals` (שורה 23), שקורה מאוחר יותר.
+
+### 2026-10-20 08:31 — מיזוג #81, בדיקת R2 (#83), תקציב QA
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #81 | `513e08f` | `tests/customer_flow_browser.cjs` | **מוזג**. טסט בלבד. CI על ה-head ירוק; CI על main ירוק (test, customer-ui, pg, validate, compose-config, smoke, verify) | `1b9a229` | מייסד, צ'אט 08:31 |
+| #83 | `3535a0f` | `omni_prod/postdeploy_checks.py`, `tests/test_postdeploy_r2_artifact.py` | **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | — | ממתין למאט |
+
+**תקציב QA (spend-audit, run 39375470852, $0):** ‏`qa_used_usd` ‏(`omni_prod/qa_budget.py:102-121`), נבדק ב-`authorize_qa_build` ‏(`:181-183`) מול `OMNI_QA_BUDGET_TOTAL_USD=10`: ‏used=5.26698025 (all-time). ‏`settled_provider_cost_usd` של 34 בנייות: 12.311130.
+
+### 2026-10-20 08:46 — אפשרות (ג): E2E בתשלום בלי R2
+
+- ה-worker הפרוס היה `4b019d8`, מאחור לעומת main: 215 שורות ב-`omni_prod`. ‏`pg` על `6781b9d` רץ שוב פעם אחת (118473633457 → 118476560774, success). ‏deploy-worker רץ על `4d488b4`, ‏run 39377073605: success, כל ה-probes עברו (PASS).
+- ‏postdeploy-checks, ‏stage=paid, ‏max_usd=0.50, ‏run 39377332673 על `4d488b4`: **FAIL**. הבנייה `bld_65ee693e356847d89ab50300415d6861` עצרה ב-verification_failed אחרי 3 סבבי תיקון (max_repair_rounds). אין גרסה, אין preview, ו-R2 לא רלוונטי. העלות: $0.04756005 (metered = settled; שוריינו 0.35). לא היה כשל תחביר בסבב 0, ולכן לא הייתה הרצה שנייה. ‏inspect-build: ‏run 39378559811, ‏$0.
+- ממצא, לא תוקן: `omni_prod/web_saas_acceptance.py:396-398` מבצע `str(step['expect_text_contains'])`. כשהשלב מכיל רשימה, הבדיקה מחפשת את המחרוזת `"['viewport', 'width=device-width']"`, שלא קיימת. ה-HTML של הבנייה מכיל `<meta name="viewport" content="width=device-width, ...">`, כך שבסבבים 1–3 BEHAVIOR/A5 נכשל כנראה כשל שווא.
+
+### 2026-10-20 09:23 — תיקון expect_text_contains (#84), הכרעות
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py`, `tests/test_expect_text_contains_list.py`, רג'יסטרים שנוצרו מחדש | CI ירוק. **לא מוזג**: נוגע ב-`omni_prod/**` (תנאי א) | ממתין למאט או לאישור מייסד |
+| #75 | `3163dc2` | `.github/workflows/deploy-worker.yml`, טסט | **לא נגעתי**: הטקסט של שני החסמים של מאט לא נמצא ב-PR, ב-repo או בשיחה | ממתין לטקסט |
+
+### 2026-10-20 13:09 — preflight (#85), ‏#75 EOF, ‏json_schema
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #85 | `717cd83` | `omni_prod/round_preflight.py`, `tests/test_round_preflight.py` | CI ירוק. **לא מוזג**: תנאי א | ממתין למאט |
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py` + טסט | **לא מוזג**, החלטת מייסד 13:09: לא ממזגים בלי אודיט | ממתין למאט |
+| #75 | `3b7bdf2` | `tests/test_deploy_rollback_snapshot.py`: הוסרה שורה ריקה אחת ב-EOF (`git diff --check`: 2 → 0) | CI ירוק. **לא מוזג**: על exit=42 מאט עוד צריך לפסוק | ממתין למאט |
+
+- ‏exit=42, שוחזר עם docker מזויף: config_error OLD=1 / NEW=42; ‏missing_worker 1/1; ‏missing_intake 1/1; ‏ok 0/0. ב-OLD, ‏pipefail מחזיר את ה-1 של grep ומסתיר את קוד היציאה של docker. ב-NEW, הקוד של docker עובר כמו שהוא. בשני המקרים הצעד נכשל.
+- ‏gpt-6-luna: לפי התיעוד של OpenAI, ‏structured_outputs נתמך ב-`v1/chat/completions` (וגם `response_format: json_schema` עם `strict`). לא נשלחה קריאה, ולא שיניתי דבר.
+
+### 2026-10-20 17:49 — מיזוג #84, ניתוב luna (#86)
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #84 | `2f20ec6` | `omni_prod/web_saas_acceptance.py` + טסט + רג'יסטרים | **מוזג**. מאט סגר את תנאי א על ה-head הזה (תגובה ב-PR, 10:12Z). CI על main ירוק | `6f78119` | מאט (תנאי א) + מייסד 17:49 |
+| #86 | `74b2ca3` | `omni_prod/intelligence/{task_policy,inventory,matrix}.py`, ‏`PROVIDER_MATRIX.*`, 2 טסטים | CI ירוק. **לא מוזג**: תנאי א | — | ממתין למאט |
+| #82 | `1bded16` | `.github/workflows/intake-budget-pg.yml` | מאט סגר. ממתין, לפי הוראת המייסד ("אחרי המשחררים") | — | — |
+
+- ה-allowlist של cost class light הוא לפי מחיר בלבד: `omni_prod/pricing.py:228-231` (LIGHT <= $1.50/M output), והוא מופעל ב-`omni_prod/routed_gateway.py:129-138`. שני המודלים שהוא מכניס נמצאים מתחת לרף של codegen (85), ולכן `ranked_routes` בחר את הזול מביניהם, luna.
+- החלטה: ‏`deny_models` ב-`task_policy`. ‏gpt-6-luna לא משמש ל-codegen, ל-repair ול-modification, באף cost class.
+
+### 2026-10-20 18:36 — מיזוג #75, ‏#85 (reproduction), מונה ה-CSS (#87)
+
+| PR | head SHA | קבצים | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|---|
+| #75 | `3b7bdf2` | `.github/workflows/deploy-worker.yml`, טסט | **מוזג**. ה-PR היה עדיין draft (405), סומן ready ואז מוזג. מאט סגר את תנאי א ופסק על exit=42 (ACCEPTED), ‏14:52Z. CI על main ירוק | `3b9fbad` | מאט + מייסד 18:36 |
+| #85 | `65cd729` | + `tests/test_preflight_propagation_real_behaviour.py` (SHA-256 `77173ab2…28c3`) | CI ירוק. reproduction של BASE מול HEAD פורסם ב-PR (comment 6294778479). **לא מוזג**: ה-HOLD של מאט עדיין פתוח | — | ממתין למאט |
+| #87 | `e1a9864` | `omni_prod/skills_runtime.py` (`css_declaration_count`), טסטים, רג'יסטרים | CI ירוק, אחרי הרצה חוזרת אחת של `pg` (118724171626 → 118730212315). **לא מוזג**: תנאי א | — | ממתין למאט |
+
+- החלטה ב-review: מתקנים את המונה. הסף 40, ה-tokens וה-`@media` נשארים חוסמים, תחת המכסה הקיימת (2 סבבים, ואז אזהרה).
+
+### 2026-10-20 21:00 — מיזוג #85, ‏#86, פריסה והרצה
+
+| PR | head SHA | תוצאה | SHA ב-main | אישר |
+|---|---|---|---|---|
+| #85 | `65cd729` | **מוזג**. מאט: HOLD REMOVED / RULE_A=CLOSED ‏(15:43Z). CI על main ירוק | `a00e803` | מאט + מייסד 21:00 |
+| #86 | `74b2ca3` | **מוזג** אחרי ש-main ירוק על #85. מאט: RULE_A=CLOSED ‏(15:43Z). CI על main ירוק | `921d20f` | מאט + מייסד 21:00 |
+
+- ‏deploy-worker: ‏run 39472683855 על `8a3ea4a` (מכיל את #85 ואת #86): success, כל ה-probes עברו (PASS).
+- ‏postdeploy-checks, ‏stage=paid, ‏max_usd=0.50: ‏run 39473090833 ‏**FAIL**. הבנייה `bld_4f3b3514edd34776b096bf20fd66cc58` עצרה ב-verification_failed אחרי 3 סבבי תיקון. סבב 0 נכשל על PREVIEW (דף placeholder), לא על תחביר, ולכן לא הייתה הרצה שנייה. העלות: $0.02940445 ב-10 קריאות, כולן ok, ואף קריאה של luna ל-codegen או ל-repair. ‏inspect-build: ‏run 39473867717.
+- לא מוזגו, לריצה הבאה: #87, #83, #39, #52, #80.
+
+### 2026-10-20 21:24 — ראיות מ-run 39473090833, ‏#88 (קריאת R2)
+
+**ראיות (inspect-build 39473867717):**
+- **‏#86 עבד.** כל 6 קריאות ה-codegen וה-repair הלכו ל-gemini-3.1-flash-lite וכולן ok, בלי אף כשל JSON. ‏gpt-6-luna קיבל רק architecture (1) ו-review (3), כולן ok.
+- **‏responsive עבר בסבב 3** (`S5 responsive: HTTP 200 matched expectations`). התיקון של #84 (רשימה ב-`expect_text_contains`) נוגע בדיוק בצעד הזה. אם הצעד בהרצה הזו השתמש ברשימה או במחרוזת, עוד לא נקרא; זה יתברר מה-zip, דרך #88.
+- **‏preflight נקרא:** קריאת repair אחת לפני האימות הראשון (סבב 0), וקריאה נוספת בסבב 2. ה-inspect לא מראה אם זה היה תיקון syntax או תיקון plan, ולכן זה עוד לא ראיה ש-#85 עצמו פעל.
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #88 | `2d6c1b4` | `.github/workflows/inspect-round-artifacts.yml`, `tests/test_inspect_round_artifacts_workflow.py` | **לא מוזג, לא הורץ**: תנאי א | ממתין למאט |
+
+### 2026-10-20 21:38 — ראיה (תיקון מייסד), ‏#89, ‏#90
+
+**ראיה, כפי שתוקנה:** ש-responsive עבר בסבב 3 של run 39473090833 זו ראיה ל-#84, לא ל-#85. ‏#85 עוד לא הוכח בהרצה חיה.
+
+| PR | head SHA | קבצים | תוצאה | אישר |
+|---|---|---|---|---|
+| #89 | `cb4a020` | `omni_prod/preview_smoke.py`, `tests/test_preview_verdict_names_condition.py`, רג'יסטרים | הודעת ה-preview מציינת איזה תנאי נכשל: (a) קצר מדי ו/או (b) בלי רכיב אינטראקטיבי. הכלל לא השתנה. **לא מוזג**: תנאי א | ממתין למאט |
+| #90 | `6c74bdc` | `omni_prod/consistency_gate.py` (`http_reason`), `tests/test_consistency_http_reason.py`, רג'יסטרים | ‏`send_error`/`send_response` עם reason שאינו latin-1 נחסם לפני ה-sandbox. **לא מוזג**: תנאי א | ממתין למאט |
+
+- ‏#89 ו-#90 נוגעים שניהם בקבצי הרג'יסטרים שנוצרים אוטומטית. לפי תנאי ד: ממזגים אחד, מחכים ל-main ירוק, ואת השני מבססים מחדש (rebase) ומריצים שוב את ה-generators.
+- ‏app.py של run 39473090833 נכתב על ידי המודל (gemini-3.1-flash-lite). אין לו תבנית בנתיב הבנייה; ‏`app.py` קבוע מופיע רק ב-fixtures של טסטים.
+
+### 2026-10-20 21:47 — קריאת R2 (run 39477884309), הכרעת ה-preview, תיקוני #88
+
+- **ההרצה, לפי הוראת המייסד: לפני התיקונים.** ה-workflow של #88 (`2d6c1b4`) הורץ פעם אחת מענף זמני `run/inspect-bld_4f3b`, עם push trigger (dispatch לא אפשרי ל-workflow שלא נמצא ב-main). אחרי ההרצה ה-trigger הוסר, אבל את הענף עצמו אי אפשר למחוק מכאן (403), והוא ממתין למחיקה.
+- **ההכרעה: ה-preview צדק. הדף הוא stub, לא כשל שווא.** ה-`index.html` של סבב 0 (738 תווים) ושל סבב 2 (781): כותרת, ‏`<p>ברוכים הבאים, ניתן לקבוע תור בטופס למטה.</p>`, ו-CSS. אין `<form>`, אין `<input>`, אין `<script>`, ואין קבצים מקושרים מלבד Google Fonts. ‏ה-zip מכיל רק 4 קבצים: `.omni/project.json`, ‏`app.py`, ‏`index.html`, ‏`test_app.py`. זה המקרה השלישי: (b) אמיתי. ה-checksums תואמים, ב-metadata וב-repository.
+- ב-`app.py` של שני הסבבים יש גם `send_error(409, "תור תפוס")` וגם `send_error(404, "לא נמצא")`. הבדיקה של #90 תופסת את שניהם.
+- **תיקוני #88 (`f6152ea`), לפי ה-HOLD של מאט:**
+  - **(א)** כל כשל קריאה או כשל integrity מכשיל את ה-job.
+  - **(ב)** read-only נאכף: קונטיינר `--read-only`, ‏`--cap-drop ALL`, ‏`SET TRANSACTION READ ONLY`, ו-hook של botocore שמאפשר רק GetObject.
+  - **(ג)** ה-zips מועלים כארטיפקט.
+- ‏#89: טסט קיים (`tests/test_preview_smoke.py:134`) חיפש את הנוסח הישן "placeholder page". הוא עודכן כך שידרוש את (a) ואת (b) גם יחד (`a0e567b`).
+
+### 2026-10-20 22:07 — ‏plan_code (#91), ‏409 ב-#90, ה-guard של boto3 (#88)
+
+- **‏#90 תופס את שתי הקריאות.** הרצתי את הבדיקה על `app.py` האמיתי מ-R2. בסבב 0: ‏`app.py:41` ‏`send_error(409, 'תור תפוס')` ו-`app.py:49` ‏`send_error(404, 'לא נמצא')`. בסבב 2: שורות 37 ו-45. ‏#90 לא השתנה בגלל זה.
+- **ה-guard של boto3 ב-#88 רץ ב-CI.** שני ה-jobs (`v24-ci/test`, ‏`v11-overlay-ci/validate`) מתקינים את `requirements-production.txt`, ובו `boto3==1.43.94`. ‏`cb4f89b` הופך את הטסט ללא-ניתן-לדילוג ב-GitHub Actions (בלי boto3: שגיאה, לא דילוג). ‏`test` ו-`validate` ירוקים על `cb4f89b`, כלומר ה-guard נבדק מול boto3 אמיתי. את ה-junit עצמו לא קראתי: הורדת ארטיפקט חסומה מכאן (blob 403).
+- **‏#91 `99430c1`:** בדיקת `plan_code` ב-consistency gate. ה-fixture הוא ה-index.html וה-app.py האמיתיים של סבב 0. ‏CI ירוק. **לא מוזג**: תנאי א. הוא נוגע באותו קובץ כמו #90, ולכן לפי תנאי ד ממזגים אחד ומבססים מחדש את השני.
+- ‏#89: ה-head השתנה (`cb4a020` → `a0e567b`) אחרי שמאט התחיל לבדוק. ביקשתי אודיט מחדש ב-PR.
+- הענף הזמני `run/inspect-bld_4f3b` עוד קיים. מחיקה חסומה מכאן (git push --delete וגם refs API מחזירים 403). ה-trigger שלו הוסר.
+
+### 2026-10-20 23:29 — C10: תרגיל rollback (הריצה הראשונה אי-פעם)
+
+| # | צעד | run | ref → SHA | תוצאה | זמן |
+|---|---|---|---|---|---|
+| 1 | פריסה ל-SHA ידוע | 39492342815 | `drill/c10-known` → `4d488b4` | success: migrate בלי AHEAD, כל ה-probes עברו (PASS) | 2:07 |
+| 2 | פריסה לשני | 39492678328 | `main` → `4ad2eab` | success | 2:13 |
+| 3 | rollback | 39493057663 | `drill/c10-known` → `4d488b4` | success | 2:07 |
+| 4 | אימות חי | 39493396519 + inspect 39494999472 | הקוד שרץ: `4d488b4` | הבנייה רצה מקצה לקצה ($0.052636 settled). התוצאה failed על REVIEW בלבד (איכות). **הוכחת הגרסה:** ‏codegen הלך ל-gpt-6-luna, כלומר קוד מלפני #86 | 10:22 |
+| 5 | חזרה ל-main | 39495052838 | `main` → `4ad2eab` | success | 2:07 |
+
+- **מוקש 038:** לא ניתן להגיע אליו מה-repo. מיגרציות 038–041 נכנסו ב-graft root `ba2bb23`, כך שאין בהיסטוריה קוד מלפני 038. מסלול ה-DROP לא נבדק.
+- **מיגרציות:** ‏migrate הצליח בכל הפריסות, בלי warning על AHEAD. את הפלט `pending migrations` לא קראתי: לוגים של jobs חסומים מכאן, ונקראו רק annotations.
+- **luna שוב:** 4 מתוך 4 תשובות codegen/repair של gpt-6-luna היו JSON שבור, בהרצה נוספת מעבר ל-39377332673.
+- **פתוח:** הענף `drill/c10-known` נשאר, כי מחיקה חסומה מכאן (403).
+
+### 2026-10-22 — LIGHT codegen policy and bounded quality pilot (founder directive)
+
+- Decision: only LIGHT codegen may use the existing known-quality-70 lane. All other cost classes keep mandatory 85; unknown quality remains refused on primary/fallback/catalog paths. LIGHT's special $3.75/M output allowance is removed; its original $1.50/M ceiling remains. Luna remains excluded from code writing until its JSON behavior has measured evidence.
+- Mapping: `pricing.py:M5_BUILD_COST_CLASS` maps Free/Amateur -> LIGHT, Pro -> STANDARD, Studio -> HEAVY, Enterprise -> EXTREME. LIGHT costs 45 credits/build; Free includes150 credits and a default $1.05/month provider cap. Thus100 Free accounts allow up to300 builds/month by credits and up to$105 aggregate monthly provider authorization, not a spend forecast. Evidence from build-evidence run39731134720/job119666202485: run1 budget_binding.cost_class=light, reserved/effective LLM budget=$0.35, recorded spend=$0.02731510. This proves that run's class; it does not establish every current account's plan or compare its balance with provider billing.
+- Measurement is required reporting, not an admission gate: two fixed prompts, a simple persisted-item CRUD app and the T8 booking reference. Two builds consume90 of the reported105 remaining credits. Model-spend reservation is at most2 x the unchanged LIGHT $0.35 cap ($0.70); the dollar campaign remains conditional on I01 reconciliation and cap enforcement. No paid experiment is authorized to bypass that condition or existing credit/budget checks.
+- Pilot timebox:45 minutes after both funding conditions are met. Keep the existing build repair limit; do not add retries after two identical failures without a testable change. Pin prompts, policy, model and checker version before the first call. Run the same positive and deliberately broken checker controls, then verify create/read/reload/update/persistence for CRUD and all six T8 criteria including concurrent overlap rejection and a subsequent nonbreaking change.
+- Report first_pass_yield as x/2, final accepted products as y/2, repair/call counts, total authorized and settled spend including failures, and cost per accepted product (undefined if y=0). Capture effective max_tokens and provider finish/stop reason where the existing evidence supplies them; missing values stay UNKNOWN.
+- Pilot interpretation:2/2 accepted supports keeping the LIGHT lane provisionally;0/2 accepted after the existing repair limit, or any false success or data loss, is a poor outcome requiring a stronger LIGHT model before raising the floor.1/2 is inconclusive and requires diagnosis, not a routing gate or an automatic policy change. Two cases are a directional pilot, not evidence of population-level reliability or readiness for100 users.
+- Status: protocol defined; pilot NOT RUN. No model-quality claim is inferred from the catalog score70 or from unit tests.
+
+
+### 2026-10-25 — LANG-001: רב-לשוניות, תיקון סטייה ברשומה (הכרעת הבעלים)
+
+הניסוח "פלטפורמה בעברית" היה טעות ברשומה. הכוונה המחייבת היא פלטפורמה **בכל שפה**; זה תיקון לתוכנית המקורית ואינו הרחבת היקף.
+
+1. **השיחה והממשק:** המשתמש כותב בכל שפה והמערכת עונה באותה שפה.
+2. **התוצר:** האפליקציה נבנית בשפת הלקוח, כולל RTL/LTR, תוויות ותוכן הדוגמה.
+3. **המחיר:** דולר בכל השפות. טריגר לחזרה להכרעת המטבע: לקוח שמשלם במטבע שאינו דולר.
+
+סדר הביצוע המחייב:
+
+1. הפרסר וה-intake מקבלים כל שפה.
+2. האפליקציה שנבנית בשפת הלקוח והכיווניות המתאימה.
+3. i18n מלא של הממשק.
+
+**כעת: שלב 1, ובפרסר בלבד במסגרת #131.** אין שינוי בקוד intake, בתמחור או בממשק. החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+הכרעת הפרסר זהה בכל שפה: טקסט חופשי לאחר JSON מסווג prose לפי תחביר, ללא תלות באלפבית; leading prose נדחה באותה שגיאת פרסר. הנחיית התיקון דורשת אובייקט JSON לפי הסכמה ושמירה על שפת התוכן המבוקשת.
+
+### 2026-10-25 — DELIVERY-001: מסירה בשלבים עם שקיפות מחיר (הכרעת הבעלים)
+
+המוצר נמסר בשלבים. הלקוח רואה כל שלב על המסך ומאשר אותו לפני שהבא מתחיל.
+
+1. **מחזור השלב:** שאלות → הצעה → בנייה → תצוגה מקדימה → אישור או סימון שינויים → סגירה. שלב נסגר רק אחרי תצוגה מקדימה ואישור מפורש, ומוקפא לפני המעבר לשלב הבא.
+2. **המחיר:** העלות בקרדיטים נאמרת לפני תחילת השלב, לא אחריו. שלב שנכשל אינו מחויב. חזרה אחורה מותרת, עם מחיר מוצהר.
+3. **קצב:** לכל היותר שלוש שאלות לפני שיש משהו על המסך.
+4. **סימון שינויים:** הלקוח מסמן על התצוגה ("פה", "יותר גדול", "תוריד את זה"); הסוכן מתרגם לסימון מובנה ומאמת שהבין לפני שינוי.
+
+סדר הביצוע: WP2 פרוטוקול השלבים, שקיפות המחיר ואי-חיוב על כשל; WP3 תצוגה מקדימה ומשטח סימון. **אין שינוי במחיר עצמו, בממשק הגרפי, בספקי המדיה או במסד הנתונים.** החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+### 2026-10-25 — QUESTIONS-001: שאלות בשפה חופשית מגלאי חוסרים (הכרעת הבעלים)
+
+ה-intake אינו שאלון. כל סוג ארטיפקט מצהיר אילו שדות הוא דורש; גלאי חוסרים אומר מה חסר, והסוכן מנסח את השאלה.
+
+1. **מהותי** = שינוי הערך היה משנה את הארטיפקט בצורה שהלקוח יבחין בה (סגנון, קהל, שפה, התחברות). חסר+מהותי → שואלים. חסר+לא מהותי → ערך ברירת מחדל **מפורש** ומסומן כהנחה; בלי ערך מפורש "מניחים" הוא ניחוש.
+2. **השאלה:** אחת בכל פעם, בשפת המשתמש, עם סיבה; "תחליט אתה" תמיד זמין ומסומן כהנחה. לא שואלים על מה שכבר ידוע, גם אם נאמר באגב. שאלה בשפה אחת לא מייצרת תווית בשפה אחרת במפרט.
+3. **מודל:** קריאה אחת לשאלה, בתוך תקציב השיחה הקיים, לא לולאה. הפרומפט מקבל מה חסר, לא רשימת שאלות. נוסח גיבוי קבוע נשאר קיים ונבדק, לעבודה בלי מודל וב-CI. כשהמשתמש כתב בעברית או בערבית, השאלה אינה ASCII בלבד.
+4. **מטריקה:** כל שאלה נרשמת עם השדה שמילאה ונמדד אם שינתה את הארטיפקט. שאלה שלא ממופה לשדה = כשל; שאלה שלא מילאה כלום = שיחה מיותרת; חוסר מהותי שלא נשאל = כשל.
+
+**כעת: WP1 בלבד** (גלאי החוסרים והשאלות החופשיות), ב-`omni_prod/intake/` וב-`omni_prod/conversation/`. החלטת מוצר אינה ראיה למימוש או לאימות.

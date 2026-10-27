@@ -5,7 +5,8 @@
 | Agent | Role | Status | Allowed skills | Agent dependencies |
 |---|---|---|---:|---|
 | `agent.chief_orchestrator` | Chief Orchestrator | **PARTIAL** | 11 | — |
-| `agent.product_architect` | Product Architect | **PARTIAL** | 4 | `agent.chief_orchestrator` |
+| `agent.venice` | Venice (understanding -> planning) | **PARTIAL** | 4 | `agent.chief_orchestrator` |
+| `agent.plan_verifier` | Plan Verifier | **PARTIAL** | 1 | `agent.venice` |
 | `agent.clarification` | Clarification Agent | **NOT_IMPLEMENTED** | 1 | `agent.chief_orchestrator` |
 | `agent.capability_planner` | Capability Planner | **PARTIAL** | 1 | `agent.chief_orchestrator` |
 | `agent.cost_planner` | Cost Planner | **PARTIAL** | 2 | `agent.chief_orchestrator` |

@@ -1,0 +1,40 @@
+name: agent loop
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    env:
+      SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: retarget stale bases
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$SERVICE_TOKEN" ]]; then
+            printf '### retarget: FAIL\nSERVICE_TOKEN is empty\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          if ! curl --fail-with-body -sS --max-time 150 "https://one48ai-repo-control.onrender.com/pr?op=retarget&token=$SERVICE_TOKEN" > "$response"; then
+            printf '### retarget: FAIL\nHTTP/transport failure\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          python scripts/check_agent_loop_result.py retarget < "$response"
+      - name: sweep clean ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          if ! curl --fail-with-body -sS --max-time 200 "https://one48ai-repo-control.onrender.com/pr?op=sweep&token=$SERVICE_TOKEN" > "$response"; then
+            printf '### sweep: FAIL\nHTTP/transport failure\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          python scripts/check_agent_loop_result.py sweep < "$response"

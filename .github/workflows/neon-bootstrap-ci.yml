@@ -1,6 +1,8 @@
 name: Neon bootstrap CI
 on:
+  workflow_dispatch:
   push:
+    branches: [main, milestone/pre-staging-2026-10-05]
     paths:
       - 'infra/postgres/**'
       - 'infra/staging/**'
@@ -10,11 +12,16 @@ on:
       - 'infra/postgres/**'
       - 'infra/staging/**'
       - '.github/workflows/neon-bootstrap-ci.yml'
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:
   fresh-postgres:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16

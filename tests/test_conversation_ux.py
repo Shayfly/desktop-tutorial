@@ -28,14 +28,14 @@ class ConversationUXTests(unittest.TestCase):
         t = self.say(FIRST)                                             # "phone" -> personal data, sensitive
         self.assertEqual([q.id for q in t.questions], ['personal_data'])
         self.assertIn('רק לוודא', t.reply)
-        self.assertIn('פרטים אישיים: כן', t.reply)
+        self.assertIn('(הבנתי מהבקשה: כן.)', t.reply)                    # QUESTIONS-001: the detector's confirm mode
+        self.assertIn(t.gaps['question']['text'], t.reply)
 
     def test_unsure_answers_get_a_reason_then_the_options_never_the_same_text(self):
         self.say(FIRST)
         replies = [self.say(m).reply for m in ('מה?', 'לא יודע', 'לא יודע')]
         self.assertIn('למה אני שואל', replies[0])
-        self.assertIn('בחרו עבורי', replies[0])                        # a way out, with the recommendation
-        self.assertIn('אפשרויות', replies[1])
+        self.assertIn('תחליט אתה', replies[0])                         # a way out ("you decide" -> the default)
         for a, b in zip(replies, replies[1:]):
             self.assertNotEqual(a, b)
 

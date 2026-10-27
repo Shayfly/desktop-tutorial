@@ -23,7 +23,7 @@ PLAN_OK = {"schema_version": 2, "runtime": "python:3.11-slim", "start": ["python
            "health_path": "/", "web_saas_acceptance": {"product_family": "managed_web_saas_v1", "required_kinds": ["api_smoke"],
            "personas": [{"id": "v", "steps": [
                {"id": "s1", "kind": "api_smoke", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200},
-               {"id": "s2", "kind": "data_create", "acceptance_ids": ["A2"], "method": "POST", "path": "/x", "expect_status": 201}]}]}}
+               {"id": "s2", "kind": "data_create", "acceptance_ids": ["A2"], "method": "POST", "path": "/x", "json": {"name": "n"}, "expect_status": 201}]}]}}
 PLAN_MISSING_A2 = json.loads(json.dumps(PLAN_OK))
 PLAN_MISSING_A2['web_saas_acceptance']['personas'][0]['steps'].pop()
 BROKEN_TEST = 'def test_x():\n    assert "unterminated\n'
@@ -115,6 +115,56 @@ class PreflightNeverHidesARealFailure(unittest.TestCase):
         engine, result, chain = build({**BASE, 'tests/test_app.py': BROKEN_TEST}, Repairer(also_touch_app=True))
         self.assertEqual(chain.runs[0]['app.py'], BASE['app.py'])
         self.assertNotIn('notes.txt', chain.runs[0])
+
+
+def plan_with(step_change):
+    plan = json.loads(json.dumps(PLAN_OK))
+    plan['web_saas_acceptance']['personas'][0]['steps'].append(
+        {"id": "s3", "kind": "api_smoke", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200})
+    step_change(plan['web_saas_acceptance']['personas'][0]['steps'])
+    return plan
+
+
+class PreflightRunsTheRunnersOwnStepValidation(unittest.TestCase):
+    """Paid run 39377332673: "step S5 must reference contract acceptance_ids" cost round 0 although every acceptance
+    id was covered by other steps -- the old pre-flight checked coverage only."""
+
+    def test_the_round_0_defect_of_run_39377332673_is_found_statically(self):
+        plan = plan_with(lambda steps: steps[2].pop('acceptance_ids'))     # covered A1, A2 elsewhere; s3 has none
+        gaps = pf.plan_coverage_gaps({'.omni/project.json': json.dumps(plan)}, SPEC)
+        self.assertEqual(gaps, {'invalid': 'step s3 must reference contract acceptance_ids',
+                                'missing_acceptance_ids': [], 'missing_kinds': []})
+
+    def test_and_fixed_before_the_round_counts(self):
+        plan = plan_with(lambda steps: steps[2].update(acceptance_ids=[]))
+        engine, result, chain = build({**BASE, '.omni/project.json': json.dumps(plan)}, Repairer())
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 0))
+        self.assertEqual(len(chain.runs), 1)
+        self.assertEqual(result.repository['app.py'], BASE['app.py'])
+        self.assertEqual([(r['failure_type'], r['was_repaired']) for r in engine.failure_taxonomy if r['layer'] == 'preflight'],
+                         [('preflight_plan_coverage', True)])
+
+    def test_every_rule_of_the_runner_is_checked(self):
+        cases = {
+            'step s3 references unknown acceptance id(s): A9': lambda s: s[2].update(acceptance_ids=['A9']),
+            'acceptance step ids must be non-empty and unique': lambda s: s[2].update(id='s1'),
+            'step s3 requires kind': lambda s: s[2].update(kind=''),
+            'step s3 uses unsupported HTTP method TRACE': lambda s: s[2].update(method='TRACE'),
+        }
+        for message, change in cases.items():
+            gaps = pf.plan_coverage_gaps({'.omni/project.json': json.dumps(plan_with(change))}, SPEC)
+            self.assertEqual((gaps or {}).get('invalid'), message)
+            self.assertIn(f'the plan is invalid: {message}', pf.plan_failure(gaps)['message'])
+
+    def test_a_valid_plan_is_still_clean(self):
+        self.assertIsNone(pf.plan_coverage_gaps({'.omni/project.json': json.dumps(plan_with(lambda s: None))}, SPEC))
+
+    def test_an_unfixable_invalid_plan_still_costs_a_real_round(self):
+        plan = plan_with(lambda steps: steps[2].pop('acceptance_ids'))
+        engine, result, chain = build({**BASE, '.omni/project.json': json.dumps(plan)}, Repairer(can_fix=False))
+        self.assertEqual(result.status, 'failed')
+        self.assertGreaterEqual(result.repair_rounds, 1)
+        self.assertEqual(json.loads(chain.runs[0]['.omni/project.json']), plan)   # reached the chain as it was
 
 
 @unittest.skipIf(_Chain is None, 'needs the production chain (fastapi)')

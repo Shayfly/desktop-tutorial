@@ -1,3 +1,11 @@
+# Governance audit update — 2026-10-27 (ChatGPT/Codex)
+
+- GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
+- BLOCKED: Independent execution and reviewer approval of all four audits; #152 already merged, requires retrospective review.
+- IN REVIEW: Vision law and governance branch `docs/vision-law-governance-20261027`; Claude must verify because Codex/ChatGPT authored changes.
+- NOT VERIFIED: Docker transient failure classification pending exact failed/retry run URLs; do not call it a proven flake without both.
+- NOT STARTED: Paid provider benchmark. No paid API calls authorized.
+
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
 ## PR #34 follow-up — caller-stable build idempotency
@@ -2449,7 +2457,7 @@ Not re-claimed as live in this environment: clean-room/lifecycle Postgres proof 
 
 The Golden E2E uses an in-process fake multimodal provider with structurally valid artifacts. It proves the universal execution/verification/evidence contract, **not** that a named commercial provider is LIVE.
 
-M4.95 machine truth SHA-256: `3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a`
+M4.95 machine truth SHA-256: `5da248f3201ed0b7ceb079b10e7856ded5c01b6180eef550d5df28ebbf86ed88`
 
 ## M5 Production Vertical Slice — 2026-10-04
 
@@ -2598,3 +2606,12 @@ Awaiting live storage probe on new Preview. No claim that SignatureDoesNotMatch 
 ## 2026-10-11: PR17 branch reconciliation with PR11
 
 PR11 is integrated into the PR17 branch only. Schema compatibility now requires migration 038, matching the attachment migration already present in PR17. Existing drift checks remain intact. This branch push is authorized to trigger Preview; no milestone/main merge, worker deployment, live migration, or secret change is authorized by this reconciliation. Local verification covers 48 deployment verification tests; full application and PostgreSQL validation must be confirmed by CI on the resulting commit. Preview protection, unscheduled default-branch backups, and worker recovery/drain risks remain release blockers; this entry does not claim production readiness.
+
+## 2026-10-14: controlled GitHub Actions cost optimization (draft)
+
+- Implemented and independently verified: feature push/full PR trigger separation, documentation-only heavy-check selection, stable per-PR cancellation, fail-closed required pg/customer-ui checks, bounded Docker/browser jobs and retained failure reports. 16 focused CI tests pass (37 subtests), 28 workflow YAML files validate, Python/JavaScript syntax checks pass; independent re-review found no remaining important issue.
+- Implemented but awaiting external live verification: actual Linux, PostgreSQL, Docker and browser CI execution and net job-minute savings. Full local suite: 1645 passed, 63 failed, 172 skipped; no additional failing test IDs relative to the local baseline. This is not a green full-suite claim.
+- Blocked by named service/environment: GitHub Actions says jobs cannot start due to failed recent payments or the account spending limit; local Windows temporary-directory access and unavailable Linux/Docker services prevent complete integration verification. No spending limit or payment setting was changed.
+- Not implemented: measured billed savings after integration; these require successful candidate runs and a comparable billing/job-minute sample. Production deployment and merge are outside the authorization.
+
+Commands, sample of 100 historical runs, timeout policy and evidence limits: docs/CI_ACTIONS_COST_OPTIMIZATION_2026-10-14.md.

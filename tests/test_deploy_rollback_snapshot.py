@@ -205,3 +205,15 @@ class StorageProbeOrderTests(unittest.TestCase):
         self.assertLess(WorkflowOrderTests.idx(self, n, 'Build images'), probe)
         self.assertLess(probe, WorkflowOrderTests.idx(self, n, 'Refuse to drain'))
         self.assertLess(probe, WorkflowOrderTests.idx(self, n, 'Drain workers'))
+
+
+class ScopeCheckIsNotRacyTests(unittest.TestCase):
+    """Step-4 flake (exit 255, 3 runs): a fatal check must not pipe docker output into `grep -q` under pipefail."""
+
+    def test_no_fatal_step_pipes_docker_output_into_grep_q(self):
+        import re
+        wf = yaml.safe_load((ROOT / '.github' / 'workflows' / 'deploy-worker.yml').read_text())
+        step = next(st for st in wf['jobs']['deploy']['steps'] if st.get('name', '').startswith('Confirm deployment scope'))
+        code = '\n'.join(l for l in step['run'].splitlines() if not l.lstrip().startswith('#'))
+        self.assertIsNone(re.search(r'docker[^\n|]*\|\s*grep -q', code), code)
+        self.assertIn('services=$(docker compose config --services)', code)

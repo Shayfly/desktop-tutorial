@@ -1,7 +1,17 @@
 {
   "currency": "USD",
   "entries": [],
+  "runtime_priced": [
+    {
+      "actual_cost_source": "chat response: cost.usd (unknown cost is charged at the reserved worst case, never zero)",
+      "base_url": "https://api.venice.ai/api/v1",
+      "key_env": "VENICE_API_KEY1",
+      "provider": "venice",
+      "status": "UNKNOWN_NOT_APPROVED",
+      "unit_price_source": "GET /models: model_spec.pricing.input.usd / pricing.output.usd (USD per 1M tokens)"
+    }
+  ],
   "schema_version": 1,
   "status": "NOT_CONFIGURED",
-  "truth_sha256": "3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a"
+  "truth_sha256": "5da248f3201ed0b7ceb079b10e7856ded5c01b6180eef550d5df28ebbf86ed88"
 }

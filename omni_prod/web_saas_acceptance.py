@@ -83,6 +83,13 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
 
 
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
+_WRITE_KINDS = frozenset({'data_create', 'data_update'})
+_BODY_METHODS = frozenset({'POST', 'PUT', 'PATCH'})
+
+
+def _empty_body(body: Any) -> bool:
+    """No body at all, or an empty one: nothing for a create/update endpoint to validate and store."""
+    return body is None or (isinstance(body, (str, bytes, Mapping, list, tuple)) and len(body) == 0)
 _VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
@@ -242,11 +249,18 @@ class WebSaaSAcceptanceRunner:
                         raise ValueError('path must be a relative absolute-path beginning with one /')
                     headers = _resolve(step.get('headers') or {}, variables)
                     body = _resolve(step.get('json'), variables)
-                    resp = self.transport.request(
-                        method=method, url=base_url + path, headers=headers, json_body=body,
-                        timeout_seconds=float(step.get('timeout_seconds', self.timeout_seconds)),
-                    )
-                    detail = _assert_response(step, resp)
+                    timeout = float(step.get('timeout_seconds', self.timeout_seconds))
+                    if step.get('concurrent'):
+                        # T8: N identical requests at the same instant; the SERVER must accept exactly
+                        # expect_accepted of them and refuse the rest (a UI that blocks double clicks proves nothing).
+                        resp, detail = _concurrent(self.transport, step, method=method, url=base_url + path,
+                                                   headers=headers, body=body, timeout=timeout)
+                    else:
+                        resp = self.transport.request(
+                            method=method, url=base_url + path, headers=headers, json_body=body,
+                            timeout_seconds=timeout,
+                        )
+                        detail = _assert_response(step, resp)
                     _capture(step.get('capture') or {}, resp, variables)
                     passed = True
                     passed_ids.update(acceptance_ids)
@@ -343,6 +357,24 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
                 return f'step {step_id} uses unsupported HTTP method {method}'
             if not ids:
                 return f'step {step_id} must reference contract acceptance_ids'
+            if 'concurrent' in step:
+                n = step.get('concurrent')
+                if not isinstance(n, int) or isinstance(n, bool) or not 2 <= n <= 5:
+                    return f'step {step_id}: concurrent must be an integer from 2 to 5'
+                if method not in {'POST', 'PUT', 'PATCH'}:
+                    return f'step {step_id}: concurrent applies to POST, PUT or PATCH'
+                accepted = step.get('expect_accepted', 1)
+                if not isinstance(accepted, int) or isinstance(accepted, bool) or not 0 <= accepted <= n:
+                    return f'step {step_id}: expect_accepted must be an integer from 0 to concurrent'
+                if accepted == 0 and ('expect_text_contains' in step or 'expect_json_contains' in step):
+                    return (f'step {step_id}: expect_text_contains / expect_json_contains apply to accepted responses, '
+                            'and expect_accepted is 0')
+            if kind in _WRITE_KINDS and method in _BODY_METHODS and _empty_body(step.get('json')):
+                # Live run 1 (bld_15f930f7, 2026-10-22): a data_create step POSTed with no body, the app rightly
+                # answered 400, and a correct app could never pass. Refused here, before any request is sent.
+                return (f'step {step_id} ({kind}) sends {method} {step.get("path", "/")} without a json body: a '
+                        f'{kind} step must send, in "json", the data the endpoint needs, valid under the approved '
+                        'rules (for dates use ${today} or ${date_plus_N})')
             unknown = sorted(set(ids) - contract_ids)
             if unknown:
                 return f'step {step_id} references unknown acceptance id(s): {",".join(unknown)}'
@@ -388,14 +420,66 @@ def _resolve(value: Any, variables: Mapping[str, Any]) -> Any:
     return value
 
 
+def _concurrent(transport, step: Mapping[str, Any], *, method: str, url: str, headers, body, timeout: float):
+    """T8 (founder 2026-10-21): fire `concurrent` identical requests released by one barrier. Exactly
+    `expect_accepted` (default 1) must answer `expect_status` (default 200) and every other one
+    `expect_conflict_status` (default 409). Returns (an accepted response for capture, detail)."""
+    import threading
+    n = int(step['concurrent'])
+    accepted_status = int(step.get('expect_status', 200))
+    conflict_status = int(step.get('expect_conflict_status', 409))
+    want = int(step.get('expect_accepted', 1))
+    barrier = threading.Barrier(n)
+    results: list = [None] * n
+
+    def fire(i):
+        try:
+            barrier.wait(timeout=timeout)
+            results[i] = transport.request(method=method, url=url, headers=headers, json_body=body,
+                                           timeout_seconds=timeout)
+        except Exception as exc:                       # a crash or a dropped connection is an outcome too
+            results[i] = exc
+
+    threads = [threading.Thread(target=fire, args=(i,), daemon=True) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout * 2 + 5)
+    statuses = [getattr(r, 'status', type(r).__name__) for r in results]
+    ok = [r for r in results if getattr(r, 'status', None) == accepted_status]
+    refused = [r for r in results if getattr(r, 'status', None) == conflict_status]
+    if len(ok) != want or len(ok) + len(refused) != n:
+        raise AssertionError(f'{n} concurrent {method} requests: expected exactly {want} x HTTP {accepted_status} and '
+                             f'the rest HTTP {conflict_status}, got {statuses} (the server must lock and check the '
+                             'overlap inside one transaction; blocking in the page is not enough)')
+    # Matt on #106: the ordinary response contract holds for EVERY accepted response (status, expect_text_contains,
+    # expect_json_contains), not only the first one's JSON. With expect_accepted 0 the plan validator refuses those
+    # assertions (there is no accepted response to hold them), so nothing is ever silently skipped.
+    for i, r in enumerate(ok):
+        try:
+            _assert_response(step, r)
+        except AssertionError as exc:
+            raise AssertionError(f'accepted response {i + 1} of {len(ok)}: {exc}') from None
+    return (ok[0] if ok else refused[0]), f'{n} concurrent requests: {statuses} (exactly {want} accepted, each matched)'
+
+
 def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:
     expected_status = int(step.get('expect_status', 200))
     if response.status != expected_status:
         raise AssertionError(f'expected HTTP {expected_status}, got {response.status}')
     if 'expect_text_contains' in step:
-        needle = str(step['expect_text_contains'])
-        if not _text_contains(response.text(), needle):
-            raise AssertionError(f'response text missing {needle!r}')
+        # A string, or a list/tuple of strings that must ALL appear. Paid run 39377332673 (2026-10-20): the plan gave
+        # ['viewport', 'width=device-width'], the old str() searched for the Python repr of the list, and a page that
+        # had both strings failed three repair rounds.
+        wanted = step['expect_text_contains']
+        needles = [str(x) for x in wanted] if isinstance(wanted, (list, tuple)) else [str(wanted)]
+        if not needles or not all(needles):
+            raise AssertionError('expect_text_contains is empty: quote the text the page must show')
+        body = response.text()
+        missing = [n for n in needles if not _text_contains(body, n)]
+        if missing:
+            raise AssertionError(f'response text missing {missing[0]!r}' if len(needles) == 1
+                                 else f'response text missing {missing!r} (all of {needles!r} must appear)')
     if 'expect_json_contains' in step:
         actual = response.json()
         expected = step['expect_json_contains']

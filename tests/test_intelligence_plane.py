@@ -169,7 +169,8 @@ class ProviderMatrixTests(unittest.TestCase):
     def test_inflated_states_are_rejected(self):
         import dataclasses
         from omni_prod.intelligence import inventory
-        luna = next(e for e in INVENTORY if e.model_key == 'openai-gpt-6-luna')
+        # gpt-6.1-sol: still no successful call in any ledger observation (luna has one since 2026-10-20)
+        luna = next(e for e in INVENTORY if e.model_key == 'openai-gpt-6-1-sol')
         inflated = dataclasses.replace(luna, verification_state=S.REAL_EXECUTION_VERIFIED, health_note='')
         haiku = next(e for e in INVENTORY if e.model_key == 'anthropic-claude-haiku-5-5')
         fake_conn = dataclasses.replace(haiku, connection_state=S.CONNECTION_TESTED)
@@ -190,10 +191,11 @@ class ProviderMatrixTests(unittest.TestCase):
     def test_truthful_summary(self):
         m = matrix.build()
         verified = {r['provider_model_id'] for r in m['models'] if r['verification_state'] == S.REAL_EXECUTION_VERIFIED}
-        self.assertEqual(verified, {'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'})
+        self.assertEqual(verified, {'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite',
+                                    'gpt-6-luna'})          # 6 ok calls, inspect-build 39378559811 (2026-10-20)
         self.assertNotIn(S.PRODUCTION_LIVE, json.dumps(m['summary']))
         blocked = {r['provider_model_id'] for r in m['models'] if r['availability'] == S.INSUFFICIENT_CREDIT}
-        self.assertEqual(blocked, {'gpt-6-luna', 'gpt-6.1-sol', 'claude-sonnet-5-5'})
+        self.assertEqual(blocked, {'gpt-6.1-sol', 'claude-sonnet-5-5'})
 
 
 class TaskPolicyRoutingTests(unittest.TestCase):
@@ -202,11 +204,18 @@ class TaskPolicyRoutingTests(unittest.TestCase):
         self.assertEqual(_gw(s).complete(system='s', user='u', task='architecture'), 'ok:m-strong')
 
     def test_below_mandatory_floor_is_never_used_even_as_escalation(self):
+        # T5: codegen's floor is a mandatory 85, so below-85 models are not even escalation for codegen ...
         s = Script({'m-strong': [(500, 'down')], 'm-cheap': [(500, 'down')], 'm-weak': ['ok']})
         with self.assertRaises(ModelGatewayError):
             _gw(s).complete(system='s', user='u', task='codegen')
         self.assertNotIn('m-weak', s.calls)
-        self.assertEqual(s.calls, ['m-strong', 'm-cheap'])  # escalation within the floor is explicit, recorded
+        self.assertEqual(s.calls, ['m-strong'])
+        # ... while repair keeps its mandatory 70: escalation within that floor is explicit, recorded
+        s = Script({'m-strong': [(500, 'down')], 'm-cheap': [(500, 'down')], 'm-weak': ['ok']})
+        with self.assertRaises(ModelGatewayError):
+            _gw(s).complete(system='s', user='u', task='repair')
+        self.assertNotIn('m-weak', s.calls)
+        self.assertEqual(s.calls, ['m-strong', 'm-cheap'])
 
     def test_unknown_task_gets_the_strict_default(self):
         self.assertEqual(task_policy.task_class('mystery').key, 'general')

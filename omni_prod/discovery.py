@@ -385,6 +385,13 @@ def complete(brief: Brief) -> bool:
     return not pending(brief) and not contradictions(brief)
 
 
+def missing(brief: Brief) -> dict:
+    """O10 (founder 2026-10-21): what keeps the brief from being complete, so the gate says WHAT is missing, not only
+    that something is. Same two sources as complete(): the pending questions and the contradictions."""
+    return {'pending': [{'id': q.id, 'group': q.group, 'he': q.he, 'en': q.en} for q in pending(brief)],
+            'contradictions': contradictions(brief)}
+
+
 # ---- what the builders receive ----------------------------------------------
 
 _COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',

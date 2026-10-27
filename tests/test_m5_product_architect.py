@@ -62,7 +62,7 @@ class ProductArchitectTests(unittest.TestCase):
         self.assertTrue(contract.cost_envelope.reservation_required)
         self.assertEqual(contract.cost_envelope.quote_basis, "CONSERVATIVE_MAXIMUM")
         self.assertTrue(contract.required_skill_keys)
-        self.assertIn("agent.product_architect", contract.required_agent_keys)
+        self.assertIn("agent.venice", contract.required_agent_keys)
         self.assertIn("agent.chief_orchestrator", contract.required_agent_keys)
 
     def test_low_confidence_material_ambiguity_creates_concise_question(self):

@@ -38,6 +38,15 @@ def schema_ready(pool) -> bool:
     return not missing
 
 
+def _gate_suffix(plan) -> str:
+    """A plan made after spec approval (owner 2026-10-26) is its own row: it carries the verifier's verdict, so an
+    older plan with the same graph (saved before the two gates) never stands in for it."""
+    gate = plan.get('spec_gate') or {}
+    if not gate:
+        return ''
+    return ':gate:' + str(gate.get('approved_fingerprint', ''))[:16] + (':c' if gate.get('verification', {}).get('corrected') else '')
+
+
 class MemoryConversationStore:
     def __init__(self):
         self.messages: list[dict] = []
@@ -75,7 +84,7 @@ class MemoryConversationStore:
                     and m['cost_usd'] is not None), Decimal('0'))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
-        key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'])
+        key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'] + _gate_suffix(plan))
         if key not in self.plans:
             self.plans[key] = {'id': f'pln_{uuid.uuid4().hex[:20]}', 'project_id': project_id, 'brief_revision': brief_revision,
                                'brief_fingerprint': brief_fingerprint, 'plan': plan}
@@ -146,7 +155,7 @@ class PostgresConversationStore:
         return Decimal(str(v))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
-        fp = plan['graph_fingerprint'][:32] + plan['requirements_fingerprint'][:32]
+        fp = plan['graph_fingerprint'][:32] + plan['requirements_fingerprint'][:32] + _gate_suffix(plan)
         pid = f'pln_{uuid.uuid4().hex[:20]}'
         with self.pool.connection() as conn:
             with conn.transaction():

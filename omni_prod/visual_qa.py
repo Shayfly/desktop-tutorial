@@ -210,20 +210,30 @@ class VisualQAExecutor:
         directly; execute() keeps the standalone short-circuit)."""
         if not self._enabled:
             return report
+        from .verification_verdict import no_checks, reraise_control, unverified
         run = getattr(self._inner, '_run', None)
         if not callable(run):
             self.last_visual = {'status': 'NOT_RUN', 'reason': 'no sandbox runner'}
-            return report
+            return unverified(VISUAL_FAILURE_ID, 'no sandbox runner', report.build_log)        # T4: never a pass
         viewports, status = {}, 'PASS'
         for name in VIEWPORTS:
             try:
                 staged, argv = staged_script(repository, 'visual_qa', SCRIPT, name)
                 result = run(staged, argv, f'visual-{name}', profile=BROWSER_PROFILE)
             except Exception as exc:
+                reraise_control(exc)                   # T4: cancel / ledger / budget stop the build
                 viewports[name] = {'status': 'NOT_RUN', 'reason': f'{type(exc).__name__}: {exc}'[:200]}
                 status = 'NOT_RUN'
                 continue
             data, shot = parse(result.get('stdout', ''))
+            if data is not None and not (isinstance(data, dict) and isinstance(data.get('findings'), list)):
+                viewports[name] = {'status': 'NOT_RUN', 'reason': 'malformed visual report'}   # T4: schema first
+                status = 'NOT_RUN'
+                continue
+            if data is not None and int(result.get('returncode', 0) or 0) != 0:
+                viewports[name] = {'status': 'NOT_RUN', 'reason': f"visual QA exited {result.get('returncode')}"}
+                status = 'NOT_RUN'
+                continue
             if data is None:
                 viewports[name] = {'status': 'NOT_RUN', 'reason': 'no visual report',
                                    'tail': (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-300:]}
@@ -240,6 +250,16 @@ class VisualQAExecutor:
             viewports[name] = entry
         enforce = enforced_rules()
         blocking = [(v, f) for v, e in viewports.items() for f in e.get('findings', []) if f['kind'] in enforce]
+        if status == 'NOT_RUN' and not blocking:       # T4: a viewport that was not inspected verified nothing
+            self.last_visual = {'status': 'NOT_RUN', 'mode': 'enforce' if enforce else 'shadow', 'viewports': viewports}
+            self.visual_rounds.append({'status': 'NOT_RUN', 'counts': {}})
+            why = '; '.join(f"{v}: {e.get('reason')}" for v, e in viewports.items() if e.get('status') == 'NOT_RUN')
+            return unverified(VISUAL_FAILURE_ID, why, report.build_log)
+        inspected = sum(int(e.get('controls') or 0) + int(e.get('text_elements') or 0) for e in viewports.values())
+        if not blocking and inspected == 0 and not any(e.get('findings') for e in viewports.values()):
+            self.last_visual = {'status': 'NO_CHECKS', 'mode': 'enforce' if enforce else 'shadow', 'viewports': viewports}
+            self.visual_rounds.append({'status': 'NO_CHECKS', 'counts': {}})
+            return no_checks(VISUAL_FAILURE_ID, 'no control and no text element was inspected', report.build_log)
         if status == 'PASS' and any(e.get('findings') for e in viewports.values()):
             status = 'FINDINGS'
         self.last_visual = {'status': 'FAIL' if blocking else status, 'mode': 'enforce' if enforce else 'shadow',
