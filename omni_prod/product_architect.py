@@ -558,7 +558,7 @@ class ProductArchitect:
 
     def _required_agents(self, required_skills: tuple[str, ...]) -> tuple[str, ...]:
         required = set(required_skills)
-        keys = ["agent.chief_orchestrator", "agent.product_architect", "agent.capability_planner", "agent.cost_planner"]
+        keys = ["agent.chief_orchestrator", "agent.venice", "agent.capability_planner", "agent.cost_planner"]
         for agent in self.agents.all():
             if required.intersection(agent.allowed_skills):
                 keys.append(agent.key)
