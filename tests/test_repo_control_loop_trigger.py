@@ -85,6 +85,9 @@ def test_the_workflow_schedule_concurrency_and_stall_step():
     assert wf["concurrency"] == {"group": "agent-loop", "cancel-in-progress": False}
     assert wf["permissions"].get("actions") == "read"
     names = [s.get("name") for s in wf["jobs"]["loop"]["steps"]]
-    assert names.index("stall check (no \"silent green\")") < names.index("retarget stale bases")
-    stall = next(s for s in wf["jobs"]["loop"]["steps"] if s.get("name", "").startswith("stall check"))
-    assert "2700" in stall["run"] and "agent-loop STALLED" in stall["run"]
+    # C10 (CEO 2026-10-27): the stall check is a gate that FAILS the run, after the work, always.
+    stall_name = "stall gate (no successful run in 45 minutes fails the run)"
+    assert names.index("sweep clean ready") < names.index(stall_name)
+    stall = next(s for s in wf["jobs"]["loop"]["steps"] if s.get("name") == stall_name)
+    assert stall.get("if") == "always()"
+    assert "python scripts/check_agent_loop_stall.py" in stall["run"] and "::warning" not in stall["run"]

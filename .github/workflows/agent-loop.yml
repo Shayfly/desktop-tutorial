@@ -19,24 +19,6 @@ jobs:
       SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: stall check (no "silent green")
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/agent-loop.yml/runs?status=success&per_page=1" \
-                 -q '.workflow_runs[0].updated_at' 2>/dev/null || true)
-          if [[ -z "$last" || "$last" == "null" ]]; then
-            echo "::warning title=agent-loop STALLED::no successful agent-loop run on record"
-          else
-            age=$(( $(date -u +%s) - $(date -u -d "$last" +%s) ))
-            if (( age > 2700 )); then
-              echo "::warning title=agent-loop STALLED::last successful run was $(( age / 60 )) minutes ago ($last); expected every 15 minutes"
-            else
-              echo "::notice title=agent-loop trigger::event=${GITHUB_EVENT_NAME} actor=${GITHUB_ACTOR}; last success $(( age / 60 )) min ago"
-            fi
-          fi
       - name: retarget stale bases
         shell: bash
         run: |
@@ -63,3 +45,14 @@ jobs:
             exit 1
           fi
           python scripts/check_agent_loop_result.py sweep < "$response"
+      # C10 (CEO 2026-10-27): a stalled loop FAILS the run (a warning is silent green). Runs after the work, always.
+      - name: stall gate (no successful run in 45 minutes fails the run)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/agent-loop.yml/runs?status=success&per_page=1" \
+                 -q '.workflow_runs[0].updated_at' 2>/dev/null || true)
+          python scripts/check_agent_loop_stall.py "$last"
