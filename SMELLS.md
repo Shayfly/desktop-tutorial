@@ -4465,3 +4465,16 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
 - **ראיית ההרצה החוזרת:** ״הרצה חוזרת עברה בלי שינוי קוד״ — דיווח הבעלים בתדריך. קישור לריצה, מספר attempt ו־SHA לא נמסרו ולא נמצאו בדיון #150 בעת התיעוד; לא מוצג כאן אימות עצמאי של לוג הריצה.
 - **היקף המסקנה:** סיווג האירוע המסוים, לא קביעה שכל כשל Docker או OOM הוא פלייק, ולא ביטול ממצאי OOM היסטוריים ב־CONTROLS.json.
 - **טיפול עתידי:** לקרוא רשומה זו לפני חקירה חוזרת של אותה חתימה. אין לחקור שוב את האירוע הסגור ללא ראיה חדשה; כשל שחוזר בריצה חוזרת, חתימה שונה או שינוי קוד מחייבים בדיקה מחדש. אין לשנות assertions או להחליש בדיקות על סמך הסיווג.
+
+## Docker / intake-budget-pg: failures after #154 merged (2026-10-27/28)
+
+- **What was seen** (no log access; facts from the API and the check-run annotations):
+  - main `0d40f69643ce701b29b7dc3fac5dc6b33f30c1d6` (push after #154): [run 40599636376](https://github.com/Shayfly/desktop-tutorial/actions/runs/40599636376) attempt 1 **FAIL** (23:05Z), attempt 2 (Re-run failed jobs) **FAIL** (23:19Z). Step: "Focused PostgreSQL, Redis and build-idempotency regressions". **Failed test name: not visible**; main does not yet have the failed-test notice step.
+  - #162 `fe752fed184bfaf49626f2a699dbd145776cd33a`: [run 40600426891](https://github.com/Shayfly/desktop-tutorial/actions/runs/40600426891) attempt 1 **FAIL**, attempt 2 **PASS**. No code change.
+  - #82 `053d079c22493e6f90ffe025c83e7ace82b27dd8` (main's tree + the failed-test notice step): [run 40601846842](https://github.com/Shayfly/desktop-tutorial/actions/runs/40601846842) **PASS**, annotation `pg failed tests: 0 failed or errored`.
+  - The same tree as main (`3aa75cc`, the #154 head) passed earlier: run 40589040890 (21:42Z).
+- **Classification:**
+  - #162 event: **flake** (a rerun passed with no code change).
+  - main event: **not classified** (failed twice; the test name is unknown).
+- **Attribution:** the reviewer (claude) attributes it to `tests/test_real_docker_drain_recovery.py::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything` (line 318), from the signature in #150/#104/#114/#117/#118/#39 (exit 137, oom=false, "1 failed"). This is **an attribution from earlier issues, not a reading of these runs.**
+- **Next time:** after #82 merges, every failed test in this workflow appears as `::notice title=pg failed test::<id>`. A main failure is classified only from that name. Do not change or weaken the OOM assertion (#39: "do not conflate exit 137 with a proven OOM kill").
