@@ -38,6 +38,9 @@ def _reserved_task(payload: dict, quote: dict) -> str:
     return task
 
 def build_gateway(quoted_usd: Decimal, models: tuple[str, ...]):
+    from ..providers import venice_gateway
+    if venice_gateway.selected():   # OMNI_INTAKE_PROVIDER=venice (C3); a missing key raises -> "no model route"
+        return venice_gateway.VeniceIntakeGateway(quoted_usd)
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
