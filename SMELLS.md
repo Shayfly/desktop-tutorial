@@ -4469,12 +4469,15 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
 ## Docker / intake-budget-pg: failures after #154 merged (2026-10-27/28)
 
 - **What was seen** (no log access; facts from the API and the check-run annotations):
-  - main `0d40f69643ce701b29b7dc3fac5dc6b33f30c1d6` (push after #154): [run 40599636376](https://github.com/Shayfly/desktop-tutorial/actions/runs/40599636376) attempt 1 **FAIL** (23:05Z), attempt 2 (Re-run failed jobs) **FAIL** (23:19Z). Step: "Focused PostgreSQL, Redis and build-idempotency regressions". **Failed test name: not visible**; main does not yet have the failed-test notice step.
+  - main `0d40f69643ce701b29b7dc3fac5dc6b33f30c1d6` (push after #154): intake-budget-pg **#1113** = [run 40599636376](https://github.com/Shayfly/desktop-tutorial/actions/runs/40599636376). Attempt 1 **FAIL** (23:05Z), attempt 2 **FAIL** (23:19Z), attempt 3 **PASS** (23:25Z). All three were triggered by Shayfly and none changed code. Step: "Focused PostgreSQL, Redis and build-idempotency regressions".
+  - **The failed node, as read by the owner in the log of run #1113:** `tests/test_real_docker_drain_recovery.py:318`. The message: "was OOM-killed" not found; 1 failed / 190 passed; exit 137, oom=false. This is the same signature as #150. The log does not say which attempt the owner read, and the failed node of the other attempt was not read separately. This entry treats both failures as one recurring event, because the signature is identical and the tree is the same.
   - #162 `fe752fed184bfaf49626f2a699dbd145776cd33a`: [run 40600426891](https://github.com/Shayfly/desktop-tutorial/actions/runs/40600426891) attempt 1 **FAIL**, attempt 2 **PASS**. No code change.
   - #82 `053d079c22493e6f90ffe025c83e7ace82b27dd8` (main's tree + the failed-test notice step): [run 40601846842](https://github.com/Shayfly/desktop-tutorial/actions/runs/40601846842) **PASS**, annotation `pg failed tests: 0 failed or errored`.
   - The same tree as main (`3aa75cc`, the #154 head) passed earlier: run 40589040890 (21:42Z).
 - **Classification:**
+  - main event: **classified, same node as #150**. 2 failures followed by 1 pass on the same SHA, with no code change.
   - #162 event: **flake** (a rerun passed with no code change).
-  - main event: **not classified** (failed twice; the test name is unknown).
-- **Attribution:** the reviewer (claude) attributes it to `tests/test_real_docker_drain_recovery.py::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything` (line 318), from the signature in #150/#104/#114/#117/#118/#39 (exit 137, oom=false, "1 failed"). This is **an attribution from earlier issues, not a reading of these runs.**
+  - Also in the same window: `ci/deploy-worker-drill` e8c5f50, intake-budget-pg #1108 ([run 40581175139](https://github.com/Shayfly/desktop-tutorial/actions/runs/40581175139)) **FAIL**. Its node was not read.
+- **Rate:** in this window it failed on 3 of 4 runs of the workflow on non-docs heads before passing. This is not a rare flake. A proper test fix is a separate PR; see "Next time".
+- **Node:** `tests/test_real_docker_drain_recovery.py::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything` (line 318). main: confirmed from the owner's reading of the #1113 log. #162: attributed from the same signature (#150/#104/#114/#117/#118/#39); the #162 log was not read.
 - **Next time:** after #82 merges, every failed test in this workflow appears as `::notice title=pg failed test::<id>`. A main failure is classified only from that name. Do not change or weaken the OOM assertion (#39: "do not conflate exit 137 with a proven OOM kill").
