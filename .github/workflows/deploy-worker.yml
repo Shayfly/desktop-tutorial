@@ -447,7 +447,27 @@ jobs:
                     | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
           rc=0
           run crash-create || rc=1
-          echo "::notice title=drill-A::SIGKILL the build worker (no drain)"
+          # Pre-kill proof that the build is MID-FLIGHT (auditor gap 1): a kill of a worker that never picked the job up
+          # interrupts nothing and would let B pass falsely. No proof -> no kill, the step fails.
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres -v "$RUNNER_TEMP/pd:/out" "$IMG" \
+            python - <<'PY'
+          import json, sys
+          from omni_prod.postdeploy_checks import sql
+          try:
+              b = json.load(open('/out/state.json'))['crash_build']
+          except Exception as exc:
+              print(f'::notice title=drill-A pre-kill::FAIL no build was created ({type(exc).__name__})'); sys.exit(1)
+          status = sql('SELECT status FROM build_jobs WHERE id = %s', (b,))[0][0]
+          calls = sql("SELECT count(*) FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (b,))[0][0]
+          ok = str(status).lower() in ('running', 'in_progress', 'started') and calls >= 1
+          print(f"::notice title=drill-A pre-kill::{'PASS' if ok else 'FAIL'} build {b} status={status} provider_call_rows={calls} "
+                f"(must be running with at least one provider call before the kill)")
+          sys.exit(0 if ok else 1)
+          PY
+          if [ $? -ne 0 ] || [ "$rc" -ne 0 ]; then
+            echo "::notice title=drill-A::FAIL the build was not proven mid-flight; NOT killing the worker"; exit 1
+          fi
+          echo "::notice title=drill-A::SIGKILL the build worker (no drain), build proven mid-flight"
           docker kill "$(docker compose ps -q worker)" >/dev/null
           docker compose start worker
           sleep 170  # the killed worker's registration (ttl 135 s) must expire first
@@ -482,7 +502,8 @@ jobs:
               'zero-loss': (str(status).lower() == 'ready' and settled is not None and abs(settled - Decimal(str(metered))) < Decimal('0.000001'),
                             f'status={status} ledger_calls={calls} workers={traces} metered={metered} settled={settled}'),
               'zero-double-charge': (res[0] == 1 and (settled is None or settled <= Decimal(str(metered)) + Decimal('0.000001')),
-                                     f'reservations={res[0]} reservation_status={res[1]} settled={settled} metered={metered}'),
+                                     f'reservations={res[0]} reservation_status={res[1]} settled={settled} metered={metered} '
+                                     f'SCOPE internal ledger vs reservation only - no provider-side billing reconciliation'),
           }
           for name, (ok, detail) in checks.items():
               print(f"::notice title=drill-B {name}::{'PASS' if ok else 'FAIL'} build {b} {detail}")
