@@ -24,6 +24,8 @@ from omni_prod.providers.venice import VeniceBudgetExceeded, VeniceKeyMissing
 from tests.test_conversation_os import MemoryBriefs
 
 KEY = {'VENICE_API_KEY1': 'test-key'}
+VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4'}
+VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation'}
 AUTH = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
         'OMNI_INTAKE_DAILY_BUDGET_USD': '0.5'}
 MSG = 'אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד'
@@ -72,15 +74,57 @@ class GatewayTests(unittest.TestCase):
         self.assertTrue(V.selected({'OMNI_INTAKE_PROVIDER': 'venice'}))
         for env in ({}, {'OMNI_INTAKE_PROVIDER': ''}, {'OMNI_INTAKE_PROVIDER': 'openrouter'}):
             self.assertFalse(V.selected(env))
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_PROVIDER': 'venice', **KEY}):
-            self.assertIsInstance(W.build_gateway(Decimal('0.05'), ()), V.VeniceIntakeGateway)
+
+    def test_worker_uses_the_provider_the_reservation_was_quoted_for(self):
+        with mock.patch.dict(os.environ, KEY):
+            self.assertIsInstance(W.build_gateway(Decimal('0.05'), (), quote=VQUOTE), V.VeniceIntakeGateway)
+        # a Gemini-quoted reservation never runs on Venice, even with the worker env set to venice
+        with mock.patch.dict(os.environ, {**KEY, **VENICE_ENV}), \
+                mock.patch('omni_prod.routed_gateway.RoutedModelGateway', lambda **kw: 'routed'):
+            self.assertEqual(W.build_gateway(Decimal('0.05'), (), quote={'max_tokens': 500}), 'routed')
 
     def test_missing_key_fails_when_built_so_the_reservation_is_released(self):
         with self.assertRaises(VeniceKeyMissing):
             gateway(FakeVenice(), env={})
-        with mock.patch.dict(os.environ, {'OMNI_INTAKE_PROVIDER': 'venice'}, clear=True):
+        with mock.patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(VeniceKeyMissing):
-                W.build_gateway(Decimal('0.05'), ())
+                W.build_gateway(Decimal('0.05'), (), quote=VQUOTE)
+
+    def test_quote_is_priced_at_the_venice_ceiling_and_covers_the_call(self):
+        from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS, SYSTEM
+        with mock.patch.dict(os.environ, VENICE_ENV):
+            q = B.quote(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+        self.assertEqual((q.envelope['provider'], q.envelope['venice_ceiling_usd_per_m']), ('venice', ['1', '4']))
+        n_in = len((SYSTEM + MSG).encode()) + 64
+        self.assertGreaterEqual(q.amount_usd, (Decimal(n_in) * 1 + Decimal(MAX_OUTPUT_TOKENS) * 4) / 1_000_000)
+        # the gateway's own worst case at the same ceiling fits inside the reservation: the call is made
+        fake = FakeVenice()
+        g = V.VeniceIntakeGateway(q.amount_usd, ceiling=(Decimal('1'), Decimal('4')), env=KEY, transport=fake)
+        g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+        self.assertEqual(len(fake.chats), 1)
+        for bad in ('', 'x', '1', '0,4', '1,-1', 'nan,1'):
+            with self.subTest(ceiling=bad), mock.patch.dict(os.environ, {**VENICE_ENV,
+                                                                         'OMNI_VENICE_PRICE_CEILING_USD_PER_M': bad}):
+                with self.assertRaises(B.QuoteUnavailable):
+                    B.quote(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+
+    def test_negative_control_gemini_quote_cannot_pay_for_venice(self):
+        """The hole this PR closes: a reservation priced on the Gemini catalog is too small for a Venice model,
+        so every call was refused before contact and the conversation silently stayed deterministic."""
+        from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS, SYSTEM
+        q = B.quote(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)       # no venice env: Gemini catalog
+        fake = FakeVenice()
+        g = V.VeniceIntakeGateway(q.amount_usd, env=KEY, transport=fake)
+        with self.assertRaises(VeniceBudgetExceeded):
+            g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+        self.assertEqual(fake.chats, [])
+
+    def test_models_over_the_ceiling_are_never_selected(self):
+        fake = FakeVenice()
+        g = V.VeniceIntakeGateway(Decimal('1'), ceiling=(Decimal('0.4'), Decimal('4')), env=KEY, transport=fake)
+        with self.assertRaises(Exception):                                   # private model costs 0.5 > 0.4
+            g.complete_json(system='S', user=MSG, max_tokens=100)
+        self.assertEqual(fake.chats, [])
 
     def test_call_shape_private_model_no_venice_prompt_no_retries(self):
         fake = FakeVenice()
@@ -148,7 +192,8 @@ class GatewayTests(unittest.TestCase):
         class Svc:
             def __init__(self, pool): pass
             def claim(self, rid, **kw):
-                return mock.Mock(id=rid, quote={'max_tokens': 500, 'allowed_models': ['x']}, quoted_usd=Decimal('0.05'))
+                return mock.Mock(id=rid, quote={**VQUOTE, 'allowed_models': ['venice:private']},
+                                 quoted_usd=Decimal('0.05'))
             def payload(self, rid): return {'system': 'S', 'user': MSG, 'max_tokens': 500, 'task': 'conversation'}
             def mark_executing(self, r, **kw): return True
             def release(self, rid, **kw): calls['released'] = kw
@@ -158,8 +203,8 @@ class GatewayTests(unittest.TestCase):
                                  model=kw['model'])
         with mock.patch.object(B, 'ReservationService', Svc), \
                 mock.patch.object(W, '_reserved_task', lambda payload, quote: 'conversation'), \
-                mock.patch.dict(os.environ, {'OMNI_INTAKE_PROVIDER': 'venice', **KEY}), \
-                mock.patch.object(V, 'VeniceIntakeGateway', lambda q: real(q, env=KEY, transport=fake)):
+                mock.patch.dict(os.environ, KEY), \
+                mock.patch.object(V, 'VeniceIntakeGateway', lambda q, **kw: real(q, env=KEY, transport=fake, **kw)):
             out = W.execute_reservation(None, 'irs_1', worker_id='w')
         self.assertTrue(out['ok'])
         self.assertEqual((calls['cost_state'], calls['actual_usd'], calls['provider'], calls['model']),
@@ -209,6 +254,63 @@ class CustomerWordsEvidence(unittest.TestCase):
         self.assertEqual(t.interpretation['interpreter'], 'deterministic (model call failed)')
         self.assertEqual(t.interpretation['cost_state'], B.COST_UNKNOWN)
         self.assertTrue(t.reply)
+
+
+# ------------------------------------------------------------------ real reservation route (PostgreSQL) --
+from tests.evidence_notice import notice                      # noqa: E402
+from tests.test_intake_budget_pg import PG                    # noqa: E402  (skips without M4D2_DATABASE_URL)
+
+
+class VeniceThroughTheReservationRoute(PG):
+    """The production route, end to end: supervisor -> ReservedWorkerInterpreter -> reservation in REAL PostgreSQL
+    (quoted at the Venice ceiling) -> worker execute_reservation -> build_gateway (no gateway_factory) ->
+    VeniceIntakeGateway -> settle -> the reply the customer reads. Only the HTTP transport is fake."""
+    pool_size = 10
+    AUTH = {**AUTH, 'OMNI_INTAKE_DAILY_BUDGET_USD': '0.50', 'OMNI_INTAKE_WAIT_SECONDS': '15', **KEY, **VENICE_ENV}
+
+    def turn(self, fake, env, project):
+        import threading
+        from omni_prod.conversation.store import MemoryConversationStore
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        real = V.VeniceIntakeGateway
+
+        def enqueue(rid):                                     # stands in for RQ: a worker thread, no factory
+            threading.Thread(target=W.execute_reservation, args=(self.pool, rid), daemon=True).start()
+        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore(),
+                                     reservations=self.svc, enqueue=enqueue)
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(V, 'VeniceIntakeGateway', lambda q, **kw: real(q, transport=fake, **kw)):
+            return sup.turn(project_id=project, account_id='tenantV', message=MSG, request_key='rk-' + project,
+                            lang='he')
+
+    def test_conversation_reaches_venice_through_the_reservation(self):
+        fake = FakeVenice()
+        t = self.turn(fake, self.AUTH, 'venice-e2e')
+        self.assertEqual(len(fake.chats), 1, 'Venice was called exactly once')
+        self.assertIn(MSG, fake.chats[0][2]['messages'][-1]['content'])
+        r = self.svc.get(t.reservation_id, account_id='tenantV')
+        self.assertEqual(r.quote['provider'], 'venice')
+        self.assertEqual((r.state, r.cost_state, r.actual_usd, r.model),
+                         (B.SETTLED, B.CONFIRMED, Decimal('0.0007'), 'private-e2ee'))
+        self.assertLessEqual(r.actual_usd, r.quoted_usd)
+        self.assertEqual(t.interpretation['interpreter'], 'model:private-e2ee+deterministic')
+        self.assertTrue(t.reply.startswith(ANSWER['reply']))
+        for words in ('אילת', 'מזומן'):
+            self.assertIn(words, t.reply)
+        notice('venice-e2e PASS', f'reservation {r.id} quoted {r.quoted_usd} provider venice -> 1 Venice call model '
+                                  f'{r.model} settled {r.cost_state} {r.actual_usd} interpreter '
+                                  f'{t.interpretation["interpreter"]} reply derived from the customer words')
+
+    def test_negative_control_without_the_model_the_answer_disappears(self):
+        fake = FakeVenice()
+        t = self.turn(fake, {**self.AUTH, 'OMNI_INTAKE_MODEL': '0'}, 'venice-off')
+        self.assertEqual(fake.chats, [])
+        self.assertIsNone(t.reservation_id)
+        self.assertEqual(t.interpretation['interpreter'], 'deterministic')
+        for words in ('אילת', 'מזומן'):
+            self.assertNotIn(words, t.reply)
+        notice('venice-e2e negative control PASS', 'OMNI_INTAKE_MODEL=0 -> 0 Venice calls and no reservation and '
+                                                   'interpreter deterministic and the customer-word answer is absent')
 
 
 if __name__ == '__main__':

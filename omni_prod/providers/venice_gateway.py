@@ -28,6 +28,21 @@ from decimal import Decimal
 from .venice import VeniceBudget, VeniceBudgetExceeded, VeniceClient, VeniceError, VENICE_CONFIG
 
 PROVIDER_ENV = 'OMNI_INTAKE_PROVIDER'
+# USD per 1M tokens, "input,output". The reservation is quoted at this ceiling (budget.quote, API side) and the
+# worker only selects a Venice model priced at or under it, so the reserved worst case always covers the call.
+# Configuration, never a price in code: Venice's own /models prices decide which model runs.
+CEILING_ENV = 'OMNI_VENICE_PRICE_CEILING_USD_PER_M'
+
+
+def price_ceiling(env=None) -> tuple[Decimal, Decimal]:
+    raw = ((env if env is not None else os.environ).get(CEILING_ENV) or '').strip()
+    try:
+        cin, cout = (Decimal(x.strip()) for x in raw.split(','))
+    except Exception:
+        raise ValueError(f'{CEILING_ENV} must be "input,output" USD per 1M tokens (got {raw!r})') from None
+    if not (cin.is_finite() and cout.is_finite() and cin > 0 and cout > 0):
+        raise ValueError(f'{CEILING_ENV} must be two positive numbers')
+    return cin, cout
 
 
 class VeniceOutputInvalid(VeniceError):
@@ -76,7 +91,8 @@ def parse_json_object(text: str) -> dict:
 class VeniceIntakeGateway:
     provider = 'venice'
 
-    def __init__(self, quoted_usd: Decimal, *, env=None, transport=None, conversation: str | None = None):
+    def __init__(self, quoted_usd: Decimal, *, ceiling: tuple[Decimal, Decimal] | None = None, env=None,
+                 transport=None, conversation: str | None = None):
         quoted = Decimal(str(quoted_usd))
         budget = VeniceBudget(per_conversation_usd=quoted, total_usd=quoted)
         from .venice import _urllib_transport
@@ -89,6 +105,12 @@ class VeniceIntakeGateway:
             return inner(method, url, headers, body, timeout)
         self.client = VeniceClient(env if env is not None else os.environ, budget=budget, transport=tracked,
                                    retries=0)
+        if ceiling is not None:   # only models the reservation's quote can pay for
+            cin, cout = (Decimal(str(x)) for x in ceiling)
+            listed = self.client.models
+            self.client.models = lambda: [m for m in listed() if m.input_usd_per_m is not None
+                                          and m.output_usd_per_m is not None
+                                          and m.input_usd_per_m <= cin and m.output_usd_per_m <= cout]
         self.conversation = conversation or 'intake:' + uuid.uuid4().hex
         self.recorder = Recorder()
         self.last_usage = None

@@ -37,10 +37,12 @@ def _reserved_task(payload: dict, quote: dict) -> str:
         raise ValueError(f'reserved task mismatch: quote {task!r}, payload {payload.get("task")!r}')
     return task
 
-def build_gateway(quoted_usd: Decimal, models: tuple[str, ...]):
-    from ..providers import venice_gateway
-    if venice_gateway.selected():   # OMNI_INTAKE_PROVIDER=venice (C3); a missing key raises -> "no model route"
-        return venice_gateway.VeniceIntakeGateway(quoted_usd)
+def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | None = None):
+    # C3: the provider is the one the reservation was QUOTED for, never chosen by the worker afterwards.
+    if (quote or {}).get('provider') == 'venice':
+        from ..providers import venice_gateway   # a missing key raises here -> "no model route", no charge
+        cin, cout = quote['venice_ceiling_usd_per_m']
+        return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)))
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
@@ -105,7 +107,8 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
         svc.release(r.id, reason=str(exc)[:200])
         return {'ok': False, 'error': 'reserved task mismatch', 'state': B.RELEASED}
     try:   # building the gateway never contacts a provider
-        gateway = (gateway_factory or build_gateway)(r.quoted_usd, models)
+        gateway = gateway_factory(r.quoted_usd, models) if gateway_factory else \
+            build_gateway(r.quoted_usd, models, quote=r.quote)
     except Exception as exc:
         svc.release(r.id, reason=f'no model route: {type(exc).__name__}')
         return {'ok': False, 'error': 'no model route', 'state': B.RELEASED}
