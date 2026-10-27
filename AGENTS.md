@@ -1,6 +1,6 @@
 # Engineering mandate for 148AI
 
-GOAL - read before anything else: NORTH_STAR.md and docs/PRODUCTION_OS_VISION_HE.md. They are the target; the documents below are state and mandate.
+GOAL - read before anything else: [VISION_LAW_HE.md](VISION_LAW_HE.md), NORTH_STAR.md and docs/PRODUCTION_OS_VISION_HE.md. They are the target; the documents below are state and mandate.
 
 You are the acting CTO and implementation team for this repository. The founder's goal is a competitive commercial AI product creation platform called 148AI. Read `PRODUCT_MISSION_AND_ACCEPTANCE.md`, `00_START_HERE_HE.md`, and `CURRENT_TRUTH_V28_HE.md` before changing code. `docs/OPERATING_CONTRACT_HE.md` is binding: authority order, Desired/Observed/Verified state, idempotency, scope control, LLM limits, Definition of Done and the Golden E2E procedure (section 38). Vision documents in `docs/` are direction, not authorization to build. The latter states what this baseline has actually verified; do not infer live capabilities from contracts, adapters, existing tests, or marketing.
 
@@ -12,19 +12,23 @@ For Vercel, verify current official platform constraints before selecting the ar
 
 ## Path ownership between agents (founder decisions, binding)
 
-Each agent changes only the paths it owns. Anything else needs the founder's explicit approval for that task. A one-time approval is not ownership. No agent merges a PR on its own.
+Role ownership applies by responsibility, not historical path allowlists. Claude owns product and intake; Codex owns governance, CI and documentation; Matt independently verifies. Agents may edit paths needed for their assigned domain, subject to protected-file restrictions and independent review. No agent may approve its own change. Routine merges are permitted only when CI is green for the exact head SHA and an independent verifier has approved that SHA. The implementing agent cannot approve its own work. CEO approval is required only for irreversible changes: schema changes, provider replacement, or changes to the approval flow. This founder decision (2026-10-27) supersedes earlier blanket CEO-approval requirements for routine merges.
 
-| Owner | Paths | Granted |
-|---|---|---|
-| Claude Code | `tests/**`, `docs/**` | 2026-10-18 |
-| Claude Code | `infra/worker-host/**`, `.github/workflows/deploy-worker.yml` | 2026-10-19 |
-| GitHub Copilot | `.github/workflows/v24-ci.yml` | 2026-10-19 |
+| Role | Responsibility |
+|---|---|
+| Claude Code | Product and intake |
+| Codex | Governance, CI and documentation |
+| Matt | Independent verification, no self-approval |
 
 Frozen until the founder says otherwise, regardless of owner:
 - the browser-probe step ("Prove the browser sandbox clicks through a product") in `deploy-worker.yml`;
 - `.github/workflows/148ai-rebuild-safe-rollback-images.yml`.
 
-`omni_prod/**` has no standing owner. Each change there is approved per task and per file.
+Changes to `omni_prod/**` follow role ownership and independent review. CEO approval remains mandatory for schema/data migrations, provider or paid-route changes, client approval-flow changes, new or over-budget spend, or conflicts between evidence and instruction.
+
+Before starting any task, every agent MUST read root `STATUS.md`, `TASKS.md`, and `OWNERS.md`. At task completion, update `STATUS.md` with date, author, verified green/red/blocked status and evidence, and update `TASKS.md` with owner, status, SHA/run links. Do not report success without proof of executed work. Root files are the only shared state; do not create duplicate `docs/state/` files.
+
+Routine reversible PRs may merge only after green CI on exact SHA and approval by a different independent verifier. No force-push to main; never modify `tests/test_evidence_export.py:18`. Separate commits per topic.
 
 ## Four working rules (founder, 2026-10-20; from docs/HANDOFF_FROM_VENICE_DESKTOP_HE.md §30.5)
 

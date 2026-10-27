@@ -70,6 +70,10 @@ class MachineTruthLockTests(unittest.TestCase):
         self.assertEqual(prices['truth_sha256'], machine['sha256'])
         self.assertEqual(prices['status'], 'NOT_CONFIGURED')
         self.assertEqual(prices['entries'], [])
+        venice = [r for r in prices['runtime_priced'] if r['provider'] == 'venice']
+        self.assertEqual(len(venice), 1)
+        self.assertEqual(venice[0]['key_env'], 'VENICE_API_KEY1')
+        self.assertFalse([v for v in venice[0].values() if isinstance(v, (int, float))])   # no price in the file
         self.assertIn('COST_MODEL.md', files)
 
     def test_hand_written_cost_sections_survive_regeneration(self):

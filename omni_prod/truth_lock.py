@@ -212,6 +212,18 @@ def render_provider_catalog(snapshot: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def _venice_runtime_price_source() -> dict[str, Any]:
+    from omni_prod.providers.venice import VENICE_CONFIG
+    return {
+        "provider": VENICE_CONFIG["provider"],
+        "base_url": VENICE_CONFIG["base_url"],
+        "key_env": VENICE_CONFIG["key_env"],
+        "unit_price_source": "GET /models: model_spec.pricing.input.usd / pricing.output.usd (USD per 1M tokens)",
+        "actual_cost_source": "chat response: cost.usd (unknown cost is charged at the reserved worst case, never zero)",
+        "status": "UNKNOWN_NOT_APPROVED",
+    }
+
+
 def render_provider_price_catalog(snapshot: dict[str, Any]) -> str:
     payload = {
         "schema_version": 1,
@@ -219,6 +231,8 @@ def render_provider_price_catalog(snapshot: dict[str, Any]) -> str:
         "status": snapshot["cost_contract"]["canonical_commercial_price_catalog_status"],
         "currency": "USD",
         "entries": [],
+        # Providers whose price is read from the provider's own answer at call time -- never a number in this file.
+        "runtime_priced": [_venice_runtime_price_source()],
     }
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
