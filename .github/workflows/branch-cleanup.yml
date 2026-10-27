@@ -1,0 +1,136 @@
+name: branch cleanup
+# One-off, owner-initiated cleanup (2026-10-27). Deletes branches already merged into main.
+# Default is a dry run: it only lists. Set apply=true to delete.
+# Never touches: main / the default branch, protected branches, the base or head of any open PR.
+# Every deleted branch is written to the run summary and an artifact with its tip SHA,
+# so it can be restored with:  git push origin <sha>:refs/heads/<branch>
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "true = delete. Anything else = dry run (list only)."
+        required: false
+        default: "false"
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      APPLY: ${{ inputs.apply }}
+    steps:
+      - name: classify and (optionally) delete
+        shell: python
+        run: |
+          import json, os, sys, urllib.request, urllib.parse, urllib.error
+
+          TOKEN = os.environ["GH_TOKEN"]
+          REPO = os.environ["REPO"]
+          APPLY = os.environ.get("APPLY", "false").strip().lower() == "true"
+          API = "https://api.github.com"
+
+          def call(method, path, body=None):
+              req = urllib.request.Request(API + path, method=method,
+                  data=None if body is None else json.dumps(body).encode(),
+                  headers={"Authorization": "Bearer " + TOKEN,
+                           "Accept": "application/vnd.github+json",
+                           "X-GitHub-Api-Version": "2022-11-28"})
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      raw = r.read()
+                      return r.status, (json.loads(raw) if raw else None)
+              except urllib.error.HTTPError as e:
+                  return e.code, None
+
+          def pages(path):
+              out, page = [], 1
+              while True:
+                  sep = "&" if "?" in path else "?"
+                  st, data = call("GET", f"{path}{sep}per_page=100&page={page}")
+                  if st != 200:
+                      sys.exit(f"GET {path} failed: HTTP {st}")
+                  out += data
+                  if len(data) < 100:
+                      return out
+                  page += 1
+
+          st, repo = call("GET", f"/repos/{REPO}")
+          default = repo["default_branch"]
+          branches = pages(f"/repos/{REPO}/branches")
+          open_prs = pages(f"/repos/{REPO}/pulls?state=open")
+          closed_prs = pages(f"/repos/{REPO}/pulls?state=closed&base={default}")
+
+          own = REPO.split("/")[0].lower()
+          open_bases = {p["base"]["ref"] for p in open_prs}
+          open_heads = {p["head"]["ref"] for p in open_prs
+                        if (p["head"].get("repo") or {}).get("full_name", "").lower() == REPO.lower()}
+          merged_head_shas = {}
+          for p in closed_prs:
+              if p.get("merged_at") and (p["head"].get("repo") or {}).get("full_name", "").lower() == REPO.lower():
+                  merged_head_shas.setdefault(p["head"]["ref"], set()).add(p["head"]["sha"])
+
+          rows, delete = [], []
+          for b in branches:
+              name, sha = b["name"], b["commit"]["sha"]
+              if name == default:
+                  rows.append((name, sha, "keep", "default branch")); continue
+              if b.get("protected"):
+                  rows.append((name, sha, "keep", "protected")); continue
+              if name in open_bases:
+                  rows.append((name, sha, "keep", "base of an open PR")); continue
+              if name in open_heads:
+                  rows.append((name, sha, "keep", "head of an open PR")); continue
+              how = None
+              st, cmp = call("GET", f"/repos/{REPO}/compare/{urllib.parse.quote(default, safe='')}...{urllib.parse.quote(name, safe='')}")
+              if st == 200 and cmp.get("status") in ("identical", "behind"):
+                  how = "contained in " + default
+              elif sha in merged_head_shas.get(name, set()):
+                  how = "PR merged into " + default + " at this exact tip"
+              if how:
+                  rows.append((name, sha, "delete", how)); delete.append((name, sha, how))
+              else:
+                  rows.append((name, sha, "keep", "not merged into " + default))
+
+          results = []
+          if APPLY:
+              for name, sha, how in delete:
+                  st, _ = call("DELETE", f"/repos/{REPO}/git/refs/heads/{urllib.parse.quote(name, safe='/')}")
+                  results.append((name, sha, "deleted" if st == 204 else f"FAILED HTTP {st}"))
+
+          keep = [r for r in rows if r[2] == "keep"]
+          lines = [f"## branch cleanup — {'APPLY' if APPLY else 'DRY RUN'}", "",
+                   f"- branches total: {len(rows)}",
+                   f"- to delete (merged into {default}): {len(delete)}",
+                   f"- kept: {len(keep)}"]
+          reasons = {}
+          for r in keep:
+              reasons[r[3]] = reasons.get(r[3], 0) + 1
+          for k, v in sorted(reasons.items()):
+              lines.append(f"  - {k}: {v}")
+          if APPLY:
+              ok = sum(1 for r in results if r[2] == "deleted")
+              lines.append(f"- deleted: {ok}, failed: {len(results) - ok}")
+          lines += ["", "| branch | tip sha | action | reason |", "|---|---|---|---|"]
+          for name, sha, action, why in sorted(rows, key=lambda r: (r[2], r[0])):
+              lines.append(f"| `{name}` | `{sha[:12]}` | {action} | {why} |")
+          lines += ["", "Restore any deleted branch: `git push origin <full sha>:refs/heads/<branch>` (full SHAs in the artifact)."]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          with open("branch-cleanup.json", "w") as f:
+              json.dump({"apply": APPLY, "rows": rows, "results": results}, f, indent=1)
+          print("\n".join(lines[:8 + len(reasons)]))
+          if APPLY and any(r[2] != "deleted" for r in results):
+              sys.exit(1)
+      - name: keep the record (branch -> full SHA)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-cleanup-${{ github.run_id }}
+          path: branch-cleanup.json
+          retention-days: 90
