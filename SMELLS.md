@@ -4475,9 +4475,13 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
   - #82 `053d079c22493e6f90ffe025c83e7ace82b27dd8` (main's tree + the failed-test notice step): [run 40601846842](https://github.com/Shayfly/desktop-tutorial/actions/runs/40601846842) **PASS**, annotation `pg failed tests: 0 failed or errored`.
   - The same tree as main (`3aa75cc`, the #154 head) passed earlier: run 40589040890 (21:42Z).
 - **Classification:**
-  - main event: **classified, same node as #150**. 2 failures followed by 1 pass on the same SHA, with no code change.
+  - main event: **proven flake (the #150 node)**. Same SHA `0d40f69643ce701b29b7dc3fac5dc6b33f30c1d6`, no code change:
+    - failed: run 40599636376 attempt 1 (23:05Z) and attempt 2 (23:19Z);
+    - passed: run 40599636376 attempt 3 (23:25Z).
+    These are the failure link, the pass link and the SHA that #156 recorded as missing.
   - #162 event: **flake** (a rerun passed with no code change).
   - Also in the same window: `ci/deploy-worker-drill` e8c5f50, intake-budget-pg #1108 ([run 40581175139](https://github.com/Shayfly/desktop-tutorial/actions/runs/40581175139)) **FAIL**. Its node was not read.
 - **Rate (counted from the API):** intake-budget-pg #1108–#1117 had 13 attempts, 4 of them failed: #1108 a1, #1113 a1 and a2, #1115 a1. That is about 31%, not a rare flake. Only #1113's node was read, in a log. For the other three, only `exit code 1` of the same step is visible; their node was not read. A proper test fix is a separate PR.
 - **Node:** `tests/test_real_docker_drain_recovery.py::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything` (line 318). main: confirmed from the owner's reading of the #1113 log. #162: attributed from the same signature (#150/#104/#114/#117/#118/#39); the #162 log was not read.
+- **What is proven, and what is not:** the **signature is proven**: same node, `was OOM-killed` not found, exit 137, oom=false, 1 failed / 190 passed, and it flips on the same SHA. **The mechanism is a hypothesis**, not a finding. The hypothesis: two timers race (the kernel OOM kill of the allocator against the 60-second drain deadline), and the deadline sometimes wins. The numbers that would prove or refute it (peak memory against the limit, time to OOM against the deadline, whether the engine reports oom=true in CI at all) have not been measured yet.
 - **Next time:** after #82 merges, every failed test in this workflow appears as `::notice title=pg failed test::<id>`. A main failure is classified only from that name. Do not change or weaken the OOM assertion (#39: "do not conflate exit 137 with a proven OOM kill").
