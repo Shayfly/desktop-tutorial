@@ -135,6 +135,73 @@ int main(int argc, char **argv) {
 @unittest.skipUnless(docker_ok(), 'BLOCKED: no reachable Docker daemon (this test needs a real engine; nothing was simulated)')
 @unittest.skipUnless(os.getenv('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
 @unittest.skipUnless(os.getenv('OMNI_TEST_REDIS_URL'), 'BLOCKED: OMNI_TEST_REDIS_URL (real Redis) not configured')
+class _OomProbe:
+    """Measurement for the test_5 flake (SMELLS.md, #150), before any fix: peak cgroup memory against the limit, time
+    from the drain start to the engine's `oom` and `die` events against the 60 s deadline, the engine's own OOMKilled
+    flag, and the cgroup's oom_kill counter. Printed and written as ::notice evidence; it never asserts anything."""
+
+    def __init__(self, cid):
+        import threading
+        self.cid, self.t0 = cid, time.time()
+        self.peak = self.current_max = 0
+        self.oom_kill = None
+        self.cgroup = self._cgroup()
+        self.stop = threading.Event()
+        self.thread = threading.Thread(target=self._sample, daemon=True)
+        self.thread.start()
+
+    def _cgroup(self):
+        full = subprocess.run(['docker', 'inspect', '-f', '{{.Id}}', self.cid], capture_output=True, text=True).stdout.strip()
+        for base in (f'/sys/fs/cgroup/system.slice/docker-{full}.scope', f'/sys/fs/cgroup/docker/{full}'):
+            if Path(base, 'memory.current').exists():
+                return Path(base)
+        return None
+
+    def _read(self, name):
+        try:
+            return (self.cgroup / name).read_text()
+        except Exception:
+            return None
+
+    def _sample(self):
+        while not self.stop.is_set() and self.cgroup is not None:
+            cur = self._read('memory.current')
+            if cur and cur.strip().isdigit():
+                self.current_max = max(self.current_max, int(cur))
+            peak = self._read('memory.peak')
+            if peak and peak.strip().isdigit():
+                self.peak = max(self.peak, int(peak))
+            ev = self._read('memory.events') or ''
+            for line in ev.splitlines():
+                if line.startswith('oom_kill '):
+                    self.oom_kill = int(line.split()[1])
+            time.sleep(0.2)
+
+    def finish(self, state):
+        self.stop.set()
+        self.thread.join(2)
+        t1 = time.time()
+        out = subprocess.run(['docker', 'events', '--since', str(int(self.t0) - 1), '--until', str(int(t1) + 1),
+                              '--filter', f'container={self.cid}', '--format', '{{.Status}} {{.TimeNano}}'],
+                             capture_output=True, text=True, timeout=30).stdout.split('\n')
+        first = {}
+        for line in out:
+            parts = line.split()
+            if len(parts) == 2 and parts[0] in ('oom', 'die', 'kill', 'stop') and parts[0] not in first:
+                first[parts[0]] = round(int(parts[1]) / 1e9 - self.t0, 1)
+        mib = lambda b: round(b / 1048576, 1) if b else None
+        line = (f"limit={MEM_LIMIT_MIB}MiB alloc={OOM_ALLOCATION_MIB}MiB peak={mib(self.peak)}MiB "
+                f"current_max={mib(self.current_max)}MiB cgroup={'found' if self.cgroup else 'NOT FOUND'} "
+                f"oom_kill_counter={self.oom_kill} engine_events_s_after_drain_start={first} "
+                f"deadline=60s drain_s={round(t1 - self.t0, 1)} inspect(OOMKilled ExitCode)={state.strip()}")
+        print('\nMEASURE test_5:', line, flush=True)
+        try:
+            from tests.evidence_notice import notice
+            notice('oom-measure test_5', line)
+        except Exception:
+            pass
+
+
 class RealDockerDrainRecovery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -311,7 +378,9 @@ class RealDockerDrainRecovery(unittest.TestCase):
         self.assertEqual(self.inspect(cid, '{{.HostConfig.MemorySwap}}'), str(limit), 'runner did not disable swap')
         self.assertGreater(OOM_ALLOCATION_MIB, MEM_LIMIT_MIB)
         (self.ctl / 'preview-worker.oom').write_text('1')            # touches more anonymous memory than the cgroup allows
+        probe = _OomProbe(cid)                                       # MEASUREMENT ONLY: changes no assertion
         d = self.drain(DRAIN_DEADLINE_SECONDS='60')
+        probe.finish(self.inspect(cid, '{{.State.OOMKilled}} {{.State.ExitCode}}'))
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])
