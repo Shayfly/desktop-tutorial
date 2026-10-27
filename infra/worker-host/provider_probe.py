@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -57,10 +58,40 @@ def code_of(payload) -> str:
     return str((payload or {}).get('type') or '')[:60] if isinstance(payload, dict) else ''
 
 
-def report(name, ok, status, payload, extra=''):
-    print(f"::notice title=provider-probe {name}::{'PASS' if ok else 'FAIL'} http={status} "
+NO_MONEY = re.compile(r'insufficient_quota|billing|credit|balance|payment|quota', re.I)
+
+
+def classify(status, payload, *, billing_covered=True) -> tuple[str, str]:
+    """(auth, billing). AUTH_PASS and BILLING_VERIFIED are separate: a valid key on an account with no money is
+    auth=PASS billing=FAIL, never a PASS."""
+    code = code_of(payload)
+    if status in (401, 403):
+        return 'FAIL', 'NOT_REACHED'
+    if status == 200:
+        return 'PASS', ('VERIFIED' if billing_covered else 'NOT_COVERED')
+    if status == 402 or (status in (400, 429) and NO_MONEY.search(code + ' ' + _message_class(payload))):
+        return 'PASS', 'FAIL'
+    return 'UNKNOWN', 'UNKNOWN'
+
+
+def _message_class(payload) -> str:
+    """Only a fixed word list is matched against the provider message; the message itself is never printed."""
+    err = payload.get('error') if isinstance(payload, dict) else None
+    msg = str(err.get('message', '')) if isinstance(err, dict) else ''
+    return ' '.join(w for w in ('credit', 'balance', 'billing', 'quota', 'payment') if w in msg.lower())
+
+
+def report(name, status, payload, extra='', *, billing_covered=True):
+    """PASS only when auth=PASS and billing=VERIFIED. Replicate (billing not covered) is PARTIAL, never PASS."""
+    if status is None and not payload:
+        auth, billing = 'NOT_SET', 'NOT_REACHED'
+    else:
+        auth, billing = classify(status, payload, billing_covered=billing_covered)
+    verdict = 'PASS' if (auth, billing) == ('PASS', 'VERIFIED') else \
+              'PARTIAL' if (auth, billing) == ('PASS', 'NOT_COVERED') else 'FAIL'
+    print(f"::notice title=provider-probe {name}::{verdict} auth={auth} billing={billing} http={status} "
           f"code={code_of(payload) or '-'}{(' ' + extra) if extra else ''}", flush=True)
-    return ok
+    return verdict == 'PASS'
 
 
 def main() -> int:
@@ -72,7 +103,7 @@ def main() -> int:
         key = (env.get(m.get('api_key_env') or '') or '').strip()
         name = f'{provider}/{model}'
         if not key:
-            results.append(report(name, False, None, {}, f"{m.get('api_key_env')} not set on the worker"))
+            results.append(report(name, None, {}, f"{m.get('api_key_env')} not set on the worker"))
             continue
         if provider == 'anthropic':
             s, p = call('POST', base + '/messages', {'x-api-key': key, 'anthropic-version': '2023-06-01'},
@@ -81,10 +112,10 @@ def main() -> int:
             body = {'model': model, 'messages': [{'role': 'user', 'content': 'ok'}]}
             body['max_completion_tokens' if model.startswith('gpt-6') else 'max_tokens'] = 16
             s, p = call('POST', base + '/chat/completions', {'Authorization': 'Bearer ' + key}, body)
-        results.append(report(name, s == 200, s, p))
+        results.append(report(name, s, p))
     vk = (env.get('VENICE_API_KEY1') or '').strip()
     if not vk:
-        results.append(report('venice', False, None, {}, 'VENICE_API_KEY1 not set on the worker'))
+        results.append(report('venice', None, {}, 'VENICE_API_KEY1 not set on the worker'))
     else:
         s, p = call('GET', 'https://api.venice.ai/api/v1/models?type=text', {'Authorization': 'Bearer ' + vk})
         private = []
@@ -98,20 +129,20 @@ def main() -> int:
             if spec.get('privacy') == 'private':
                 private.append((cost, it.get('id')))
         if not private:
-            results.append(report('venice', False, s, p, 'no private priced model listed'))
+            results.append(report('venice', s if s != 200 else 0, p, 'no private priced model listed'))
         else:
             model = min(private)[1]
             s, p = call('POST', 'https://api.venice.ai/api/v1/chat/completions', {'Authorization': 'Bearer ' + vk},
                         {'model': model, 'max_tokens': 1, 'messages': [{'role': 'user', 'content': 'ok'}],
                          'venice_parameters': {'include_venice_system_prompt': False}})
-            results.append(report(f'venice/{model}', s == 200, s, p))
+            results.append(report(f'venice/{model}', s, p))
     rt = (env.get('REPLICATE_API_TOKEN') or '').strip()
     if not rt:
-        results.append(report('replicate', False, None, {}, 'REPLICATE_API_TOKEN not set on the worker'))
+        results.append(report('replicate', None, {}, 'REPLICATE_API_TOKEN not set on the worker'))
     else:
         s, p = call('GET', 'https://api.replicate.com/v1/account', {'Authorization': 'Bearer ' + rt})
-        results.append(report('replicate/account', s == 200, s, p, 'token check only; billing NOT verified'))
-    print(f"::notice title=provider-probe summary::{sum(results)} of {len(results)} answered", flush=True)
+        results.append(report('replicate/account', s, p, 'billing NOT covered: no paid prediction is made', billing_covered=False))
+    print(f"::notice title=provider-probe summary::{sum(results)} of {len(results)} routes PASS (auth and billing verified)", flush=True)
     return 0 if all(results) else 1
 
 
