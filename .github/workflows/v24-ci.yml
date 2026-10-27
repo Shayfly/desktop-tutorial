@@ -213,7 +213,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 16
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -230,8 +230,27 @@ jobs:
           node --check omni_prod/assets/visual-edit.js
           node --check tests/customer_flow_browser.cjs
       - run: npm install --no-save --package-lock=false playwright@1.62.1
-      - run: npx playwright install --with-deps chromium
-        timeout-minutes: 5
+      # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
+      # (normally ~22s), which skipped the browser tests and failed customer-ui without testing anything. The
+      # browser download is cached per Playwright version; every attempt (download + apt deps) is bounded and
+      # retried, and three failures still fail the job loudly -- never a skipped test reported as fine.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-1.62.1-chromium
+      - name: Install Chromium (bounded attempts, retried)
+        timeout-minutes: 9
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 160 npx playwright install --with-deps chromium; then
+              echo "playwright install: ok on attempt $attempt"; exit 0
+            fi
+            echo "::warning title=playwright install::attempt $attempt failed or hung (160s); retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error title=playwright install::failed 3 times; browser tests cannot run"
+          exit 1
       - run: node tests/customer_flow_browser.cjs
         timeout-minutes: 5
   customer-ui:
