@@ -287,9 +287,11 @@ class ServerGateHTTP(unittest.TestCase):
         self.assertEqual(bound['status'], 'APPROVED')
         status, detail = self.approve()
         self.assertNotIn(detail.get('error'), ('spec_not_approved', 'plan_not_verified'))
+        # Past both gates the route reaches the build-contract lookup, which has no database in this test: whatever
+        # it answers is NOT a gate refusal, and the evidence line says exactly that rather than "ok".
         notice('gates positive control PASS', f'spec approved and verified plan -> plan bound {bound["plan_id"]}; '
-                                              f'/approvals passes both gates (next answer HTTP {status} '
-                                              f'{detail.get("error") or "ok"})')
+                                              f'/approvals got past both gates to the build-contract lookup (no DB '
+                                              f'in this test) which answered HTTP {status} - not a gate refusal')
 
 
 if __name__ == '__main__':
