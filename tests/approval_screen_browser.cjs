@@ -10,6 +10,7 @@ const path=require('path');
 (async()=>{
  const fx=JSON.parse(fs.readFileSync(path.join(__dirname,'approval_screen_fixture.json'),'utf8'));
  const ap=fx.view.summary.approval;
+ const measured={};   // rows actually rendered, per viewport width
  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox','--disable-gpu']}:{})});
  try {
   async function open(view, plan, width=1440){
@@ -40,7 +41,8 @@ const path=require('path');
   for(const width of [390,1440]){
    const {page,approvals}=await open(fx.view,fx.plan,width);
    const rows=page.locator('#approvalItems > li');
-   assert.equal(await rows.count(),ap.locked_count,'one rendered row per locked item');
+   measured[width]=await rows.count();
+   assert.equal(measured[width],ap.locked_count,'one rendered row per locked item');
    assert.deepEqual(await rows.evaluateAll(els=>els.map(e=>e.dataset.key)),ap.items.map(x=>x.key),'same items, same order');
    assert.equal(await page.locator('#approvalCount').textContent(),`מוצגים ${ap.locked_count} פריטים · האישור נועל ${ap.locked_count} פריטים`);
    assert.equal(await page.locator('#approvalItems > li.assumed').count(),ap.items.filter(x=>x.assumed).length,'assumptions marked');
@@ -91,6 +93,8 @@ const path=require('path');
    assert.match(await page.locator('#planMsg').textContent()+await page.locator('#buildMsg').textContent(),/הסיכום השתנה/);
    await page.close();
   }
-  console.log(`approval screen: ${ap.locked_count} shown = ${ap.locked_count} locked, ${ap.items.filter(x=>x.assumed).length} assumptions; fingerprint ${ap.fingerprint.slice(0,16)}`);
+  const line=`${measured[390]} shown at 390px and ${measured[1440]} shown at 1440px = ${ap.locked_count} locked; ${ap.items.filter(x=>x.assumed).length} assumptions; fingerprint ${ap.fingerprint.slice(0,16)}; negative controls (locked>shown disables approval; stale screen sends no fingerprint) passed`;
+  console.log(`approval screen: ${line}`);
+  console.log(`::notice title=approval-screen::PASS ${line}`);   // annotation: readable without log access
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exit(1);});

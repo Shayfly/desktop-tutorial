@@ -118,6 +118,7 @@ const path=require('path');
     assert.equal(await page.locator('#sidebar').evaluate(el=>el.inert),false);
    }
    await page.close();console.log(`PASS customer edit flow ${width}px`);
+   console.log(`::notice title=browser-probe::PASS customer edit flow ${width}px`);   // annotation: readable without log access
   }
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});
