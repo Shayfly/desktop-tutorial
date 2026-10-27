@@ -32,11 +32,22 @@ def notice(title: str, message: str) -> None:
     print(f'::notice title={title}::{clean}'[:4000], flush=True)
 
 
-def run_control(spec: dict) -> tuple[bool, str]:
+def _git(repo, *args, check=False):
+    return subprocess.run(['git', '-c', 'user.name=nc', '-c', 'user.email=nc@localhost', *args], cwd=repo,
+                          capture_output=True, text=True, check=check)
+
+
+def run_control(spec: dict, cid: str = 'NC') -> tuple[bool, str]:
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='nc-'))
     try:
         repo = tmp / 'repo'
         shutil.copytree(ROOT, repo, ignore=IGNORE)
+        files = sorted({m['file'] for m in spec['mutations']})
+        # The mutated files are tracked in a throw-away git repo of the copy, so the evidence is git's own diff and
+        # a clean status after the restore -- not a claim by this script.
+        _git(repo, 'init', '-q', check=True)
+        _git(repo, 'add', '--', *files, check=True)
+        _git(repo, 'commit', '-q', '-m', 'baseline', check=True)
         applied = []
         for m in spec['mutations']:
             path = repo / m['file']
@@ -45,11 +56,21 @@ def run_control(spec: dict) -> tuple[bool, str]:
             if found != 1:
                 return False, f"DID NOT RUN: mutation not applied ({m['file']}: target text found {found} times, need 1)"
             line_no = text[:text.index(m['old'])].count('\n') + 1
+            before = text.splitlines()[line_no - 1].strip()
             path.write_text(text.replace(m['old'], m['new']), encoding='utf-8')
             # Read the mutated file back: the evidence is the line as it now IS, not the line we meant to write.
-            now = path.read_text(encoding='utf-8').splitlines()[line_no - 1].strip()
-            applied.append(f"{m['file']}:{line_no} {m['old'].strip()!r} -> {now!r}")
-            print(f"mutation applied: {applied[-1]}", flush=True)
+            after = path.read_text(encoding='utf-8').splitlines()[line_no - 1].strip()
+            applied.append(f"{m['file']}:{line_no} {m['old'].strip()!r} -> {after!r}")
+            print(f"NC-EVIDENCE MUTATION {cid} applied: {m['file']}:{line_no}", flush=True)
+            print(f"NC-EVIDENCE MUTATION {cid}   before: {before}", flush=True)
+            print(f"NC-EVIDENCE MUTATION {cid}   after:  {after}", flush=True)
+        # A mutation that changed nothing must fail LOUDLY, never become a green control that tests nothing
+        # (the code control of #162 went stale exactly like that in a759a13).
+        if _git(repo, 'diff', '--quiet', '--', *files).returncode == 0:
+            print(f"NC-EVIDENCE MUTATION {cid} FAILED: git diff is empty, the mutation changed nothing", flush=True)
+            return False, 'DID NOT RUN: the mutation changed nothing (git diff --quiet succeeded)'
+        for line in _git(repo, 'diff', '-U0', '--', *files).stdout.splitlines():
+            print(f"NC-EVIDENCE MUTATION {cid} diff: {line}", flush=True)
         report = tmp / 'report.xml'
         env = {**os.environ, 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
         try:
@@ -58,6 +79,13 @@ def run_control(spec: dict) -> tuple[bool, str]:
                                   cwd=repo, env=env, capture_output=True, text=True, timeout=1200)
         except subprocess.TimeoutExpired:
             return False, 'DID NOT RUN: pytest timed out'
+        finally:
+            # Restore and prove nothing leaks: tracked files back to baseline, status clean.
+            _git(repo, 'checkout', '-q', '--', *files)
+            status = _git(repo, 'status', '--porcelain', '--untracked-files=no').stdout.strip()
+            print(f"NC-EVIDENCE restore {cid}: {'clean' if not status else 'DIRTY ' + status}", flush=True)
+        if status:
+            return False, f'restore not clean: {status}'
         if not report.exists():
             return False, f'DID NOT RUN: no pytest report (exit {proc.returncode}) {proc.stdout[-300:]}'
         cases = list(ET.parse(report).getroot().iter('testcase'))
@@ -89,7 +117,7 @@ def main(argv: list[str]) -> int:
             digest = hashlib.sha256((ROOT / f).read_bytes()).hexdigest()
             notice(f"{spec['pr']} sha256", f'{f} {digest}')
         for control in spec['controls']:
-            ok, detail = run_control(control)
+            ok, detail = run_control(control, control['id'])
             all_ok &= ok
             notice(f"{spec['pr']} {control['id']}", f"{'PASS' if ok else 'FAIL'} {control['what']} -> {detail}")
     return 0 if all_ok else 1
