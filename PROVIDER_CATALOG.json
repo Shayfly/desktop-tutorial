@@ -151,9 +151,17 @@
         "SUPABASE_URL",
         "SUPABASE_SERVICE_ROLE_KEY"
       ]
+    },
+    {
+      "category": "ai",
+      "key": "venice",
+      "optional": [],
+      "required_secrets": [
+        "VENICE_API_KEY1"
+      ]
     }
   ],
   "runtime_registry_mode": "DYNAMIC_CONFIGURED_AT_RUNTIME",
   "schema_version": 1,
-  "truth_sha256": "776ee3654bc54ddade27af8de76d02e59e4685b6b74c93675a0e51867c78c3e4"
+  "truth_sha256": "5da248f3201ed0b7ceb079b10e7856ded5c01b6180eef550d5df28ebbf86ed88"
 }
