@@ -3,7 +3,8 @@
   "functions": {
     "app.py": {
       "maxDuration": 60,
-      "includeFiles": "infra/worker-host/model-catalog.json"
+      "includeFiles": "infra/worker-host/model-catalog.json",
+      "excludeFiles": "{docs/**,tests/**,BRAND_PACK/**,smoke/**,*.zip}"
     }
   },
   "headers": [
