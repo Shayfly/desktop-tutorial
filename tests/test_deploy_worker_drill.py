@@ -63,6 +63,19 @@ class DrillMode(unittest.TestCase):
         self.assertIn('a rollback to it proves nothing', run)                 # identical snapshot is not a PASS
         self.assertTrue(run.rstrip().endswith('[ "$ok" -eq 1 ]'))
 
+    def test_kill_only_after_the_build_is_proven_mid_flight(self):
+        """Auditor gap 1: killing a worker that never picked the job up interrupts nothing (false PASS in B)."""
+        a = next(s for s in JOBS['drill']['steps'] if s['name'].startswith('A.'))['run']
+        pre, kill = a.index('drill-A pre-kill'), a.index('docker kill')
+        self.assertLess(pre, kill)
+        self.assertIn("str(status).lower() in ('running'", a)
+        self.assertIn("kind = 'provider_call'", a[:kill])
+        self.assertIn('NOT killing the worker"; exit 1', a[:kill])
+
+    def test_double_charge_notice_states_its_scope(self):
+        b = next(s for s in JOBS['drill']['steps'] if s['name'].startswith('B.'))['run']
+        self.assertIn('no provider-side billing reconciliation', b)
+
 
 if __name__ == '__main__':
     unittest.main()
