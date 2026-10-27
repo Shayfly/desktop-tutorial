@@ -48,6 +48,21 @@ class DrillMode(unittest.TestCase):
         self.assertEqual(roll['if'], 'always()')
         self.assertEqual(steps[-1], roll)
 
+    def test_rollback_verdict_never_comes_from_recover_sh_exit_code(self):
+        """Codex blocker 2026-10-27: recover.sh exits 0 when it restores nothing (list read from a RUNNER_TEMP that a
+        new run does not share). The drill writes its own list, proves the snapshots exist, verifies the images."""
+        c1 = next(s for s in JOBS['drill']['steps'] if s['name'].startswith('C1.'))
+        run = c1['run']
+        self.assertIn('${{ runner.temp }}/drill-state', c1['env']['DEPLOY_STATE_DIR'])
+        self.assertIn('>> "$list"', run)                                    # its own verified list
+        self.assertIn('docker image inspect -f \'{{.Id}}\' "omni-rollback/$s:prev"', run)   # snapshot exists
+        self.assertIn('never the verdict', run)
+        self.assertNotRegex(run, r'bash recover\.sh; rc=\$\?')            # exit code not captured as the verdict
+        self.assertIn('[ "$want" = "$got" ]', run)                            # running image == snapshot image
+        self.assertIn('wrote no rollback compose file', run)
+        self.assertIn('a rollback to it proves nothing', run)                 # identical snapshot is not a PASS
+        self.assertTrue(run.rstrip().endswith('[ "$ok" -eq 1 ]'))
+
 
 if __name__ == '__main__':
     unittest.main()

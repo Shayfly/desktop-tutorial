@@ -494,28 +494,39 @@ jobs:
         if: always()
         env:
           DEPLOY_STATE_DIR: ${{ runner.temp }}/drill-state
+        # recover.sh exits 0 also when it restores NOTHING (no list, or not-stopped). Its exit code is therefore never
+        # the verdict: this step writes its OWN rollback list in its own state dir, proves every snapshot image exists,
+        # and passes only when every pre-drill service is verified running on exactly its snapshot image.
         run: |
           set -uo pipefail
-          : > "$DEPLOY_STATE_DIR/prev-images"
+          ok=1; list="$DEPLOY_STATE_DIR/prev-images"
+          rm -f "$DEPLOY_STATE_DIR/not-stopped" "$DEPLOY_STATE_DIR/rollback.yml"; : > "$list"
+          [ -s "$DEPLOY_STATE_DIR/current-images" ] || { echo "::notice title=drill-C rollback::FAIL no pre-drill service list"; exit 1; }
           while read -r s img; do
-            if docker image inspect "omni-rollback/$s:prev" >/dev/null 2>&1; then
-              rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "omni-rollback/$s:prev")
-              echo "::notice title=drill-C snapshot::$s omni-rollback/$s:prev revision=${rev:-unlabelled}"
-              echo "$s $(docker compose ps -q "$s" | head -n 1) omni-rollback/$s:prev" >> "$DEPLOY_STATE_DIR/prev-images"
-            else
-              echo "::notice title=drill-C snapshot::FAIL $s has no omni-rollback/$s:prev image"
+            snap=$(docker image inspect -f '{{.Id}}' "omni-rollback/$s:prev" 2>/dev/null)
+            if [ -z "$snap" ]; then
+              echo "::notice title=drill-C snapshot::FAIL $s has no omni-rollback/$s:prev image"; ok=0; continue
             fi
+            rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "omni-rollback/$s:prev")
+            if [ "$snap" = "$img" ]; then   # restoring the image that is already running would prove nothing
+              echo "::notice title=drill-C snapshot::FAIL $s omni-rollback/$s:prev is the image already running (id=${snap:7:12}); a rollback to it proves nothing"; ok=0
+            else
+              echo "::notice title=drill-C snapshot::PASS $s omni-rollback/$s:prev exists id=${snap:7:12} revision=${rev:-unlabelled}, differs from the running image"
+            fi
+            echo "$s $(docker compose ps -q "$s" | head -n 1) omni-rollback/$s:prev" >> "$list"
           done < "$DEPLOY_STATE_DIR/current-images"
-          bash recover.sh; rc=$?
-          ok=1
+          echo "::notice title=drill-C list::$(wc -l < "$list") services written to $list (own list, this run's state dir)"
+          bash recover.sh; echo "::notice title=drill-C recover.sh::exit $? (informational only, never the verdict)"
+          [ -s "$DEPLOY_STATE_DIR/rollback.yml" ] || { echo "::notice title=drill-C rollback::FAIL recover.sh wrote no rollback compose file: nothing was restored"; ok=0; }
           while read -r s _ ref; do
-            cid=$(docker compose -f docker-compose.yml -f "$DEPLOY_STATE_DIR/rollback.yml" ps -q "$s" | head -n 1)
+            cid=$(docker compose -f docker-compose.yml -f "$DEPLOY_STATE_DIR/rollback.yml" ps -q "$s" 2>/dev/null | head -n 1)
             run=$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)
             want=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null); got=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null)
             if [ "$run" = true ] && [ -n "$want" ] && [ "$want" = "$got" ]; then echo "::notice title=drill-C rollback::PASS $s running on $ref"
-            else echo "::notice title=drill-C rollback::FAIL $s running=$run image_matches_snapshot=$([ "$want" = "$got" ] && echo yes || echo no)"; ok=0; fi
-          done < "$DEPLOY_STATE_DIR/prev-images"
-          [ "$rc" -eq 0 ] && [ "$ok" -eq 1 ] && [ -s "$DEPLOY_STATE_DIR/prev-images" ]
+            else echo "::notice title=drill-C rollback::FAIL $s running=${run:-no} image_matches_snapshot=$([ -n "$want" ] && [ "$want" = "$got" ] && echo yes || echo no)"; ok=0; fi
+          done < "$list"
+          [ "$(wc -l < "$list")" -eq "$(wc -l < "$DEPLOY_STATE_DIR/current-images")" ] || ok=0
+          [ "$ok" -eq 1 ]
 
       - name: C2. Roll forward to the images that were running before the drill (always)
         if: always()
