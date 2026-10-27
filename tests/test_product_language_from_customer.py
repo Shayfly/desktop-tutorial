@@ -53,6 +53,7 @@ class UnsupportedLanguagesAreBlockedHonestly(unittest.TestCase):
         t = first_turn(AR)
         self.assertTrue(t.reply.startswith(UNSUPPORTED_NOTICE['ar']))
         self.assertNotIn('בחרתי עבורכם', t.reply)
+        self.assertIsNone(__import__('re').search(r'[\u0590-\u05ff]', t.reply), t.reply)   # no Hebrew at all
 
     def test_arabic_is_never_assumed_to_want_a_hebrew_product(self):
         t = first_turn(AR)

@@ -230,7 +230,8 @@ def _short(field_: str, lang: str) -> str:
 
 def _label(field_: str, value, lang: str) -> str:
     q = d.BY_ID.get(field_)
-    return f'{_short(field_, lang)}: {d._label(q, value, lang) if q else value}'
+    # C9: only Hebrew gets Hebrew labels; every other language reads the English ones (never Hebrew for Arabic)
+    return f'{_short(field_, lang)}: {d._label(q, value, "he" if lang == "he" else "en") if q else value}'
 
 
 class ConversationSupervisor:
