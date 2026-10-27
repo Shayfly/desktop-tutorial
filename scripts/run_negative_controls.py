@@ -37,13 +37,19 @@ def run_control(spec: dict) -> tuple[bool, str]:
     try:
         repo = tmp / 'repo'
         shutil.copytree(ROOT, repo, ignore=IGNORE)
+        applied = []
         for m in spec['mutations']:
             path = repo / m['file']
             text = path.read_text(encoding='utf-8')
             found = text.count(m['old'])
             if found != 1:
                 return False, f"DID NOT RUN: mutation not applied ({m['file']}: target text found {found} times, need 1)"
+            line_no = text[:text.index(m['old'])].count('\n') + 1
             path.write_text(text.replace(m['old'], m['new']), encoding='utf-8')
+            # Read the mutated file back: the evidence is the line as it now IS, not the line we meant to write.
+            now = path.read_text(encoding='utf-8').splitlines()[line_no - 1].strip()
+            applied.append(f"{m['file']}:{line_no} {m['old'].strip()!r} -> {now!r}")
+            print(f"mutation applied: {applied[-1]}", flush=True)
         report = tmp / 'report.xml'
         env = {**os.environ, 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
         try:
@@ -65,7 +71,7 @@ def run_control(spec: dict) -> tuple[bool, str]:
         if not_run:
             return False, f'DID NOT RUN: expected tests were skipped {not_run} (ran={len(cases)})'
         ok = failed == expected
-        return ok, f'failed={failed} expected={expected} ran={len(cases)}'
+        return ok, f"mutation {'; '.join(applied)} | failed={failed} expected={expected} ran={len(cases)}"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

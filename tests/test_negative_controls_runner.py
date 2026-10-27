@@ -39,6 +39,10 @@ class Runner(unittest.TestCase):
         self.assertTrue(ok, detail)
         self.assertIn("failed=['test_refuses']", detail)
 
+    def test_the_applied_line_is_read_back_and_reported(self):
+        ok, detail = self.control()
+        self.assertIn("mutation lib.py:2 'return x > 0' -> 'return True'", detail)   # file:line, old -> line as it now is
+
     def test_different_failures_fail(self):
         self.assertFalse(self.control(expect=('test_refuses', 'test_accepts'))[0])
 
