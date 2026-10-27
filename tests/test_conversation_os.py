@@ -299,12 +299,16 @@ class SupervisorTests(unittest.TestCase):
         t2 = self.sup.turn(project_id='p1', account_id='a1', answers={'personal_data': 'yes'}, lang='he')
         self.assertEqual(t2.questions[0].id, 'access_scope')   # contradiction surfaced, never assumed
         t3 = self.sup.turn(project_id='p1', account_id='a1', answers={'access_scope': 'internal_link'}, lang='he')
-        self.assertTrue(t3.brief_row.complete)
-        # QUESTIONS-001: the brief is complete, but the look (style, material) is still open for this request, so the
-        # gap detector asks it before the plan is offered; "you decide" takes the explicit default.
+        # C6 (CEO 2026-10-27): the gap detector decides completeness. The look (style) is still material for this
+        # request, so the brief is NOT complete yet -- the catalog alone would have called it complete here.
+        self.assertTrue(d.catalog_complete(t3.brief_row.brief))
+        self.assertFalse(t3.brief_row.complete)
+        self.assertEqual(t3.brief_row.brief.open_material, ['style'])
         self.assertEqual([q.id for q in t3.questions], ['style'])
         self.assertEqual(t3.actions, [])
-        t4 = self.say('תחליט אתה')
+        t4 = self.say('תחליט אתה')                                   # "you decide" takes the explicit default
+        self.assertTrue(t4.brief_row.complete)
+        self.assertEqual(t4.brief_row.brief.open_material, [])
         self.assertIsNotNone(t4.plan_id)
         self.assertEqual(t4.actions, [{'type': 'show_plan', 'brief_revision': t4.brief_row.revision}])
         self.assertEqual([r.revision for r in self.briefs.rows['p1']][:3], [1, 2, 3])   # every change is a revision
@@ -312,7 +316,10 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(roles.count('assistant'), 4)
 
     def test_english_questions_cost_missing_status_approve(self):
-        self.say('I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data')
+        first = self.say('I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data')
+        self.assertEqual(first.brief_row.brief.open_material, ['style'])   # C6: the detector still asks the look
+        self.assertIn('Still missing', self.say('what is missing?').reply)  # ...and "what is missing?" says so
+        self.say('you decide')
         self.assertIn('Nothing is missing', self.say('what is missing?').reply)
         cost = self.say('how much will it cost?')
         self.assertEqual(cost.intent, 'cost')

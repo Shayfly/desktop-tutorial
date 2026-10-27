@@ -113,7 +113,9 @@ class MultiTurnTests(unittest.TestCase):
                          [('login', 'none', 'roles', 'model')])
         self.assertIn('לא שיניתי', t2.reply)
         self.assertEqual(t2.reply.count('התחברות:'), 2)                          # once per side (short name), not duplicated
-        self.assertEqual(self.briefs.latest('p').revision, 1)                    # nothing changed -> no new revision
+        # nothing the customer asked for changed: the same requirements fingerprint as revision 1. (C6: a revision may
+        # still be written when the gap detector moves to another open field; that never changes the fingerprint.)
+        self.assertEqual(self.briefs.latest('p').brief.fingerprint(), self.briefs.rows['p'][0].brief.fingerprint())
         # Chief Architect input: the validated contract of the latest revision
         contract = C.build(brief)
         self.assertEqual(contract.to_dict()['schema'], 'intake-requirements/1')
