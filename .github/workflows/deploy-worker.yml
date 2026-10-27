@@ -15,6 +15,12 @@ on:
         description: "Code ROLLBACK only: exact migration versions a newer release already applied, e.g. 38 (comma separated). Empty = normal strict check."
         required: false
         default: ""
+      mode:
+        description: "deploy (default) or drill: on the DEPLOYED code, kill the build worker mid-build and prove exactly-once recovery, then restore the snapshot images with recover.sh and roll forward again. No checkout, no build, no migration."
+        required: false
+        type: choice
+        options: [deploy, drill]
+        default: deploy
   push:
     # The private candidate is deployed to the EXISTING Oracle staging host,
     # not to main or a customer production environment.
@@ -36,6 +42,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'workflow_dispatch' || inputs.mode != 'drill'
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 60
     steps:
@@ -398,3 +405,137 @@ jobs:
           print(f"::notice title=worker-queue-probe::PASS job {job.id} enqueued on omni-builds was executed by "
                 f"worker {job.worker_name} in container {executed_on} on this host")
           PY
+
+  # ------------------------------------------------------------------------------------------------ recovery drill --
+  # 2026-10-27 (Codex + chat): the restore drill on the LIVE worker, not in theory. Works in the DEPLOYED checkout like
+  # postdeploy-checks (no actions/checkout: that would delete the deployed .env), never builds, never migrates.
+  #   A  a real build (internal QA funding, OMNI_QA_BUILD_MAX_USD=0.50), SIGKILL of the build worker mid-build, restart
+  #   B  exactly once, zero duplicates, zero loss, zero double charge -- each a PASS/FAIL ::notice with its numbers
+  #   C  recover.sh restores the snapshot images omni-rollback/<svc>:prev; proven running; then roll forward to the
+  #      images that were running before the drill, proven running (an always() step rolls forward even on failure)
+  drill:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'drill'
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: Prepare (deployed revision, image, QA funding)
+        run: |
+          set -euo pipefail
+          test -f .env || { echo "::error title=drill::no deployed .env on this host; deploy first"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/pd" "$RUNNER_TEMP/drill-state" && chmod 777 "$RUNNER_TEMP/pd"
+          echo "IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")" >> "$GITHUB_ENV"
+          echo "QA_ENV=-e OMNI_ENV=staging -e OMNI_QA_BUILD_MAX_USD=0.50 -e OMNI_QA_BUDGET_TOTAL_USD=10 -e OMNI_QA_BUDGET_SINCE=2026-10-08T17:12:00Z" >> "$GITHUB_ENV"
+          : > "$RUNNER_TEMP/drill-state/current-images"
+          for s in worker intake-worker intake-maintain preview-worker; do
+            cid=$(docker compose ps -q "$s" | head -n 1); [ -n "$cid" ] || continue
+            echo "$s $(docker inspect -f '{{.Image}}' "$cid")" >> "$RUNNER_TEMP/drill-state/current-images"
+          done
+          echo "::notice title=drill-start::deployed=$(git -C ../.. rev-parse HEAD) services=$(cut -d' ' -f1 "$RUNNER_TEMP/drill-state/current-images" | tr '\n' ' ')"
+
+      - name: Refuse while customer work is running
+        run: docker compose run --rm --no-deps -T worker python -m omni_prod.active_jobs --wait-minutes 20 --tolerate-unverified
+
+      - name: A. Real build, SIGKILL the build worker mid-build, restart
+        id: crash
+        run: |
+          set -uo pipefail
+          run() { docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres $QA_ENV \
+                    -v "$RUNNER_TEMP/pd:/out" "$IMG" python -m omni_prod.postdeploy_checks "$1" 2>&1 \
+                    | grep -E '^(::|POSTDEPLOY|Traceback|[A-Za-z]+Error)' ; }
+          rc=0
+          run crash-create || rc=1
+          echo "::notice title=drill-A::SIGKILL the build worker (no drain)"
+          docker kill "$(docker compose ps -q worker)" >/dev/null
+          docker compose start worker
+          sleep 170  # the killed worker's registration (ttl 135 s) must expire first
+          docker compose run --rm --no-deps -T janitor python -c \
+            'import json; from omni_prod.maintenance import recover_now; print("::notice title=drill-A recovery pass::" + json.dumps(recover_now(1)))'
+          run crash-verify || rc=1
+          exit $rc
+
+      - name: B. Exactly once, zero duplicates, zero loss, zero double charge
+        if: always() && steps.crash.outcome != 'skipped'
+        run: |
+          set -uo pipefail
+          docker run --rm --network host --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres -v "$RUNNER_TEMP/pd:/out" "$IMG" \
+            python - <<'PY'
+          import json, sys
+          from decimal import Decimal
+          from omni_prod.postdeploy_checks import sql
+          try:
+              b = json.load(open('/out/state.json'))['crash_build']
+          except Exception as exc:
+              print(f'::notice title=drill-B::FAIL no crash build recorded ({type(exc).__name__})'); sys.exit(1)
+          status, attempts = sql('SELECT status, recovery_attempts FROM build_jobs WHERE id = %s', (b,))[0]
+          builds = sql('SELECT count(*) FROM build_jobs WHERE project_id = (SELECT project_id FROM build_jobs WHERE id = %s)', (b,))[0][0]
+          calls, traces, metered = sql("SELECT count(*), count(DISTINCT trace_id), COALESCE(sum(metered_cost_usd), 0) "
+                                       "FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'", (b,))[0]
+          res = sql('SELECT count(*), max(status), max(settled_provider_cost_usd) FROM credit_reservations WHERE build_id = %s', (b,))[0]
+          settled = None if res[2] is None else Decimal(str(res[2]))
+          checks = {
+              'exactly-once': (str(status).lower() == 'ready' and attempts == 1 and builds == 1,
+                               f'status={status} recovery_attempts={attempts} builds_in_project={builds}'),
+              'zero-duplicates': (builds == 1 and res[0] == 1, f'builds_in_project={builds} reservations={res[0]}'),
+              'zero-loss': (str(status).lower() == 'ready' and settled is not None and abs(settled - Decimal(str(metered))) < Decimal('0.000001'),
+                            f'status={status} ledger_calls={calls} workers={traces} metered={metered} settled={settled}'),
+              'zero-double-charge': (res[0] == 1 and (settled is None or settled <= Decimal(str(metered)) + Decimal('0.000001')),
+                                     f'reservations={res[0]} reservation_status={res[1]} settled={settled} metered={metered}'),
+          }
+          for name, (ok, detail) in checks.items():
+              print(f"::notice title=drill-B {name}::{'PASS' if ok else 'FAIL'} build {b} {detail}")
+          sys.exit(0 if all(ok for ok, _ in checks.values()) else 1)
+          PY
+
+      - name: C1. recover.sh restores the snapshot images (omni-rollback/<svc>:prev)
+        id: rollback
+        if: always()
+        env:
+          DEPLOY_STATE_DIR: ${{ runner.temp }}/drill-state
+        run: |
+          set -uo pipefail
+          : > "$DEPLOY_STATE_DIR/prev-images"
+          while read -r s img; do
+            if docker image inspect "omni-rollback/$s:prev" >/dev/null 2>&1; then
+              rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "omni-rollback/$s:prev")
+              echo "::notice title=drill-C snapshot::$s omni-rollback/$s:prev revision=${rev:-unlabelled}"
+              echo "$s $(docker compose ps -q "$s" | head -n 1) omni-rollback/$s:prev" >> "$DEPLOY_STATE_DIR/prev-images"
+            else
+              echo "::notice title=drill-C snapshot::FAIL $s has no omni-rollback/$s:prev image"
+            fi
+          done < "$DEPLOY_STATE_DIR/current-images"
+          bash recover.sh; rc=$?
+          ok=1
+          while read -r s _ ref; do
+            cid=$(docker compose -f docker-compose.yml -f "$DEPLOY_STATE_DIR/rollback.yml" ps -q "$s" | head -n 1)
+            run=$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)
+            want=$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null); got=$(docker inspect -f '{{.Image}}' "$cid" 2>/dev/null)
+            if [ "$run" = true ] && [ -n "$want" ] && [ "$want" = "$got" ]; then echo "::notice title=drill-C rollback::PASS $s running on $ref"
+            else echo "::notice title=drill-C rollback::FAIL $s running=$run image_matches_snapshot=$([ "$want" = "$got" ] && echo yes || echo no)"; ok=0; fi
+          done < "$DEPLOY_STATE_DIR/prev-images"
+          [ "$rc" -eq 0 ] && [ "$ok" -eq 1 ] && [ -s "$DEPLOY_STATE_DIR/prev-images" ]
+
+      - name: C2. Roll forward to the images that were running before the drill (always)
+        if: always()
+        env:
+          DEPLOY_STATE_DIR: ${{ runner.temp }}/drill-state
+        run: |
+          set -uo pipefail
+          docker compose up -d --no-build --remove-orphans
+          ok=1
+          while read -r s img; do
+            got=""; for i in $(seq 1 15); do
+              cid=$(docker compose ps -q "$s" | head -n 1)
+              [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = true ] && got=$(docker inspect -f '{{.Image}}' "$cid") && break
+              sleep 2
+            done
+            if [ "$got" = "$img" ]; then echo "::notice title=drill-C roll-forward::PASS $s back on the pre-drill image"
+            else echo "::notice title=drill-C roll-forward::FAIL $s running_image_matches_pre_drill=no"; ok=0; fi
+          done < "$DEPLOY_STATE_DIR/current-images"
+          for i in $(seq 1 15); do docker compose logs worker 2>&1 | tail -50 | grep -q "Listening on" && break; sleep 2; done
+          docker compose logs worker 2>&1 | tail -50 | grep -q "Listening on" \
+            && echo "::notice title=drill-C roll-forward::PASS worker listening on its queue" \
+            || { echo "::notice title=drill-C roll-forward::FAIL worker not listening"; ok=0; }
+          [ "$ok" -eq 1 ]
