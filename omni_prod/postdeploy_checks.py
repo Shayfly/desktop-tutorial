@@ -267,8 +267,14 @@ def plan_and_build(token, project_id, revision, prompt) -> dict:
         info = {k: plan.get(k) for k in ('status', 'can_build', 'blockers', 'economics', 'durable_backend')} \
             if isinstance(plan, dict) else plan
         raise RuntimeError(f'plan {status} {json.dumps(info, ensure_ascii=False, default=str)[:1200]}')
+    # C4: approve what the approval screen shows -- the fingerprint comes from the same view a customer reads.
+    status, view = api('GET', f'/api/v28/projects/{project_id}/discovery?lang=he', None, token)
+    shown = ((view.get('summary') or {}).get('approval') or {}) if status == 200 and isinstance(view, dict) else {}
+    if status != 200 or view['brief']['revision'] != revision or not shown.get('fingerprint'):
+        raise RuntimeError(f'approval screen {status}: revision or approval fingerprint missing')
     status, appr = api('POST', f'/api/v28/projects/{project_id}/approvals',
-                       {'build_contract_id': plan['build_contract_id'], 'brief_revision': revision}, token)
+                       {'build_contract_id': plan['build_contract_id'], 'brief_revision': revision,
+                        'shown_fingerprint': shown['fingerprint']}, token)
     if status != 200:
         raise RuntimeError(f'approval {status} {appr}')
     status, build = api('POST', f'/api/v28/projects/{project_id}/builds',

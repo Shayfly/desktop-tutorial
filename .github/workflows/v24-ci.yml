@@ -229,10 +229,13 @@ jobs:
           node --check omni_prod/assets/app.js
           node --check omni_prod/assets/visual-edit.js
           node --check tests/customer_flow_browser.cjs
+          node --check tests/approval_screen_browser.cjs
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       - run: npx playwright install --with-deps chromium
         timeout-minutes: 5
       - run: node tests/customer_flow_browser.cjs
+        timeout-minutes: 5
+      - run: node tests/approval_screen_browser.cjs   # C4: shown = locked
         timeout-minutes: 5
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.

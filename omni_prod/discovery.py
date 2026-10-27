@@ -519,6 +519,79 @@ def requirements_text(brief: Brief) -> str:
     return '\n'.join(lines)
 
 
+ASSUMED_SOURCES = ('default', 'delegated')
+_SEMANTIC_NAMES = {
+    'target.agent': ('סוכן AI', 'AI agent'),
+    'ai.agent.tools': ('כלי פעולה של סוכן AI', 'AI agent tools'),
+    'ai.agent.memory': ('זיכרון סוכן AI', 'AI agent memory'),
+    'ai.agent.eval': ('בדיקות סוכן AI', 'AI agent evaluation'),
+    'integration.maps': ('מפות אינטראקטיביות', 'Interactive maps'),
+    'integration.email': ('שליחת דואר אלקטרוני', 'Email sending'),
+    'integration.webhook': ('התממשקות Webhook', 'Webhook integration'),
+    'integration.messaging': ('מערכת הודעות', 'Messaging service'),
+    'media.audio.tts': ('יצירת קול וקריינות', 'Speech and narration'),
+    'media.audio.stt': ('תמלול דיבור', 'Speech recognition'),
+    'media.audio.realtime_voice': ('שיחה קולית בזמן אמת', 'Real-time voice'),
+    'media.image.generate': ('יצירת תמונות', 'Image generation'),
+    'media.video.generate': ('יצירת וידאו', 'Video generation'),
+    'target.automation': ('אוטומציה', 'Automation'),
+}
+
+
+def _locked(brief: Brief) -> list[tuple]:
+    """Everything the build consumes from a brief revision (see requirements_text and the contract): the request
+    text, every decided field (value and how it was decided), the uploaded logo and the semantic capability
+    decisions. hints, skipped and mode never reach the build and are therefore not locked."""
+    out = [('request', brief.prompt, 'message')]
+    order = {q.field: i for i, q in enumerate(QUESTIONS)}
+    for fld in sorted(brief.fields, key=lambda f: (order.get(f, len(order)), f)):
+        f = brief.fields[fld]
+        out.append(('field:' + fld, f.get('value'), f.get('source')))
+    logo = (brief.assets or {}).get('logo')
+    if logo:
+        out.append(('asset:logo', logo.get('sha256') or logo.get('id'), 'answer'))
+    for sd in brief.semantic_decisions or []:
+        if isinstance(sd, dict) and sd.get('key'):
+            out.append(('semantic:' + str(sd['key']), sd.get('decision'), 'semantic'))
+    return out
+
+
+def approval_fingerprint(brief: Brief) -> str:
+    """Hash of exactly what approval_items() puts on the screen. POST .../approvals must present it: an approval
+    covers what was shown and nothing else."""
+    return hashlib.sha256(json.dumps(_locked(brief), ensure_ascii=False, default=str).encode()).hexdigest()
+
+
+def approval_items(brief: Brief, lang: str = 'he') -> list[dict]:
+    """One line per locked item, in the order the build reads them. Every line says whether it is an assumption
+    (chosen for the customer) and is editable: fields through the edit form, the request text through the chat."""
+    he = lang != 'en'
+    items = []
+    for key, raw, source in _locked(brief):
+        kind, _, name = key.partition(':')
+        if kind == 'request':
+            items.append({'key': key, 'label': 'הבקשה שלכם' if he else 'Your request', 'value': str(raw),
+                          'source': source, 'assumed': False, 'edit': 'chat'})
+        elif kind == 'field':
+            f = brief.fields[name]
+            q = BY_ID.get(f.get('question_id') or name) or BY_ID.get(name)
+            items.append({'key': key, 'field': name, 'label': (q.he if he else q.en) if q else name,
+                          'value': _label(q, raw, lang) if q else str(raw), 'source': source,
+                          'assumed': source in ASSUMED_SOURCES, 'edit': 'form' if q else 'chat'})
+        elif kind == 'asset':
+            items.append({'key': key, 'label': 'לוגו שהעליתם' if he else 'Your uploaded logo',
+                          'value': ('ישמש כפי שהוא' if he else 'used as uploaded'), 'source': source,
+                          'assumed': False, 'edit': 'chat'})
+        else:
+            sd = next(x for x in brief.semantic_decisions if isinstance(x, dict) and str(x.get('key')) == name)
+            label = _SEMANTIC_NAMES.get(name, (name, name))[0 if he else 1]
+            state = {'required': ('כלול', 'included'), 'not_required': ('לא כלול', 'not included'),
+                     'uncertain': ('לא ודאי: ייבדק', 'uncertain: will be checked')}.get(raw, (str(raw), str(raw)))
+            items.append({'key': key, 'label': label, 'value': state[0 if he else 1], 'source': 'semantic',
+                          'assumed': True, 'edit': 'chat', 'evidence': str(sd.get('evidence') or '')[:160]})
+    return items
+
+
 def summary(brief: Brief, lang: str = 'he') -> dict:
     """Plain-language understanding for the approval screen (§5)."""
     v = brief.values()
@@ -579,4 +652,6 @@ def summary(brief: Brief, lang: str = 'he') -> dict:
             'group_titles': {g: GROUP_TITLES[g][0 if he else 1] for g in GROUPS},
             'included': included, 'excluded': excluded, 'assumptions': assumptions,
             'semantic_review': semantic_review,
+            'approval': {'items': approval_items(brief, lang), 'locked_count': len(_locked(brief)),
+                         'fingerprint': approval_fingerprint(brief)},
             'contradictions': contradictions(brief), 'complete': complete(brief)}
