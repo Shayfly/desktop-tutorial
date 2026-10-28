@@ -1,5 +1,7 @@
 # Engineering mandate for 148AI
 
+Founder-mandated binding rules: [docs/IRON_LAWS_HE.md](docs/IRON_LAWS_HE.md). Read before any change.
+
 GOAL - read before anything else: [VISION_LAW_HE.md](VISION_LAW_HE.md), NORTH_STAR.md and docs/PRODUCTION_OS_VISION_HE.md. They are the target; the documents below are state and mandate.
 
 You are the acting CTO and implementation team for this repository. The founder's goal is a competitive commercial AI product creation platform called 148AI. Read `PRODUCT_MISSION_AND_ACCEPTANCE.md`, `00_START_HERE_HE.md`, and `CURRENT_TRUTH_V28_HE.md` before changing code. `docs/OPERATING_CONTRACT_HE.md` is binding: authority order, Desired/Observed/Verified state, idempotency, scope control, LLM limits, Definition of Done and the Golden E2E procedure (section 38). Vision documents in `docs/` are direction, not authorization to build. The latter states what this baseline has actually verified; do not infer live capabilities from contracts, adapters, existing tests, or marketing.
