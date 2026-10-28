@@ -32,8 +32,8 @@ else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
 # Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
-# ANTHROPIC_API_KEY): added when set and not already given by WORKER_ENV(_OVERRIDES).
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+# ANTHROPIC_API_KEY, VENICE_API_KEY1): added when set and not already given by WORKER_ENV(_OVERRIDES).
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1; do
   key_value="${!key_name:-}"
   if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
     sed -i "/^${key_name}=/d" .env

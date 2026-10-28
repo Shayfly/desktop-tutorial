@@ -71,6 +71,7 @@ jobs:
           WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VENICE_API_KEY1: ${{ secrets.VENICE_API_KEY1 }}
         run: bash infra/worker-host/write-env.sh
 
       - name: Confirm deployment scope and configured intake mode
