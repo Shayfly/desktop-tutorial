@@ -47,15 +47,16 @@
       "mutations": [
         {
           "file": "omni_prod/investor_app.py",
-          "old": "    _mark_two_gate_flow(project.get('id'), account.id)\n",
-          "new": "    pass  # NEGATIVE CONTROL\n"
+          "old": "        mark = _two_gate_flow_mark(account.id)\n",
+          "new": "        mark = None  # NEGATIVE CONTROL\n"
         }
       ],
       "targets": [
         "tests/test_intake_approve_and_goal.py"
       ],
       "expect_failed": [
-        "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval"
+        "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval",
+        "test_every_project_the_ui_creates_goes_through_the_one_marked_route"
       ]
     },
     {
@@ -93,6 +94,29 @@
       ],
       "expect_failed": [
         "test_same_request_key_in_parallel_is_one_approval_and_one_plan"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "the old behaviour: a failed flow-mark write is swallowed and the project is created UNMARKED (Matt: BIND_STATUS APPROVED, VERIFIER_GATE None)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        except Exception as exc:\n            raise FlowMarkNotWritten(str(exc)) from exc\n        if not row or (row.get('interpretation') or {}).get('flow') != AF.FLOW:\n            raise FlowMarkNotWritten('the flow mark row was not stored')\n",
+          "new": "        except Exception:  # NEGATIVE CONTROL: the write result is thrown away again\n            return\n"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation"
+      ],
+      "expect_failed_pg": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation",
+        "test_a_mark_write_failing_after_its_insert_rolls_back_the_project"
       ]
     }
   ]

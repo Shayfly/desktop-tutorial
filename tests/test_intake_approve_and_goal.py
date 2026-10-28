@@ -334,20 +334,68 @@ class TheFlowMark(unittest.TestCase):
 
     def test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval(self):
         """Every path, also the guided questions with no conversation at all: the mark is written at creation."""
-        from fastapi.testclient import TestClient
         from omni_prod import discovery as dd
-        with mock.patch.object(self.IA, '_v28_bearer', lambda r: 'tok'), \
-                mock.patch.object(self.IA._v28, 'account', lambda token: mock.Mock(id='a1')), \
-                mock.patch.object(self.IA._v28, 'create_project', lambda **kw: {'id': 'p1', 'title': kw['title']}):
-            r = TestClient(self.IA.app).post('/api/v28/projects', json={'title': 'guided'})
+        r = self.create('guided')
         self.assertEqual(r.status_code, 200, r.text)
-        self.assertEqual([(m['role'], m['interpretation']) for m in self.store.messages],
-                         [('assistant', {'flow': 'two_gate', 'system': 'project_created'})])
+        pid = r.json()['id']
+        self.assertEqual([(m['project_id'], m['role'], m['interpretation']) for m in self.store.messages],
+                         [(pid, 'assistant', {'flow': 'two_gate', 'system': 'project_created'})])
         brief = A.apply(dd.start(self.EQUIPMENT, dd.GUIDED), DeterministicInterpreter().interpret(self.EQUIPMENT, None)).brief
-        row = self.briefs.save(project_id='p1', account_id='a1', brief=brief, expected_revision=0)   # guided: no chat
+        row = self.briefs.save(project_id=pid, account_id='a1', brief=brief, expected_revision=0)   # guided: no chat
         self.assertTrue(row.complete)
-        self.assertTrue(AF.on_two_gate_flow(self.store.messages))
-        self.assertEqual(self.bind_error(row.fingerprint), (409, 'spec_not_approved'))
+        self.assertTrue(AF.on_two_gate_flow(self.store.messages_for(pid)))
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as caught:
+            self.IA._bind_execution_plan(pid, row.fingerprint)
+        self.assertEqual((caught.exception.status_code, caught.exception.detail.get('error')), (409, 'spec_not_approved'))
+
+    def create(self, title):
+        """POST /api/v28/projects through the REAL creation path (V26Platform -> AccountService.create_project with
+        the in-transaction mark), on a durable backend (pool present). Only the bearer and the account are faked."""
+        from fastapi.testclient import TestClient
+        with mock.patch.object(self.IA, '_v28_bearer', lambda r: 'tok'), \
+                mock.patch.object(self.IA, '_v28_pool', object()), \
+                mock.patch.object(self.IA._v28, 'account', lambda token: mock.Mock(id='a1')):
+            return TestClient(self.IA.app, raise_server_exceptions=False).post('/api/v28/projects', json={'title': title})
+
+    def projects_of_a1(self):
+        return [p.id for p in self.IA._v28.accounts.list_projects(owner_id='a1')]
+
+    def test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project(self):
+        """Matt 2026-10-28: the mark's write result was thrown away -- a failed write left an UNMARKED new project,
+        and its plan was accepted with no spec approval and no verifier (BIND_STATUS APPROVED, VERIFIER_GATE None).
+        Now the mark is written in the creation transaction: the write fails -> creation fails, no project exists."""
+        before = self.projects_of_a1()
+
+        def broken(**kw):
+            raise RuntimeError('injected: the flow mark write failed')
+        with mock.patch.object(self.store, 'add_message', broken):
+            r = self.create('mark write fails')
+        self.assertEqual(r.status_code, 503, r.text)
+        self.assertEqual(r.json()['detail']['error'], 'project_not_created')
+        self.assertEqual(self.projects_of_a1(), before, 'a project was created without its flow mark')
+        self.assertEqual(self.store.messages, [])
+
+    def test_a_mark_row_that_was_not_stored_also_fails_creation(self):
+        before = self.projects_of_a1()
+        with mock.patch.object(self.store, 'add_message', lambda **kw: {}):
+            r = self.create('mark silently lost')
+        self.assertEqual(r.status_code, 503, r.text)
+        self.assertEqual(self.projects_of_a1(), before)
+
+    def test_every_project_the_ui_creates_goes_through_the_one_marked_route(self):
+        """Guided and conversation projects are the same creation: the UI has ONE create call (createProject ->
+        POST /api/v28/projects) and the server ONE v28 create route; the path (guided/chat) is chosen after."""
+        import pathlib
+        import re
+        js = (pathlib.Path(__file__).resolve().parents[1] / 'omni_prod' / 'assets' / 'app.js').read_text()
+        self.assertEqual(len(re.findall(r"api\('/api/v28/projects', \{ method: 'POST'", js)), 1)
+        routes = [r for r in self.IA.app.routes if getattr(r, 'path', '') == '/api/v28/projects'
+                  and 'POST' in getattr(r, 'methods', ())]
+        self.assertEqual(len(routes), 1)
+        r = self.create('chat')
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(AF.on_two_gate_flow(self.store.messages_for(r.json()['id'])))
 
     def test_without_the_conversation_schema_a_new_project_build_is_409_not_200(self):
         """Matt 2026-10-28: with schema_ready False the gate used to return None BEFORE both gates (the build went on
@@ -471,6 +519,63 @@ class ADoubleClickInParallel(unittest.TestCase):
         self.assertEqual(plans, 1, errors)
         notice('approve-action double-click PASS', f'2 parallel POST spec-approval, same request_key -> statuses={sorted(statuses)} '
                                                    f'approvals=1 replies=1 plans={plans} errors={len(errors)} elapsed_s={elapsed:.3f}')
+
+
+
+class TheCreationTransaction(unittest.TestCase):
+    """Matt 2026-10-28, on real PostgreSQL: the project row and its two-gate flow mark commit TOGETHER or not at all.
+    The failure is injected AFTER the mark's INSERT has run, so only one shared transaction can leave no project.
+    Runs in intake-budget-pg (no skip)."""
+
+    @classmethod
+    def setUpClass(cls):
+        ADoubleClickInParallel.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        ADoubleClickInParallel.tearDownClass.__func__(cls)
+
+    def setUp(self):
+        import uuid
+        self.IA, _ = _api()
+        p = mock.patch.object(self.IA, '_v28_pool', self.pool)
+        p.start()
+        self.addCleanup(p.stop)
+        self.acc = f'acc_{uuid.uuid4().hex[:10]}'
+        with self.pool.connection() as conn:
+            conn.execute('INSERT INTO creator_accounts (id, email, password_hash, salt_b64) VALUES (%s,%s,%s,%s)',
+                         (self.acc, f'{self.acc}@example.com', 'x', 'x'))
+            conn.commit()
+
+    def rows(self):
+        with self.pool.connection() as conn:
+            projects = conn.execute('SELECT count(*) FROM creator_projects WHERE owner_id = %s', (self.acc,)).fetchone()[0]
+            marks = conn.execute('SELECT count(*) FROM intake_messages WHERE account_id = %s', (self.acc,)).fetchone()[0]
+        return projects, marks
+
+    def create(self):
+        from omni_prod.project_lifecycle import PostgresProjectLifecycleRepository, ProjectLifecycleService
+        return ProjectLifecycleService(PostgresProjectLifecycleRepository(self.pool)).create_project(
+            owner_id=self.acc, title='t', in_transaction=self.IA._two_gate_flow_mark(self.acc))
+
+    def test_the_project_and_its_mark_commit_together(self):
+        from omni_prod.conversation.store import PostgresConversationStore
+        rec = self.create()
+        self.assertEqual(self.rows(), (1, 1))
+        self.assertTrue(AF.on_two_gate_flow(PostgresConversationStore(self.pool).messages_for(rec.id)))
+
+    def test_a_mark_write_failing_after_its_insert_rolls_back_the_project(self):
+        from omni_prod.conversation.store import PostgresConversationStore
+        original = PostgresConversationStore._insert_message
+
+        def insert_then_fail(store, conn, *a):
+            original(store, conn, *a)                          # the mark row IS inserted ...
+            raise RuntimeError('injected: failure after the flow mark insert')   # ... then the write fails
+        with mock.patch.object(PostgresConversationStore, '_insert_message', insert_then_fail):
+            with self.assertRaises(self.IA.FlowMarkNotWritten):
+                self.create()
+        self.assertEqual(self.rows(), (0, 0), 'a project (or a mark) survived a failed creation')
+        notice('creation transaction PASS', f'mark write failed after its INSERT -> creator_projects=0 intake_messages=0')
 
 
 if __name__ == '__main__':

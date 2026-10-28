@@ -54,7 +54,7 @@ class MemoryConversationStore:
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
                     interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
-                    reservation_id=None) -> dict:
+                    reservation_id=None, conn=None) -> dict:
         for m in self.messages:
             if request_key and m['project_id'] == project_id and m['request_key'] == request_key and m['role'] == role:
                 return m
@@ -108,24 +108,34 @@ class PostgresConversationStore:
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
                     interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
-                    reservation_id=None) -> dict:
+                    reservation_id=None, conn=None) -> dict:
         # The reservation columns (migration 037) are written only for paid turns, which
         # cannot happen without 037; deterministic turns stay compatible with a 036 schema.
+        # conn: write inside the caller's open transaction (project creation writes its flow mark that way).
         extra_cols, extra_vals = '', ()
         if cost_state is not None or reservation_id is not None:
             extra_cols, extra_vals = ', cost_state, reservation_id', (cost_state, reservation_id)
-        with self.pool.connection() as conn:
+        if conn is not None:
             with conn.transaction():
-                r = conn.execute(
-                    f'INSERT INTO intake_messages (project_id, account_id, role, content, brief_revision, interpretation, '
-                    f'interpreter, cost_usd, request_key{extra_cols}) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s'
-                    f'{", %s, %s" if extra_cols else ""}) '
-                    f'ON CONFLICT (project_id, request_key, role) WHERE request_key IS NOT NULL DO NOTHING RETURNING {self._MSG}',
-                    (project_id, account_id, role, content[:8000], brief_revision, json.dumps(interpretation or {}, default=str),
-                     interpreter, cost_usd, request_key) + extra_vals).fetchone()
-                if r is None:
-                    r = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND request_key = %s AND role = %s',
-                                     (project_id, request_key, role)).fetchone()
+                return self._insert_message(conn, project_id, account_id, role, content, brief_revision, interpretation,
+                                            interpreter, cost_usd, request_key, extra_cols, extra_vals)
+        with self.pool.connection() as own:
+            with own.transaction():
+                return self._insert_message(own, project_id, account_id, role, content, brief_revision, interpretation,
+                                            interpreter, cost_usd, request_key, extra_cols, extra_vals)
+
+    def _insert_message(self, conn, project_id, account_id, role, content, brief_revision, interpretation, interpreter,
+                        cost_usd, request_key, extra_cols, extra_vals) -> dict:
+        r = conn.execute(
+            f'INSERT INTO intake_messages (project_id, account_id, role, content, brief_revision, interpretation, '
+            f'interpreter, cost_usd, request_key{extra_cols}) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s'
+            f'{", %s, %s" if extra_cols else ""}) '
+            f'ON CONFLICT (project_id, request_key, role) WHERE request_key IS NOT NULL DO NOTHING RETURNING {self._MSG}',
+            (project_id, account_id, role, content[:8000], brief_revision, json.dumps(interpretation or {}, default=str),
+             interpreter, cost_usd, request_key) + extra_vals).fetchone()
+        if r is None:
+            r = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND request_key = %s AND role = %s',
+                             (project_id, request_key, role)).fetchone()
         return self._row(r)
 
     def messages_for(self, project_id, limit=200) -> list[dict]:

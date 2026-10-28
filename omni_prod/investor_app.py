@@ -1590,31 +1590,48 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
         # Project count is not a spend authorization. Users may maintain as
         # many projects as they need; builds retain separate cost and execution
         # admission controls. No external model call occurs on project create.
-        project = _v28.create_project(token=token, title=req.title)
+        mark = _two_gate_flow_mark(account.id)
+        if mark is None:
+            project = _v28.create_project(token=token, title=req.title)
+        else:
+            project = _v28.create_project(token=token, title=req.title, in_transaction=mark)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
-    _mark_two_gate_flow(project.get('id'), account.id)
+    except FlowMarkNotWritten as exc:
+        logging.getLogger(__name__).error('project NOT created: its two-gate flow mark could not be written', exc_info=True)
+        raise HTTPException(503, detail={'error': 'project_not_created',
+                                         'message': 'The project was not created: its approval state could not be '
+                                                    'saved. Nothing was saved; please try again.'}) from exc
     return project
 
 
-def _mark_two_gate_flow(project_id, account_id) -> bool:
-    """Founder 2026-10-28 (option b): EVERY project created from now on is on the two-gate flow, whatever path it then
-    takes (conversation or guided questions): a durable mark in its conversation log, written at creation. It is a
-    hidden assistant row (interpretation.system), never shown as a message. Without a durable backend there is no
-    build path to gate; a failed write is logged loudly, never hidden."""
+class FlowMarkNotWritten(RuntimeError):
+    """The two-gate flow mark failed inside the project-creation transaction; the project was rolled back."""
+
+
+def _two_gate_flow_mark(account_id):
+    """Founder 2026-10-28 (option b), Matt 2026-10-28: EVERY project created from now on is on the two-gate flow,
+    whatever path it then takes (conversation or guided questions). The mark is a hidden assistant row
+    (interpretation.system) written in the SAME transaction as the project row: if the write fails, the project is
+    rolled back and creation fails -- there is never a project without its mark (an unmarked project would take the
+    earlier path with no spec approval and no verifier). Returns the in-transaction writer, or None when there is no
+    durable backend at all (no pool: no durable build path to gate). A durable backend without the conversation
+    schema refuses creation (503 from _conversation_store) rather than create an unmarked project."""
     from .intake import approval_flow as AF
-    if not project_id:
-        return False
-    try:
-        _conversation_store().add_message(project_id=project_id, account_id=account_id, role='assistant', content='',
-                                          interpretation={'flow': AF.FLOW, 'system': 'project_created'},
-                                          request_key=f'flow-mark:{project_id}')
-        return True
-    except HTTPException:
-        return False                                   # no durable backend / conversation schema: nothing to gate
-    except Exception:
-        logging.getLogger(__name__).error('project %s: the two-gate flow mark was NOT written', project_id, exc_info=True)
-        return False
+    if _v28_pool is None:
+        return None
+    store = _conversation_store()                      # 503 conversation_not_ready: no project is created
+
+    def write(conn, project) -> None:
+        try:
+            row = store.add_message(project_id=project.id, account_id=account_id, role='assistant', content='',
+                                    interpretation={'flow': AF.FLOW, 'system': 'project_created'},
+                                    request_key=f'flow-mark:{project.id}', conn=conn)
+        except Exception as exc:
+            raise FlowMarkNotWritten(str(exc)) from exc
+        if not row or (row.get('interpretation') or {}).get('flow') != AF.FLOW:
+            raise FlowMarkNotWritten('the flow mark row was not stored')
+    return write
 
 @app.get('/api/v28/projects')
 def v28_projects(request: Request) -> dict:
