@@ -132,9 +132,6 @@ int main(int argc, char **argv) {
         assert r.returncode == 0, r.stderr
 
 
-@unittest.skipUnless(docker_ok(), 'BLOCKED: no reachable Docker daemon (this test needs a real engine; nothing was simulated)')
-@unittest.skipUnless(os.getenv('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
-@unittest.skipUnless(os.getenv('OMNI_TEST_REDIS_URL'), 'BLOCKED: OMNI_TEST_REDIS_URL (real Redis) not configured')
 class _OomProbe:
     """Measurement for the test_5 flake (SMELLS.md, #150), before any fix: peak cgroup memory against the limit, time
     from the drain start to the engine's `oom` and `die` events against the 60 s deadline, the engine's own OOMKilled
@@ -151,7 +148,11 @@ class _OomProbe:
         self.thread.start()
 
     def _cgroup(self):
-        full = subprocess.run(['docker', 'inspect', '-f', '{{.Id}}', self.cid], capture_output=True, text=True).stdout.strip()
+        try:
+            full = subprocess.run(['docker', 'inspect', '-f', '{{.Id}}', self.cid], capture_output=True, text=True,
+                                  timeout=20).stdout.strip()
+        except Exception:
+            return None
         for base in (f'/sys/fs/cgroup/system.slice/docker-{full}.scope', f'/sys/fs/cgroup/docker/{full}'):
             if Path(base, 'memory.current').exists():
                 return Path(base)
@@ -181,9 +182,12 @@ class _OomProbe:
         self.stop.set()
         self.thread.join(2)
         t1 = time.time()
-        out = subprocess.run(['docker', 'events', '--since', str(int(self.t0) - 1), '--until', str(int(t1) + 1),
-                              '--filter', f'container={self.cid}', '--format', '{{.Status}} {{.TimeNano}}'],
-                             capture_output=True, text=True, timeout=30).stdout.split('\n')
+        try:                                                         # a measurement never fails the test
+            out = subprocess.run(['docker', 'events', '--since', str(int(self.t0) - 1), '--until', str(int(t1) + 1),
+                                  '--filter', f'container={self.cid}', '--format', '{{.Status}} {{.TimeNano}}'],
+                                 capture_output=True, text=True, timeout=30).stdout.split('\n')
+        except Exception as exc:
+            out = [f'events-unavailable {type(exc).__name__}']
         first = {}
         for line in out:
             parts = line.split()
@@ -202,6 +206,9 @@ class _OomProbe:
             pass
 
 
+@unittest.skipUnless(docker_ok(), 'BLOCKED: no reachable Docker daemon (this test needs a real engine; nothing was simulated)')
+@unittest.skipUnless(os.getenv('M4D2_DATABASE_URL'), 'BLOCKED: M4D2_DATABASE_URL (isolated PostgreSQL) not configured')
+@unittest.skipUnless(os.getenv('OMNI_TEST_REDIS_URL'), 'BLOCKED: OMNI_TEST_REDIS_URL (real Redis) not configured')
 class RealDockerDrainRecovery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
