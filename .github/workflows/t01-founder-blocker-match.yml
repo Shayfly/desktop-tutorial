@@ -1,0 +1,56 @@
+name: T01 exact founder quota blocker repro inventory
+on:
+  push:
+    branches: [audit/148ai-engineering-recovery-t01-2026-10-13]
+    paths: [.github/workflows/t01-founder-blocker-match.yml]
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Match saved staging build contracts to photographed quote failure (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i omni-worker-worker-1 python - <<'PY'
+          import os, hashlib, json
+          import psycopg
+          from collections import Counter
+          assert os.getenv('OMNI_ENV') == 'staging'
+          email_hash='cfa6b12580e283432d57669d105ea4fd819055ba593dc94432854dd9e4925e9d'
+          photographed={'ai.agent.tools','integration.maps','media.audio.tts','outbound','target.agent'}
+          with psycopg.connect(os.environ['OMNI_DATABASE_URL'],options='-c default_transaction_read_only=on') as conn:
+            with conn.cursor() as cur:
+              cur.execute('SELECT id,email FROM creator_accounts')
+              users=[uid for uid,email in cur.fetchall() if email and hashlib.sha256(email.casefold().strip().encode()).hexdigest()==email_hash]
+              assert len(users)==1,'Founders identity mismatch'
+              uid=users[0]
+              cur.execute('SELECT count(*) FROM creator_projects WHERE owner_id=%s',(uid,))
+              print('FOUNDER_PROJECT_COUNT='+str(cur.fetchone()[0]))
+              cur.execute('SELECT count(*) FROM m5_build_contracts c JOIN creator_projects p ON p.id=c.project_id WHERE p.owner_id=%s',(uid,))
+              print('FOUNDER_CONTRACT_COUNT='+str(cur.fetchone()[0]))
+              cur.execute("""SELECT c.id,c.contract_json,p.title
+                             FROM m5_build_contracts c JOIN creator_projects p ON p.id=c.project_id
+                             WHERE p.owner_id=%s ORDER BY c.created_at DESC LIMIT 500""",(uid,))
+              rows=cur.fetchall()
+              hits=[]; distribution=Counter()
+              for index,(contract_id,payload,title) in enumerate(rows):
+                d=payload if isinstance(payload,dict) else json.loads(payload)
+                cap=(d.get('capability_plan') or {}).get('requirements') or []
+                required={r.get('key') for r in cap if r.get('required')}
+                distribution.update(required)
+                score=len(required & photographed)
+                if score:
+                  hits.append({'position':index,'matches':score,'matched_capabilities':sorted(required & photographed),
+                               'required_non_native':sorted(k for k in required if k in photographed),
+                               'travel_title_match':title.strip().casefold()=='travel' if title else False})
+              print('SCANNED_CONTRACTS='+str(len(rows)))
+              print('CONTRACT_MATCHES='+str(len(hits)))
+              for hit in sorted(hits,key=lambda x:-x['matches'])[:12]:
+                print('MATCH='+json.dumps(hit,sort_keys=True))
+              for k in sorted(photographed):
+                print('REQUIRED_FREQUENCY_'+k+'='+str(distribution[k]))
+          print('T01_READ_ONLY=1; no request text, email, IDs, DB URL or secret output')
+          PY
