@@ -93,6 +93,8 @@ jobs:
       - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci, about 10 seconds)
         if: always()
         timeout-minutes: 5
+        env:
+          NC_ENV: pg      # compare with each control's expect_failed_pg; extra failures here are INFO, not FAIL
         run: python scripts/run_negative_controls.py
       - name: No test may be skipped
         if: always()

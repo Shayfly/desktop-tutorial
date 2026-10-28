@@ -21,6 +21,12 @@
         "test_missing_key_fails_when_built_so_the_reservation_is_released",
         "test_worker_executes_a_reservation_on_venice",
         "test_worker_uses_the_provider_the_reservation_was_quoted_for"
+      ],
+      "expect_failed_pg": [
+        "test_conversation_reaches_venice_through_the_reservation",
+        "test_missing_key_fails_when_built_so_the_reservation_is_released",
+        "test_worker_executes_a_reservation_on_venice",
+        "test_worker_uses_the_provider_the_reservation_was_quoted_for"
       ]
     },
     {
@@ -39,6 +45,11 @@
       "expect_failed": [
         "test_call_shape_private_model_no_venice_prompt_no_retries",
         "test_venice_answer_is_derived_from_the_customer_words"
+      ],
+      "expect_failed_pg": [
+        "test_call_shape_private_model_no_venice_prompt_no_retries",
+        "test_conversation_reaches_venice_through_the_reservation",
+        "test_venice_answer_is_derived_from_the_customer_words"
       ]
     },
     {
@@ -55,6 +66,10 @@
         "tests/test_venice_in_conversation.py"
       ],
       "expect_failed": [
+        "test_quote_is_priced_at_the_venice_ceiling_and_covers_the_call"
+      ],
+      "expect_failed_pg": [
+        "test_conversation_reaches_venice_through_the_reservation",
         "test_quote_is_priced_at_the_venice_ceiling_and_covers_the_call"
       ]
     }

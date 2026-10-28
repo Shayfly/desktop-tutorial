@@ -117,5 +117,29 @@ class OneSummaryNoticePerSpec(unittest.TestCase):
         self.assertGreater(lines.index(notices[1]), lines.index('NC-EVIDENCE RESULT b_second NC4 PASS wNC4 -> x'))
 
 
+class PerEnvironmentExpectations(unittest.TestCase):
+    """2026-10-28: in pg the real-store tests also run, so a mutation breaks more than v24-ci sees."""
+
+    def test_each_environment_compares_with_its_own_set(self):
+        spec = {'expect_failed': ['a'], 'expect_failed_pg': ['a', 'real_store']}
+        self.assertEqual(nc.expected_for(spec, ''), ['a'])
+        self.assertEqual(nc.expected_for(spec, 'pg'), ['a', 'real_store'])
+        self.assertEqual(nc.expected_for({'expect_failed': ['a']}, 'pg'), ['a'])     # no pg set: the default
+
+    def test_an_expected_test_that_did_not_fail_is_a_fail_everywhere(self):
+        for env in ('', 'pg'):
+            ok, note = nc.verdict(['a'], ['a', 'b'], env)
+            self.assertFalse(ok, env)
+            self.assertIn("missing=['b']", note)
+
+    def test_an_extra_failure_is_info_only_in_pg(self):
+        ok, note = nc.verdict(['a', 'x'], ['a'], 'pg')
+        self.assertTrue(ok)
+        self.assertIn("INFO extra failures in pg: ['x']", note)
+        ok, note = nc.verdict(['a', 'x'], ['a'], '')
+        self.assertFalse(ok)
+        self.assertIn("extra=['x']", note)
+
+
 if __name__ == '__main__':
     unittest.main()

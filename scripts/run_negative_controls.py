@@ -37,7 +37,27 @@ def _git(repo, *args, check=False):
                           capture_output=True, text=True, check=check)
 
 
-def run_control(spec: dict, cid: str = 'NC') -> tuple[bool, str]:
+ENV = (os.getenv('NC_ENV') or '').strip()      # '' (v24-ci, no Postgres) | 'pg' (intake-budget-pg, real Postgres)
+
+
+def expected_for(spec: dict, env: str) -> list[str]:
+    """The tests this environment must see fail. A control may name its own set per environment
+    (`expect_failed_pg`): in pg the real-store tests run, so a mutation breaks them too."""
+    return sorted(spec.get(f'expect_failed_{env}') or spec['expect_failed']) if env else sorted(spec['expect_failed'])
+
+
+def verdict(failed, expected, env: str) -> tuple[bool, str]:
+    """An expected test that did not fail is ALWAYS a FAIL (the control proves nothing). A test that failed beyond
+    the expected set is a FAIL too -- except in pg, where it is reported as INFO: there the real-store tests also
+    run and a mutation may break more than the set the spec names. Never the other way round."""
+    missing = sorted(set(expected) - set(failed))
+    extra = sorted(set(failed) - set(expected))
+    ok = not missing and (not extra or env == 'pg')
+    return ok, ((f' missing={missing}' if missing else '') + (f' extra={extra}' if extra and not ok else '')
+                + (f' INFO extra failures in {env}: {extra}' if extra and ok else ''))
+
+
+def run_control(spec: dict, cid: str = 'NC', env: str | None = None) -> tuple[bool, str]:
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='nc-'))
     try:
         repo = tmp / 'repo'
@@ -94,12 +114,14 @@ def run_control(spec: dict, cid: str = 'NC') -> tuple[bool, str]:
         failed = sorted({c.get('name') for c in cases
                          if c.find('failure') is not None or c.find('error') is not None})
         skipped = {c.get('name') for c in cases if c.find('skipped') is not None}
-        expected = sorted(spec['expect_failed'])
+        env = ENV if env is None else env
+        expected = expected_for(spec, env)
         not_run = sorted(set(expected) & skipped)
         if not_run:
             return False, f'DID NOT RUN: expected tests were skipped {not_run} (ran={len(cases)})'
-        ok = failed == expected
-        return ok, f"mutation {'; '.join(applied)} | failed={failed} expected={expected} ran={len(cases)}"
+        ok, note = verdict(failed, expected, env)
+        return ok, (f"mutation {'; '.join(applied)} | failed={failed} expected[{env or 'default'}]={expected} "
+                    f"ran={len(cases)}" + note)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
