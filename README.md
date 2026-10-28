@@ -1,5 +1,7 @@
 # 148AI V28 — Vercel Launch Candidate
 
+חוקי הברזל המחייבים של 148AI: [docs/IRON_LAWS_HE.md](docs/IRON_LAWS_HE.md).
+
 Deployment repository for the current **148AI V28** online review environment.
 
 ## What this deployment contains
