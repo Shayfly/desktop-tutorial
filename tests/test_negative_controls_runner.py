@@ -1,6 +1,8 @@
 """scripts/run_negative_controls.py on a tiny fake repository: PASS only on the exact expected failures; every way
 of not running (mutation not applied, nothing collected, expected test skipped) is FAIL, never a silent pass."""
 import importlib.util
+import io
+from contextlib import redirect_stdout
 import pathlib
 import tempfile
 import textwrap
@@ -38,6 +40,32 @@ class Runner(unittest.TestCase):
         ok, detail = self.control()
         self.assertTrue(ok, detail)
         self.assertIn("failed=['test_refuses']", detail)
+
+    def test_the_applied_line_is_read_back_and_reported(self):
+        ok, detail = self.control()
+        self.assertIn("mutation lib.py:2 'return x > 0' -> 'return True'", detail)   # file:line, old -> line as it now is
+
+    def test_a_mutation_that_changes_nothing_fails_loudly(self):
+        """The stale-control failure of a759a13: the target exists but the replacement is identical -> no diff."""
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ok, detail = self.control(new='return x > 0')
+        self.assertFalse(ok)
+        self.assertIn('the mutation changed nothing', detail)
+        self.assertIn('NC-EVIDENCE MUTATION NC FAILED: git diff is empty', out.getvalue())
+
+    def test_log_shows_mutation_diff_and_clean_restore(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            ok, _ = self.control()
+        log = out.getvalue()
+        self.assertTrue(ok)
+        self.assertIn('NC-EVIDENCE MUTATION NC applied: lib.py:2', log)
+        self.assertIn('NC-EVIDENCE MUTATION NC   before: return x > 0', log)
+        self.assertIn('NC-EVIDENCE MUTATION NC   after:  return True', log)
+        self.assertIn('NC-EVIDENCE MUTATION NC diff: -    return x > 0', log)
+        self.assertIn('NC-EVIDENCE MUTATION NC diff: +    return True', log)
+        self.assertIn('NC-EVIDENCE restore NC: clean', log)
 
     def test_different_failures_fail(self):
         self.assertFalse(self.control(expect=('test_refuses', 'test_accepts'))[0])
