@@ -142,7 +142,12 @@ class _OomProbe:
         self.cid, self.t0 = cid, time.time()
         self.peak = self.current_max = 0
         self.oom_kill = None
+        self.samples, self.last_read_s = 0, None
         self.cgroup = self._cgroup()
+        # Which source the memory numbers come from, said in the evidence line (founder 2026-10-28: the first sample
+        # read 4.4 MiB / oom_kill=0 during a real OOM -- the container's cgroup is removed right after the kill, so a
+        # 0.2 s sampler never saw the allocation). Now 20 ms, with the time of the last successful read.
+        self.source = f'cgroup:{self.cgroup}' if self.cgroup else self._docker_stats_source()
         self.stop = threading.Event()
         self.thread = threading.Thread(target=self._sample, daemon=True)
         self.thread.start()
@@ -157,6 +162,15 @@ class _OomProbe:
             if Path(base, 'memory.current').exists():
                 return Path(base)
         return None
+
+    def _docker_stats_source(self):
+        """Fallback when the container's own cgroup is not found: one `docker stats` reading (MemUsage)."""
+        try:
+            out = subprocess.run(['docker', 'stats', '--no-stream', '--format', '{{.MemUsage}}', self.cid],
+                                 capture_output=True, text=True, timeout=20).stdout.strip()
+            return f'docker-stats:{out or "empty"}'
+        except Exception as exc:
+            return f'none:{type(exc).__name__}'
 
     def _read(self, name):
         try:
@@ -176,7 +190,10 @@ class _OomProbe:
             for line in ev.splitlines():
                 if line.startswith('oom_kill '):
                     self.oom_kill = int(line.split()[1])
-            time.sleep(0.2)
+            if cur is not None:
+                self.samples += 1
+                self.last_read_s = round(time.time() - self.t0, 2)
+            time.sleep(0.02)
 
     def finish(self, state):
         self.stop.set()
@@ -195,7 +212,8 @@ class _OomProbe:
                 first[parts[0]] = round(int(parts[1]) / 1e9 - self.t0, 1)
         mib = lambda b: round(b / 1048576, 1) if b else None
         line = (f"limit={MEM_LIMIT_MIB}MiB alloc={OOM_ALLOCATION_MIB}MiB peak={mib(self.peak)}MiB "
-                f"current_max={mib(self.current_max)}MiB cgroup={'found' if self.cgroup else 'NOT FOUND'} "
+                f"current_max={mib(self.current_max)}MiB source={self.source} samples={self.samples} "
+                f"last_cgroup_read_s={self.last_read_s} "
                 f"oom_kill_counter={self.oom_kill} engine_events_s_after_drain_start={first} "
                 f"deadline=60s drain_s={round(t1 - self.t0, 1)} inspect(OOMKilled ExitCode)={state.strip()}")
         print('\nMEASURE test_5:', line, flush=True)
