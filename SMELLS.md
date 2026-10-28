@@ -4479,7 +4479,7 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
   - **שיא הזיכרון של ה-cgroup** (‏`memory.peak` ו-`memory.current`) מול המגבלה.
   - **מונה `oom_kill`** מתוך `memory.events`.
   - **זמני האירועים** `oom`, ‏`die`, ‏`kill` ו-`stop` של המנוע, מתחילת ה-drain, מול ה-deadline של 60 שניות.
-  - **הדגל `OMNI OOMKilled ExitCode`** של `docker inspect`.
+  - **הדגלים `OOMKilled` ו-`ExitCode`** של `docker inspect`.
   - **הפלט:** שורת `::notice title=oom-measure test_5` בצעד ה-Evidence של pg.
 - **ההשערה שהמדידה בודקת:** יש מרוץ בין שני טיימרים. ה-kernel הורג את התהליך על OOM, ובמקביל ה-deadline של 60 שניות שולח SIGKILL. אם ה-deadline מגיע ראשון, התוצאה היא exit 137 בלי `OOMKilled=true`.
   - **מצב ההשערה:** לא הוכחה. המדידה תגיד, ורק אחריה יבוא תיקון.
