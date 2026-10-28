@@ -42,7 +42,10 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
     if (quote or {}).get('provider') == 'venice':
         from ..providers import venice_gateway   # a missing key raises here -> "no model route", no charge
         cin, cout = quote['venice_ceiling_usd_per_m']
-        return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)))
+        # the list the reservation was QUOTED with; a quote without one (older) falls back to the worker's
+        # OMNI_VENICE_ALLOWED_MODELS, and with neither the gateway refuses to build (released, no charge)
+        return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)),
+                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None)
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
