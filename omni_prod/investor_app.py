@@ -1950,8 +1950,15 @@ class V28ConversationMessage(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
     brief_revision: int | None = Field(default=None, ge=1)
-    # Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint.
+    # Gate 1 is NOT a conversation message (2026-10-28): its own route is POST .../spec-approval; this field is kept
+    # for older clients and is routed to the same action (an empty message is valid with it).
     approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
+
+
+class V28SpecApproval(BaseModel):
+    """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
+    brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
+    request_key: str | None = Field(default=None, max_length=80)
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2085,8 +2092,15 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+    if req.approve_spec:
+        # An approval is an ACTION, not a chat message: it used to ride here with message='' and was refused as
+        # empty_message, so the spec was never approved and the build gate stayed closed ("לא ניתן להתחיל בבנייה
+        # כרגע"). The app now calls POST .../spec-approval; a client that still sends it here is approved the same way.
+        return v28_spec_approval(project_id, V28SpecApproval(brief_fingerprint=req.approve_spec,
+                                                             request_key=req.request_key), request)
     if not req.message.strip() and not req.answers and not req.attachment_ids:
-        raise HTTPException(422, detail={'error': 'empty_message'})
+        raise HTTPException(422, detail={'error': 'empty_message',
+                                         'message': 'The message is empty: write something, choose an answer or attach an image.'})
     attached = []
     if req.attachment_ids:
         from .attachments import AttachmentError, public as _att_public
@@ -2104,18 +2118,36 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         if latest is None or latest.revision != req.brief_revision:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
-        if req.approve_spec:
-            turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
-                                                             brief_fingerprint=req.approve_spec,
-                                                             request_key=req.request_key, lang=lang)
-        else:
-            turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                                     answers=req.answers, request_key=req.request_key, lang=lang,
-                                                     attachments=attached)
+        turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
+                                                 answers=req.answers, request_key=req.request_key, lang=lang,
+                                                 attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
+    return _conversation_view(project_id, turn.language, turn)
+
+
+@app.post('/api/v28/projects/{project_id}/spec-approval')
+def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -> dict:
+    """Gate 1: approve THIS spec by its fingerprint (its own route, never a chat message). A stale or incomplete spec
+    is answered in the conversation by the supervisor (no plan is made); a malformed fingerprint is a 422."""
+    from .brief_repository import StaleBrief
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')   # a retried click: no second approval
+    try:
+        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
+                                                         brief_fingerprint=req.brief_fingerprint,
+                                                         request_key=req.request_key, lang=lang)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)
 
 
@@ -2251,6 +2283,25 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+_CLARIFY_HE = {'clarify-primary-workflow': ('מה הפעולה העסקית העיקרית, ומי ישתמש בה?',
+                                          'התשובה משנה את מבנה הנתונים ואת תנאי הקבלה.')}
+
+
+def _plan_in_customer_language(preview: dict, brief, lang: str) -> None:
+    """Every customer-facing line of a brief-bound plan follows the customer's language (2026-10-28: the summary was
+    the architect's English build spec -- "M5 managed Web/SaaS contract for: ... Main action: ... Initial content:
+    ..." -- and the questions were English). The English build spec stays, for the code generator only."""
+    from . import discovery as d
+    product = preview.get('product') or {}
+    product['technical_summary'] = product.get('summary')
+    product['summary'] = d.summary(brief, lang)['goal']
+    if lang == 'he':
+        for q in preview.get('clarification_questions') or []:
+            he = _CLARIFY_HE.get(q.get('id'))
+            if he:
+                q['question'], q['reason'] = he
+
+
 def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
     """Expose the build-admission gate before showing an approval button.
     Deterministic/free; does not reserve credits or start a build."""
@@ -2365,6 +2416,7 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         }
     if brief_row is not None:
         _apply_execution_plan_gate(preview, project_id, brief_row)
+        _plan_in_customer_language(preview, brief_row.brief, _lang(request))
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')

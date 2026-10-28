@@ -118,6 +118,30 @@ RULES: tuple[tuple[str, str, str, str], ...] = (
 DELEGATE_RX = r'(תחליט(ו)? (אתה|אתם|בשבילי)|תבחר(ו)? (אתה|אתם|בשבילי)|לא משנה לי|מה שנראה לך|you decide|up to you|whatever you think|your call|choose for me)'
 
 
+# Technical text pasted into a product brief (an env var name, a URL, a file path, a stack-trace line, key=value) is
+# not the customer's goal: 2026-10-28 "OMNI_REDIS_URL" on its own line became "Main action: OMNI_REDIS_URL".
+_NOISE_TOKEN = re.compile(r'\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\b[a-z][a-z0-9+.-]*://\S+|\S+\.(?:py|js|ts|json|ya?ml|sh)\b|'
+                          r'\b\w+=\S*|\bTraceback\b|\bat 0x[0-9a-f]+\b|[{}\[\]<>`|\\]')
+_WORD = re.compile(r'[^\W\d_]{2,}', re.U)
+
+
+def technical_noise(text: str) -> bool:
+    """True when, once the technical tokens are removed, fewer than two real words are left -- or when the text has
+    a technical token and under five real words ("OMNI_REDIS_URL is not set.")."""
+    words = len(_WORD.findall(_NOISE_TOKEN.sub(' ', text or '')))
+    return words < 2 or (bool(_NOISE_TOKEN.search(text or '')) and words < 5)
+
+
+def first_sentence(text: str) -> str:
+    """The customer's first business sentence: the first sentence (or line) that is not technical noise."""
+    for line in (text or '').splitlines():
+        for part in re.split(r'(?<=[.!?])\s+', line.strip()):
+            part = part.strip()
+            if len(part) >= 8 and not technical_noise(part):
+                return part
+    return ''
+
+
 class DeterministicInterpreter:
     name = 'deterministic'
 
@@ -143,7 +167,10 @@ class DeterministicInterpreter:
             best['audience'] = Proposal('audience', 'both', MEDIUM, 'customers + staff')
         goal = None
         if brief is None or 'goal' not in brief.fields:
-            first = re.split(r'(?<=[.!?\n])\s', (message or '').strip(), maxsplit=1)[0]
+            # The goal is the customer's FIRST sentence of their FIRST message (brief.prompt), never the first sentence
+            # of a later message: a pasted error ("OMNI_REDIS_URL is not set.") became the goal that way (2026-10-28).
+            source = (brief.prompt if brief is not None and (brief.prompt or '').strip() else message) or ''
+            first = first_sentence(source)
             if len(first) >= 8:
                 goal = Proposal('goal', first[:300], MEDIUM, first[:120])
         props = list(best.values()) + ([goal] if goal else [])

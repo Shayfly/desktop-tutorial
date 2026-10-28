@@ -543,7 +543,7 @@ class ConversationSupervisor:
                 new_brief.semantic_decisions, interp.semantic_decisions)
         recorded = False
         if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
-                and not answers and _CONTENT_RX.search(message)):
+                and not answers and _CONTENT_RX.search(message) and not intake_agent._off_topic('content', message)):
             new_brief, recorded = _record_content(new_brief, message), True
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
@@ -586,6 +586,8 @@ class ConversationSupervisor:
         if turn.interpretation is not None:
             turn.interpretation.update(complexity=cls.to_dict() if cls else None, lane=lane,
                                        conflicts=res.conflicts, corrected=res.corrected)
+            if res.dropped:      # refused by the brief (e.g. technical text as the goal): logged, the turn continues
+                turn.interpretation['dropped'] = list(turn.interpretation.get('dropped') or []) + res.dropped
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id

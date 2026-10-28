@@ -518,7 +518,7 @@ function beginBriefEdit() {
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
   try {
-    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST',
+    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
     S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
@@ -1223,6 +1223,8 @@ async function dialogAction(fn, okKey) {
 
 /* ---------- conversation (Unified Conversation OS) ---------- */
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
+// Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
+const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
 function applyConversation(view) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
   S.chat = view;
@@ -1244,7 +1246,7 @@ async function restoreConversation() {
   }
 }
 let chatBusy = false;
-async function sendChat(body, shownText) {
+async function sendChat(body, shownText, path) {
   if (chatBusy || !S.projectId) return;
   const retrySignature=JSON.stringify([S.projectId,body]);
   if(!S.chatRetry || S.chatRetry.signature!==retrySignature)S.chatRetry={signature:retrySignature,key:newKey()};
@@ -1252,7 +1254,7 @@ async function sendChat(body, shownText) {
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    const view = await api(`${(path || convPath)()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
     S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
@@ -1309,7 +1311,7 @@ function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
     if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
-    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ approve_spec: a.brief_fingerprint }, t('actApproveSpec')) }, t('actApproveSpec')));
+    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ brief_fingerprint: a.brief_fingerprint }, t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec')));
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
