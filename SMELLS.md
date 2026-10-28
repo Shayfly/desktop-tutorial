@@ -4484,7 +4484,7 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
 - **ההשערה שהמדידה בודקת:** יש מרוץ בין שני טיימרים. ה-kernel הורג את התהליך על OOM, ובמקביל ה-deadline של 60 שניות שולח SIGKILL. אם ה-deadline מגיע ראשון, התוצאה היא exit 137 בלי `OOMKilled=true`.
   - **מצב ההשערה:** לא הוכחה. המדידה תגיד, ורק אחריה יבוא תיקון.
 
-#### מדידות `oom-measure test_5`, כל מדידה כפי שנרשמה (משולמות לפני כל החלטה)
+#### מדידות `oom-measure test_5`, כל מדידה כפי שנרשמה (נרשמות לפני כל החלטה)
 
 | # | ריצה | SHA | test_5 | kill (s) | oom (s) | die (s) | OOMKilled / Exit | peak / limit | oom_kill counter |
 |---|---|---|---|---|---|---|---|---|---|
