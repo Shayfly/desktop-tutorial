@@ -99,6 +99,8 @@ const T = {
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
     b_spec_not_approved:'לפני שמתחילים לבנות, צריך לאשר את המפרט. אפשר לעשות את זה כאן.',
     b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
+    b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
+    b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
@@ -209,6 +211,8 @@ const T = {
     b_cost_quote_unavailable:'No verified build quote was returned.',
     b_spec_not_approved:'Approve the spec before the build starts. You can do it right here.',
     b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
+    b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
+    b_brief_stale:'The request changed since it was approved. Approve the current spec.',
     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
@@ -304,7 +308,7 @@ function explain(err) {
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
-  if (err.detail && (err.detail.error === 'spec_not_approved' || err.detail.error === 'plan_not_verified'))
+  if (err.detail && ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'].includes(err.detail.error))
     return t(`b_${err.detail.error}`);     // a human sentence, never the server's English (the status stays 409)
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
@@ -747,7 +751,7 @@ function renderPlan() {
         h('p', { class: 'hint' }, t('quoteMissingHelp'))
       ] : []),
       // 409 spec_not_approved / plan_not_verified: the same approval button as in the conversation, right here
-      ...(p.brief_fingerprint && p.blockers.some(b => b.code === 'spec_not_approved' || b.code === 'plan_not_verified') ? [
+      ...(p.brief_fingerprint && p.blockers.some(b => ['spec_not_approved', 'plan_not_verified', 'brief_stale'].includes(b.code)) ? [
         h('button', { type: 'button', class: 'primary', onclick: async () => {
           if (await sendChat({ brief_fingerprint: p.brief_fingerprint }, t('actApproveSpec'), specApprovalPath)) {
             S.plan = null; await requestBriefPlan();

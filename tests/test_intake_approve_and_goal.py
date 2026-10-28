@@ -349,6 +349,17 @@ class TheFlowMark(unittest.TestCase):
         self.assertTrue(AF.on_two_gate_flow(self.store.messages))
         self.assertEqual(self.bind_error(row.fingerprint), (409, 'spec_not_approved'))
 
+    def test_without_the_conversation_schema_a_new_project_build_is_409_not_200(self):
+        """Matt 2026-10-28: with schema_ready False the gate used to return None BEFORE both gates (the build went on
+        as before Wave A). Now it refuses: the approval state cannot be read."""
+        row = self.new_project()
+        with mock.patch('omni_prod.conversation.store.schema_ready', lambda pool: False):
+            self.assertEqual(self.bind_error(row.fingerprint), (409, 'approval_state_unavailable'))
+
+    def test_a_stale_fingerprint_on_the_two_gate_flow_is_refused_not_skipped(self):
+        row = self.new_project()
+        self.assertEqual(self.bind_error('0' * 64), (409, 'brief_stale'))
+
     def test_earlier_project_without_mark_and_a_plan_without_gate_still_passes(self):
         from omni_prod import discovery as dd
         brief = A.apply(dd.start(self.EQUIPMENT, dd.GUIDED), DeterministicInterpreter().interpret(self.EQUIPMENT, None),
@@ -415,21 +426,40 @@ class ADoubleClickInParallel(unittest.TestCase):
                            'no login, no personal data')
         t = sup().turn(project_id=project, account_id=account, message='you decide', lang='en')
         fp = next(a['brief_fingerprint'] for a in t.actions if a['type'] == 'approve_spec')
+        # Through the REAL route (POST .../spec-approval), two clicks racing with the same request_key. Both requests
+        # must END and both must be 2xx (the second may be the duplicate); a request that crashes is a FAIL (Matt).
         import time
-        barrier, errors = threading.Barrier(2), []
+        IA, _ = _api()
+        from fastapi.testclient import TestClient
+        patches = [mock.patch.object(IA, '_v28_bearer', lambda r: 'tok'),
+                   mock.patch.object(IA._v28, 'resolve_project_key', lambda **kw: (mock.Mock(id=account), 'k')),
+                   mock.patch.object(IA, '_conversation_store', lambda: PostgresConversationStore(self.pool)),
+                   mock.patch.object(IA, '_brief_repo', lambda: PostgresBriefRepository(self.pool)),
+                   mock.patch.object(IA, '_supervisor', lambda key, aid=None: sup()),
+                   mock.patch.object(IA, '_conversation_view', lambda pid, lang, turn=None: {'ok': True})]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        barrier, errors, statuses = threading.Barrier(2), [], []
         started = time.monotonic()
 
         def click():
             try:
+                client = TestClient(IA.app)                # its own client = its own connection
                 barrier.wait()
-                sup().approve_spec(project_id=project, account_id=account, brief_fingerprint=fp,
-                                   request_key='double-click', lang='en')
-            except Exception as exc:                       # a refusal is fine; a second approval is not
+                r = client.post(f'/api/v28/projects/{project}/spec-approval?lang=en',
+                                json={'brief_fingerprint': fp, 'request_key': 'double-click'})
+                statuses.append(r.status_code)
+            except Exception as exc:                       # a crashed request is never acceptable
                 errors.append(f'{type(exc).__name__}: {exc}')
         ts = [threading.Thread(target=click) for _ in range(2)]
         [x.start() for x in ts]
         [x.join(60) for x in ts]
         elapsed = time.monotonic() - started
+        self.assertFalse([x for x in ts if x.is_alive()], 'a request did not end')
+        self.assertEqual(errors, [])
+        self.assertEqual(len(statuses), 2, statuses)
+        self.assertTrue(all(200 <= c < 300 for c in statuses), statuses)
         self.assertGreater(elapsed, 0)
         messages = PostgresConversationStore(self.pool).messages_for(project)
         approvals = [m for m in messages if (m.get('interpretation') or {}).get('spec_approved') == fp]
@@ -439,8 +469,8 @@ class ADoubleClickInParallel(unittest.TestCase):
         self.assertEqual(len(approvals), 1, errors)
         self.assertEqual(len(replies), 1, errors)
         self.assertEqual(plans, 1, errors)
-        notice('approve-action double-click PASS', f'2 parallel approvals, same request_key -> approvals=1 replies=1 '
-                                                   f'plans={plans} errors={len(errors)} elapsed_s={elapsed:.3f}')
+        notice('approve-action double-click PASS', f'2 parallel POST spec-approval, same request_key -> statuses={sorted(statuses)} '
+                                                   f'approvals=1 replies=1 plans={plans} errors={len(errors)} elapsed_s={elapsed:.3f}')
 
 
 if __name__ == '__main__':

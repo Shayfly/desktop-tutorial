@@ -2221,21 +2221,28 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     from .planning.architect import ChiefArchitect
     from .conversation.store import schema_ready
     row = _brief_repo().latest(project_id)
-    if row is None or row.fingerprint != brief_fingerprint:
-        return None
     if not schema_ready(_v28_pool):
-        # Migration 036 not applied yet: the build proceeds exactly as before
-        # Wave A (reactive agent graph, no plan binding) instead of failing.
-        logging.getLogger(__name__).warning('execution plan not bound: migration 036 pending')
-        return None
+        # 2026-10-28 (Matt): this used to return None -- "build as before Wave A, no plan binding" -- BEFORE the two
+        # gates, so a server without migration 036 built with no spec approval at all. Without the conversation tables
+        # the approval state cannot be read, and a new project cannot be told from an earlier one: fail closed.
+        logging.getLogger(__name__).error('build refused: migration 036 pending, the approval state cannot be read')
+        raise HTTPException(409, detail={'error': 'approval_state_unavailable',
+                                         'message': 'The approval state cannot be read on this server yet '
+                                                    '(database migration 036 pending); no build starts without it.'})
     store = _conversation_store()
-    saved = store.plan_for(project_id, brief_fingerprint)
     # Two gates (owner 2026-10-26): on a project whose conversation asked for spec approval, a build needs that
     # approval for THIS fingerprint and the plan the verifier accepted. Projects that never saw gate 1, and plans
     # saved before it (no 'spec_gate'), keep the earlier path unchanged.
     from .intake import approval_flow as AF
     messages = store.messages_for(project_id, limit=500)
-    if AF.on_two_gate_flow(messages):
+    two_gate = AF.on_two_gate_flow(messages)
+    if row is None or row.fingerprint != brief_fingerprint:
+        if two_gate:                                   # never skip the gates on the two-gate flow
+            raise HTTPException(409, detail={'error': 'brief_stale',
+                                             'message': 'The request changed; approve the current spec.'})
+        return None                                    # an earlier project: the earlier path, unchanged
+    saved = store.plan_for(project_id, brief_fingerprint)
+    if two_gate:
         if not AF.spec_approved(messages, brief_fingerprint):
             raise HTTPException(409, detail={'error': 'spec_not_approved',
                                              'message': 'Approve the spec in the conversation first; no plan is made before that.'})
@@ -2359,7 +2366,8 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid',
-                                                                 'spec_not_approved', 'plan_not_verified'}:
+                                                                 'spec_not_approved', 'plan_not_verified',
+                                                                 'approval_state_unavailable', 'brief_stale'}:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],

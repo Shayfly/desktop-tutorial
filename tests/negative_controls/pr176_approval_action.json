@@ -57,6 +57,43 @@
       "expect_failed": [
         "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval"
       ]
+    },
+    {
+      "id": "NC4",
+      "what": "the schema compat path returns None before both gates again (a build with no spec approval)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        logging.getLogger(__name__).error('build refused: migration 036 pending, the approval state cannot be read')\n        raise HTTPException(409, detail={'error': 'approval_state_unavailable',",
+          "new": "        return None  # NEGATIVE CONTROL\n        raise HTTPException(409, detail={'error': 'approval_state_unavailable',"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_without_the_conversation_schema_a_new_project_build_is_409_not_200"
+      ]
+    },
+    {
+      "id": "NC5",
+      "what": "the second of two racing approvals crashes: the race test must fail (it may not only count rows)",
+      "envs": [
+        "pg"
+      ],
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,\n                                                         brief_fingerprint=req.brief_fingerprint,",
+          "new": "        if req.request_key == 'double-click':  # NEGATIVE CONTROL: the second racing request crashes\n            if globals().get('_NC_SEEN'):\n                raise RuntimeError('negative control: the second racing request crashed')\n            globals()['_NC_SEEN'] = True\n        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,\n                                                         brief_fingerprint=req.brief_fingerprint,"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_same_request_key_in_parallel_is_one_approval_and_one_plan"
+      ]
     }
   ]
 }
