@@ -4483,3 +4483,14 @@ omni_prod/worker_tasks.py:1443:    WHERE l.depth < 64
   - **הפלט:** שורת `::notice title=oom-measure test_5` בצעד ה-Evidence של pg.
 - **ההשערה שהמדידה בודקת:** יש מרוץ בין שני טיימרים. ה-kernel הורג את התהליך על OOM, ובמקביל ה-deadline של 60 שניות שולח SIGKILL. אם ה-deadline מגיע ראשון, התוצאה היא exit 137 בלי `OOMKilled=true`.
   - **מצב ההשערה:** לא הוכחה. המדידה תגיד, ורק אחריה יבוא תיקון.
+
+#### מדידות `oom-measure test_5`, כל מדידה כפי שנרשמה (משולמות לפני כל החלטה)
+
+| # | ריצה | SHA | test_5 | kill (s) | oom (s) | die (s) | OOMKilled / Exit | peak / limit | oom_kill counter |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | [40690977510](https://github.com/Shayfly/desktop-tutorial/actions/runs/40690977510) | `7ec8dc2` | PASS | 2.0 | 2.9 | 2.9 | true / 137 | 4.4 MiB / 48 MiB | 0 |
+
+**קריאה ראשונה, השערה בלבד:**
+- **סדר האירועים:** ב-PASS, אירוע `kill` של המנוע מגיע **לפני** `oom` (2.0 שניות מול 2.9). זה מוקדם בהרבה מה-deadline של 60 שניות. המשמעות: המנוע עצמו שולח kill לפני שה-kernel מסמן OOM. כשהסדר יוצא אחרת, ייתכן ש-`OOMKilled` לא מסומן.
+- **ה-cgroup:** ‏`peak=4.4MiB` ו-`oom_kill=0`, מול `OOMKilled=true`. סביר שה-probe קורא cgroup שאינו של הקונטיינר, או של הורה שלו. **ערכי הזיכרון והמונה במדידה הזו לא אמינים**, ושורת המדידה צריכה לציין איזה נתיב cgroup נקרא.
+- **החלטה:** לא לפני שתירשם לפחות מדידה אחת של FAIL.
