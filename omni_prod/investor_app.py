@@ -1,5 +1,6 @@
 from __future__ import annotations
 from decimal import Decimal
+import hashlib
 import re
 import logging
 import os
@@ -1134,16 +1135,23 @@ async def v25_runtime_ws(websocket:WebSocket,deployment_id:str,token:str=''):
         return
 
 _ASSET_DIR=Path(__file__).resolve().parent/'assets'
+# Cache busting (2026-10-28): every deploy references its own asset version, and the assets revalidate, so a fixed
+# app.js reaches a browser that had the old one cached. An already-open tab keeps its old JS until reloaded; the API
+# stays compatible with it (e.g. the old approve_spec on the conversation route is routed to the approval action).
+_ASSET_VERSION=hashlib.sha256(b''.join((_ASSET_DIR/n).read_bytes() for n in ('app.js','visual-edit.js','app.css'))).hexdigest()[:12]
 _HTML=(_ASSET_DIR/'index.html').read_text(encoding='utf-8')
+for _n in ('app.js','visual-edit.js','app.css'):
+    _HTML=_HTML.replace(f'/assets/{_n}"', f'/assets/{_n}?v={_ASSET_VERSION}"')
+_REVALIDATE={'Cache-Control':'no-cache'}
 
 @app.get('/assets/app.css')
-def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css')
+def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_REVALIDATE)
 
 @app.get('/assets/app.js')
-def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/assets/visual-edit.js')
-def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -1582,9 +1590,48 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
         # Project count is not a spend authorization. Users may maintain as
         # many projects as they need; builds retain separate cost and execution
         # admission controls. No external model call occurs on project create.
-        return _v28.create_project(token=token, title=req.title)
+        mark = _two_gate_flow_mark(account.id)
+        if mark is None:
+            project = _v28.create_project(token=token, title=req.title)
+        else:
+            project = _v28.create_project(token=token, title=req.title, in_transaction=mark)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    except FlowMarkNotWritten as exc:
+        logging.getLogger(__name__).error('project NOT created: its two-gate flow mark could not be written', exc_info=True)
+        raise HTTPException(503, detail={'error': 'project_not_created',
+                                         'message': 'The project was not created: its approval state could not be '
+                                                    'saved. Nothing was saved; please try again.'}) from exc
+    return project
+
+
+class FlowMarkNotWritten(RuntimeError):
+    """The two-gate flow mark failed inside the project-creation transaction; the project was rolled back."""
+
+
+def _two_gate_flow_mark(account_id):
+    """Founder 2026-10-28 (option b), Matt 2026-10-28: EVERY project created from now on is on the two-gate flow,
+    whatever path it then takes (conversation or guided questions). The mark is a hidden assistant row
+    (interpretation.system) written in the SAME transaction as the project row: if the write fails, the project is
+    rolled back and creation fails -- there is never a project without its mark (an unmarked project would take the
+    earlier path with no spec approval and no verifier). Returns the in-transaction writer, or None when there is no
+    durable backend at all (no pool: no durable build path to gate). A durable backend without the conversation
+    schema refuses creation (503 from _conversation_store) rather than create an unmarked project."""
+    from .intake import approval_flow as AF
+    if _v28_pool is None:
+        return None
+    store = _conversation_store()                      # 503 conversation_not_ready: no project is created
+
+    def write(conn, project) -> None:
+        try:
+            row = store.add_message(project_id=project.id, account_id=account_id, role='assistant', content='',
+                                    interpretation={'flow': AF.FLOW, 'system': 'project_created'},
+                                    request_key=f'flow-mark:{project.id}', conn=conn)
+        except Exception as exc:
+            raise FlowMarkNotWritten(str(exc)) from exc
+        if not row or (row.get('interpretation') or {}).get('flow') != AF.FLOW:
+            raise FlowMarkNotWritten('the flow mark row was not stored')
+    return write
 
 @app.get('/api/v28/projects')
 def v28_projects(request: Request) -> dict:
@@ -1950,8 +1997,15 @@ class V28ConversationMessage(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
     brief_revision: int | None = Field(default=None, ge=1)
-    # Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint.
+    # Gate 1 is NOT a conversation message (2026-10-28): its own route is POST .../spec-approval; this field is kept
+    # for older clients and is routed to the same action (an empty message is valid with it).
     approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
+
+
+class V28SpecApproval(BaseModel):
+    """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
+    brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
+    request_key: str | None = Field(default=None, max_length=80)
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2044,7 +2098,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                       'actions': (m.get('interpretation') or {}).get('actions') or [],
                       'attachments': (m.get('interpretation') or {}).get('attachments') or [],
                       'ai_status': _conversation_message_status(m)}
-                     for m in store.messages_for(project_id, limit=100)],
+                     for m in store.messages_for(project_id, limit=100)
+                     if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
@@ -2085,8 +2140,15 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+    if req.approve_spec:
+        # An approval is an ACTION, not a chat message: it used to ride here with message='' and was refused as
+        # empty_message, so the spec was never approved and the build gate stayed closed ("לא ניתן להתחיל בבנייה
+        # כרגע"). The app now calls POST .../spec-approval; a client that still sends it here is approved the same way.
+        return v28_spec_approval(project_id, V28SpecApproval(brief_fingerprint=req.approve_spec,
+                                                             request_key=req.request_key), request)
     if not req.message.strip() and not req.answers and not req.attachment_ids:
-        raise HTTPException(422, detail={'error': 'empty_message'})
+        raise HTTPException(422, detail={'error': 'empty_message',
+                                         'message': 'The message is empty: write something, choose an answer or attach an image.'})
     attached = []
     if req.attachment_ids:
         from .attachments import AttachmentError, public as _att_public
@@ -2104,18 +2166,36 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         if latest is None or latest.revision != req.brief_revision:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
-        if req.approve_spec:
-            turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
-                                                             brief_fingerprint=req.approve_spec,
-                                                             request_key=req.request_key, lang=lang)
-        else:
-            turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                                     answers=req.answers, request_key=req.request_key, lang=lang,
-                                                     attachments=attached)
+        turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
+                                                 answers=req.answers, request_key=req.request_key, lang=lang,
+                                                 attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
+    return _conversation_view(project_id, turn.language, turn)
+
+
+@app.post('/api/v28/projects/{project_id}/spec-approval')
+def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -> dict:
+    """Gate 1: approve THIS spec by its fingerprint (its own route, never a chat message). A stale or incomplete spec
+    is answered in the conversation by the supervisor (no plan is made); a malformed fingerprint is a 422."""
+    from .brief_repository import StaleBrief
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')   # a retried click: no second approval
+    try:
+        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
+                                                         brief_fingerprint=req.brief_fingerprint,
+                                                         request_key=req.request_key, lang=lang)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)
 
 
@@ -2158,26 +2238,34 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     from .planning.architect import ChiefArchitect
     from .conversation.store import schema_ready
     row = _brief_repo().latest(project_id)
-    if row is None or row.fingerprint != brief_fingerprint:
-        return None
     if not schema_ready(_v28_pool):
-        # Migration 036 not applied yet: the build proceeds exactly as before
-        # Wave A (reactive agent graph, no plan binding) instead of failing.
-        logging.getLogger(__name__).warning('execution plan not bound: migration 036 pending')
-        return None
+        # 2026-10-28 (Matt): this used to return None -- "build as before Wave A, no plan binding" -- BEFORE the two
+        # gates, so a server without migration 036 built with no spec approval at all. Without the conversation tables
+        # the approval state cannot be read, and a new project cannot be told from an earlier one: fail closed.
+        logging.getLogger(__name__).error('build refused: migration 036 pending, the approval state cannot be read')
+        raise HTTPException(409, detail={'error': 'approval_state_unavailable',
+                                         'message': 'The approval state cannot be read on this server yet '
+                                                    '(database migration 036 pending); no build starts without it.'})
     store = _conversation_store()
-    saved = store.plan_for(project_id, brief_fingerprint)
     # Two gates (owner 2026-10-26): on a project whose conversation asked for spec approval, a build needs that
     # approval for THIS fingerprint and the plan the verifier accepted. Projects that never saw gate 1, and plans
     # saved before it (no 'spec_gate'), keep the earlier path unchanged.
     from .intake import approval_flow as AF
     messages = store.messages_for(project_id, limit=500)
-    if AF.on_two_gate_flow(messages):
+    two_gate = AF.on_two_gate_flow(messages)
+    if row is None or row.fingerprint != brief_fingerprint:
+        if two_gate:                                   # never skip the gates on the two-gate flow
+            raise HTTPException(409, detail={'error': 'brief_stale',
+                                             'message': 'The request changed; approve the current spec.'})
+        return None                                    # an earlier project: the earlier path, unchanged
+    saved = store.plan_for(project_id, brief_fingerprint)
+    if two_gate:
         if not AF.spec_approved(messages, brief_fingerprint):
             raise HTTPException(409, detail={'error': 'spec_not_approved',
                                              'message': 'Approve the spec in the conversation first; no plan is made before that.'})
         gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
-        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):
+        # Founder 2026-10-28: on the two-gate flow a plan WITHOUT the verifier's gate is not verified either.
+        if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):
             raise HTTPException(409, detail={'error': 'plan_not_verified',
                                              'message': 'The plan for this spec has not passed the verifier.'})
     if saved is None:
@@ -2251,6 +2339,42 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+# The architect's role and data tokens (product_architect._infer_roles / _infer_data_requirements and the
+# unified_engine modules), named for the customer. A token missing here is a test failure (test_every_token_is_named).
+_ROLE_NAMES = {'admin': ('מנהל המערכת', 'Administrator'), 'manager': ('מנהל', 'Manager'),
+               'travel_agent': ('סוכן נסיעות', 'Travel agent'), 'agent': ('סוכן', 'Agent'),
+               'customer': ('לקוח', 'Customer'), 'driver': ('נהג', 'Driver'), 'member': ('חבר צוות', 'Team member')}
+_DATA_NAMES = {'customers': ('לקוחות', 'Customers'), 'bookings': ('הזמנות ותורים', 'Bookings'),
+               'leads': ('לידים', 'Leads'), 'orders': ('הזמנות', 'Orders'), 'products': ('מוצרים', 'Products'),
+               'inventory': ('מלאי', 'Inventory'), 'drivers': ('נהגים', 'Drivers'), 'rides': ('נסיעות', 'Rides'),
+               'messages': ('הודעות', 'Messages'), 'invoices': ('חשבוניות', 'Invoices'),
+               'payments': ('תשלומים', 'Payments'), 'jobs': ('משימות', 'Jobs'), 'team': ('צוות', 'Team'),
+               'availability': ('זמינות', 'Availability'), 'providers': ('ספקים', 'Providers'),
+               'players': ('שחקנים', 'Players'), 'matches': ('משחקים', 'Matches'), 'progression': ('התקדמות', 'Progression'),
+               'users': ('משתמשים', 'Users'), 'items': ('פריטים', 'Items'), 'activity': ('פעילות', 'Activity')}
+_CLARIFY_HE = {'clarify-primary-workflow': ('מה הפעולה העסקית העיקרית, ומי ישתמש בה?',
+                                          'התשובה משנה את מבנה הנתונים ואת תנאי הקבלה.')}
+
+
+def _plan_in_customer_language(preview: dict, brief, lang: str) -> None:
+    """Every customer-facing line of a brief-bound plan follows the customer's language (2026-10-28: the summary was
+    the architect's English build spec -- "M5 managed Web/SaaS contract for: ... Main action: ... Initial content:
+    ..." -- and the questions were English). The English build spec stays, for the code generator only."""
+    from . import discovery as d
+    product = preview.get('product') or {}
+    product['technical_summary'] = product.get('summary')
+    product['summary'] = d.summary(brief, lang)['goal']
+    for key, names in (('user_roles', _ROLE_NAMES), ('data_requirements', _DATA_NAMES)):
+        tokens = list(product.get(key) or [])
+        product[key + '_keys'] = tokens                      # the machine side keeps the tokens
+        product[key] = [names.get(t, (t, t))[0 if lang == 'he' else 1] for t in tokens]
+    if lang == 'he':
+        for q in preview.get('clarification_questions') or []:
+            he = _CLARIFY_HE.get(q.get('id'))
+            if he:
+                q['question'], q['reason'] = he
+
+
 def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
     """Expose the build-admission gate before showing an approval button.
     Deterministic/free; does not reserve credits or start a build."""
@@ -2259,7 +2383,8 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
         if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid',
-                                                                 'spec_not_approved', 'plan_not_verified'}:
+                                                                 'spec_not_approved', 'plan_not_verified',
+                                                                 'approval_state_unavailable', 'brief_stale'}:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
@@ -2365,6 +2490,8 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         }
     if brief_row is not None:
         _apply_execution_plan_gate(preview, project_id, brief_row)
+        _plan_in_customer_language(preview, brief_row.brief, _lang(request))
+        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')

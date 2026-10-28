@@ -118,6 +118,9 @@ RULES: tuple[tuple[str, str, str, str], ...] = (
 DELEGATE_RX = r'(תחליט(ו)? (אתה|אתם|בשבילי)|תבחר(ו)? (אתה|אתם|בשבילי)|לא משנה לי|מה שנראה לך|you decide|up to you|whatever you think|your call|choose for me)'
 
 
+from .text_noise import first_sentence, technical_noise  # noqa: E402,F401  (re-exported)
+
+
 class DeterministicInterpreter:
     name = 'deterministic'
 
@@ -143,7 +146,10 @@ class DeterministicInterpreter:
             best['audience'] = Proposal('audience', 'both', MEDIUM, 'customers + staff')
         goal = None
         if brief is None or 'goal' not in brief.fields:
-            first = re.split(r'(?<=[.!?\n])\s', (message or '').strip(), maxsplit=1)[0]
+            # The goal is the customer's FIRST sentence of their FIRST message (brief.prompt), never the first sentence
+            # of a later message: a pasted error ("OMNI_REDIS_URL is not set.") became the goal that way (2026-10-28).
+            source = (brief.prompt if brief is not None and (brief.prompt or '').strip() else message) or ''
+            first = first_sentence(source)
             if len(first) >= 8:
                 goal = Proposal('goal', first[:300], MEDIUM, first[:120])
         props = list(best.values()) + ([goal] if goal else [])

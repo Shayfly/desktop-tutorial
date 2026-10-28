@@ -22,8 +22,10 @@ class V26UniversalPlatform:
 
     def account(self,token:str): return self.accounts.authenticate(token)
 
-    def create_project(self,*,token:str,title:str)->dict:
-        account=self.account(token); rec=self.accounts.create_project(owner_id=account.id,title=title)
+    def create_project(self,*,token:str,title:str,in_transaction=None)->dict:
+        account=self.account(token)
+        if in_transaction is None: rec=self.accounts.create_project(owner_id=account.id,title=title)
+        else: rec=self.accounts.create_project(owner_id=account.id,title=title,in_transaction=in_transaction)
         return asdict(rec)
 
     def list_projects(self,*,token:str)->list[dict]:

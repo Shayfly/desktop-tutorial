@@ -97,6 +97,10 @@ const T = {
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
     b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
+    b_spec_not_approved:'לפני שמתחילים לבנות, צריך לאשר את המפרט. אפשר לעשות את זה כאן.',
+    b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
+    b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
+    b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
@@ -205,6 +209,10 @@ const T = {
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
     b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
     b_cost_quote_unavailable:'No verified build quote was returned.',
+    b_spec_not_approved:'Approve the spec before the build starts. You can do it right here.',
+    b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
+    b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
+    b_brief_stale:'The request changed since it was approved. Approve the current spec.',
     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
@@ -300,6 +308,8 @@ function explain(err) {
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
+  if (err.detail && ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'].includes(err.detail.error))
+    return t(`b_${err.detail.error}`);     // a human sentence, never the server's English (the status stays 409)
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -518,7 +528,7 @@ function beginBriefEdit() {
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
   try {
-    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST',
+    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
     S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
@@ -739,7 +749,14 @@ function renderPlan() {
         h('h4', {}, t('quoteMissingTitle')),
         h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, nameForMissing(g)))),
         h('p', { class: 'hint' }, t('quoteMissingHelp'))
-      ] : []));
+      ] : []),
+      // 409 spec_not_approved / plan_not_verified: the same approval button as in the conversation, right here
+      ...(p.brief_fingerprint && p.blockers.some(b => ['spec_not_approved', 'plan_not_verified', 'brief_stale'].includes(b.code)) ? [
+        h('button', { type: 'button', class: 'primary', onclick: async () => {
+          if (await sendChat({ brief_fingerprint: p.brief_fingerprint }, t('actApproveSpec'), specApprovalPath)) {
+            S.plan = null; await requestBriefPlan();
+          }
+        } }, t('actApproveSpec'))] : []));
   }
   kids.push(h('div', { class: 'row' },
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
@@ -1223,6 +1240,8 @@ async function dialogAction(fn, okKey) {
 
 /* ---------- conversation (Unified Conversation OS) ---------- */
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
+// Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
+const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
 function applyConversation(view) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
   S.chat = view;
@@ -1244,7 +1263,7 @@ async function restoreConversation() {
   }
 }
 let chatBusy = false;
-async function sendChat(body, shownText) {
+async function sendChat(body, shownText, path) {
   if (chatBusy || !S.projectId) return;
   const retrySignature=JSON.stringify([S.projectId,body]);
   if(!S.chatRetry || S.chatRetry.signature!==retrySignature)S.chatRetry={signature:retrySignature,key:newKey()};
@@ -1252,7 +1271,7 @@ async function sendChat(body, shownText) {
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    const view = await api(`${(path || convPath)()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
     S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
@@ -1309,7 +1328,7 @@ function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
     if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
-    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ approve_spec: a.brief_fingerprint }, t('actApproveSpec')) }, t('actApproveSpec')));
+    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ brief_fingerprint: a.brief_fingerprint }, t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec')));
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
