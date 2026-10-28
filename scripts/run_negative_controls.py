@@ -145,11 +145,13 @@ def main(argv: list[str]) -> int:
             digest = hashlib.sha256((ROOT / f).read_bytes()).hexdigest()
             digests.append(f'{f} {digest[:16]}')
             print(f"NC-EVIDENCE {spec['pr']} sha256 {f} {digest}", flush=True)
-        passed, failed = [], []
+        passed, failed, infos = [], [], []
         for control in spec['controls']:
             ok, detail = run_control(control, control['id'])
             all_ok &= ok
             (passed if ok else failed).append(control['id'])
+            if ok and ' INFO ' in detail:                     # an extra failure in pg: in the SPEC line, not buried
+                infos.append(control['id'] + ' ' + detail.split(' INFO ', 1)[1])
             print(f"NC-EVIDENCE RESULT {spec['pr']} {control['id']} {'PASS' if ok else 'FAIL'} "
                   f"{control['what']} -> {detail}", flush=True)
             if not ok:
@@ -158,7 +160,8 @@ def main(argv: list[str]) -> int:
         n = len(spec['controls'])
         verdict = 'PASS' if not failed else 'FAIL'
         notice(f"SPEC {spec['pr']}", f"{len(passed)}/{n} {verdict} (" + ' '.join(c['id'] for c in spec['controls'])
-               + ')' + (f' failed={failed}' if failed else '') + (f" | sha256 {'; '.join(digests)}" if digests else ''))
+               + ')' + (f' failed={failed}' if failed else '') + (f" | INFO {'; '.join(infos)}" if infos else '')
+               + (f" | sha256 {'; '.join(digests)}" if digests else ''))
     return 0 if all_ok else 1
 
 

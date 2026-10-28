@@ -152,5 +152,21 @@ class TheDetailNeverCarriesTheProcessEnvironment(unittest.TestCase):
         self.assertNotIn('env = {**os.environ', src.replace('proc_env = {**os.environ', ''))
 
 
+class TheInfoIsInTheSpecLine(unittest.TestCase):
+    def test_an_extra_failure_in_pg_appears_in_the_summary_notice(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': [
+            {'id': 'NC1', 'what': 'w', 'mutations': [], 'targets': [], 'expect_failed': ['a']}]}))
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(
+                nc, 'run_control', lambda c, cid: (True, "mutation m | failed=['a', 'r'] INFO extra failures in pg: ['r']")), \
+                redirect_stdout(out):
+            self.assertEqual(nc.main([]), 0)
+        notices = [l for l in out.getvalue().splitlines() if l.startswith('::notice')]
+        self.assertEqual(notices, ["::notice title=SPEC x::1/1 PASS (NC1) | INFO NC1 extra failures in pg: ['r']"])
+
+
 if __name__ == '__main__':
     unittest.main()

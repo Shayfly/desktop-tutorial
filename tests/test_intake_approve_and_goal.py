@@ -272,5 +272,82 @@ class ThePlanNamesAndTheAssets(unittest.TestCase):
         self.assertIn(f'/assets/app.js?v={IA._ASSET_VERSION}', html)
         self.assertEqual(client.get('/assets/app.js').headers.get('cache-control'), 'no-cache')
 
+DATABASE_URL = os.getenv('M4D2_DATABASE_URL', '').strip()
+
+
+class ADoubleClickInParallel(unittest.TestCase):
+    """Two approvals of the same spec with the SAME request_key, racing (a double click while the first is in
+    flight): both pass find_reply, so the durable stores must keep it at ONE approval and ONE plan. Real Postgres
+    (PostgresConversationStore + PostgresBriefRepository, every migration). Runs in intake-budget-pg (no skip)."""
+
+    @classmethod
+    def setUpClass(cls):
+        if not DATABASE_URL:
+            raise unittest.SkipTest('BLOCKED: M4D2_DATABASE_URL (real PostgreSQL) not configured')
+        import pathlib
+        import uuid
+        import psycopg
+        from omni_prod.db import DatabasePool
+        from omni_prod.migration_runner import apply_migrations
+        from omni_prod.migrations import discover_migrations
+        root = pathlib.Path(__file__).resolve().parents[1]
+        cls.admin = psycopg.connect(DATABASE_URL, autocommit=True, connect_timeout=5)
+        cls.dbname = f'dbl_{uuid.uuid4().hex[:10]}'
+        cls.admin.execute(f'CREATE DATABASE {cls.dbname}')
+        cls.url = DATABASE_URL.rsplit('/', 1)[0] + '/' + cls.dbname
+        with psycopg.connect(cls.url) as conn:
+            apply_migrations(conn, discover_migrations(root / 'infra' / 'postgres'))
+        cls.pool = DatabasePool(cls.url)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.pool.close()
+        cls.admin.execute(f'DROP DATABASE IF EXISTS {cls.dbname} WITH (FORCE)')
+        cls.admin.close()
+
+    def test_same_request_key_in_parallel_is_one_approval_and_one_plan(self):
+        import threading
+        import uuid
+        from omni_prod.brief_repository import PostgresBriefRepository
+        from omni_prod.conversation.store import PostgresConversationStore
+        account, project = f'acc_{uuid.uuid4().hex[:10]}', f'prj_{uuid.uuid4().hex[:10]}'
+        with self.pool.connection() as conn:
+            conn.execute('INSERT INTO creator_accounts (id, email, password_hash, salt_b64) VALUES (%s,%s,%s,%s)',
+                         (account, f'{account}@example.com', 'x', 'x'))
+            conn.execute("INSERT INTO creator_projects (id, owner_id, title) VALUES (%s, %s, 't')", (project, account))
+            conn.commit()
+
+        def sup():                                         # a new supervisor per request = another server
+            return ConversationSupervisor(briefs=PostgresBriefRepository(self.pool),
+                                          store=PostgresConversationStore(self.pool))
+        sup().turn(project_id=project, account_id=account, lang='en',
+                   message='I need a simple internal tool for my team to track equipment loans, in English, '
+                           'no login, no personal data')
+        t = sup().turn(project_id=project, account_id=account, message='you decide', lang='en')
+        fp = next(a['brief_fingerprint'] for a in t.actions if a['type'] == 'approve_spec')
+        barrier, errors = threading.Barrier(2), []
+
+        def click():
+            try:
+                barrier.wait()
+                sup().approve_spec(project_id=project, account_id=account, brief_fingerprint=fp,
+                                   request_key='double-click', lang='en')
+            except Exception as exc:                       # a refusal is fine; a second approval is not
+                errors.append(f'{type(exc).__name__}: {exc}')
+        ts = [threading.Thread(target=click) for _ in range(2)]
+        [x.start() for x in ts]
+        [x.join(60) for x in ts]
+        messages = PostgresConversationStore(self.pool).messages_for(project)
+        approvals = [m for m in messages if (m.get('interpretation') or {}).get('spec_approved') == fp]
+        replies = [m for m in messages if m['role'] == 'assistant' and m.get('request_key') == 'double-click']
+        with self.pool.connection() as conn:
+            plans = conn.execute('SELECT count(*) FROM execution_plans WHERE project_id = %s', (project,)).fetchone()[0]
+        self.assertEqual(len(approvals), 1, errors)
+        self.assertEqual(len(replies), 1, errors)
+        self.assertEqual(plans, 1, errors)
+        notice('approve-action double-click PASS', f'2 parallel approvals, same request_key -> approvals=1 replies=1 '
+                                                   f'plans={plans} errors={len(errors)}')
+
+
 if __name__ == '__main__':
     unittest.main()
