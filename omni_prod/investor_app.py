@@ -1,5 +1,6 @@
 from __future__ import annotations
 from decimal import Decimal
+import hashlib
 import re
 import logging
 import os
@@ -1134,16 +1135,23 @@ async def v25_runtime_ws(websocket:WebSocket,deployment_id:str,token:str=''):
         return
 
 _ASSET_DIR=Path(__file__).resolve().parent/'assets'
+# Cache busting (2026-10-28): every deploy references its own asset version, and the assets revalidate, so a fixed
+# app.js reaches a browser that had the old one cached. An already-open tab keeps its old JS until reloaded; the API
+# stays compatible with it (e.g. the old approve_spec on the conversation route is routed to the approval action).
+_ASSET_VERSION=hashlib.sha256(b''.join((_ASSET_DIR/n).read_bytes() for n in ('app.js','visual-edit.js','app.css'))).hexdigest()[:12]
 _HTML=(_ASSET_DIR/'index.html').read_text(encoding='utf-8')
+for _n in ('app.js','visual-edit.js','app.css'):
+    _HTML=_HTML.replace(f'/assets/{_n}"', f'/assets/{_n}?v={_ASSET_VERSION}"')
+_REVALIDATE={'Cache-Control':'no-cache'}
 
 @app.get('/assets/app.css')
-def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css')
+def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_REVALIDATE)
 
 @app.get('/assets/app.js')
-def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/assets/visual-edit.js')
-def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -2283,6 +2291,19 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+# The architect's role and data tokens (product_architect._infer_roles / _infer_data_requirements and the
+# unified_engine modules), named for the customer. A token missing here is a test failure (test_every_token_is_named).
+_ROLE_NAMES = {'admin': ('מנהל המערכת', 'Administrator'), 'manager': ('מנהל', 'Manager'),
+               'travel_agent': ('סוכן נסיעות', 'Travel agent'), 'agent': ('סוכן', 'Agent'),
+               'customer': ('לקוח', 'Customer'), 'driver': ('נהג', 'Driver'), 'member': ('חבר צוות', 'Team member')}
+_DATA_NAMES = {'customers': ('לקוחות', 'Customers'), 'bookings': ('הזמנות ותורים', 'Bookings'),
+               'leads': ('לידים', 'Leads'), 'orders': ('הזמנות', 'Orders'), 'products': ('מוצרים', 'Products'),
+               'inventory': ('מלאי', 'Inventory'), 'drivers': ('נהגים', 'Drivers'), 'rides': ('נסיעות', 'Rides'),
+               'messages': ('הודעות', 'Messages'), 'invoices': ('חשבוניות', 'Invoices'),
+               'payments': ('תשלומים', 'Payments'), 'jobs': ('משימות', 'Jobs'), 'team': ('צוות', 'Team'),
+               'availability': ('זמינות', 'Availability'), 'providers': ('ספקים', 'Providers'),
+               'players': ('שחקנים', 'Players'), 'matches': ('משחקים', 'Matches'), 'progression': ('התקדמות', 'Progression'),
+               'users': ('משתמשים', 'Users'), 'items': ('פריטים', 'Items'), 'activity': ('פעילות', 'Activity')}
 _CLARIFY_HE = {'clarify-primary-workflow': ('מה הפעולה העסקית העיקרית, ומי ישתמש בה?',
                                           'התשובה משנה את מבנה הנתונים ואת תנאי הקבלה.')}
 
@@ -2295,6 +2316,10 @@ def _plan_in_customer_language(preview: dict, brief, lang: str) -> None:
     product = preview.get('product') or {}
     product['technical_summary'] = product.get('summary')
     product['summary'] = d.summary(brief, lang)['goal']
+    for key, names in (('user_roles', _ROLE_NAMES), ('data_requirements', _DATA_NAMES)):
+        tokens = list(product.get(key) or [])
+        product[key + '_keys'] = tokens                      # the machine side keeps the tokens
+        product[key] = [names.get(t, (t, t))[0 if lang == 'he' else 1] for t in tokens]
     if lang == 'he':
         for q in preview.get('clarification_questions') or []:
             he = _CLARIFY_HE.get(q.get('id'))

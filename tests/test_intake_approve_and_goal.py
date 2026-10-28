@@ -76,6 +76,41 @@ class TheGoal(unittest.TestCase):
                          'אתר תדמית לעסק שלי עם קישור https://x.co להזמנה')    # a link inside a real sentence stays
 
 
+class TheModelPathReproduction(unittest.TestCase):
+    """The symptom as the customer saw it, through the model path: on main a0436061 this gives
+    'Main action: OMNI_REDIS_URL' and 'Initial content: OMNI_REDIS_URL' (both proposals pass the evidence check,
+    because the customer's message does contain the token)."""
+    MSG = ('אני רוצה מערכת לניהול תורים למספרה שלי. הלקוחות יקבעו תור לפי שעות פנויות, ישאירו שם וטלפון. '
+           'בלי התחברות ללקוחות. בנוסף, מה זה OMNI_REDIS_URL? קיבלתי הודעה שהוא חסר.')
+    RAW = {'language': 'he', 'product_family': 'web_app', 'reply': 'הבנתי.',
+           'proposals': [{'field': 'goal', 'value': 'OMNI_REDIS_URL', 'confidence': 'high', 'evidence': 'OMNI_REDIS_URL'},
+                         {'field': 'content', 'value': 'OMNI_REDIS_URL', 'confidence': 'high',
+                          'evidence': 'OMNI_REDIS_URL'}]}
+
+    def test_goal_and_initial_content_never_become_the_pasted_token(self):
+        from omni_prod.intake.interpreter import merge
+        raw = self.RAW
+
+        class FakeModel:
+            def interpret(self, message, brief=None):
+                model, _ = validate_model_output(raw, message)
+                return merge(DeterministicInterpreter().interpret(message, brief), model, interpreter='model:fake',
+                             cost_usd='0', cost_state='CONFIRMED_ZERO')
+        env = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
+               'OMNI_INTAKE_DAILY_BUDGET_USD': '0.50', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.005'}
+        s = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore(), worker_interpreter=FakeModel())
+        with mock.patch.dict(os.environ, env):
+            t = s.turn(project_id='p', account_id='a', message=self.MSG, lang='he')
+        self.assertEqual(t.interpretation['interpreter'], 'model:fake')          # the model path really ran
+        b = s.briefs.latest('p').brief
+        lines = {l.split(':', 1)[0]: l.split(':', 1)[1].strip() for l in d.requirements_text(b).splitlines()
+                 if l.startswith(('Main action:', 'Initial content:'))}
+        self.assertEqual(lines['Main action'], GOAL)
+        self.assertNotIn('OMNI_REDIS_URL', lines['Initial content'])
+        self.assertEqual(len([x for x in t.interpretation['dropped'] if 'technical text' in x]), 2)   # with reasons
+        self.assertTrue(t.reply)                                                   # the turn still answers
+
+
 class ValidationDegrades(unittest.TestCase):
     def test_a_proposal_without_evidence_is_dropped_and_the_answer_stays(self):
         raw = {'language': 'he', 'product_family': 'web_app', 'reply': 'הבנתי, מערכת תורים למספרה.',
@@ -149,6 +184,45 @@ class TheApprovalIsAnAction(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertTrue(AF.spec_approved(self.store.messages, fp))
 
+    def test_a_double_click_makes_one_plan_and_one_approval_path(self):          # idempotency NC
+        fp = self.ready_spec()
+        same = {'brief_fingerprint': fp, 'request_key': 'click-1'}
+        r1, r2 = self.post('spec-approval', same), self.post('spec-approval', same)    # the same click retried
+        self.assertEqual((r1.status_code, r2.status_code), (200, 200))
+        approvals = [m for m in self.store.messages if (m.get('interpretation') or {}).get('spec_approved') == fp]
+        self.assertEqual(len(approvals), 1)                                       # one approval recorded
+        r3 = self.post('spec-approval', {'brief_fingerprint': fp, 'request_key': 'click-2'})   # a second, new click
+        self.assertEqual(r3.status_code, 200)
+        self.assertEqual(len(self.store.plans), 1)                                 # still ONE plan to build
+        # the spec approval itself never creates a build: a build needs POST .../approvals (one approval -> one
+        # build, brief_repository.consume marks it USED) and POST .../builds (idempotency_key -> the same build_id)
+
+    def test_a_fingerprint_that_is_not_this_projects_current_spec_is_refused(self):
+        fp = self.ready_spec()
+        other = 'f' * 64                                                          # another project's / an old spec
+        r = self.post('spec-approval', {'brief_fingerprint': other})
+        self.assertEqual(r.status_code, 200)                                      # answered in the conversation ...
+        self.assertFalse(AF.spec_approved(self.store.messages, other))            # ... but nothing is approved
+        self.assertFalse(AF.spec_approved(self.store.messages, fp))
+        self.assertNotIn('approve_build', [a['type'] for a in r.json()['turn']['actions']])
+
+    def test_a_spec_that_changed_after_it_was_shown_is_refused(self):
+        fp = self.ready_spec()
+        self.post('conversation', {'message': 'and the colour should be green'})
+        if self.briefs.latest('p1').fingerprint == fp:
+            self.skipTest('the message did not change the spec')
+        r = self.post('spec-approval', {'brief_fingerprint': fp})
+        self.assertFalse(AF.spec_approved(self.store.messages, fp))
+        self.assertNotIn('approve_build', [a['type'] for a in r.json()['turn']['actions']])
+
+    def test_the_route_needs_the_projects_owner(self):
+        def deny(**kw):
+            raise PermissionError('not your project')
+        with mock.patch.object(self.IA._v28, 'resolve_project_key', deny):
+            r = self.post('spec-approval', {'brief_fingerprint': 'a' * 64})
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.store.messages, [])
+
     def test_a_malformed_fingerprint_is_refused(self):
         self.assertEqual(self.post('spec-approval', {'brief_fingerprint': 'x'}).status_code, 422)
 
@@ -165,6 +239,39 @@ class ThePlanSpeaksTheCustomersLanguage(unittest.TestCase):
         self.assertTrue(preview['product']['technical_summary'].startswith('M5 managed'))
         self.assertFalse(preview['clarification_questions'][0]['question'].isascii())
 
+
+class ThePlanNamesAndTheAssets(unittest.TestCase):
+    def test_roles_and_data_are_named_for_the_customer_tokens_stay_for_the_machine(self):
+        IA, _ = _api()
+        _, _, b = first_turn(BARBER)
+        preview = {'product': {'summary': 's', 'user_roles': ['admin', 'customer'], 'data_requirements': ['bookings']},
+                   'clarification_questions': []}
+        IA._plan_in_customer_language(preview, b, 'he')
+        self.assertEqual(preview['product']['user_roles'], ['מנהל המערכת', 'לקוח'])
+        self.assertEqual(preview['product']['data_requirements'], ['הזמנות ותורים'])
+        self.assertEqual(preview['product']['user_roles_keys'], ['admin', 'customer'])
+
+    def test_every_token_is_named(self):
+        IA, _ = _api()
+        import inspect
+        from omni_prod import product_architect, unified_engine
+        import re as _re
+        src = inspect.getsource(product_architect.ProductArchitect._infer_roles)
+        roles = set(_re.findall(r'\("([a-z_]+)", \(', src)) | {'admin', 'member'}
+        src = inspect.getsource(product_architect.ProductArchitect._infer_data_requirements) + \
+            inspect.getsource(unified_engine)
+        data = set(_re.findall(r"""\(["']([a-z_]+)["'], \(""", src)) | {
+            x for m in _re.findall(r"modules = \[([^\]]+)\]", inspect.getsource(unified_engine))
+            for x in _re.findall(r"'([a-z_]+)'", m)}
+        self.assertFalse(roles - set(IA._ROLE_NAMES), roles - set(IA._ROLE_NAMES))
+        self.assertFalse(data - set(IA._DATA_NAMES) - {'maps', 'realtime', 'notifications', 'messaging'},
+                         data - set(IA._DATA_NAMES))
+
+    def test_the_page_references_this_deploys_asset_version_and_assets_revalidate(self):
+        IA, client = _api()
+        html = client.get('/').text
+        self.assertIn(f'/assets/app.js?v={IA._ASSET_VERSION}', html)
+        self.assertEqual(client.get('/assets/app.js').headers.get('cache-control'), 'no-cache')
 
 if __name__ == '__main__':
     unittest.main()

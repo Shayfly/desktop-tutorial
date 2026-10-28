@@ -315,6 +315,9 @@ def _website_screens(prompt: str) -> str:
 
 def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
     if q.recommended == '__from_request__':
+        if q.field == 'goal':                    # the first business sentence, never a pasted technical line
+            from .intake.text_noise import first_sentence
+            return (first_sentence(brief.prompt) or brief.prompt)[:300]
         return _website_screens(brief.prompt) if q.field == 'screens' and is_website(brief) else brief.prompt[:300]
     if q.field in _WEBSITE_DEFAULTS and q.field not in hints and is_website(brief):
         value = _WEBSITE_DEFAULTS[q.field]
