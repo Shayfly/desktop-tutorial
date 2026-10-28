@@ -43,7 +43,7 @@
     },
     {
       "id": "NC3",
-      "what": "a project created now is not marked: a guided project builds without the spec approval",
+      "what": "a project created now is not marked: a guided project builds without the spec approval, and a failed mark no longer fails creation",
       "mutations": [
         {
           "file": "omni_prod/investor_app.py",
@@ -55,7 +55,9 @@
         "tests/test_intake_approve_and_goal.py"
       ],
       "expect_failed": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
         "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation",
         "test_every_project_the_ui_creates_goes_through_the_one_marked_route"
       ]
     },
