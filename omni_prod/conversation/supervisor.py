@@ -520,7 +520,8 @@ class ConversationSupervisor:
 
     def _classify(self, project_id, row, message):
         from ..intake import complexity, lanes
-        history = [m for m in self.store.messages_for(project_id, limit=9)]
+        history = [m for m in self.store.messages_for(project_id, limit=10)
+                   if not (m.get('interpretation') or {}).get('system')][-9:]
         if history and history[-1].get('role') == 'customer':
             history = history[:-1]                        # the current message was stored at turn start
         confirmed = {k: f['value'] for k, f in (row.brief.fields.items() if row else ())
@@ -537,7 +538,8 @@ class ConversationSupervisor:
         if message:
             source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
-            source.history = self.store.messages_for(project_id, limit=5)[:-1]
+            source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
+                              if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():

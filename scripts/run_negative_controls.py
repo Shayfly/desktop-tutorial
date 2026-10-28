@@ -145,8 +145,12 @@ def main(argv: list[str]) -> int:
             digest = hashlib.sha256((ROOT / f).read_bytes()).hexdigest()
             digests.append(f'{f} {digest[:16]}')
             print(f"NC-EVIDENCE {spec['pr']} sha256 {f} {digest}", flush=True)
-        passed, failed, infos = [], [], []
-        for control in spec['controls']:
+        passed, failed, infos, elsewhere = [], [], [], []
+        here = [c for c in spec['controls'] if not c.get('envs') or ENV in c['envs']]
+        for c in spec['controls']:
+            if c not in here:                 # e.g. a real-Postgres race: said in the SPEC line, never silently dropped
+                elsewhere.append(f"{c['id']} ({'/'.join(c['envs'])} only)")
+        for control in here:
             ok, detail = run_control(control, control['id'])
             all_ok &= ok
             (passed if ok else failed).append(control['id'])
@@ -157,10 +161,11 @@ def main(argv: list[str]) -> int:
             if not ok:
                 clean = ' '.join(f"{control['what']} -> {detail}".replace('%', '%25').split())
                 print(f"::error title={spec['pr']} {control['id']} FAIL::{clean}"[:4000], flush=True)
-        n = len(spec['controls'])
-        verdict = 'PASS' if not failed else 'FAIL'
-        notice(f"SPEC {spec['pr']}", f"{len(passed)}/{n} {verdict} (" + ' '.join(c['id'] for c in spec['controls'])
+        n = len(here)
+        verdict = 'PASS' if not failed and here else 'FAIL'
+        notice(f"SPEC {spec['pr']}", f"{len(passed)}/{n} {verdict} (" + ' '.join(c['id'] for c in here)
                + ')' + (f' failed={failed}' if failed else '') + (f" | INFO {'; '.join(infos)}" if infos else '')
+               + (f" | not run here: {', '.join(elsewhere)}" if elsewhere else '')
                + (f" | sha256 {'; '.join(digests)}" if digests else ''))
     return 0 if all_ok else 1
 

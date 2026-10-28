@@ -332,6 +332,23 @@ class TheFlowMark(unittest.TestCase):
         self.plan_without_gate(row)
         self.assertEqual(self.bind_error(row.fingerprint), (409, 'plan_not_verified'))
 
+    def test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval(self):
+        """Every path, also the guided questions with no conversation at all: the mark is written at creation."""
+        from fastapi.testclient import TestClient
+        from omni_prod import discovery as dd
+        with mock.patch.object(self.IA, '_v28_bearer', lambda r: 'tok'), \
+                mock.patch.object(self.IA._v28, 'account', lambda token: mock.Mock(id='a1')), \
+                mock.patch.object(self.IA._v28, 'create_project', lambda **kw: {'id': 'p1', 'title': kw['title']}):
+            r = TestClient(self.IA.app).post('/api/v28/projects', json={'title': 'guided'})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual([(m['role'], m['interpretation']) for m in self.store.messages],
+                         [('assistant', {'flow': 'two_gate', 'system': 'project_created'})])
+        brief = A.apply(dd.start(self.EQUIPMENT, dd.GUIDED), DeterministicInterpreter().interpret(self.EQUIPMENT, None)).brief
+        row = self.briefs.save(project_id='p1', account_id='a1', brief=brief, expected_revision=0)   # guided: no chat
+        self.assertTrue(row.complete)
+        self.assertTrue(AF.on_two_gate_flow(self.store.messages))
+        self.assertEqual(self.bind_error(row.fingerprint), (409, 'spec_not_approved'))
+
     def test_earlier_project_without_mark_and_a_plan_without_gate_still_passes(self):
         from omni_prod import discovery as dd
         brief = A.apply(dd.start(self.EQUIPMENT, dd.GUIDED), DeterministicInterpreter().interpret(self.EQUIPMENT, None),
@@ -398,7 +415,9 @@ class ADoubleClickInParallel(unittest.TestCase):
                            'no login, no personal data')
         t = sup().turn(project_id=project, account_id=account, message='you decide', lang='en')
         fp = next(a['brief_fingerprint'] for a in t.actions if a['type'] == 'approve_spec')
+        import time
         barrier, errors = threading.Barrier(2), []
+        started = time.monotonic()
 
         def click():
             try:
@@ -410,6 +429,8 @@ class ADoubleClickInParallel(unittest.TestCase):
         ts = [threading.Thread(target=click) for _ in range(2)]
         [x.start() for x in ts]
         [x.join(60) for x in ts]
+        elapsed = time.monotonic() - started
+        self.assertGreater(elapsed, 0)
         messages = PostgresConversationStore(self.pool).messages_for(project)
         approvals = [m for m in messages if (m.get('interpretation') or {}).get('spec_approved') == fp]
         replies = [m for m in messages if m['role'] == 'assistant' and m.get('request_key') == 'double-click']
@@ -419,7 +440,7 @@ class ADoubleClickInParallel(unittest.TestCase):
         self.assertEqual(len(replies), 1, errors)
         self.assertEqual(plans, 1, errors)
         notice('approve-action double-click PASS', f'2 parallel approvals, same request_key -> approvals=1 replies=1 '
-                                                   f'plans={plans} errors={len(errors)}')
+                                                   f'plans={plans} errors={len(errors)} elapsed_s={elapsed:.3f}')
 
 
 if __name__ == '__main__':

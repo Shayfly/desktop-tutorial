@@ -168,5 +168,22 @@ class TheInfoIsInTheSpecLine(unittest.TestCase):
         self.assertEqual(notices, ["::notice title=SPEC x::1/1 PASS (NC1) | INFO NC1 extra failures in pg: ['r']"])
 
 
+class AControlForOneEnvironment(unittest.TestCase):
+    def test_a_pg_only_control_is_named_in_the_spec_line_where_it_does_not_run(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': [
+            {'id': 'NC1', 'what': 'race', 'envs': ['pg'], 'mutations': [], 'targets': [], 'expect_failed': ['a']},
+            {'id': 'NC2', 'what': 'w', 'mutations': [], 'targets': [], 'expect_failed': ['b']}]}))
+        for env, want in (('', "::notice title=SPEC x::1/1 PASS (NC2) | not run here: NC1 (pg only)"),
+                          ('pg', '::notice title=SPEC x::2/2 PASS (NC1 NC2)')):
+            out = io.StringIO()
+            with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'ENV', env), \
+                    mock.patch.object(nc, 'run_control', lambda c, cid: (True, 'ok')), redirect_stdout(out):
+                nc.main([])
+            self.assertEqual([l for l in out.getvalue().splitlines() if l.startswith('::notice')], [want], env)
+
+
 if __name__ == '__main__':
     unittest.main()

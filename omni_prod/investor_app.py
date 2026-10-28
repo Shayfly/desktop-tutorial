@@ -1590,9 +1590,31 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
         # Project count is not a spend authorization. Users may maintain as
         # many projects as they need; builds retain separate cost and execution
         # admission controls. No external model call occurs on project create.
-        return _v28.create_project(token=token, title=req.title)
+        project = _v28.create_project(token=token, title=req.title)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    _mark_two_gate_flow(project.get('id'), account.id)
+    return project
+
+
+def _mark_two_gate_flow(project_id, account_id) -> bool:
+    """Founder 2026-10-28 (option b): EVERY project created from now on is on the two-gate flow, whatever path it then
+    takes (conversation or guided questions): a durable mark in its conversation log, written at creation. It is a
+    hidden assistant row (interpretation.system), never shown as a message. Without a durable backend there is no
+    build path to gate; a failed write is logged loudly, never hidden."""
+    from .intake import approval_flow as AF
+    if not project_id:
+        return False
+    try:
+        _conversation_store().add_message(project_id=project_id, account_id=account_id, role='assistant', content='',
+                                          interpretation={'flow': AF.FLOW, 'system': 'project_created'},
+                                          request_key=f'flow-mark:{project_id}')
+        return True
+    except HTTPException:
+        return False                                   # no durable backend / conversation schema: nothing to gate
+    except Exception:
+        logging.getLogger(__name__).error('project %s: the two-gate flow mark was NOT written', project_id, exc_info=True)
+        return False
 
 @app.get('/api/v28/projects')
 def v28_projects(request: Request) -> dict:
@@ -2059,7 +2081,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                       'actions': (m.get('interpretation') or {}).get('actions') or [],
                       'attachments': (m.get('interpretation') or {}).get('attachments') or [],
                       'ai_status': _conversation_message_status(m)}
-                     for m in store.messages_for(project_id, limit=100)],
+                     for m in store.messages_for(project_id, limit=100)
+                     if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
@@ -2443,6 +2466,7 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     if brief_row is not None:
         _apply_execution_plan_gate(preview, project_id, brief_row)
         _plan_in_customer_language(preview, brief_row.brief, _lang(request))
+        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')

@@ -1,0 +1,62 @@
+{
+  "pr": "pr176",
+  "sha256": [
+    "tests/test_intake_approve_and_goal.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the approval's customer message loses its request_key: a parallel double click records TWO approvals",
+      "envs": [
+        "pg"
+      ],
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "                               brief_revision=row.revision if row else None, request_key=request_key,\n                               interpretation={**({'spec_approved'",
+          "new": "                               brief_revision=row.revision if row else None, request_key=None,  # NEGATIVE CONTROL\n                               interpretation={**({'spec_approved'"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_same_request_key_in_parallel_is_one_approval_and_one_plan"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "a plan without the verifier's gate counts as verified again",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):",
+          "new": "        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_new_project_saved_plan_without_gate_is_409_plan_not_verified"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "a project created now is not marked: a guided project builds without the spec approval",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "    _mark_two_gate_flow(project.get('id'), account.id)\n",
+          "new": "    pass  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval"
+      ]
+    }
+  ]
+}
