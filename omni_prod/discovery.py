@@ -219,6 +219,11 @@ class Brief:
     hints: dict[str, str] = field(default_factory=dict)  # suggested answers read from the request (pre-selected, still asked)
     assets: dict[str, dict] = field(default_factory=dict)  # owner-checked attachment id + digest, never bytes/secrets
     semantic_decisions: list[dict] = field(default_factory=list)  # validated model evidence, reviewed on brief approval
+    # C6 (CEO 2026-10-27): the gap detector decides completeness. `detector` marks a brief written by the detector-led
+    # conversation; `open_material` = the material fields the detector still asks for (empty = nothing material
+    # missing). Briefs without the flag keep the catalog rule, so their fingerprints and approvals are unchanged.
+    detector: bool = False
+    open_material: list[str] = field(default_factory=list)
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
@@ -230,16 +235,23 @@ class Brief:
             out['assets'] = self.assets
         if self.semantic_decisions:
             out['semantic_decisions'] = list(self.semantic_decisions)
+        if self.detector:
+            out['detector'] = True
+            out['open_material'] = list(self.open_material)
         return out
 
     @classmethod
     def from_dict(cls, d: Mapping) -> 'Brief':
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
                    dict(d.get('hints') or {}), dict(d.get('assets') or {}),
-                   list(d.get('semantic_decisions') or []))
+                   list(d.get('semantic_decisions') or []), bool(d.get('detector')),
+                   list(d.get('open_material') or []))
 
     def fingerprint(self) -> str:
-        return hashlib.sha256(json.dumps(self.to_dict(), sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        # C6: which field the detector asks next is conversation state, not a requirement; it never changes the
+        # fingerprint an approval binds to (completeness itself is stored per revision, see BriefRepository.save).
+        data = {k: v for k, v in self.to_dict().items() if k != 'open_material'}
+        return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
 def start(prompt: str, mode: str = GUIDED) -> Brief:
@@ -381,14 +393,36 @@ def contradictions(brief: Brief) -> list[str]:
     return out
 
 
+def must_ask(brief: Brief) -> list[Question]:
+    """C6: catalog questions that stay open even when the detector has nothing material left -- the fallback.
+    A security/privacy choice (intake.agent.material), a question that cannot be delegated, or one with no honest
+    default (e.g. the product language of an Arabic request) is never filled as an assumption."""
+    from .intake.agent import material                     # lazy: intake.agent imports this module
+    vals = brief.values()
+    return [q for q in pending(brief)
+            if material(q.field, vals) or not q.delegable or q.recommended is None
+            or _recommended(q, brief, brief.hints) is None]
+
+
+def catalog_complete(brief: Brief) -> bool:
+    """The catalog's own rule (every catalog question answered, no contradiction). Since C6 it decides nothing on a
+    detector-led brief; it only says when a provisional plan can already be shown (e.g. to surface a blocker early)."""
+    return not pending(brief) and not contradictions(brief)
+
+
 def complete(brief: Brief) -> bool:
+    if brief.detector:                                     # C6: the detector decides; the catalog is the fallback
+        return not brief.open_material and not contradictions(brief) and not must_ask(brief)
     return not pending(brief) and not contradictions(brief)
 
 
 def missing(brief: Brief) -> dict:
     """O10 (founder 2026-10-21): what keeps the brief from being complete, so the gate says WHAT is missing, not only
     that something is. Same two sources as complete(): the pending questions and the contradictions."""
-    return {'pending': [{'id': q.id, 'group': q.group, 'he': q.he, 'en': q.en} for q in pending(brief)],
+    open_qs = must_ask(brief) if brief.detector else pending(brief)
+    return {'pending': [{'id': q.id, 'group': q.group, 'he': q.he, 'en': q.en} for q in open_qs]
+                       + [{'id': f, 'group': 'detector', 'he': f, 'en': f} for f in (brief.open_material if brief.detector else ())
+                          if f not in {q.id for q in open_qs}],
             'contradictions': contradictions(brief)}
 
 

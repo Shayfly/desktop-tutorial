@@ -74,15 +74,20 @@ jobs:
         run: python -m omni_prod.migrate
       - name: Focused PostgreSQL, Redis and build-idempotency regressions
         timeout-minutes: 12
+        env:
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
         run: |
           python -m pytest -q -rs --junitxml=intake-pg.xml \
-            tests/test_intake_budget_pg.py tests/test_intake_complexity.py \
+            tests/test_intake_budget_pg.py tests/test_intake_complexity.py tests/test_venice_in_conversation.py \
             tests/test_intake_requirements_preservation.py tests/test_intake_worker_route.py \
-            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py \
+            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py tests/test_no_repeat_questions.py \
             tests/test_visual_edit.py tests/test_conversation_ux.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py \
             tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
             tests/integration/test_m5_build_economics_postgres.py
+      - name: Evidence notices (readable as check-run annotations, no log access needed)
+        if: always()
+        run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"
       - name: No test may be skipped
         if: always()
         run: |

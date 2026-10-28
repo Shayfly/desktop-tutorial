@@ -1,0 +1,158 @@
+{
+  "pr": "no-repeat-questions",
+  "sha256": [
+    "tests/test_no_repeat_questions.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "both root causes back (button label resets the family + no filter against the brief): exactly the reproduced loop, personal_data asked again after it was answered",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        kind = named_family(said) if typed else None\n",
+          "new": "        kind = named_family(said)  # NEGATIVE CONTROL\n"
+        },
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        closed = self._closed_in_brief(brief)\n",
+          "new": "        closed = set()  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_new_instance_each_turn_memory_store",
+        "test_a_decided_or_inapplicable_field_is_never_offered",
+        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec",
+        "test_the_reproduced_sequence_never_reasks_an_answered_field"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "no filter against the brief: an inapplicable field (content_only) is asked",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        closed = self._closed_in_brief(brief)\n",
+          "new": "        closed = set()  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_a_decided_or_inapplicable_field_is_never_offered"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "a button label changes the product family again",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        kind = named_family(said) if typed else None\n",
+          "new": "        kind = named_family(said)  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_new_instance_each_turn_memory_store",
+        "test_a_label_that_reads_as_another_family_does_not_reset_the_spec"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "the repeat rule always allows the previous field",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        repeat_ok = unsure or previous in set(contested or ())\n",
+          "new": "        repeat_ok = True  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_the_rule_itself"
+      ]
+    },
+    {
+      "id": "NC5",
+      "what": "the spec is not rebuilt from the store (history forgotten)",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        spec, previous, held = self._replayed_spec(project_id)\n",
+          "new": "        spec, previous, held = None, None, set()  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_dont_know_does_not_repeat_and_the_default_is_shown",
+        "test_new_instance_each_turn_memory_store",
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop",
+        "test_not_understood_repeats_once_explained_then_moves_on",
+        "test_what_brings_the_same_question_back_explained"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "\"לא יודע\" is read as \"not understood\" again (the old _UNSURE_RX): the same question comes back",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "                kind = 'dont_know'\n",
+          "new": "                kind = 'not_understood'  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_dont_know_does_not_repeat_and_the_default_is_shown"
+      ]
+    },
+    {
+      "id": "NC7",
+      "what": "a field with no valid default is never held open: it is explained again and again (the loop)",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "            return False, False, True, False                 # held open",
+          "new": "            return False, True, False, False  # NEGATIVE CONTROL held open"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop"
+      ]
+    },
+    {
+      "id": "NC8",
+      "what": "\"לא הבנתי\" repeats forever (no move-on after one explained repeat)",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        if not explained:\n            return False, True, False, False                 # once more, explained",
+          "new": "        if True:  # NEGATIVE CONTROL\n            return False, True, False, False                 # once more, explained"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop",
+        "test_not_understood_repeats_once_explained_then_moves_on"
+      ]
+    }
+  ]
+}

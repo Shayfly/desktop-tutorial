@@ -78,9 +78,16 @@ class TheLintCanFail(unittest.TestCase):
         self.assertIn('R2 C12: canary tests/no_such_file.py::X::y: tests/no_such_file.py does not exist', errs)
 
     def test_R3_an_overdue_drill(self):
-        errs = self.errors(lambda r: None, today=date(2026, 10, 28))                 # C17 weekly, adopted 10-20
+        def never_ran_c17(r):                                                        # C17 weekly, adopted 10-20
+            r['drills_run'] = [d for d in r['drills_run'] if d.get('control') != 'C17']
+        errs = self.errors(never_ran_c17, today=date(2026, 10, 28))
         self.assertIn('R3 C17: drill overdue since 2026-10-27 (weekly; last adopted 2026-10-20)', errs)
         self.assertFalse(any(e.startswith('R3 C10') for e in errs))                  # C10 ran 10-20, quarterly
+
+    def test_R3_a_recorded_drill_moves_the_due_date(self):
+        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(lambda r: None, today=date(2026, 11, 4))))
+        self.assertIn('R3 C17: drill overdue since 2026-11-04 (weekly; last run 2026-10-28)',
+                      self.errors(lambda r: None, today=date(2026, 11, 5)))
 
     def test_R3_a_live_control_with_its_own_drill(self):
         errs = self.errors(lambda r: None, today=date(2026, 11, 21))

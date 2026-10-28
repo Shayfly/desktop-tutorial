@@ -32,13 +32,17 @@ else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
 # Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
-# ANTHROPIC_API_KEY): added when set and not already given by WORKER_ENV(_OVERRIDES).
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+# ANTHROPIC_API_KEY, VENICE_API_KEY1): added when set and not already given by WORKER_ENV(_OVERRIDES).
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1; do
   key_value="${!key_name:-}"
   if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
     sed -i "/^${key_name}=/d" .env
     printf '%s=%s\n' "$key_name" "$key_value" >> .env
     echo "::notice title=provider keys::${key_name} added from its GitHub secret"
+  elif [ -n "$key_value" ] && grep -q "^${key_name}=." .env; then
+    echo "::notice title=provider keys::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used"
+  elif [ -z "$key_value" ] && grep -q "^${key_name}=." .env; then
+    echo "::notice title=provider keys::${key_name} already present in WORKER_ENV(_OVERRIDES); no GitHub secret is set"
   elif [ -z "$key_value" ] && ! grep -q "^${key_name}=." .env; then
     echo "::notice title=provider keys::${key_name} not set; its catalog models stay NOT_CONFIGURED"
   fi
