@@ -296,10 +296,13 @@ class ConversationSupervisor:
         if attachments and not shown:
             shown = T['attached_shown'].format(n=T['images'](len(attachments)))
         if shown:
+            # A quick-reply button is stored with its answers (not only its label), so the conversation can be
+            # replayed exactly from the store on any server (_replayed_spec); no schema change (jsonb column).
+            said_meta = {**({'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]} if attachments else {}),
+                         **({'answers': dict(answers)} if answers and not message else {})}
             self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                    brief_revision=row.revision if row else None, request_key=request_key,
-                                   interpretation={'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]}
-                                   if attachments else None)
+                                   interpretation=said_meta or None)
         intent = 'answer' if answers else classify_intent(message, has_version=bool(ctx.get('latest_version_id')),
                                                           has_brief=row is not None)
         if intent == 'recommend' and self.intake_mode(project_id,account_id).paid:
@@ -353,6 +356,9 @@ class ConversationSupervisor:
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
                                                'asked': [q.id for q in turn.questions],
+                                               # the detector's own question, stored for the replay (_replayed_spec):
+                                               # `asked` holds catalog ids only and misses a detector-only field
+                                               'gap_field': ((turn.gaps or {}).get('question') or {}).get('field'),
                                                'explained': bool(getattr(turn, 'explained', False)),
                                                'actions': turn.actions, 'plan_id': turn.plan_id},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
@@ -408,7 +414,8 @@ class ConversationSupervisor:
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
         unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now)
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now,
+                                 contested={c['field'] for c in res.conflicts})
         # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
         # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
         # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
@@ -495,28 +502,46 @@ class ConversationSupervisor:
         turn.reply = ' '.join(parts)
         return turn
 
-    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False):
-        """(gaps evidence, the one next Question or None). Per-project spec held in this process (WP1b: durable)."""
-        from ..intake.families import classify_family, named_family
-        from ..intake.gaps import Questioner, Spec
+    @staticmethod
+    def _heard(message, answers, proposals, lang):
+        """(the customer's words, the proposals they carry, typed?) for one customer turn. A quick-reply button's
+        label is the customer's words and its value is a stated answer -- but a label is never typed text."""
         from ..intake.interpreter import Proposal
-        said, proposals = message, list(getattr(interp, 'proposals', ()) or ())
-        if not message and answers:                   # a quick-reply button: its label is the customer's words
-            labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
-                      for q, v in answers.items() if q in d.BY_ID]
-            said = '; '.join(label for _, _, label in labels)
-            proposals = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
-            if any(v == d.DELEGATE for _, v, _ in labels):
-                said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+        if message or not answers:
+            return message or '', list(proposals or ()), True
+        labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
+                  for q, v in answers.items() if q in d.BY_ID]
+        said = '; '.join(label for _, _, label in labels)
+        props = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
+        if any(v == d.DELEGATE for _, v, _ in labels):
+            said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+        return said, props, False
+
+    @staticmethod
+    def _closed_in_brief(brief) -> set[str]:
+        """Fields the brief has CLOSED to a question; the detector asks only outside this set (its own fields with
+        no catalog question are never closed here). A field the customer already decided (answer / message), a skipped
+        one, or one that does not apply to this brief (ask_if false) is never asked -- this filters the detector's
+        list, it does not bring back the catalog's questionnaire."""
+        vals = d._ctx(brief)
+        closed = set()
+        for q in d.QUESTIONS:
+            f = brief.fields.get(q.field)
+            if (f and f.get('source') in intake_agent.CONFIRMED_SOURCES) or q.id in brief.skipped or not q.ask_if(vals):
+                closed.update((q.field, q.id))
+        return closed
+
+    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False, contested=()):
+        """(gaps evidence, the one next Question or None).
+
+        The spec is rebuilt from the durable conversation on EVERY turn (_replayed_spec): the store is the only
+        source of truth, so another server, a restart or a new instance asks exactly what this one would."""
+        from ..intake.gaps import Questioner
+        said, proposals, typed = self._heard(message, answers, getattr(interp, 'proposals', ()), lang)
         if not said:
             return None, None
-        specs = self.__dict__.setdefault('_gap_specs', {})
-        kind, spec = named_family(said), specs.get(project_id)
-        if spec is None:
-            spec = self._replayed_spec(project_id, said)      # C6: another server, or a restart: rebuild, never forget
-        if spec is None or (kind is not None and kind != spec.kind):
-            spec = Spec(kind or classify_family(said), [])
-        specs[project_id] = spec
+        spec, previous = self._replayed_spec(project_id)
+        spec = self._family_for(spec, said, typed)
         spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
         pending = [q.field for q in d.pending(brief)]
         g = spec.detect(pending)
@@ -526,31 +551,81 @@ class ConversationSupervisor:
                 brief.fields[name] = {'value': imp['value'], 'source': 'default', 'question_id': q.id, 'confidence': 'inferred'}
         for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
             brief.hints.setdefault(name, value)
+        closed = self._closed_in_brief(brief)
+        allowed = self._askable(g['missing_material'], closed, previous, unsure=unsure, contested=contested)
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
-        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure)
-        return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure, allowed=allowed)
+        return {**spec.detect(pending), 'allowed': allowed, 'previous': previous,
+                'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
 
-    def _replayed_spec(self, project_id, current):
-        """C6: the detector's spec rebuilt from the durable conversation (customer turns before this one), replayed
-        with the deterministic interpreter and the fixed-phrasing questioner -- what a fresh server would have heard.
-        None when there is no history. The in-process copy stays the fast path."""
+    @staticmethod
+    def _askable(missing, closed, previous, *, unsure=False, contested=()):
+        """The detector's ordered list, minus what the brief closed, under the repeat rule (Matt 2026-10-28).
+
+        The repeat rule is state-dependent. The field asked in the previous turn is offered again ONLY when
+          (a) the customer did not understand it -- "what?" / "why?" (_UNSURE_RX): it is asked again, explained,
+              and comes first; or
+          (b) the answer contradicts a value the customer confirmed (`contested`): it may be asked back.
+        Any other reply settles it -- a stated value, "you decide", or words that fill nothing (Spec.hear then
+        records the field's default as an assumption the customer can change) -- so the same question never comes
+        back by itself."""
+        repeat_ok = unsure or previous in set(contested or ())
+        allowed = [n for n in missing if n not in closed and (n != previous or repeat_ok)]
+        if unsure and previous in allowed:
+            allowed.remove(previous)
+            allowed.insert(0, previous)
+        return allowed
+
+    @staticmethod
+    def _family_for(spec, said, typed):
+        """The product family comes from what the customer TYPED. A button label never changes it (the label of
+        content_only=yes, "...בלי שמירת נתונים", reads as another family and used to wipe the whole spec)."""
         from ..intake.families import classify_family, named_family
-        from ..intake.gaps import Questioner, Spec
-        try:
-            history = [m['content'] for m in self.store.messages_for(project_id, limit=100) if m.get('role') == 'customer']
-        except Exception:
-            return None
-        if history and history[-1] == current:
-            history = history[:-1]                            # this turn was stored before routing
-        if not history:
-            return None
-        spec = Spec(named_family(history[0]) or classify_family(history[0]), [])
-        for said in history:
-            known = DeterministicInterpreter().interpret(said, None).proposals
-            spec.hear(said, known, settle=not re.search(_UNSURE_RX, said.strip().lower(), re.I))
-            Questioner(None).next(spec, [])
+        from ..intake.gaps import Spec
+        kind = named_family(said) if typed else None
+        if spec is None:
+            return Spec(kind or (classify_family(said) if typed else 'website'), [])
+        if kind is not None and kind != spec.kind:      # the customer typed a different product: start over
+            return Spec(kind, [])
         return spec
+
+    def _replayed_spec(self, project_id):
+        """(spec, the field asked in the last assistant turn) rebuilt from the store: every customer turn before
+        this one is heard again (buttons with their stored answers, typed text with the deterministic interpreter)
+        and every question the assistant asked is logged again from its stored `asked`. (None, None) when there is
+        no history yet. Nothing is kept in this process."""
+        from ..intake.artifact_fields import CONDITIONAL
+        from ..intake.gaps import LogEntry, language_of
+        try:
+            history = list(self.store.messages_for(project_id, limit=200))
+        except Exception:
+            return None, None
+        if history and history[-1].get('role') == 'customer':
+            history = history[:-1]                            # this turn was stored before routing
+        spec, previous = None, None
+        for m in history:
+            meta = m.get('interpretation') or {}
+            if m.get('role') == 'customer':
+                text = m.get('content') or ''
+                lang = 'he' if language_of(text) == 'he' else 'en'
+                answers = meta.get('answers') if isinstance(meta.get('answers'), dict) else None
+                typed_text = '' if answers else text
+                props = DeterministicInterpreter().interpret(typed_text, None).proposals if typed_text else ()
+                said, props, typed = self._heard(typed_text, answers, props, lang)
+                said = said or text
+                spec = self._family_for(spec, said, typed)
+                spec.hear(said, props, settle=not (typed and re.search(_UNSURE_RX, said.strip().lower(), re.I)))
+            elif m.get('role') == 'assistant':
+                asked = list(meta.get('asked') or [])
+                previous = meta.get('gap_field') or (asked[0] if asked else None)
+                if spec is not None and previous is not None:
+                    names = {f.name for f in spec.fields} | set(CONDITIONAL)
+                    if previous in names:
+                        spec.log.append(LogEntry(len(spec.ledger.messages), previous,
+                                                 language_of(' '.join(spec.ledger.messages[-2:])), 'replay',
+                                                 spec.fingerprint(), 'explain' if meta.get('explained') else 'ask'))
+        return spec, previous
 
     @staticmethod
     def _finding_message(f, lang, T):
