@@ -139,6 +139,21 @@
     "O04",
     "O05"
    ]
+  },
+  {
+   "control": "C17",
+   "date": "2026-10-28",
+   "result": "PASS (awaiting Matt's independent read)",
+   "runs": [
+    "40640783568"
+   ],
+   "workflow": ".github/workflows/backup-restore.yml (workflow_dispatch on main 482a271, runner omni-worker)",
+   "times_utc": {"started": "2026-10-28T05:55:29Z", "stamp": "20261028T055535Z", "finished": "2026-10-28T05:56:14Z"},
+   "proof": "snapshot tables=14 migrations=41 data_files=21; db.dump 298689 bytes sha256 b2fab0f387cafa96 uploaded to R2 and fetched back; pg_restore into a throwaway Postgres, 0 error lines; verify tables checked=14 short={} migrations_equal=true preview_data 21/21 restored; verified=true",
+   "not_proven": [
+    "restore from a Neon branch (no Neon API access from the builder session; the drill restores the R2 dump into a throwaway Postgres instead)",
+    "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
+   ]
   }
  ],
  "s01": {
