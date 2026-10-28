@@ -87,16 +87,71 @@
       "mutations": [
         {
           "file": "omni_prod/conversation/supervisor.py",
-          "old": "        spec, previous = self._replayed_spec(project_id)\n",
-          "new": "        spec, previous = None, None  # NEGATIVE CONTROL\n"
+          "old": "        spec, previous, held = self._replayed_spec(project_id)\n",
+          "new": "        spec, previous, held = None, None, set()  # NEGATIVE CONTROL\n"
         }
       ],
       "targets": [
         "tests/test_no_repeat_questions.py"
       ],
       "expect_failed": [
+        "test_dont_know_does_not_repeat_and_the_default_is_shown",
         "test_new_instance_each_turn_memory_store",
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop",
+        "test_not_understood_repeats_once_explained_then_moves_on",
         "test_what_brings_the_same_question_back_explained"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "\"לא יודע\" is read as \"not understood\" again (the old _UNSURE_RX): the same question comes back",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "                kind = 'dont_know'\n",
+          "new": "                kind = 'not_understood'  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_dont_know_does_not_repeat_and_the_default_is_shown"
+      ]
+    },
+    {
+      "id": "NC7",
+      "what": "a field with no valid default is never held open: it is explained again and again (the loop)",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "            return False, False, True, False                 # held open",
+          "new": "            return False, True, False, False  # NEGATIVE CONTROL held open"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop"
+      ]
+    },
+    {
+      "id": "NC8",
+      "what": "\"לא הבנתי\" repeats forever (no move-on after one explained repeat)",
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "        if not explained:\n            return False, True, False, False                 # once more, explained",
+          "new": "        if True:  # NEGATIVE CONTROL\n            return False, True, False, False                 # once more, explained"
+        }
+      ],
+      "targets": [
+        "tests/test_no_repeat_questions.py"
+      ],
+      "expect_failed": [
+        "test_no_valid_default_one_repeat_then_held_open_not_a_loop",
+        "test_not_understood_repeats_once_explained_then_moves_on"
       ]
     }
   ]

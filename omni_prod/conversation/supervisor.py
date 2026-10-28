@@ -212,6 +212,15 @@ _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|ב
               r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
               r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
 
+# Clarification replies to the question just asked (owner + Matt 2026-10-28), kept apart on purpose:
+#   NOT UNDERSTOOD ("what?", "why?", "לא הבנתי") -> the same field once more, explained; then the conversation moves on
+#   DON'T KNOW ("לא יודע", "not sure")           -> not asked again: the field's default, visible as an assumption
+_NOT_UNDERSTOOD_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא הבנתי(?: את השאלה)?|לא ברור(?: לי)?|תסביר|תסבירי|הסבר|\?+|'
+                      r'what\??|why\??|what do you mean\??|i don\'?t understand|explain|'
+                      r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لم أفهم|اشرح)\s*[.!?؟]*\s*$')
+_DONT_KNOW_RX = (r'^\s*(לא (יודע|יודעת|בטוח|בטוחה)|אין לי מושג|i don\'?t know|not sure|no idea|'
+                 r'لا أعرف|لست متأكد[ًا]*)\s*[.!?؟]*\s*$')
+
 
 def _short(field_: str, lang: str) -> str:
     q = d.BY_ID.get(field_)
@@ -544,18 +553,24 @@ class ConversationSupervisor:
         # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
-        unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now,
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang,
                                  contested={c['field'] for c in res.conflicts})
         # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
         # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
         # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
         # (security/privacy, not delegable, no honest default) is still asked in the catalog's words.
         new_brief.detector = True
-        new_brief.open_material = [gap_q.field] if gap_q is not None else []
+        # a sensitive field the customer could not settle after one explained repeat stays OPEN (held), not re-asked
+        new_brief.open_material = list(dict.fromkeys(([gap_q.field] if gap_q is not None else [])
+                                                     + list((gaps or {}).get('held_open') or ())))
+        for name, value in ((gaps or {}).get('assumed_now') or {}).items():   # "don't know": the default, shown
+            if not any(a['field'] == name for a in res.assumed):
+                res.assumed.append({'field': name, 'value': value, 'why': 'not known by the customer'})
         if gap_q is not None:                    # asked now, so not also announced as "chosen for you" (the stored
             res.assumed = [a for a in res.assumed if a['field'] != gap_q.field]   # default stays until answered)
-        fallback = d.must_ask(new_brief) if gap_q is None and not res.conflicts else []
+        held_open = set((gaps or {}).get('held_open') or ())   # held open: the catalog does not re-ask it either
+        fallback = [q for q in d.must_ask(new_brief) if q.field not in held_open and q.id not in held_open] \
+            if gap_q is None and not res.conflicts else []
         res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
                      [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else fallback[:1])
         expected = row.revision if row else 0
@@ -666,7 +681,7 @@ class ConversationSupervisor:
                 closed.update((q.field, q.id))
         return closed
 
-    def _gaps(self, project_id, message, interp, answers, brief, lang, unsure=False, contested=()):
+    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=()):
         """(gaps evidence, the one next Question or None).
 
         The spec is rebuilt from the durable conversation on EVERY turn (_replayed_spec): the store is the only
@@ -675,9 +690,22 @@ class ConversationSupervisor:
         said, proposals, typed = self._heard(message, answers, getattr(interp, 'proposals', ()), lang)
         if not said:
             return None, None
-        spec, previous = self._replayed_spec(project_id)
+        spec, previous, held = self._replayed_spec(project_id)
         spec = self._family_for(spec, said, typed)
-        spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
+        settle, unsure, hold, assume = self._clarify(spec, previous, said, typed)
+        spec.hear(said, proposals, settle=settle)      # "what?" keeps the question open (explained, not skipped)
+        if hold:
+            held.add(previous)
+        held = {h for h in held if spec.value(h) is None}   # answered later (typed or edited): no longer open
+        assumed_now = {}
+        if assume and spec.value(previous) is not None:   # the default the field now holds, written and shown
+            assumed_now[previous] = spec.value(previous)
+            q0 = d.BY_ID.get(previous)
+            f0 = brief.fields.get(previous)
+            if q0 is not None and not (f0 and f0.get('source') in intake_agent.CONFIRMED_SOURCES) \
+                    and (q0.kind == 'text' or assumed_now[previous] in {o.value for o in q0.options}):
+                brief.fields[previous] = {'value': assumed_now[previous], 'source': 'default', 'question_id': q0.id,
+                                          'confidence': 'assumed'}
         pending = [q.field for q in d.pending(brief)]
         g = spec.detect(pending)
         for name, imp in g['implied'].items():        # implied by the request: an assumption in the brief, not asked
@@ -687,11 +715,13 @@ class ConversationSupervisor:
         for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
             brief.hints.setdefault(name, value)
         closed = self._closed_in_brief(brief)
-        allowed = self._askable(g['missing_material'], closed, previous, unsure=unsure, contested=contested)
+        allowed = self._askable([n for n in g['missing_material'] if n not in held], closed, previous,
+                                unsure=unsure, contested=contested)
         model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
         q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure, allowed=allowed)
-        return {**spec.detect(pending), 'allowed': allowed, 'previous': previous,
+        return {**spec.detect(pending), 'allowed': allowed, 'previous': previous, 'held_open': sorted(held),
+                'assumed_now': assumed_now,
                 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
 
     @staticmethod
@@ -699,9 +729,16 @@ class ConversationSupervisor:
         """The detector's ordered list, minus what the brief closed, under the repeat rule (Matt 2026-10-28).
 
         The repeat rule is state-dependent. The field asked in the previous turn is offered again ONLY when
-          (a) the customer did not understand it -- "what?" / "why?" (_UNSURE_RX): it is asked again, explained,
-              and comes first; or
+          (a) `unsure`: the reply asks for a clarification (see _clarify) -- the field comes back ONCE, explained,
+              and first; or
           (b) the answer contradicts a value the customer confirmed (`contested`): it may be asked back.
+        Clarifications (_clarify, owner + Matt 2026-10-28):
+          * "לא הבנתי" / "what?" / "why?"  -> once more, explained; a second "not understood" moves on (the default,
+            shown as an assumption -- or, with no valid default, the field is held OPEN);
+          * "לא יודע" / "not sure"          -> never repeated: the field's default, written and shown as an assumption;
+          * no valid default (a sensitive `confirm` field: privacy, data, who may see it) -> one explained repeat;
+            if still unsettled the field is held OPEN (brief.open_material, so the approval gate sees it) and is not
+            asked again by itself -- an open field, never a loop.
         Any other reply settles it -- a stated value, "you decide", or words that fill nothing (Spec.hear then
         records the field's default as an assumption the customer can change) -- so the same question never comes
         back by itself."""
@@ -711,6 +748,31 @@ class ConversationSupervisor:
             allowed.remove(previous)
             allowed.insert(0, previous)
         return allowed
+
+    @staticmethod
+    def _clarify(spec, previous, said, typed):
+        """(settle, explain again, hold open, assume the default) for a reply to the field just asked. See _askable."""
+        from ..intake.artifact_fields import CONDITIONAL
+        text = (said or '').strip().lower()
+        kind = None
+        if typed and previous and spec is not None:
+            if re.search(_NOT_UNDERSTOOD_RX, text, re.I):
+                kind = 'not_understood'
+            elif re.search(_DONT_KNOW_RX, text, re.I):
+                kind = 'dont_know'
+        if kind is None:
+            return True, False, False, False
+        f = next((x for x in list(spec.fields) + list(CONDITIONAL.values()) if x.name == previous), None)
+        no_default = f is None or f.confirm                  # sensitive: never silently assumed
+        last = spec.log[-1] if spec.log else None
+        explained = last is not None and last.field == previous and last.mode in ('explain', 'short')
+        if kind == 'dont_know' and not no_default:
+            return True, False, False, True                  # the default, shown; never repeated
+        if not explained:
+            return False, True, False, False                 # once more, explained
+        if no_default:
+            return False, False, True, False                 # held open: not asked again by itself
+        return True, False, False, True                      # explained already: move on with the default, shown
 
     @staticmethod
     def _family_for(spec, said, typed):
@@ -726,7 +788,7 @@ class ConversationSupervisor:
         return spec
 
     def _replayed_spec(self, project_id):
-        """(spec, the field asked in the last assistant turn) rebuilt from the store: every customer turn before
+        """(spec, the field asked in the last assistant turn, fields held open) rebuilt from the store: every customer turn before
         this one is heard again (buttons with their stored answers, typed text with the deterministic interpreter)
         and every question the assistant asked is logged again from its stored `asked`. (None, None) when there is
         no history yet. Nothing is kept in this process."""
@@ -735,10 +797,10 @@ class ConversationSupervisor:
         try:
             history = list(self.store.messages_for(project_id, limit=200))
         except Exception:
-            return None, None
+            return None, None, set()
         if history and history[-1].get('role') == 'customer':
             history = history[:-1]                            # this turn was stored before routing
-        spec, previous = None, None
+        spec, previous, held = None, None, set()
         for m in history:
             meta = m.get('interpretation') or {}
             if m.get('role') == 'customer':
@@ -750,7 +812,10 @@ class ConversationSupervisor:
                 said, props, typed = self._heard(typed_text, answers, props, lang)
                 said = said or text
                 spec = self._family_for(spec, said, typed)
-                spec.hear(said, props, settle=not (typed and re.search(_UNSURE_RX, said.strip().lower(), re.I)))
+                settle, _, hold, _ = self._clarify(spec, previous, said, typed)   # the same rule as the live turn
+                spec.hear(said, props, settle=settle)
+                if hold:
+                    held.add(previous)
             elif m.get('role') == 'assistant':
                 asked = list(meta.get('asked') or [])
                 previous = meta.get('gap_field') or (asked[0] if asked else None)
@@ -760,7 +825,7 @@ class ConversationSupervisor:
                         spec.log.append(LogEntry(len(spec.ledger.messages), previous,
                                                  language_of(' '.join(spec.ledger.messages[-2:])), 'replay',
                                                  spec.fingerprint(), 'explain' if meta.get('explained') else 'ask'))
-        return spec, previous
+        return spec, previous, held
 
     @staticmethod
     def _finding_message(f, lang, T):

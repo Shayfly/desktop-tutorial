@@ -88,7 +88,7 @@ class TheLoopIsGone(unittest.TestCase):
         c.click({'personal_data': 'yes'})
         t = c.click({'content_only': 'yes'})                             # label "...בלי שמירת נתונים" -> web_app
         self.assertEqual(t.gaps['kind'], 'website')
-        spec, _ = c.sup()._replayed_spec(c.pid)                         # what was said is still known
+        spec, _, _ = c.sup()._replayed_spec(c.pid)                       # what was said is still known
         self.assertEqual((spec.kind, spec.value('personal_data')), ('website', 'yes'))
         self.assertNotEqual(asked(t), 'personal_data')
 
@@ -121,6 +121,57 @@ class TheRepeatRule(unittest.TestCase):
         self.assertEqual(rule(missing, set(), 'b', unsure=True), ['b', 'a', 'c'])       # "what?": again, first
         self.assertEqual(rule(missing, set(), 'a', contested={'a'}), ['a', 'b', 'c'])   # contradicted: may return
         self.assertEqual(rule(missing, {'a'}, 'a', unsure=True), ['b', 'c'])            # closed by the brief: never
+
+
+class Clarifications(unittest.TestCase):
+    """Owner + Matt 2026-10-28: "לא הבנתי" repeats once, explained, then moves on; "לא יודע" never repeats (the
+    default, shown as an assumption); a field with no valid default gets one explained repeat, then is held OPEN."""
+
+    def first_question(self, c, want):
+        t = c.say(FLOWERS)
+        for _ in range(6):                                              # click through to the field under test
+            if asked(t) == want:
+                return t
+            f = asked(t)
+            t = c.click({f: d.BY_ID[f].options[0].value})
+        self.fail(f'{want} was never asked')
+
+    def test_not_understood_repeats_once_explained_then_moves_on(self):
+        c = Conversation()
+        t0 = self.first_question(c, 'style')                           # style has a valid default ('clean')
+        t1 = c.say('לא הבנתי')
+        self.assertEqual(asked(t1), 'style')                            # once more ...
+        self.assertTrue(t1.explained)                                   # ... explained
+        t2 = c.say('לא הבנתי')
+        self.assertNotEqual(asked(t2), 'style')                         # then the conversation moves on
+        self.assertEqual(c.briefs.latest(c.pid).brief.fields['style']['value'], 'clean')
+
+    def test_dont_know_does_not_repeat_and_the_default_is_shown(self):
+        c = Conversation()
+        self.first_question(c, 'style')
+        t = c.say('לא יודע')
+        self.assertNotEqual(asked(t), 'style')                          # not asked again
+        f = c.briefs.latest(c.pid).brief.fields['style']
+        self.assertEqual((f['value'], f['source']), ('clean', 'default'))   # the default, visible in the brief
+        from omni_prod.conversation.supervisor import _label
+        self.assertIn(_label('style', 'clean', 'he'), t.reply)        # ... and said to the customer
+
+    def test_no_valid_default_one_repeat_then_held_open_not_a_loop(self):
+        c = Conversation()
+        t0 = c.say(FLOWERS)
+        self.assertEqual(asked(t0), 'personal_data')                    # sensitive: no valid default to assume
+        t1 = c.say('לא יודע')
+        self.assertEqual(asked(t1), 'personal_data')                    # one repeat, explained
+        self.assertTrue(t1.explained)
+        t2 = c.say('לא יודע')
+        self.assertNotEqual(asked(t2), 'personal_data')                 # not a loop ...
+        b = c.briefs.latest(c.pid).brief
+        self.assertIn('personal_data', b.open_material)                 # ... held as an OPEN field
+        self.assertFalse(c.briefs.latest(c.pid).complete)
+        self.assertNotIn('personal_data', b.fields if b.fields.get('personal_data', {}).get('source') == 'default'
+                         else {})                                       # never silently assumed
+        t3 = c.say('משהו')
+        self.assertNotEqual(asked(t3), 'personal_data')                 # still not asked again by itself
 
 
 class TheModelLeads(unittest.TestCase):
