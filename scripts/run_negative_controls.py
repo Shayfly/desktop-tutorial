@@ -57,7 +57,7 @@ def verdict(failed, expected, env: str) -> tuple[bool, str]:
                 + (f' INFO extra failures in {env}: {extra}' if extra and ok else ''))
 
 
-def run_control(spec: dict, cid: str = 'NC', env: str | None = None) -> tuple[bool, str]:
+def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple[bool, str]:
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='nc-'))
     try:
         repo = tmp / 'repo'
@@ -92,11 +92,11 @@ def run_control(spec: dict, cid: str = 'NC', env: str | None = None) -> tuple[bo
         for line in _git(repo, 'diff', '-U0', '--', *files).stdout.splitlines():
             print(f"NC-EVIDENCE MUTATION {cid} diff: {line}", flush=True)
         report = tmp / 'report.xml'
-        env = {**os.environ, 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
+        proc_env = {**os.environ, 'PYTHONPATH': str(repo), 'OMNI_EVIDENCE_NOTICES': ''}
         try:
             proc = subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider',
                                    f'--junitxml={report}', *spec['targets']],
-                                  cwd=repo, env=env, capture_output=True, text=True, timeout=1200)
+                                  cwd=repo, env=proc_env, capture_output=True, text=True, timeout=1200)
         except subprocess.TimeoutExpired:
             return False, 'DID NOT RUN: pytest timed out'
         finally:
@@ -114,7 +114,9 @@ def run_control(spec: dict, cid: str = 'NC', env: str | None = None) -> tuple[bo
         failed = sorted({c.get('name') for c in cases
                          if c.find('failure') is not None or c.find('error') is not None})
         skipped = {c.get('name') for c in cases if c.find('skipped') is not None}
-        env = ENV if env is None else env
+        env = ENV if nc_env is None else nc_env       # a name, never the process environment (2026-10-28 bug)
+        if not isinstance(env, str):
+            return False, 'DID NOT RUN: the environment name is not a string'
         expected = expected_for(spec, env)
         not_run = sorted(set(expected) & skipped)
         if not_run:

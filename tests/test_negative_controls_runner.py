@@ -141,5 +141,16 @@ class PerEnvironmentExpectations(unittest.TestCase):
         self.assertIn("extra=['x']", note)
 
 
+class TheDetailNeverCarriesTheProcessEnvironment(unittest.TestCase):
+    """2026-10-28: `env` was both the environment NAME and the subprocess environment dict, so the dict reached the
+    annotation text (a public repo). The detail must name the environment only."""
+
+    def test_the_runner_keeps_the_two_apart(self):
+        import inspect
+        src = inspect.getsource(nc.run_control)
+        self.assertIn('proc_env = {**os.environ', src)
+        self.assertNotIn('env = {**os.environ', src.replace('proc_env = {**os.environ', ''))
+
+
 if __name__ == '__main__':
     unittest.main()
