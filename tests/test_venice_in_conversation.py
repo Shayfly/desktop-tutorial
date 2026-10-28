@@ -23,9 +23,12 @@ from omni_prod.providers import venice_gateway as V
 from omni_prod.providers.venice import VeniceBudgetExceeded, VeniceKeyMissing
 from tests.test_conversation_os import MemoryBriefs
 
-KEY = {'VENICE_API_KEY1': 'test-key'}
-VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4'}
-VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation'}
+# 2026-10-28: the intake conversation runs only on OMNI_VENICE_ALLOWED_MODELS (fail closed without it)
+KEY = {'VENICE_API_KEY1': 'test-key', 'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
+VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4',
+              'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
+VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation',
+          'venice_allowed_models': ['private-e2ee']}
 AUTH = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
         'OMNI_INTAKE_DAILY_BUDGET_USD': '0.5'}
 MSG = 'אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד'

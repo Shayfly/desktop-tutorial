@@ -54,7 +54,7 @@ jobs:
       - name: Evidence notices (readable as check-run annotations, no log access needed)
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "no evidence notices were written"
-      - name: Negative controls (::notice PASS|FAIL with the names of the tests that failed)
+      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)
         if: always()
         timeout-minutes: 20
         run: python scripts/run_negative_controls.py
