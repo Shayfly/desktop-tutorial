@@ -90,5 +90,32 @@ class Runner(unittest.TestCase):
         self.assertIn('return x > 0', (self.repo / 'lib.py').read_text())
 
 
+class OneSummaryNoticePerSpec(unittest.TestCase):
+    """GitHub shows at most 10 notices per step and keeps the first ones: with one notice per control the controls of
+    the later specs were cut (2026-10-28). Each spec now prints ONE summary notice after all its controls ran."""
+
+    def test_one_notice_per_spec_after_its_controls_and_an_error_for_a_fail(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        for name, ids in (('a_first.json', ('NC1', 'NC2')), ('b_second.json', ('NC1', 'NC2', 'NC3', 'NC4'))):
+            (d / name).write_text(json.dumps({'pr': name.split('.')[0], 'controls': [
+                {'id': i, 'what': f'w{i}', 'mutations': [], 'targets': [], 'expect_failed': []} for i in ids]}))
+        results = iter([(True, 'x'), (True, 'x'), (True, 'x'), (False, 'boom'), (True, 'x'), (True, 'x')])
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'run_control', lambda c, cid: next(results)), \
+                redirect_stdout(out):
+            code = nc.main([])
+        lines = out.getvalue().splitlines()
+        notices = [l for l in lines if l.startswith('::notice')]
+        self.assertEqual(notices, ['::notice title=SPEC a_first::2/2 PASS (NC1 NC2)',
+                                   "::notice title=SPEC b_second::3/4 FAIL (NC1 NC2 NC3 NC4) failed=['NC2']"])
+        self.assertEqual(code, 1)
+        self.assertTrue(any(l.startswith('::error title=b_second NC2 FAIL::') and 'boom' in l for l in lines))
+        self.assertIn('NC-EVIDENCE RESULT b_second NC4 PASS wNC4 -> x', lines)
+        # the summary comes after every control of its spec
+        self.assertGreater(lines.index(notices[1]), lines.index('NC-EVIDENCE RESULT b_second NC4 PASS wNC4 -> x'))
+
+
 if __name__ == '__main__':
     unittest.main()

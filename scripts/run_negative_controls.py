@@ -110,16 +110,31 @@ def main(argv: list[str]) -> int:
     if not specs:
         notice('negative-controls', f'FAIL no spec matched {prefix!r} in {SPECS.relative_to(ROOT)}')
         return 1
+    # GitHub shows at most 10 notices per step and keeps the FIRST ones (2026-10-28: the controls of pr162/pr170 were
+    # cut). So each control's result is a plain log line, and every spec gets ONE ::notice summary after all its
+    # controls ran -- one notice per spec, all of them visible. A FAIL is also an ::error with its full detail.
     all_ok = True
     for path in specs:
         spec = json.loads(path.read_text(encoding='utf-8'))
+        digests = []
         for f in spec.get('sha256', []):
             digest = hashlib.sha256((ROOT / f).read_bytes()).hexdigest()
-            notice(f"{spec['pr']} sha256", f'{f} {digest}')
+            digests.append(f'{f} {digest[:16]}')
+            print(f"NC-EVIDENCE {spec['pr']} sha256 {f} {digest}", flush=True)
+        passed, failed = [], []
         for control in spec['controls']:
             ok, detail = run_control(control, control['id'])
             all_ok &= ok
-            notice(f"{spec['pr']} {control['id']}", f"{'PASS' if ok else 'FAIL'} {control['what']} -> {detail}")
+            (passed if ok else failed).append(control['id'])
+            print(f"NC-EVIDENCE RESULT {spec['pr']} {control['id']} {'PASS' if ok else 'FAIL'} "
+                  f"{control['what']} -> {detail}", flush=True)
+            if not ok:
+                clean = ' '.join(f"{control['what']} -> {detail}".replace('%', '%25').split())
+                print(f"::error title={spec['pr']} {control['id']} FAIL::{clean}"[:4000], flush=True)
+        n = len(spec['controls'])
+        verdict = 'PASS' if not failed else 'FAIL'
+        notice(f"SPEC {spec['pr']}", f"{len(passed)}/{n} {verdict} (" + ' '.join(c['id'] for c in spec['controls'])
+               + ')' + (f' failed={failed}' if failed else '') + (f" | sha256 {'; '.join(digests)}" if digests else ''))
     return 0 if all_ok else 1
 
 
