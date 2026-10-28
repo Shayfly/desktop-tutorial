@@ -19,6 +19,7 @@ from omni_prod.intake import agent as A
 from omni_prod.intake import approval_flow as AF
 from omni_prod.intake.interpreter import (DeterministicInterpreter, Interpretation, Proposal, first_sentence,
                                           validate_model_output)
+from tests.evidence_notice import notice
 from tests.test_conversation_os import MemoryBriefs
 
 BARBER = ('אני רוצה מערכת לניהול תורים למספרה שלי. הלקוחות יקבעו תור לפי שעות פנויות, ישאירו שם וטלפון, '
@@ -131,6 +132,7 @@ class TheApprovalIsAnAction(unittest.TestCase):
         r = self.post('conversation', {'message': ''})
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.json()['detail']['error'], 'empty_message')
+        notice('approve-action NC(b) PASS', 'POST conversation with message="" -> 422 empty_message (explicit)')
 
     def test_approve_with_an_empty_message_opens_the_build(self):              # NC (a)
         fp = self.ready_spec()
@@ -138,6 +140,8 @@ class TheApprovalIsAnAction(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertTrue(AF.spec_approved(self.store.messages, fp))             # the build gate's own check
         self.assertIn('approve_build', [a['type'] for a in r.json()['turn']['actions']])
+        notice('approve-action NC(a) PASS', f'POST spec-approval (no message) -> 200; spec_approved={fp[:12]} recorded; '
+               'approve_build offered')
 
     def test_an_old_client_approving_on_the_conversation_route_is_not_empty_message(self):
         fp = self.ready_spec()
