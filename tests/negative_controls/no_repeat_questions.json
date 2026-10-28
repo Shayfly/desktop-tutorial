@@ -60,6 +60,7 @@
         "tests/test_no_repeat_questions.py"
       ],
       "expect_failed": [
+        "test_new_instance_each_turn_memory_store",
         "test_a_label_that_reads_as_another_family_does_not_reset_the_spec"
       ]
     },
