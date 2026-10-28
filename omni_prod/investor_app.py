@@ -2217,7 +2217,8 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
             raise HTTPException(409, detail={'error': 'spec_not_approved',
                                              'message': 'Approve the spec in the conversation first; no plan is made before that.'})
         gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
-        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):
+        # Founder 2026-10-28: on the two-gate flow a plan WITHOUT the verifier's gate is not verified either.
+        if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):
             raise HTTPException(409, detail={'error': 'plan_not_verified',
                                              'message': 'The plan for this spec has not passed the verifier.'})
     if saved is None:

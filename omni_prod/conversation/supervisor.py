@@ -208,6 +208,8 @@ def _why_prefixes():
 
 
 _WHY_PREFIXES = _why_prefixes()
+AF_FLOW = 'two_gate'      # intake.approval_flow.FLOW (kept in sync by test_the_flow_mark_names_match)
+
 _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
               r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
               r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
@@ -353,6 +355,14 @@ class ConversationSupervisor:
             # replayed exactly from the store on any server (_replayed_spec); no schema change (jsonb column).
             said_meta = {**({'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]} if attachments else {}),
                          **({'answers': dict(answers)} if answers and not message else {})}
+            # Founder 2026-10-28 (option b): a conversation that STARTS now is on the two-gate flow from its first
+            # message -- an explicit, durable mark, not a creation date. A project that already has a brief or a
+            # conversation keeps whatever flow it was on (EarlierProjectsKeepWorking).
+            # The mark is repeated on every later customer message, so it stays inside any window a reader takes
+            # (_bind_execution_plan reads the last 500 messages).
+            recent = self.store.messages_for(project_id, limit=2)
+            if (row is None and not recent) or any((m.get('interpretation') or {}).get('flow') == AF_FLOW for m in recent):
+                said_meta['flow'] = AF_FLOW
             self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                    brief_revision=row.revision if row else None, request_key=request_key,
                                    interpretation=said_meta or None)
@@ -439,10 +449,12 @@ class ConversationSupervisor:
         shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
+        flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
+                                        for m in self.store.messages_for(project_id, limit=2)) else {}
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                brief_revision=row.revision if row else None, request_key=request_key,
-                               interpretation={'spec_approved': row.fingerprint} if feasible else
-                               {'spec_approval_refused': brief_fingerprint})
+                               interpretation={**({'spec_approved': row.fingerprint} if feasible else
+                                                  {'spec_approval_refused': brief_fingerprint}), **flow})
         if not current or not feasible:        # never plan for a spec the customer did not see as it is now
             if row is None:
                 turn.reply = T['nothing']

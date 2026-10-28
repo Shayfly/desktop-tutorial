@@ -272,6 +272,79 @@ class ThePlanNamesAndTheAssets(unittest.TestCase):
         self.assertIn(f'/assets/app.js?v={IA._ASSET_VERSION}', html)
         self.assertEqual(client.get('/assets/app.js').headers.get('cache-control'), 'no-cache')
 
+class TheFlowMark(unittest.TestCase):
+    """Founder 2026-10-28, option (b): a conversation that starts now is marked flow='two_gate' on its first message;
+    on that flow a build needs the spec approval AND a plan with the verifier's gate. An earlier project (no mark,
+    no gate) keeps the earlier path."""
+
+    EQUIPMENT = 'I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data'
+
+    def setUp(self):
+        self.IA, _ = _api()
+        self.briefs, self.store = MemoryBriefs(), MemoryConversationStore()
+        for p in (mock.patch.object(self.IA, '_brief_repo', lambda: self.briefs),
+                  mock.patch.object(self.IA, '_conversation_store', lambda: self.store),
+                  mock.patch('omni_prod.conversation.store.schema_ready', lambda pool: True)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def new_project(self):
+        s = ConversationSupervisor(briefs=self.briefs, store=self.store)
+        s.turn(project_id='p1', account_id='a1', message=self.EQUIPMENT, lang='en')
+        s.turn(project_id='p1', account_id='a1', message='you decide', lang='en')
+        row = self.briefs.latest('p1')
+        self.assertTrue(row.complete)
+        return row
+
+    def plan_without_gate(self, row):
+        from omni_prod.intake import contract as C
+        from omni_prod.planning.architect import ChiefArchitect
+        from decimal import Decimal
+        plan = ChiefArchitect().plan(C.build(row.brief), budget_usd=Decimal('0.50'), status='PROPOSED')
+        self.assertNotIn(AF.GATE_KEY, plan)
+        self.store.save_plan(project_id='p1', brief_revision=row.revision, brief_fingerprint=row.fingerprint, plan=plan)
+
+    def bind_error(self, fp):
+        from fastapi import HTTPException
+        try:
+            self.IA._bind_execution_plan('p1', fp)
+        except HTTPException as exc:
+            return exc.status_code, exc.detail.get('error')
+        return None
+
+    def test_the_flow_mark_names_match(self):
+        from omni_prod.conversation import supervisor as SV
+        self.assertEqual(SV.AF_FLOW, AF.FLOW)
+
+    def test_a_new_conversation_is_marked_and_on_the_two_gate_flow(self):
+        self.new_project()
+        self.assertEqual((self.store.messages[0].get('interpretation') or {}).get('flow'), 'two_gate')
+        self.assertTrue(AF.on_two_gate_flow(self.store.messages))
+
+    def test_new_project_build_without_spec_approval_is_409_spec_not_approved(self):
+        row = self.new_project()
+        self.assertEqual(self.bind_error(row.fingerprint), (409, 'spec_not_approved'))
+
+    def test_new_project_saved_plan_without_gate_is_409_plan_not_verified(self):
+        row = self.new_project()
+        self.store.add_message(project_id='p1', account_id='a1', role='customer', content='approve',
+                               interpretation={'spec_approved': row.fingerprint, 'flow': 'two_gate'})
+        self.plan_without_gate(row)
+        self.assertEqual(self.bind_error(row.fingerprint), (409, 'plan_not_verified'))
+
+    def test_earlier_project_without_mark_and_a_plan_without_gate_still_passes(self):
+        from omni_prod import discovery as dd
+        brief = A.apply(dd.start(self.EQUIPMENT, dd.GUIDED), DeterministicInterpreter().interpret(self.EQUIPMENT, None),
+                        ).brief
+        brief = dd.answer(brief, {q.id: dd.DELEGATE for q in dd.pending(brief)}) if dd.pending(brief) else brief
+        row = self.briefs.save(project_id='p1', account_id='a1', brief=brief, expected_revision=0)
+        self.store.add_message(project_id='p1', account_id='a1', role='assistant', content='old reply',
+                               interpretation={'intent': 'requirements', 'actions': [{'type': 'show_plan'}]})
+        self.assertFalse(AF.on_two_gate_flow(self.store.messages))
+        self.plan_without_gate(row)
+        self.assertIsNone(self.bind_error(row.fingerprint))
+
+
 DATABASE_URL = os.getenv('M4D2_DATABASE_URL', '').strip()
 
 
