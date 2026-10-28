@@ -540,10 +540,23 @@ class ConversationSupervisor:
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
         unsure_now = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
         gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang, unsure=unsure_now)
+        # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
+        # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
+        # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
+        # (security/privacy, not delegable, no honest default) is still asked in the catalog's words.
+        new_brief.detector = True
+        new_brief.open_material = [gap_q.field] if gap_q is not None else []
+        if gap_q is not None:                    # asked now, so not also announced as "chosen for you" (the stored
+            res.assumed = [a for a in res.assumed if a['field'] != gap_q.field]   # default stays until answered)
+        fallback = d.must_ask(new_brief) if gap_q is None and not res.conflicts else []
         res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
-                     [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else [])
+                     [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else fallback[:1])
         expected = row.revision if row else 0
-        if row is None or new_brief.fingerprint() != row.fingerprint:
+        # C6: a revision when the requirements change (fingerprint), when completeness changes, or when the detector
+        # moves to another open field -- so the stored brief never names a stale open field. While the brief is
+        # incomplete no approval exists, so a revision with the same fingerprint invalidates nothing.
+        if row is None or new_brief.fingerprint() != row.fingerprint or d.complete(new_brief) != row.complete \
+                or new_brief.open_material != row.brief.open_material:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
                                    expected_revision=expected, request_key=request_key)
         turn = Turn('answer' if answers and not message else 'requirements', lang, '', row, res.asked)
@@ -594,10 +607,15 @@ class ConversationSupervisor:
                 turn.blocked = [f['item'] for f in blocked]
                 parts.append(T['blocked'] + ': ' + '; '.join(
                     self._finding_message(f, lang, T) for f in blocked[:3]))
-        elif res.asked:                                     # still listening: no plan while a material field is open
-            if row.complete:
-                turn.blocked = [f['item'] for f in self._feasibility(row).get('findings', [])
-                                if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+        elif res.asked or gap_q is not None:                # still listening: no plan while a material field is open
+            # C6: the detector may still ask while the catalog is already complete; a blocker is known (and said)
+            # now, not after the last question -- from the feasibility check, never from a plan (no plan before gate 1)
+            if row.complete or d.catalog_complete(row.brief):
+                blocked = [f for f in self._feasibility(row).get('findings', [])
+                           if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+                turn.blocked = [f['item'] for f in blocked]
+                if blocked and not row.complete:
+                    parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
             if gap_q is not None and not res.conflicts:
                 parts.append(gap_q.text)                    # the detector's question, exactly as it is in turn.gaps
                 turn.explained = gap_q.text.startswith(_WHY_PREFIXES)
@@ -629,8 +647,11 @@ class ConversationSupervisor:
             return None, None
         specs = self.__dict__.setdefault('_gap_specs', {})
         kind, spec = named_family(said), specs.get(project_id)
+        if spec is None:
+            spec = self._replayed_spec(project_id, said)      # C6: another server, or a restart: rebuild, never forget
         if spec is None or (kind is not None and kind != spec.kind):
-            spec = specs[project_id] = Spec(kind or classify_family(said), [])
+            spec = Spec(kind or classify_family(said), [])
+        specs[project_id] = spec
         spec.hear(said, proposals, settle=not unsure)      # "what?" keeps the question open (explained, not skipped)
         pending = [q.field for q in d.pending(brief)]
         g = spec.detect(pending)
@@ -644,6 +665,27 @@ class ConversationSupervisor:
         gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
         q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure)
         return {**spec.detect(pending), 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+
+    def _replayed_spec(self, project_id, current):
+        """C6: the detector's spec rebuilt from the durable conversation (customer turns before this one), replayed
+        with the deterministic interpreter and the fixed-phrasing questioner -- what a fresh server would have heard.
+        None when there is no history. The in-process copy stays the fast path."""
+        from ..intake.families import classify_family, named_family
+        from ..intake.gaps import Questioner, Spec
+        try:
+            history = [m['content'] for m in self.store.messages_for(project_id, limit=100) if m.get('role') == 'customer']
+        except Exception:
+            return None
+        if history and history[-1] == current:
+            history = history[:-1]                            # this turn was stored before routing
+        if not history:
+            return None
+        spec = Spec(named_family(history[0]) or classify_family(history[0]), [])
+        for said in history:
+            known = DeterministicInterpreter().interpret(said, None).proposals
+            spec.hear(said, known, settle=not re.search(_UNSURE_RX, said.strip().lower(), re.I))
+            Questioner(None).next(spec, [])
+        return spec
 
     @staticmethod
     def _finding_message(f, lang, T):
@@ -706,10 +748,14 @@ class ConversationSupervisor:
         if row is None:
             return T['nothing']
         if intent == 'missing':
-            pend = d.pending(row.brief)
-            if not pend and not d.contradictions(row.brief):
+            # C6: what is missing is what the detector still asks (then the catalog's fallback), not the catalog list
+            pend = (d.must_ask(row.brief) if row.brief.detector else d.pending(row.brief))
+            names = [(d.BY_ID[f].he if lang == 'he' else d.BY_ID[f].en) if f in d.BY_ID else f
+                     for f in (row.brief.open_material if row.brief.detector else ())]
+            names += [(q.he if lang == 'he' else q.en) for q in pend if q.field not in row.brief.open_material]
+            if not names and not d.contradictions(row.brief):
                 return T['missing_none']
-            return T['missing'] + ' ' + '; '.join((q.he if lang == 'he' else q.en) for q in pend[:4])
+            return T['missing'] + ' ' + '; '.join(names[:4])
         if intent == 'recommend':
             assumed = [(k, f['value']) for k, f in row.brief.fields.items() if f.get('source') in ('delegated', 'default')
                        and d.BY_ID.get(k) and d.BY_ID[k].kind == 'choice']
