@@ -208,9 +208,8 @@ class TheApprovalIsAnAction(unittest.TestCase):
 
     def test_a_spec_that_changed_after_it_was_shown_is_refused(self):
         fp = self.ready_spec()
-        self.post('conversation', {'message': 'and the colour should be green'})
-        if self.briefs.latest('p1').fingerprint == fp:
-            self.skipTest('the message did not change the spec')
+        self.post('conversation', {'answers': {'style': 'warm'}})                  # the default look was 'clean'
+        self.assertNotEqual(self.briefs.latest('p1').fingerprint, fp)              # the spec DID change (no skip)
         r = self.post('spec-approval', {'brief_fingerprint': fp})
         self.assertFalse(AF.spec_approved(self.store.messages, fp))
         self.assertNotIn('approve_build', [a['type'] for a in r.json()['turn']['actions']])

@@ -84,10 +84,16 @@ jobs:
             tests/test_visual_edit.py tests/test_conversation_ux.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py \
             tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
-            tests/integration/test_m5_build_economics_postgres.py
+            tests/integration/test_m5_build_economics_postgres.py tests/test_intake_approve_and_goal.py \
+            tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_approval_is_consumed_once \
+            tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_one_approval_never_starts_two_builds
       - name: Evidence notices (readable as check-run annotations, no log access needed)
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"
+      - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci, about 10 seconds)
+        if: always()
+        timeout-minutes: 5
+        run: python scripts/run_negative_controls.py
       - name: No test may be skipped
         if: always()
         run: |
