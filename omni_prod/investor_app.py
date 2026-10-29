@@ -3470,7 +3470,23 @@ def _schema_compatibility() -> dict:
             applied = sorted(int(r[0]) for r in conn.execute('SELECT version FROM schema_migrations').fetchall()) if exists else []
             identity = _db_identity_best_effort(conn)
     except Exception as exc:
-        return {**out, 'status': 'UNREACHABLE', 'compatible': False, 'error': type(exc).__name__}
+        from .schema_manifest import database_failure
+        failure = database_failure(exc)
+        # psycopg_pool logs connector failures in background threads but raises
+        # only PoolTimeout at checkout, losing the provider's quota refusal.
+        # One bounded connection-only probe recovers that cause for this health
+        # endpoint. It never queries data or retries application writes.
+        from psycopg_pool import PoolTimeout
+        from .db import DatabasePool, connect
+        if failure['status'] == 'UNREACHABLE' and isinstance(exc, PoolTimeout) and isinstance(_v28_pool, DatabasePool):
+            try:
+                with connect(_v28_pool.database_url, connect_timeout_seconds=2):
+                    pass
+            except Exception as probe_exc:
+                probe_failure = database_failure(probe_exc)
+                if probe_failure['status'] == 'QUOTA_EXCEEDED':
+                    failure = probe_failure
+        return {**out, **failure}
     return {**compatibility(applied), 'schema_migrations_present': bool(exists), **identity}
 
 
