@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
@@ -164,12 +165,25 @@ def render_skills_registry(skills=None) -> str:
     return "\n".join(lines)
 
 
+_HANDWRITTEN = Path(__file__).resolve().parents[1] / 'docs' / 'COST_MODEL_HANDWRITTEN.md'
+
+
+def _handwritten_cost_sections() -> str:
+    """Hand-written COST_MODEL sections live in docs/COST_MODEL_HANDWRITTEN.md, so regenerating never deletes them
+    and the truth-lock check stops warning about a file nobody may regenerate."""
+    if not _HANDWRITTEN.exists():
+        return ''
+    text = _HANDWRITTEN.read_text(encoding='utf-8')
+    text = re.sub(r'^<!--.*?-->\s*', '', text, flags=re.S).strip()
+    return text + '\n\n' if text else ''
+
+
 def render_cost_model() -> str:
     return """# 148AI Cost Model — M4.95 Truth Contract
 
 M4.95 treats cost as release-critical evidence, not a cosmetic estimate.
 
-## Required fields
+""" + _handwritten_cost_sections() + """## Required fields
 
 Every paid provider action has a versioned price source and records `estimated_cost_usd`, `maximum_cost_usd`, a durable reservation ceiling, and `actual_cost_usd` when the provider exposes measured billing/usage. `pricing_version` and effective dates make historical builds auditable.
 
