@@ -1,0 +1,14 @@
+{
+  "pr": "item4",
+  "controls": [{
+    "id": "NC1",
+    "what": "return the raw paid-provider decision reason to the customer again",
+    "mutations": [{
+      "file": "omni_prod/investor_app.py",
+      "old": "                            raise HTTPException(402, detail={\n                                'error': 'build_allowance_exhausted',\n                                'message': 'Your remaining allowance cannot cover this build. '\n                                           'Add credits or choose a smaller build.',\n                            })",
+      "new": "                            raise HTTPException(402, decision.reason)  # NEGATIVE CONTROL"
+    }],
+    "targets": ["tests/test_build_allowance_message.py"],
+    "expect_failed": ["test_refusal_is_structured_and_does_not_expose_provider_reason"]
+  }]
+}

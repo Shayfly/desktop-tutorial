@@ -2654,7 +2654,11 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             **({'internal_qa': True} if internal_qa else {}),
                         )
                         if not decision.allowed:
-                            raise HTTPException(402, decision.reason)
+                            raise HTTPException(402, detail={
+                                'error': 'build_allowance_exhausted',
+                                'message': 'Your remaining allowance cannot cover this build. '
+                                           'Add credits or choose a smaller build.',
+                            })
 
                         jobs.create_request(
                             cur, build_id=build_id, user_id=account.id, internal_project_id=key,

@@ -2634,3 +2634,9 @@ was accepted by a loose regex. Fixed with full-message affirmative matching;
 Hebrew, English and quoted-refusal regressions observed RED then GREEN.
 Remaining scoped choice: typed explicit delegation covers held fields; a field's
 quick-reply delegation continues to apply to that field through discovery.answer.
+
+## 2026-10-30 — Item 4 (Codex; awaiting independent review)
+Build reservation refusals return a structured customer-facing allowance error;
+the shipped explain() renders matching Hebrew/English copy without the internal
+paid-provider reason. Local: 45 tests and 9 subtests passed; item4 NC restores
+raw decision.reason and fails the response test. No deployment.
