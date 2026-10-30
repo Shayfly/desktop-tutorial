@@ -712,8 +712,13 @@ class ConversationSupervisor:
         spec.hear(said, proposals, settle=settle)      # "what?" keeps the question open (explained, not skipped)
         if hold:
             held.add(previous)
+        delegated = self._delegated_defaults(spec, previous, held, said, typed, brief=brief)
         held = {h for h in held if spec.value(h) is None}   # answered later (typed or edited): no longer open
-        assumed_now = {}
+        assumed_now = dict(delegated)
+        for name, value in delegated.items():
+            q0 = d.BY_ID[name]
+            brief.fields[name] = {'value': value, 'source': 'delegated', 'question_id': q0.id,
+                                  'confidence': 'assumed'}
         if assume and spec.value(previous) is not None:   # the default the field now holds, written and shown
             assumed_now[previous] = spec.value(previous)
             q0 = d.BY_ID.get(previous)
@@ -832,6 +837,8 @@ class ConversationSupervisor:
                 spec.hear(said, props, settle=settle)
                 if hold:
                     held.add(previous)
+                self._delegated_defaults(spec, previous, held, said, typed)
+                held = {h for h in held if spec.value(h) is None}
             elif m.get('role') == 'assistant':
                 asked = list(meta.get('asked') or [])
                 previous = meta.get('gap_field') or (asked[0] if asked else None)
@@ -842,6 +849,37 @@ class ConversationSupervisor:
                                                  language_of(' '.join(spec.ledger.messages[-2:])), 'replay',
                                                  spec.fingerprint(), 'explain' if meta.get('explained') else 'ask'))
         return spec, previous, held
+
+    @staticmethod
+    def _delegated_defaults(spec, previous, held, said, typed, brief=None):
+        """Explicit delegation settles only the asked/held fields, visibly and with provenance.
+        Uncertainty alone is not delegation; confirmed requirements are never replaced.
+        The same operation is replayed from the durable customer message."""
+        from ..intake.gaps import language_of
+        from ..intake.artifact_fields import CONDITIONAL
+        from ..intake.sources import Requirement, Span, ASSUMED, STATED
+        # A mention inside a refusal or a quoted question is not permission.
+        explicit = re.fullmatch(
+            r'\s*(?:בבקשה\s+|please\s+)?(?:תחליט(?: אתה|י)?|תבחר אתה|תבחרי את|לא משנה לי|'
+            r'you decide|your call|up to you|قرر|اختر أنت|اختر انت|لا يهمني)'
+            r'(?:\s+(?:בבקשה|please))?\s*[.!؟?]*\s*', said or '', re.I)
+        if spec is None or not typed or not explicit:
+            return {}
+        fields = {f.name: f for f in list(spec.fields) + list(CONDITIONAL.values())}
+        defaults = {}
+        for name in sorted(set(held) | ({previous} if previous else set())):
+            f, q = fields.get(name), d.BY_ID.get(name)
+            cur = spec.ledger.current(name)
+            confirmed = (brief.fields.get(name) or {}).get('source') in intake_agent.CONFIRMED_SOURCES if brief else False
+            if f is None or q is None or confirmed or (cur is not None and cur.status == STATED):
+                continue
+            value = language_of(' '.join(spec.ledger.messages)) if name == 'languages' else f.default
+            if q.kind != 'text' and value not in {o.value for o in q.options}:
+                continue
+            spec.ledger.add(Requirement(name, value, ASSUMED,
+                Span(len(spec.ledger.messages) - 1, 0, len(said), said), why='delegated'))
+            defaults[name] = value
+        return defaults
 
     @staticmethod
     def _finding_message(f, lang, T):

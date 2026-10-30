@@ -2621,3 +2621,16 @@ Plan preview now calls the existing read-only subscription authorization using
 build credits and total_authorized_variable_usd, preserving internal-QA policy.
 Local: 48 tests and 8 subtests pass; item3 negative control must fail the two
 insufficient-allowance cases. No reservation or paid call in preview.
+
+## 2026-10-30 — Item 5 (Codex; awaiting independent review)
+Explicit delegation now writes the declared default for asked/held fields into
+the brief with delegated provenance, shows it, clears held state and replays the
+same decision on another supervisor. Confirmed values remain unchanged; no spec
+approval is inferred. Uncertainty alone retains its existing clarification rule.
+Local: 57 passed, 4 PostgreSQL-dependent skips, 6 subtests. NC restoring held-open
+behavior fails the new end-to-end conversation test. No deployment.
+Independent review found one Important issue: a negated mention of delegation
+was accepted by a loose regex. Fixed with full-message affirmative matching;
+Hebrew, English and quoted-refusal regressions observed RED then GREEN.
+Remaining scoped choice: typed explicit delegation covers held fields; a field's
+quick-reply delegation continues to apply to that field through discovery.answer.
