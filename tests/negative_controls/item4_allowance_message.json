@@ -42,7 +42,7 @@
         {
           "file": "omni_prod/investor_app.py",
           "old": "        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.\n        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost'",
-          "new": "        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.\n        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'  # NEGATIVE CONTROL"
+          "new": "        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.\n        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'"
         }
       ],
       "targets": [
