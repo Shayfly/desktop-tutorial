@@ -28,6 +28,28 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
     overridden="$overridden $name"
   done < <(printf '%s\n' "$WORKER_ENV_OVERRIDES" | tr -d '\r')
   echo "::notice title=WORKER_ENV_OVERRIDES::applied names:${overridden:- none}"
+  # Read-back of every override line by SHAPE only (2026-10-27): name, length, ASCII-only and the checks the owner
+  # expects for that name. Values are never printed. Print-only ::notice (annotations are readable without log
+  # access); the blocking checks below are unchanged.
+  for name in $overridden; do
+    value=$(sed -n "s/^${name}=//p" .env | head -n 1)
+    ascii=yes; printf '%s' "$value" | LC_ALL=C grep -q '[^ -~]' && ascii=NO
+    facts="len=${#value} ascii=${ascii}"; bad=""
+    [ "$ascii" = yes ] || bad="$bad non-ASCII characters;"
+    case "$name" in
+      OMNI_S3_ACCESS_KEY) [ "${#value}" -eq 32 ] || bad="$bad expected 32 characters;";;
+      OMNI_S3_SECRET_KEY) [ "${#value}" -eq 64 ] || bad="$bad expected 64 characters;";;
+      OMNI_DATABASE_URL) if [[ "$value" == *eu-central-1* ]]; then facts="$facts region=eu-central-1"
+                         else facts="$facts region=NOT-eu-central-1"; bad="$bad host is not eu-central-1;"; fi;;
+      VENICE_API_KEY1) if [[ "$value" == VENICE_INFERENCE_KEY_* ]]; then facts="$facts prefix=VENICE_INFERENCE_KEY_"
+                       else facts="$facts prefix=UNEXPECTED"; bad="$bad does not start with VENICE_INFERENCE_KEY_;"; fi;;
+      OMNI_PLAN_DRIVEN|OMNI_INTAKE_PROVIDER) facts="$facts value=${value}";;   # a switch, not a secret
+      *) [ "${#value}" -ge 8 ] || bad="$bad short (under 8 characters);";;
+    esac
+    if [ -n "$bad" ]; then echo "::notice title=override-shape::FAIL ${name} ${facts} -${bad}"
+    else echo "::notice title=override-shape::PASS ${name} ${facts}"; fi
+  done
+  unset value
 else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
@@ -162,6 +184,23 @@ fi
 secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
 echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
 unset ak sk sandbox_secret secret_key
+# Print-only PASS/FAIL (2026-10-27) on the final .env, whatever secret the value came from. Never the value.
+nonascii() { printf '%s' "$1" | LC_ALL=C grep -c '[^ -~]' || true; }
+if grep -q '^VENICE_API_KEY1=' .env; then
+  vk=$(sed -n 's/^VENICE_API_KEY1=//p' .env | head -n 1)
+  pre=FAIL; [[ "$vk" == VENICE_INFERENCE_KEY_* ]] && pre=PASS
+  band=FAIL; [ "${#vk}" -ge 40 ] && [ "${#vk}" -le 128 ] && band=PASS
+  res=PASS; [ "$pre" = PASS ] && [ "$band" = PASS ] || res=FAIL
+  echo "::notice title=venice-key::${res} prefix VENICE_INFERENCE_KEY_=${pre}; length ${#vk} in 40-128=${band}"
+else
+  echo "::notice title=venice-key::FAIL VENICE_API_KEY1 is not set"
+fi
+db=$(sed -n 's/^OMNI_DATABASE_URL=//p' .env | head -n 1)
+region=FAIL; [[ "$db" == *eu-central-1* ]] && region=PASS
+na=$(nonascii "$db"); asc=FAIL; [ "${na:-0}" -eq 0 ] && asc=PASS
+res=PASS; [ "$region" = PASS ] && [ "$asc" = PASS ] && [ -n "$db" ] || res=FAIL
+echo "::notice title=database-url::${res} contains eu-central-1=${region}; non-ASCII characters=${na:-0} (${asc}); length ${#db}"
+unset vk db
 if [ "$problems" -ne 0 ]; then
   echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
   exit 1
