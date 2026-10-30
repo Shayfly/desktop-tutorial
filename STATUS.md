@@ -2634,3 +2634,16 @@ was accepted by a loose regex. Fixed with full-message affirmative matching;
 Hebrew, English and quoted-refusal regressions observed RED then GREEN.
 Remaining scoped choice: typed explicit delegation covers held fields; a field's
 quick-reply delegation continues to apply to that field through discovery.answer.
+
+## 2026-10-30 — Item 4 (Codex; awaiting independent review)
+Build reservation refusals return a structured customer-facing allowance error;
+the shipped explain() renders matching Hebrew/English copy without the internal
+paid-provider reason. Local: 45 tests and 9 subtests passed; item4 NC restores
+raw decision.reason and fails the response test. No deployment.
+
+### 2026-10-30 — Item 4 review follow-up (Codex)
+Reserve denial now distinguishes plan-ineligible builds from exhausted credits
+or budget. Each has matching Hebrew/English cause and action. Existing
+qa_budget_denied remains separate from plan_cannot_authorize_cost. Observed the
+new distinction tests RED, then 59 passed with 9 subtests. NC2 restores the
+unified mapping and must fail the eligibility test; NC1 still checks raw reason.
