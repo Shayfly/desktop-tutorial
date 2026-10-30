@@ -115,6 +115,43 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
         self.assertEqual(spend, Decimal('1.60'))
         self.assertEqual(reservations, 1)
 
+    def test_failed_build_without_provider_contact_restores_both_balances(self):
+        from types import SimpleNamespace
+        from omni_prod.worker_tasks import resolve_m5_billing
+        from tests.evidence_notice import notice
+
+        service = PostgresSubscriptionService(pool=self.pool)
+        before = service.snapshot(self.user_id)
+        build_id = self.build_ids[0]
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    decision = service.reserve(
+                        cur, build_id=build_id, user_id=self.user_id, project_id='p1',
+                        cost_class='light', credits=60,
+                        estimated_provider_cost_usd=Decimal('0.35'))
+        self.assertTrue(decision.allowed)
+        reserved = service.snapshot(self.user_id)
+        self.assertEqual(reserved['credits_used'], before['credits_used'] + 60)
+        self.assertEqual(Decimal(reserved['provider_spend_usd']),
+                         Decimal(before['provider_spend_usd']) + Decimal('0.35'))
+        gateway = SimpleNamespace(state=SimpleNamespace(external_calls=0, external_spend_usd=Decimal('0')))
+        for _ in range(2):  # retrying settlement cannot refund the same reservation twice
+            action, _, _ = resolve_m5_billing(
+                service, build_id=build_id, ready=False, gateway=gateway,
+                capability_evidence={'usage': []}, economics_quote={'infrastructure_maximum_usd': '0.25'})
+            self.assertEqual(action, 'released')
+            self.assertEqual(service.snapshot(self.user_id), before)
+        with self.pool.connection() as conn:
+            status = conn.execute('SELECT status FROM credit_reservations WHERE build_id=%s',
+                                  (build_id,)).fetchone()[0]
+        self.assertEqual(status, 'RELEASED')
+        notice('item2 balances PASS',
+               f"before credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
+               f"reserved credits={reserved['credits_remaining']} reserve={reserved['provider_budget_remaining_usd']}; "
+               f"after credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
+               'external_calls=0; replay leaves balances unchanged')
+
     def test_concurrent_build_request_replays_create_one_durable_build(self):
         repository=PostgresBuildRepository(self.pool)
         barrier=threading.Barrier(2)
