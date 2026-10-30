@@ -1,0 +1,14 @@
+{
+  "pr": "item5",
+  "controls": [{
+    "id": "NC1",
+    "what": "restore held-open state when the customer explicitly delegates a default",
+    "mutations": [{
+      "file": "omni_prod/conversation/supervisor.py",
+      "old": "        delegated = self._delegated_defaults(spec, previous, held, said, typed, brief=brief)",
+      "new": "        delegated = {}  # NEGATIVE CONTROL: leave the waived field held open"
+    }],
+    "targets": ["tests/test_visible_delegation.py"],
+    "expect_failed": ["test_explicit_delegation_clears_held_field_and_shows_default"]
+  }]
+}
