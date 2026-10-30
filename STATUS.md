@@ -2615,3 +2615,9 @@ PR11 is integrated into the PR17 branch only. Schema compatibility now requires 
 - Not implemented: measured billed savings after integration; these require successful candidate runs and a comparable billing/job-minute sample. Production deployment and merge are outside the authorization.
 
 Commands, sample of 100 historical runs, timeout policy and evidence limits: docs/CI_ACTIONS_COST_OPTIMIZATION_2026-10-14.md.
+
+## 2026-10-30 — Item 3 (Codex; awaiting independent review)
+Plan preview now calls the existing read-only subscription authorization using
+build credits and total_authorized_variable_usd, preserving internal-QA policy.
+Local: 48 tests and 8 subtests pass; item3 negative control must fail the two
+insufficient-allowance cases. No reservation or paid call in preview.

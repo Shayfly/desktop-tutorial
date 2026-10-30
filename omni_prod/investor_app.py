@@ -2467,6 +2467,9 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
         economics=economics,
+        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
+            user_id=account.id, cost_class=build_class, credits=build_credits,
+            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
         durable_backend=_async_build_mode(),
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
