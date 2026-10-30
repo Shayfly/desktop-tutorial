@@ -32,5 +32,20 @@ class TheVerdict(unittest.TestCase):
         self.assertEqual(verdict(Cur([('ok', None)]), 'b')[0], 'hold')
 
 
+
+class TheJanitorStep(unittest.TestCase):
+    def test_a_test_double_never_enters_the_reconciler(self):
+        """hasattr() is always true on a MagicMock: the janitor must run the reconciler on a real ledger only."""
+        from unittest import mock
+        from omni_prod import maintenance
+        subs = mock.MagicMock()
+        with mock.patch('omni_prod.reservation_reconciler.reconcile', side_effect=AssertionError('entered')) as rec:
+            out = maintenance.run_once(pool=mock.MagicMock(), preview_repo=mock.MagicMock(mark_expired=lambda: 0),
+                                       jobs=None, subscriptions=subs, stop_preview=None, runtime_host='h')
+        rec.assert_not_called()
+        self.assertFalse([e for e in out['errors'] if e.startswith('reservations')], out['errors'])
+        self.assertNotIn('reservations', out)
+
+
 if __name__ == '__main__':
     unittest.main()

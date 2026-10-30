@@ -428,6 +428,10 @@ class PostgresSubscriptionService:
                         return {'build_id': build_id, 'action': 'release', 'metered_usd': str(total), 'reason': reason,
                                 'applied': True}
         if action == 'settle':
+            # Runs AFTER the lock above is released, on purpose: settle() takes the same row lock itself (SELECT ...
+            # FOR UPDATE) and returns None unless the row is still RESERVED, so a concurrent release/settle between
+            # the two transactions makes this a no-op (applied=False), never a double resolution. The metered total
+            # was read under the first lock; attempts of a terminal build are not written any more.
             settled = self.settle(build_id=build_id, actual_provider_cost_usd=total)
             return {'build_id': build_id, 'action': 'settle', 'metered_usd': str(total), 'reason': reason,
                     'applied': settled is not None}

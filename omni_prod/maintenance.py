@@ -223,7 +223,9 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
                 out['errors'].append(f'reap {bid}: {type(exc).__name__}: {exc}')
     except Exception as exc:
         out['errors'].append(f'stale_builds: {type(exc).__name__}: {exc}')
-    if hasattr(subscriptions, 'reconcile_terminal_reservation'):
+    # A real ledger only: hasattr() is always true on a test double, which would run the reconciler against it.
+    from .subscription_store import PostgresSubscriptionService
+    if isinstance(subscriptions, PostgresSubscriptionService):
         try:
             from .reservation_reconciler import reconcile
             resolved = [r for r in reconcile(subscriptions, pool, apply=True) if r.get('applied')]
