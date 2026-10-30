@@ -159,8 +159,15 @@ class PlanViewTests(unittest.TestCase):
 @unittest.skipUnless(importlib.util.find_spec("fastapi"), "FastAPI not installed")
 class HTTPPlanViewTests(unittest.TestCase):
     def test_plan_endpoint_returns_credits_not_provider_economics(self):
+        from unittest import mock
         from fastapi.testclient import TestClient
+        from omni_prod import investor_app
         from omni_prod.investor_app import app
+        # This test is about what the plan view exposes, not the backend: the memory backend passes the
+        # durable-backend check here (the preview requires it since 2026-10-30, as POST .../builds does).
+        patcher = mock.patch.object(investor_app, '_require_durable_backend', lambda purpose: None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         c = TestClient(app)
         reg = c.post("/api/v28/auth/register", json={"email": f"cv-{uuid.uuid4().hex[:10]}@example.com",
                                                       "password": "StrongPass123!"}).json()
