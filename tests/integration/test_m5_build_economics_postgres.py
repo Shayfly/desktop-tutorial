@@ -116,8 +116,7 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
         self.assertEqual(reservations, 1)
 
     def test_failed_build_without_provider_contact_restores_both_balances(self):
-        from types import SimpleNamespace
-        from omni_prod.worker_tasks import resolve_m5_billing
+        from tests.worker_no_contact import failed_worker_without_contact
         from tests.evidence_notice import notice
 
         service = PostgresSubscriptionService(pool=self.pool)
@@ -135,12 +134,13 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
         self.assertEqual(reserved['credits_used'], before['credits_used'] + 60)
         self.assertEqual(Decimal(reserved['provider_spend_usd']),
                          Decimal(before['provider_spend_usd']) + Decimal('0.35'))
-        gateway = SimpleNamespace(state=SimpleNamespace(external_calls=0, external_spend_usd=Decimal('0')))
-        for _ in range(2):  # retrying settlement cannot refund the same reservation twice
-            action, _, _ = resolve_m5_billing(
-                service, build_id=build_id, ready=False, gateway=gateway,
-                capability_evidence={'usage': []}, economics_quote={'infrastructure_maximum_usd': '0.25'})
-            self.assertEqual(action, 'released')
+        for _ in range(2):  # repeated failed execution/settlement cannot refund the same ID twice
+            gateway, http, terminal = failed_worker_without_contact(subscriptions=service, build_id=build_id)
+            self.assertEqual(gateway.state.external_calls, 0)  # actual ModelUseState, not a supplied fake count
+            http.assert_not_called()
+            self.assertEqual(terminal['evidence_json']['external_model_calls'], gateway.state.external_calls)
+            self.assertEqual(terminal['evidence_json']['billing'], 'released')
+            self.assertEqual(terminal['error_code'], 'model_policy_blocked')
             self.assertEqual(service.snapshot(self.user_id), before)
         with self.pool.connection() as conn:
             status = conn.execute('SELECT status FROM credit_reservations WHERE build_id=%s',
@@ -150,7 +150,8 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
                f"before credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
                f"reserved credits={reserved['credits_remaining']} reserve={reserved['provider_budget_remaining_usd']}; "
                f"after credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
-               'external_calls=0; replay leaves balances unchanged')
+               f'external_calls={gateway.state.external_calls}; observed_http_calls={http.call_count}; '
+               'worker_failure=model_policy_blocked; replay leaves balances unchanged')
 
     def test_concurrent_build_request_replays_create_one_durable_build(self):
         repository=PostgresBuildRepository(self.pool)
