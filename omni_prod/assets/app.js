@@ -832,6 +832,8 @@ async function startBuild() {
   }
 }
 async function pollBuild() {
+  // One poll loop at a time (2026-10-30): a second call used to arm a second timer, so the loops stacked.
+  clearTimeout(S.timers.build);
   if (!S.build) return;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
@@ -850,6 +852,7 @@ async function pollBuild() {
       return;
     }
   } catch (e) { $('buildMsg').textContent = explain(e); }
+  clearTimeout(S.timers.build);
   S.timers.build = setTimeout(pollBuild, 2500);
 }
 /* Directive 2026-10-09 §10/§12: live log + stop. */
