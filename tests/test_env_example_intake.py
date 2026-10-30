@@ -26,6 +26,13 @@ class TheIntakeBudgetsAreDocumented(unittest.TestCase):
         value = re.search(r'(?m)^OMNI_INTAKE_CALL_BUDGET_USD=(.*)$', example).group(1)
         self.assertEqual(Decimal(value), Decimal(str(DEFAULT_CALL_RESERVE)))
         self.assertIn('PRE-CHECK only', example)
+        self.assertIn('The real cap is OMNI_INTAKE_MODEL_BUDGET_USD (per project)', example)
+
+    def test_the_default_lets_one_venice_message_pass_the_pre_check(self):
+        # Owner 2026-10-30: 0.01; one Venice message was quoted 0.00555 (pg evidence, 2026-10-28).
+        from omni_prod.intake.mode import DEFAULT_CALL_RESERVE
+        self.assertEqual(DEFAULT_CALL_RESERVE, Decimal('0.01'))
+        self.assertGreater(DEFAULT_CALL_RESERVE, Decimal('0.00555'))
 
 
 if __name__ == '__main__':

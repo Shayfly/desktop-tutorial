@@ -6,7 +6,7 @@ A model (paid) runs only when ALL of these hold:
   OMNI_INTAKE_MODEL=1                       founder switch
   OMNI_INTAKE_MODEL_BUDGET_USD  > 0         per-project conversation cap
   OMNI_INTAKE_DAILY_BUDGET_USD  > 0         cap across all projects, rolling 24 h
-  OMNI_INTAKE_CALL_BUDGET_USD   > 0         per-message reserve (default 0.005)
+  OMNI_INTAKE_CALL_BUDGET_USD   > 0         pre-check reserve: may a turn use a model at all (default 0.01)
   project spent + reserve <= project cap   (a call can never overshoot the cap)
   24 h spent    + reserve <= daily cap
 Route: OMNI_INTAKE_VIA_WORKER=1 only. Every paid call is reserved durably
@@ -23,7 +23,9 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal, InvalidOperation
 
 DETERMINISTIC, MODEL_WORKER, MODEL_DIRECT = 'deterministic', 'model-via-worker', 'model-direct'
-DEFAULT_CALL_RESERVE = Decimal('0.005')
+# Owner 2026-10-30: a pre-check value, not a spend ceiling. 0.01 lets one Venice message (quoted 0.00555) pass;
+# the real caps are OMNI_INTAKE_MODEL_BUDGET_USD (per project) and the daily cap, enforced by the reservation.
+DEFAULT_CALL_RESERVE = Decimal('0.01')
 # Cheapest REAL_EXECUTION_VERIFIED model whose intended tasks include conversation (PROVIDER_MATRIX.json).
 RECOMMENDED_MODEL = 'gemini-3.1-flash-lite'
 # Token envelope of one intake call (system prompt ~1.0k tokens + message <=4000 chars + JSON reply incl. thinking).
