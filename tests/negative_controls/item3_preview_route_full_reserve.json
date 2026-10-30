@@ -1,0 +1,16 @@
+{
+  "pr": "item3-route",
+  "sha256": ["tests/test_preview_allowance_full_reserve.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "the preview route checks the remaining allowance against a PARTIAL reserve (provider_maximum_usd, the model part only)",
+    "mutations": [{
+      "file": "omni_prod/investor_app.py",
+      "old": "            estimated_provider_cost_usd=quote.total_authorized_variable_usd),",
+      "new": "            estimated_provider_cost_usd=quote.provider_maximum_usd),  # NEGATIVE CONTROL: partial reserve"
+    }],
+    "targets": ["tests/test_preview_allowance_full_reserve.py"],
+    "expect_failed": ["test_the_route_authorizes_the_full_reserve_not_the_model_part",
+                      "test_remaining_below_the_full_reserve_blocks_the_preview_even_if_the_model_part_fits"]
+  }]
+}
