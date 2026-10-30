@@ -10,3 +10,4 @@
 | ITEM-3 | Codex | Draft; independent review required | plan reserve allowance boundary tests; item3 NC |
 | ITEM-5 | Codex | Draft; independent review required | visible delegated default, history replay and item5 NC |
 | ITEM-4 | Codex | Draft; independent review required | structured allowance error, real JS explain tests and item4 NC |
+| ITEM-2 | Codex | Draft; PostgreSQL evidence pending CI | zero-contact refund test and item2 NC; independent review required |

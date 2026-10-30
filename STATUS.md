@@ -2647,3 +2647,18 @@ or budget. Each has matching Hebrew/English cause and action. Existing
 qa_budget_denied remains separate from plan_cannot_authorize_cost. Observed the
 new distinction tests RED, then 59 passed with 9 subtests. NC2 restores the
 unified mapping and must fail the eligibility test; NC1 still checks raw reason.
+
+## 2026-10-30 — Item 2 (Codex; awaiting independent review)
+Existing no-contact failure release retained. Added real PostgreSQL reserve/refund
+balance and replay evidence plus a mutation removing release. Local: 3 settlement
+tests passed, 4 PostgreSQL tests skipped (no local database). Actual PG balance
+proof remains pending CI. No production calls or changes.
+
+### 2026-10-30 — Item 2 review follow-up (Codex)
+Replaced the fabricated external_calls=0 fixture with execution of the production
+worker function, actual AutonomousProductEngine agents and RoutedModelGateway.
+The actual model policy fails before HTTP. Read both ModelUseState.external_calls
+and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
+call and observes both counters reach one (HTTP is intercepted, no paid call).
+The PG balance/replay test now executes that worker path twice for the same ID.
+Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.
