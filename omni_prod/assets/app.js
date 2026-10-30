@@ -79,7 +79,7 @@ const T = {
     emailUnverified:'האימייל עדיין לא אומת.',
     err401:'פג תוקף ההתחברות. היכנסו שוב.',
  errBadCreds:'האימייל או הסיסמה שגויים. אם אין לך חשבון — לחצו "יצירת חשבון חינם".',
- errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+ errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
@@ -191,7 +191,7 @@ const T = {
     emailUnverified:'Your email is not verified yet.',
     err401:'Your session expired. Sign in again.',
  errBadCreds:'Wrong email or password. If you have no account, click "Create free account".',
- errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ',
+ errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
@@ -1267,11 +1267,22 @@ function applyConversation(view) {
   // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
   if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
+// Only a server that does not have the conversation (503 conversation_not_ready: migration pending) switches to
+// the guided questionnaire. Anything else -- a network blip, a timeout, a 500 -- is shown with a retry, and the
+// conversation stays the mode (2026-10-30: any error used to switch for the whole session).
+function conversationNotInstalled(e) {
+  return e instanceof ApiError && e.status === 503 && !!e.detail && e.detail.error === 'conversation_not_ready';
+}
 async function restoreConversation() {
   try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
   catch (e) {
-    // Conversation storage missing (migration pending) or unreachable: say so and
-    // keep the guided questionnaire (the /discovery flow) working underneath.
+    if (!conversationNotInstalled(e)) {
+      S.chat = { messages: [], unavailable: explain(e), retry: true };
+      renderChat(); renderTabs();
+      return;
+    }
+    // Conversation storage missing (migration pending): say so and keep the guided
+    // questionnaire (the /discovery flow) working underneath.
     S.chat = { messages: [], unavailable: explain(e), fallback: true };
     try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
     renderChat(); renderDiscovery(); renderTabs();
@@ -1359,7 +1370,8 @@ function renderChat() {
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
-    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
+    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null,
+    S.chat && S.chat.retry ? h('button', { type: 'button', class: 'secondary', onclick: restoreConversation }, t('tryAgain')) : null));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
