@@ -73,6 +73,7 @@ const T = {
     modQueued:'השינוי נשלח. בונים גרסה מועמדת ובודקים אותה…', modReview:'הגרסה המועמדת עברה את הבדיקות. מה תרצו לעשות?',
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
+    gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -185,6 +186,7 @@ const T = {
     modQueued:'Change sent. Building and testing a candidate version…', modReview:'The candidate version passed its checks. What would you like to do?',
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
+    gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1212,12 +1214,15 @@ function gateMark(v) {
     : v && typeof v.publish_allowed === 'boolean' ? v.publish_allowed : null;
   return verdict === true ? '✓' : verdict === false ? '✗' : '—';
 }
+// Gate names are labels like every other one (2026-10-30: the raw keys were printed). An unknown key keeps its
+// name, so a new gate is never hidden.
+function gateLabel(k) { return ((t('gateNames') || {})[k]) || k; }
 function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
   panel.hidden = false;
   const gates = ev.gates || {};
-  const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${gateMark(v)}`).join(', ') || t('none');
+  const gateText = Object.entries(gates).map(([k, v]) => `${gateLabel(k)}: ${gateMark(v)}`).join(', ') || t('none');
   const warnings = [];
   if (ev.capabilities && ev.capabilities.status && ev.capabilities.status !== 'VERIFIED') warnings.push(`capabilities: ${ev.capabilities.status}`);
   const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
