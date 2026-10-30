@@ -2416,8 +2416,12 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
                                           funding='internal_qa' if internal_qa else None, cost_class=build_class)
-    except (CostQuoteUnknown, PermissionError) as exc:
-        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'}) from exc
+    except CostQuoteUnknown as exc:
+        raise HTTPException(402, detail={'error': 'cost_quote_unknown',
+                                         'unpriced': unpriced_capabilities(exc.unknown)}) from exc
+    except PermissionError as exc:
+        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.
+        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost', 'message': _PLAN_NOT_INCLUDED}) from exc
     try:
         return _brief_repo().create_approval(
             project_id=project_id, account_id=account.id, brief_row=row, build_contract_id=contract.id,
@@ -2426,6 +2430,8 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
                                                    credits=build_credits))
     except ApprovalError as exc:
         raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
+
+_PLAN_NOT_INCLUDED = 'This build is not included in your plan. Upgrade your plan to continue.'
 
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
@@ -2547,8 +2553,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                                              'unpriced': unpriced_capabilities(exc.unknown)}) from exc
         except PermissionError as exc:
             logging.getLogger(__name__).info('build %s: not authorized by plan economics: %s', project_id, exc)
-            raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build',
-                                             'message': 'This build is not available on your current plan.'}) from exc
+            raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost', 'message': _PLAN_NOT_INCLUDED}) from exc
         # M5 remediation: one durable reservation of the FULL conservative total
         # (LLM + required capabilities + generated-app infra + platform infra +
         # retry) before anything is enqueued. No later separate reservation.
@@ -2657,7 +2662,7 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             if decision.reason == 'cost class not included in plan':
                                 raise HTTPException(402, detail={
                                     'error': 'plan_cannot_authorize_cost',
-                                    'message': 'This build is not included in your plan. Upgrade your plan to continue.',
+                                    'message': _PLAN_NOT_INCLUDED,
                                 })
                             raise HTTPException(402, detail={
                                 'error': 'build_allowance_exhausted',
