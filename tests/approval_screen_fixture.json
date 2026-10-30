@@ -1,0 +1,743 @@
+{
+ "plan": {
+  "allowance": {
+   "credits_remaining": 9
+  },
+  "blockers": [],
+  "brief_revision": 1,
+  "build_authorization": "PRICED",
+  "build_contract_id": "bc_fixture",
+  "can_build": true,
+  "capabilities": [],
+  "clarification_questions": [],
+  "credits_required": 1,
+  "infrastructure": [],
+  "product": {
+   "summary": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד"
+  }
+ },
+ "view": {
+  "answered": [
+   {
+    "delegable": true,
+    "field": "audience",
+    "group": "purpose",
+    "id": "audience",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "צוות פנימי (עובדים / אני)",
+      "value": "internal"
+     },
+     {
+      "label": "לקוחות או קהל רחב מהאינטרנט",
+      "value": "public"
+     },
+     {
+      "label": "גם וגם",
+      "value": "both"
+     }
+    ],
+    "recommended": "internal",
+    "source": "delegated",
+    "text": "מי ישתמש במערכת?",
+    "value": "public",
+    "value_label": "לקוחות או קהל רחב מהאינטרנט",
+    "why": "קובע אם צריך הגנה על מידע, שפה פשוטה ללקוחות או כלים מתקדמים לצוות."
+   },
+   {
+    "delegable": true,
+    "field": "goal",
+    "group": "purpose",
+    "id": "goal",
+    "kind": "text",
+    "options": [],
+    "recommended": null,
+    "source": "delegated",
+    "text": "מה הדבר הכי חשוב שהמערכת צריכה לאפשר?",
+    "value": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+    "value_label": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+    "why": "הפעולה המרכזית מקבלת את המקום הבולט במסך ונבדקת ראשונה."
+   },
+   {
+    "delegable": true,
+    "field": "login",
+    "group": "access",
+    "id": "login",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "בלי התחברות",
+      "value": "none"
+     },
+     {
+      "label": "התחברות פשוטה (משתמש אחד או כמה עם אותן הרשאות)",
+      "value": "simple"
+     },
+     {
+      "label": "משתמשים עם הרשאות שונות (למשל מנהל ועובד)",
+      "value": "roles"
+     }
+    ],
+    "recommended": "none",
+    "source": "answer",
+    "text": "האם צריך התחברות עם סיסמה?",
+    "value": "none",
+    "value_label": "בלי התחברות",
+    "why": "בלי התחברות כל מי שיש לו את הקישור יכול לראות ולשנות. עם התחברות — רק משתמשים מורשים."
+   },
+   {
+    "delegable": true,
+    "field": "personal_data",
+    "group": "access",
+    "id": "personal_data",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "כן",
+      "value": "yes"
+     },
+     {
+      "label": "לא",
+      "value": "no"
+     }
+    ],
+    "recommended": "yes",
+    "source": "answer",
+    "text": "האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?",
+    "value": "no",
+    "value_label": "לא",
+    "why": "פרטים אישיים מחייבים לחשוב מי רשאי לראות אותם."
+   },
+   {
+    "delegable": false,
+    "field": "content_only",
+    "group": "access",
+    "id": "content_only",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "כן, אתר תוכן בלבד — בלי שמירת נתונים",
+      "value": "yes"
+     },
+     {
+      "label": "לא, יש נתונים שנשמרים או משתנים",
+      "value": "no"
+     }
+    ],
+    "recommended": null,
+    "source": "answer",
+    "text": "האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?",
+    "value": "no",
+    "value_label": "לא, יש נתונים שנשמרים או משתנים",
+    "why": "אתר תוכן לא נבדק על יצירה ועריכה של נתונים. אם יש טופס שנשמר, הזמנות או רשימה שמתעדכנת — ענו \"לא\"."
+   },
+   {
+    "delegable": true,
+    "field": "screens",
+    "group": "content",
+    "id": "screens",
+    "kind": "text",
+    "options": [],
+    "recommended": null,
+    "source": "delegated",
+    "text": "אילו מסכים או אזורים צריכים להיות?",
+    "value": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו",
+    "value_label": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו",
+    "why": "כל מסך שתכתבו ייבנה ויקבל בדיקה. אם לא תכתבו — נציע לפי הבקשה."
+   },
+   {
+    "delegable": true,
+    "field": "languages",
+    "group": "content",
+    "id": "languages",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "עברית",
+      "value": "he"
+     },
+     {
+      "label": "עברית ואנגלית",
+      "value": "he_en"
+     },
+     {
+      "label": "אנגלית",
+      "value": "en"
+     }
+    ],
+    "recommended": "he",
+    "source": "delegated",
+    "text": "באיזו שפה יהיה המוצר?",
+    "value": "he",
+    "value_label": "עברית",
+    "why": "קובע כיוון כתיבה (ימין-לשמאל), פורמט תאריכים וניסוח."
+   },
+   {
+    "delegable": true,
+    "field": "content",
+    "group": "content",
+    "id": "content",
+    "kind": "text",
+    "options": [],
+    "recommended": "ללא — המערכת תתחיל ריקה עם הסבר מה לעשות",
+    "source": "delegated",
+    "text": "יש תוכן או נתונים שצריכים להיות שם מההתחלה?",
+    "value": "הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו",
+    "value_label": "הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו",
+    "why": "למשל רשימת שירותים, מחירים או קטגוריות. נסמן דוגמאות כדוגמאות."
+   },
+   {
+    "delegable": true,
+    "field": "dates",
+    "group": "rules",
+    "id": "dates",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "אין תאריכים",
+      "value": "none"
+     },
+     {
+      "label": "תאריכים עתידיים עד שנה קדימה",
+      "value": "future_year"
+     },
+     {
+      "label": "גם עבר וגם עתיד (טווח סביר)",
+      "value": "past_and_future"
+     }
+    ],
+    "recommended": "future_year",
+    "source": "delegated",
+    "text": "יש תאריכים או שעות? אם כן — מה הטווח ההגיוני?",
+    "value": "none",
+    "value_label": "אין תאריכים",
+    "why": "כך נמנע תאריכים כמו שנת 2356, ונציג תאריכים בפורמט יום/חודש/שנה."
+   },
+   {
+    "delegable": true,
+    "field": "duplicates",
+    "group": "rules",
+    "id": "duplicates",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "לחסום ולהסביר למה",
+      "value": "block"
+     },
+     {
+      "label": "לאפשר",
+      "value": "allow"
+     }
+    ],
+    "recommended": "block",
+    "source": "delegated",
+    "text": "מה לעשות כשמנסים להוסיף משהו שכבר קיים?",
+    "value": "allow",
+    "value_label": "לאפשר",
+    "why": "למשל אותו טלפון פעמיים או שתי הזמנות לאותה שעה."
+   },
+   {
+    "delegable": true,
+    "field": "style",
+    "group": "design",
+    "id": "style",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "נקי ומודרני",
+      "value": "clean"
+     },
+     {
+      "label": "חם ומזמין",
+      "value": "warm"
+     },
+     {
+      "label": "עסקי ורשמי",
+      "value": "formal"
+     },
+     {
+      "label": "צבעוני ושמח",
+      "value": "playful"
+     }
+    ],
+    "recommended": "clean",
+    "source": "delegated",
+    "text": "איזה סגנון מתאים לכם?",
+    "value": "clean",
+    "value_label": "נקי ומודרני",
+    "why": "הסגנון קובע ריווח, פינות, צללים וטון הטקסט."
+   },
+   {
+    "delegable": true,
+    "field": "color",
+    "group": "design",
+    "id": "color",
+    "kind": "text",
+    "options": [
+     {
+      "label": "כחול",
+      "value": "blue"
+     },
+     {
+      "label": "ירוק",
+      "value": "green"
+     },
+     {
+      "label": "סגול",
+      "value": "purple"
+     },
+     {
+      "label": "כתום",
+      "value": "orange"
+     },
+     {
+      "label": "טורקיז",
+      "value": "teal"
+     },
+     {
+      "label": "אפור/שחור",
+      "value": "neutral"
+     }
+    ],
+    "recommended": "blue",
+    "source": "delegated",
+    "text": "אילו צבעים תרצו? אפשר לתאר במילים",
+    "value": "blue",
+    "value_label": "כחול",
+    "why": "הצבע הראשי משמש לכפתורים ולכותרות; הטקסט תמיד יישאר קריא."
+   },
+   {
+    "delegable": true,
+    "field": "font",
+    "group": "design",
+    "id": "font",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "Heebo — נקי ומודרני",
+      "value": "heebo"
+     },
+     {
+      "label": "Assistant — רך וקריא",
+      "value": "assistant"
+     },
+     {
+      "label": "Rubik — מעוגל וידידותי",
+      "value": "rubik"
+     },
+     {
+      "label": "גופן המערכת (הכי מהיר)",
+      "value": "system"
+     }
+    ],
+    "recommended": "heebo",
+    "source": "delegated",
+    "text": "איזה גופן?",
+    "value": "heebo",
+    "value_label": "Heebo — נקי ומודרני",
+    "why": "כל האפשרויות תומכות בעברית ורישיונן ידוע (Google Fonts, OFL)."
+   },
+   {
+    "delegable": true,
+    "field": "logo",
+    "group": "design",
+    "id": "logo",
+    "kind": "choice",
+    "options": [
+     {
+      "label": "לוגו טקסטואלי עם שם המוצר",
+      "value": "text"
+     },
+     {
+      "label": "בלי לוגו",
+      "value": "none"
+     },
+     {
+      "label": "יש לי לוגו — אעלה אחר כך",
+      "value": "later"
+     }
+    ],
+    "recommended": "text",
+    "source": "delegated",
+    "text": "לוגו?",
+    "value": "text",
+    "value_label": "לוגו טקסטואלי עם שם המוצר",
+    "why": "אפשר להתחיל בלוגו טקסטואלי ולהחליף אחר כך."
+   },
+   {
+    "delegable": true,
+    "field": "references",
+    "group": "design",
+    "id": "references",
+    "kind": "text",
+    "options": [],
+    "recommended": "אין",
+    "source": "delegated",
+    "text": "יש אתר שאהבתם את המראה שלו? (קישור או תיאור)",
+    "value": "אין",
+    "value_label": "אין",
+    "why": "נשתמש בו כהשראה בלבד, לא נעתיק."
+   }
+  ],
+  "brief": {
+   "fingerprint": "b50a5b8b6c4feaef2e5d5abcb5b152e43d8f6f23cfc4e5f91fbb41c4e0798171",
+   "revision": 1
+  },
+  "complete": true,
+  "group": null,
+  "group_title": null,
+  "mode": "recommend",
+  "progress": {
+   "answered": 15,
+   "remaining": 0
+  },
+  "prompt": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+  "questions": [],
+  "summary": {
+   "approval": {
+    "fingerprint": "ee2b27872d8229e3011c6d99e5880dbe3c4d36ac2b46bb1676398eac4a1aa547",
+    "items": [
+     {
+      "assumed": false,
+      "edit": "chat",
+      "key": "request",
+      "label": "הבקשה שלכם",
+      "source": "message",
+      "value": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "audience",
+      "key": "field:audience",
+      "label": "מי ישתמש במערכת?",
+      "source": "delegated",
+      "value": "לקוחות או קהל רחב מהאינטרנט"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "goal",
+      "key": "field:goal",
+      "label": "מה הדבר הכי חשוב שהמערכת צריכה לאפשר?",
+      "source": "delegated",
+      "value": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד"
+     },
+     {
+      "assumed": false,
+      "edit": "form",
+      "field": "login",
+      "key": "field:login",
+      "label": "האם צריך התחברות עם סיסמה?",
+      "source": "answer",
+      "value": "בלי התחברות"
+     },
+     {
+      "assumed": false,
+      "edit": "form",
+      "field": "personal_data",
+      "key": "field:personal_data",
+      "label": "האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?",
+      "source": "answer",
+      "value": "לא"
+     },
+     {
+      "assumed": false,
+      "edit": "form",
+      "field": "content_only",
+      "key": "field:content_only",
+      "label": "האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?",
+      "source": "answer",
+      "value": "לא, יש נתונים שנשמרים או משתנים"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "screens",
+      "key": "field:screens",
+      "label": "אילו מסכים או אזורים צריכים להיות?",
+      "source": "delegated",
+      "value": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "languages",
+      "key": "field:languages",
+      "label": "באיזו שפה יהיה המוצר?",
+      "source": "delegated",
+      "value": "עברית"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "content",
+      "key": "field:content",
+      "label": "יש תוכן או נתונים שצריכים להיות שם מההתחלה?",
+      "source": "delegated",
+      "value": "הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "dates",
+      "key": "field:dates",
+      "label": "יש תאריכים או שעות? אם כן — מה הטווח ההגיוני?",
+      "source": "delegated",
+      "value": "אין תאריכים"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "duplicates",
+      "key": "field:duplicates",
+      "label": "מה לעשות כשמנסים להוסיף משהו שכבר קיים?",
+      "source": "delegated",
+      "value": "לאפשר"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "style",
+      "key": "field:style",
+      "label": "איזה סגנון מתאים לכם?",
+      "source": "delegated",
+      "value": "נקי ומודרני"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "color",
+      "key": "field:color",
+      "label": "אילו צבעים תרצו? אפשר לתאר במילים",
+      "source": "delegated",
+      "value": "כחול"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "font",
+      "key": "field:font",
+      "label": "איזה גופן?",
+      "source": "delegated",
+      "value": "Heebo — נקי ומודרני"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "logo",
+      "key": "field:logo",
+      "label": "לוגו?",
+      "source": "delegated",
+      "value": "לוגו טקסטואלי עם שם המוצר"
+     },
+     {
+      "assumed": true,
+      "edit": "form",
+      "field": "references",
+      "key": "field:references",
+      "label": "יש אתר שאהבתם את המראה שלו? (קישור או תיאור)",
+      "source": "delegated",
+      "value": "אין"
+     }
+    ],
+    "locked_count": 16
+   },
+   "assumptions": [
+    {
+     "field": "audience",
+     "question": "מי ישתמש במערכת?",
+     "source": "delegated",
+     "value": "לקוחות או קהל רחב מהאינטרנט"
+    },
+    {
+     "field": "goal",
+     "question": "מה הדבר הכי חשוב שהמערכת צריכה לאפשר?",
+     "source": "delegated",
+     "value": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד"
+    },
+    {
+     "field": "screens",
+     "question": "אילו מסכים או אזורים צריכים להיות?",
+     "source": "delegated",
+     "value": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו"
+    },
+    {
+     "field": "languages",
+     "question": "באיזו שפה יהיה המוצר?",
+     "source": "delegated",
+     "value": "עברית"
+    },
+    {
+     "field": "content",
+     "question": "יש תוכן או נתונים שצריכים להיות שם מההתחלה?",
+     "source": "delegated",
+     "value": "הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו"
+    },
+    {
+     "field": "dates",
+     "question": "יש תאריכים או שעות? אם כן — מה הטווח ההגיוני?",
+     "source": "delegated",
+     "value": "אין תאריכים"
+    },
+    {
+     "field": "duplicates",
+     "question": "מה לעשות כשמנסים להוסיף משהו שכבר קיים?",
+     "source": "delegated",
+     "value": "לאפשר"
+    },
+    {
+     "field": "style",
+     "question": "איזה סגנון מתאים לכם?",
+     "source": "delegated",
+     "value": "נקי ומודרני"
+    },
+    {
+     "field": "color",
+     "question": "אילו צבעים תרצו? אפשר לתאר במילים",
+     "source": "delegated",
+     "value": "כחול"
+    },
+    {
+     "field": "font",
+     "question": "איזה גופן?",
+     "source": "delegated",
+     "value": "Heebo — נקי ומודרני"
+    },
+    {
+     "field": "logo",
+     "question": "לוגו?",
+     "source": "delegated",
+     "value": "לוגו טקסטואלי עם שם המוצר"
+    },
+    {
+     "field": "references",
+     "question": "יש אתר שאהבתם את המראה שלו? (קישור או תיאור)",
+     "source": "delegated",
+     "value": "אין"
+    }
+   ],
+   "complete": true,
+   "contradictions": [],
+   "excluded": [
+    "התחברות והרשאות",
+    "שמירת פרטים אישיים",
+    "פרסום לכתובת קבועה (בשלב זה: תצוגה מקדימה וקוד להורדה)",
+    "שמירת נתונים לאורך זמן — הנתונים בתצוגה המקדימה זמניים"
+   ],
+   "goal": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד",
+   "group_titles": {
+    "access": "גישה ומידע",
+    "content": "מסכים ותוכן",
+    "design": "עיצוב ומיתוג",
+    "purpose": "מטרה וקהל",
+    "rules": "כללים עסקיים"
+   },
+   "included": [],
+   "sections": {
+    "access": [
+     {
+      "field": "login",
+      "question": "האם צריך התחברות עם סיסמה?",
+      "source": "answer",
+      "value": "בלי התחברות"
+     },
+     {
+      "field": "personal_data",
+      "question": "האם יישמרו פרטים אישיים של אנשים (שם, טלפון, מייל)?",
+      "source": "answer",
+      "value": "לא"
+     },
+     {
+      "field": "content_only",
+      "question": "האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?",
+      "source": "answer",
+      "value": "לא, יש נתונים שנשמרים או משתנים"
+     }
+    ],
+    "content": [
+     {
+      "field": "screens",
+      "question": "אילו מסכים או אזורים צריכים להיות?",
+      "source": "delegated",
+      "value": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו"
+     },
+     {
+      "field": "languages",
+      "question": "באיזו שפה יהיה המוצר?",
+      "source": "delegated",
+      "value": "עברית"
+     },
+     {
+      "field": "content",
+      "question": "יש תוכן או נתונים שצריכים להיות שם מההתחלה?",
+      "source": "delegated",
+      "value": "הטקסטים, המחירים והקישורים שצוינו בבקשה, בדיוק כפי שנכתבו"
+     }
+    ],
+    "design": [
+     {
+      "field": "style",
+      "question": "איזה סגנון מתאים לכם?",
+      "source": "delegated",
+      "value": "נקי ומודרני"
+     },
+     {
+      "field": "color",
+      "question": "אילו צבעים תרצו? אפשר לתאר במילים",
+      "source": "delegated",
+      "value": "כחול"
+     },
+     {
+      "field": "font",
+      "question": "איזה גופן?",
+      "source": "delegated",
+      "value": "Heebo — נקי ומודרני"
+     },
+     {
+      "field": "logo",
+      "question": "לוגו?",
+      "source": "delegated",
+      "value": "לוגו טקסטואלי עם שם המוצר"
+     },
+     {
+      "field": "references",
+      "question": "יש אתר שאהבתם את המראה שלו? (קישור או תיאור)",
+      "source": "delegated",
+      "value": "אין"
+     }
+    ],
+    "purpose": [
+     {
+      "field": "audience",
+      "question": "מי ישתמש במערכת?",
+      "source": "delegated",
+      "value": "לקוחות או קהל רחב מהאינטרנט"
+     },
+     {
+      "field": "goal",
+      "question": "מה הדבר הכי חשוב שהמערכת צריכה לאפשר?",
+      "source": "delegated",
+      "value": "אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד"
+     }
+    ],
+    "rules": [
+     {
+      "field": "dates",
+      "question": "יש תאריכים או שעות? אם כן — מה הטווח ההגיוני?",
+      "source": "delegated",
+      "value": "אין תאריכים"
+     },
+     {
+      "field": "duplicates",
+      "question": "מה לעשות כשמנסים להוסיף משהו שכבר קיים?",
+      "source": "delegated",
+      "value": "לאפשר"
+     }
+    ]
+   },
+   "semantic_review": []
+  }
+ }
+}

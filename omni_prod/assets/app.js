@@ -23,6 +23,7 @@ const T = {
     decided:'מה כבר החלטנו', change:'שינוי', save:'שמירה', cancel:'ביטול', needAnswer:q => `צריך תשובה ל: ${q}`,
     discDone:'האפיון הושלם. זה הסיכום — בדקו אותו לפני אישור.', showSummary:'הצגת הסיכום והעלות',
     src_message:'מהבקשה שלכם', src_answer:'התשובה שלכם', src_delegated:'נבחר עבורכם', src_default:'ברירת מחדל',
+    approvalTitle:'מה האישור נועל: כל פריט בשורה אחת', approvalLegend:'פריט מסומן "הנחה" נבחר עבורכם. כל שורה ניתנת לשינוי לפני האישור.', assumedMark:'הנחה', approvalCount:(shown,locked)=>`מוצגים ${shown} פריטים · האישור נועל ${locked} פריטים`, approvalMismatch:'מה שמוצג אינו כל מה שננעל. רעננו את הסיכום לפני האישור.', src_semantic:'פרשנות שלנו', errApprovalNotShown:'הסיכום השתנה מאז שהוצג. עברו עליו שוב ואשרו.',
     sumGoal:'המטרה', sumIncluded:'כלול', sumExcluded:'לא כלול בשלב זה', semanticTitle:'כך פירשנו את הבקשה', semanticIncluded:'נדרש במוצר', semanticExcluded:'לא התבקש', semanticUncertain:'צריך הבהרה', sumAssumptions:'החלטות שבחרנו עבורכם (אפשר לשנות)',
     updateRequest:'עדכן את הבקשה', approveBuild:'אשר והתחל בנייה', approvalExpired:'האישור פג. בדקו את הסיכום ואשרו שוב.',
     builtTitle:'מה נבנה עד עכשיו', newBuild:'מוצר חדש בפרויקט חדש', newProjectPlus:'+ פרויקט חדש', newProjectHint:'לכל מוצר פרויקט משלו. תנו לו שם, ואז תתארו מה לבנות.', nameRequired:'צריך לתת לפרויקט שם.', builtVersion:'גרסה נוכחית', files:'קבצים',
@@ -135,6 +136,7 @@ const T = {
     decided:'Decided so far', change:'Change', save:'Save', cancel:'Cancel', needAnswer:q => `Please answer: ${q}`,
     discDone:'Discovery is complete. Here is the summary — check it before approving.', showSummary:'Show summary and cost',
     src_message:'from your request', src_answer:'your answer', src_delegated:'chosen for you', src_default:'default',
+    approvalTitle:'What approval locks: every item on one line', approvalLegend:'Items marked "assumption" were chosen for you. Every line can be changed before you approve.', assumedMark:'assumption', approvalCount:(shown,locked)=>`${shown} items shown · approval locks ${locked} items`, approvalMismatch:'What is shown is not everything being locked. Refresh the summary before approving.', src_semantic:'our interpretation', errApprovalNotShown:'The summary changed since it was shown. Review it again and approve.',
     sumGoal:'Goal', sumIncluded:'Included', sumExcluded:'Not included for now', semanticTitle:'How we understood your request', semanticIncluded:'Required in the product', semanticExcluded:'Not requested', semanticUncertain:'Needs clarification', sumAssumptions:'Chosen for you (you can change these)',
     updateRequest:'Update the request', approveBuild:'Approve and start building', approvalExpired:'The approval expired. Review the summary and approve again.',
     builtTitle:'What has been built', newBuild:'New product in a new project', newProjectPlus:'+ New project', newProjectHint:'Each product gets its own project. Name it, then describe what to build.', nameRequired:'Give the project a name.', builtVersion:'Current version', files:'files',
@@ -307,6 +309,7 @@ function explain(err) {
       : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
+  if (err.detail && err.detail.error === 'approval_not_shown') return t('errApprovalNotShown');
   if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
   if (err.detail && ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'].includes(err.detail.error))
     return t(`b_${err.detail.error}`);     // a human sentence, never the server's English (the status stays 409)
@@ -519,11 +522,15 @@ async function sendAnswers(answers, { editing = false } = {}) {
     const m = $('discMsg'); if (m) m.textContent = explain(e);
   } finally { S.updatingAnswers = false; if($('updateBriefBtn'))$('updateBriefBtn').disabled=false; }
 }
-function beginBriefEdit() {
+function beginBriefEdit(field) {
   if (!S.disc) return;
   S.editDraft = S.editDraft || {};
   S.editQ = null;
   renderDiscovery(); openTab('req');
+  if (typeof field === 'string') {   // C4: "change" on one approval line opens the form at that line
+    const input = document.querySelector(`#discoveryPanel [name="q_${CSS.escape(field)}"]`);
+    if (input) { input.closest('fieldset')?.scrollIntoView({ block: 'center' }); input.focus(); }
+  }
 }
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
@@ -669,19 +676,17 @@ function renderPlan() {
   }
   const infra = p.infrastructure.map(i => h('li', {}, h('span', {}, t(`k_${i.kind}`) || i.purpose), pill(i.readiness)));
   const sum = (p.brief_revision && S.disc && S.disc.summary) ? S.disc.summary : null;
-  const briefKids = sum ? [
-    h('h3', {}, t('sumGoal')), h('p', { class: 'summary' }, sum.goal),
-    ...Object.entries(sum.sections).filter(([, items]) => items.length).map(([g, items]) => [
-      h('h3', {}, sum.group_titles[g]),
-      h('ul', { class: 'answers' }, items.map(x => h('li', {}, h('span', { class: 'q' }, x.question), h('b', {}, x.value),
-        h('span', { class: `pill ${x.source === 'answer' ? 'ok' : 'muted'}` }, t(`src_${x.source}`)))))]),
+  // C4: the approval screen shows every item the approval locks, one line each, assumptions marked, each editable.
+  const ap = sum && sum.approval;
+  const briefKids = ap ? [
+    h('h3', {}, t('approvalTitle')), h('p', { class: 'hint' }, t('approvalLegend')),
+    h('ul', { class: 'answers approvalItems', id: 'approvalItems' }, ap.items.map(x => h('li', { 'data-key': x.key, class: x.assumed ? 'assumed' : null },
+      h('span', { class: 'q' }, x.label), h('b', {}, x.value),
+      h('span', { class: `pill ${x.assumed ? 'warn' : 'ok'}` }, x.assumed ? t('assumedMark') : t(`src_${x.source}`)),
+      h('button', { type: 'button', class: 'ghost', onclick: () => x.edit === 'form' ? beginBriefEdit(x.field) : $('chatInput').focus() }, t('change'))))),
+    h('p', { class: 'meta', id: 'approvalCount', role: 'status' }),
     ...facts(t('sumIncluded'), sum.included), ...facts(t('sumExcluded'), sum.excluded),
-    ...(sum.semantic_review?.length ? [h('h3', {}, t('semanticTitle')),
-      h('ul', { class: 'answers' }, sum.semantic_review.map(x => h('li', {},
-        h('b', {}, x.label), h('span', { class: 'pill' },
-        x.uncertain ? t('semanticUncertain') : x.included ? t('semanticIncluded') : t('semanticExcluded')),
-        h('span', { class: 'meta' }, x.evidence))))] : []),
-  ].flat() : [];
+  ] : [];
   const kids = [
     h('h2', {}, t('planTitle')),
     h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
@@ -766,6 +771,14 @@ function renderPlan() {
       else $('chatInput').focus(); } }, p.brief_revision ? t('updateRequest') : t('editRequest'))));
   kids.push(h('p',{id:'planMsg',class:'msg',role:'alert'},S.buildAdmissionError||''));
   panel.replaceChildren(...kids);
+  if (ap) {   // displayed = locked, counted from the rendered rows, not from the data
+    const shown = panel.querySelectorAll('#approvalItems > li').length;
+    $('approvalCount').textContent = t('approvalCount')(shown, ap.locked_count);
+    if (shown !== ap.locked_count) {
+      const b = $('confirmBtn'); if (b) b.disabled = true;
+      $('planMsg').textContent = t('approvalMismatch');
+    }
+  }
 }
 
 /* ---------- build ---------- */
@@ -796,8 +809,11 @@ async function startBuild() {
     // the brief revision, the plan and the price; the build consumes it once.
     let approvalId = null;
     if (plan.brief_revision) {
+      const shownAp = S.disc && S.disc.brief && S.disc.brief.revision === plan.brief_revision && S.disc.summary
+        ? S.disc.summary.approval : null;
       const a = await api(`/api/v28/projects/${buildProjectId}/approvals`, { method: 'POST',
-        body: { build_contract_id: plan.build_contract_id, brief_revision: plan.brief_revision } });
+        body: { build_contract_id: plan.build_contract_id, brief_revision: plan.brief_revision,
+                shown_fingerprint: shownAp ? shownAp.fingerprint : null } });
       approvalId = a.approval_id;
     }
     const d = await api(`/api/v28/projects/${buildProjectId}/builds`, { method: 'POST',
