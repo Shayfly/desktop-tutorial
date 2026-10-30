@@ -1,0 +1,11 @@
+{
+  "pr": "env-example-intake",
+  "sha256": ["tests/test_env_example_intake.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "the per-message intake budget disappears from .env.example again",
+    "mutations": [{"file": ".env.example", "old": "OMNI_INTAKE_CALL_BUDGET_USD=0.005\n", "new": ""}],
+    "targets": ["tests/test_env_example_intake.py"],
+    "expect_failed": ["test_every_intake_budget_the_code_reads_is_in_the_example", "test_the_call_budget_example_is_the_code_default_and_says_pre_check"]
+  }]
+}
