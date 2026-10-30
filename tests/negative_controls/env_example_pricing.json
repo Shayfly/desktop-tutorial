@@ -1,0 +1,11 @@
+{
+  "pr": "env-example-pricing",
+  "sha256": ["tests/test_env_example_pricing.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": ".env.example drifts from the code default again (the stale Amateur price)",
+    "mutations": [{"file": ".env.example", "old": "OMNI_PRICE_AMATEUR_USD=29\n", "new": "OMNI_PRICE_AMATEUR_USD=12\n"}],
+    "targets": ["tests/test_env_example_pricing.py"],
+    "expect_failed": ["test_every_price_and_cap_is_present_with_the_code_default", "test_the_approved_prices"]
+  }]
+}
