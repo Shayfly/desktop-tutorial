@@ -2654,10 +2654,15 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             **({'internal_qa': True} if internal_qa else {}),
                         )
                         if not decision.allowed:
+                            if decision.reason == 'cost class not included in plan':
+                                raise HTTPException(402, detail={
+                                    'error': 'plan_cannot_authorize_cost',
+                                    'message': 'This build is not included in your plan. Upgrade your plan to continue.',
+                                })
                             raise HTTPException(402, detail={
                                 'error': 'build_allowance_exhausted',
-                                'message': 'Your remaining allowance cannot cover this build. '
-                                           'Add credits or choose a smaller build.',
+                                'message': 'Your budget or credits have run out. '
+                                           'Add credits or build a smaller project.',
                             })
 
                         jobs.create_request(

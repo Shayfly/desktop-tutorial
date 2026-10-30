@@ -295,10 +295,14 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  if (err.status === 402 && err.detail && err.detail.error === 'plan_cannot_authorize_cost')
+    return S.lang === 'he'
+      ? 'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.'
+      : 'This build is not included in your plan. Upgrade your plan to continue.';
   if (err.status === 402 && err.detail && err.detail.error === 'build_allowance_exhausted')
     return S.lang === 'he'
-      ? 'היתרה הזמינה אינה מספיקה לבנייה הזו. ניתן להוסיף קרדיטים או לבחור בנייה מצומצמת יותר.'
-      : 'Your remaining allowance cannot cover this build. Add credits or choose a smaller build.';
+      ? 'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.'
+      : 'Your budget or credits have run out. Add credits or build a smaller project.';
   // A 401 on the sign-in screen means wrong credentials, not an expired session.
   if (err.status === 401 && !S.signedIn) return t('errBadCreds');
   if ((err.status === 400 || err.status === 409) && /already exists/i.test(msg)) return t('errAccountExists');
