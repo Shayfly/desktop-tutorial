@@ -278,6 +278,66 @@ def no_commits_between(result):
     return (not result.get("ok") and result.get("http_status")==422
             and bool(_NO_NEW_COMMITS.search(str(result.get("detail","")))))
 
+# --- agent-loop self-trigger (owner 2026-10-26) ------------------------------------------------------------------
+# GitHub's schedule fired once in ten hours. The service already runs 24/7 and holds GITHUB_PAT, so it dispatches the
+# agent-loop workflow itself every LOOP_DISPATCH_SECONDS: the run stays in GitHub Actions (checker, annotations,
+# summary). The workflow's own schedule stays as a second, idempotent trigger; its concurrency group serialises both.
+LOOP_WORKFLOW=os.getenv("LOOP_WORKFLOW","agent-loop.yml")
+LOOP_EVERY=int(os.getenv("LOOP_DISPATCH_SECONDS","900"))
+LOOP_STALE=int(os.getenv("LOOP_STALE_SECONDS","2700"))       # 45 minutes without a successful run -> warning
+LOOP_STATE={"last_dispatch_at":None,"last_dispatch_status":None,"last_success_at":None,"stalled":None,"dispatches":0}
+
+def dispatch_workflow():
+    """POST .../actions/workflows/<file>/dispatches {"ref":"main"}. GitHub answers 204 with no body."""
+    if not PAT: return {"ok":False,"http_status":None,"error":"GITHUB_PAT not configured"}
+    repo=os.getenv("GITHUB_REPO","Shayfly/desktop-tutorial")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",repo) or not re.fullmatch(r"[A-Za-z0-9_.-]+",LOOP_WORKFLOW):
+        return {"ok":False,"http_status":None,"error":"invalid repo or workflow"}
+    req=Request("https://api.github.com/repos/"+repo+"/actions/workflows/"+LOOP_WORKFLOW+"/dispatches",
+                data=json.dumps({"ref":"main"}).encode(),method="POST",
+                headers={"Authorization":"Bearer "+PAT,"Accept":"application/vnd.github+json",
+                         "Content-Type":"application/json","X-GitHub-Api-Version":"2022-11-28"})
+    try:
+        with urlopen(req,timeout=30) as r: return {"ok":r.status==204,"http_status":r.status}
+    except HTTPError as e:
+        return {"ok":False,"http_status":e.code,"error":"GitHub refused the dispatch (403 = the PAT lacks actions:write)"}
+    except OSError as e:
+        return {"ok":False,"http_status":None,"error":type(e).__name__}
+
+def last_success_at():
+    r=gh_json("/actions/workflows/"+LOOP_WORKFLOW+"/runs?status=success&per_page=1")
+    runs=(r.get("data") or {}).get("workflow_runs") or [] if r.get("ok") else []
+    return runs[0].get("updated_at") if runs else None
+
+def loop_tick(now=None):
+    """One self-trigger: stall check (last successful run older than LOOP_STALE), then one dispatch."""
+    now=now or datetime.datetime.now(datetime.timezone.utc)
+    try:
+        last=last_success_at()
+    except Exception as e:
+        last=None; audit("loop:stall-check","error",type(e).__name__)
+    LOOP_STATE["last_success_at"]=last
+    age=None
+    if last:
+        age=(now-datetime.datetime.fromisoformat(last.replace("Z","+00:00"))).total_seconds()
+    LOOP_STATE["stalled"]=bool(last is None or age>LOOP_STALE)
+    if LOOP_STATE["stalled"]:
+        audit("loop:STALLED","warning",f"no successful {LOOP_WORKFLOW} run for {'ever' if age is None else int(age//60)} min")
+    d=dispatch_workflow()
+    LOOP_STATE.update(last_dispatch_at=now.isoformat(),last_dispatch_status=d.get("http_status"),
+                      dispatches=LOOP_STATE["dispatches"]+1)
+    audit("loop:dispatch","ok" if d["ok"] else "failed",d.get("http_status") or d.get("error"))
+    return d
+
+def loop_forever(stop=None):
+    while not (stop and stop.is_set()):
+        try:
+            loop_tick()
+        except Exception as e:                      # never let the trigger thread die silently
+            audit("loop:tick","error",type(e).__name__)
+        if stop: stop.wait(LOOP_EVERY)
+        else: time.sleep(LOOP_EVERY)
+
 def launch_job(parts, timeout=None):
     """Queued/running/done in memory; the deadline begins at admission."""
     admitted = time.monotonic()
@@ -374,7 +434,9 @@ class Handler(BaseHTTPRequestHandler):
         pathname=urlsplit(self.path).path
         supplied=q.get("token",[""])[0]
         header=self.headers.get("Authorization","")
-        if pathname=="/health" and self.command=="GET": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
+        if pathname=="/health" and self.command=="GET":
+            # loop: times and HTTP status codes only (no token, no URL), so the self-trigger is checkable without one
+            return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists(),"loop":dict(LOOP_STATE)})
         if not TOKEN or not (hmac.compare_digest(supplied,TOKEN) or hmac.compare_digest(header,"Bearer "+TOKEN)):
             return self.reply(401,{"error":"unauthorized"})
         if pathname=="/health": return self.reply(200,{"ok":True,"repo_exists":(ROOT/".git").exists()})
@@ -586,4 +648,6 @@ class Handler(BaseHTTPRequestHandler):
 if __name__=="__main__":
     if len(TOKEN)<40:raise SystemExit("SERVICE_TOKEN requires >=40 random characters")
     if not (ROOT/".git").exists():raise SystemExit("repo missing (entrypoint should clone)")
+    if os.getenv("LOOP_DISPATCH","1")!="0" and PAT:
+        threading.Thread(target=loop_forever,name="agent-loop-trigger",daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0",PORT),Handler).serve_forever()
