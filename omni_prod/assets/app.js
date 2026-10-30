@@ -1202,12 +1202,19 @@ function renderMod() {
 }
 
 /* ---------- evidence ---------- */
+// A check mark only for an explicit pass. A missing gate value, null, or a gate without a boolean verdict is NOT a
+// pass (2026-10-30): it renders '—'. The rights gate reports publish_allowed instead of passed.
+function gateMark(v) {
+  const verdict = v && typeof v.passed === 'boolean' ? v.passed
+    : v && typeof v.publish_allowed === 'boolean' ? v.publish_allowed : null;
+  return verdict === true ? '✓' : verdict === false ? '✗' : '—';
+}
 function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
   panel.hidden = false;
   const gates = ev.gates || {};
-  const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${v && v.passed === false ? '✗' : '✓'}`).join(', ') || t('none');
+  const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${gateMark(v)}`).join(', ') || t('none');
   const warnings = [];
   if (ev.capabilities && ev.capabilities.status && ev.capabilities.status !== 'VERIFIED') warnings.push(`capabilities: ${ev.capabilities.status}`);
   const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
