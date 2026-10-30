@@ -61,7 +61,8 @@ class ThePreviewRouteChecksTheFullReserve(unittest.TestCase):
                 mock.patch.object(IA, '_internal_qa_funding', lambda aid: (None, False)), \
                 mock.patch.object(IA, '_m5_cost_inputs', lambda *a, **kw: ()), \
                 mock.patch.object(IA, '_m5_build_economics_quote', lambda *a, **kw: quote_fixture()), \
-                mock.patch.object(IA, '_async_build_mode', lambda: True):
+                mock.patch.object(IA, '_async_build_mode', lambda: True), \
+                mock.patch.object(IA, '_require_durable_backend', lambda purpose: None):
             r = client.post('/api/v28/projects/p/build-contracts',
                             json={'prompt': 'Build a simple static page for a flower shop, no login, no personal data.'})
         self.assertEqual(r.status_code, 200, r.text)
