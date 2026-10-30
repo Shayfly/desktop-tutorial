@@ -34,6 +34,12 @@ class TheIntakeBudgetsAreDocumented(unittest.TestCase):
         self.assertEqual(DEFAULT_CALL_RESERVE, Decimal('0.01'))
         self.assertGreater(DEFAULT_CALL_RESERVE, Decimal('0.00555'))
 
+    def test_the_gate_compares_the_fixed_unit_never_a_prompt_estimate(self):
+        # GATE-001: same spend, very different prompts -> same answer; resolve() takes no prompt at all.
+        import inspect
+        from omni_prod.intake import mode as M
+        self.assertFalse({'prompt', 'message', 'quote', 'estimate'} & set(inspect.signature(M.resolve).parameters))
+
 
 if __name__ == '__main__':
     unittest.main()
