@@ -38,7 +38,7 @@ class TheGateMark(unittest.TestCase):
 
     def test_the_evidence_panel_uses_gate_mark(self):
         src = APP_JS.read_text(encoding='utf-8')
-        self.assertIn('${k}: ${gateMark(v)}', src)
+        self.assertIn('${gateLabel(k)}: ${gateMark(v)}', src)
         self.assertNotIn("v.passed === false ? '✗' : '✓'", src)
 
 
