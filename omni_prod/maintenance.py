@@ -223,6 +223,13 @@ def run_once(*, pool, preview_repo, jobs, subscriptions, stop_preview, runtime_h
                 out['errors'].append(f'reap {bid}: {type(exc).__name__}: {exc}')
     except Exception as exc:
         out['errors'].append(f'stale_builds: {type(exc).__name__}: {exc}')
+    if hasattr(subscriptions, 'reconcile_terminal_reservation'):
+        try:
+            from .reservation_reconciler import reconcile
+            resolved = [r for r in reconcile(subscriptions, pool, apply=True) if r.get('applied')]
+            out['reservations'] = resolved
+        except Exception as exc:
+            out['errors'].append(f'reservations: {type(exc).__name__}: {exc}')
     if queued_ids is not None and enqueue is not None:
         try:
             out['redispatched'] = redispatch_lost(pool, queued_ids=queued_ids, enqueue=enqueue)
@@ -293,9 +300,10 @@ def main():
     while True:
         result = run_once(**deps)
         if (result['expired'] or result['cleaned'] or result['reaped'] or result['redispatched']
-                or result['recovery'] or result['errors']):
+                or result['recovery'] or result.get('reservations') or result['errors']):
             _say(f"expired={result['expired']} cleaned={result['cleaned']} reaped={result['reaped']} "
-                 f"redispatched={result['redispatched']} recovery={result['recovery']} errors={result['errors'][:3]}")
+                 f"redispatched={result['redispatched']} recovery={result['recovery']} "
+                 f"reservations={result.get('reservations')} errors={result['errors'][:3]}")
         time.sleep(INTERVAL_SECONDS)
 
 

@@ -1,0 +1,30 @@
+{
+  "pr": "reservation-reconciler",
+  "sha256": ["tests/test_reservation_reconciler.py", "tests/test_reservation_reconciler_pg.py"],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the old behaviour: a terminal reservation with an authorized-but-unmetered attempt is never released",
+      "envs": ["pg"],
+      "mutations": [{
+        "file": "omni_prod/subscription_store.py",
+        "old": "                    if action == 'release':\n                        user_id, credits_reserved, estimated_cost = row[0], row[2], Decimal(str(row[3]))",
+        "new": "                    if False:  # NEGATIVE CONTROL: never release\n                        user_id, credits_reserved, estimated_cost = row[0], row[2], Decimal(str(row[3]))"
+      }],
+      "targets": ["tests/test_reservation_reconciler_pg.py"],
+      "expect_failed": ["test_a_cancelled_build_with_an_authorized_unmetered_attempt_ends_released_and_counters_return"]
+    },
+    {
+      "id": "NC2",
+      "what": "an attempt whose outcome is still unknown is released (a call may still be billed)",
+      "mutations": [{
+        "file": "omni_prod/reservation_reconciler.py",
+        "old": "    if any(outcome == 'unknown' for outcome, _ in rows):",
+        "new": "    if False:  # NEGATIVE CONTROL"
+      }],
+      "targets": ["tests/test_reservation_reconciler.py"],
+      "expect_failed": ["test_unknown_or_unmetered_success_is_held"],
+      "expect_failed_pg": ["test_unknown_or_unmetered_success_is_held"]
+    }
+  ]
+}
