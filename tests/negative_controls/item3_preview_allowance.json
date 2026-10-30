@@ -1,0 +1,14 @@
+{
+  "pr": "item3",
+  "controls": [{
+    "id": "NC1",
+    "what": "restore priced-quote-only preview without checking the remaining reserve allowance",
+    "mutations": [{
+      "file": "omni_prod/creator_plan.py",
+      "old": "        if authorize_quote is not None and not authorize_quote(quote).allowed:",
+      "new": "        if False:  # NEGATIVE CONTROL: ignore the customer's allowance"
+    }],
+    "targets": ["tests/test_plan_reserve_allowance.py"],
+    "expect_failed": ["test_positive_balance_smaller_than_full_reserve_blocks_preview", "test_exhausted_credits_block_even_when_provider_budget_remains"]
+  }]
+}

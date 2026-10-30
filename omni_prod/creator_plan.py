@@ -57,6 +57,7 @@ def build_plan_preview(
     durable_backend: bool,
     infrastructure_readiness: Mapping[str, Any],
     image_readiness: Mapping[str, Any],
+    authorize_quote: Callable[[Any], Any] | None = None,
 ) -> dict:
     latest = repository.latest(project_id)
     next_version = 1 if latest is None else latest.contract_version + 1
@@ -79,6 +80,10 @@ def build_plan_preview(
         # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
         # callable accepts the contract; zero-argument callables are legacy.
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
+        # Advisory only: admission rechecks under lock. A priced quote is not
+        # proof that the customer's remaining allowance can cover its reserve.
+        if authorize_quote is not None and not authorize_quote(quote).allowed:
+            raise PermissionError('remaining allowance cannot cover the build reservation')
     except CostQuoteUnknown as exc:
         names = unpriced_capabilities(exc.unknown)
         missing_quote_keys = list(dict.fromkeys(names))
