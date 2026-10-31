@@ -2439,6 +2439,9 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     revision and reports capabilities, infrastructure readiness, the
     conservative cost authorization and blockers. No credits are reserved and
     no provider is called; POST .../builds with build_contract_id starts work."""
+    # 2026-10-30: the same durable-backend requirement as POST .../builds, checked first, so a server that cannot
+    # build refuses the plan with the build's own reason instead of offering a plan the build then 503s.
+    _require_durable_backend('Durable async build')
     token = _v28_bearer(request)
     try:
         account, _ = _v28.resolve_project_key(token=token, project_id=project_id)

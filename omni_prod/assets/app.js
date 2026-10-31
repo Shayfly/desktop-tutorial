@@ -73,13 +73,14 @@ const T = {
     modQueued:'השינוי נשלח. בונים גרסה מועמדת ובודקים אותה…', modReview:'הגרסה המועמדת עברה את הבדיקות. מה תרצו לעשות?',
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
+    gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
     emailUnverified:'האימייל עדיין לא אומת.',
     err401:'פג תוקף ההתחברות. היכנסו שוב.',
  errBadCreds:'האימייל או הסיסמה שגויים. אם אין לך חשבון — לחצו "יצירת חשבון חינם".',
- errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+ errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
     errPlanNotIncluded:'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.', errAllowanceExhausted:'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
@@ -186,13 +187,14 @@ const T = {
     modQueued:'Change sent. Building and testing a candidate version…', modReview:'The candidate version passed its checks. What would you like to do?',
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
+    gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
     emailUnverified:'Your email is not verified yet.',
     err401:'Your session expired. Sign in again.',
  errBadCreds:'Wrong email or password. If you have no account, click "Create free account".',
- errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ',
+ errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
     errPlanNotIncluded:'This build is not included in your plan. Upgrade your plan to continue.', errAllowanceExhausted:'Your budget or credits have run out. Add credits or build a smaller project.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
@@ -828,6 +830,8 @@ async function startBuild() {
   }
 }
 async function pollBuild() {
+  // One poll loop at a time (2026-10-30): a second call used to arm a second timer, so the loops stacked.
+  clearTimeout(S.timers.build);
   if (!S.build) return;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
@@ -846,6 +850,7 @@ async function pollBuild() {
       return;
     }
   } catch (e) { $('buildMsg').textContent = explain(e); }
+  clearTimeout(S.timers.build);
   S.timers.build = setTimeout(pollBuild, 2500);
 }
 /* Directive 2026-10-09 §10/§12: live log + stop. */
@@ -1198,12 +1203,22 @@ function renderMod() {
 }
 
 /* ---------- evidence ---------- */
+// A check mark only for an explicit pass. A missing gate value, null, or a gate without a boolean verdict is NOT a
+// pass (2026-10-30): it renders '—'. The rights gate reports publish_allowed instead of passed.
+function gateMark(v) {
+  const verdict = v && typeof v.passed === 'boolean' ? v.passed
+    : v && typeof v.publish_allowed === 'boolean' ? v.publish_allowed : null;
+  return verdict === true ? '✓' : verdict === false ? '✗' : '—';
+}
+// Gate names are labels like every other one (2026-10-30: the raw keys were printed). An unknown key keeps its
+// name, so a new gate is never hidden.
+function gateLabel(k) { return ((t('gateNames') || {})[k]) || k; }
 function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
   panel.hidden = false;
   const gates = ev.gates || {};
-  const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${v && v.passed === false ? '✗' : '✓'}`).join(', ') || t('none');
+  const gateText = Object.entries(gates).map(([k, v]) => `${gateLabel(k)}: ${gateMark(v)}`).join(', ') || t('none');
   const warnings = [];
   if (ev.capabilities && ev.capabilities.status && ev.capabilities.status !== 'VERIFIED') warnings.push(`capabilities: ${ev.capabilities.status}`);
   const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
@@ -1256,11 +1271,22 @@ function applyConversation(view) {
   // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
   if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
+// Only a server that does not have the conversation (503 conversation_not_ready: migration pending) switches to
+// the guided questionnaire. Anything else -- a network blip, a timeout, a 500 -- is shown with a retry, and the
+// conversation stays the mode (2026-10-30: any error used to switch for the whole session).
+function conversationNotInstalled(e) {
+  return e instanceof ApiError && e.status === 503 && !!e.detail && e.detail.error === 'conversation_not_ready';
+}
 async function restoreConversation() {
   try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
   catch (e) {
-    // Conversation storage missing (migration pending) or unreachable: say so and
-    // keep the guided questionnaire (the /discovery flow) working underneath.
+    if (!conversationNotInstalled(e)) {
+      S.chat = { messages: [], unavailable: explain(e), retry: true };
+      renderChat(); renderTabs();
+      return;
+    }
+    // Conversation storage missing (migration pending): say so and keep the guided
+    // questionnaire (the /discovery flow) working underneath.
     S.chat = { messages: [], unavailable: explain(e), fallback: true };
     try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
     renderChat(); renderDiscovery(); renderTabs();
@@ -1348,7 +1374,8 @@ function renderChat() {
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
-    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
+    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null,
+    S.chat && S.chat.retry ? h('button', { type: 'button', class: 'secondary', onclick: restoreConversation }, t('tryAgain')) : null));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
