@@ -104,6 +104,22 @@ jobs:
         working-directory: infra/worker-host
         run: docker compose build
 
+      - name: Publish built worker image identity
+        if: always()
+        working-directory: infra/worker-host
+        run: |
+          # Informational only. A locally built image may have no registry RepoDigest.
+          image=$(docker compose images -q worker 2>/dev/null | head -n 1 || true)
+          if [ -n "$image" ]; then
+            image_id=$(docker image inspect "$image" -f '{{.Id}}' 2>/dev/null || true)
+            repo_digest=$(docker image inspect "$image" -f '{{join .RepoDigests ","}}' 2>/dev/null || true)
+          else
+            image_id=unavailable
+            repo_digest=unavailable
+          fi
+          [ -n "$repo_digest" ] || repo_digest=unavailable
+          echo "::notice title=worker-image-build::tag=omni-worker-worker image_digest=${image_id:-unavailable} registry_digest=$repo_digest source_sha=$GITHUB_SHA"
+
       # Previews (M3): the preview worker's workdir must exist at the same
       # path on the host; the public edge (Caddy) needs TCP 80/443 open in the
       # host firewall (ufw from bootstrap.sh, plus the image's iptables rules).
