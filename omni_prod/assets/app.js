@@ -81,6 +81,7 @@ const T = {
     err401:'פג תוקף ההתחברות. היכנסו שוב.',
  errBadCreds:'האימייל או הסיסמה שגויים. אם אין לך חשבון — לחצו "יצירת חשבון חינם".',
  errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
+    errPlanNotIncluded:'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.', errAllowanceExhausted:'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
@@ -194,6 +195,7 @@ const T = {
     err401:'Your session expired. Sign in again.',
  errBadCreds:'Wrong email or password. If you have no account, click "Create free account".',
  errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
+    errPlanNotIncluded:'This build is not included in your plan. Upgrade your plan to continue.', errAllowanceExhausted:'Your budget or credits have run out. Add credits or build a smaller project.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
@@ -297,14 +299,8 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
-  if (err.status === 402 && err.detail && err.detail.error === 'plan_cannot_authorize_cost')
-    return S.lang === 'he'
-      ? 'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.'
-      : 'This build is not included in your plan. Upgrade your plan to continue.';
-  if (err.status === 402 && err.detail && err.detail.error === 'build_allowance_exhausted')
-    return S.lang === 'he'
-      ? 'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.'
-      : 'Your budget or credits have run out. Add credits or build a smaller project.';
+  if (err.status === 402 && err.detail && err.detail.error === 'plan_cannot_authorize_cost') return t('errPlanNotIncluded');
+  if (err.status === 402 && err.detail && err.detail.error === 'build_allowance_exhausted') return t('errAllowanceExhausted');
   // A 401 on the sign-in screen means wrong credentials, not an expired session.
   if (err.status === 401 && !S.signedIn) return t('errBadCreds');
   if ((err.status === 400 || err.status === 409) && /already exists/i.test(msg)) return t('errAccountExists');
