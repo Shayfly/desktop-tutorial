@@ -39,27 +39,24 @@ jobs:
           live_url=$(docker inspect "$c" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^OMNI_REDIS_URL=' | tail -1 | cut -d= -f2- || true)
           d=$(mktemp -d); chmod 700 "$d"
           printf '%s' "$file_url" > "$d/file"; printf '%s' "$live_url" > "$d/live"
+          docker logs --tail 80 "$c" > "$d/logs" 2>&1 || echo "docker logs failed rc=$?" > "$d/logs"   # read-only
           echo "dir=$d" >> "$GITHUB_OUTPUT"; echo "img=$img" >> "$GITHUB_OUTPUT"
           echo "::notice title=context::container=$c started=$started restarts=$restarts image=$img image_revision=${rev:-unknown} compose_dir=$wd .env_mtime=$envmtime"
 
-      - name: Describe and probe both URLs (read-only)
+      - name: Describe both URLs and show the worker's last 80 log lines (host python, redacted)
         shell: bash
         env:
           D: ${{ steps.urls.outputs.dir }}
-          IMG: ${{ steps.urls.outputs.img }}
         run: |
-          set -uo pipefail
-          docker run -i --rm --network host -v "$D:/u:ro" "$IMG" python - <<'PY'
-          import hashlib, json, re
+          set -euo pipefail
+          python3 - "$D" <<'PY'
+          import hashlib, json, re, sys
           from urllib.parse import urlsplit
-          def note(t, b):
+          d = sys.argv[1]
+          def note(t, b, level='notice'):
               b = str(b).replace('%', '%25').replace('\r', '').replace('\n', '%0A')[:3400]
-              print(f'::notice title={t}::{b}', flush=True)
-          urls = {k: open(f'/u/{k}').read().strip() for k in ('file', 'live')}
-          def red(s, u):
-              p = urlsplit(u).password if u else None
-              s = s.replace(p, '<redacted>') if p else s
-              return re.sub(r'(rediss?://)[^@/\s]*@', r'\1<redacted>@', s)
+              print(f'::{level} title={t}::{b}', flush=True)
+          urls = {k: open(f'{d}/{k}').read().strip() for k in ('file', 'live')}
           desc = {}
           for k, u in urls.items():
               if not u:
@@ -69,13 +66,51 @@ jobs:
                          'tls': p.scheme == 'rediss', 'upstash': 'upstash.io' in (p.hostname or ''),
                          'url_sha256_8': hashlib.sha256(u.encode()).hexdigest()[:8]}
           same = bool(urls['file']) and urls['file'] == urls['live']
-          note('urls', json.dumps({'today_.env (gate)': desc['file'], 'running worker container': desc['live'],
+          note('urls', json.dumps({'today .env (gate)': desc['file'], 'running worker container': desc['live'],
                                    'same_url': 'YES' if same else 'NO'}))
+          secrets = [s for u in urls.values() if u for s in (urlsplit(u).password,) if s and len(s) >= 6]
+          text = open(f'{d}/logs', encoding='utf-8', errors='replace').read()
+          for s in secrets:
+              text = text.replace(s, '<redacted>')
+          text = re.sub(r'([a-z][a-z0-9+.-]*://)[^@/\s]+@', r'\1<redacted>@', text)
+          text = re.sub(r'(AIza|sk-ant-|sk-|ghp_|github_pat_|xox[bp]-)[0-9A-Za-z_\-]{8,}', r'\1<redacted>', text)
+          text = re.sub(r'(?i)((?:key|token|secret|password|passwd|authorization)["\']?\s*[:=]\s*["\']?)[^\s"\',]{6,}', r'\1<redacted>', text)
+          text = re.sub(r'\b[A-Za-z0-9+/_\-]{40,}={0,2}\b', '<redacted-long-token>', text)
+          lines = text.splitlines()[-80:]
+          chunk, n = [], 1
+          for line in lines:
+              if sum(len(x) + 1 for x in chunk) + len(line) > 3300:
+                  note(f'worker logs part {n}', '\n'.join(chunk)); chunk, n = [], n + 1
+              chunk.append(line[:600])
+          note(f'worker logs part {n} (last)', '\n'.join(chunk) or '(empty)')
+          PY
+
+      - name: Probe each URL (read-only, every command separately, all output kept)
+        shell: bash
+        env:
+          D: ${{ steps.urls.outputs.dir }}
+          IMG: ${{ steps.urls.outputs.img }}
+        run: |
+          set -uo pipefail
+          out="$D/probe.out"
+          docker run -i --rm --network host --entrypoint python -v "$D:/u:ro" "$IMG" - > "$out" 2>&1 <<'PY'
+          import hashlib, json, re
+          from urllib.parse import urlsplit
+          def note(t, b):
+              b = str(b).replace('%', '%25').replace('\r', '').replace('\n', '%0A')[:3400]
+              print(f'::notice title={t}::{b}', flush=True)
+          urls = {k: open(f'/u/{k}').read().strip() for k in ('file', 'live')}
+          def red(s, u):
+              for x in (urlsplit(u).password,):
+                  if x and len(x) >= 6:
+                      s = s.replace(x, '<redacted>')
+              return re.sub(r'(rediss?://)[^@/\s]*@', r'\1<redacted>@', s)
+          same = bool(urls['file']) and urls['file'] == urls['live']
           from redis import Redis
           for k in (('file',) if same else ('file', 'live')):
               u = urls[k]
               if not u:
-                  continue
+                  note(f'probe {k}', 'NOT SET'); continue
               r = Redis.from_url(u, socket_connect_timeout=10, socket_timeout=10)
               res = {}
               def run(name, fn):
@@ -96,14 +131,20 @@ jobs:
                   return {'queued': q.count, 'started': StartedJobRegistry(queue=q).get_job_ids()[:10],
                           'workers': [(w.name[:12], w.get_state(), str(w.last_heartbeat)) for w in Worker.all(connection=r)][:10]}
               run('RQ omni-builds', rq_state)
-              note(f'probe {k} ({desc[k]["host"]})', json.dumps(res, default=str))
+              host = urlsplit(u).hostname
+              note(f'probe {k} ({host} db={(urlsplit(u).path or "/").lstrip("/") or "0"})', json.dumps(res, default=str))
           PY
           rc=$?
-          [ "$rc" = 0 ] || echo "::error title=diag::probe exited $rc"
-          rm -rf "$D"
+          grep '^::notice' "$out" || true
+          if [ "$rc" != 0 ] || ! grep -q '^::notice title=probe' "$out"; then
+            # never a silent failure: whatever the probe printed (redacted) becomes an annotation
+            tail=$(grep -v '^::notice' "$out" | tail -40 | sed -E 's#(rediss?://)[^@/[:space:]]*@#\1<redacted>@#g; s/(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}/\1<redacted>/g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)
+            echo "::error title=probe failed (rc=$rc)::${tail:-no output at all}"
+            [ "$rc" != 0 ] || rc=1
+          fi
           exit $rc
 
-      - name: Remove the temporary URL files
+      - name: Remove the temporary files
         if: always()
         shell: bash
         env:
