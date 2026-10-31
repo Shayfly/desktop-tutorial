@@ -1,0 +1,15 @@
+{
+  "pr": "gate-mark",
+  "sha256": ["tests/test_gate_mark.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "a missing or null verification value renders a check mark again",
+    "mutations": [{
+      "file": "omni_prod/assets/app.js",
+      "old": "  return verdict === true ? '✓' : verdict === false ? '✗' : '—';",
+      "new": "  return verdict === false ? '✗' : '✓';  // NEGATIVE CONTROL"
+    }],
+    "targets": ["tests/test_gate_mark.py"],
+    "expect_failed": ["test_missing_null_or_verdictless_values_never_get_a_check_mark"]
+  }]
+}

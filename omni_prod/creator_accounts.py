@@ -35,8 +35,8 @@ class PostgresAccountService:
     def authenticate(self, token: str) -> Account:
         return self.identity.authenticate(token)
 
-    def create_project(self, *, owner_id: str, title: str) -> ProjectRecord:
-        return self.project_lifecycle.create_project(owner_id=owner_id, title=title)
+    def create_project(self, *, owner_id: str, title: str, in_transaction=None) -> ProjectRecord:
+        return self.project_lifecycle.create_project(owner_id=owner_id, title=title, in_transaction=in_transaction)
 
     def require_project(self, *, owner_id: str, project_id: str) -> ProjectRecord:
         return self.project_lifecycle.require_project(owner_id=owner_id, project_id=project_id)

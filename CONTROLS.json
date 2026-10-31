@@ -1,0 +1,847 @@
+{
+ "schema": "controls/1",
+ "source": "v3 + C31, approved; Venice (VP) to Venice (CEO), 2026-10-20",
+ "types": {
+  "canary": "CI",
+  "drill": "production, scheduled",
+  "assertion": "config check"
+ },
+ "enforcement": {
+  "automatic": "CI derives the layers programmatically",
+  "review": "a PR touching a control without its row is rejected"
+ },
+ "split": "C01-C08 automatic; all others review",
+ "count_note": "8 of 30",
+ "count_note_frozen": "count_note is the v3 contract, frozen: it never moves. count_now is the live state (founder 2026-10-21).",
+ "count_note_scope": "v3 as approved by the founder 2026-10-20: 30 controls (C01-C29, C31), 8 automatic (C01-C08), 22 review. C30 was renamed S01: a step, not a control. History: v3 had counted C30, so \"8 of 31\" became \"8 of 30\" (20/10).",
+ "count_now": {
+  "controls": 31,
+  "automatic": 8,
+  "review": 23,
+  "why_differs": "C32 (kill switches / external spend) was added by the founder on 2026-10-20 after the v3 count; C32 is review, so the automatic count is unchanged.",
+  "checked_by": "tests/test_controls_counts.py"
+ },
+ "canary_definition": {
+  "he": "קנרית = הוכחה שהבקרה חוסמת. לא הוכחה שהנתיב קיים. כלומר: לא \"הנתיב נמצא\" -> ירוק. אלא שבירת הנתיב -> אדום. אם הצעד ממשיך הלאה כשהנתיב חסר — הקנרית נכשלת, גם אם הנתיב קיים כרגע.",
+  "en": "a canary proves the control BLOCKS, not that its path exists: break the path -> red. If the step goes on when the path is missing, the canary fails, even if the path exists now.",
+  "review_of_existing_rows": "every existing canary row is re-read against this definition; where it proves existence and not blocking, it is rewritten."
+ },
+ "stop_signs": [
+  "אם עד סוף ב׳1 עוד לא עברנו ריצה חיה אחת ירוקה — עוצרים הכל ועוברים למוצר.",
+  "ואם ב׳1 גולש ליותר משלושה ימי עבודה — עוצרים באמצע, גם אם לא סיימנו."
+ ],
+ "stop_signs_action": "לא מוחקים כלום. מפסיקים להוסיף שורות, ומשלימים רק את מה שכבר פתוח. ב׳2 וב׳3 מחכים.",
+ "open_items": [
+  {
+   "id": "O01",
+   "what": "אורך OMNI_SECRET_KEY ב-worker לא ידוע — לאמת ולהוסיף ל-C23",
+   "how": "PR #94 prints it at deploy (::notice secret-lengths, length only, never blocking)"
+  },
+  {
+   "id": "O02",
+   "what": "קלוד הוא נקודת כשל יחידה במיזוג",
+   "goes_to": "ו׳"
+  },
+  {
+   "id": "O03",
+   "control": "C10",
+   "what": "מוקש 038 — מסלול ה-DROP+DELETE לא נבדק: אין קוד לפני 038 ב-repo",
+   "evidence": "migrations 038-041 entered with the graft root ba2bb23; every SHA in history has them"
+  },
+  {
+   "id": "O04",
+   "control": "C10",
+   "what": "שורת pending migrations: none לא נקראה — לאמת שהשורה עצמה מודפסת",
+   "evidence": "drill runs 39492342815/39492678328/39493057663/39495052838: migrate step success, no AHEAD warning; job logs are not readable from the review session, only annotations"
+  },
+  {
+   "id": "O05",
+   "control": "C10",
+   "what": "recover.sh — התאוששות מכשל לא נבדקה; התרגיל בדק rollback מתוכנן בלבד",
+   "evidence": "no step failed in the drill, so the recover step was skipped in all 4 deploys"
+  },
+  {
+   "id": "O06",
+   "control": "C32",
+   "what": "משפחת המתגים לא מוגדרת בפרודקשן: בפרודקשן יש טוקן Replicate פעיל והוצאה אמיתית, בלי אף מתג שמאשר אותה. הבקרה קיימת בכל מקום חוץ מהמקום שבו היא קובעת.",
+   "evidence": "Vercel read live 2026-10-21: production has REPLICATE_API_TOKEN; OMNI_ZERO_COST_MODE and OMNI_INTAKE_MODEL are preview-only; OMNI_ALLOW_EXTERNAL_FALLBACK=1 was added to production by the owner (updatedAt 1792561683752). With exactly those values the #93 Replicate path (fdf8b79) REFUSES before any request: ZERO_COST_MODE unset -> default 1. With ZERO_COST_MODE=0 it reaches POST api.replicate.com/.../predictions.",
+   "blocks": "merge of #93 (it would stop the production Replicate test)",
+   "status": "OPEN, blocked on C32 (#93): the family is not complete in production (OMNI_INTAKE_MODEL still unset, O07)"
+  },
+  {
+   "id": "O07",
+   "control": "C32",
+   "what": "OMNI_INTAKE_MODEL לא מוגדר בפרודקשן",
+   "condition": "נחסם ברגע ש-C32 עובר לפרודקשן",
+   "status": "OPEN, blocked on C32 (#93)",
+   "evidence": "Vercel 2026-10-21: OMNI_INTAKE_MODEL and OMNI_INTAKE_VIA_WORKER are preview-only. On main the production API already runs the deterministic intake without them (investor_app.py:1969: model intake needs both =1); the model intake itself runs on the worker (reservation_worker.py:136), whose env is separate."
+  }
+ ],
+ "open_items_2": [
+  {
+   "id": "O08",
+   "control": "C32",
+   "what": "בנייה מהפרודקשן שבורה: _m5_build_economics_quote -> from_env() זורק ValueError כשהמתג לא מוגדר, והנקודות הקצה לא תופסות.",
+   "found_by": "נמצא בתיעוד, לא בטסט",
+   "status": "OPEN. Distinguishing proof GREEN at code level with production values (approved 2026-10-21); closes only with a live call to the production endpoints v28_build_contract_preview, approval, async",
+   "executor": "owner (an authenticated production session)",
+   "proof": "ModelRuntimeConfig.from_env() with the Vercel production values: BEFORE (ZERO unset, calls=40) RAISES ValueError \"zero_cost_mode forbids external model spend\"; NOW (OMNI_ZERO_COST_MODE=0 encrypted record L3gBASzzJqzv3JIv, production deployment dpl_AUTCYpBEez6j6rhJBJDQxnypUjHW created 8 s after it) OK: zero_cost_mode=False allow_external=True budget=0.50 calls=40.",
+   "not_done": "the production endpoints (v28_build_contract_preview / approval / async) were not called: that needs an authenticated production session"
+  },
+  {
+   "id": "O09",
+   "control": "C32",
+   "what": "איזה worker ותור מריצים בנייה שנשלחה מהפרודקשן — לא נבדק",
+   "risk": "if it is the same worker as staging, a real build from production reaches it",
+   "status": "OPEN (approved as open)"
+  },
+  {
+   "id": "O14",
+   "control": "all investigations",
+   "what": "CI job logs cannot be read from the session",
+   "tried_once": "gh run view --log-failed and GET /actions/jobs/{id}/logs (2026-10-21): the API answers with the signed redirect, so actions:read is NOT missing; the download hosts (results-receiver.actions.githubusercontent.com, productionresultssa*.blob.core.windows.net) are refused by the session egress proxy (CONNECT 403). WebFetch refuses the signed URL (too long).",
+   "fix": "owner only: allow those domains in claude.ai settings (Capabilities). Nothing in the repo or GitHub permissions fixes it.",
+   "workaround": "a workflow prints the lines it needs as ::notice annotations (readable via the check-runs API); used for GH006 (86a56a3) and the C16 drill (51e6ec5)",
+   "status": "PERMANENT LIMITATION unless the owner allowlists the domains"
+  }
+ ],
+ "production_switch_change_2026_10_21": {
+  "decision": "OMNI_ALLOW_EXTERNAL_FALLBACK=1 and OMNI_ZERO_COST_MODE=0 on Vercel production (owner)",
+  "documented_before_running": true,
+  "what_starts_passing_on_production (code on main)": [
+   "build quote/approval/async: v28_build_contract_preview (investor_app.py:2228), v28_build_approval (:2193), v28_build_async (:2293) call _m5_build_economics_quote -> ModelRuntimeConfig.from_env() (:208). With production values (ZERO unset = 1, OMNI_EXTERNAL_CALLS_PER_BUILD=40) from_env RAISES ValueError(\"zero_cost_mode forbids external model spend\"), not caught there (only CostQuoteUnknown/PermissionError) -> these endpoints fail today. With ZERO=0 they work: builds can be quoted, approved and queued from production.",
+   "readiness: the zero_cost_mode gate (readiness.py:30) turns off on production.",
+   "with #93 merged: the Replicate image test (paid) on production."
+  ],
+  "what_stays_blocked_on_production": [
+   "API-side live build components: _model_gateway_and_executor (investor_app.py:766) requires OMNI_ENABLE_LIVE_BUILD=1, not set on Vercel.",
+   "model intake: needs OMNI_INTAKE_MODEL=1 and OMNI_INTAKE_VIA_WORKER=1 (investor_app.py:1969), preview-only (O07)."
+  ],
+  "note": "Builds queued from production are executed by a worker; which worker/queue production uses was not verified here."
+ },
+ "drills_run": [
+  {
+   "control": "C10",
+   "date": "2026-10-20",
+   "result": "PASS (approved 2026-10-21)",
+   "rollback_sha": "4d488b4f80eec013f3fb87ce1baa71303827a83f",
+   "runs": [
+    "39492342815",
+    "39492678328",
+    "39493057663",
+    "39493396519",
+    "39494999472",
+    "39495052838"
+   ],
+   "proof": "after the rollback the live build routed codegen to gpt-6-luna (code before #86); on main it goes to gemini-3.1-flash-lite",
+   "not_proven": [
+    "O03",
+    "O04",
+    "O05"
+   ]
+  },
+  {
+   "control": "C17",
+   "date": "2026-10-28",
+   "result": "PASS (awaiting Matt's independent read)",
+   "runs": [
+    "40640783568"
+   ],
+   "workflow": ".github/workflows/backup-restore.yml (workflow_dispatch on main 482a271, runner omni-worker)",
+   "times_utc": {"started": "2026-10-28T05:55:29Z", "stamp": "20261028T055535Z", "finished": "2026-10-28T05:56:14Z"},
+   "proof": "snapshot tables=14 migrations=41 data_files=21; db.dump 298689 bytes sha256 b2fab0f387cafa96 uploaded to R2 and fetched back; pg_restore into a throwaway Postgres, 0 error lines; verify tables checked=14 short={} migrations_equal=true preview_data 21/21 restored; verified=true",
+   "not_proven": [
+    "restore from a Neon branch (no Neon API access from the builder session; the drill restores the R2 dump into a throwaway Postgres instead)",
+    "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
+   ]
+  }
+ ],
+ "s01": {
+  "alias": "C30",
+  "what": "path verification step (not a control, not counted)",
+  "date": "2026-10-20",
+  "by": "Claude",
+  "scope": [
+   "C07",
+   "C08",
+   "C14",
+   "C19",
+   "C23",
+   "C24",
+   "C25",
+   "C26",
+   "C27"
+  ],
+  "note": "per-control result in controls[].s01; the other rows are verified by their canaries"
+ },
+ "kill_switches_found": [
+  {
+   "name": "OMNI_ZERO_COST_MODE",
+   "vercel_records": [
+    {
+     "target": "preview",
+     "type": "plain",
+     "value": "0",
+     "id": "OY4E6ccM4WxX1EIA"
+    },
+    {
+     "target": "production",
+     "type": "encrypted",
+     "value": "0 (read by id, 2026-10-21)",
+     "id": "L3gBASzzJqzv3JIv",
+     "note": "ENCRYPTED: the value does not show in the env listing. It is NOT missing; read it by id (GET /v1/projects/<project>/env/L3gBASzzJqzv3JIv). Production deployment dpl_AUTCYpBEez6j6rhJBJDQxnypUjHW was created 8 s after it."
+    }
+   ],
+   "read": "omni_prod/model_runtime_config.py:37",
+   "enforced": "omni_prod/model_policy.py:39",
+   "default": "1 (blocked)",
+   "stops": "external model calls of builds; with PR #93 also the intake and the Replicate image test (C32)"
+  },
+  {
+   "name": "OMNI_ALLOW_EXTERNAL_FALLBACK",
+   "read": "omni_prod/model_runtime_config.py:38",
+   "enforced": "omni_prod/model_policy.py:39",
+   "default": "0 (blocked)",
+   "stops": "the same as OMNI_ZERO_COST_MODE; either one alone blocks"
+  },
+  {
+   "name": "OMNI_INTAKE_MODEL",
+   "read": "omni_prod/intake/reservation_worker.py:136; omni_prod/intake/mode.py:66; omni_prod/intake/interpreter.py:344; omni_prod/investor_app.py:1969",
+   "default": "0 (infra/worker-host/docker-compose.yml:93)",
+   "stops": "the intake model"
+  }
+ ],
+ "not_kill_switches": [
+  {
+   "name": "OMNI_ENABLE_LIVE_BUILD",
+   "why": "hard-coded \"1\" at infra/worker-host/docker-compose.yml:66; .env cannot turn it off"
+  },
+  {
+   "name": "OMNI_EXTERNAL_BUDGET_USD",
+   "why": "raised to the class reservation by bind_budget (omni_prod/routed_gateway.py:149-156)"
+  }
+ ],
+ "global_stop_switch": null,
+ "meta_canary": {
+  "file": "tools/canary_meta.py",
+  "how": "dedicated CI job: break a control on purpose and require the suite to fail",
+  "enforcement": "review",
+  "status": "not written yet: tools/canary_meta.py does not exist at this head; nothing runs it"
+ },
+ "incidents": [
+  {
+   "id": "I01",
+   "what": "budget drift: counter 5.27 vs settled 12.31",
+   "file": "omni_prod/qa_budget.py",
+   "owner": "Claude",
+   "when": "now",
+   "question": "against what is the budget enforced, and is the reservation blocked"
+  },
+  {
+   "id": "I02",
+   "what": "pg (Focused PostgreSQL, Redis and build-idempotency regressions) failed twice on 2026-10-21, each time in one event only, and passed on a single rerun of the job with no new commit",
+   "runs": [
+    "39597237979 (8dc0bc1, PR #96)",
+    "39603340813 (53effc7, PR #98, which touches no Python)",
+    "39673791165 (01d16cb, PR #104: the run Matt read)",
+    "f6a507b, a620138, 80c0cce, 63238b8, b851b06 (one event each; logs not readable here, O14; same test not confirmed)"
+   ],
+   "cause": "KNOWN (diagnosed 2026-10-22, founder: a finding, not a flake): pg job, step \"Focused PostgreSQL, Redis and build-idempotency regressions\", test tests/test_real_docker_drain_recovery.py::RealDockerDrainRecovery::test_5_an_oom_kill_fails_the_drain_and_recovery_restores_everything (line 318) asserts Docker's own State.OOMKilled flag. The kernel OOM-kills the bounded allocator (a child process; container 48 MiB, no swap, 64 MiB touched) every time, but Docker does not always set the flag for a non-PID-1 kill: the failing run had \"exit=137 oom=false\". Reproduced as passing 8/8 in isolation on main @7996287 and #104 @01d16cb (diag/pg-oom, kernel shows the kill each time). Pre-existing on main; not caused by any PR.",
+   "blocking": false,
+   "note": "pg is not a required check (C16); record only (founder 2026-10-21)",
+   "fix": "not now (founder 2026-10-22): pg is not a required check, so it does not block merges"
+  }
+ ],
+ "governance": {
+  "review": "quarterly, owner CEO",
+  "retirement": "a control that no longer exists is deleted",
+  "agents_md_rule": [
+   "a control without a canary is not a control",
+   "a control without a scheduled drill is a dead control"
+  ],
+  "merge_rule_2026_10_21": {
+   "decided": "founder 2026-10-21 16:25",
+   "rule": "main red does NOT stop merges while the red is only the bot report pushes and test + validate are green. When Matt removes a HOLD explicitly, merge without waiting for main, provided test + validate are green on the exact head SHA (rule ב).",
+   "narrows": "rule ג (main red -> stop the wave)"
+  }
+ },
+ "controls": [
+  {
+   "id": "C10",
+   "control": "rollback",
+   "file_v3": ".github/workflows/deploy-worker.yml",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "quarterly",
+   "failure_image": "deploy known SHA -> deploy a second -> rollback -> verify (probes + live build) -> back to main; mine: a rollback before 038 needs DROP TABLE + DELETE from schema_migrations; stop if migrate does not behave as documented",
+   "enforcement": "review",
+   "group": "b0",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C20",
+   "control": "evidence tool: a failed download fails",
+   "file_v3": ".github/workflows/inspect-round-artifacts.yml",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "wrong R2 address",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false,
+   "canary_pending": "PR #88 (inspect-round-artifacts) not merged"
+  },
+  {
+   "id": "C21",
+   "control": "a step exit code propagates failure",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a command returning 1 in a pipe",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C22",
+   "control": "publish runs even when a step failed",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step failing before publish",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C23",
+   "control": "pre-flight on secret lengths",
+   "file_v3": "write-env.sh",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a secret of the wrong length",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "EXISTS_NON_BLOCKING",
+    "paths": [
+     "infra/worker-host/write-env.sh:120",
+     "infra/worker-host/write-env.sh:133",
+     "infra/worker-host/write-env.sh:135",
+     "infra/worker-host/write-env.sh:136"
+    ],
+    "notes": "Length checks exist only for the R2 keys (OMNI_S3_ACCESS_KEY 32, OMNI_S3_SECRET_KEY 64) and are ::warning, they do not fail (\"The storage probe decides\"). Blocking shape checks for every variable: spaces :109, quotes :112, non-ASCII :115, exit :141."
+   },
+   "canary_pending": "PR #94 (write-env lengths) not merged"
+  },
+  {
+   "id": "C24",
+   "control": "taxonomy is written on failure too",
+   "file_v3": "taxonomy writer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build that fails early",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "REHEARSAL_ONLY",
+    "paths": [
+     "omni_prod/rehearsal.py:62",
+     "omni_prod/autonomous_core.py:279",
+     ".github/workflows/golden-rehearsal.yml:102",
+     ".github/workflows/golden-rehearsal.yml:104",
+     ".github/workflows/golden-rehearsal.yml:125",
+     ".github/workflows/golden-rehearsal.yml:130"
+    ],
+    "notes": "Only on the rehearsal path. rehearsal.py:62 writes it after engine.build even when build raised, but the taxonomy is computed only at the end of build() (autonomous_core.py:279): a build that raises early yields [] and the rounds before the exception are lost. publish-taxonomy runs if: always() and records no_artifact. Live builds (worker_tasks.py) write no taxonomy: does not exist there."
+   },
+   "canary_pending": "PR #95 (taxonomy) not merged"
+  },
+  {
+   "id": "C25",
+   "control": "validate_command rejects \\n",
+   "file_v3": "the validator",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a command with a newline",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "canary": [
+    "tests/test_j1_j2_existing_engine_integration.py::ContractAndSandboxTests::test_sandbox_rejects_shell_command_controls"
+   ],
+   "s01": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/sandbox_request_policy.py:79",
+     "omni_prod/sandbox_request_policy.py:80",
+     "omni_prod/remote_sandbox.py:41",
+     "omni_prod/sandbox_service.py:67"
+    ],
+    "notes": "Rejected on both sides: the client before sending (remote_sandbox.py:41) and the runner on receipt (sandbox_service.py:67). Real-boundary test: tests/test_sandbox_callers_real_policy.py."
+   }
+  },
+  {
+   "id": "C26",
+   "control": "tenant isolation",
+   "file_v3": "the preview layer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "two tenants on one resource",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/preview_access.py:109",
+     "omni_prod/preview_access.py:123",
+     "omni_prod/preview_router.py:146",
+     "omni_prod/preview_runtime.py:403",
+     "omni_prod/preview_durability.py:101",
+     "omni_prod/preview_durability.py:104"
+    ],
+    "notes": "Access: a token is valid only for its own preview_id (SQL :123), enforced by the router (:146). Data: a per-project data dir (preview_runtime.py:403); the deploy probe preview-data checks another project sees 0 (preview_durability.py:101-104, PASS in deploy 39472683855)."
+   },
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C27",
+   "control": "no secret in logs",
+   "file_v3": "the redaction layer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "printing a secret variable",
+   "enforcement": "review",
+   "group": "b1",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "NO_SINGLE_LAYER",
+    "paths": [
+     "omni_prod/secret_redaction.py:10",
+     "omni_prod/secret_redaction.py:7",
+     "omni_prod/evidence_export.py:40",
+     ".github/workflows/build-evidence.yml:54",
+     ".github/workflows/postdeploy-checks.yml:95"
+    ],
+    "notes": "No redaction layer exists: no logging filter in omni_prod; separate redactors at the listed points. secret_redaction.redact (used by structured_event, acceptance_pipeline, training_data) does not match Google keys (AIza...): _GENERIC_KEY (:7) covers only sk-/pk-/rk-."
+   },
+   "canary_pending": "PR #96 (redaction) not merged"
+  },
+  {
+   "id": "C01",
+   "control": "pass/fail derivation of the group",
+   "file_v3": "omni_prod/verification_group.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a layer returning failure",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary": [
+    "tests/test_verification_group.py::RedTeamGroupGaps::test_a_failed_check_without_a_failure_record_does_not_pass"
+   ]
+  },
+  {
+   "id": "C02",
+   "control": "expect_text_contains on a list",
+   "file_v3": "omni_prod/web_saas_acceptance.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "missing text",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary": [
+    "tests/test_expect_text_contains_list.py::ExpectTextContainsListTests::test_every_item_must_appear"
+   ]
+  },
+  {
+   "id": "C03",
+   "control": "the preview check",
+   "file_v3": "omni_prod/preview_smoke.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "stub page",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "PR #89 (preview verdict) not merged"
+  },
+  {
+   "id": "C04",
+   "control": "plan validator",
+   "file_v3": "omni_prod/web_saas_acceptance.py:_validate_plan",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step without acceptance_ids",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary": [
+    "tests/test_round_preflight.py::PreflightRunsTheRunnersOwnStepValidation::test_the_round_0_defect_of_run_39377332673_is_found_statically",
+    "tests/test_preflight_propagation_real_behaviour.py::PreflightFallbackReachesTheRealBehaviourCheck::test_an_unresolved_plan_reaches_behaviour_as_it_is_and_costs_a_real_round"
+   ]
+  },
+  {
+   "id": "C05",
+   "control": "plan against code",
+   "file_v3": "omni_prod/consistency_gate.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "plan with create, code without a form",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "PR #91 (plan_code) not merged"
+  },
+  {
+   "id": "C06",
+   "control": "latin-1 in the status line",
+   "file_v3": "omni_prod/consistency_gate.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "send_error with Hebrew",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "PR #90 (http_reason) not merged"
+  },
+  {
+   "id": "C07",
+   "control": "the threshold gate",
+   "file_v3": "the build chain",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a failing build",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "canary": [
+    "tests/test_verification_group.py::PostBuildChecksReachTheRepairerTogether::test_10_a_build_failure_does_not_run_the_group"
+   ],
+   "s01": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/investor_app.py:716",
+     "omni_prod/investor_app.py:719",
+     "omni_prod/investor_app.py:722",
+     "omni_prod/verification_group.py:80",
+     "omni_prod/verification_group.py:82"
+    ],
+    "notes": "threshold = ConsistencyGate (:716-717) -> DependencyGate (:719) -> sandbox; the group runs it first and returns its failure without running preview/behaviour/browser/visual/review (verification_group.py:80-82). Test: tests/test_verification_group.py::test_10_a_build_failure_does_not_run_the_group."
+   }
+  },
+  {
+   "id": "C08",
+   "control": "sandbox build/verify",
+   "file_v3": "sandbox execution",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a syntax error",
+   "enforcement": "automatic",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/remote_sandbox.py:65",
+     "omni_prod/remote_sandbox.py:73",
+     "omni_prod/remote_sandbox.py:77",
+     "omni_prod/sandbox_executor.py:46",
+     "omni_prod/investor_app.py:705"
+    ],
+    "notes": "Production: RemoteSandboxRepositoryExecutor.execute (:65; build commands :73-76, verify :77-) when OMNI_SANDBOX_RUNNER_URL is set (investor_app.py:705-708); the local Docker SandboxRepositoryExecutor (sandbox_executor.py:46) only without it. A syntax error is caught earlier, by the consistency gate."
+   },
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C09",
+   "control": "R2 artifact check",
+   "file_v3": "omni_prod/postdeploy_checks.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "missing artifact or mismatched SHA",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "PR #83 (R2 artifact check) not merged"
+  },
+  {
+   "id": "C11",
+   "control": "drain refuses without a verified rollback",
+   "file_v3": ".github/workflows/deploy-worker.yml",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "unverified rollback",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C12",
+   "control": "the budget guard refuses",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build above the cap",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary": [
+    "tests/test_qa_budget.py::AuthorizeTests::test_total_cap",
+    "tests/test_qa_budget.py::AuthorizeTests::test_per_build_cap_denies_before_any_query"
+   ]
+  },
+  {
+   "id": "C13",
+   "control": "the counter counts correctly",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "known sum -> exact count",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C14",
+   "control": "cost is written for every build",
+   "file_v3": "the cost writer",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build that produces a cost row",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "EXISTS",
+    "paths": [
+     "omni_prod/worker_tasks.py:335",
+     "omni_prod/worker_tasks.py:821",
+     "omni_prod/worker_tasks.py:844",
+     "omni_prod/worker_tasks.py:869",
+     "omni_prod/worker_tasks.py:893",
+     "omni_prod/worker_tasks.py:920",
+     "omni_prod/subscription_store.py:378",
+     "omni_prod/attempt_ledger.py:271"
+    ],
+    "notes": "Per build: resolve_billing (:335) at the 5 build exits found (821, 844, 869, 893, 920; modifications 1182, 1193) -> settle -> UPDATE credit_reservations (subscription_store.py:378). Per call: INSERT task_attempts (attempt_ledger.py:271). Not verified: a path that raises before these exits."
+   },
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C15",
+   "control": "no evidence -> charged",
+   "file_v3": "omni_prod/qa_budget.py",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a build without FREE_TIER_EVIDENCE",
+   "enforcement": "review",
+   "group": "b2",
+   "path_flagged_in_v3": false,
+   "canary": [
+    "tests/test_qa_budget.py::SinceNeedsEvidenceTests::test_date_without_evidence_is_ignored_and_reported"
+   ]
+  },
+  {
+   "id": "C16",
+   "control": "main protection blocks a merge on red",
+   "file_v3": "GitHub settings (branch protection of main)",
+   "type": "assertion",
+   "owner": "owner (admin)",
+   "executor": "owner (admin)",
+   "frequency": "every CI",
+   "failure_image": "merge while a check is red",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "status": "LIVE since 2026-10-20 night: require status checks = test + validate only; no required pull request; customer-ui and pg not required (flaky)",
+   "drill": "monthly: a merge on red must fail, attempted by a NON-ADMIN identity (the bot's GITHUB_TOKEN merging the red-on-purpose drill PR #99, expected HTTP 405); an attempt by the admin identity proves nothing (enforce_admins is off) and does not count as the drill; owner and executor: the owner",
+   "watch": "if the CI bot direct push to main starts failing, document it BEFORE adding a bypass allowance",
+   "enforced_by": {
+    "non_admin": "GitHub: required test + validate. Proved 2026-10-21 for the bot identity: direct push to main -> GH006 \"2 of 2 required status checks are expected\"; merge of red PR #99 -> HTTP 405 \"2 of 2 required status checks are failing.\" (PR #98, comment 6316647617)",
+    "admin": "PROCESS, not GitHub: the merging session acts as the repo admin (Shayfly) and enforce_admins is off, so \"merge only on green\" is rule ב (CI green on the exact head SHA), not a GitHub rule.",
+    "enforce_admins": "false; kept off (founder 2026-10-21): documented, not changed"
+   },
+   "watch_result": "fired 2026-10-21 (first merge after the protection, 8634a57): the bots' direct pushes to main were rejected (GH006). Resolved by route A, no bypass, no new secret, no settings change: the bots push to the report-only branch bot-reports (PR #98, pending audit).",
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C17",
+   "control": "backup is created and restored",
+   "file_v3": "backup scheduler",
+   "type": "drill",
+   "owner": "CEO",
+   "executor": "Claude",
+   "frequency": "weekly",
+   "failure_image": "restore into an empty DB",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C18",
+   "control": "the alert fires",
+   "file_v3": "",
+   "type": "drill",
+   "owner": "CEO",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "kill the worker container; queued builds stop; recovery under 2 min; tested: the alert arrives, not that the system recovers",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C19",
+   "control": "kill switch",
+   "file_v3": "OMNI_ZERO_COST_MODE",
+   "type": "drill",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "monthly",
+   "failure_image": "turn it on and watch",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "EXISTS_NOT_FOR_INTAKE",
+    "paths": [
+     "omni_prod/model_runtime_config.py:37",
+     "omni_prod/model_policy.py:39",
+     "omni_prod/readiness.py:30",
+     "omni_prod/intake/reservation_worker.py:47",
+     "omni_prod/intake/reservation_worker.py:136"
+    ],
+    "notes": "Read at model_runtime_config.py:37 (default 1 = blocked), enforced before every external build call (model_policy.py:39). Does NOT apply to intake: reservation_worker.py:47 builds a policy with zero_cost_mode=False, allow_external_fallback=True regardless of the env. Shown 2026-10-20: with ZERO_COST=1 and ALLOW_EXTERNAL=0 the build call is blocked (ModelPolicyViolation) and the intake call is authorized. Intake stops only with OMNI_INTAKE_MODEL != 1 (reservation_worker.py:136)."
+   },
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C28",
+   "control": "editing a secret does not delete other keys",
+   "file_v3": "WORKER_ENV_OVERRIDES",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "an edit adding a key -> all others present",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C29",
+   "control": "every long step has a timeout",
+   "file_v3": "tools/workflow_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "a step over N seconds without timeout-minutes",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  },
+  {
+   "id": "C32",
+   "control": "every paid external call honours the kill switch",
+   "file_v3": "omni_prod/model_policy.py:external_spend_enabled",
+   "type": "canary",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "switch off -> the call is refused before the provider is contacted",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": true,
+   "s01": {
+    "status": "FIX_IN_PR_93",
+    "paths": [
+     "omni_prod/model_runtime_config.py:37",
+     "omni_prod/model_policy.py:39",
+     "omni_prod/intake/reservation_worker.py:47",
+     "omni_prod/providers/replicate_image_test.py:83",
+     "omni_prod/investor_app.py:767"
+    ],
+    "notes": "Scope map of paid external calls (2026-10-20): builds/QA/specialist review (investor_app.py:767-768, cfg.policy -> model_policy.py:39) honour it; the intake (reservation_worker.py:47) and the Replicate image test (replicate_image_test.py:83 -> image_provider.py submit) did NOT. PR #93 makes both ask model_policy.external_spend_enabled. Not live: image_provider.build_image_capability_stage has no production caller."
+   },
+   "canary_pending": "PR #93 (kill switch scope) not merged"
+  },
+  {
+   "id": "C31",
+   "control": "enforcement of the registry itself",
+   "file_v3": "tools/registry_lint.py",
+   "type": "assertion",
+   "owner": "Claude",
+   "executor": "Claude",
+   "frequency": "every CI",
+   "failure_image": "remove a canary row from a registered control -> red; no overdue drill",
+   "enforcement": "review",
+   "group": "b3",
+   "path_flagged_in_v3": false,
+   "canary_pending": "not written yet"
+  }
+ ],
+ "adopted": "2026-10-20",
+ "c31_boundary": {
+  "he": "הלינט מוכיח ששורת קנרית קיימת ומצביעה על טסט קיים — לא שהקנרית נכשלת כשהבקרה נשברת. זה התרגיל.",
+  "en": "registry_lint proves a canary row exists and names an existing test; it does NOT prove the canary fails when the control breaks. That is the drill (and the meta-canary, tools/canary_meta.py)."
+ }
+}

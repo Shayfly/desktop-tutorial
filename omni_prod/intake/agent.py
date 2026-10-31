@@ -28,10 +28,12 @@ to a material field at all -- it is only pre-selected and asked.
 from __future__ import annotations
 
 import json
+import logging
+import re
 from dataclasses import dataclass, field
 
 from .. import discovery as d
-from .interpreter import HIGH, MEDIUM, Interpretation
+from .interpreter import HIGH, MEDIUM, Interpretation, technical_noise
 
 ASK_PER_TURN = 2
 
@@ -53,6 +55,7 @@ class TurnResult:
     asked: list[d.Question] = field(default_factory=list)
     contradictions: list[str] = field(default_factory=list)
     conflicts: list[dict] = field(default_factory=list)     # {field, current, proposed, origin, reason}
+    dropped: list[str] = field(default_factory=list)        # proposals refused here, each with its reason
 
 
 def _copy(b: d.Brief) -> d.Brief:
@@ -60,6 +63,19 @@ def _copy(b: d.Brief) -> d.Brief:
 
 
 CONFIRMED_SOURCES = ('answer', 'message')
+
+
+_ENV_TOKEN = re.compile(r'\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b')
+_LOG = logging.getLogger(__name__)
+
+
+def _off_topic(fld: str, value: str) -> bool:
+    """A pasted technical token never becomes the goal or the initial content (2026-10-28: OMNI_REDIS_URL)."""
+    if fld == 'goal':
+        return technical_noise(value)
+    if fld == 'content':           # links and prices ARE content; only a bare env-var paste is not
+        return bool(_ENV_TOKEN.search(value or '')) and len(re.findall(r'[^\W\d_]{2,}', _ENV_TOKEN.sub(' ', value))) < 2
+    return False
 
 
 def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True,
@@ -72,6 +88,21 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
             continue
         old = new.fields.get(p.field)
         origin = getattr(p, 'origin', 'deterministic')
+        if q.kind == 'text' and _off_topic(p.field, str(p.value)):
+            # degrade, never block: the proposal is dropped with its reason, the turn continues
+            why = f'{p.field}: {origin} proposal {str(p.value)[:40]!r} is technical text, not a requirement'
+            res.dropped.append(why)
+            _LOG.info('intake: dropped %s', why)
+            continue
+        if q.kind == 'text' and origin == 'model' and old and old.get('source') == 'default' \
+                and p.confidence in (HIGH, MEDIUM) and old['value'] != p.value:
+            # Free text (goal, screens, content...) is the model's: it replaces the rule's fallback value. Only the
+            # customer's own value (answer / message) is kept over it, through the conflict rule below.
+            new.fields[p.field] = {'value': p.value, 'source': 'message' if p.confidence == HIGH else 'default',
+                                   'question_id': q.id, 'confidence': 'stated' if p.confidence == HIGH else 'model'}
+            (res.applied if p.confidence == HIGH else res.assumed).append(
+                {'field': p.field, 'value': p.value, 'source': 'message' if p.confidence == HIGH else 'default'})
+            continue
         if origin == 'model' and require_confirmation and material(p.field, new.values()) and \
                 (not old or old['value'] != p.value):
             new.hints[p.field] = p.value      # sensitive turn: pre-select and ask, never apply

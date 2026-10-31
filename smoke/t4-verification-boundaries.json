@@ -1,0 +1,443 @@
+{
+ "what": "T4 verification boundaries: per-case evidence (synthetic transport; no provider, no network)",
+ "generated_from_commit_parent": "52f8502118b1e5088f443fc3e02c493389d21f19",
+ "command": "python3 -I tools/redteam_verification_boundaries.py",
+ "exit_code": 0,
+ "source_sha256": {
+  "omni_prod/verification_verdict.py": "5f989166af717df53237a57e2f6ecda33183d7391675605c5108ea4522b331d8",
+  "omni_prod/browser_probe.py": "2fba2146a944330f30e2b1a4693c6e7b0b7390ffc6429870461fb63cd173d9b0",
+  "omni_prod/visual_qa.py": "8bc50c1bb6af62f7ee47587290c27fc3891c0c2d4132ebf6ddb9f5368fde4769",
+  "omni_prod/behavior_acceptance.py": "32454280b6b0d505a3967d179b8190a81dc5ca77f68d6a4bd663e4b6f02e5004",
+  "omni_prod/preview_smoke.py": "99f30307d985d2fcb4a5a6e9f9a141cbfcbab507b89cc25929559b8cd7c5e343",
+  "omni_prod/verification_group.py": "e7ceaaae16d9641d37dcdc5addfdeca4d916621c3260d37914ee708806ce48b5",
+  "tools/redteam_verification_boundaries.py": "b7bf43a075963c3d626b1817f23fc3ad9a34d0f7195bc1b123e3ecfe3e45fbf1"
+ },
+ "probe_stdout_sha256": "07a67642c422c2b467cd0883b957c8f62d234aabc98b595fdfb8523d3885757c",
+ "summary": {
+  "original_cases": 26,
+  "original_met": 26,
+  "false_successes": 0,
+  "t4_cases": 16,
+  "t4_met": 16
+ },
+ "cases": [
+  {
+   "n": 1,
+   "id": "BrowserFlowExecutor_timeout",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 2,
+   "id": "BrowserFlowExecutor_missing_output",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 3,
+   "id": "VisualQAExecutor_timeout",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "VISUAL_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 4,
+   "id": "VisualQAExecutor_missing_output",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "VISUAL_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 5,
+   "id": "BrowserFlowExecutor_json_list",
+   "expected": "FAIL",
+   "main_8634a57": "raises AttributeError",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 6,
+   "id": "VisualQAExecutor_json_list",
+   "expected": "FAIL",
+   "main_8634a57": "raises TypeError",
+   "observed": "FAIL",
+   "failure_ids": [
+    "VISUAL_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 7,
+   "id": "BehaviorAcceptanceExecutor_json_list",
+   "expected": "FAIL",
+   "main_8634a57": "raises AttributeError",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BEHAVIOR_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 8,
+   "id": "browser_empty_object",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 9,
+   "id": "browser_nonzero_exit_with_pass_payload",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 10,
+   "id": "behavior_nonzero_exit_with_pass_payload",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BEHAVIOR_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 11,
+   "id": "PreviewReadyExecutor_BuildCancelled",
+   "expected": "PROPAGATES BuildCancelled",
+   "main_8634a57": "passed=False, BuildCancelled swallowed",
+   "observed": "PROPAGATED BuildCancelled",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 12,
+   "id": "PreviewReadyExecutor_AttemptLedgerUnavailable",
+   "expected": "PROPAGATES AttemptLedgerUnavailable",
+   "main_8634a57": "passed=False, AttemptLedgerUnavailable swallowed",
+   "observed": "PROPAGATED AttemptLedgerUnavailable",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 13,
+   "id": "PreviewReadyExecutor_ModelPolicyViolation",
+   "expected": "PROPAGATES ModelPolicyViolation",
+   "main_8634a57": "passed=False, ModelPolicyViolation swallowed",
+   "observed": "PROPAGATED ModelPolicyViolation",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 14,
+   "id": "BehaviorAcceptanceExecutor_BuildCancelled",
+   "expected": "PROPAGATES BuildCancelled",
+   "main_8634a57": "passed=False, BuildCancelled swallowed",
+   "observed": "PROPAGATED BuildCancelled",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 15,
+   "id": "BehaviorAcceptanceExecutor_AttemptLedgerUnavailable",
+   "expected": "PROPAGATES AttemptLedgerUnavailable",
+   "main_8634a57": "passed=False, AttemptLedgerUnavailable swallowed",
+   "observed": "PROPAGATED AttemptLedgerUnavailable",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 16,
+   "id": "BehaviorAcceptanceExecutor_ModelPolicyViolation",
+   "expected": "PROPAGATES ModelPolicyViolation",
+   "main_8634a57": "passed=False, ModelPolicyViolation swallowed",
+   "observed": "PROPAGATED ModelPolicyViolation",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 17,
+   "id": "BrowserFlowExecutor_BuildCancelled",
+   "expected": "PROPAGATES BuildCancelled",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED BuildCancelled",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 18,
+   "id": "BrowserFlowExecutor_AttemptLedgerUnavailable",
+   "expected": "PROPAGATES AttemptLedgerUnavailable",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED AttemptLedgerUnavailable",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 19,
+   "id": "BrowserFlowExecutor_ModelPolicyViolation",
+   "expected": "PROPAGATES ModelPolicyViolation",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED ModelPolicyViolation",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 20,
+   "id": "VisualQAExecutor_BuildCancelled",
+   "expected": "PROPAGATES BuildCancelled",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED BuildCancelled",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 21,
+   "id": "VisualQAExecutor_AttemptLedgerUnavailable",
+   "expected": "PROPAGATES AttemptLedgerUnavailable",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED AttemptLedgerUnavailable",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 22,
+   "id": "VisualQAExecutor_ModelPolicyViolation",
+   "expected": "PROPAGATES ModelPolicyViolation",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "PROPAGATED ModelPolicyViolation",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 23,
+   "id": "group_exception_suppresses_later_checks",
+   "expected": "FAIL, both checks ran, the crashed check named",
+   "main_8634a57": "passed=False",
+   "observed": "FAIL",
+   "failure_ids": [
+    "SIMPLENAMESPACE_EXCEPTION"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 24,
+   "id": "group_false_with_empty_failures",
+   "expected": "FAIL",
+   "main_8634a57": "passed=False",
+   "observed": "FAIL",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 25,
+   "id": "group_string_false",
+   "expected": "FAIL",
+   "main_8634a57": "passed=False",
+   "observed": "FAIL",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 26,
+   "id": "group_true_with_failures",
+   "expected": "FAIL",
+   "main_8634a57": "passed=True (FALSE SUCCESS)",
+   "observed": "FAIL",
+   "failure_ids": [],
+   "result": "MET"
+  }
+ ],
+ "t4_cases": [
+  {
+   "n": 27,
+   "id": "no_checks_browser_zero_forms",
+   "expected": "NO_CHECKS",
+   "main_8634a57": "not in the original probe",
+   "observed": "NO_CHECKS",
+   "failure_ids": [
+    "BROWSER_NO_CHECKS"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 28,
+   "id": "no_checks_behavior_pass_with_zero_checks",
+   "expected": "NO_CHECKS",
+   "main_8634a57": "not in the original probe",
+   "observed": "NO_CHECKS",
+   "failure_ids": [
+    "BEHAVIOR_NO_CHECKS"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 29,
+   "id": "no_checks_visual_nothing_inspected",
+   "expected": "NO_CHECKS",
+   "main_8634a57": "not in the original probe",
+   "observed": "NO_CHECKS",
+   "failure_ids": [
+    "VISUAL_NO_CHECKS"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 30,
+   "id": "positive_browser_one_form_exercised",
+   "expected": "PASS",
+   "main_8634a57": "not in the original probe",
+   "observed": "PASS",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 31,
+   "id": "positive_behavior_one_passing_check",
+   "expected": "PASS",
+   "main_8634a57": "not in the original probe",
+   "observed": "PASS",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 32,
+   "id": "positive_visual_controls_inspected",
+   "expected": "PASS",
+   "main_8634a57": "not in the original probe",
+   "observed": "PASS",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 33,
+   "id": "positive_group_real_stages",
+   "expected": "PASS",
+   "main_8634a57": "not in the original probe",
+   "observed": "PASS",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 34,
+   "id": "positive_group_fails_when_one_real_stage_reports_no_checks",
+   "expected": "NO_CHECKS",
+   "main_8634a57": "not in the original probe",
+   "observed": "NO_CHECKS",
+   "failure_ids": [
+    "BROWSER_NO_CHECKS"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 35,
+   "id": "positive_content_site_page_observed_no_forms",
+   "expected": "PASS",
+   "main_8634a57": "not in the original probe",
+   "observed": "PASS",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 36,
+   "id": "content_site_with_a_javascript_error",
+   "expected": "FAIL",
+   "main_8634a57": "not in the original probe",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BROWSER"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 37,
+   "id": "behavior_no_acceptance_and_no_plan",
+   "expected": "NO_CHECKS",
+   "main_8634a57": "not in the original probe",
+   "observed": "NO_CHECKS",
+   "failure_ids": [
+    "BEHAVIOR_NO_CHECKS"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 38,
+   "id": "behavior_non_python_runtime",
+   "expected": "FAIL",
+   "main_8634a57": "not in the original probe",
+   "observed": "FAIL",
+   "failure_ids": [
+    "BEHAVIOR_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 39,
+   "id": "preview_non_python_runtime",
+   "expected": "FAIL",
+   "main_8634a57": "not in the original probe",
+   "observed": "FAIL",
+   "failure_ids": [
+    "PREVIEW_UNVERIFIED"
+   ],
+   "result": "MET"
+  },
+  {
+   "n": 40,
+   "id": "group_propagates_BuildCancelled",
+   "expected": "PROPAGATES BuildCancelled",
+   "main_8634a57": "not in the original probe",
+   "observed": "PROPAGATED BuildCancelled",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 41,
+   "id": "group_propagates_AttemptLedgerUnavailable",
+   "expected": "PROPAGATES AttemptLedgerUnavailable",
+   "main_8634a57": "not in the original probe",
+   "observed": "PROPAGATED AttemptLedgerUnavailable",
+   "failure_ids": [],
+   "result": "MET"
+  },
+  {
+   "n": 42,
+   "id": "group_propagates_ModelPolicyViolation",
+   "expected": "PROPAGATES ModelPolicyViolation",
+   "main_8634a57": "not in the original probe",
+   "observed": "PROPAGATED ModelPolicyViolation",
+   "failure_ids": [],
+   "result": "MET"
+  }
+ ]
+}

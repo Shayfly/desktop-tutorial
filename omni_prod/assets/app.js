@@ -73,13 +73,14 @@ const T = {
     modQueued:'השינוי נשלח. בונים גרסה מועמדת ובודקים אותה…', modReview:'הגרסה המועמדת עברה את הבדיקות. מה תרצו לעשות?',
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
+    gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
     emailUnverified:'האימייל עדיין לא אומת.',
     err401:'פג תוקף ההתחברות. היכנסו שוב.',
  errBadCreds:'האימייל או הסיסמה שגויים. אם אין לך חשבון — לחצו "יצירת חשבון חינם".',
- errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ',
+ errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
     err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
@@ -97,6 +98,10 @@ const T = {
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
     b_cost_quote_unknown:'לחלק מהדרישות אין הצעת מחיר מאומתת, ולכן אי אפשר להתחיל בבנייה.',
     b_cost_quote_unavailable:'לא התקבלה הצעת מחיר מאומתת לבנייה.',
+    b_spec_not_approved:'לפני שמתחילים לבנות, צריך לאשר את המפרט. אפשר לעשות את זה כאן.',
+    b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
+    b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
+    b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
@@ -107,7 +112,7 @@ const T = {
     chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
-    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actConfirmMod:'שליחת השינוי לביצוע',
+    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
@@ -181,13 +186,14 @@ const T = {
     modQueued:'Change sent. Building and testing a candidate version…', modReview:'The candidate version passed its checks. What would you like to do?',
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
+    gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
     emailUnverified:'Your email is not verified yet.',
     err401:'Your session expired. Sign in again.',
  errBadCreds:'Wrong email or password. If you have no account, click "Create free account".',
- errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ',
+ errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
     err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
@@ -205,6 +211,10 @@ const T = {
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
     b_cost_quote_unknown:'Some required capabilities have no verified quote; the build cannot start.',
     b_cost_quote_unavailable:'No verified build quote was returned.',
+    b_spec_not_approved:'Approve the spec before the build starts. You can do it right here.',
+    b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
+    b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
+    b_brief_stale:'The request changed since it was approved. Approve the current spec.',
     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
@@ -213,10 +223,10 @@ const T = {
     hideSidebar:'Hide sidebar', showSidebar:'Show sidebar', previewToggle:'Preview', expandPreview:'Enlarge preview', shrinkPreview:'Restore preview size',
     hidePreview:'Close preview', resizePreview:'Drag to resize the preview', send:'Send',
     chatPlaceholder:'Describe what you want to build or change…', you:'You', assistant:'148AI',
-    aiFallback:'AI was not used for this reply; it is based on guided rules.',
+    aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
-    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actConfirmMod:'Send this change',
+    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
@@ -234,7 +244,7 @@ const S = {
 Object.assign(T.he, { updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
-  aiFallback:'ה-AI לא שימש בתשובה הזו; היא מבוססת על כללי ההנחיה.',
+  aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
 Object.assign(T.en, { updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
@@ -287,6 +297,14 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
 function explain(err) {
   if (!(err instanceof ApiError)) return String(err && err.message || err);
   const msg = err.message || '';
+  if (err.status === 402 && err.detail && err.detail.error === 'plan_cannot_authorize_cost')
+    return S.lang === 'he'
+      ? 'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.'
+      : 'This build is not included in your plan. Upgrade your plan to continue.';
+  if (err.status === 402 && err.detail && err.detail.error === 'build_allowance_exhausted')
+    return S.lang === 'he'
+      ? 'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.'
+      : 'Your budget or credits have run out. Add credits or build a smaller project.';
   // A 401 on the sign-in screen means wrong credentials, not an expired session.
   if (err.status === 401 && !S.signedIn) return t('errBadCreds');
   if ((err.status === 400 || err.status === 409) && /already exists/i.test(msg)) return t('errAccountExists');
@@ -299,9 +317,9 @@ function explain(err) {
       : 'Active project limit reached' + count + '. Archive an existing project or change plan. This is not a build-credit issue.';
   }
   if (err.detail && err.detail.error === 'attachments_not_ready') return t('attachmentSchema');
-  if (err.detail && err.detail.error === 'capability_not_feasible') return S.lang==='he'
-    ? 'הבנייה לא התחילה: אחת הדרישות עדיין אינה נתמכת. בדקו את החסימות בתוכנית או ערכו את הבקשה.'
-    : 'The build did not start: a requirement is not supported yet. Review the plan blockers or edit the request.';
+  if (err.detail && err.detail.error === 'capability_not_feasible') return capabilityBlockMessage(err.detail);
+  if (err.detail && ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'].includes(err.detail.error))
+    return t(`b_${err.detail.error}`);     // a human sentence, never the server's English (the status stays 409)
   switch (err.status) {
     case 0: return err.detail === 'timeout' ? t('errTimeout') : t('errNet');
     case 401: return t('err401');
@@ -520,7 +538,7 @@ function beginBriefEdit() {
 async function requestBriefPlan(open = true) {
   if (!S.disc || !S.disc.complete) return;
   try {
-    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts`, { method: 'POST',
+    S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
     S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
@@ -718,7 +736,7 @@ function renderPlan() {
       return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
     const title = b => {
-      if(b.code==='capability_not_feasible')return S.lang==='he'?'אחת הדרישות עדיין אינה נתמכת. יש לערוך אותה או להמתין להשלמת היכולת.':'A requirement is not supported yet. Edit it or wait for support.';
+      if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
       if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
       if (b.code.startsWith('infrastructure_')) {
         const kind = (p.infrastructure.find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
@@ -741,7 +759,14 @@ function renderPlan() {
         h('h4', {}, t('quoteMissingTitle')),
         h('ul', { class: 'quoteMissing' }, p.unavailable_requirements.map(g => h('li', {}, nameForMissing(g)))),
         h('p', { class: 'hint' }, t('quoteMissingHelp'))
-      ] : []));
+      ] : []),
+      // 409 spec_not_approved / plan_not_verified: the same approval button as in the conversation, right here
+      ...(p.brief_fingerprint && p.blockers.some(b => ['spec_not_approved', 'plan_not_verified', 'brief_stale'].includes(b.code)) ? [
+        h('button', { type: 'button', class: 'primary', onclick: async () => {
+          if (await sendChat({ brief_fingerprint: p.brief_fingerprint }, t('actApproveSpec'), specApprovalPath)) {
+            S.plan = null; await requestBriefPlan();
+          }
+        } }, t('actApproveSpec'))] : []));
   }
   kids.push(h('div', { class: 'row' },
     h('button', { id: 'confirmBtn', disabled: !p.can_build || Boolean(S.build && !isTerminal(S.build.status)), onclick: startBuild },
@@ -809,6 +834,8 @@ async function startBuild() {
   }
 }
 async function pollBuild() {
+  // One poll loop at a time (2026-10-30): a second call used to arm a second timer, so the loops stacked.
+  clearTimeout(S.timers.build);
   if (!S.build) return;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
@@ -827,6 +854,7 @@ async function pollBuild() {
       return;
     }
   } catch (e) { $('buildMsg').textContent = explain(e); }
+  clearTimeout(S.timers.build);
   S.timers.build = setTimeout(pollBuild, 2500);
 }
 /* Directive 2026-10-09 §10/§12: live log + stop. */
@@ -1179,12 +1207,22 @@ function renderMod() {
 }
 
 /* ---------- evidence ---------- */
+// A check mark only for an explicit pass. A missing gate value, null, or a gate without a boolean verdict is NOT a
+// pass (2026-10-30): it renders '—'. The rights gate reports publish_allowed instead of passed.
+function gateMark(v) {
+  const verdict = v && typeof v.passed === 'boolean' ? v.passed
+    : v && typeof v.publish_allowed === 'boolean' ? v.publish_allowed : null;
+  return verdict === true ? '✓' : verdict === false ? '✗' : '—';
+}
+// Gate names are labels like every other one (2026-10-30: the raw keys were printed). An unknown key keeps its
+// name, so a new gate is never hidden.
+function gateLabel(k) { return ((t('gateNames') || {})[k]) || k; }
 function renderEvidence() {
   const panel = $('evidencePanel'); const ev = S.build && S.build.evidence;
   if (!ev || !isTerminal(S.build.status)) { panel.hidden = true; return; }
   panel.hidden = false;
   const gates = ev.gates || {};
-  const gateText = Object.entries(gates).map(([k, v]) => `${k}: ${v && v.passed === false ? '✗' : '✓'}`).join(', ') || t('none');
+  const gateText = Object.entries(gates).map(([k, v]) => `${gateLabel(k)}: ${gateMark(v)}`).join(', ') || t('none');
   const warnings = [];
   if (ev.capabilities && ev.capabilities.status && ev.capabilities.status !== 'VERIFIED') warnings.push(`capabilities: ${ev.capabilities.status}`);
   const row = (k, v) => [h('dt', {}, k), h('dd', {}, v)];
@@ -1225,6 +1263,8 @@ async function dialogAction(fn, okKey) {
 
 /* ---------- conversation (Unified Conversation OS) ---------- */
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
+// Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
+const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
 function applyConversation(view) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
   S.chat = view;
@@ -1235,18 +1275,29 @@ function applyConversation(view) {
   // A complete, buildable brief: fetch the real quote (free; nothing is reserved).
   if (S.disc && S.disc.complete && !S.plan && !S.updatingAnswers) requestBriefPlan(false);
 }
+// Only a server that does not have the conversation (503 conversation_not_ready: migration pending) switches to
+// the guided questionnaire. Anything else -- a network blip, a timeout, a 500 -- is shown with a retry, and the
+// conversation stays the mode (2026-10-30: any error used to switch for the whole session).
+function conversationNotInstalled(e) {
+  return e instanceof ApiError && e.status === 503 && !!e.detail && e.detail.error === 'conversation_not_ready';
+}
 async function restoreConversation() {
   try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
   catch (e) {
-    // Conversation storage missing (migration pending) or unreachable: say so and
-    // keep the guided questionnaire (the /discovery flow) working underneath.
+    if (!conversationNotInstalled(e)) {
+      S.chat = { messages: [], unavailable: explain(e), retry: true };
+      renderChat(); renderTabs();
+      return;
+    }
+    // Conversation storage missing (migration pending): say so and keep the guided
+    // questionnaire (the /discovery flow) working underneath.
     S.chat = { messages: [], unavailable: explain(e), fallback: true };
     try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
     renderChat(); renderDiscovery(); renderTabs();
   }
 }
 let chatBusy = false;
-async function sendChat(body, shownText) {
+async function sendChat(body, shownText, path) {
   if (chatBusy || !S.projectId) return;
   const retrySignature=JSON.stringify([S.projectId,body]);
   if(!S.chatRetry || S.chatRetry.signature!==retrySignature)S.chatRetry={signature:retrySignature,key:newKey()};
@@ -1254,7 +1305,7 @@ async function sendChat(body, shownText) {
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${convPath()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    const view = await api(`${(path || convPath)()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
     S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
@@ -1311,6 +1362,7 @@ function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
     if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
+    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ brief_fingerprint: a.brief_fingerprint }, t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec')));
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
@@ -1326,7 +1378,8 @@ function renderChat() {
   if(S.chat && S.chat.interpreter) kids.push(h('p',{class:'chatMode hint'},
     S.chat.interpreter==='model-via-worker'?t('aiMode'):t('guidedMode')));
   if (!msgs.length) kids.push(h('div', { class: 'welcomeChat' }, h('h2', {}, t('chatHelloTitle')), h('p', {}, t('chatHello')),
-    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null));
+    S.chat && S.chat.unavailable ? h('p', { class: 'msg' }, S.chat.unavailable) : null,
+    S.chat && S.chat.retry ? h('button', { type: 'button', class: 'secondary', onclick: restoreConversation }, t('tryAgain')) : null));
   else if (S.chat && S.chat.unavailable) kids.push(h('p', { class: 'msg' }, S.chat.unavailable));
   const lastAssistant = msgs.map(m => m.role).lastIndexOf('assistant');
   msgs.forEach((m, i) => {
@@ -1379,14 +1432,25 @@ function renderArch() {
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
 }
+function capabilityBlockMessage(detail) {
+  const action = S.lang==='he' ? 'ערכו את הדרישה או פנו לתמיכה להשלמת היכולת.' : 'Edit the requirement or contact support to enable this capability.';
+  const rows = (Array.isArray(detail.findings) ? detail.findings : []).map(x => {
+    if(!x || typeof x!=='object' || typeof x.item!=='string' || !x.item.trim())return '';
+    // The existing Hebrew sign-in label already names the capability and offers an action.
+    if(S.lang==='he' && x.item.startsWith('sign-in'))return findingLabel(x);
+    return `${findingLabel(x)} ${x.alternative || action}`;
+  }).filter(Boolean);
+  const intro = S.lang==='he' ? 'הבנייה לא התחילה: ' : 'The build did not start: ';
+  return intro + (rows.length ? rows.join(' ') : (detail.message || action));
+}
 function findingLabel(x) {
-  if(S.lang!=='he')return `${x.item}: ${x.reason}`;
+  if(S.lang!=='he')return `${x.item}: ${x.reason || 'not supported yet'}`;
   if(x.item.startsWith('sign-in'))return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את הדרישה או להשאיר אותה להמשך.';
   if(x.item==='publishing')return 'פרסום בכתובת קבועה עדיין אינו זמין. קיימות תצוגה פרטית והורדת קוד.';
   if(x.item==='independent model review')return 'מודל הביקורת עשוי להיות מאותו ספק של מודל הכתיבה. בדיקות הקוד עדיין נדרשות לפני שחרור.';
   const names={'code generation':'יצירת קוד','behavioural acceptance':'בדיקות התנהגות','release policy':'מדיניות שחרור'};
   if(names[x.item])return `${names[x.item]}: ${x.outcome==='FEASIBLE_WITH_CONSTRAINTS'?'קיימות מגבלות שיש לבדוק':'דרושה בדיקה נוספת'}`;
-  return `${x.item}: ${x.reason}`;
+  return `${x.item}: ${x.reason || 'עדיין אינה נתמכת'}`;
 }
 const TT = {
   he: { requirements:'דרישות', plan_and_quote:'תוכנית והצעת מחיר', architecture:'ארכיטקטורה', implementation:'כתיבת הקוד',

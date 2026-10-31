@@ -30,9 +30,10 @@ class StaleBrief(RuntimeError):
 
 
 class ApprovalError(RuntimeError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, details: dict | None = None):
         super().__init__(message)
         self.code = code
+        self.details = details or {}            # O10: e.g. {'pending': [...], 'contradictions': [...]}
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,8 @@ class PostgresBriefRepository:
                     if current is None or current.revision != brief_row.revision:
                         raise ApprovalError('approval_stale', 'the request changed; review the new summary first')
                     if not current.complete:
-                        raise ApprovalError('brief_incomplete', 'some questions are still open')
+                        from .discovery import missing
+                        raise ApprovalError('brief_incomplete', 'some questions are still open', missing(current.brief))
                     # One active approval per project: an older one is superseded.
                     cur.execute("UPDATE build_approvals SET status = 'INVALIDATED', invalidated_reason = 'superseded'"
                                 " WHERE project_id = %s AND status = 'ACTIVE'", (project_id,))

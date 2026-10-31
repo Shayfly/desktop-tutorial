@@ -31,16 +31,28 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
 else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
-# Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
-# ANTHROPIC_API_KEY): added when set and not already given by WORKER_ENV(_OVERRIDES).
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+# Values kept as their own GitHub secrets (OPENAI_API_KEY, ANTHROPIC_API_KEY,
+# VENICE_API_KEY1, OMNI_DATABASE_URL). When the secret is set it REPLACES any
+# value from WORKER_ENV(_OVERRIDES): the dedicated secret is the one to rotate.
+# When it is empty the WORKER_ENV(_OVERRIDES) value, if any, stays. Names only,
+# never values.
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_URL; do
   key_value="${!key_name:-}"
-  if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
+  if [ -n "$key_value" ]; then
+    if grep -q "^${key_name}=." .env; then
+      outcome="replaced the WORKER_ENV(_OVERRIDES) value"
+    else
+      outcome="added"
+    fi
     sed -i "/^${key_name}=/d" .env
     printf '%s=%s\n' "$key_name" "$key_value" >> .env
-    echo "::notice title=provider keys::${key_name} added from its GitHub secret"
-  elif [ -z "$key_value" ] && ! grep -q "^${key_name}=." .env; then
-    echo "::notice title=provider keys::${key_name} not set; its catalog models stay NOT_CONFIGURED"
+    echo "::notice title=dedicated secrets::${key_name} from its GitHub secret (${outcome})"
+  elif grep -q "^${key_name}=." .env; then
+    echo "::notice title=dedicated secrets::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used (none is set)"
+  elif [ "$key_name" = OMNI_DATABASE_URL ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  else
+    echo "::notice title=dedicated secrets::${key_name} not set; its catalog models stay NOT_CONFIGURED"
   fi
 done
 unset key_value
@@ -115,6 +127,12 @@ while IFS= read -r line; do
     echo "::error title=WORKER_ENV::${name} contains invisible or non-ASCII characters (often copied from a web page); type or re-copy the value"; problems=1
   fi
 done < .env
+# C23 (founder 2026-10-20): secret LENGTHS block the deploy (they were warnings). Only lengths the code itself
+# requires, and only for values known to pass today (storage-probe and sandbox-probe PASS in deploy 39472683855):
+#   OMNI_S3_ACCESS_KEY / OMNI_S3_SECRET_KEY on an R2 endpoint: 32 / 64 characters (R2 credential format)
+#   OMNI_SANDBOX_SHARED_SECRET: at least 32 (omni_prod/sandbox_service.py:52 refuses every run below that)
+# Reported by name and length only; the value itself is never printed.
+length_error() { echo "::error title=WORKER_ENV::$1"; problems=1; }
 if grep -q '^OMNI_S3_ENDPOINT=.*r2\.cloudflarestorage\.com' .env; then
   ak=$(sed -n 's/^OMNI_S3_ACCESS_KEY=//p' .env | head -n 1); sk=$(sed -n 's/^OMNI_S3_SECRET_KEY=//p' .env | head -n 1)
   if [ "${#ak}" -ne 32 ]; then
@@ -128,14 +146,22 @@ out = [f"{i+1}:{c if c in string.punctuation else 'letter' if c.isalpha() else '
 print(", ".join(out) or "none (all hex)")
 PY
 )
-    # Warning only: the documented R2 format may change, and the deploy's
-    # storage probe (real write/read-back against R2) is the authority.
-    echo "::warning title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters (classic R2 Access Key IDs have 32). Non-hex characters at positions: ${odd}. The storage probe decides."
+    length_error "OMNI_S3_ACCESS_KEY has ${#ak} characters; an R2 Access Key ID has 32. Non-hex characters at positions: ${odd}."
   fi
   if [ "${#sk}" -ne 64 ]; then
-    echo "::warning title=WORKER_ENV::OMNI_S3_SECRET_KEY has ${#sk} characters (classic R2 Secret Access Keys have 64). The storage probe decides."
+    length_error "OMNI_S3_SECRET_KEY has ${#sk} characters; an R2 Secret Access Key has 64."
   fi
 fi
+sandbox_secret=$(sed -n 's/^OMNI_SANDBOX_SHARED_SECRET=//p' .env | head -n 1)
+if [ "${#sandbox_secret}" -lt 32 ]; then
+  length_error "OMNI_SANDBOX_SHARED_SECRET has ${#sandbox_secret} characters; the sandbox runner refuses every run below 32 (omni_prod/sandbox_service.py:52)."
+fi
+# OMNI_SECRET_KEY (founder 2026-10-20): preflight.py:38 requires >= 48, but its length on this worker is unknown, so it
+# is DISCOVERED here first (name + length, a notice, never blocking). Once a deploy has shown it, it can join the
+# blocking checks above without risking a deploy.
+secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
+echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
+unset ak sk sandbox_secret secret_key
 if [ "$problems" -ne 0 ]; then
   echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
   exit 1

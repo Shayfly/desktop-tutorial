@@ -177,9 +177,19 @@ def build_canonical_agents_registry(
             _s("software.plan"), _s("software.architecture"), _s("software.code.generate"),
             _s("software.build"), _s("software.test"), _s("software.repair"), _s("software.preview"), _s("software.export"),
         )),
-        _agent("agent.product_architect", "Product Architect", ("compile product intent into architecture and acceptance plan",), CapabilityStatus.PARTIAL, (
+        # Owner decision 2026-10-26: one person for the customer in two modes. agent.product_architect is no longer a
+        # separate agent; it is Venice's planning mode, which may not start before the spec is frozen and approved.
+        _agent("agent.venice", "Venice (understanding -> planning)", (
+            "understanding mode: listen and fill the spec from the customer's words, one material question at a time, "
+            "with a cost range from the first turn",
+            "planning mode (formerly agent.product_architect): compile the frozen, approved spec into architecture and "
+            "acceptance plan; never while listening",
+        ), CapabilityStatus.PARTIAL, (
             "skill.internal.requirements.clarify", "skill.internal.capability.plan", _s("software.plan"), _s("software.architecture"),
         )),
+        _agent("agent.plan_verifier", "Plan Verifier", (
+            "independently check that a plan answers the approved spec and contains no requirement without a source",
+        ), CapabilityStatus.PARTIAL, ("skill.internal.release.gate",), dependencies=("agent.venice",)),
         _agent("agent.clarification", "Clarification Agent", ("ask only material product questions",), CapabilityStatus.NOT_IMPLEMENTED, ("skill.internal.requirements.clarify",)),
         _agent("agent.capability_planner", "Capability Planner", ("produce deterministic capability dependency plans",), CapabilityStatus.PARTIAL, ("skill.internal.capability.plan",)),
         _agent("agent.cost_planner", "Cost Planner", ("construct conservative execution cost envelopes",), CapabilityStatus.PARTIAL, ("skill.internal.cost.plan", "skill.internal.cost_audit")),

@@ -147,17 +147,17 @@
     "tests/test_m5_identity_lifecycle.py"
    ],
    "evidence": [
-    "postdeploy-checks run 38083312245"
+    "tests/test_m5_identity_lifecycle.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": true,
    "note": "",
    "parts": [
     {
      "part": "platform:platform_accounts",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (patch, hosted runtime, canned sources); preview creation; preview priva"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/creator_accounts.py"
     }
    ]
   },
@@ -304,17 +304,17 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_preview_smoke.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:page_load_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/preview_smoke.py"
     }
    ]
   },
@@ -359,23 +359,21 @@
    ],
    "provider": "none (deterministic)",
    "tests": [],
-   "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
-   ],
+   "evidence": [],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "IMPLEMENTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:browser_acceptance_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py"
     },
     {
      "part": "skill:javascript_error_detection",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "IMPLEMENTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/browser_probe.py"
     }
    ]
   },
@@ -397,32 +395,32 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_visual_qa.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "INTEGRATION_TESTED",
    "shown_to_customer": false,
    "note": "shadow mode: measured and recorded, not yet blocking",
    "parts": [
     {
      "part": "skill:mobile_view_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     },
     {
      "part": "skill:desktop_view_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     },
     {
      "part": "skill:responsive_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     },
     {
      "part": "platform:visual_qa_desktop_mobile",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     }
    ]
   },
@@ -442,22 +440,22 @@
    "provider": "none (deterministic)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_visual_qa.py"
    ],
    "cost": "$0",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "INTEGRATION_TESTED",
    "shown_to_customer": false,
    "note": "",
    "parts": [
     {
      "part": "skill:label_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     },
     {
      "part": "skill:contrast_test",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "INTEGRATION_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/visual_qa.py"
     }
    ]
   },
@@ -706,7 +704,7 @@
     {
      "part": "platform:zip_export",
      "status": "UNIT_TESTED",
-     "why": "real-server evidence is stale; code changed since: omni_prod/unified_engine.py"
+     "why": "real-server evidence is stale; code changed since: omni_prod/unified_engine.py, omni_prod/v26_platform.py"
     }
    ]
   },
@@ -1138,9 +1136,10 @@
   }
  ],
  "counts": {
-  "IMPLEMENTED": 10,
-  "REAL_SERVER_VERIFIED": 14,
-  "UNIT_TESTED": 4,
+  "IMPLEMENTED": 11,
+  "UNIT_TESTED": 6,
+  "REAL_SERVER_VERIFIED": 9,
+  "INTEGRATION_TESTED": 2,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3
  },
@@ -1149,6 +1148,7 @@
   "shown to the customer but IMPLEMENTED: Clarifying questions only when needed",
   "shown to the customer but IMPLEMENTED: Plan and cost quote before the build",
   "shown to the customer but IMPLEMENTED: Approval binds the build to the approved contract",
+  "shown to the customer but UNIT_TESTED: Sign up / sign in to 148AI",
   "shown to the customer but IMPLEMENTED: Generate the product code",
   "shown to the customer but IMPLEMENTED: Change the product in natural language",
   "shown to the customer but UNIT_TESTED: Download the product as ZIP",

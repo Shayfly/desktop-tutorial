@@ -4,17 +4,44 @@ name: intake-budget-pg
 # Redis/RQ for duplicate delivery). They skip without one, so this job
 # provides both services and FAILS if any of them was skipped -- a skipped
 # concurrency test must never look like a pass. No secrets, no provider calls.
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [main, milestone/pre-staging-2026-10-05]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  pg:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      heavy: ${{ steps.scope.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Classify changed files (unknown diffs run heavy checks)
+        id: scope
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/ci_scope.py
+  pg-tests:
+    needs: changes
+    if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -41,19 +68,34 @@ jobs:
         with: {python-version: "3.12"}
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - name: Apply repository migrations (plan-governed execution needs agent_tasks, 034+)
+        timeout-minutes: 3
         env:
           OMNI_DATABASE_URL: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
         run: python -m omni_prod.migrate
       - name: Focused PostgreSQL, Redis and build-idempotency regressions
+        timeout-minutes: 12
+        env:
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
         run: |
           python -m pytest -q -rs --junitxml=intake-pg.xml \
-            tests/test_intake_budget_pg.py tests/test_intake_complexity.py \
+            tests/test_intake_budget_pg.py tests/test_intake_complexity.py tests/test_venice_in_conversation.py \
             tests/test_intake_requirements_preservation.py tests/test_intake_worker_route.py \
-            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py \
+            tests/test_intake_assistant_he.py tests/test_plan_driven_execution.py tests/test_no_repeat_questions.py \
             tests/test_visual_edit.py tests/test_conversation_ux.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py \
             tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
-            tests/integration/test_m5_build_economics_postgres.py
+            tests/integration/test_m5_build_economics_postgres.py tests/test_intake_approve_and_goal.py \
+            tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_approval_is_consumed_once \
+            tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_one_approval_never_starts_two_builds
+      - name: Evidence notices (readable as check-run annotations, no log access needed)
+        if: always()
+        run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"
+      - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci, about 10 seconds)
+        if: always()
+        timeout-minutes: 5
+        env:
+          NC_ENV: pg      # compare with each control's expect_failed_pg; extra failures here are INFO, not FAIL
+        run: python scripts/run_negative_controls.py
       - name: No test may be skipped
         if: always()
         run: |
@@ -66,3 +108,28 @@ jobs:
               print(f'::error title=skipped::{s}')
           sys.exit(1 if skipped or not cases else 0)
           PY
+      - name: Retain PostgreSQL and Docker regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intake-pg-report
+          path: intake-pg.xml
+          retention-days: 7
+          if-no-files-found: warn
+  pg:
+    # Preserve the required check name and fail closed if classification fails.
+    needs: [changes, pg-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require PostgreSQL and Docker success or an explicit documentation-only skip
+        env:
+          SCOPE_RESULT: ${{ needs.changes.result }}
+          HEAVY: ${{ needs.changes.outputs.heavy }}
+          TEST_RESULT: ${{ needs.pg-tests.result }}
+        run: python scripts/ci_scope.py --verify-gate

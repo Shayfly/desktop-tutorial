@@ -71,5 +71,13 @@ def classify_family(text: str) -> str:
     return 'web_app'
 
 
+def named_family(text: str) -> str | None:
+    """The family only when the text actually names a product; None for a follow-up such as an answer."""
+    t = _norm(text)
+    if any(re.search(product, t, re.I) for _, product in _PRODUCTS) or any(re.search(p, t, re.I) for _, p in _RULES):
+        return classify_family(text)
+    return None
+
+
 def executable(family: str) -> bool:
     return family in EXECUTABLE

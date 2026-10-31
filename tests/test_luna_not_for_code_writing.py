@@ -30,8 +30,10 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
     def test_the_light_class_still_admits_luna(self):        # the allowlist is by price; it is not what changed
         self.assertIn('gpt-6-luna', {m.option.model for m in self.light.ranked})
 
-    def test_codegen_repair_and_modification_go_to_flash_lite_in_the_light_class(self):
-        for task in ('codegen', 'repair', 'modification'):
+    def test_codegen_repair_and_modification_never_go_to_luna_in_the_light_class(self):
+        # Founder 2026-10-22: LIGHT keeps flash-lite for codegen; Luna remains excluded until measured.
+        self.assertEqual(models(self.light, 'codegen'), ['gemini-3.1-flash-lite'])
+        for task in ('repair', 'modification'):
             self.assertEqual(models(self.light, task), ['gemini-3.1-flash-lite'], task)
 
     def test_luna_is_never_offered_for_code_writing_in_any_class(self):

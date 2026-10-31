@@ -1,0 +1,18 @@
+{
+  "pr": "poll-build-single-timer",
+  "sha256": ["tests/test_poll_build_single_timer.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "pollBuild re-arms without clearing: the loops stack again",
+    "mutations": [
+      {"file": "omni_prod/assets/app.js",
+       "old": "  // One poll loop at a time (2026-10-30): a second call used to arm a second timer, so the loops stacked.\n  clearTimeout(S.timers.build);\n",
+       "new": "  // NEGATIVE CONTROL\n"},
+      {"file": "omni_prod/assets/app.js",
+       "old": "  clearTimeout(S.timers.build);\n  S.timers.build = setTimeout(pollBuild, 2500);",
+       "new": "  S.timers.build = setTimeout(pollBuild, 2500);  // NEGATIVE CONTROL"}
+    ],
+    "targets": ["tests/test_poll_build_single_timer.py"],
+    "expect_failed": ["test_repeated_and_overlapping_calls_leave_exactly_one_timer"]
+  }]
+}

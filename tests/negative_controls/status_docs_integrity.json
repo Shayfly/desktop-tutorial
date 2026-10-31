@@ -1,0 +1,13 @@
+{
+  "pr": "status-docs-integrity",
+  "sha256": ["tests/test_status_docs_integrity.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "a resolution duplicates a task row and leaves a marker",
+    "mutations": [{"file": "TASKS.md",
+                   "old": "| ITEM-3 | Codex | Draft; independent review required | plan reserve allowance boundary tests; item3 NC |\n",
+                   "new": "| ITEM-3 | Codex | Draft; independent review required | plan reserve allowance boundary tests; item3 NC |\n=======\n| ITEM-3 | Codex | Draft; independent review required | plan reserve allowance boundary tests; item3 NC |\n"}],
+    "targets": ["tests/test_status_docs_integrity.py"],
+    "expect_failed": ["test_no_conflict_marker_is_left", "test_no_task_id_appears_twice"]
+  }]
+}

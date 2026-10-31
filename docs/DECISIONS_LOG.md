@@ -227,3 +227,69 @@
 - **‏#91 `99430c1`:** בדיקת `plan_code` ב-consistency gate. ה-fixture הוא ה-index.html וה-app.py האמיתיים של סבב 0. ‏CI ירוק. **לא מוזג**: תנאי א. הוא נוגע באותו קובץ כמו #90, ולכן לפי תנאי ד ממזגים אחד ומבססים מחדש את השני.
 - ‏#89: ה-head השתנה (`cb4a020` → `a0e567b`) אחרי שמאט התחיל לבדוק. ביקשתי אודיט מחדש ב-PR.
 - הענף הזמני `run/inspect-bld_4f3b` עוד קיים. מחיקה חסומה מכאן (git push --delete וגם refs API מחזירים 403). ה-trigger שלו הוסר.
+
+### 2026-10-20 23:29 — C10: תרגיל rollback (הריצה הראשונה אי-פעם)
+
+| # | צעד | run | ref → SHA | תוצאה | זמן |
+|---|---|---|---|---|---|
+| 1 | פריסה ל-SHA ידוע | 39492342815 | `drill/c10-known` → `4d488b4` | success: migrate בלי AHEAD, כל ה-probes עברו (PASS) | 2:07 |
+| 2 | פריסה לשני | 39492678328 | `main` → `4ad2eab` | success | 2:13 |
+| 3 | rollback | 39493057663 | `drill/c10-known` → `4d488b4` | success | 2:07 |
+| 4 | אימות חי | 39493396519 + inspect 39494999472 | הקוד שרץ: `4d488b4` | הבנייה רצה מקצה לקצה ($0.052636 settled). התוצאה failed על REVIEW בלבד (איכות). **הוכחת הגרסה:** ‏codegen הלך ל-gpt-6-luna, כלומר קוד מלפני #86 | 10:22 |
+| 5 | חזרה ל-main | 39495052838 | `main` → `4ad2eab` | success | 2:07 |
+
+- **מוקש 038:** לא ניתן להגיע אליו מה-repo. מיגרציות 038–041 נכנסו ב-graft root `ba2bb23`, כך שאין בהיסטוריה קוד מלפני 038. מסלול ה-DROP לא נבדק.
+- **מיגרציות:** ‏migrate הצליח בכל הפריסות, בלי warning על AHEAD. את הפלט `pending migrations` לא קראתי: לוגים של jobs חסומים מכאן, ונקראו רק annotations.
+- **luna שוב:** 4 מתוך 4 תשובות codegen/repair של gpt-6-luna היו JSON שבור, בהרצה נוספת מעבר ל-39377332673.
+- **פתוח:** הענף `drill/c10-known` נשאר, כי מחיקה חסומה מכאן (403).
+
+### 2026-10-22 — LIGHT codegen policy and bounded quality pilot (founder directive)
+
+- Decision: only LIGHT codegen may use the existing known-quality-70 lane. All other cost classes keep mandatory 85; unknown quality remains refused on primary/fallback/catalog paths. LIGHT's special $3.75/M output allowance is removed; its original $1.50/M ceiling remains. Luna remains excluded from code writing until its JSON behavior has measured evidence.
+- Mapping: `pricing.py:M5_BUILD_COST_CLASS` maps Free/Amateur -> LIGHT, Pro -> STANDARD, Studio -> HEAVY, Enterprise -> EXTREME. LIGHT costs 45 credits/build; Free includes150 credits and a default $1.05/month provider cap. Thus100 Free accounts allow up to300 builds/month by credits and up to$105 aggregate monthly provider authorization, not a spend forecast. Evidence from build-evidence run39731134720/job119666202485: run1 budget_binding.cost_class=light, reserved/effective LLM budget=$0.35, recorded spend=$0.02731510. This proves that run's class; it does not establish every current account's plan or compare its balance with provider billing.
+- Measurement is required reporting, not an admission gate: two fixed prompts, a simple persisted-item CRUD app and the T8 booking reference. Two builds consume90 of the reported105 remaining credits. Model-spend reservation is at most2 x the unchanged LIGHT $0.35 cap ($0.70); the dollar campaign remains conditional on I01 reconciliation and cap enforcement. No paid experiment is authorized to bypass that condition or existing credit/budget checks.
+- Pilot timebox:45 minutes after both funding conditions are met. Keep the existing build repair limit; do not add retries after two identical failures without a testable change. Pin prompts, policy, model and checker version before the first call. Run the same positive and deliberately broken checker controls, then verify create/read/reload/update/persistence for CRUD and all six T8 criteria including concurrent overlap rejection and a subsequent nonbreaking change.
+- Report first_pass_yield as x/2, final accepted products as y/2, repair/call counts, total authorized and settled spend including failures, and cost per accepted product (undefined if y=0). Capture effective max_tokens and provider finish/stop reason where the existing evidence supplies them; missing values stay UNKNOWN.
+- Pilot interpretation:2/2 accepted supports keeping the LIGHT lane provisionally;0/2 accepted after the existing repair limit, or any false success or data loss, is a poor outcome requiring a stronger LIGHT model before raising the floor.1/2 is inconclusive and requires diagnosis, not a routing gate or an automatic policy change. Two cases are a directional pilot, not evidence of population-level reliability or readiness for100 users.
+- Status: protocol defined; pilot NOT RUN. No model-quality claim is inferred from the catalog score70 or from unit tests.
+
+
+### 2026-10-25 — LANG-001: רב-לשוניות, תיקון סטייה ברשומה (הכרעת הבעלים)
+
+הניסוח "פלטפורמה בעברית" היה טעות ברשומה. הכוונה המחייבת היא פלטפורמה **בכל שפה**; זה תיקון לתוכנית המקורית ואינו הרחבת היקף.
+
+1. **השיחה והממשק:** המשתמש כותב בכל שפה והמערכת עונה באותה שפה.
+2. **התוצר:** האפליקציה נבנית בשפת הלקוח, כולל RTL/LTR, תוויות ותוכן הדוגמה.
+3. **המחיר:** דולר בכל השפות. טריגר לחזרה להכרעת המטבע: לקוח שמשלם במטבע שאינו דולר.
+
+סדר הביצוע המחייב:
+
+1. הפרסר וה-intake מקבלים כל שפה.
+2. האפליקציה שנבנית בשפת הלקוח והכיווניות המתאימה.
+3. i18n מלא של הממשק.
+
+**כעת: שלב 1, ובפרסר בלבד במסגרת #131.** אין שינוי בקוד intake, בתמחור או בממשק. החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+הכרעת הפרסר זהה בכל שפה: טקסט חופשי לאחר JSON מסווג prose לפי תחביר, ללא תלות באלפבית; leading prose נדחה באותה שגיאת פרסר. הנחיית התיקון דורשת אובייקט JSON לפי הסכמה ושמירה על שפת התוכן המבוקשת.
+
+### 2026-10-25 — DELIVERY-001: מסירה בשלבים עם שקיפות מחיר (הכרעת הבעלים)
+
+המוצר נמסר בשלבים. הלקוח רואה כל שלב על המסך ומאשר אותו לפני שהבא מתחיל.
+
+1. **מחזור השלב:** שאלות → הצעה → בנייה → תצוגה מקדימה → אישור או סימון שינויים → סגירה. שלב נסגר רק אחרי תצוגה מקדימה ואישור מפורש, ומוקפא לפני המעבר לשלב הבא.
+2. **המחיר:** העלות בקרדיטים נאמרת לפני תחילת השלב, לא אחריו. שלב שנכשל אינו מחויב. חזרה אחורה מותרת, עם מחיר מוצהר.
+3. **קצב:** לכל היותר שלוש שאלות לפני שיש משהו על המסך.
+4. **סימון שינויים:** הלקוח מסמן על התצוגה ("פה", "יותר גדול", "תוריד את זה"); הסוכן מתרגם לסימון מובנה ומאמת שהבין לפני שינוי.
+
+סדר הביצוע: WP2 פרוטוקול השלבים, שקיפות המחיר ואי-חיוב על כשל; WP3 תצוגה מקדימה ומשטח סימון. **אין שינוי במחיר עצמו, בממשק הגרפי, בספקי המדיה או במסד הנתונים.** החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+### 2026-10-25 — QUESTIONS-001: שאלות בשפה חופשית מגלאי חוסרים (הכרעת הבעלים)
+
+ה-intake אינו שאלון. כל סוג ארטיפקט מצהיר אילו שדות הוא דורש; גלאי חוסרים אומר מה חסר, והסוכן מנסח את השאלה.
+
+1. **מהותי** = שינוי הערך היה משנה את הארטיפקט בצורה שהלקוח יבחין בה (סגנון, קהל, שפה, התחברות). חסר+מהותי → שואלים. חסר+לא מהותי → ערך ברירת מחדל **מפורש** ומסומן כהנחה; בלי ערך מפורש "מניחים" הוא ניחוש.
+2. **השאלה:** אחת בכל פעם, בשפת המשתמש, עם סיבה; "תחליט אתה" תמיד זמין ומסומן כהנחה. לא שואלים על מה שכבר ידוע, גם אם נאמר באגב. שאלה בשפה אחת לא מייצרת תווית בשפה אחרת במפרט.
+3. **מודל:** קריאה אחת לשאלה, בתוך תקציב השיחה הקיים, לא לולאה. הפרומפט מקבל מה חסר, לא רשימת שאלות. נוסח גיבוי קבוע נשאר קיים ונבדק, לעבודה בלי מודל וב-CI. כשהמשתמש כתב בעברית או בערבית, השאלה אינה ASCII בלבד.
+4. **מטריקה:** כל שאלה נרשמת עם השדה שמילאה ונמדד אם שינתה את הארטיפקט. שאלה שלא ממופה לשדה = כשל; שאלה שלא מילאה כלום = שיחה מיותרת; חוסר מהותי שלא נשאל = כשל.
+
+**כעת: WP1 בלבד** (גלאי החוסרים והשאלות החופשיות), ב-`omni_prod/intake/` וב-`omni_prod/conversation/`. החלטת מוצר אינה ראיה למימוש או לאימות.

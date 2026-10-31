@@ -49,12 +49,18 @@ def _run_stage(stage, *, repository, spec, base, others_failed):
         else:
             r = stage.check(repository=repository, spec=spec, report=base)
     except Exception as exc:                                # e.g. TimeoutError in preview must not skip the rest
+        from .verification_verdict import reraise_control
+        reraise_control(exc)                                # T4: cancel / ledger / budget stop the whole build
         return ExecutionReport(False, (AcceptanceFailure(
             f'{lid}_EXCEPTION', f'{lid.lower()} check raised {type(exc).__name__}: {str(exc)[:300]}',
             'The check itself crashed before it could judge the product; the other checks still ran.'),), base.build_log)
     if r is None or not isinstance(getattr(r, 'passed', None), bool):
         return ExecutionReport(False, (AcceptanceFailure(f'{lid}_unspecified', f'{lid.lower()} check returned no report'),),
                                base.build_log)
+    if r.passed and r.failures:                             # T4: "passed" with failures is contradictory -> FAIL
+        return ExecutionReport(False, tuple(r.failures) + (AcceptanceFailure(
+            f'{lid}_contradictory', f'{lid.lower()} check reported passed together with {len(r.failures)} failure(s)'),),
+            r.build_log)
     if not r.passed and not r.failures:                     # a failure with no record is still a failure
         return ExecutionReport(False, (AcceptanceFailure(f'{lid}_unspecified',
                                                          f'{lid.lower()} check failed without saying why'),), r.build_log)

@@ -299,16 +299,43 @@ class SupervisorTests(unittest.TestCase):
         t2 = self.sup.turn(project_id='p1', account_id='a1', answers={'personal_data': 'yes'}, lang='he')
         self.assertEqual(t2.questions[0].id, 'access_scope')   # contradiction surfaced, never assumed
         t3 = self.sup.turn(project_id='p1', account_id='a1', answers={'access_scope': 'internal_link'}, lang='he')
-        self.assertTrue(t3.brief_row.complete)
-        self.assertIsNotNone(t3.plan_id)
-        self.assertEqual(t3.actions, [{'type': 'show_plan', 'brief_revision': t3.brief_row.revision}])
-        self.assertEqual([r.revision for r in self.briefs.rows['p1']], [1, 2, 3])   # every change is a revision
+        # C6 (CEO 2026-10-27): the gap detector decides completeness. The look (style) is still material for this
+        # request, so the brief is NOT complete yet -- the catalog alone would have called it complete here.
+        self.assertTrue(d.catalog_complete(t3.brief_row.brief))
+        self.assertFalse(t3.brief_row.complete)
+        self.assertEqual(t3.brief_row.brief.open_material, ['style'])
+        self.assertEqual([q.id for q in t3.questions], ['style'])
+        self.assertEqual(t3.actions, [])
+        t4 = self.say('תחליט אתה')                                   # "you decide" takes the explicit default
+        self.assertTrue(t4.brief_row.complete)
+        self.assertEqual(t4.brief_row.brief.open_material, [])
+        # gate 1 (owner 2026-10-26): the spec + a cost range, no plan before the customer approves the spec
+        self.assertIsNone(t4.plan_id)
+        self.assertEqual(t4.actions, [{'type': 'approve_spec', 'brief_revision': t4.brief_row.revision,
+                                       'brief_fingerprint': t4.brief_row.fingerprint}])
+        self.assertIn('שלב 1 מתוך 2', t4.reply)
+        self.assertEqual(self.store.plans, {})
+        t5 = self.sup.approve_spec(project_id='p1', account_id='a1', brief_fingerprint=t4.brief_row.fingerprint, lang='he')
+        self.assertIsNotNone(t5.plan_id)
+        self.assertEqual([a['type'] for a in t5.actions], ['show_plan', 'approve_build'])
+        self.assertIn('שלב 2 מתוך 2', t5.reply)
+        self.assertEqual([r.revision for r in self.briefs.rows['p1']][:3], [1, 2, 3])   # every change is a revision
         roles = [m['role'] for m in self.store.messages_for('p1')]
-        self.assertEqual(roles.count('assistant'), 3)
+        self.assertEqual(roles.count('assistant'), 5)
 
     def test_english_questions_cost_missing_status_approve(self):
-        self.say('I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data')
+        first = self.say('I need a simple internal tool for my team to track equipment loans, in English, no login, no personal data')
+        self.assertEqual(first.brief_row.brief.open_material, ['style'])   # C6: the detector still asks the look
+        self.assertIn('Still missing', self.say('what is missing?').reply)  # ...and "what is missing?" says so
+        self.say('you decide')
         self.assertIn('Nothing is missing', self.say('what is missing?').reply)
+        before = self.say('how much will it cost?')                 # before gate 1: the range, never hidden
+        self.assertEqual(before.intent, 'cost')
+        self.assertIn('Cost estimate: 45–200 credits', before.reply)
+        early = self.say('go ahead and build it')                    # no build approval before the spec is approved
+        self.assertEqual(early.intent, 'approve')
+        self.assertEqual([a['type'] for a in early.actions], ['approve_spec'])
+        self.sup.approve_spec(project_id='p1', account_id='a1', brief_fingerprint=early.brief_row.fingerprint, lang='en')
         cost = self.say('how much will it cost?')
         self.assertEqual(cost.intent, 'cost')
         self.assertIn('10 credits', cost.reply)

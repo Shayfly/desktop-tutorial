@@ -542,6 +542,111 @@ class VerifiedExistingRollbackTests(unittest.TestCase):
         self.assertNotIn('its image object is gone', r.stdout)
         self.assertNotIn('exec ', log.read_text())
 
+class TolerateUnverifiedTests(unittest.TestCase):
+    """Deploy build worker #127: a DB outage made the drain gate exit 2 and killed the deploy although nothing ran.
+    --tolerate-unverified (explicit, never the default) turns an unverified state into a warned quiet ONLY when every
+    error is a real connection failure, classified by exception type. Configuration (a missing URL), a failed or
+    missing query, and any other exception (RuntimeError, TypeError, KeyError ...) still refuse (2); running work
+    still refuses (3). Without the flag nothing changes. (Matt REJECT on #136: every Redis exception was "redis:".)"""
+
+    CONN = ['db: connection failed (OperationalError)', 'redis: ConnectionError']
+
+    def run_main(self, snap, *flags):
+        import contextlib, io
+        from unittest import mock
+        from omni_prod import active_jobs as A
+        full = {'blocking': [], 'busy': False, 'safe_to_drain': False, 'error_kinds': [], **snap}
+        full['unverified'] = bool(full.get('errors'))
+        out = io.StringIO()
+        with mock.patch.object(A, 'check_once', lambda ack: dict(full)), contextlib.redirect_stdout(out):
+            rc = A.main(['--wait-minutes', '0', *flags])
+        return rc, out.getvalue()
+
+    def test_the_flag_turns_connection_only_unverified_into_a_warned_quiet(self):
+        rc, out = self.run_main({'errors': list(self.CONN), 'error_kinds': ['connection', 'connection']},
+                                '--tolerate-unverified')
+        self.assertEqual(rc, 0, out)
+        self.assertIn('::warning title=active-jobs::draining WITHOUT verification', out)
+        self.assertIn('covers ONLY not being able to know', out)               # the relief is about knowing, only
+        self.assertIn('does NOT say nothing is running', out)
+        for e in self.CONN:
+            self.assertIn(e, out)
+        rc, out = self.run_main({'errors': [self.CONN[0]], 'error_kinds': ['connection'],
+                                 'blocking': ['rq_busy_workers:w1'], 'busy': True}, '--tolerate-unverified')
+        self.assertEqual(rc, 3, out)                                           # running work seen still refuses
+
+    def test_regression_a_redis_runtime_error_stays_unverified(self):
+        cases = ((['redis: RuntimeError'], ['logic']), (['redis: TypeError'], ['logic']),
+                 ([self.CONN[0], 'redis: KeyError'], ['connection', 'logic']),
+                 (['redis: OMNI_REDIS_URL is not set, RQ state cannot be read'], ['config']),
+                 (['db: OMNI_DATABASE_URL is not set'], ['config']),
+                 (['intake_reservations: UndefinedTable'], ['query']), (['gate: RuntimeError'], ['logic']),
+                 (['db: connection failed (OperationalError)'], []))                # unclassified is never tolerated
+        for errors, kinds in cases:
+            with self.subTest(errors=errors):
+                rc, out = self.run_main({'errors': errors, 'error_kinds': kinds}, '--tolerate-unverified')
+                self.assertEqual(rc, 2, out)
+                self.assertNotIn('::warning', out)
+
+    def test_classification_is_by_exception_type(self):
+        from omni_prod import active_jobs as A
+        for exc in (ConnectionError('x'), TimeoutError('x')):
+            self.assertEqual(A.classify(exc), A.CONNECTION, exc)
+        for exc in (RuntimeError('x'), TypeError('x'), KeyError('x'), ValueError('x')):
+            self.assertEqual(A.classify(exc), A.LOGIC, exc)
+        try:
+            import psycopg
+        except ImportError:
+            psycopg = None
+        if psycopg is not None:
+            self.assertEqual(A.classify(psycopg.OperationalError('down'), A.QUERY), A.CONNECTION)
+            self.assertEqual(A.classify(psycopg.errors.UndefinedTable('x'), A.QUERY), A.QUERY)
+            self.assertEqual(A.classify(psycopg.ProgrammingError('x'), A.QUERY), A.QUERY)
+
+        class Boom:
+            def __init__(self, exc):
+                self.exc = exc
+
+            def ping(self):
+                raise self.exc
+        for exc, kind in ((RuntimeError('queue scan'), A.LOGIC), (ConnectionError('refused'), A.CONNECTION)):
+            s = A.snapshot(None, Boom(exc), db_error=('db: connection failed (OperationalError)', A.CONNECTION))
+            self.assertEqual(s['error_kinds'], [A.CONNECTION, kind], exc)
+        s = A.snapshot(None, None, db_error=('db: OMNI_DATABASE_URL is not set', A.CONFIG))
+        self.assertEqual(s['error_kinds'], [A.CONFIG, A.CONFIG])               # no URL is configuration, not a failure
+
+    def test_without_the_flag_the_behaviour_is_exactly_todays(self):
+        rc, out = self.run_main({'errors': list(self.CONN), 'error_kinds': ['connection', 'connection']})
+        self.assertEqual(rc, 2, out)
+        self.assertIn('::error title=active-jobs::NOT draining: the state could not be verified', out)
+        self.assertNotIn('::warning', out)
+        rc, _ = self.run_main({'errors': [self.CONN[0]], 'error_kinds': ['connection'],
+                               'blocking': ['rq_busy_workers:w1'], 'busy': True})
+        self.assertEqual(rc, 2)                                                # unverified wins, as today
+        self.assertEqual(self.run_main({'errors': [], 'blocking': ['running_builds:b1'], 'busy': True})[0], 3)
+        self.assertEqual(self.run_main({'errors': [], 'safe_to_drain': True})[0], 0)
+
+    def test_the_real_command_with_an_unreachable_database_and_redis(self):
+        env = {k: v for k, v in os.environ.items() if k not in ('OMNI_DATABASE_URL', 'OMNI_REDIS_URL')}
+        py = [sys.executable, '-m', 'omni_prod.active_jobs', '--wait-minutes', '0']
+        unset = subprocess.run(py + ['--tolerate-unverified'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(unset.returncode, 2, unset.stdout + unset.stderr)       # missing URLs: configuration
+        env['OMNI_DATABASE_URL'] = 'postgresql://postgres@127.0.0.1:1/none'
+        env['OMNI_REDIS_URL'] = 'redis://127.0.0.1:1/0'
+        strict = subprocess.run(py, env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        tolerant = subprocess.run(py + ['--tolerate-unverified'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(strict.returncode, 2, strict.stdout + strict.stderr)
+        self.assertEqual(tolerant.returncode, 0, tolerant.stdout + tolerant.stderr)
+        self.assertIn('db: connection failed (OperationalError)', tolerant.stdout)
+        self.assertIn('redis: ConnectionError', tolerant.stdout)
+
+    def test_the_workflow_passes_the_flag_only_to_the_pre_drain_gate(self):
+        wf = yaml.safe_load((ROOT / '.github/workflows/deploy-worker.yml').read_text())
+        steps = {s.get('id'): s for s in wf['jobs']['deploy']['steps']}
+        self.assertIn('--tolerate-unverified', steps['idle']['run'])
+        self.assertNotIn('--tolerate-unverified', (HOST / 'drain.sh').read_text())   # the gates inside the drain stay strict
+
+
 if __name__ == '__main__':
     unittest.main()
 
