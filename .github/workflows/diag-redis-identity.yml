@@ -31,6 +31,7 @@ jobs:
           wd=$(docker inspect "$c" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
           img=$(docker inspect "$c" --format '{{.Config.Image}}')
           started=$(docker inspect "$c" --format '{{.State.StartedAt}}')
+          restarts=$(docker inspect "$c" --format '{{.RestartCount}} status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} finished={{.State.FinishedAt}}')
           rev=$(docker inspect "$c" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' || true)
           envmtime=$(stat -c '%y' "$wd/.env" 2>/dev/null || echo missing)
           file_url=$(grep -E '^OMNI_REDIS_URL=' "$wd/.env" 2>/dev/null | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)
@@ -39,7 +40,7 @@ jobs:
           d=$(mktemp -d); chmod 700 "$d"
           printf '%s' "$file_url" > "$d/file"; printf '%s' "$live_url" > "$d/live"
           echo "dir=$d" >> "$GITHUB_OUTPUT"; echo "img=$img" >> "$GITHUB_OUTPUT"
-          echo "::notice title=context::container=$c started=$started image=$img image_revision=${rev:-unknown} compose_dir=$wd .env_mtime=$envmtime"
+          echo "::notice title=context::container=$c started=$started restarts=$restarts image=$img image_revision=${rev:-unknown} compose_dir=$wd .env_mtime=$envmtime"
 
       - name: Describe and probe both URLs (read-only)
         shell: bash
@@ -48,7 +49,7 @@ jobs:
           IMG: ${{ steps.urls.outputs.img }}
         run: |
           set -uo pipefail
-          docker run --rm --network host -v "$D:/u:ro" "$IMG" python - <<'PY'
+          docker run -i --rm --network host -v "$D:/u:ro" "$IMG" python - <<'PY'
           import hashlib, json, re
           from urllib.parse import urlsplit
           def note(t, b):
@@ -98,6 +99,7 @@ jobs:
               note(f'probe {k} ({desc[k]["host"]})', json.dumps(res, default=str))
           PY
           rc=$?
+          [ "$rc" = 0 ] || echo "::error title=diag::probe exited $rc"
           rm -rf "$D"
           exit $rc
 
