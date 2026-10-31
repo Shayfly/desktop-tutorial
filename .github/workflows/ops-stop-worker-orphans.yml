@@ -7,6 +7,8 @@ name: ops stop crash-looping worker; list orphans; reconciler dry run (branch on
 #  2. exactly two build_jobs, QUEUED -> CANCELLED through PostgresBuildRepository.transition (the state machine),
 #     error_code=orphaned_queue_lost. Nothing else is written; any other row or state is refused.
 #  3. READ-ONLY: reservation_reconciler dry run (no --apply).
+# Run 3 (founder 2026-11-01 01:06): reservation_reconciler --apply on the three rows of run 2's dry run, then a
+# dry run that must return ZERO rows. Nothing else: no stop, no start, no deploy. One ::notice per output line.
 # No checkout (it would clean the workspace that holds the deploy-generated .env). No Redis command is sent.
 on:
   push:
@@ -24,63 +26,39 @@ jobs:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 10
     steps:
-      - name: Stop preview-worker and intake-worker (docker compose stop)
-        id: stop
+      - name: Locate the compose project (read-only)
+        id: wd
         shell: bash
         run: |
           set -euo pipefail
           wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
-          st() { for c in omni-worker-preview-worker-1 omni-worker-intake-worker-1 omni-worker-worker-1; do
-                   printf '%s %s; ' "$c" "$(docker inspect "$c" --format 'status={{.State.Status}} restarts={{.RestartCount}} exit={{.State.ExitCode}}')"; done; }
-          before=$(st)
-          cd "$wd"
-          docker compose stop preview-worker intake-worker
-          echo "::notice title=stopped::before: $before%0Aafter: $(st)"
           echo "wd=$wd" >> "$GITHUB_OUTPUT"
-          sleep 20
-          echo "::notice title=20s later::$(st)%0A$(docker ps -a --filter label=com.docker.compose.project.working_dir="$wd" --format '{{.Names}} {{.Status}}' | tr '\n' ';')"
 
-      - name: Two orphan builds QUEUED -> CANCELLED (orphaned_queue_lost) through the state machine
+      - name: reservation_reconciler --apply
         shell: bash
-        working-directory: ${{ steps.stop.outputs.wd }}
+        working-directory: ${{ steps.wd.outputs.wd }}
         run: |
           set -uo pipefail
-          docker compose run --rm --no-deps -T worker python - > /tmp/ops-cancel.out 2>&1 <<'PY'
-          from omni_prod.investor_app import _v28_pool
-          from omni_prod.job_repository import PostgresBuildRepository
-          from omni_prod.models import BuildStatus
-          IDS = ('bld_c38ede3eb516484eab6eef24400e1746', 'bld_e15d00c11287490b952e5a4295caf7f4')
-          MSG = ('The build queue was lost (Upstash request quota exhausted; the worker could not start). '
-                 'This build never started and did not fail: it is closed as an orphan of the lost queue, not a build failure.')
-          assert _v28_pool is not None, 'postgres persistence required'
-          jobs = PostgresBuildRepository(_v28_pool)
-          def state(i):
-              with _v28_pool.connection() as c:
-                  return c.execute('SELECT status, phase, error_code, finished_at FROM build_jobs WHERE id = %s', (i,)).fetchone()
-          lines = []
-          for i in IDS:
-              before = state(i)
-              moved = jobs.transition(build_id=i, expected=BuildStatus.QUEUED, target=BuildStatus.CANCELLED,
-                                      error_code='orphaned_queue_lost', error_message=MSG,
-                                      evidence_json={'closed_by': 'founder 2026-11-01 00:55', 'reason': 'orphaned_queue_lost',
-                                                     'redis': 'sharp-satyr-200692 max requests limit exceeded 500000/500000'})
-              lines.append(f'{i} before={before} moved={moved} after={state(i)}')
-          body = '\n'.join(lines).replace('%', '%25').replace('\n', '%0A')
-          print(f'::notice title=orphans -> CANCELLED::{body}', flush=True)
-          PY
+          docker compose run --rm --no-deps -T worker python -m omni_prod.reservation_reconciler --apply > /tmp/ops-apply.out 2>&1
           rc=$?
-          grep '^::notice' /tmp/ops-cancel.out || echo "::error title=cancel step failed (rc=$rc)::$(tail -25 /tmp/ops-cancel.out | sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)"
-          rm -f /tmp/ops-cancel.out
+          sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' /tmp/ops-apply.out | tail -40 | while IFS= read -r line; do
+            [ -n "$line" ] || continue; line=${line//%/%25}
+            if [ "$rc" = 0 ]; then echo "::notice title=reconciler apply::${line:0:3400}"; else echo "::error title=reconciler apply (rc=$rc)::${line:0:3400}"; fi
+          done
+          rm -f /tmp/ops-apply.out
           exit $rc
 
-      - name: reservation_reconciler dry run (no --apply)
+      - name: reservation_reconciler dry run after apply (must be zero rows)
         shell: bash
-        working-directory: ${{ steps.stop.outputs.wd }}
+        working-directory: ${{ steps.wd.outputs.wd }}
         run: |
           set -uo pipefail
           docker compose run --rm --no-deps -T worker python -m omni_prod.reservation_reconciler > /tmp/ops-recon.out 2>&1
           rc=$?
-          body=$(sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' /tmp/ops-recon.out | tail -40 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)
-          if [ "$rc" = 0 ]; then echo "::notice title=reconciler dry run (rc=0)::$body"; else echo "::error title=reconciler dry run (rc=$rc)::$body"; fi
+          sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' /tmp/ops-recon.out | tail -40 | while IFS= read -r line; do
+            [ -n "$line" ] || continue; line=${line//%/%25}
+            if [ "$rc" = 0 ]; then echo "::notice title=reconciler::${line:0:3400}"; else echo "::error title=reconciler (rc=$rc)::${line:0:3400}"; fi
+          done
+          grep -q 'reservation_reconciler: 0 terminal RESERVED row(s)' /tmp/ops-recon.out || { echo "::error title=reconciler::dry run after apply is NOT zero rows"; rc=${rc/#0/1}; }
           rm -f /tmp/ops-recon.out
           exit $rc
