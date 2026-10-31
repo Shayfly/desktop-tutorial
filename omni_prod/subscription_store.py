@@ -399,6 +399,44 @@ class PostgresSubscriptionService:
                         result['contribution_margin'] = economics['contribution_margin']
                     return result
 
+    def reconcile_terminal_reservation(self, *, build_id: str) -> dict:
+        """P0 2026-10-30: resolve a RESERVED reservation whose build/modification is terminal (see
+        omni_prod.reservation_reconciler). release() keeps funds held while any attempt shows authorized-but-unmetered
+        cost; once the work is over and every call has finished, nothing more can be metered, so the hold ends:
+        RELEASE when nothing was metered, SETTLE on the metered total otherwise, HOLD while a call is still unknown.
+        Everything is re-checked under the reservation lock."""
+        from .reservation_reconciler import is_terminal, verdict
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd, funding_source "
+                                "FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    row = cur.fetchone()
+                    if not row or row[1] != 'RESERVED':
+                        return {'build_id': build_id, 'action': 'none', 'reason': 'not RESERVED', 'applied': False}
+                    if not is_terminal(cur, build_id):
+                        return {'build_id': build_id, 'action': 'hold', 'reason': 'work not terminal', 'applied': False}
+                    action, total, reason = verdict(cur, build_id)
+                    if action == 'release':
+                        user_id, credits_reserved, estimated_cost = row[0], row[2], Decimal(str(row[3]))
+                        cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now() WHERE build_id=%s",
+                                    (build_id,))
+                        if row[4] != 'internal_qa':   # internal QA never touched the customer plan counters
+                            cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), "
+                                        "provider_spend_usd = GREATEST(0, provider_spend_usd - %s) WHERE user_id=%s",
+                                        (credits_reserved, estimated_cost, user_id))
+                        return {'build_id': build_id, 'action': 'release', 'metered_usd': str(total), 'reason': reason,
+                                'applied': True}
+        if action == 'settle':
+            # Runs AFTER the lock above is released, on purpose: settle() takes the same row lock itself (SELECT ...
+            # FOR UPDATE) and returns None unless the row is still RESERVED, so a concurrent release/settle between
+            # the two transactions makes this a no-op (applied=False), never a double resolution. The metered total
+            # was read under the first lock; attempts of a terminal build are not written any more.
+            settled = self.settle(build_id=build_id, actual_provider_cost_usd=total)
+            return {'build_id': build_id, 'action': 'settle', 'metered_usd': str(total), 'reason': reason,
+                    'applied': settled is not None}
+        return {'build_id': build_id, 'action': action, 'metered_usd': str(total), 'reason': reason, 'applied': False}
+
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:
             with conn.transaction():
