@@ -678,19 +678,59 @@ def _rights_evidence_from_dicts(items) -> tuple:
     return tuple(out)
 
 
+class BuildNotFound(RuntimeError):
+    """The worker was asked to run a build its database does not have (error_code build_not_found)."""
+
+
+BUILD_NOT_FOUND = 'build_not_found'
+
+
+def _fail_build_not_found(jobs, platform, build_id: str, exc: Exception) -> bool:
+    """Log the miss; if the build's job row exists (its request or reservation row is what is missing), mark it
+    FAILED with build_not_found and release its credits. Returns whether a row was marked."""
+    log = logging.getLogger(__name__)
+    log.error('build %s: NOT FOUND in this worker\'s database (%s); failing it, not dropping it -- check that the '
+              'worker and the web use the same OMNI_DATABASE_URL', build_id, exc)
+    marked = False
+    try:
+        marked = bool(jobs.transition(
+            build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED, error_code=BUILD_NOT_FOUND,
+            error_message=(f"The build could not be started: the build worker did not find build {build_id} "
+                           f"or its request in its database ({exc})")[:2000]))
+    except Exception:
+        log.error('build %s: could not mark it FAILED (%s)', build_id, BUILD_NOT_FOUND, exc_info=True)
+    if marked:
+        try:
+            platform.subscriptions.release(build_id=build_id)
+        except Exception:
+            log.error('build %s: credits not released after %s', build_id, BUILD_NOT_FOUND, exc_info=True)
+    else:
+        log.error('build %s: no QUEUED job row here either -- nothing could be marked; the job fails', build_id)
+    return marked
+
+
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
                         capability_stage=None, infrastructure_stage=None,
                         infrastructure_environment: str = 'preview', spec_repo=None, agent_recorder=None,
                         attempt_pool=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
-    done (unknown build id / already claimed by another delivery)."""
+    done (already claimed by another delivery). An unknown build id raises
+    BuildNotFound after marking the build FAILED (build_not_found) where it can."""
     try:
         request = jobs.get_request(build_id)
-    except KeyError:
-        return None
+    except KeyError as exc:
+        # 2026-10-29 (production): two builds ended here in ~2.5 s as "Job OK" with no write and no log -- the worker
+        # read a different database than the web -- and stayed QUEUED in the web's database for ever. A build this
+        # worker cannot find fails LOUDLY: logged, marked FAILED where its job row exists, and the job raises.
+        _fail_build_not_found(jobs, platform, build_id, exc)
+        raise BuildNotFound(f'build {build_id} not found in this worker\'s database: {exc}') from exc
     if not jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.RUNNING):
-        return None  # duplicate delivery / already handled: idempotent no-op
+        # Duplicate delivery / already handled: an idempotent no-op that must NOT fail a build another delivery is
+        # running -- but never silent.
+        logging.getLogger(__name__).warning('build %s: not claimed (not QUEUED any more): duplicate delivery or '
+                                            'already handled -- nothing done', build_id)
+        return None
     beat = getattr(jobs, 'checkpoint', None)
     if callable(beat):  # crash recovery: the heartbeat starts at the claim
         try:

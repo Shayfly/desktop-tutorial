@@ -1,0 +1,65 @@
+{
+  "pr": "worker-build-not-found",
+  "sha256": [
+    "tests/test_worker_build_not_found.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the old silent return: a build the worker cannot find ends as Job OK with no write and no log",
+      "mutations": [
+        {
+          "file": "omni_prod/worker_tasks.py",
+          "old": "        _fail_build_not_found(jobs, platform, build_id, exc)\n        raise BuildNotFound(f'build {build_id} not found in this worker\\'s database: {exc}') from exc\n",
+          "new": "        return None  # NEGATIVE CONTROL: the silent no-op of 2026-10-28\n"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_build_not_found.py"
+      ],
+      "expect_failed": [
+        "test_a_job_row_without_its_request_is_marked_failed_with_a_code_and_credits_released",
+        "test_an_unknown_build_id_raises_and_logs_never_a_silent_ok"
+      ],
+      "expect_failed_pg": [
+        "test_a_job_row_without_its_request_is_marked_failed_with_a_code_and_credits_released",
+        "test_an_unknown_build_id_raises_and_logs_never_a_silent_ok",
+        "test_an_unknown_build_is_a_failed_rq_job_not_job_ok"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the miss is logged and raised but the job row is not marked: the customer keeps a QUEUED build",
+      "mutations": [
+        {
+          "file": "omni_prod/worker_tasks.py",
+          "old": "        marked = bool(jobs.transition(\n            build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED, error_code=BUILD_NOT_FOUND,",
+          "new": "        marked = False and bool(jobs.transition(  # NEGATIVE CONTROL\n            build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED, error_code=BUILD_NOT_FOUND,"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_build_not_found.py"
+      ],
+      "expect_failed": [
+        "test_a_job_row_without_its_request_is_marked_failed_with_a_code_and_credits_released"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "a duplicate delivery fails a build another delivery is running (the fix may not over-reach)",
+      "mutations": [
+        {
+          "file": "omni_prod/worker_tasks.py",
+          "old": "                                            'already handled -- nothing done', build_id)\n        return None\n",
+          "new": "                                            'already handled -- nothing done', build_id)\n        jobs.transition(build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED, error_code=BUILD_NOT_FOUND)  # NEGATIVE CONTROL\n        return None\n"
+        }
+      ],
+      "targets": [
+        "tests/test_worker_build_not_found.py"
+      ],
+      "expect_failed": [
+        "test_a_build_no_longer_queued_is_not_failed_but_the_no_op_is_logged"
+      ]
+    }
+  ]
+}
