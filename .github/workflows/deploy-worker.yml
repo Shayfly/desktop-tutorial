@@ -72,6 +72,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VENICE_API_KEY1: ${{ secrets.VENICE_API_KEY1 }}
+          OMNI_DATABASE_URL: ${{ secrets.OMNI_DATABASE_URL }}
         run: bash infra/worker-host/write-env.sh
 
       - name: Confirm deployment scope and configured intake mode

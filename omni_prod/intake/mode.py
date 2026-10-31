@@ -6,9 +6,12 @@ A model (paid) runs only when ALL of these hold:
   OMNI_INTAKE_MODEL=1                       founder switch
   OMNI_INTAKE_MODEL_BUDGET_USD  > 0         per-project conversation cap
   OMNI_INTAKE_DAILY_BUDGET_USD  > 0         cap across all projects, rolling 24 h
-  OMNI_INTAKE_CALL_BUDGET_USD   > 0         per-message reserve (default 0.005)
-  project spent + reserve <= project cap   (a call can never overshoot the cap)
-  24 h spent    + reserve <= daily cap
+  OMNI_INTAKE_CALL_BUDGET_USD   > 0         the gate's FIXED unit (default 0.01)
+  project spent + unit <= project cap      the gate: may this turn use a model at all
+  24 h spent    + unit <= daily cap
+GATE-001 (DECISIONS.md, 2026-10-30): this gate compares a fixed unit, never the call's estimate, so its answer
+does not change with prompt length. A call cannot overshoot a cap because of the RESERVATION, which compares the
+quoted worst case (intake.budget.quote) under a lock -- not because of this gate.
 Route: OMNI_INTAKE_VIA_WORKER=1 only. Every paid call is reserved durably
 before execution (intake.budget, Issue #12) and runs on the worker, which
 holds the provider key. A direct gateway on the API host would bypass the
@@ -23,7 +26,9 @@ from dataclasses import asdict, dataclass
 from decimal import Decimal, InvalidOperation
 
 DETERMINISTIC, MODEL_WORKER, MODEL_DIRECT = 'deterministic', 'model-via-worker', 'model-direct'
-DEFAULT_CALL_RESERVE = Decimal('0.005')
+# Owner 2026-10-30: a pre-check value, not a spend ceiling. 0.01 lets one Venice message (quoted 0.00555) pass;
+# the real caps are OMNI_INTAKE_MODEL_BUDGET_USD (per project) and the daily cap, enforced by the reservation.
+DEFAULT_CALL_RESERVE = Decimal('0.01')
 # Cheapest REAL_EXECUTION_VERIFIED model whose intended tasks include conversation (PROVIDER_MATRIX.json).
 RECOMMENDED_MODEL = 'gemini-3.1-flash-lite'
 # Token envelope of one intake call (system prompt ~1.0k tokens + message <=4000 chars + JSON reply incl. thinking).

@@ -1,0 +1,15 @@
+{
+  "pr": "item2",
+  "controls": [{
+    "id": "NC1",
+    "what": "failed no-contact build keeps its credit and provider reservation",
+    "mutations": [{
+      "file": "omni_prod/worker_tasks.py",
+      "old": "    if not ready and not paid_activity:\n        subscriptions.release(build_id=build_id)\n",
+      "new": "    if not ready and not paid_activity:\n        pass  # NEGATIVE CONTROL: leave the reservation charged\n"
+    }],
+    "targets": ["tests/test_m5_build_economics.py::WorkerSettlementTruthTests::test_failed_zero_spend_build_releases_reservation", "tests/integration/test_m5_build_economics_postgres.py::RealPostgresReservationConcurrencyTests::test_failed_build_without_provider_contact_restores_both_balances"],
+    "expect_failed": ["test_failed_zero_spend_build_releases_reservation"],
+    "expect_failed_pg": ["test_failed_zero_spend_build_releases_reservation", "test_failed_build_without_provider_contact_restores_both_balances"]
+  }]
+}

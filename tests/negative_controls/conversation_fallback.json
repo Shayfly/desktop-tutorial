@@ -1,0 +1,16 @@
+{
+  "pr": "conversation-fallback",
+  "sha256": ["tests/test_conversation_fallback.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "any error switches to the guided questionnaire again",
+    "mutations": [{
+      "file": "omni_prod/assets/app.js",
+      "old": "  return e instanceof ApiError && e.status === 503 && !!e.detail && e.detail.error === 'conversation_not_ready';",
+      "new": "  return true;  // NEGATIVE CONTROL"
+    }],
+    "targets": ["tests/test_conversation_fallback.py"],
+    "expect_failed": ["test_a_network_blip_shows_a_retry_and_does_not_switch_to_the_questionnaire",
+                      "test_a_server_error_is_not_a_reason_to_switch"]
+  }]
+}

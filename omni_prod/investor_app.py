@@ -2433,6 +2433,9 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     revision and reports capabilities, infrastructure readiness, the
     conservative cost authorization and blockers. No credits are reserved and
     no provider is called; POST .../builds with build_contract_id starts work."""
+    # 2026-10-30: the same durable-backend requirement as POST .../builds, checked first, so a server that cannot
+    # build refuses the plan with the build's own reason instead of offering a plan the build then 503s.
+    _require_durable_backend('Durable async build')
     token = _v28_bearer(request)
     try:
         account, _ = _v28.resolve_project_key(token=token, project_id=project_id)
@@ -2467,6 +2470,9 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     preview = build_plan_preview(
         architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
         economics=economics,
+        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
+            user_id=account.id, cost_class=build_class, credits=build_credits,
+            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
         durable_backend=_async_build_mode(),
         infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
     )
@@ -2651,7 +2657,16 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             **({'internal_qa': True} if internal_qa else {}),
                         )
                         if not decision.allowed:
-                            raise HTTPException(402, decision.reason)
+                            if decision.reason == 'cost class not included in plan':
+                                raise HTTPException(402, detail={
+                                    'error': 'plan_cannot_authorize_cost',
+                                    'message': 'This build is not included in your plan. Upgrade your plan to continue.',
+                                })
+                            raise HTTPException(402, detail={
+                                'error': 'build_allowance_exhausted',
+                                'message': 'Your budget or credits have run out. '
+                                           'Add credits or build a smaller project.',
+                            })
 
                         jobs.create_request(
                             cur, build_id=build_id, user_id=account.id, internal_project_id=key,

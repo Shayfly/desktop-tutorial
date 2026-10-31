@@ -1,0 +1,5 @@
+# STATUS.md and TASKS.md are append-only logs that every PR extends at the same trailing spot. The union merge
+# driver keeps both sides of such a conflict (2026-10-30: every merge re-conflicted the next PR).
+# tests/test_status_docs_integrity.py fails if that ever duplicates a section or leaves a marker.
+STATUS.md merge=union
+TASKS.md merge=union
