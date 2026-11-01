@@ -1,7 +1,9 @@
 name: diag env precedence (read-only, branch only)
 
 # Founder 2026-11-01 18:59. READ-ONLY on the worker host: the real infra/worker-host/.env is never written.
-#  a. Does OMNI_REDIS_URL from WORKER_ENV_OVERRIDES win over WORKER_ENV? The deploy's own write-env.sh is run on a
+#  a. (rerun 2026-11-01 19:18) Does the dedicated OMNI_REDIS_URL secret win, using write-env.sh from PR #204
+#     (fix/worker-env-dedicated-redis, fetched read-only through the API)? Before: WORKER_ENV_OVERRIDES.
+#  (old a.) The deploy's own write-env.sh is run on a
 #     COPY in a private temp dir with the two secrets, and the result is compared by host/port/db and sha256[:8]
 #     (never a password or a full value). Also shown: what the host's current .env and the stopped container hold.
 #  b. OMNI_ALLOW_EXTERNAL_FALLBACK and OMNI_ZERO_COST_MODE (and OMNI_REPAIR_STRUCTURED_V1) from the host .env, the
@@ -19,26 +21,40 @@ jobs:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 5
     steps:
-      - name: Simulate write-env.sh on a copy and compare (read-only)
+      - name: Simulate PR 204 write-env.sh on a copy (read-only)
+        id: sim
         shell: bash
         env:
           WORKER_ENV: ${{ secrets.WORKER_ENV }}
           WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}
+          GH_TOKEN: ${{ github.token }}
+          PR_REF: fix/worker-env-dedicated-redis
         run: |
           set -euo pipefail
           wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
-          repo=$(git -C "$wd" rev-parse --show-toplevel)
-          rev=$(git -C "$repo" rev-parse --short HEAD)
-          sim=$(mktemp -d); chmod 700 "$sim"; trap 'rm -rf "$sim"' EXIT
-          # the deploy's script and catalog, read from the deployed checkout (git show: read-only), run in the copy dir
-          git -C "$repo" show HEAD:infra/worker-host/write-env.sh > "$sim/write-env.sh"
-          git -C "$repo" show HEAD:infra/worker-host/model-catalog.json > "$sim/model-catalog.json"
+          sim=$(mktemp -d); chmod 700 "$sim"
+          echo "sim=$sim" >> "$GITHUB_OUTPUT"; echo "wd=$wd" >> "$GITHUB_OUTPUT"
+          for f in write-env.sh model-catalog.json; do
+            curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github.raw' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/infra/worker-host/$f?ref=$PR_REF" > "$sim/$f"
+          done
+          grep -q 'VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do' "$sim/write-env.sh" || { echo "::error title=diag::fetched write-env.sh is not the PR 204 version"; exit 2; }
           printf '%s\n' "$WORKER_ENV" | tr -d '\r' > "$sim/worker_env.txt"
           printf '%s\n' "${WORKER_ENV_OVERRIDES:-}" | tr -d '\r' > "$sim/overrides.txt"
-          (cd "$sim" && bash ./write-env.sh > "$sim/script.out" 2>&1) || echo "write-env.sh rc=$? (simulation)" >> "$sim/script.out"
-          grep '^::notice title=WORKER_ENV_OVERRIDES' "$sim/script.out" | sed 's/^::notice title=WORKER_ENV_OVERRIDES::/::notice title=simulated overrides (write-env.sh at '"$rev"')::/' || true
+          printf 'OMNI_REDIS_URL=%s\n' "${OMNI_REDIS_URL:-}" > "$sim/dedicated.txt"; [ -n "${OMNI_REDIS_URL:-}" ] || : > "$sim/dedicated.txt"
+          (cd "$sim" && bash ./write-env.sh > "$sim/script.out" 2>&1) || echo "write-env.sh rc=$?" >> "$sim/script.out"
           docker inspect omni-worker-worker-1 --format '{{range .Config.Env}}{{println .}}{{end}}' > "$sim/container.env"
-          python3 - "$sim" "$wd/.env" <<'PY'
+          grep -h 'title=dedicated secrets::OMNI_REDIS_URL' "$sim/script.out" | sed 's/^::notice title=dedicated secrets::/::notice title=a. write-env.sh (PR 204) said::/' || echo "::notice title=a. write-env.sh (PR 204) said::(no OMNI_REDIS_URL line)"
+
+      - name: a. OMNI_REDIS_URL in every source and the verdict
+        shell: bash
+        env:
+          SIM: ${{ steps.sim.outputs.sim }}
+          WD: ${{ steps.sim.outputs.wd }}
+        run: |
+          set -euo pipefail
+          python3 - "$SIM" "$WD/.env" <<'PY'
           import hashlib, sys
           from urllib.parse import urlsplit
           sim, host_env = sys.argv[1], sys.argv[2]
@@ -48,34 +64,64 @@ jobs:
                   for line in open(path, encoding='utf-8', errors='replace'):
                       line = line.rstrip('\n')
                       if '=' in line and not line.startswith('#'):
-                          k, v = line.split('=', 1)
-                          out[k] = v                      # last one wins, as in docker compose env_file
+                          k, v = line.split('=', 1); out[k] = v
               except FileNotFoundError:
                   pass
               return out
-          src = {'WORKER_ENV secret': read(f'{sim}/worker_env.txt'), 'WORKER_ENV_OVERRIDES secret': read(f'{sim}/overrides.txt'),
-                 '.env a deploy would write now (simulated)': read(f'{sim}/.env'),
-                 'host .env now (written 2026-10-31 20:07)': read(host_env), 'stopped worker container': read(f'{sim}/container.env')}
           def note(t, b):
               print(f'::notice title={t}::' + str(b).replace('%', '%25').replace('\n', '%0A')[:3400], flush=True)
           def redis(v):
-              if v is None:
+              if not v:
                   return 'NOT SET'
               p = urlsplit(v)
               return f'{p.scheme}://{p.hostname}:{p.port}/{(p.path or "/").lstrip("/") or "0"} sha256_8={hashlib.sha256(v.encode()).hexdigest()[:8]}'
-          vals = {k: d.get('OMNI_REDIS_URL') for k, d in src.items()}
-          for k, v in vals.items():
-              note(f'a. OMNI_REDIS_URL — {k}', redis(v))
-          o, w, s = vals['WORKER_ENV_OVERRIDES secret'], vals['WORKER_ENV secret'], vals['.env a deploy would write now (simulated)']
-          if o is None:
-              verdict = 'NO: OMNI_REDIS_URL is not in WORKER_ENV_OVERRIDES; the next deploy takes it from WORKER_ENV'
-          elif s == o:
-              verdict = 'YES: the simulated .env holds the WORKER_ENV_OVERRIDES value' + (' (WORKER_ENV has a different one, overridden)' if w not in (None, o) else '')
+          src = {'OMNI_REDIS_URL secret (dedicated)': read(f'{sim}/dedicated.txt'), 'WORKER_ENV secret': read(f'{sim}/worker_env.txt'),
+                 'WORKER_ENV_OVERRIDES secret': read(f'{sim}/overrides.txt'), '.env a deploy of PR 204 would write': read(f'{sim}/.env'),
+                 'host .env now': read(host_env), 'stopped worker container': read(f'{sim}/container.env')}
+          v = {k: d.get('OMNI_REDIS_URL') for k, d in src.items()}
+          for k, x in v.items():
+              note(f'a. OMNI_REDIS_URL — {k}', redis(x))
+          ded, simv, old = v['OMNI_REDIS_URL secret (dedicated)'], v['.env a deploy of PR 204 would write'], v['WORKER_ENV secret']
+          if not ded:
+              verdict = 'NO: the OMNI_REDIS_URL GitHub secret is not set (empty); the deploy keeps the WORKER_ENV value'
+          elif simv == ded:
+              verdict = 'YES: the simulated .env holds the dedicated OMNI_REDIS_URL secret' + (' (it differs from WORKER_ENV: replaced)' if old and old != ded else '')
           else:
-              verdict = 'NO: the simulated .env does NOT hold the WORKER_ENV_OVERRIDES value'
-          note('a. verdict: does WORKER_ENV_OVERRIDES win?', verdict)
-          note('a. count of OMNI_REDIS_URL lines', '; '.join(f'{k}: {sum(1 for l in open(p, errors="replace") if l.startswith("OMNI_REDIS_URL="))}'
-               for k, p in (('simulated .env', f'{sim}/.env'), ('host .env', host_env))))
-          for flag in ('OMNI_ALLOW_EXTERNAL_FALLBACK', 'OMNI_ZERO_COST_MODE', 'OMNI_REPAIR_STRUCTURED_V1'):
-              note(f'b. {flag}', '; '.join(f'{k}: {d.get(flag, "NOT SET")}' for k, d in src.items()))
+              verdict = 'NO: the dedicated secret is set but the simulated .env does not hold it'
+          lines = sum(1 for l in open(f'{sim}/.env', errors='replace') if l.startswith('OMNI_REDIS_URL='))
+          note('a. VERDICT: does the dedicated OMNI_REDIS_URL secret win?', f'{verdict} | OMNI_REDIS_URL lines in simulated .env: {lines}')
           PY
+
+      - name: b. the three flags from every source
+        shell: bash
+        env:
+          SIM: ${{ steps.sim.outputs.sim }}
+          WD: ${{ steps.sim.outputs.wd }}
+        run: |
+          set -euo pipefail
+          python3 - "$SIM" "$WD/.env" <<'PY'
+          import sys
+          sim, host_env = sys.argv[1], sys.argv[2]
+          def read(path):
+              out = {}
+              try:
+                  for line in open(path, encoding='utf-8', errors='replace'):
+                      line = line.rstrip('\n')
+                      if '=' in line and not line.startswith('#'):
+                          k, v = line.split('=', 1); out[k] = v
+              except FileNotFoundError:
+                  pass
+              return out
+          src = {'WORKER_ENV': read(f'{sim}/worker_env.txt'), 'OVERRIDES': read(f'{sim}/overrides.txt'),
+                 'simulated .env (PR 204)': read(f'{sim}/.env'), 'host .env now': read(host_env),
+                 'stopped container': read(f'{sim}/container.env')}
+          for flag in ('OMNI_ALLOW_EXTERNAL_FALLBACK', 'OMNI_ZERO_COST_MODE', 'OMNI_REPAIR_STRUCTURED_V1'):
+              print(f'::notice title=b. {flag}::' + '; '.join(f'{k}: {d.get(flag, "NOT SET")}' for k, d in src.items()), flush=True)
+          PY
+
+      - name: Remove the temporary copy
+        if: always()
+        shell: bash
+        env:
+          SIM: ${{ steps.sim.outputs.sim }}
+        run: '[ -n "$SIM" ] && rm -rf "$SIM" || true'
