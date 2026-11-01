@@ -153,9 +153,9 @@
     "seo_web_quality_agent": "NOT_IMPLEMENTED"
    },
    "skills": {
-    "IMPLEMENTED": 8,
+    "IMPLEMENTED": 9,
     "NOT_IMPLEMENTED": 32,
-    "REAL_SERVER_VERIFIED": 2
+    "REAL_SERVER_VERIFIED": 1
    },
    "missing_roles": [],
    "missing_adapters": [],

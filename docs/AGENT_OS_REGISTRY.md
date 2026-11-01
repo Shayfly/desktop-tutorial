@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 35, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 29, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 35, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -46,7 +46,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 30, INTEGRATION
 | Localization / RTL Agent (`localization_rtl_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result |  |
 | SEO / Web Quality Agent (`seo_web_quality_agent`) | quality | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Analytics Agent (`analytics_agent`) | platform | **NOT_IMPLEMENTED** | privacy_reviewer | no implementation | not implemented |
-| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py, omni_prod/modification_engine.py |  |
+| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | Automation Agent (`automation_agent`) | automation | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Media Orchestrator (`media_orchestrator`) | media | **UNIT_TESTED** | compliance_ip_agent | unit tests only — tests/test_m495_worker_capabilities.py |  |
 | Image Agent (`image_agent`) | media | **BLOCKED** | compliance_ip_agent | not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF |  |
@@ -212,7 +212,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 30, INTEGRATION
 | `file_create` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `file_modify` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `safe_refactor` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
-| `dependency_add` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | pinned allowlist only |
+| `dependency_add` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/dependency_policy.py | pinned allowlist only |
 | `dependency_remove` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `import_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `type_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
@@ -225,7 +225,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 30, INTEGRATION
 | `repository_diff_generation` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `repository_patch_application` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `unit_test_generation` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| `unit_test_execution` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
+| `unit_test_execution` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
 | `contract_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |

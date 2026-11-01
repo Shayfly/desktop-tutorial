@@ -850,7 +850,7 @@
    "gap": "",
    "missing_contract_fields": [],
    "status": "IMPLEMENTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py, omni_prod/modification_engine.py",
+   "why": "real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py",
    "evidence": [],
    "stale_evidence": [
     "mod_c14435dc9baa44bdac784d0c15ed9b85 -> v_0bc82ef7b33b4210"
@@ -3335,9 +3335,10 @@
    ],
    "gap": "pinned allowlist only",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/dependency_policy.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -3520,19 +3521,13 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "UNIT_TESTED",
-   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
+   "status": "REAL_SERVER_VERIFIED",
+   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
    "evidence": [
-    "tests/test_acceptance_coverage.py",
-    "tests/test_release_policy.py"
+    "postdeploy-checks verify-replay run 39307232830"
    ],
-   "stale_evidence": [
-    "postdeploy-checks verify-replay run 39307232830",
-    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
-    "deploy-worker run 38083162363"
-   ],
-   "last_verified_at": "2026-10-10T20:15Z",
-   "last_verified_commit": "67a0765"
+   "last_verified_at": "2026-10-19T19:05Z",
+   "last_verified_commit": "4b019d8"
   },
   {
    "skill_key": "contract_test",
@@ -7687,8 +7682,8 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 83,
-   "UNIT_TESTED": 30,
+   "IMPLEMENTED": 84,
+   "UNIT_TESTED": 29,
    "INTEGRATION_TESTED": 6,
    "REAL_SERVER_VERIFIED": 35,
    "LIVE": 0,
