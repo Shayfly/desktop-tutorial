@@ -83,8 +83,11 @@ class AutonomousProductEngine:
 
     @staticmethod
     def failure_signature(report) -> frozenset:
-        """What a round failed on, as the repairer is told it: the set of (acceptance_id, message). Evidence is left
-        out (it carries timings and log tails that differ on every run of the same failure)."""
+        """What a round failed on, as the repairer is told it: the set of (acceptance_id, message), and nothing else
+        (Brain 2 point 6, 2026-11-02). The repository is NOT part of it -- the point is to stop when different
+        repositories keep failing the same way (bld_96ab03c8: four snapshots, one message); a repository that does
+        not change is caught earlier by the fingerprint. Evidence is NOT part of it either: it carries timings and
+        log tails that differ on every run of the same failure, so including it would never match."""
         return frozenset((f.acceptance_id, f.message) for f in report.failures)
 
     @staticmethod
@@ -274,6 +277,11 @@ class AutonomousProductEngine:
                 repo_summary=self._repair_summary(repo, failures),
                 failures=failures,
             )
+            if not patch:
+                # Brain 2 point 4 (2026-11-02): an empty patch is its own label; no_progress_repository_unchanged is
+                # kept for a non-empty patch whose result is identical to the repository it was applied to.
+                stop_reason = 'no_progress_empty_patch'
+                break
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
                 candidate = self.repository_transform(candidate)

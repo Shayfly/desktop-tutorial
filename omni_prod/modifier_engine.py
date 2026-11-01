@@ -210,6 +210,11 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     vocabulary (`ModifierEngine` calls it 'applied'/'failed',
     `CandidateModificationEngine` calls it 'ready_for_review'/'failed').
     """
+    # Brain 2 point 5 (2026-11-02): the same bounds as AutonomousProductEngine (a bool is not a round count).
+    from .autonomous_core import REPAIR_ROUNDS_HARD_MAX, AutonomousProductEngine
+    if (isinstance(max_repair_rounds, bool) or not isinstance(max_repair_rounds, int)
+            or not 0 <= max_repair_rounds <= REPAIR_ROUNDS_HARD_MAX):
+        raise ValueError(f'max_repair_rounds must be an integer from 0 to {REPAIR_ROUNDS_HARD_MAX}')
     failures = [
         AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
         for aid in assessment.acceptance_ids
@@ -217,18 +222,27 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     # Same stop-loss as AutonomousProductEngine's build loop (founder brief 2026-11-01, section 3): a repair that
     # leaves the repository unchanged, or returns it to an earlier state, ends the loop instead of paying for more
     # identical rounds; a candidate that gets less far than the best so far is discarded and the best is kept.
-    from .autonomous_core import AutonomousProductEngine
     _fingerprint, progress = AutonomousProductEngine._fingerprint, AutonomousProductEngine.progress
+    # Stop condition 8 (founder 2026-11-01 23:33): the set of (acceptance_id, message) -- no repository, no evidence;
+    # see AutonomousProductEngine.failure_signature for why (Brain 2 point 6).
     signature = AutonomousProductEngine.failure_signature
     repo = dict(repository)
+    # Brain 2 point 1 (2026-11-02): verify the repository once before the loop and seed best_report from it, so the
+    # first repair is compared against a real report (a first candidate that is worse is discarded and the original
+    # is kept). `report` stays None until a repair has been verified, so the classifier's failures always get one
+    # repair (point 2: the loop runs while report is None or not passed).
+    initial = executor.execute(repository=repo, spec=spec)
     report: ExecutionReport | None = None
     rounds = 0
     seen = {_fingerprint(repo)}
-    best_repo, best_report = repo, None
+    best_repo, best_report = repo, initial
     stop_reason = 'max_repair_rounds'
-    while failures and rounds < max_repair_rounds:
+    while (report is None or not report.passed) and rounds < max_repair_rounds:
         rounds += 1
         patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo, failures), failures=failures)
+        if not patch:
+            stop_reason = 'no_progress_empty_patch'       # Brain 2 point 4: its own label
+            break
         candidate = apply_patch(repo, patch)
         fingerprint = _fingerprint(candidate)
         if fingerprint in seen:
@@ -240,7 +254,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
         if new_report.passed:
             repo, report, stop_reason = candidate, new_report, 'passed'
             break
-        if best_report is not None and progress(new_report) < progress(best_report):
+        if progress(new_report) < progress(best_report):
             # discarded: this repair went backwards; the next round starts again from the best candidate
             failing = '; '.join(f'{f.acceptance_id}: {f.message}' for f in new_report.failures[:4])
             repo, report = best_repo, best_report
@@ -250,18 +264,19 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
                            'version again. Do not repeat that change.',
                 'evidence': failing[:600]}]
             continue
-        same_failure = report is not None and signature(new_report) == signature(report)
+        previous = report if report is not None else initial
+        same_failure = signature(new_report) == signature(previous)
         repo, report = candidate, new_report
-        if best_report is None or progress(report) >= progress(best_report):
+        if progress(report) >= progress(best_report):
             best_repo, best_report = repo, report
         if same_failure:
             stop_reason = 'no_progress_same_failure'   # the same (acceptance_id, message) set as the round before
             break
         failures = [f.__dict__ for f in report.failures]
     if report is None:
-        # max_repair_rounds == 0 (or the very first repair changed nothing): still report the real, current state
-        # of `repo` rather than claiming success with no verification run.
-        report = executor.execute(repository=repo, spec=spec)
+        report = initial                                # no repair was verified: the original's own report
+    if not report.passed:
+        repo, report = best_repo, best_report           # Brain 2 point 3: a failed loop returns the best, explicitly
     if report.passed:
         stop_reason = 'passed'
     return repo, rounds, report, stop_reason

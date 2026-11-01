@@ -236,7 +236,7 @@ class SameRepairTwiceStops(unittest.TestCase):
                                                      max_repair_rounds=3)
         print('\n[free repair] stop_reason=', stop, 'rounds=', rounds, 'sandbox runs=', runs)
         self.assertEqual(stop, 'no_progress_repository_unchanged')
-        self.assertEqual((rounds, len(calls), runs, repo['app.py'], report.passed), (2, 2, ['v1'], 'v1', False))
+        self.assertEqual((rounds, len(calls), runs, repo['app.py'], report.passed), (2, 2, ['v0', 'v1'], 'v1', False))
 
     def test_modifier_result_carries_the_stop_reason(self):
         from omni_prod.change_policy import ChangeAssessment
@@ -335,8 +335,93 @@ class SameFailureTwiceStops(unittest.TestCase):
                                                      followup='2.9 is accepted', repairer=rep, executor=ex,
                                                      max_repair_rounds=3)
         print('\n[same failure, free repair] stop_reason=', stop, 'rounds=', rounds, 'runs=', runs)
-        # round 1 has no earlier report (the failure came from the classifier), so round 2 is the first comparison
-        self.assertEqual((stop, rounds, runs, report.passed), ('no_progress_same_failure', 2, ['t1', 't2'], False))
+        # Brain 2 point 1: the original is verified first (t0), so repair 1 is already compared against a real
+        # report -- one paid repair, as in the build loop
+        self.assertEqual((stop, rounds, runs, report.passed), ('no_progress_same_failure', 1, ['t0', 't1'], False))
+
+
+class BrainTwoSixPoints(unittest.TestCase):
+    """Brain 2 review of #203 (2026-11-02), points 1-6, on run_free_repair (point 4 also on the build loop)."""
+
+    def setUp(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.repository_patch import parse_patch
+        self.parse = parse_patch
+        self.assessment = ChangeAssessment('system_bug', 'scores are not validated', ('A1',), False)
+
+    def run_loop(self, contents, failing, rounds=3):
+        from omni_prod.autonomous_core import ExecutionReport as R
+        from omni_prod.modifier_engine import run_free_repair
+        parse, calls, runs = self.parse, [], []
+
+        class Rep:
+            def repair(self, **kw):
+                calls.append(1)
+                c = contents[len(calls) - 1]
+                return () if c is None else parse({'files': [{'path': 'app.py', 'content': c}]})
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                runs.append(repository['app.py'])
+                ids = failing[repository['app.py']]
+                return R(not ids, tuple(AcceptanceFailureCls(a, f'{a} at {repository["app.py"]}') for a in ids))
+        out = run_free_repair(spec=spec(), repository={'app.py': 'v0'}, assessment=self.assessment,
+                              followup='2.9 is accepted', repairer=Rep(), executor=Ex(), max_repair_rounds=rounds)
+        return out, calls, runs
+
+    def test_1_and_3_the_original_is_verified_first_and_a_worse_first_repair_is_not_returned(self):
+        (repo, rounds, report, stop), calls, runs = self.run_loop(['v1'], {'v0': ['A1'], 'v1': ['A1', 'A2']}, rounds=1)
+        print('\n[point 1/3]', stop, rounds, runs, repo, [f.acceptance_id for f in report.failures])
+        self.assertEqual(runs, ['v0', 'v1'])                                  # v0 verified once before the loop
+        self.assertEqual((repo['app.py'], [f.acceptance_id for f in report.failures]), ('v0', ['A1']))  # the best
+        self.assertEqual((rounds, stop), (1, 'max_repair_rounds'))
+
+    def test_2_the_classifier_failure_always_gets_one_repair(self):
+        # the original passes its own checks (the reported bug is not covered by them): it is still repaired once
+        (repo, rounds, report, stop), calls, runs = self.run_loop(['v1'], {'v0': [], 'v1': []})
+        self.assertEqual((len(calls), rounds, stop, repo['app.py'], report.passed), (1, 1, 'passed', 'v1', True))
+
+    def test_4_an_empty_patch_has_its_own_label_in_both_loops(self):
+        (repo, rounds, report, stop), calls, runs = self.run_loop([None], {'v0': ['A1']})
+        self.assertEqual((stop, rounds, runs, repo['app.py']), ('no_progress_empty_patch', 1, ['v0'], 'v0'))
+        (_, _, _, stop2), _, _ = self.run_loop(['v0'], {'v0': ['A1']})          # a real patch that changes nothing
+        self.assertEqual(stop2, 'no_progress_repository_unchanged')
+        from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport as R
+        parse = self.parse
+
+        class Arch:
+            def create_spec(self, prompt):
+                return 'spec'
+
+        class Gen:
+            def generate(self, spec):
+                return parse({'files': [{'path': 'app.py', 'content': 'v0'}]})
+
+        class Rep:
+            def repair(self, **kw):
+                return ()
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                return R(False, (AcceptanceFailureCls('A1', 'x'),))
+        result = AutonomousProductEngine(architect=Arch(), generator=Gen(), repairer=Rep(), executor=Ex(),
+                                         max_repair_rounds=3).build('p')
+        self.assertEqual((result.stop_reason, result.repair_rounds), ('no_progress_empty_patch', 1))
+
+    def test_5_max_repair_rounds_is_validated(self):
+        for bad in (True, False, -1, 9, 2.5, '3', None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.run_loop(['v1'], {'v0': ['A1'], 'v1': []}, rounds=bad)
+        for ok in (0, 8):
+            with self.subTest(ok=ok):
+                self.run_loop(['v1'], {'v0': ['A1'], 'v1': []}, rounds=ok)
+
+    def test_6_the_signature_is_acceptance_id_and_message_only(self):
+        from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport as R
+        a = R(False, (AcceptanceFailureCls('A1', 'm', 'evidence one'),), 'log one')
+        b = R(False, (AcceptanceFailureCls('A1', 'm', 'evidence two'),), 'log two')
+        self.assertEqual(AutonomousProductEngine.failure_signature(a), frozenset({('A1', 'm')}))
+        self.assertEqual(AutonomousProductEngine.failure_signature(a), AutonomousProductEngine.failure_signature(b))
 
 
 from omni_prod.autonomous_core import AcceptanceFailure as AcceptanceFailureCls  # noqa: E402
