@@ -103,7 +103,8 @@ class GateNamesTheUncollectedFile(unittest.TestCase):
 
 class Exit5GetsItsOwnMessage(unittest.TestCase):
     def test_local_executor(self):
-        for code, expected in ((5, NO_TESTS_COLLECTED_MESSAGE), (1, 'verification failed: unit tests')):
+        for code, expected in ((5, 'verification failed: unit tests \u2014 ' + NO_TESTS_COLLECTED_MESSAGE),
+                               (1, 'verification failed: unit tests')):
             def runner(*, command, **kw):
                 ok = command[:2] != ['python', '-m'] or command[2] != 'pytest'
                 return SimpleNamespace(returncode=0 if ok else code, stdout='\n\nno tests ran in 0.00s\n', stderr='')
@@ -115,7 +116,8 @@ class Exit5GetsItsOwnMessage(unittest.TestCase):
                 self.assertFalse(report.passed)
 
     def test_remote_executor_real_run_only_http_faked(self):
-        for code, expected in ((5, NO_TESTS_COLLECTED_MESSAGE), (1, 'remote verification failed: unit tests')):
+        for code, expected in ((5, 'remote verification failed: unit tests \u2014 ' + NO_TESTS_COLLECTED_MESSAGE),
+                               (1, 'remote verification failed: unit tests')):
             def urlopen(req, timeout):
                 argv = json.loads(req.data)['argv']
                 rc = code if 'pytest' in argv else 0
@@ -135,6 +137,28 @@ class Exit5GetsItsOwnMessage(unittest.TestCase):
                 self.assertEqual({f.message for f in report.failures}, {expected})
                 self.assertEqual(sorted(f.acceptance_id for f in report.failures), ['A1', 'A2'])
                 self.assertFalse(report.passed)                                       # exit 5 never passes
+
+    def test_the_taxonomy_key_is_stable_and_the_build_is_recorded_as_verification_failed(self):
+        # founder 2026-11-02 01:18: the exit-5 message keeps the "<prefix>: <name>" head, so the failure_type key
+        # is the same one a failing test gives, and the build's error_code stays verification_failed
+        from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
+        from omni_prod.sandbox_executor import verify_failure_message
+        from omni_prod.worker_tasks import evaluate_release_gates
+        local5 = verify_failure_message('unit tests', ['python', '-m', 'pytest', '-q'], 5)
+        remote5 = verify_failure_message('unit tests', ['python', '-m', 'pytest', '-q'], 5, 'remote verification failed')
+        print('\n[taxonomy]', failure_type(local5), '|', failure_type(remote5))
+        self.assertEqual(local5, "verification failed: unit tests \u2014 no tests were collected \u2014 the test file "
+                                 "is not in pytest's default patterns")
+        self.assertEqual(failure_type(local5), failure_type('verification failed: unit tests'))
+        self.assertEqual(failure_type(local5), 'verification_failed')
+        self.assertEqual(failure_type(remote5), 'remote_verification_failed')
+        result = SimpleNamespace(status='failed', repair_rounds=3,
+                                 report=ExecutionReport(False, (AcceptanceFailure('A1', remote5, 'no tests ran'),
+                                                                AcceptanceFailure('A2', remote5, 'no tests ran'))))
+        ok, code, message = evaluate_release_gates(result=result, quality=None, security=None, rights=None)
+        print('[release gate]', ok, code, message)
+        self.assertEqual((ok, code), (False, 'verification_failed'))
+        self.assertIn('A1: remote verification failed: unit tests \u2014 no tests were collected', message)
 
     def test_exit5_from_a_non_pytest_command_keeps_the_old_message(self):
         from omni_prod.sandbox_executor import verify_failure_message

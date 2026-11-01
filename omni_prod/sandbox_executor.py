@@ -34,8 +34,10 @@ def verify_failure_message(name: str, argv, returncode: int, prefix: str = 'veri
     """bld_99ea49dfc6c843aabc90bb8cccbcc1d7 (2026-11-01): pytest exits 5 when it collected nothing ("no tests ran").
     That is not a failing test, and "verification failed: unit tests" sent three paid repairs after test logic that
     never ran; the message says what happened instead. Any other non-zero exit keeps the existing message."""
+    # The prefix "<prefix>: <name>" is kept (founder 2026-11-02 01:18) so failure_type() still yields the same
+    # taxonomy key (verification_failed / remote_verification_failed); the explanation follows it.
     if int(returncode) == 5 and any(str(w).rsplit('/', 1)[-1] == 'pytest' for w in (argv or ())):
-        return NO_TESTS_COLLECTED_MESSAGE
+        return f'{prefix}: {name} \u2014 {NO_TESTS_COLLECTED_MESSAGE}'
     return f'{prefix}: {name}'
 
 
