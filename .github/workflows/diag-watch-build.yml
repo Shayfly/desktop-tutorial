@@ -29,7 +29,7 @@ jobs:
           set +e
           set -uo pipefail
           wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
-          out=$(mktemp -d); chmod 777 "$out"   # the container user may not be the runner user; echo "out=$out" >> "$GITHUB_OUTPUT"
+          out=$(mktemp -d); chmod 777 "$out"; echo "out=$out" >> "$GITHUB_OUTPUT"   # 777: the container user may differ
           cd "$wd"
           docker compose run --rm --no-deps -T -v "$out:/out" worker python - <<'PY'
           import datetime as dt, json, os, time, psycopg
