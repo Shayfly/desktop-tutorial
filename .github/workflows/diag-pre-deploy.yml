@@ -1,0 +1,99 @@
+name: diag pre-deploy (read-only, branch only)
+
+# Founder 2026-11-01 21:37, before the gate and the deploy. READ-ONLY: SELECTs in a read-only session, docker
+# inspect / ps, and the .env / secret parsed for two non-secret numbers. No checkout, nothing started or stopped.
+#  1. counts by status: build_jobs, intake_reservations, modification_requests, project_previews, credit_reservations;
+#     ids of every build_jobs row still queued or running.
+#  2. sandbox-runner: in the compose services, running/healthy, and what it depends on.
+#  3. OMNI_EXTERNAL_CALLS_PER_BUILD and OMNI_EXTERNAL_BUDGET_USD (host .env now, WORKER_ENV secret, and the value a deploy writes).
+on:
+  push:
+    branches: [diag/pre-deploy-20261101]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-worker-host
+  cancel-in-progress: false
+
+jobs:
+  pre:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 6
+    steps:
+      - name: Locate the compose project
+        id: wd
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "wd=$(docker inspect omni-worker-sandbox-runner-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')" >> "$GITHUB_OUTPUT"
+
+      - name: 1. counts by status (read-only SELECTs)
+        shell: bash
+        working-directory: ${{ steps.wd.outputs.wd }}
+        run: |
+          set -uo pipefail
+          docker compose run --rm --no-deps -T worker python - > /tmp/pre-counts.out 2>&1 <<'PY'
+          import os, psycopg
+          def note(t, b):
+              print(f'::notice title=1. {t}::' + str(b).replace('%', '%25').replace('\n', '%0A')[:3400], flush=True)
+          with psycopg.connect(os.environ['OMNI_DATABASE_URL'], connect_timeout=10) as conn:
+              conn.read_only = True
+              for title, sql in (('build_jobs by status', "SELECT status, count(*) FROM build_jobs GROUP BY 1 ORDER BY 1"),
+                                 ('intake_reservations by state', "SELECT state, count(*) FROM intake_reservations GROUP BY 1 ORDER BY 1"),
+                                 ('modification_requests by status', "SELECT status, count(*) FROM modification_requests GROUP BY 1 ORDER BY 1"),
+                                 ('project_previews by status', "SELECT status, count(*) FROM project_previews GROUP BY 1 ORDER BY 1"),
+                                 ('credit_reservations by status', "SELECT status, count(*) FROM credit_reservations GROUP BY 1 ORDER BY 1")):
+                  try:
+                      rows = conn.execute(sql).fetchall()
+                      note(title, '; '.join(f'{r[0]}={r[1]}' for r in rows) or '(no rows)')
+                  except Exception as exc:
+                      conn.rollback(); note(title, f'QUERY FAILED {type(exc).__name__}')
+              rows = conn.execute("SELECT id, status, phase, created_at FROM build_jobs WHERE status IN ('queued','running') ORDER BY created_at").fetchall()
+              note('build_jobs queued/running ids', '\n'.join(f'{r[0]} status={r[1]} phase={r[2]} created={r[3]:%Y-%m-%d %H:%M}' for r in rows) or '(none)')
+              rows = conn.execute("SELECT id, state, created_at FROM intake_reservations WHERE state IN ('CLAIMED','EXECUTING','RESERVED') ORDER BY created_at").fetchall()
+              note('intake_reservations CLAIMED/EXECUTING/RESERVED ids', '\n'.join(f'{r[0]} state={r[1]} created={r[2]:%Y-%m-%d %H:%M}' for r in rows) or '(none)')
+          PY
+          rc=$?
+          grep '^::notice' /tmp/pre-counts.out || echo "::error title=1. counts failed (rc=$rc)::$(tail -20 /tmp/pre-counts.out | sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)"
+          rm -f /tmp/pre-counts.out
+          exit $rc
+
+      - name: 2. sandbox-runner
+        shell: bash
+        working-directory: ${{ steps.wd.outputs.wd }}
+        run: |
+          set -uo pipefail
+          svc=$(docker compose config --services | tr '\n' ' ')
+          st=$(docker inspect omni-worker-sandbox-runner-1 --format 'status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} started={{.State.StartedAt}}')
+          deps=$(docker compose config --format json | python3 -c 'import json,sys;c=json.load(sys.stdin)["services"]["sandbox-runner"];print(json.dumps(c.get("depends_on",{})))')
+          imgs=$(docker ps -a --format '{{.Names}} {{.Status}}' | grep -E 'sandbox-image-1|browser-sandbox-image-1' | tr '\n' ';')
+          echo "::notice title=2. compose services::$svc"
+          echo "::notice title=2. sandbox-runner::$st | depends_on: $deps | images: $imgs"
+
+      - name: 3. the two build knobs
+        shell: bash
+        working-directory: ${{ steps.wd.outputs.wd }}
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+        run: |
+          set -euo pipefail
+          python3 - .env <<'PY'
+          import os, sys
+          def parse(text):
+              out = {}
+              for line in (text or '').splitlines():
+                  if '=' in line and not line.startswith('#'):
+                      k, v = line.split('=', 1); out[k] = v
+              return out
+          host = parse(open(sys.argv[1]).read())
+          base, over = parse(os.environ.get('WORKER_ENV')), parse(os.environ.get('WORKER_ENV_OVERRIDES'))
+          for k, default in (('OMNI_EXTERNAL_CALLS_PER_BUILD', '40 (write-env.sh default when unset)'),
+                             ('OMNI_EXTERNAL_BUDGET_USD', 'NOT SET (code default applies)')):
+              deploy = over.get(k) or base.get(k) or default
+              # value printed as "name -> value" (not NAME=value) so GitHub's secret-line masking does not hide it
+              print(f'::notice title=3. {k}::host .env now -> {host.get(k, "NOT SET")} | WORKER_ENV -> {base.get(k, "NOT SET")} | '
+                    f'OVERRIDES -> {over.get(k, "NOT SET")} | a deploy writes -> {deploy}', flush=True)
+          PY
