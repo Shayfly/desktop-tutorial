@@ -1,0 +1,27 @@
+name: diag repair flag (read-only, branch only)
+
+# Prints ONE non-secret value from the worker host's deploy-generated .env: OMNI_REPAIR_STRUCTURED_V1
+# (omni_prod/autonomous_agents.py:219 reads it). No checkout (it would clean the workspace holding .env),
+# no container started, no other value read or printed.
+on:
+  push:
+    branches: [diag/repair-flag-20261101]
+
+permissions:
+  contents: read
+
+jobs:
+  flag:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 3
+    steps:
+      - name: OMNI_REPAIR_STRUCTURED_V1 in the worker .env and in the stopped worker container
+        shell: bash
+        run: |
+          set -euo pipefail
+          wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+          f=$(grep -E '^OMNI_REPAIR_STRUCTURED_V1=' "$wd/.env" | tail -1 || true)
+          c=$(docker inspect omni-worker-worker-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^OMNI_REPAIR_STRUCTURED_V1=' | tail -1 || true)
+          echo "::notice title=repair flag (.env, written 2026-10-31 20:07)::${f:-OMNI_REPAIR_STRUCTURED_V1 not set}"
+          echo "::notice title=repair flag (worker container, created from the 2026-10-29 .env)::${c:-OMNI_REPAIR_STRUCTURED_V1 not set}"
+          echo "::notice title=.env mtime::$(stat -c '%y' "$wd/.env")"
