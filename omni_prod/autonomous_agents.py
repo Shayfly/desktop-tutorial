@@ -229,9 +229,9 @@ class RepairAgent:
             raise PatchValidationError('repair requires the real repository fingerprint')
         payload['failures'] = [
             {'acceptance_id': str(f.get('acceptance_id', ''))[:100],
-             'message': sanitized_tail(str(f.get('message', '')), limit=600),
-             'evidence': sanitized_tail(str(f.get('evidence', '')), limit=1500)}
-            for f in failures[:12] if isinstance(f, dict)]
+             'message': sanitized_tail(str(f.get('message', '')), limit=1200),
+             'evidence': sanitized_tail(str(f.get('evidence', '')), limit=4000)}
+            for f in failures[:20] if isinstance(f, dict)]
         candidates = repo_summary.get('candidate_files') or []
         if not candidates:
             raise PatchValidationError('repair target UNKNOWN; more diagnosis required')
