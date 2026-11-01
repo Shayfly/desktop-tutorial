@@ -74,7 +74,7 @@ class RemoteSandboxRepositoryExecutor:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_output_tail(r)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
-        from .sandbox_executor import _is_fake_verification
+        from .sandbox_executor import _is_fake_verification, verify_failure_message
         for check in manifest.verify:
             if _is_fake_verification(tuple(check.argv)):
                 failures.extend(AcceptanceFailure(aid, f'verification failed: {check.name}',
@@ -84,6 +84,6 @@ class RemoteSandboxRepositoryExecutor:
                 continue
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',_output_tail(r)) for aid in check.acceptance_ids)
+                failures.extend(AcceptanceFailure(aid,verify_failure_message(check.name,check.argv,r['returncode'],'remote verification failed'),_output_tail(r)) for aid in check.acceptance_ids)
         failures.extend(uncovered_acceptance_failures(manifest, spec))
         return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:])
