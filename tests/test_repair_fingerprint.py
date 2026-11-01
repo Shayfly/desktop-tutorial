@@ -174,3 +174,81 @@ class BehaviourFrameFromServerLog(unittest.TestCase):
         _, detail = _failure_text(self.report('server started\n' + 'y' * 2400 + '\nEND'))
         self.assertNotIn('(server:', detail)
         self.assertIn('server started', detail)                            # 2400+ chars survive ([-2500:], was [-900:])
+
+
+class SameRepairTwiceStops(unittest.TestCase):
+    """Verification 3: two rounds with an identical patch stop at no_progress_repository_unchanged -- in the build
+    loop (AutonomousProductEngine._build) AND in the free repair loop (modifier_engine.run_free_repair)."""
+
+    def setUp(self):
+        from omni_prod.autonomous_core import ExecutionReport as R
+        from omni_prod.repository_patch import parse_patch
+        self.FAIL = R(False, (AcceptanceFailureCls('A1', 'boom'),))
+        self.parse = parse_patch
+
+    def repairer(self, contents):
+        parse, calls = self.parse, []
+
+        class Rep:
+            def repair(self, **kw):
+                calls.append(1)
+                return parse({'files': [{'path': 'app.py', 'content': contents[len(calls) - 1]}]})
+        return Rep(), calls
+
+    def executor(self):
+        fail, runs = self.FAIL, []
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                runs.append(repository['app.py'])
+                return fail
+        return Ex(), runs
+
+    def test_build_loop(self):
+        from omni_prod.autonomous_core import AutonomousProductEngine
+        parse = self.parse
+
+        class Arch:
+            def create_spec(self, prompt):
+                return 'spec'
+
+        class Gen:
+            def generate(self, spec):
+                return parse({'files': [{'path': 'app.py', 'content': 'v0'}]})
+        rep, calls = self.repairer(['v1', 'v1', 'v2'])
+        ex, runs = self.executor()
+        result = AutonomousProductEngine(architect=Arch(), generator=Gen(), repairer=rep, executor=ex,
+                                         max_repair_rounds=3).build('p')
+        print('\n[build loop] stop_reason=', result.stop_reason, 'repairs=', len(calls), 'sandbox runs=', runs)
+        self.assertEqual(result.stop_reason, 'no_progress_repository_unchanged')
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(runs, ['v0', 'v1'])
+
+    def test_free_repair_loop(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import run_free_repair
+        rep, calls = self.repairer(['v1', 'v1', 'v2'])
+        ex, runs = self.executor()
+        assessment = ChangeAssessment('system_bug', 'scores are not validated', ('A1',), False)
+        repo, rounds, report, stop = run_free_repair(spec=spec(), repository={'app.py': 'v0'}, assessment=assessment,
+                                                     followup='2.9 is accepted', repairer=rep, executor=ex,
+                                                     max_repair_rounds=3)
+        print('\n[free repair] stop_reason=', stop, 'rounds=', rounds, 'sandbox runs=', runs)
+        self.assertEqual(stop, 'no_progress_repository_unchanged')
+        self.assertEqual((rounds, len(calls), runs, repo['app.py'], report.passed), (2, 2, ['v1'], 'v1', False))
+
+    def test_modifier_result_carries_the_stop_reason(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import ModifierEngine
+        rep, _ = self.repairer(['v1', 'v1'])
+        ex, _ = self.executor()
+
+        class Cls:
+            def classify(self, **kw):
+                return ChangeAssessment('system_bug', 'scores are not validated', ('A1',), False)
+        r = ModifierEngine(classifier=Cls(), repairer=rep, executor=ex).modify(spec=spec(), repository={'app.py': 'v0'},
+                                                                               followup='2.9 is accepted')
+        self.assertEqual((r.status, r.stop_reason), ('failed', 'no_progress_repository_unchanged'))
+
+
+from omni_prod.autonomous_core import AcceptanceFailure as AcceptanceFailureCls  # noqa: E402

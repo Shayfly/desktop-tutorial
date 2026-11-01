@@ -14,6 +14,7 @@ class ModifierResult:
     repair_rounds: int
     report: ExecutionReport | None
     billable: bool
+    stop_reason: str = ''          # why the repair loop ended (run_free_repair); '' when no loop ran
 
 
 class ModifierEngine:
@@ -119,12 +120,12 @@ class ModifierEngine:
         # real id in spec.acceptance for these two categories -- checked
         # there, at classification time, against the same spec passed in
         # above, so it is not re-validated here.
-        repo, rounds, report = run_free_repair(
+        repo, rounds, report, stop_reason = run_free_repair(
             spec=spec, repository=repository, assessment=assessment, followup=followup,
             repairer=self.repairer, executor=self.executor, max_repair_rounds=self.max_repair_rounds,
         )
         status = 'applied' if report.passed else 'failed'
-        return ModifierResult(status, assessment, repo, rounds, report, assessment.billable)
+        return ModifierResult(status, assessment, repo, rounds, report, assessment.billable, stop_reason)
 
 
 # Golden E2E #1 (2026-10-07): a modification ("add deleting a team") must
@@ -154,9 +155,11 @@ def _content_eligible(path: str, content: str, limit: int = _MAX_FILE_CONTENT_CH
             and low.rsplit('/', 1)[-1] not in _CONTENT_SKIP_NAMES and len(content) <= limit)
 
 
-def focus_paths(repo: dict[str, str], failures=()) -> set[str]:
+def focus_paths(repo: dict[str, str], failures=(), explicit=None) -> set[str]:
     """Files a repair most needs to see: those named in the failure text, and
-    the top-level app entry point."""
+    the top-level app entry point. An explicit, non-empty focus wins: the text is not searched."""
+    if explicit:
+        return set(explicit)
     text = ' '.join(f"{f.get('message', '')} {f.get('evidence', '')}" if isinstance(f, dict) else str(f) for f in failures)
     focus = {p for p in repo if '/' not in p and p in _ENTRY_NAMES}
     for p in repo:
@@ -166,9 +169,9 @@ def focus_paths(repo: dict[str, str], failures=()) -> set[str]:
     return focus
 
 
-def repo_summary(repo: dict[str, str], failures=()) -> dict:
+def repo_summary(repo: dict[str, str], failures=(), focus=None) -> dict:
     files, budget = [], _MAX_TOTAL_CONTENT_CHARS
-    focus = focus_paths(repo, failures)
+    focus = focus_paths(repo, failures, focus)
     # .omni/project.json, then the focus files, then smaller files first, so
     # the manifest and the code under repair fit before large ones exhaust the budget.
     order = sorted(repo, key=lambda p: (p != '.omni/project.json', p not in focus, len(repo[p]), p))
@@ -193,7 +196,7 @@ def repo_summary(repo: dict[str, str], failures=()) -> dict:
 
 def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment: ChangeAssessment,
                      followup: str, repairer, executor: Executor,
-                     max_repair_rounds: int = 3) -> tuple[dict[str, str], int, ExecutionReport]:
+                     max_repair_rounds: int = 3) -> tuple[dict[str, str], int, ExecutionReport, str]:
     """The system_bug/missing_requirement repair loop, shared by
     `ModifierEngine.modify()` and `modification_engine.CandidateModificationEngine`.
 
@@ -202,7 +205,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     `ChangeAssessment.from_dict` guarantees `assessment.acceptance_ids` is
     non-empty and every id is real for those two categories, checked at
     classification time against this same `spec`, so it is not re-validated
-    here. Returns `(candidate_repository, repair_rounds, final_report)`; the
+    here. Returns `(candidate_repository, repair_rounds, final_report, stop_reason)`; the
     caller decides what a passing/failing report means for its own status
     vocabulary (`ModifierEngine` calls it 'applied'/'failed',
     `CandidateModificationEngine` calls it 'ready_for_review'/'failed').
@@ -211,17 +214,49 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
         AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
         for aid in assessment.acceptance_ids
     ]
+    # Same stop-loss as AutonomousProductEngine's build loop (founder brief 2026-11-01, section 3): a repair that
+    # leaves the repository unchanged, or returns it to an earlier state, ends the loop instead of paying for more
+    # identical rounds; a candidate that gets less far than the best so far is discarded and the best is kept.
+    from .autonomous_core import AutonomousProductEngine
+    _fingerprint, progress = AutonomousProductEngine._fingerprint, AutonomousProductEngine.progress
     repo = dict(repository)
     report: ExecutionReport | None = None
     rounds = 0
+    seen = {_fingerprint(repo)}
+    best_repo, best_report = repo, None
+    stop_reason = 'max_repair_rounds'
     while failures and rounds < max_repair_rounds:
         rounds += 1
         patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo, failures), failures=failures)
-        repo = apply_patch(repo, patch)
-        report = executor.execute(repository=repo, spec=spec)
+        candidate = apply_patch(repo, patch)
+        fingerprint = _fingerprint(candidate)
+        if fingerprint in seen:
+            stop_reason = ('no_progress_repository_unchanged' if candidate == repo
+                           else 'no_progress_repository_cycle')
+            break
+        seen.add(fingerprint)
+        new_report = executor.execute(repository=candidate, spec=spec)
+        if new_report.passed:
+            repo, report, stop_reason = candidate, new_report, 'passed'
+            break
+        if best_report is not None and progress(new_report) < progress(best_report):
+            # discarded: this repair went backwards; the next round starts again from the best candidate
+            failing = '; '.join(f'{f.acceptance_id}: {f.message}' for f in new_report.failures[:4])
+            repo, report = best_repo, best_report
+            failures = [f.__dict__ for f in report.failures] + [{
+                'acceptance_id': 'REPAIR_REGRESSION',
+                'message': 'Your previous change made the product worse and was discarded; this is the better '
+                           'version again. Do not repeat that change.',
+                'evidence': failing[:600]}]
+            continue
+        repo, report = candidate, new_report
+        if best_report is None or progress(report) >= progress(best_report):
+            best_repo, best_report = repo, report
         failures = [f.__dict__ for f in report.failures]
     if report is None:
-        # max_repair_rounds == 0: still report the real, current state of
-        # `repo` rather than claiming success with no verification run.
+        # max_repair_rounds == 0 (or the very first repair changed nothing): still report the real, current state
+        # of `repo` rather than claiming success with no verification run.
         report = executor.execute(repository=repo, spec=spec)
-    return repo, rounds, report
+    if report.passed:
+        stop_reason = 'passed'
+    return repo, rounds, report, stop_reason

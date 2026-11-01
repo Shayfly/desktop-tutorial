@@ -186,7 +186,7 @@ class CandidateModificationEngine:
             candidate_repo, candidate_spec, rounds, report = self._evolve_and_verify(
                 spec=spec, repository=repository, followup=followup)
         else:
-            candidate_repo, rounds, report = run_free_repair(
+            candidate_repo, rounds, report, _stop_reason = run_free_repair(
                 spec=spec, repository=repository, assessment=assessment, followup=followup,
                 repairer=self.repairer, executor=self.executor, max_repair_rounds=self.max_repair_rounds,
             )
