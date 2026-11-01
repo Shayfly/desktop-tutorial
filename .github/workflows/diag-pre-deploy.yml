@@ -33,6 +33,7 @@ jobs:
         shell: bash
         working-directory: ${{ steps.wd.outputs.wd }}
         run: |
+          set +e                                 # GitHub's bash runs with -e: keep going so the failure is reported
           set -uo pipefail
           docker compose run --rm --no-deps -T worker python - > /tmp/pre-counts.out 2>&1 <<'PY'
           import os, psycopg
@@ -56,7 +57,8 @@ jobs:
               note('intake_reservations CLAIMED/EXECUTING/RESERVED ids', '\n'.join(f'{r[0]} state={r[1]} created={r[2]:%Y-%m-%d %H:%M}' for r in rows) or '(none)')
           PY
           rc=$?
-          grep '^::notice' /tmp/pre-counts.out || echo "::error title=1. counts failed (rc=$rc)::$(tail -20 /tmp/pre-counts.out | sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)"
+          grep '^::notice' /tmp/pre-counts.out
+          [ "$rc" = 0 ] || echo "::error title=1. counts failed (rc=$rc)::$(tail -20 /tmp/pre-counts.out | sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)"
           rm -f /tmp/pre-counts.out
           exit $rc
 
@@ -64,6 +66,7 @@ jobs:
         shell: bash
         working-directory: ${{ steps.wd.outputs.wd }}
         run: |
+          set +e
           set -uo pipefail
           svc=$(docker compose config --services | tr '\n' ' ')
           st=$(docker inspect omni-worker-sandbox-runner-1 --format 'status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} started={{.State.StartedAt}}')
