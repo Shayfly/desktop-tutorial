@@ -85,9 +85,13 @@ class UnsupportedDependency:
     name: str
     source: str
     reason: str
+    line: int | None = None        # the import's line in `source` (imports only), so the failure says file:line
+
+    def where(self) -> str:
+        return f'{self.source}:{self.line}' if self.line else self.source
 
     def to_dict(self) -> dict:
-        return {'name': self.name, 'source': self.source, 'reason': self.reason}
+        return {'name': self.name, 'source': self.source, 'line': self.line, 'reason': self.reason}
 
 
 def _norm(name: str) -> str:
@@ -97,8 +101,10 @@ def _norm(name: str) -> str:
 def _is_test_path(path: str) -> bool:
     parts = path.split('/')
     base = parts[-1]
+    # bld_96ab03c880f24b3a98065bf29eed11c3 (2026-11-01): the generator wrote the tests to `tests.py`; it was read as
+    # application code and its `import pytest` blocked all four rounds. A module named tests.py is a test module.
     return (any(p in ('tests', 'test') for p in parts[:-1]) or base.startswith('test_')
-            or base.endswith('_test.py') or base == 'conftest.py')
+            or base.endswith('_test.py') or base in ('conftest.py', 'tests.py'))
 
 
 def _version_tuple(v: str):
@@ -264,7 +270,7 @@ def _imports(repository: dict[str, str], findings: list) -> None:
                     continue
                 reason = ('test-only package imported by application code' if dist in TEST_ONLY_PACKAGES
                           else 'not in the standard library, the repository or the allowlist')
-                findings.append(UnsupportedDependency(top, path, reason))
+                findings.append(UnsupportedDependency(top, path, reason, getattr(node, 'lineno', None)))
 
 
 def _manifest(repository: dict[str, str], findings: list) -> None:
@@ -332,7 +338,12 @@ def scan(repository: dict[str, str]) -> tuple[UnsupportedDependency, ...]:
 
 
 def unsupported_report(findings) -> ExecutionReport:
-    detail = '; '.join(f'{f.name} ({f.source}): {f.reason}' for f in findings)
+    def one(f):
+        text = f'{f.name} ({f.where()}): {f.reason}'
+        if f.reason == 'test-only package imported by application code':
+            text += f'; fix: move the tests into tests/ (or a test_*.py file), or import {f.name} only there'
+        return text
+    detail = '; '.join(one(f) for f in findings)
     message = f'unsupported dependency: {detail}'[:1500]
     evidence = json.dumps({'policy_version': POLICY_VERSION, 'allowed': ALLOWED_SUMMARY,
                            'findings': [f.to_dict() for f in findings]})[:4000]
