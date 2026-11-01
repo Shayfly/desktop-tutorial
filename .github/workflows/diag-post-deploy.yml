@@ -1,0 +1,90 @@
+name: diag post-deploy (read-only unless a crash loop; branch only)
+
+# Founder 2026-11-01 21:31, after the worker deploy:
+#  1. host .env and the RUNNING worker containers: OMNI_REDIS_URL host + sha256_8 (no password, no full value).
+#  2. status, restart count and the first 30 log lines (redacted) of worker, preview-worker and intake-worker.
+#  3. crash loop (restarting, or restart count rising within 30 s) -> `docker compose stop` of exactly those three
+#     services (founder: "stop immediately and return the three to stop"). Nothing else is ever written.
+# No checkout (it would clean the workspace that holds the deploy-generated .env).
+on:
+  push:
+    branches: [diag/post-deploy-20261101]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-worker-host
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 6
+    steps:
+      - name: 1. OMNI_REDIS_URL in the host .env and in the running containers
+        id: one
+        shell: bash
+        run: |
+          set -euo pipefail
+          wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+          echo "wd=$wd" >> "$GITHUB_OUTPUT"
+          d=$(mktemp -d); chmod 700 "$d"; trap 'rm -rf "$d"' EXIT
+          grep -E '^OMNI_REDIS_URL=' "$wd/.env" > "$d/host" || true
+          for s in worker preview-worker intake-worker; do
+            docker inspect "omni-worker-$s-1" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^OMNI_REDIS_URL=' > "$d/$s" || true
+          done
+          python3 - "$d" <<'PY'
+          import hashlib, os, sys
+          from urllib.parse import urlsplit
+          d = sys.argv[1]
+          for name in ('host', 'worker', 'preview-worker', 'intake-worker'):
+              lines = [l.rstrip('\n') for l in open(os.path.join(d, name)) if l.strip()]
+              v = lines[-1].split('=', 1)[1] if lines else ''
+              if v:
+                  p = urlsplit(v)
+                  desc = f'{p.hostname}:{p.port}/{(p.path or "/").lstrip("/") or "0"} sha256_8={hashlib.sha256(v.encode()).hexdigest()[:8]} (lines: {len(lines)})'
+              else:
+                  desc = 'NOT SET'
+              title = '.env on the host' if name == 'host' else f'running container {name}'
+              print(f'::notice title=1. OMNI_REDIS_URL — {title}::{desc}', flush=True)
+          PY
+
+      - name: 2. status and first 30 log lines of the three services (redacted)
+        id: two
+        shell: bash
+        run: |
+          set -uo pipefail
+          for s in worker preview-worker intake-worker; do
+            c="omni-worker-$s-1"
+            a=$(docker inspect "$c" --format '{{.State.Status}} {{.RestartCount}}' 2>/dev/null || echo "missing 0")
+            sleep 1
+            echo "$s $a" >> /tmp/post-deploy-state
+            st=$(docker inspect "$c" --format 'status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}} exit={{.State.ExitCode}} image_revision={{index .Config.Labels "org.opencontainers.image.revision"}}' 2>/dev/null || echo missing)
+            logs=$(docker logs "$c" 2>&1 | head -30 \
+              | sed -E 's#(rediss?|postgres(ql)?|https?)://[^@/[:space:]]*@#\1://<redacted>@#g; s/(AIza|sk-ant-|sk-|ghp_)[0-9A-Za-z_-]{8,}/\1<redacted>/g; s/[A-Za-z0-9+\/_-]{40,}/<redacted-long-token>/g' \
+              | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3300)
+            echo "::notice title=2. $s::$st%0A--- first 30 log lines ---%0A${logs:-(no output)}"
+          done
+
+      - name: 3. crash loop check (30 s); stop the three services only if one is looping
+        shell: bash
+        working-directory: ${{ steps.one.outputs.wd }}
+        run: |
+          set -uo pipefail
+          sleep 30
+          loop=""
+          while read -r s status count; do
+            now=$(docker inspect "omni-worker-$s-1" --format '{{.State.Status}} {{.RestartCount}}' 2>/dev/null || echo "missing 0")
+            ns=${now% *}; nc=${now#* }
+            echo "::notice title=3. $s::before: status=$status restarts=$count | 30 s later: status=$ns restarts=$nc"
+            if [ "$ns" = restarting ] || [ "$nc" -gt "$count" ] || [ "$status" = restarting ]; then loop="$loop $s"; fi
+          done < /tmp/post-deploy-state
+          rm -f /tmp/post-deploy-state
+          if [ -n "$loop" ]; then
+            echo "::error title=3. CRASH LOOP::$loop -- stopping worker, preview-worker, intake-worker"
+            docker compose stop worker preview-worker intake-worker
+            echo "::notice title=3. after stop::$(docker ps -a --filter name=omni-worker- --format '{{.Names}} {{.Status}}' | grep -E 'worker-1|preview-worker-1|intake-worker-1' | tr '\n' ';')"
+            exit 1
+          fi
+          echo "::notice title=3. no crash loop::all three running and their restart counts did not rise in 30 s"
