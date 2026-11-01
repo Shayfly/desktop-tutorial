@@ -144,3 +144,33 @@ class WindowKeepsHeadAndTail(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BehaviourFrameFromServerLog(unittest.TestCase):
+    """Section 2: the app frame (not site-packages) from server_log_tail is appended to each failed-step line."""
+
+    LOG = ('Traceback (most recent call last):\n'
+           '  File "/usr/local/lib/python3.11/site-packages/werkzeug/serving.py", line 333, in run_wsgi\n'
+           f'  File "/workspace/app.py", line {INT_LINE}, in create_match\n'
+           '    score = int(payload["score"])\n'
+           "ValueError: invalid literal for int() with base 10: '2.9'\n")
+
+    def report(self, log):
+        return {'status': 'FAIL', 'summary': '1 failed check(s)', 'server_log_tail': log,
+                'checks': [{'step_id': 's3', 'kind': 'data_create', 'acceptance_ids': ['A1'], 'passed': False,
+                            'request': 'POST /api/matches {"score": "2.9"}', 'http_status': 500,
+                            'detail': 'expected 400', 'response_excerpt': 'Internal Server Error'}]}
+
+    def test_frame_after_detail_before_answer(self):
+        from omni_prod.behavior_acceptance import _failure_text
+        _, detail = _failure_text(self.report(self.LOG))
+        line = next(x for x in detail.splitlines() if x.startswith('- step s3'))
+        print('\n[behaviour] ' + line)
+        self.assertIn(f'expected 400 (server: /workspace/app.py:{INT_LINE}); answer: Internal Server Error', line)
+        self.assertNotIn('site-packages', line)
+
+    def test_no_frame_no_suffix_and_longer_tail_kept(self):
+        from omni_prod.behavior_acceptance import _failure_text
+        _, detail = _failure_text(self.report('server started\n' + 'y' * 2400 + '\nEND'))
+        self.assertNotIn('(server:', detail)
+        self.assertIn('server started', detail)                            # 2400+ chars survive ([-2500:], was [-900:])
