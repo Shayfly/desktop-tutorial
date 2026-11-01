@@ -27,6 +27,18 @@ def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
 _NOOP = {'true', ':', 'exit 0', 'pass', ''}
 
 
+NO_TESTS_COLLECTED_MESSAGE = "no tests were collected \u2014 the test file is not in pytest's default patterns"
+
+
+def verify_failure_message(name: str, argv, returncode: int, prefix: str = 'verification failed') -> str:
+    """bld_99ea49dfc6c843aabc90bb8cccbcc1d7 (2026-11-01): pytest exits 5 when it collected nothing ("no tests ran").
+    That is not a failing test, and "verification failed: unit tests" sent three paid repairs after test logic that
+    never ran; the message says what happened instead. Any other non-zero exit keeps the existing message."""
+    if int(returncode) == 5 and any(str(w).rsplit('/', 1)[-1] == 'pytest' for w in (argv or ())):
+        return NO_TESTS_COLLECTED_MESSAGE
+    return f'{prefix}: {name}'
+
+
 def _is_fake_verification(argv: tuple[str, ...]) -> bool:
     """A verify command that cannot fail is not evidence (audit 2026-10-10:
     the remote runner, used in production, did not apply this check)."""
@@ -156,7 +168,7 @@ class SandboxRepositoryExecutor:
                         failures.append(
                             AcceptanceFailure(
                                 aid,
-                                f'verification failed: {check.name}',
+                                verify_failure_message(check.name, check.argv, result.returncode),
                                 ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:],
                             )
                         )
