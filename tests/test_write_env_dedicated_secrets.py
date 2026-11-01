@@ -110,5 +110,54 @@ class WorkflowPassesTheSecret(unittest.TestCase):
         self.assertIn('OMNI_DATABASE_URL', loop.group(1).split())
 
 
+
+OLD_REDIS = 'rediss://default:OLDREDISPASSxyz@old-satyr-1.upstash.io:6379'
+NEW_REDIS = 'rediss://default:NEWREDISPASSabc@new-otter-2.upstash.io:6379'
+
+
+class RedisUrlSecret(unittest.TestCase):
+    """Founder 2026-11-01 19:18: OMNI_REDIS_URL becomes a dedicated secret. WORKER_ENV_OVERRIDES cannot be safely
+    re-saved (its 14 values are unreadable), so the new Redis arrives as its own secret and must win."""
+
+    def test_secret_replaces_the_worker_env_value(self):
+        code, out, dotenv = run({'OMNI_REDIS_URL': NEW_REDIS}, OMNI_REDIS_URL=OLD_REDIS)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'OMNI_REDIS_URL'), [NEW_REDIS])          # exactly one line, the secret's
+        self.assertIn('OMNI_REDIS_URL from its GitHub secret (replaced the WORKER_ENV(_OVERRIDES) value)', out)
+
+    def test_secret_also_replaces_an_overrides_value_and_keeps_the_other_overrides(self):
+        code, out, dotenv = run({'OMNI_REDIS_URL': NEW_REDIS},
+                                overrides=f'OMNI_REDIS_URL={OLD_REDIS}\nOMNI_S3_BUCKET=override-bucket')
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'OMNI_REDIS_URL'), [NEW_REDIS])
+        self.assertEqual(values(dotenv, 'OMNI_S3_BUCKET'), ['override-bucket'])
+
+    def test_without_secret_the_worker_env_value_stays(self):
+        code, out, dotenv = run(OMNI_REDIS_URL=OLD_REDIS)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'OMNI_REDIS_URL'), [OLD_REDIS])
+        self.assertIn('OMNI_REDIS_URL already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used', out)
+
+    def test_neither_set_says_so(self):
+        code, out, dotenv = run()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'OMNI_REDIS_URL'), [])
+        self.assertIn('OMNI_REDIS_URL not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)', out)
+        self.assertNotIn('OMNI_REDIS_URL not set; its catalog models', out)          # not the provider-key wording
+
+    def test_value_is_never_printed(self):
+        code, out, _ = run({'OMNI_REDIS_URL': NEW_REDIS}, OMNI_REDIS_URL=OLD_REDIS)
+        self.assertEqual(code, 0, out)
+        for secret in ('NEWREDISPASSabc', 'OLDREDISPASSxyz', 'new-otter-2', 'old-satyr-1'):
+            self.assertNotIn(secret, out)
+
+    def test_deploy_worker_passes_the_secret_and_the_loop_lists_it(self):
+        step = re.search(r'- name: Write environment file\n(.*?)run: bash infra/worker-host/write-env.sh',
+                         WORKFLOW.read_text(), re.S)
+        self.assertIn('OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}', step.group(1))
+        loop = re.search(r'^for key_name in (.+); do$', (HOST / 'write-env.sh').read_text(), re.M)
+        self.assertIn('OMNI_REDIS_URL', loop.group(1).split())
+
+
 if __name__ == '__main__':
     unittest.main()
