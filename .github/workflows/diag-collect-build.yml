@@ -1,0 +1,158 @@
+name: diag collect build (read-only, branch only)
+
+# Founder 2026-11-01 23:29: collect the founder's real build, touching nothing. READ-ONLY SELECTs.
+# The newest build_jobs row (created after 2026-11-01 20:00Z). Per-round evidence is printed section by section, then the
+# whole evidence_json in chunks, each step at most 10 annotations. Provider-key-shaped strings are redacted.
+on:
+  push:
+    branches: [diag/collect-build-20261101]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-collect-build
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 8
+    steps:
+      - name: Read the build row (read-only)
+        id: read
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+          out=$(mktemp -d); chmod 777 "$out"; echo "out=$out" >> "$GITHUB_OUTPUT"
+          cd "$wd"
+          docker compose run --rm --no-deps -T -v "$out:/out" worker python - > "$out/read.log" 2>&1 <<'PY'
+          import json, os, psycopg
+          with psycopg.connect(os.environ['OMNI_DATABASE_URL'], connect_timeout=10) as conn:
+              conn.read_only = True
+              rows = conn.execute("SELECT id, project_id, status, phase, error_code, error_message, repair_rounds, created_at, started_at, "
+                                  "finished_at, evidence_json FROM build_jobs WHERE created_at > '2026-11-01 20:00+00' ORDER BY created_at DESC").fetchall()
+              keys = ('id', 'project_id', 'status', 'phase', 'error_code', 'error_message', 'repair_rounds', 'created_at', 'started_at', 'finished_at', 'evidence')
+              json.dump([dict(zip(keys, r)) for r in rows], open('/out/rows.json', 'w'), default=str)
+          print('rows', len(rows))
+          PY
+          rc=$?
+          [ "$rc" = 0 ] || echo "::error title=read failed (rc=$rc)::$(tail -20 "$out/read.log" | sed -E 's#://[^@/[:space:]]*@#://<redacted>@#g' | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g' | cut -c1-3400)"
+          exit $rc
+
+      - name: 1-3. build_id, status, error, repair_rounds, spend
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}"}
+        run: |
+          python3 - "$OUT/rows.json" <<'PY'
+          import json, re, sys
+          def note(t, b):
+              b = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', str(b))
+              print(f'::notice title={t}::' + b.replace('%', '%25').replace('\n', '%0A')[:3400], flush=True)
+          rows = json.load(open(sys.argv[1]))
+          note('builds since 20:00Z', '; '.join(f"{r['id']} {r['status']} created {r['created_at']}" for r in rows) or '(none)')
+          if not rows: raise SystemExit(0)
+          r = rows[0]; ev = r['evidence'] if isinstance(r['evidence'], dict) else json.loads(r['evidence'] or '{}')
+          note('1. build_id', f"{r['id']} project={r['project_id']} created={r['created_at']} started={r['started_at']} finished={r['finished_at']}")
+          note('2. status / error_code', f"status={r['status']} phase={r['phase']} error_code={r['error_code']}")
+          note('2. error_message', r['error_message'] or '(none)')
+          note('3. repair_rounds / spend', f"repair_rounds={r['repair_rounds']} evidence.repair_rounds={ev.get('repair_rounds')} stop_reason={ev.get('repair_stop_reason')} "
+               f"provider_spend_usd={ev.get('provider_spend_usd')} external_model_calls={ev.get('external_model_calls')} first_pass={ev.get('first_pass')}")
+          note('4. evidence keys', ', '.join(sorted(ev)))
+          note('5. round_snapshots', json.dumps(ev.get('round_snapshots'), default=str)[:3300])
+          PY
+
+      - name: 4. per-round evidence (taxonomy, consistency, behaviour, review)
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}"}
+        run: |
+          python3 - "$OUT/rows.json" <<'PY'
+          import json, re, sys
+          def note(t, b):
+              b = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', str(b))
+              print(f'::notice title={t}::' + b.replace('%', '%25').replace('\n', '%0A')[:3400], flush=True)
+          rows = json.load(open(sys.argv[1]))
+          if not rows: raise SystemExit(0)
+          ev = rows[0]['evidence'] if isinstance(rows[0]['evidence'], dict) else json.loads(rows[0]['evidence'] or '{}')
+          note('4. failure_taxonomy (per round)', json.dumps(ev.get('failure_taxonomy'), ensure_ascii=False))
+          note('4. consistency_gate rounds', json.dumps((ev.get('consistency_gate') or {}).get('rounds'), ensure_ascii=False, default=str))
+          note('4. behavior_acceptance rounds', json.dumps((ev.get('behavior_acceptance') or {}).get('rounds'), ensure_ascii=False, default=str))
+          for i, rv in enumerate((ev.get('product_review') or [])[:4]):
+              note(f'4. product_review round {i + 1}', json.dumps({k: rv.get(k) for k in ('round', 'enforced', 'blocking', 'findings')}, ensure_ascii=False, default=str))
+          v = ((ev.get('gates') or {}).get('verification') or {})
+          note('4. final verification', json.dumps({'passed': v.get('passed'), 'failures': [f.get('acceptance_id') for f in v.get('failures') or []]}))
+          PY
+
+      - name: 4. final failures (message + evidence head), each its own annotation
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}"}
+        run: |
+          python3 - "$OUT/rows.json" <<'PY'
+          import json, re, sys
+          def note(t, b):
+              b = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', str(b))
+              print(f'::notice title={t}::' + b.replace('%', '%25').replace('\n', '%0A')[:3400], flush=True)
+          rows = json.load(open(sys.argv[1]))
+          if not rows: raise SystemExit(0)
+          ev = rows[0]['evidence'] if isinstance(rows[0]['evidence'], dict) else json.loads(rows[0]['evidence'] or '{}')
+          for i, f in enumerate((((ev.get('gates') or {}).get('verification') or {}).get('failures') or [])[:10]):
+              note(f"4. failure {i + 1} {f.get('acceptance_id')}", f"MESSAGE: {f.get('message')}\n--- evidence head ---\n{str(f.get('evidence') or '')[:2400]}")
+          PY
+
+      - name: 4. full evidence_json, part A
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}", PART: "0"}
+        run: |
+          python3 - "$OUT/rows.json" "$PART" <<'PY'
+          import json, re, sys
+          rows = json.load(open(sys.argv[1]))
+          if not rows: raise SystemExit(0)
+          ev = rows[0]['evidence'] if isinstance(rows[0]['evidence'], dict) else json.loads(rows[0]['evidence'] or '{}')
+          text = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', json.dumps(ev, ensure_ascii=False, default=str))
+          size, part = 3300, int(sys.argv[2])
+          chunks = [text[i:i + size] for i in range(0, len(text), size)]
+          for n in range(part * 10, min(len(chunks), part * 10 + 10)):
+              print(f'::notice title=evidence_json chunk {n + 1}/{len(chunks)}::' + chunks[n].replace('%', '%25'), flush=True)
+          PY
+
+      - name: 4. full evidence_json, part B
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}", PART: "1"}
+        run: |
+          python3 - "$OUT/rows.json" "$PART" <<'PY'
+          import json, re, sys
+          rows = json.load(open(sys.argv[1]))
+          if not rows: raise SystemExit(0)
+          ev = rows[0]['evidence'] if isinstance(rows[0]['evidence'], dict) else json.loads(rows[0]['evidence'] or '{}')
+          text = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', json.dumps(ev, ensure_ascii=False, default=str))
+          size, part = 3300, int(sys.argv[2])
+          chunks = [text[i:i + size] for i in range(0, len(text), size)]
+          for n in range(part * 10, min(len(chunks), part * 10 + 10)):
+              print(f'::notice title=evidence_json chunk {n + 1}/{len(chunks)}::' + chunks[n].replace('%', '%25'), flush=True)
+          PY
+
+
+      - name: 4. full evidence_json, part C
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}", PART: "2"}
+        run: |
+          python3 - "$OUT/rows.json" "$PART" <<'PY'
+          import json, re, sys
+          rows = json.load(open(sys.argv[1]))
+          if not rows: raise SystemExit(0)
+          ev = rows[0]['evidence'] if isinstance(rows[0]['evidence'], dict) else json.loads(rows[0]['evidence'] or '{}')
+          text = re.sub(r'(AIza|sk-ant-|sk-)[0-9A-Za-z_-]{8,}', r'\1<redacted>', json.dumps(ev, ensure_ascii=False, default=str))
+          size, part = 3300, int(sys.argv[2])
+          chunks = [text[i:i + size] for i in range(0, len(text), size)]
+          for n in range(part * 10, min(len(chunks), part * 10 + 10)):
+              print(f'::notice title=evidence_json chunk {n + 1}/{len(chunks)}::' + chunks[n].replace('%', '%25'), flush=True)
+          PY
+
+
+      - name: Remove the temporary files
+        if: always()
+        shell: bash
+        env: {OUT: "${{ steps.read.outputs.out }}"}
+        run: '[ -n "$OUT" ] && rm -rf "$OUT" || true'
