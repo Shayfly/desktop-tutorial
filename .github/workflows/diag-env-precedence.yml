@@ -21,7 +21,7 @@ jobs:
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 5
     steps:
-      - name: Simulate PR 204 write-env.sh on a copy (read-only)
+      - name: Simulate main's write-env.sh on a copy (read-only)
         id: sim
         shell: bash
         env:
@@ -29,7 +29,7 @@ jobs:
           WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
           OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}
           GH_TOKEN: ${{ github.token }}
-          PR_REF: fix/worker-env-dedicated-redis
+          PR_REF: main   # after PR 204 merged (e64a35e): the deploy's own script
         run: |
           set -euo pipefail
           wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
@@ -39,13 +39,13 @@ jobs:
             curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github.raw' \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/infra/worker-host/$f?ref=$PR_REF" > "$sim/$f"
           done
-          grep -q 'VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do' "$sim/write-env.sh" || { echo "::error title=diag::fetched write-env.sh is not the PR 204 version"; exit 2; }
+          grep -q 'VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do' "$sim/write-env.sh" || { echo "::error title=diag::write-env.sh on $PR_REF does not have the dedicated OMNI_REDIS_URL"; exit 2; }
           printf '%s\n' "$WORKER_ENV" | tr -d '\r' > "$sim/worker_env.txt"
           printf '%s\n' "${WORKER_ENV_OVERRIDES:-}" | tr -d '\r' > "$sim/overrides.txt"
           printf 'OMNI_REDIS_URL=%s\n' "${OMNI_REDIS_URL:-}" > "$sim/dedicated.txt"; [ -n "${OMNI_REDIS_URL:-}" ] || : > "$sim/dedicated.txt"
           (cd "$sim" && bash ./write-env.sh > "$sim/script.out" 2>&1) || echo "write-env.sh rc=$?" >> "$sim/script.out"
           docker inspect omni-worker-worker-1 --format '{{range .Config.Env}}{{println .}}{{end}}' > "$sim/container.env"
-          grep -h 'title=dedicated secrets::OMNI_REDIS_URL' "$sim/script.out" | sed 's/^::notice title=dedicated secrets::/::notice title=a. write-env.sh (PR 204) said::/' || echo "::notice title=a. write-env.sh (PR 204) said::(no OMNI_REDIS_URL line)"
+          grep -h 'title=dedicated secrets::OMNI_REDIS_URL' "$sim/script.out" | sed 's/^::notice title=dedicated secrets::/::notice title=a. write-env.sh (main) said::/' || echo "::notice title=a. write-env.sh (main) said::(no OMNI_REDIS_URL line)"
 
       - name: a. OMNI_REDIS_URL in every source and the verdict
         shell: bash
@@ -76,12 +76,12 @@ jobs:
               p = urlsplit(v)
               return f'{p.scheme}://{p.hostname}:{p.port}/{(p.path or "/").lstrip("/") or "0"} sha256_8={hashlib.sha256(v.encode()).hexdigest()[:8]}'
           src = {'OMNI_REDIS_URL secret (dedicated)': read(f'{sim}/dedicated.txt'), 'WORKER_ENV secret': read(f'{sim}/worker_env.txt'),
-                 'WORKER_ENV_OVERRIDES secret': read(f'{sim}/overrides.txt'), '.env a deploy of PR 204 would write': read(f'{sim}/.env'),
+                 'WORKER_ENV_OVERRIDES secret': read(f'{sim}/overrides.txt'), '.env a deploy of main would write': read(f'{sim}/.env'),
                  'host .env now': read(host_env), 'stopped worker container': read(f'{sim}/container.env')}
           v = {k: d.get('OMNI_REDIS_URL') for k, d in src.items()}
           for k, x in v.items():
               note(f'a. OMNI_REDIS_URL — {k}', redis(x))
-          ded, simv, old = v['OMNI_REDIS_URL secret (dedicated)'], v['.env a deploy of PR 204 would write'], v['WORKER_ENV secret']
+          ded, simv, old = v['OMNI_REDIS_URL secret (dedicated)'], v['.env a deploy of main would write'], v['WORKER_ENV secret']
           if not ded:
               verdict = 'NO: the OMNI_REDIS_URL GitHub secret is not set (empty); the deploy keeps the WORKER_ENV value'
           elif simv == ded:
@@ -113,7 +113,7 @@ jobs:
                   pass
               return out
           src = {'WORKER_ENV': read(f'{sim}/worker_env.txt'), 'OVERRIDES': read(f'{sim}/overrides.txt'),
-                 'simulated .env (PR 204)': read(f'{sim}/.env'), 'host .env now': read(host_env),
+                 'simulated .env (main)': read(f'{sim}/.env'), 'host .env now': read(host_env),
                  'stopped container': read(f'{sim}/container.env')}
           for flag in ('OMNI_ALLOW_EXTERNAL_FALLBACK', 'OMNI_ZERO_COST_MODE', 'OMNI_REPAIR_STRUCTURED_V1'):
               print(f'::notice title=b. {flag}::' + '; '.join(f'{k}: {d.get(flag, "NOT SET")}' for k, d in src.items()), flush=True)
