@@ -329,8 +329,8 @@
     "IMPLEMENTED": 16,
     "INTEGRATION_TESTED": 3,
     "NOT_IMPLEMENTED": 25,
-    "REAL_SERVER_VERIFIED": 3,
-    "UNIT_TESTED": 7
+    "REAL_SERVER_VERIFIED": 2,
+    "UNIT_TESTED": 8
    },
    "missing_roles": [],
    "missing_adapters": [
