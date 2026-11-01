@@ -141,10 +141,12 @@ class SandboxRepositoryExecutor:
                 logs.append(result.stderr)
                 if result.returncode != 0:
                     output = (result.stdout or '') + '\n' + (result.stderr or '')
+                    p = _pointer(output, set(repository))
                     return ExecutionReport(
                         False,
                         tuple(
-                            AcceptanceFailure(a.id, 'build command failed', _window(output))   # pointer: pending decision
+                            # 'failed: at …' -- the colon keeps the taxonomy key build_command_failed
+                            AcceptanceFailure(a.id, 'build command failed' + (f': at {p}' if p else ''), _window(output))
                             for a in spec.acceptance
                         ),
                         '\n'.join(logs)[-10000:],

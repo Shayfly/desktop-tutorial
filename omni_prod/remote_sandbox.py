@@ -75,7 +75,9 @@ class RemoteSandboxRepositoryExecutor:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
                 out=str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')
-                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_window(out)) for a in spec.acceptance),'\n'.join(logs)[-10000:])   # pointer: pending decision
+                p=_pointer(out, set(repository))
+                # 'failed: at …' -- the colon keeps the taxonomy key remote_build_failed (founder 2026-11-01 18:59)
+                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed'+(f': at {p}' if p else ''),_window(out)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
         from .sandbox_executor import _is_fake_verification
         for check in manifest.verify:
             if _is_fake_verification(tuple(check.argv)):

@@ -285,3 +285,23 @@ class UnguardedConversionStaticCheck(unittest.TestCase):
         self.assertEqual(self.findings('PORT = int(os.environ.get("PORT", "8000"))\nn = int(size)\n'), [])
         fixture = self.findings((FIXTURE / 'app.py').read_text())                # the repro bug itself is caught
         self.assertEqual([f.file for f in fixture], [f'app.py:{INT_LINE}'])
+
+
+class BuildFailurePointerKeepsTheTaxonomyKey(unittest.TestCase):
+    """Founder 2026-11-01 18:59: build failures carry 'failed: at file:line'; the colon keeps the taxonomy key."""
+
+    def broken_repo(self):
+        repo = repository()
+        repo['app.py'] = repo['app.py'].replace('def create_match(payload):', 'def create_match(payload)')  # syntax
+        return repo
+
+    def test_local_and_remote_build_failure(self):
+        from omni_prod.failure_taxonomy import failure_type
+        bad_line = next(i for i, l in enumerate(self.broken_repo()['app.py'].splitlines(), 1)
+                        if l.startswith('def create_match(payload)'))
+        for name, ex in (('local', local_executor()), ('remote', remote_executor(FakeHTTP()))):
+            report = ex.execute(repository=self.broken_repo(), spec=spec())
+            msg = report.failures[0].message
+            print(f'\n[{name} build] {msg} -> taxonomy {failure_type(msg)}')
+            self.assertTrue(msg.endswith(f': at app.py:{bad_line}'), msg)
+            self.assertEqual(failure_type(msg), {'local': 'build_command_failed', 'remote': 'remote_build_failed'}[name])
