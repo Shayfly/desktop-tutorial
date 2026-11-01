@@ -196,12 +196,13 @@ class SameRepairTwiceStops(unittest.TestCase):
         return Rep(), calls
 
     def executor(self):
-        fail, runs = self.FAIL, []
+        from omni_prod.autonomous_core import ExecutionReport as R
+        runs = []
 
         class Ex:
             def execute(self, *, repository, spec):
                 runs.append(repository['app.py'])
-                return fail
+                return R(False, (AcceptanceFailureCls('A1', f"boom at {repository['app.py']}"),))
         return Ex(), runs
 
     def test_build_loop(self):
@@ -249,6 +250,93 @@ class SameRepairTwiceStops(unittest.TestCase):
         r = ModifierEngine(classifier=Cls(), repairer=rep, executor=ex).modify(spec=spec(), repository={'app.py': 'v0'},
                                                                                followup='2.9 is accepted')
         self.assertEqual((r.status, r.stop_reason), ('failed', 'no_progress_repository_unchanged'))
+
+
+class SameFailureTwiceStops(unittest.TestCase):
+    """Eighth stop condition (founder 2026-11-01 23:33, bld_96ab03c8): the repository changed every round but the
+    failure did not -- 4 rounds on one identical message. A round whose set of (acceptance_id, message) equals the
+    previous round's stops with no_progress_same_failure. It is added; the other conditions still apply."""
+
+    GATE = 'unsupported dependency: pytest (tests.py): test-only package imported by application code'
+
+    def setUp(self):
+        from omni_prod.repository_patch import parse_patch
+        self.parse = parse_patch
+
+    def repairer(self, contents):
+        parse, calls = self.parse, []
+
+        class Rep:
+            def repair(self, **kw):
+                calls.append(1)
+                return parse({'files': [{'path': 'tests.py', 'content': contents[len(calls) - 1]}]})
+        return Rep(), calls
+
+    def executor(self, message_for):
+        from omni_prod.autonomous_core import ExecutionReport as R
+        runs = []
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                runs.append(repository['tests.py'])
+                return R(False, tuple(AcceptanceFailureCls(aid, msg, f'evidence {len(runs)}')    # evidence differs
+                                      for aid, msg in message_for(repository['tests.py'])))
+        return Ex(), runs
+
+    def build(self, repairs, message_for, rounds=3):
+        from omni_prod.autonomous_core import AutonomousProductEngine
+        parse = self.parse
+
+        class Arch:
+            def create_spec(self, prompt):
+                return 'spec'
+
+        class Gen:
+            def generate(self, spec):
+                return parse({'files': [{'path': 'tests.py', 'content': 't0'}]})
+        rep, calls = self.repairer(repairs)
+        ex, runs = self.executor(message_for)
+        result = AutonomousProductEngine(architect=Arch(), generator=Gen(), repairer=rep, executor=ex,
+                                         max_repair_rounds=rounds).build('p')
+        return result, calls, runs
+
+    def test_build_loop_replay_of_bld_96ab03c8(self):
+        # four different repositories (the real snapshot shas differed every round), one identical gate failure
+        result, calls, runs = self.build(['t1', 't2', 't3'], lambda repo: [('UNSUPPORTED_DEPENDENCY', self.GATE)])
+        print('\n[same failure, build] stop_reason=', result.stop_reason, 'repairs=', len(calls), 'runs=', runs)
+        self.assertEqual((result.status, result.stop_reason), ('failed', 'no_progress_same_failure'))
+        self.assertEqual((len(calls), runs, result.repair_rounds), (1, ['t0', 't1'], 1))   # was 3 paid repairs
+
+    def test_a_changed_message_keeps_going(self):
+        result, calls, _ = self.build(['t1', 't2', 't3'], lambda repo: [('A1', f'boom at {repo}')])
+        self.assertEqual((result.stop_reason, len(calls)), ('max_repair_rounds', 3))
+
+    def test_a_changed_set_of_failing_ids_keeps_going(self):
+        sets = {'t0': [('A1', 'x'), ('A2', 'y')], 't1': [('A1', 'x')], 't2': [('A1', 'x')]}
+        result, calls, _ = self.build(['t1', 't2', 't3'], lambda repo: sets[repo])
+        self.assertEqual((result.stop_reason, len(calls)), ('no_progress_same_failure', 2))   # t1 -> t2 identical
+
+    def test_order_of_failures_does_not_matter(self):
+        sets = {'t0': [('A1', 'x'), ('A2', 'y')], 't1': [('A2', 'y'), ('A1', 'x')]}
+        result, calls, _ = self.build(['t1', 't2'], lambda repo: sets[repo])
+        self.assertEqual((result.stop_reason, len(calls)), ('no_progress_same_failure', 1))
+
+    def test_the_earlier_conditions_still_win_first(self):
+        result, calls, runs = self.build(['t0', 't1'], lambda repo: [('UNSUPPORTED_DEPENDENCY', self.GATE)])
+        self.assertEqual((result.stop_reason, len(calls), runs), ('no_progress_repository_unchanged', 1, ['t0']))
+
+    def test_free_repair_loop(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import run_free_repair
+        rep, calls = self.repairer(['t1', 't2', 't3'])
+        ex, runs = self.executor(lambda repo: [('UNSUPPORTED_DEPENDENCY', self.GATE)])
+        assessment = ChangeAssessment('system_bug', 'scores are not validated', ('A1',), False)
+        repo, rounds, report, stop = run_free_repair(spec=spec(), repository={'tests.py': 't0'}, assessment=assessment,
+                                                     followup='2.9 is accepted', repairer=rep, executor=ex,
+                                                     max_repair_rounds=3)
+        print('\n[same failure, free repair] stop_reason=', stop, 'rounds=', rounds, 'runs=', runs)
+        # round 1 has no earlier report (the failure came from the classifier), so round 2 is the first comparison
+        self.assertEqual((stop, rounds, runs, report.passed), ('no_progress_same_failure', 2, ['t1', 't2'], False))
 
 
 from omni_prod.autonomous_core import AcceptanceFailure as AcceptanceFailureCls  # noqa: E402

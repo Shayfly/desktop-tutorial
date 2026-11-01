@@ -82,6 +82,12 @@ class AutonomousProductEngine:
         return summary
 
     @staticmethod
+    def failure_signature(report) -> frozenset:
+        """What a round failed on, as the repairer is told it: the set of (acceptance_id, message). Evidence is left
+        out (it carries timings and log tails that differ on every run of the same failure)."""
+        return frozenset((f.acceptance_id, f.message) for f in report.failures)
+
+    @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
         return hashlib.sha256(json.dumps(sorted(repo.items())).encode('utf-8')).hexdigest()
 
@@ -303,9 +309,16 @@ class AutonomousProductEngine:
                                   'evidence': '; '.join(failing)[:600]}
                 repo, report = best_repo, best_report
                 continue
+            same_failure = self.failure_signature(new_report) == self.failure_signature(report)
             repo, report = candidate, new_report
             if self.progress(report) >= self.progress(best_report):
                 best_repo, best_report = repo, report
+            if same_failure:
+                # bld_96ab03c8 (founder 2026-11-01 23:33): the repository changed every round, but the failure did
+                # not -- four paid rounds on one identical message. The same set of (acceptance_id, message) as the
+                # round before means the repair is not reaching the cause; stop instead of paying again.
+                stop_reason = 'no_progress_same_failure'
+                break
         if not report.passed:
             repo, report = best_repo, best_report
         return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result

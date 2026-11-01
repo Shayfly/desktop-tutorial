@@ -219,6 +219,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     # identical rounds; a candidate that gets less far than the best so far is discarded and the best is kept.
     from .autonomous_core import AutonomousProductEngine
     _fingerprint, progress = AutonomousProductEngine._fingerprint, AutonomousProductEngine.progress
+    signature = AutonomousProductEngine.failure_signature
     repo = dict(repository)
     report: ExecutionReport | None = None
     rounds = 0
@@ -249,9 +250,13 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
                            'version again. Do not repeat that change.',
                 'evidence': failing[:600]}]
             continue
+        same_failure = report is not None and signature(new_report) == signature(report)
         repo, report = candidate, new_report
         if best_report is None or progress(report) >= progress(best_report):
             best_repo, best_report = repo, report
+        if same_failure:
+            stop_reason = 'no_progress_same_failure'   # the same (acceptance_id, message) set as the round before
+            break
         failures = [f.__dict__ for f in report.failures]
     if report is None:
         # max_repair_rounds == 0 (or the very first repair changed nothing): still report the real, current state
