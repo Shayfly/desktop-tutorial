@@ -63,6 +63,7 @@ class RemoteSandboxRepositoryExecutor:
         data['stderr']=sanitized_tail(data['stderr'],limit=100000)
         return data
     def execute(self, *, repository: dict[str,str], spec: ProductSpec) -> ExecutionReport:
+        from .sandbox_executor import _pointer, _window   # same helpers as the local executor (one definition)
         valid={a.id for a in spec.acceptance}; failures=[]; logs=[]; n=0
         try:
             manifest=ProjectManifest.from_repository(repository)
@@ -73,7 +74,8 @@ class RemoteSandboxRepositoryExecutor:
         for command in manifest.build:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_output_tail(r)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
+                out=str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')
+                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_window(out)) for a in spec.acceptance),'\n'.join(logs)[-10000:])   # pointer: pending decision
         from .sandbox_executor import _is_fake_verification
         for check in manifest.verify:
             if _is_fake_verification(tuple(check.argv)):
@@ -84,6 +86,8 @@ class RemoteSandboxRepositoryExecutor:
                 continue
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',_output_tail(r)) for aid in check.acceptance_ids)
+                out=str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')
+                p=_pointer(out, set(repository))
+                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}'+(f' at {p}' if p else ''),_window(out)) for aid in check.acceptance_ids)
         failures.extend(uncovered_acceptance_failures(manifest, spec))
         return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:])
