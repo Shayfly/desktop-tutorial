@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 29, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 36, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 29, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 35, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -212,7 +212,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 83, UNIT_TESTED 29, INTEGRATION
 | `file_create` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `file_modify` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `safe_refactor` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
-| `dependency_add` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | pinned allowlist only |
+| `dependency_add` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/dependency_policy.py | pinned allowlist only |
 | `dependency_remove` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `import_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `type_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |

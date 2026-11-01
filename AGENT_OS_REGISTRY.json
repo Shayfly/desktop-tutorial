@@ -3335,9 +3335,10 @@
    ],
    "gap": "pinned allowlist only",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser check; quality gate",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/dependency_policy.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7681,10 +7682,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 83,
+   "IMPLEMENTED": 84,
    "UNIT_TESTED": 29,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 36,
+   "REAL_SERVER_VERIFIED": 35,
    "LIVE": 0,
    "BLOCKED": 9
   }
