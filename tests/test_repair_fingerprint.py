@@ -252,3 +252,36 @@ class SameRepairTwiceStops(unittest.TestCase):
 
 
 from omni_prod.autonomous_core import AcceptanceFailure as AcceptanceFailureCls  # noqa: E402
+
+
+class UnguardedConversionStaticCheck(unittest.TestCase):
+    """Verification 4: catches int(payload["seats"]); does not flag a conversion inside try or after isinstance."""
+
+    def findings(self, code):
+        from omni_prod.skills_runtime import static_findings
+        return [f for f in static_findings({'app.py': code}) if f.skill == 'skill.data_integrity']
+
+    def test_catches_unguarded_seats(self):
+        code = ('import json\n\ndef book(payload):\n'
+                '    seats = int(payload["seats"])\n'
+                '    return 201, {"seats": seats}\n')
+        found = self.findings(code)
+        print('\n[static] ' + '; '.join(f'{f.severity} {f.file} {f.problem} | fix: {f.fix}' for f in found))
+        self.assertEqual([(f.severity, f.file) for f in found], [('blocking', 'app.py:4')])
+        self.assertEqual(found[0].fix, 'validate type before converting; return 400 on a bad value')
+
+    def test_not_flagged_inside_try(self):
+        code = ('def book(payload):\n    try:\n        seats = int(payload["seats"])\n'
+                '    except (TypeError, ValueError):\n        return 400, {"error": "seats must be a whole number"}\n')
+        self.assertEqual(self.findings(code), [])
+
+    def test_not_flagged_after_isinstance(self):
+        code = ('def book(payload):\n    v = payload["seats"]\n'
+                '    if isinstance(v, bool) or not isinstance(v, int):\n        return 400, {}\n'
+                '    seats = int(payload["seats"])\n')
+        self.assertEqual(self.findings(code), [])
+
+    def test_unrelated_conversions_and_the_fixture(self):
+        self.assertEqual(self.findings('PORT = int(os.environ.get("PORT", "8000"))\nn = int(size)\n'), [])
+        fixture = self.findings((FIXTURE / 'app.py').read_text())                # the repro bug itself is caught
+        self.assertEqual([f.file for f in fixture], [f'app.py:{INT_LINE}'])

@@ -42,6 +42,10 @@ _ARCHITECT_SYSTEM = (
     "Security criteria describe safe handling, not an error code: e.g. a name containing quotes or SQL is "
     "stored and shown as plain text and no other data changes. "
     "Use 3 to 6 acceptance criteria for a small product. "
+    # Run 39313029465 (2026-10-19): a score converted with int() accepted 2.9 and true.
+    "Numeric input: for every number the product accepts from the user, say in the requirement whether it is a whole "
+    "number or a decimal, and add an acceptance criterion that a wrong value (e.g. 2.9 for a whole number, or "
+    "true/false) answers 400 with a readable message, never 500 and never a different stored number. "
     "Write title, summary, every requirement text and every acceptance text in the same language as the "
     "user's request (Hebrew request -> Hebrew text); keep ids, keys, kinds and stack names as specified. "
     # Golden E2E #1 on Preview (2026-10-07): without the exact shape the model

@@ -82,6 +82,45 @@ def _no_browser_dialogs(repository: dict, context: dict) -> list[StaticFinding]:
     return out
 
 
+_CONVERSION = re.compile(r'(?<![\w.])(int|float)\(')
+_INPUT_HINTS = ('json', 'payload', 'body', 'request.get_json', '["', "['")
+
+
+def _call_argument(line: str, open_paren: int) -> str:
+    """The text between the conversion's parenthesis and its matching close (same line)."""
+    depth = 0
+    for i in range(open_paren, len(line)):
+        if line[i] == '(':
+            depth += 1
+        elif line[i] == ')':
+            depth -= 1
+            if depth == 0:
+                return line[open_paren + 1:i]
+    return line[open_paren + 1:]
+
+
+def _unguarded_int_conversion(repository: dict, context: dict) -> list[StaticFinding]:
+    """Run 39313029465 (2026-10-19): POST /api/matches did int(score), so 2.9 and true were accepted as other scores.
+    An int()/float() of request input with no try in the 15 lines up to it and no isinstance( before it in them."""
+    out = []
+    for path, text in _text_files(repository).items():
+        if not path.endswith('.py'):
+            continue
+        lines = text.splitlines()
+        for n, line in enumerate(lines):
+            for m in _CONVERSION.finditer(line):
+                arg = _call_argument(line, m.end() - 1)
+                if not any(h in arg for h in _INPUT_HINTS):
+                    continue
+                window = lines[max(0, n - 14):n] + [line[:m.start()]]
+                if any(re.search(r'^\s*try\s*:', w) for w in window) or any('isinstance(' in w for w in window):
+                    continue
+                out.append(StaticFinding('skill.data_integrity', 'blocking', f'{path}:{n + 1}',
+                                         f'{m.group(1)}() of request input without a type check: {line.strip()[:120]}',
+                                         'validate type before converting; return 400 on a bad value'))
+    return out
+
+
 def _escape_once(repository: dict, context: dict) -> list[StaticFinding]:
     out = []
     for path, text in _text_files(repository).items():
@@ -245,11 +284,19 @@ DATA_INTEGRITY = Skill(
         'start_local/end_local (with the +02:00/+03:00 offset) in the JSON. The architect adds to the acceptance plan: '
         'a step with "concurrent": 2 that POSTs the same booking twice at once and expects exactly one 201 and one 409 '
         '("expect_status": 201, "expect_conflict_status": 409), an edit (PUT/PATCH) that moves a booking onto another '
-        'one and expects 409, and a create whose JSON answer has the exact expected start_utc.'),
+        'one and expects 409, and a create whose JSON answer has the exact expected start_utc. '
+        # Run 39313029465 (2026-10-19): int(score) turned 2.9 into 2 and true into 1.
+        'Numeric input contract: every numeric field that comes from the request is converted with a guard: check '
+        'the type first (isinstance(v, bool) is NOT a number: true/false are refused; for an integer field accept an int '
+        'or a string of digits only, so "2.9" or 2.9 answers 400; for a decimal field "2.9" becomes 2.9), and a value '
+        'that cannot be converted answers 400 with a readable message, never 500 and never a different number.'),
     checklist=('Rules implied by the request (uniqueness, no double booking, valid ranges) are enforced by the server.',
                'Missing ids give 404, conflicts 409, with a readable message.',
                'Bookings: two simultaneous requests for one slot -> exactly one accepted (BEGIN IMMEDIATE + trigger); '
-               'an edit onto another booking -> 409; times stored UTC (Z), shown Asia/Jerusalem.'),
+               'an edit onto another booking -> 409; times stored UTC (Z), shown Asia/Jerusalem.',
+               'Every numeric field from the request is type-checked before int()/float(); a bad value answers 400, '
+               'never 500 and never a silently different number.'),
+    static_checks=(_unguarded_int_conversion,),
 )
 
 VISUAL_DESIGN = Skill(
