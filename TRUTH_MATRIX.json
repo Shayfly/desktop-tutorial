@@ -231,17 +231,18 @@
    "provider": "sandbox runner (no network)",
    "tests": [],
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_acceptance_coverage.py",
+    "tests/test_release_policy.py"
    ],
    "cost": "$0 marginal",
-   "status": "REAL_SERVER_VERIFIED",
+   "status": "UNIT_TESTED",
    "shown_to_customer": false,
    "note": "tests are written by the generating model",
    "parts": [
     {
      "part": "skill:unit_test_execution",
-     "status": "REAL_SERVER_VERIFIED",
-     "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decisio"
+     "status": "UNIT_TESTED",
+     "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py"
     }
    ]
   },
@@ -1137,8 +1138,8 @@
  ],
  "counts": {
   "IMPLEMENTED": 11,
-  "UNIT_TESTED": 6,
-  "REAL_SERVER_VERIFIED": 9,
+  "UNIT_TESTED": 7,
+  "REAL_SERVER_VERIFIED": 8,
   "INTEGRATION_TESTED": 2,
   "NOT_IMPLEMENTED": 5,
   "BLOCKED": 3

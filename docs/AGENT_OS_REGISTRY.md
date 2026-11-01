@@ -5,7 +5,7 @@
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
 Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 29, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 35, LIVE 0, BLOCKED 9
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 34, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -225,7 +225,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 29, INTEGRATION
 | `repository_diff_generation` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `repository_patch_application` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  |  |
 | `unit_test_generation` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| `unit_test_execution` | QA | **REAL_SERVER_VERIFIED** | qa_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `unit_test_execution` | QA | **UNIT_TESTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
 | `contract_test` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_generation` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | `integration_test_execution` | QA | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |

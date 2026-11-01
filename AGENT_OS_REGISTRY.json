@@ -3521,13 +3521,19 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enforced layout rules: no false positive; release policy decision; durable stage rows",
+   "status": "UNIT_TESTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py",
    "evidence": [
-    "postdeploy-checks verify-replay run 39307232830"
+    "tests/test_acceptance_coverage.py",
+    "tests/test_release_policy.py"
    ],
-   "last_verified_at": "2026-10-19T19:05Z",
-   "last_verified_commit": "4b019d8"
+   "stale_evidence": [
+    "postdeploy-checks verify-replay run 39307232830",
+    "postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098)",
+    "deploy-worker run 38083162363"
+   ],
+   "last_verified_at": "2026-10-10T20:15Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "contract_test",
@@ -7683,9 +7689,9 @@
   "skills": {
    "NOT_IMPLEMENTED": 264,
    "IMPLEMENTED": 84,
-   "UNIT_TESTED": 29,
+   "UNIT_TESTED": 30,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 35,
+   "REAL_SERVER_VERIFIED": 34,
    "LIVE": 0,
    "BLOCKED": 9
   }
