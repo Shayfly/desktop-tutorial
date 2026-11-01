@@ -5,6 +5,7 @@ WORKER_ENV value stays. The value is never printed. deploy-worker.yml passes the
 The real infra/worker-host/write-env.sh runs on a copy in a temporary directory, as in
 test_write_env_secret_lengths.py.
 """
+import json
 import os
 import re
 import shutil
@@ -157,6 +158,67 @@ class RedisUrlSecret(unittest.TestCase):
         self.assertIn('OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}', step.group(1))
         loop = re.search(r'^for key_name in (.+); do$', (HOST / 'write-env.sh').read_text(), re.M)
         self.assertIn('OMNI_REDIS_URL', loop.group(1).split())
+
+
+
+def dedicated_names() -> list[str]:
+    """The dedicated secrets, read from write-env.sh's own loop (the script is the source of truth)."""
+    loop = re.search(r'^for key_name in (.+); do$', (HOST / 'write-env.sh').read_text(), re.M)
+    return loop.group(1).split()
+
+
+def steps_running_write_env(workflow: dict):
+    for job_name, job in (workflow.get('jobs') or {}).items():
+        for i, step in enumerate(job.get('steps') or []):
+            if 'write-env.sh' in str(step.get('run') or ''):
+                yield f"{job_name}/{step.get('name') or i}", step
+
+
+def missing_dedicated_secrets(workflow: dict) -> list[str]:
+    """Every step that runs write-env.sh must pass each dedicated secret as NAME: ${{ secrets.NAME }}."""
+    problems = []
+    for where, step in steps_running_write_env(workflow):
+        env = step.get('env') or {}
+        for name in dedicated_names():
+            if str(env.get(name, '')).replace(' ', '') != '${{secrets.%s}}' % name:
+                problems.append(f'{where}: {name}')
+    return problems
+
+
+class EveryWorkflowPassesTheDedicatedSecrets(unittest.TestCase):
+    """Founder 2026-11-01 19:24: a workflow that runs write-env.sh without the dedicated secrets rewrites the host's
+    .env with the WORKER_ENV values (e.g. the exhausted Redis). The test fails such a workflow; documentation does not."""
+
+    def workflows(self):
+        import yaml
+        return {p.name: yaml.safe_load(p.read_text()) for p in sorted((ROOT / '.github' / 'workflows').glob('*.y*ml'))}
+
+    def test_the_five_names_come_from_the_script(self):
+        self.assertEqual(dedicated_names(), ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'VENICE_API_KEY1',
+                                             'OMNI_DATABASE_URL', 'OMNI_REDIS_URL'])
+
+    def test_every_workflow_that_runs_write_env_passes_all_of_them(self):
+        runners = {name: [w for w, _ in steps_running_write_env(wf)] for name, wf in self.workflows().items()}
+        runners = {k: v for k, v in runners.items() if v}
+        print('\n[write-env.sh callers] ' + json.dumps(runners))
+        self.assertEqual(sorted(runners), ['148ai-prototype-intake-enable.yml', 'deploy-worker.yml',
+                                           'internal-entitlement.yml'])           # a new caller must be added here
+        problems = {name: missing_dedicated_secrets(wf) for name, wf in self.workflows().items()}
+        self.assertEqual({k: v for k, v in problems.items() if v}, {})
+
+    def test_negative_control_a_caller_without_one_secret_is_caught(self):
+        env = {n: '${{ secrets.%s }}' % n for n in dedicated_names()}
+        good = {'jobs': {'j': {'steps': [{'name': 'Write environment file', 'env': dict(env),
+                                          'run': 'bash infra/worker-host/write-env.sh'}]}}}
+        self.assertEqual(missing_dedicated_secrets(good), [])
+        for drop in dedicated_names():
+            bad = {'jobs': {'j': {'steps': [{'name': 'Write environment file',
+                                             'env': {k: v for k, v in env.items() if k != drop},
+                                             'run': 'bash infra/worker-host/write-env.sh'}]}}}
+            self.assertEqual(missing_dedicated_secrets(bad), [f'j/Write environment file: {drop}'], drop)
+        wrong = {'jobs': {'j': {'steps': [{'env': {**env, 'OMNI_REDIS_URL': '${{ secrets.WORKER_ENV }}'},
+                                           'run': 'bash infra/worker-host/write-env.sh'}]}}}
+        self.assertEqual(missing_dedicated_secrets(wrong), ['j/0: OMNI_REDIS_URL'])
 
 
 if __name__ == '__main__':
