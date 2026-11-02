@@ -424,6 +424,83 @@ class BrainTwoSixPoints(unittest.TestCase):
         self.assertEqual(AutonomousProductEngine.failure_signature(a), AutonomousProductEngine.failure_signature(b))
 
 
+class BrainTwoBlocker(unittest.TestCase):
+    """Brain 2 PASS with one blocker (2026-11-02 16:52): when the original already passes and every candidate fails
+    (and is discarded), the original came back with a passing report and was reported 'applied'. The status now
+    follows whether a repair was adopted (repo != repository), not report.passed."""
+
+    def setUp(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.repository_patch import parse_patch
+        self.parse = parse_patch
+        self.assessment = ChangeAssessment('system_bug', 'scores are not validated', ('A1',), False)
+
+    def fakes(self, contents, failing):
+        from omni_prod.autonomous_core import ExecutionReport as R
+        parse, calls, runs = self.parse, [], []
+
+        class Rep:
+            def repair(self, **kw):
+                calls.append(1)
+                return parse({'files': [{'path': 'app.py', 'content': contents[len(calls) - 1]}]})
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                runs.append(repository['app.py'])
+                ids = failing.get(repository['app.py'], [])
+                return R(not ids, tuple(AcceptanceFailureCls(a, f'{a} at {repository["app.py"]}') for a in ids))
+        return Rep(), Ex(), calls, runs
+
+    def test_initial_passes_three_failing_candidates_is_failed_and_unchanged(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import ModifierEngine
+        rep, ex, calls, runs = self.fakes(['v1', 'v2', 'v3'], {'v1': ['A1'], 'v2': ['A1', 'A2'], 'v3': ['A2']})
+        assessment = self.assessment
+
+        class Cls:
+            def classify(self, **kw):
+                return assessment
+        original = {'app.py': 'v0'}
+        r = ModifierEngine(classifier=Cls(), repairer=rep, executor=ex, max_repair_rounds=3).modify(
+            spec=spec(), repository=original, followup='2.9 is accepted')
+        print('\n[blocker] status=', r.status, 'stop=', r.stop_reason, 'repairs=', len(calls), 'runs=', runs,
+              'repo=', r.repository)
+        self.assertEqual((r.status, r.repository), ('failed', original))
+        self.assertEqual(r.stop_reason, 'no_repair_adopted')
+        # Brain 2 point 2: after the first discard `report` is the (passing) original again, so the loop ends --
+        # one paid repair, not three
+        self.assertEqual((len(calls), runs), (1, ['v0', 'v1']))
+
+    def test_the_review_path_does_not_offer_an_unchanged_candidate(self):
+        from tests.test_m4_modification_engine import Classifier, _engine, _spec
+        rep, ex, calls, _ = self.fakes(['BROKEN2'], {'BROKEN2': ['A1']})
+        outcome = _engine(Classifier('system_bug', reason='x', acceptance_ids=['A1']), repairer=rep, executor=ex
+                          ).propose(spec=_spec(), repository={'app.py': 'WORKING'}, followup='fix it')
+        print('[review path] status=', outcome.status, 'candidate=', outcome.candidate_repository)
+        self.assertEqual(outcome.status, 'failed')
+        self.assertEqual(outcome.candidate_repository, {'app.py': 'WORKING'})
+
+    def test_a_repair_that_changes_and_passes_is_still_applied(self):
+        from omni_prod.modifier_engine import ModifierEngine
+        rep, ex, calls, _ = self.fakes(['v1'], {})
+        assessment = self.assessment
+
+        class Cls:
+            def classify(self, **kw):
+                return assessment
+        r = ModifierEngine(classifier=Cls(), repairer=rep, executor=ex).modify(
+            spec=spec(), repository={'app.py': 'v0'}, followup='2.9 is accepted')
+        self.assertEqual((r.status, r.stop_reason, r.repository), ('applied', 'passed', {'app.py': 'v1'}))
+
+    def test_modifier_engine_validates_max_repair_rounds_at_construction(self):
+        from omni_prod.modifier_engine import ModifierEngine
+        for bad in (True, False, -1, 9, 2.5, '3', None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                ModifierEngine(classifier=None, repairer=None, executor=None, max_repair_rounds=bad)
+        for ok in (0, 3, 8):
+            ModifierEngine(classifier=None, repairer=None, executor=None, max_repair_rounds=ok)
+
+
 from omni_prod.autonomous_core import AcceptanceFailure as AcceptanceFailureCls  # noqa: E402
 
 

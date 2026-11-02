@@ -93,8 +93,7 @@ class ModifierEngine:
     """
 
     def __init__(self, *, classifier, repairer, executor: Executor, max_repair_rounds: int = 3):
-        if max_repair_rounds < 0:
-            raise ValueError('max_repair_rounds cannot be negative')
+        _check_repair_rounds(max_repair_rounds)    # Brain 2 (2026-11-02): same bounds as run_free_repair, at construction
         self.classifier = classifier
         self.repairer = repairer
         self.executor = executor
@@ -124,7 +123,9 @@ class ModifierEngine:
             spec=spec, repository=repository, assessment=assessment, followup=followup,
             repairer=self.repairer, executor=self.executor, max_repair_rounds=self.max_repair_rounds,
         )
-        status = 'applied' if report.passed else 'failed'
+        # Brain 2 blocker (2026-11-02): 'applied' means a repair was adopted. When the original already passes and
+        # every candidate is discarded, the original comes back with a passing report -- that is not a change.
+        status = 'applied' if report.passed and repo != dict(repository) else 'failed'
         return ModifierResult(status, assessment, repo, rounds, report, assessment.billable, stop_reason)
 
 
@@ -194,6 +195,14 @@ def repo_summary(repo: dict[str, str], failures=(), focus=None) -> dict:
     }
 
 
+def _check_repair_rounds(max_repair_rounds) -> None:
+    """The same bounds as AutonomousProductEngine: an int (a bool is not a round count) from 0 to the hard maximum."""
+    from .autonomous_core import REPAIR_ROUNDS_HARD_MAX
+    if (isinstance(max_repair_rounds, bool) or not isinstance(max_repair_rounds, int)
+            or not 0 <= max_repair_rounds <= REPAIR_ROUNDS_HARD_MAX):
+        raise ValueError(f'max_repair_rounds must be an integer from 0 to {REPAIR_ROUNDS_HARD_MAX}')
+
+
 def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment: ChangeAssessment,
                      followup: str, repairer, executor: Executor,
                      max_repair_rounds: int = 3) -> tuple[dict[str, str], int, ExecutionReport, str]:
@@ -210,11 +219,8 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     vocabulary (`ModifierEngine` calls it 'applied'/'failed',
     `CandidateModificationEngine` calls it 'ready_for_review'/'failed').
     """
-    # Brain 2 point 5 (2026-11-02): the same bounds as AutonomousProductEngine (a bool is not a round count).
-    from .autonomous_core import REPAIR_ROUNDS_HARD_MAX, AutonomousProductEngine
-    if (isinstance(max_repair_rounds, bool) or not isinstance(max_repair_rounds, int)
-            or not 0 <= max_repair_rounds <= REPAIR_ROUNDS_HARD_MAX):
-        raise ValueError(f'max_repair_rounds must be an integer from 0 to {REPAIR_ROUNDS_HARD_MAX}')
+    _check_repair_rounds(max_repair_rounds)        # Brain 2 point 5 (2026-11-02)
+    from .autonomous_core import AutonomousProductEngine
     failures = [
         AcceptanceFailure(acceptance_id=aid, message=assessment.reason, evidence=followup).__dict__
         for aid in assessment.acceptance_ids
@@ -278,5 +284,5 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     if not report.passed:
         repo, report = best_repo, best_report           # Brain 2 point 3: a failed loop returns the best, explicitly
     if report.passed:
-        stop_reason = 'passed'
+        stop_reason = 'passed' if repo != dict(repository) else 'no_repair_adopted'
     return repo, rounds, report, stop_reason

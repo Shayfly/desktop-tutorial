@@ -201,6 +201,9 @@ class CandidateModificationEngine:
         )
         diff = diff_modification(old_repository=repository, new_repository=candidate_repo,
                                   old_spec=spec, new_spec=candidate_spec)
-        status = 'ready_for_review' if gates.passed else 'failed'
+        # Brain 2 blocker (2026-11-02): a free repair whose candidate is the unchanged original (every repair was
+        # discarded) is not a candidate to review, whatever its report says.
+        unchanged = assessment.category != 'change_request' and candidate_repo == dict(repository)
+        status = 'ready_for_review' if gates.passed and not unchanged else 'failed'
         return CandidateOutcome(status, assessment, repository, spec, candidate_repo, candidate_spec,
                                  rounds, report, gates, diff, assessment.billable)
