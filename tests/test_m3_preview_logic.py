@@ -918,7 +918,7 @@ class BuildHarness:
         self.workspace.commit.return_value = SimpleNamespace(id='ver_1', artifact_key='repositories/abc.zip')
         self.gateway = real_spend_gateway(calls, '0.25')
         report = ExecutionReport(passed=verified, failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),
-                                 build_log='log')
+                                 build_log='log', tests_executed=2 if verified else None)   # audit finding 14: the count
         self.result = SimpleNamespace(status='ready' if verified else 'failed', spec=ACCEPTED_SPEC,
                                       repository={'app.py': 'x', '.omni/project.json': '{}'}, repair_rounds=1, report=report)
         self.engine = MagicMock()

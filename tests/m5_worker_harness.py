@@ -69,7 +69,7 @@ class ContractBuildHarness:
         report = ExecutionReport(
             passed=verified,
             failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),
-            build_log='log')
+            build_log='log', tests_executed=2 if verified else None)   # audit finding 14: the sandbox's count
         self.result = SimpleNamespace(
             status='ready' if verified else 'failed', spec=ACCEPTED_SPEC,
             repository={'app.py': 'x', '.omni/project.json': '{}'}, repair_rounds=0, report=report)

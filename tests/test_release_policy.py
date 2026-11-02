@@ -25,9 +25,10 @@ def _evidence(**over):
     return ev
 
 
-def _report(evidence, *, spec=ACCEPTED_SPEC, passed=True, failures=(), authors=('author',)):
+def _report(evidence, *, spec=ACCEPTED_SPEC, passed=True, failures=(), authors=('author',), tests_executed=3):
+    # audit 2026-11-02 finding 14: the sandbox's count of executed tests is what makes the tests check PASS
     result = SimpleNamespace(status='ready' if passed else 'failed', spec=spec,
-                             report=ExecutionReport(passed, failures, ''))
+                             report=ExecutionReport(passed, failures, '', tests_executed=tests_executed))
     return build_report(build_id='b', artifact_sha256='sha', result=result, evidence=evidence, quality=OK,
                         security=OK, rights=RIGHTS, author_models=set(authors))
 
@@ -91,7 +92,10 @@ class PolicyTests(unittest.TestCase):
 
     def test_tests_status_reflects_chain_order(self):
         r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('BEHAVIOR', 'x'),))
-        self.assertEqual(_status(r, 'sandbox_build_and_tests'), PASS)     # tests ran before behaviour
+        self.assertEqual(_status(r, 'sandbox_build_and_tests'), PASS)     # tests ran (count 3) before behaviour
+        # audit 2026-11-02 finding 14: without the sandbox's count a later failure no longer implies the tests passed
+        r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('BEHAVIOR', 'x'),), tests_executed=None)
+        self.assertEqual(_status(r, 'sandbox_build_and_tests'), 'UNKNOWN')
         r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('A1', 'unit tests'),))
         self.assertEqual(_status(r, 'sandbox_build_and_tests'), FAIL)
         r = _report(_evidence(), passed=False, failures=(AcceptanceFailure('CONSISTENCY', 'x'),))
