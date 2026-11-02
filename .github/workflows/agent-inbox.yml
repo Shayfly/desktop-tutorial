@@ -17,10 +17,25 @@ concurrency:
 
 jobs:
   copy:
-    if: github.event.label.name == 'agent-inbox'
+    # Founder 00:59 condition 1. The labeller's role is checked in the first step (the gate): an `issues` payload's
+    # `sender` is a plain user object with no author_association, so a sender clause here would always be empty.
+    if: >-
+      github.event.label.name == 'agent-inbox' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Gate -- the labeller has write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SENDER: ${{ github.event.sender.login }}
+        run: |
+          set -euo pipefail
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .permission)
+          case "$perm" in
+            admin|maintain|write) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
+            *) echo "::error title=inbox gate::labeller $SENDER has '$perm' -- not copied"; exit 1;;
+          esac
       - uses: actions/checkout@v4
         with:
           ref: inbox
@@ -31,7 +46,9 @@ jobs:
           NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          path="inbox/$(printf '%03d' "$NUMBER").md"
+          if [ ${#BODY} -gt 20000 ]; then echo "::error::body too large: ${#BODY}"; exit 1; fi
+          path="inbox/$(printf '%03d' "$((10#$NUMBER))").md"
+          if [ -e "$path" ]; then n=1; while [ -e "${path%.md}.v$n.md" ]; do n=$((n+1)); done; mv "$path" "${path%.md}.v$n.md"; echo "::notice title=inbox::kept the earlier copy as ${path%.md}.v$n.md"; fi
           printf '%s\n' "$BODY" > "$path"
           echo "path=$path" >> "$GITHUB_OUTPUT"
           echo "::notice title=inbox::wrote $path ($(wc -c < "$path") bytes) from issue #$NUMBER"
@@ -43,7 +60,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "$FILE"
+          git add -A -- inbox/
           if git diff --cached --quiet; then echo "::notice title=inbox::$FILE unchanged"; exit 0; fi
           git commit -m "inbox: $FILE from issue #$NUMBER"
           git push origin HEAD:inbox
