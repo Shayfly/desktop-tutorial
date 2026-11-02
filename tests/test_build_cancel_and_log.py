@@ -99,7 +99,7 @@ class BuildControlTests(unittest.TestCase):
 
 
 class CancelledBuildJobTests(unittest.TestCase):
-    def test_stop_during_generation_writes_cancelled_and_settles_only_real_spend(self):
+    def test_stop_during_generation_writes_cancelled_and_releases_the_credits(self):
         h = BuildHarness(calls=2, engine_exc=BuildCancelled('build bld_1 stopped by its owner'))
         h.jobs = _Jobs()
         self.assertEqual(h.run(), 'cancelled')
@@ -107,7 +107,9 @@ class CancelledBuildJobTests(unittest.TestCase):
         self.assertEqual(h.final['error_code'], 'cancelled_by_user')
         self.assertIsNone(h.final.get('result_version_id'))
         h.workspace.commit.assert_not_called()  # no version from a stopped build
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        # founder 2026-11-02: a build that did not deliver releases its credits; the real spend stays on record
+        h.subs.release_failed.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_not_called()
 
     def test_stop_before_any_paid_call_releases_the_reservation(self):
         h = BuildHarness(calls=0)

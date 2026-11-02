@@ -438,11 +438,15 @@ def taxonomy_evidence(engine, *, ready: bool = False) -> dict:
 
 
 def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
-    """settle() whenever real provider spend was incurred (or the build is
-    READY); release() only when a failed build incurred no external spend."""
-    if ready or spent > 0 or external_calls > 0:
+    """READY -> settle(). FAILED -> its credits are released (founder 2026-11-02, DELIVERY-001: a failed stage is
+    not charged): release() when no external spend happened, release_failed() -- RELEASED with the real provider
+    cost kept on record -- when it did. A failed build is never SETTLED."""
+    if ready:
         subscriptions.settle(build_id=build_id, actual_provider_cost_usd=spent)
         return 'settled'
+    if spent > 0 or external_calls > 0:
+        subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=spent)
+        return 'released'
     subscriptions.release(build_id=build_id)
     return 'released'
 
@@ -624,6 +628,14 @@ def resolve_m5_billing(
     # inputs are known. A non-zero infrastructure maximum is still a reserve,
     # not an actual, so suppress contribution rather than fabricate precision.
     revenue = None if revenue_raw is None or infra_max != 0 else Decimal(str(revenue_raw))
+    if not ready:
+        # Founder 2026-11-02 (DELIVERY-001): a failed build releases its credits; the provider cost it really incurred
+        # stays on record (reservation + plan provider-spend meter), it is never SETTLED to the customer.
+        released = subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=actual)
+        evidence = {'action': 'released_failed', 'cost_basis': cost_basis}
+        if released:
+            evidence.update(released)
+        return 'released', evidence, actual
     settlement = subscriptions.settle(
         build_id=build_id, actual_provider_cost_usd=actual,
         revenue_usd=revenue, infra_cost_usd=Decimal('0'),
