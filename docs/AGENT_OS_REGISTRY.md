@@ -46,7 +46,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 30, INTEGRATION
 | Localization / RTL Agent (`localization_rtl_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result |  |
 | SEO / Web Quality Agent (`seo_web_quality_agent`) | quality | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Analytics Agent (`analytics_agent`) | platform | **NOT_IMPLEMENTED** | privacy_reviewer | no implementation | not implemented |
-| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py, omni_prod/modification_engine.py |  |
 | Automation Agent (`automation_agent`) | automation | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Media Orchestrator (`media_orchestrator`) | media | **UNIT_TESTED** | compliance_ip_agent | unit tests only — tests/test_m495_worker_capabilities.py |  |
 | Image Agent (`image_agent`) | media | **BLOCKED** | compliance_ip_agent | not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF |  |
