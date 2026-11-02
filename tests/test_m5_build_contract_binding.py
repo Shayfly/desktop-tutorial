@@ -207,7 +207,7 @@ class WorkerContractBindingTests(unittest.TestCase):
         platform.rights.repository_files.return_value = {}
         platform.branding.decorate_repository.side_effect = lambda repo, **kw: dict(repo)
 
-        report = SimpleNamespace(passed=True, failures=(), build_log="ok")
+        report = SimpleNamespace(passed=True, failures=(), build_log="ok", tests_executed=2)   # audit finding 14: the count
         engine = MagicMock()
         engine.executor = verified_chain()  # release policy: the chain's checks ran and passed
         engine.build.return_value = SimpleNamespace(
