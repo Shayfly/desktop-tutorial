@@ -1,0 +1,89 @@
+name: ops refund owner failed builds (branch only)
+
+# Founder 2026-11-02 20:32: refund the 135 credits of the owner's three FAILED builds (bld_96ab03c8, bld_99ea49df,
+# bld_2a75e300), which the old rule settled (audit finding 1, fixed in PR #214). Recorded in git (this file, REFUND_APPLY)
+# and in credit_ledger (one row per build, idempotency_key failed-build-release:<build_id>, the same key PR #214 uses).
+# REFUND_APPLY=0 -> dry run (read-only session). REFUND_APPLY=1 -> one transaction, idempotent, guarded:
+# account must be usr_GCWlMxENgr9vpwph, every reservation SETTLED, total 135, ledger key absent.
+on:
+  push:
+    branches: [ops/refund-owner-failed-builds-20261102]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-refund-owner
+  cancel-in-progress: false
+
+env:
+  REFUND_APPLY: '0'
+
+jobs:
+  refund:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Refund (dry run unless REFUND_APPLY=1)
+        shell: bash
+        run: |
+          set -uo pipefail
+          wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+          cd "$wd"
+          docker compose run --rm --no-deps -T -e REFUND_APPLY="$REFUND_APPLY" worker python - <<'PY'
+          import os, sys, psycopg
+          def note(t, b):
+              print(f'::notice title={t}::' + str(b).replace('%', '%25').replace('\n', '%0A')[:3000], flush=True)
+          ACCOUNT = 'usr_GCWlMxENgr9vpwph'
+          BUILDS = ['bld_96ab03c880f24b3a98065bf29eed11c3', 'bld_99ea49dfc6c843aabc90bb8cccbcc1d7',
+                    'bld_2a75e30013d649d3a30fbeb7dcc00b2c']
+          APPLY = os.environ.get('REFUND_APPLY') == '1'
+          def state(cur, tag):
+              sub = cur.execute('SELECT plan_code, cycle, credits_used, provider_spend_usd FROM creator_subscriptions '
+                                'WHERE user_id=%s', (ACCOUNT,)).fetchone()
+              note(f'{tag} subscription', f'account={ACCOUNT} plan={sub[0]} cycle={sub[1]} credits_used={sub[2]} provider_spend_usd={sub[3]}')
+              return sub
+          with psycopg.connect(os.environ['OMNI_DATABASE_URL'], connect_timeout=10) as conn:
+              conn.read_only = not APPLY
+              with conn.transaction():
+                  cur = conn.cursor()
+                  note('mode', 'APPLY' if APPLY else 'DRY RUN (read-only session)')
+                  before = state(cur, '1. before')
+                  rows = cur.execute('SELECT build_id, account_id, status, credits_reserved, estimated_provider_cost_usd, '
+                                     'settled_provider_cost_usd, funding_source, project_id, created_at, resolved_at '
+                                     'FROM credit_reservations WHERE build_id = ANY(%s) ORDER BY created_at FOR UPDATE', (BUILDS,)).fetchall()
+                  for r in rows:
+                      led = cur.execute('SELECT delta, reason, created_at FROM credit_ledger WHERE idempotency_key=%s',
+                                        (f'failed-build-release:{r[0]}',)).fetchone()
+                      note(f'2. reservation {r[0][:12]}', f'account={r[1]} status={r[2]} credits={r[3]} est_usd={r[4]} '
+                           f'settled_usd={r[5]} funding={r[6]} created={r[8]:%Y-%m-%d %H:%M}Z ledger={led}')
+                  problems = []
+                  if len(rows) != 3: problems.append(f'{len(rows)} reservations found, expected 3')
+                  if any(r[1] != ACCOUNT for r in rows): problems.append('a reservation is not on the owner account')
+                  if any(r[2] != 'SETTLED' for r in rows): problems.append('a reservation is not SETTLED')
+                  if any(r[6] != 'customer_plan' for r in rows): problems.append('a reservation is not customer_plan funded')
+                  total = sum(int(r[3]) for r in rows)
+                  if total != 135: problems.append(f'total credits {total}, expected 135')
+                  if any(cur.execute('SELECT 1 FROM credit_ledger WHERE idempotency_key=%s', (f'failed-build-release:{r[0]}',)).fetchone() for r in rows):
+                      problems.append('a ledger row already exists (already refunded)')
+                  if int(before[2]) < total: problems.append(f'credits_used {before[2]} < {total}')
+                  note('3. guards', 'OK' if not problems else '; '.join(problems))
+                  if problems:
+                      sys.exit(1)
+                  note('4. would refund' if not APPLY else '4. refunding',
+                       f'{total} credits: credits_used {before[2]} -> {int(before[2]) - total}; 3 reservations SETTLED -> RELEASED '
+                       f'(settled provider cost kept); 3 credit_ledger rows reason=failed_build_released')
+                  if not APPLY:
+                      sys.exit(0)
+                  for r in rows:
+                      cur.execute("UPDATE credit_reservations SET status='RELEASED' WHERE build_id=%s AND status='SETTLED'", (r[0],))
+                      assert cur.rowcount == 1
+                      cur.execute("INSERT INTO credit_ledger(account_id, project_id, delta, reason, idempotency_key) "
+                                  "VALUES (%s, %s, %s, 'failed_build_released', %s)", (ACCOUNT, r[7], int(r[3]), f'failed-build-release:{r[0]}'))
+                  cur.execute('UPDATE creator_subscriptions SET credits_used = credits_used - %s WHERE user_id=%s', (total, ACCOUNT))
+              with conn.cursor() as cur:
+                  after = state(cur, '5. after')
+                  n = cur.execute("SELECT count(*), sum(delta) FROM credit_ledger WHERE idempotency_key = ANY(%s)",
+                                  ([f'failed-build-release:{b}' for b in BUILDS],)).fetchone()
+                  note('6. ledger', f'rows={n[0]} sum_delta={n[1]}')
+          PY
