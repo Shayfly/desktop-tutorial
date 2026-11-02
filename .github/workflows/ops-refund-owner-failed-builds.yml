@@ -51,7 +51,8 @@ jobs:
                   before = state(cur, '1. before')
                   rows = cur.execute('SELECT build_id, account_id, status, credits_reserved, estimated_provider_cost_usd, '
                                      'settled_provider_cost_usd, funding_source, project_id, created_at, resolved_at '
-                                     'FROM credit_reservations WHERE build_id = ANY(%s) ORDER BY created_at FOR UPDATE', (BUILDS,)).fetchall()
+                                     'FROM credit_reservations WHERE build_id = ANY(%s) ORDER BY created_at' + (' FOR UPDATE' if APPLY else ''),
+                                     (BUILDS,)).fetchall()
                   for r in rows:
                       led = cur.execute('SELECT delta, reason, created_at FROM credit_ledger WHERE idempotency_key=%s',
                                         (f'failed-build-release:{r[0]}',)).fetchone()
