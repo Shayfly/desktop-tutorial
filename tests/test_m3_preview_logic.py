@@ -857,17 +857,24 @@ class TestBillingRules(unittest.TestCase):
         cases = [
             (True, Decimal('0'), 0, 'settled', Decimal('0')),
             (True, Decimal('0.5'), 2, 'settled', Decimal('0.5')),
-            (False, Decimal('0.5'), 2, 'settled', Decimal('0.5')),
-            (False, Decimal('0'), 1, 'settled', Decimal('0')),
+            # founder 2026-11-02: a FAILED build is released (credits back), never settled; with spend it goes
+            # through release_failed (the real cost stays on record), without spend through release()
+            (False, Decimal('0.5'), 2, 'released_failed', Decimal('0.5')),
+            (False, Decimal('0'), 1, 'released_failed', Decimal('0')),
             (False, Decimal('0'), 0, 'released', None),
         ]
         for ready, spent, calls, expected, settle_amount in cases:
             with self.subTest(ready=ready, spent=spent, calls=calls):
                 subs = MagicMock()
                 self.assertEqual(worker_tasks.resolve_billing(subs, build_id='b', ready=ready, spent=spent,
-                                                              external_calls=calls), expected)
+                                                              external_calls=calls),
+                                 'released' if expected == 'released_failed' else expected)
                 if expected == 'settled':
                     subs.settle.assert_called_once_with(build_id='b', actual_provider_cost_usd=settle_amount)
+                    subs.release.assert_not_called()
+                elif expected == 'released_failed':
+                    subs.release_failed.assert_called_once_with(build_id='b', actual_provider_cost_usd=settle_amount)
+                    subs.settle.assert_not_called()
                     subs.release.assert_not_called()
                 else:
                     subs.release.assert_called_once_with(build_id='b')
@@ -1008,19 +1015,22 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
         h.subs.settle.assert_not_called()
         self.assertEqual(h.final['evidence_json']['billing'], 'released')
 
-    def test_failed_build_with_external_spend_settles_not_releases(self):
+    def test_failed_build_with_external_spend_releases_its_credits(self):
+        # founder 2026-11-02: a failed build is RELEASED (credits back), never SETTLED; the real cost stays on record
         h = BuildHarness(security=False, calls=3)
         h.run()
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.75'))
+        h.subs.release_failed.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.75'))
+        h.subs.settle.assert_not_called()
         h.subs.release.assert_not_called()
 
-    def test_exception_after_spend_settles_and_reraises(self):
+    def test_exception_after_spend_releases_and_reraises(self):
         h = BuildHarness(calls=2)
         h.platform.branding.decorate_repository.side_effect = PermissionError('white-label requires Business')
         with self.assertRaises(PermissionError):
             h.run()
         self.assertEqual((h.final['target'], h.final['error_code']), (BuildStatus.FAILED, 'worker_exception'))
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.release_failed.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_not_called()
         h.subs.release.assert_not_called()
 
     def test_exception_before_any_spend_releases_and_reraises(self):
