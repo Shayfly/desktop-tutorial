@@ -130,5 +130,69 @@ class BuildLoop(unittest.TestCase):
         self.assertEqual((result.stop_reason, len(plans)), ('no_progress_repository_unchanged', 1))
 
 
+
+class FreeRepairLoop(unittest.TestCase):
+    """modifier_engine.run_free_repair (founder 2026-11-02 16:48): the floor is the plan of the repository the
+    modification starts from."""
+
+    def run_loop(self, repairs, rounds=3):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import run_free_repair
+        plans, inputs = [], []
+
+        class Rep:
+            def repair(self, *, spec, repo_summary, failures):
+                inputs.append([f['acceptance_id'] for f in failures])
+                return parse_patch({'files': repairs[len(inputs) - 1]})
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                block = plan_floor.plan_block(repository)
+                plans.append(block)
+                has_s2 = bool(block) and S2 in [s for p in block['personas'] for s in p['steps']]
+                if 'fixed' in repository['app.py'] and has_s2:
+                    return ExecutionReport(True)
+                return ExecutionReport(False, (AcceptanceFailure('A3', f"S2 2.9 accepted at {repository['app.py']}"),))
+        start = {'app.py': py('broken'), '.omni/project.json': ROUND0}
+        out = run_free_repair(spec=None, repository=start,
+                              assessment=ChangeAssessment('system_bug', '2.9 is accepted', ('A3',), False),
+                              followup='a score of 2.9 is accepted', repairer=Rep(), executor=Ex(),
+                              max_repair_rounds=rounds)
+        return out, plans, inputs
+
+    def test_a_round_that_cuts_the_block_and_passes_is_checked_against_the_original(self):
+        (repo, rounds, report), plans, _ = self.run_loop([[{'path': 'app.py', 'content': py('fixed app')},
+                                                           {'path': '.omni/project.json', 'content': ROUND1}]])
+        print('\n[free repair, cut + fix]', rounds, report.passed)
+        self.assertTrue(report.passed)
+        self.assertEqual(plans, [FLOOR])                            # verified against the ORIGINAL block
+        self.assertEqual(plan_floor.plan_block(repo), FLOOR)
+        self.assertEqual(repo['app.py'], py('fixed app'))           # the round's code change is kept
+
+    def test_a_cut_round_that_still_fails_tells_the_next_repair(self):
+        (repo, rounds, report), plans, inputs = self.run_loop(
+            [[{'path': 'app.py', 'content': py('still broken')}, {'path': '.omni/project.json', 'content': ROUND1}],
+             [{'path': 'app.py', 'content': py('fixed app')}]])
+        print('[free repair, cut S2 then fix]', inputs)
+        self.assertEqual(inputs[1], ['A3', plan_floor.PLAN_WEAKENED_ID])
+        self.assertTrue(all(p == FLOOR for p in plans))
+        self.assertTrue(report.passed)
+
+    def test_no_plan_at_the_start_means_no_floor(self):
+        from omni_prod.change_policy import ChangeAssessment
+        from omni_prod.modifier_engine import run_free_repair
+
+        class Rep:
+            def repair(self, **kw):
+                return parse_patch({'files': [{'path': 'app.py', 'content': py('fixed')}]})
+
+        class Ex:
+            def execute(self, *, repository, spec):
+                return ExecutionReport(True)
+        repo, rounds, report = run_free_repair(spec=None, repository={'app.py': py('x'), '.omni/project.json': ROUND1},
+                                               assessment=ChangeAssessment('system_bug', 'r', ('A1',), False),
+                                               followup='f', repairer=Rep(), executor=Ex())
+        self.assertEqual(repo['.omni/project.json'], ROUND1)
+
 if __name__ == '__main__':
     unittest.main()

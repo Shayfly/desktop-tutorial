@@ -214,12 +214,19 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     repo = dict(repository)
     report: ExecutionReport | None = None
     rounds = 0
+    # The plan of the repository this loop starts from is a floor for every round (plan_floor, founder 2026-11-02
+    # 16:48): a round that removes or weakens it gets the original block back, keeps its other changes, is verified
+    # against the original, and the next repair is told (REPAIR_PLAN_WEAKENED).
+    from . import plan_floor
+    floor = plan_floor.plan_block(repo)
     while failures and rounds < max_repair_rounds:
         rounds += 1
         patch = repairer.repair(spec=spec, repo_summary=repo_summary(repo, failures), failures=failures)
-        repo = apply_patch(repo, patch)
+        repo, plan_lost = plan_floor.enforce(apply_patch(repo, patch), floor, repo)
         report = executor.execute(repository=repo, spec=spec)
         failures = [f.__dict__ for f in report.failures]
+        if plan_lost and failures:
+            failures.append(plan_floor.note(plan_lost))
     if report is None:
         # max_repair_rounds == 0: still report the real, current state of
         # `repo` rather than claiming success with no verification run.
