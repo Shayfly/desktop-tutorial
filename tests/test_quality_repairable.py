@@ -71,7 +71,10 @@ class QualityTests(unittest.TestCase):
             self.skipTest(f'patch shape: {exc}')
         self.assertEqual(result.status, 'ready')
         self.assertEqual(result.repair_rounds, 1)
-        self.assertTrue(all(f['acceptance_id'] == QUALITY_FAILURE_ID for f in repairs[0]))
+        # The verify-per-criterion pre-flight (2026-11-02) may first ask for a narrow manifest fix; that call is not a
+        # repair round. The first ROUND's repair is about quality only.
+        rounds = [r for r in repairs if not any(f['acceptance_id'] == 'VERIFY_GRANULARITY' for f in r)]
+        self.assertTrue(all(f['acceptance_id'] == QUALITY_FAILURE_ID for f in rounds[0]))
 
     def test_quality_only_failure_is_reported_as_quality_gate(self):
         quality = assess_repository(spec=_spec(), repository=THIN)
