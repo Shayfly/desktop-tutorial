@@ -99,9 +99,11 @@ class RecoveredBuildSettlementTests(unittest.TestCase):
         with patch.object(worker_tasks, 'spend_snapshot', return_value=(Decimal('0'), 0)):
             billing, _, actual = worker_tasks.resolve_m5_billing(subs, build_id='b', ready=False, gateway=gw, capability_evidence=None,
                                                                  economics_quote={'infrastructure_maximum_usd': '0'})
-        self.assertEqual(billing, 'settled')
-        self.assertEqual(actual, Decimal('0.01'))
+        self.assertEqual(billing, 'released')          # founder 2026-11-02: a failed build is never SETTLED
+        self.assertEqual(actual, Decimal('0.01'))       # the real cost is still measured and recorded
         subs.release.assert_not_called()
+        subs.settle.assert_not_called()
+        subs.release_failed.assert_called_once_with(build_id='b', actual_provider_cost_usd=Decimal('0.01'))
 
 
 class LedgerFlushTests(unittest.TestCase):
