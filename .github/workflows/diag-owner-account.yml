@@ -1,0 +1,46 @@
+name: diag owner account (read-only, branch only)
+
+# Founder 2026-11-02 19:26: find the owner's account id read-only, from the builds the owner ran (no email used).
+# READ-ONLY SELECTs in a read-only session: build_requests.user_id of the owner's three builds, that account's
+# subscription plan code and credits used, and its internal_entitlements rows (scope only). Nothing is written.
+on:
+  push:
+    branches: [diag/owner-account-20261102]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-owner-account
+  cancel-in-progress: false
+
+jobs:
+  read:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Owner account id (read-only)
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          wd=$(docker inspect omni-worker-worker-1 --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+          cd "$wd"
+          docker compose run --rm --no-deps -T worker python - <<'PY'
+          import os, psycopg
+          def note(t, b):
+              print(f'::notice title={t}::' + str(b).replace('%', '%25').replace('\n', '%0A')[:3000], flush=True)
+          builds = ('bld_96ab03c880f24b3a98065bf29eed11c3', 'bld_99ea49dfc6c843aabc90bb8cccbcc1d7',
+                    'bld_2a75e30013d649d3a30fbeb7dcc00b2c')
+          with psycopg.connect(os.environ['OMNI_DATABASE_URL'], connect_timeout=10) as conn:
+              conn.read_only = True
+              rows = conn.execute('SELECT user_id, count(*), min(created_at), max(created_at) FROM build_requests '
+                                  'WHERE build_id = ANY(%s) GROUP BY user_id', (list(builds),)).fetchall()
+              note('1. user_id of the owner builds', '; '.join(f'{r[0]} builds={r[1]} first={r[2]:%Y-%m-%d %H:%M}Z last={r[3]:%Y-%m-%d %H:%M}Z' for r in rows) or '(none)')
+              for uid, *_ in rows:
+                  sub = conn.execute('SELECT plan_code, credits_used FROM creator_subscriptions WHERE user_id = %s', (uid,)).fetchone()
+                  note(f'2. subscription {uid}', f'plan_code={sub[0]} credits_used={sub[1]}' if sub else '(no row)')
+                  ents = conn.execute('SELECT entitlement, environment, revoked_at IS NULL FROM internal_entitlements WHERE account_id = %s', (uid,)).fetchall()
+                  note(f'3. internal_entitlements {uid}', '; '.join(f'{e[0]} env={e[1]} active={e[2]}' for e in ents) or '(none)')
+          PY
+          echo "rc=$?"
