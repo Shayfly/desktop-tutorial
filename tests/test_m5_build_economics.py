@@ -318,18 +318,18 @@ class WorkerSettlementTruthTests(unittest.TestCase):
 
     def test_estimate_ledger_is_never_promoted_to_actual(self):
         subs=MagicMock()
-        subs.settle.return_value={'actual_provider_cost_usd':None,'provider_cost_truth':'CONSERVATIVE_RESERVATION'}
+        subs.release_failed.return_value={'credits_refunded':60,'provider_cost_truth':'CONSERVATIVE_RESERVATION'}
         action,evidence,actual=worker_tasks.resolve_m5_billing(
             subs, build_id='b1', ready=False, gateway=self.gateway('0.25',1),
             capability_evidence=None,
             economics_quote={'revenue_usd':'1.00','infrastructure_maximum_usd':'0'},
         )
-        self.assertEqual(action,'settled')
+        # founder 2026-11-02: the failed build is released (credits back), the estimate is still not promoted
+        self.assertEqual(action,'released')
         self.assertIsNone(actual)
-        subs.settle.assert_called_once_with(
-            build_id='b1', actual_provider_cost_usd=None, revenue_usd=Decimal('1.00'),
-            infra_cost_usd=Decimal('0'),
-        )
+        subs.settle.assert_not_called()
+        subs.release_failed.assert_called_once_with(build_id='b1', actual_provider_cost_usd=None)
+        self.assertEqual(evidence['action'],'released_failed')
 
     def test_failed_zero_spend_build_releases_reservation(self):
         subs=MagicMock()

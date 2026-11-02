@@ -127,9 +127,10 @@ class WorkerPolicyTests(unittest.TestCase):
                     h.workspace.commit.assert_not_called()
                     self.assertIsNone(h.final['result_version_id'])
                     self.assertFalse(h.final['evidence_json']['release_ready'])
-                    if calls:
-                        h.subs.settle.assert_called_once_with(
+                    if calls:   # founder 2026-11-02: the failed build is RELEASED, not SETTLED
+                        h.subs.release_failed.assert_called_once_with(
                             build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+                        h.subs.settle.assert_not_called()
                         h.subs.release.assert_not_called()
                     else:
                         h.subs.release.assert_called_once_with(build_id='bld_1')

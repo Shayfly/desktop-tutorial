@@ -437,6 +437,47 @@ class PostgresSubscriptionService:
                     'applied': settled is not None}
         return {'build_id': build_id, 'action': action, 'metered_usd': str(total), 'reason': reason, 'applied': False}
 
+    def release_failed(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None) -> dict | None:
+        """A FAILED build releases its credits in full (founder 2026-11-02 20:32; DECISIONS DELIVERY-001: "a stage that
+        failed is not charged"). Before this, a failed build that had made any model call was settle()d and its credits
+        stayed spent -- the owner's account lost 135 credits on three failed builds.
+
+        RELEASED, never SETTLED. The credits return to the plan; the provider cost the company really paid stays on
+        record: on the reservation (actual / settled provider cost) and in the plan's provider-spend meter (the
+        estimate is replaced by the cost basis, as settle() does), so a stream of failed builds cannot spend provider
+        money outside the plan's budget. The refund is written to credit_ledger (one row per build, idempotent).
+        Returns None when the reservation is missing or no longer RESERVED (nothing changes twice)."""
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute("SELECT account_id, status, credits_reserved, estimated_provider_cost_usd, funding_source, "
+                                "project_id FROM credit_reservations WHERE build_id=%s FOR UPDATE", (build_id,))
+                    row = cur.fetchone()
+                    if not row or row[1] != 'RESERVED':
+                        return None
+                    user_id, credits_reserved, estimated = row[0], int(row[2]), Decimal(str(row[3]))
+                    reported = None if actual_provider_cost_usd is None else Decimal(str(actual_provider_cost_usd))
+                    if reported is not None and reported < 0:
+                        raise ValueError('actual provider cost must be >= 0')
+                    basis = estimated if reported is None else reported
+                    cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now(), "
+                                "actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s",
+                                (reported, basis, build_id))
+                    if row[4] == 'internal_qa':          # internal QA never touched the customer plan counters
+                        return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': 0,
+                                'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa'}
+                    cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), "
+                                "provider_spend_usd = GREATEST(0, provider_spend_usd - %s + %s) WHERE user_id=%s",
+                                (credits_reserved, estimated, basis, user_id))
+                    if credits_reserved:
+                        cur.execute("INSERT INTO credit_ledger(account_id, project_id, delta, reason, idempotency_key) "
+                                    "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (idempotency_key) DO NOTHING",
+                                    (user_id, row[5], credits_reserved, 'failed_build_released',
+                                     f'failed-build-release:{build_id}'))
+                    return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': credits_reserved,
+                            'provider_cost_basis_usd': str(basis),
+                            'provider_cost_truth': 'ACTUAL' if reported is not None else 'CONSERVATIVE_RESERVATION'}
+
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:
             with conn.transaction():
