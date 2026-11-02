@@ -241,6 +241,11 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
     report: ExecutionReport | None = None
     rounds = 0
     seen = {_fingerprint(repo)}
+    # The plan of the repository this loop starts from is a floor for every round (plan_floor, founder 2026-11-02
+    # 16:48): a round that removes or weakens it gets the original block back, keeps its other changes, is verified
+    # against the original, and the next repair is told (REPAIR_PLAN_WEAKENED).
+    from . import plan_floor
+    floor = plan_floor.plan_block(repo)
     best_repo, best_report = repo, initial
     stop_reason = 'max_repair_rounds'
     while (report is None or not report.passed) and rounds < max_repair_rounds:
@@ -249,7 +254,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
         if not patch:
             stop_reason = 'no_progress_empty_patch'       # Brain 2 point 4: its own label
             break
-        candidate = apply_patch(repo, patch)
+        candidate, plan_lost = plan_floor.enforce(apply_patch(repo, patch), floor, repo)
         fingerprint = _fingerprint(candidate)
         if fingerprint in seen:
             stop_reason = ('no_progress_repository_unchanged' if candidate == repo
@@ -268,7 +273,7 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
                 'acceptance_id': 'REPAIR_REGRESSION',
                 'message': 'Your previous change made the product worse and was discarded; this is the better '
                            'version again. Do not repeat that change.',
-                'evidence': failing[:600]}]
+                'evidence': failing[:600]}] + ([plan_floor.note(plan_lost)] if plan_lost else [])
             continue
         previous = report if report is not None else initial
         same_failure = signature(new_report) == signature(previous)
@@ -279,6 +284,8 @@ def run_free_repair(*, spec: ProductSpec, repository: dict[str, str], assessment
             stop_reason = 'no_progress_same_failure'   # the same (acceptance_id, message) set as the round before
             break
         failures = [f.__dict__ for f in report.failures]
+        if plan_lost and failures:
+            failures.append(plan_floor.note(plan_lost))
     if report is None:
         report = initial                                # no repair was verified: the original's own report
     if not report.passed:

@@ -262,12 +262,18 @@ class AutonomousProductEngine:
         # that goes backwards is discarded; the next one starts from the best.
         best_repo, best_report = repo, report
         discarded_note = None
+        # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
+        from . import plan_floor
+        floor, plan_note = plan_floor.plan_block(repo), None
         while not report.passed and rounds < self.max_repair_rounds:
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
             if discarded_note:
                 failures = failures + [discarded_note]
                 discarded_note = None
+            if plan_note:
+                failures = failures + [plan_note]
+                plan_note = None
             transform = getattr(self, 'repository_transform', None)
             if transform is not None and hasattr(transform, 'redact_text'):
                 failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
@@ -285,6 +291,8 @@ class AutonomousProductEngine:
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
                 candidate = self.repository_transform(candidate)
+            # Before the fingerprint: a repair that only cut the plan is then "unchanged", not a new state to verify.
+            candidate, plan_lost = plan_floor.enforce(candidate, floor, repo)
             self.trace.append({
                 'round': rounds,
                 'failing': sorted({f['acceptance_id'] for f in failures}),
@@ -300,6 +308,11 @@ class AutonomousProductEngine:
                 break
             seen.add(fingerprint)
             candidate = self._preflight(candidate, spec, rounds)
+            candidate, lost_in_preflight = plan_floor.enforce(candidate, floor, repo)   # the pre-flight may edit the plan
+            plan_lost = plan_lost + [x for x in lost_in_preflight if x not in plan_lost]
+            if plan_lost:
+                self.trace[-1]['plan_restored'] = plan_lost
+                plan_note = plan_floor.note(plan_lost)
             new_report = self.executor.execute(repository=candidate, spec=spec)
             self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
             worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
