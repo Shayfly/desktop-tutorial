@@ -124,6 +124,12 @@ class AutonomousProductEngine:
              lambda found: pf.syntax_failure(found), lambda found: {e['file'] for e in found}),
             ('preflight_plan_coverage', lambda r: pf.plan_coverage_gaps(r, spec),
              lambda found: pf.plan_failure(found), lambda found: {pf.PLAN_PATH}),
+            # founder 2026-11-02 17:22: one verify command per acceptance criterion, naming that criterion's test
+            ('preflight_verify_granularity', lambda r: pf.verify_granularity_gaps(r, spec),
+             lambda found: pf.granularity_failure(found),
+             lambda found: {pf.PLAN_PATH} | {p for p in repo if p.startswith('tests/') and p.endswith('.py')}
+                           | {f'tests/test_{a.id.lower()}.py' for a in getattr(spec, 'acceptance', ()) or ()}
+                           | {'tests/test_app.py'}),
         )
         for kind, detect, describe, allowed in checks:
             found = detect(repo)

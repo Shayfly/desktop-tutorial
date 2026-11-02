@@ -73,6 +73,66 @@ def plan_coverage_gaps(repository: dict[str, str], spec) -> dict | None:
     return {'invalid': invalid, 'missing_acceptance_ids': missing_ids, 'missing_kinds': missing_kinds}
 
 
+def _verify_entries(repository: dict[str, str]) -> list[dict] | None:
+    try:
+        data = json.loads(repository.get(PLAN_PATH) or '')
+    except (TypeError, ValueError):
+        return None
+    verify = data.get('verify') if isinstance(data, dict) else None
+    return [c for c in verify if isinstance(c, dict)] if isinstance(verify, list) else None
+
+
+def _node_target(argv) -> tuple[str, str] | None:
+    """(file, test name) of the first pytest node id in a command, e.g. tests/test_app.py::test_a1_saves_score."""
+    for word in argv or ():
+        word = str(word)
+        if '::' in word:
+            path, _, rest = word.partition('::')
+            return path, rest.split('::')[-1].split('[', 1)[0]
+    return None
+
+
+def verify_granularity_gaps(repository: dict[str, str], spec) -> dict | None:
+    """Acceptance ids without a verify command of their own (founder 2026-11-02 17:22).
+
+    bld_2a75e300: one command `python -m pytest -q` carried A1..A8, so "1 failed, 2 passed" failed all eight and a
+    partial fix looked like no progress at all. Each acceptance id must have its own verify entry whose
+    acceptance_ids is exactly [that id] and whose argv names a pytest node id (file::test) that exists in the
+    repository, so a passing criterion is seen as passing. None = nothing to fix here."""
+    wanted = [a.id for a in getattr(spec, 'acceptance', ()) or ()]
+    entries = _verify_entries(repository)
+    if not wanted or entries is None:
+        return None                                         # no criteria, or the manifest is broken: other checks
+    import re
+    gaps = {}
+    for aid in wanted:
+        own = [c for c in entries if list(c.get('acceptance_ids') or []) == [aid]]
+        if not own:
+            gaps[aid] = 'no verify entry of its own (acceptance_ids must be exactly ["%s"])' % aid
+            continue
+        target = _node_target(own[0].get('argv'))
+        if target is None:
+            gaps[aid] = 'its argv names no pytest node id (file::test)'
+            continue
+        path, test = target
+        source = repository.get(path)
+        if source is None:
+            gaps[aid] = f'node id {path}::{test}: {path} is not in the repository'
+        elif not re.search(r'^\s*(async\s+)?def\s+%s\s*\(' % re.escape(test), source, re.M):
+            gaps[aid] = f'node id {path}::{test}: no test function {test} in {path}'
+    return {'gaps': gaps} if gaps else None
+
+
+def granularity_failure(found: dict) -> dict:
+    where = '; '.join(f'{aid}: {why}' for aid, why in found['gaps'].items())
+    return {'acceptance_id': 'VERIFY_GRANULARITY',
+            'message': f'verification is not per acceptance criterion: {where}'[:1500],
+            'evidence': f'Pre-flight: in {PLAN_PATH} give every acceptance criterion its own "verify" entry, '
+                        '{"name": "A1 <what>", "argv": ["python", "-m", "pytest", "-q", '
+                        '"tests/test_app.py::test_a1_<what>"], "acceptance_ids": ["A1"]}, and make sure each named '
+                        'test function exists in tests/. Change only the manifest and the test files.'}
+
+
 def syntax_failure(errors: list[dict]) -> dict:
     where = '; '.join(f"{e['file']}:{e['line']} {e['message']}" for e in errors[:6])
     return {'acceptance_id': 'CONSISTENCY', 'message': f'consistency (syntax): {where}',
