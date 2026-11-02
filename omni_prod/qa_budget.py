@@ -27,6 +27,13 @@ calls at their worst case) -- never the whole 0.50 reservation, which made
 $9.15 "used" while Google billed about $0.30. A running reservation still
 counts at its maximum.
 
+Owner accounts in production (founder 2026-11-02 19:26, option a): `OMNI_OWNER_ACCOUNT_IDS` (comma-separated
+account ids) turns this same INTERNAL_QA funding path on in production for exactly those account ids -- credits
+never block their builds, the reservation is `funding_source = internal_qa`, and the caps still apply:
+`OMNI_QA_BUILD_MAX_USD` (default 1.00) and `OMNI_QA_BUDGET_TOTAL_USD` (default 20.00). The env list IS the grant
+(no internal_entitlements row is read in this mode). Unset or empty, or an id that is not listed: production
+behaves exactly as before (customer plan). Customer accounts are never in the list.
+
 Directive 2026-10-09 §15: "do not hide cost by filtering dates without proof of
 free tier/billing". `OMNI_QA_BUDGET_SINCE` (ISO time) therefore only takes
 effect together with `OMNI_QA_FREE_TIER_EVIDENCE`, a reference to the proof
@@ -43,6 +50,9 @@ from typing import Mapping
 _QA_LOCK_ID = 781234992
 QA_ENTITLEMENT = 'INTERNAL_QA'
 QA_ENVIRONMENT = 'staging'
+OWNER_DEFAULT_BUILD_MAX_USD = Decimal('1.00')
+OWNER_DEFAULT_TOTAL_USD = Decimal('20.00')
+OWNER_GRANT = 'env:OMNI_OWNER_ACCOUNT_IDS'
 
 
 class QABudgetDenied(PermissionError):
@@ -66,6 +76,7 @@ class QABudgetPolicy:
     reason: str
     since: str | None = None
     since_ignored: str | None = None  # a date that was configured but has no free-tier evidence
+    owner_ids: frozenset = frozenset()  # production owner mode: the listed account ids are the grant
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> 'QABudgetPolicy':
@@ -74,7 +85,17 @@ class QABudgetPolicy:
         build_max = _decimal(env.get('OMNI_QA_BUILD_MAX_USD'))
         total = _decimal(env.get('OMNI_QA_BUDGET_TOTAL_USD'))
         if environment == 'production' or env.get('VERCEL_ENV', '').strip().lower() == 'production':
-            return cls(False, environment, build_max, total, 'internal QA funding is disabled in production')
+            owners = frozenset(x.strip() for x in (env.get('OMNI_OWNER_ACCOUNT_IDS') or '').replace(';', ',').split(',')
+                               if x.strip())
+            if not owners:
+                return cls(False, environment, build_max, total, 'internal QA funding is disabled in production')
+            # Owner mode (founder 2026-11-02): caps stay, with sane defaults when unset.
+            build_max = build_max if build_max is not None else OWNER_DEFAULT_BUILD_MAX_USD
+            total = total if total is not None else OWNER_DEFAULT_TOTAL_USD
+            if build_max > total:
+                return cls(False, 'production', build_max, total, 'QA per-build cap exceeds total cap')
+            return cls(True, 'production', build_max, total, 'enabled for owner accounts (OMNI_OWNER_ACCOUNT_IDS)',
+                       owner_ids=owners)
         if environment != QA_ENVIRONMENT:
             return cls(False, environment, build_max, total, 'internal QA funding requires OMNI_ENV=staging')
         if build_max is None or total is None:
@@ -95,6 +116,7 @@ class QABudgetPolicy:
 
     def evidence(self) -> dict:
         return {'funding_source': 'internal_qa', 'entitlement': QA_ENTITLEMENT, 'environment': self.environment,
+                **({'owner_mode': True} if self.owner_ids else {}),
                 'qa_build_max_usd': str(self.build_max_usd), 'qa_total_usd': str(self.total_usd),
                 'qa_counted_since': self.since, 'qa_since_ignored_no_evidence': self.since_ignored}
 
@@ -125,6 +147,8 @@ def active_entitlement(cur, policy: QABudgetPolicy, account_id: str) -> dict | N
     """The account's active INTERNAL_QA grant for this environment, or None."""
     if not policy.enabled or not account_id:
         return None
+    if policy.owner_ids:                       # production owner mode: the env list is the grant, nothing else
+        return {'entitlement_id': OWNER_GRANT, 'granted_at': None} if account_id in policy.owner_ids else None
     cur.execute(
         "SELECT id, granted_at FROM internal_entitlements "
         "WHERE account_id = %s AND entitlement = %s AND environment = %s AND revoked_at IS NULL",
@@ -142,7 +166,11 @@ def entitled_account(pool, policy: QABudgetPolicy, account_id: str) -> bool:
     showed NOT_AUTHORIZED and could not be started. Both now ask this. Raises
     whatever the store raises; the caller maps it to an explicit error.
     """
-    if not policy.enabled or pool is None or not account_id:
+    if not policy.enabled or not account_id:
+        return False
+    if policy.owner_ids:
+        return account_id in policy.owner_ids
+    if pool is None:
         return False
     with pool.connection() as conn:
         with conn.cursor() as cur:
