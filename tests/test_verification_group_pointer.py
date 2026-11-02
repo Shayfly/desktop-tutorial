@@ -88,6 +88,13 @@ class Controls(unittest.TestCase):
         self.assertTrue(line.endswith('static/app.js:41 (+1 more)'))           # the pointer survives the 220 cut
         self.assertNotIn('console error', line)                                    # the pointer-bearing failure is quoted
 
+    def test_5_review_with_pointer_loses_to_preview(self):
+        review = R(False, (F('REVIEW', 'reviewer: unhandled input at app.py:31'),))
+        out = run(('PreviewReadyExecutor', PREVIEW_PTR), ('ProductReviewExecutor', review))
+        show('5 review(ptr) vs preview(ptr)', out)
+        self.assertEqual(out.failures[0].acceptance_id, 'PREVIEW')
+        self.assertIn('REVIEW:', out.failures[-1].message)
+
 
 if __name__ == '__main__':
     unittest.main()
