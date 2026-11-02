@@ -25,6 +25,7 @@ drops coverage still fails (missing IDs/kinds).
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
@@ -100,12 +101,22 @@ def _sent(request) -> str:
     return text
 
 
+_APP_FRAME = re.compile(r'File "([^"]+)", line (\d+)(?:, in [^\n]*)?')
+
+
+def _app_frame(log: str) -> str | None:
+    frames = [m for m in _APP_FRAME.finditer(log or '') if 'site-packages' not in m.group(1)]
+    return f'{frames[-1].group(1)}:{frames[-1].group(2)}' if frames else None
+
+
 def _failure_text(report: dict) -> tuple[str, str]:
     failed = [c for c in report.get('checks', []) if not c.get('passed')]
+    frame = _app_frame(str(report.get('server_log_tail', '')))
     lines = []
     for c in failed[:6]:
         lines.append(f"- step {c.get('step_id')} ({c.get('kind')}, acceptance {','.join(c.get('acceptance_ids') or [])}): "
                      f"sent {_sent(c.get('request'))} -> HTTP {c.get('http_status')}; {c.get('detail')}"
+                     + (f' (server: {frame})' if frame else '')
                      + (f"; answer: {c.get('response_excerpt')!s}"[:400] if c.get('response_excerpt') else ''))
     missing = []
     if report.get('missing_acceptance_ids'):
@@ -125,7 +136,7 @@ def _failure_text(report: dict) -> tuple[str, str]:
                 '.omni/project.json (keep its kind and acceptance ids) and keep the rule in the app. Only when the '
                 'request is valid under the approved requirements is the app wrong: then fix the app (validation '
                 'that rejects a valid request is a bug). Never remove coverage of an acceptance criterion.\n'
-              + 'Server log tail:\n' + str(report.get('server_log_tail', ''))[-900:] + '\n' + PLAN_SHAPE)
+              + 'Server log tail:\n' + str(report.get('server_log_tail', ''))[-2500:] + '\n' + PLAN_SHAPE)
     return message, detail
 
 
@@ -196,7 +207,7 @@ class BehaviorAcceptanceExecutor:
                 except ValueError:
                     parsed = None
         if parsed is None:
-            tail = (out + str(result.get('stderr', '')))[-900:]
+            tail = (out + str(result.get('stderr', '')))[-2500:]
             parsed = {'status': 'FAIL', 'summary': 'acceptance run produced no result', 'checks': [],
                       'server_log_tail': tail}
         if not isinstance(parsed, dict) or not isinstance(parsed.get('checks', []), list):   # T4: schema first

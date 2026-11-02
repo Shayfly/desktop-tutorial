@@ -161,16 +161,18 @@ class FreeRepairLoop(unittest.TestCase):
         return out, plans, inputs
 
     def test_a_round_that_cuts_the_block_and_passes_is_checked_against_the_original(self):
-        (repo, rounds, report), plans, _ = self.run_loop([[{'path': 'app.py', 'content': py('fixed app')},
+        (repo, rounds, report, stop), plans, _ = self.run_loop([[{'path': 'app.py', 'content': py('fixed app')},
                                                            {'path': '.omni/project.json', 'content': ROUND1}]])
-        print('\n[free repair, cut + fix]', rounds, report.passed)
+        print('\n[free repair, cut + fix]', rounds, report.passed, stop)
         self.assertTrue(report.passed)
-        self.assertEqual(plans, [FLOOR])                            # verified against the ORIGINAL block
+        # #203 (Brain 2 point 1): the original is verified first; the repaired round is verified against the
+        # ORIGINAL block too
+        self.assertEqual(plans, [FLOOR, FLOOR])
         self.assertEqual(plan_floor.plan_block(repo), FLOOR)
         self.assertEqual(repo['app.py'], py('fixed app'))           # the round's code change is kept
 
     def test_a_cut_round_that_still_fails_tells_the_next_repair(self):
-        (repo, rounds, report), plans, inputs = self.run_loop(
+        (repo, rounds, report, stop), plans, inputs = self.run_loop(
             [[{'path': 'app.py', 'content': py('still broken')}, {'path': '.omni/project.json', 'content': ROUND1}],
              [{'path': 'app.py', 'content': py('fixed app')}]])
         print('[free repair, cut S2 then fix]', inputs)
@@ -189,7 +191,7 @@ class FreeRepairLoop(unittest.TestCase):
         class Ex:
             def execute(self, *, repository, spec):
                 return ExecutionReport(True)
-        repo, rounds, report = run_free_repair(spec=None, repository={'app.py': py('x'), '.omni/project.json': ROUND1},
+        repo, rounds, report, stop = run_free_repair(spec=None, repository={'app.py': py('x'), '.omni/project.json': ROUND1},
                                                assessment=ChangeAssessment('system_bug', 'r', ('A1',), False),
                                                followup='f', repairer=Rep(), executor=Ex())
         self.assertEqual(repo['.omni/project.json'], ROUND1)

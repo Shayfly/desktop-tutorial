@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import os
+import re
 import stat
 import tempfile
 from typing import Callable
@@ -25,6 +26,33 @@ def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
 # ever invoked for them, so the sandbox can never be asked to "confirm" a
 # no-op as a pass.
 _NOOP = {'true', ':', 'exit 0', 'pass', ''}
+
+
+_FRAME = re.compile(r'File "([^"]+)", line (\d+)')
+_SHORT = re.compile(r'^(\S+\.py):(\d+): ', re.M)
+
+
+def _pointer(output: str, known: set[str]) -> str | None:
+    """file:line of the failure, preferring a path that is really in the repository."""
+    text = output or ''
+    cands = [(m.group(1), m.group(2)) for m in _FRAME.finditer(text)]
+    cands += [(m.group(1), m.group(2)) for m in _SHORT.finditer(text)]
+    if not cands:
+        return None
+    for path, line in reversed(cands):
+        norm = path.rsplit('/', 1)[-1]
+        for k in known:
+            if k == path or k.endswith('/' + path) or k == norm:
+                return f'{k}:{line}'
+    path, line = cands[-1]
+    return f'{path}:{line}'
+
+
+def _window(text: str, *, head: int = 1500, tail: int = 1500) -> str:
+    text = (text or '').strip()
+    if len(text) <= head + tail:
+        return text
+    return text[:head] + '\n…\n' + text[-tail:]
 
 
 NO_TESTS_COLLECTED_MESSAGE = "no tests were collected \u2014 the test file is not in pytest's default patterns"
@@ -126,10 +154,13 @@ class SandboxRepositoryExecutor:
                 logs.append(result.stdout)
                 logs.append(result.stderr)
                 if result.returncode != 0:
+                    output = (result.stdout or '') + '\n' + (result.stderr or '')
+                    p = _pointer(output, set(repository))
                     return ExecutionReport(
                         False,
                         tuple(
-                            AcceptanceFailure(a.id, 'build command failed', ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:])
+                            # 'failed: at …' -- the colon keeps the taxonomy key build_command_failed
+                            AcceptanceFailure(a.id, 'build command failed' + (f': at {p}' if p else ''), _window(output))
                             for a in spec.acceptance
                         ),
                         '\n'.join(logs)[-10000:],
@@ -166,12 +197,14 @@ class SandboxRepositoryExecutor:
                 logs.append(result.stdout)
                 logs.append(result.stderr)
                 if result.returncode != 0:
+                    output = (result.stdout or '') + '\n' + (result.stderr or '')
+                    p = _pointer(output, set(repository))
                     for aid in check.acceptance_ids:
                         failures.append(
                             AcceptanceFailure(
                                 aid,
-                                verify_failure_message(check.name, check.argv, result.returncode),
-                                ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:],
+                                verify_failure_message(check.name, check.argv, result.returncode) + (f' at {p}' if p else ''),
+                                _window(output),
                             )
                         )
         failures.extend(uncovered_acceptance_failures(manifest, spec))

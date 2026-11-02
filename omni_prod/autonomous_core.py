@@ -82,6 +82,15 @@ class AutonomousProductEngine:
         return summary
 
     @staticmethod
+    def failure_signature(report) -> frozenset:
+        """What a round failed on, as the repairer is told it: the set of (acceptance_id, message), and nothing else
+        (Brain 2 point 6, 2026-11-02). The repository is NOT part of it -- the point is to stop when different
+        repositories keep failing the same way (bld_96ab03c8: four snapshots, one message); a repository that does
+        not change is caught earlier by the fingerprint. Evidence is NOT part of it either: it carries timings and
+        log tails that differ on every run of the same failure, so including it would never match."""
+        return frozenset((f.acceptance_id, f.message) for f in report.failures)
+
+    @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
         return hashlib.sha256(json.dumps(sorted(repo.items())).encode('utf-8')).hexdigest()
 
@@ -274,6 +283,11 @@ class AutonomousProductEngine:
                 repo_summary=self._repair_summary(repo, failures),
                 failures=failures,
             )
+            if not patch:
+                # Brain 2 point 4 (2026-11-02): an empty patch is its own label; no_progress_repository_unchanged is
+                # kept for a non-empty patch whose result is identical to the repository it was applied to.
+                stop_reason = 'no_progress_empty_patch'
+                break
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
                 candidate = self.repository_transform(candidate)
@@ -316,9 +330,16 @@ class AutonomousProductEngine:
                                   'evidence': '; '.join(failing)[:600]}
                 repo, report = best_repo, best_report
                 continue
+            same_failure = self.failure_signature(new_report) == self.failure_signature(report)
             repo, report = candidate, new_report
             if self.progress(report) >= self.progress(best_report):
                 best_repo, best_report = repo, report
+            if same_failure:
+                # bld_96ab03c8 (founder 2026-11-01 23:33): the repository changed every round, but the failure did
+                # not -- four paid rounds on one identical message. The same set of (acceptance_id, message) as the
+                # round before means the repair is not reaching the cause; stop instead of paying again.
+                stop_reason = 'no_progress_same_failure'
+                break
         if not report.passed:
             repo, report = best_repo, best_report
         return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
