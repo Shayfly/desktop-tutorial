@@ -17,7 +17,6 @@ async function runPromptFirstBuild() {
   $('buildBtn').disabled = true;
   $('buildBtn').textContent = t('building');
   $('resultCard').classList.add('hidden');
-  $('previewPanel').classList.add('hidden');
   msg('state', t('building'));
 
   try {
@@ -91,6 +90,15 @@ async function runPromptFirstBuild() {
     $('buildBtn').disabled = false;
     $('buildBtn').textContent = t('build');
   }
+}
+
+// Decision #232, blocker 3: the preview opens in a new tab, never in an iframe.
+async function openLivePreview(projectId, versionId) {
+  const created = await req(
+    `/api/live/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/preview`,
+    { method: 'POST', headers: auth() },
+  );
+  window.open(created.url, '_blank', 'noopener');
 }
 
 document.addEventListener('DOMContentLoaded', () => {

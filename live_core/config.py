@@ -8,6 +8,23 @@ class ConfigurationError(RuntimeError):
     """Raised when production configuration is unsafe or incomplete."""
 
 
+# live_core reads only OMNI_DATABASE_URL, the same variable investor_app uses.
+# DATABASE_URL is deliberately never read: on Vercel it predates the 25.10
+# database switch and may point at a suspended database (decision #232, blocker 2).
+DATABASE_ENV = "OMNI_DATABASE_URL"
+# Memory persistence must be asked for by name. An unset OMNI_ENV is not
+# treated as permission to run without a database.
+MEMORY_OPT_IN_ENV = "OMNI_LIVE_PERSISTENCE"
+# Kill switch (#232, decision (א)): live_core serves nothing until the owner turns
+# it on. Off unless set to exactly "1" or "true"; read per request, so turning it
+# on or off takes effect on the next deployment without a code change.
+LIVE_ENABLED_ENV = "OMNI_LIVE_ENABLED"
+
+
+def live_enabled() -> bool:
+    return (os.getenv(LIVE_ENABLED_ENV) or "").strip().lower() in ("1", "true")
+
+
 @dataclass(frozen=True)
 class Settings:
     env: str
@@ -19,13 +36,17 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         env = os.getenv("OMNI_ENV", "development").strip().lower() or "development"
-        database_url = (os.getenv("DATABASE_URL") or "").strip() or None
-        if env == "production" and not database_url:
-            raise ConfigurationError("DATABASE_URL is required in production")
-        return cls(
-            env=env,
-            database_url=database_url,
-            persistence="postgres" if database_url else "memory",
+        database_url = (os.getenv(DATABASE_ENV) or "").strip() or None
+        if database_url:
+            return cls(env=env, database_url=database_url, persistence="postgres")
+
+        memory_requested = (os.getenv(MEMORY_OPT_IN_ENV) or "").strip().lower() == "memory"
+        if memory_requested and env != "production":
+            return cls(env=env, database_url=None, persistence="memory")
+
+        raise ConfigurationError(
+            f"{DATABASE_ENV} is required for live_core (DATABASE_URL is not read). "
+            f"Memory persistence is allowed only outside production with {MEMORY_OPT_IN_ENV}=memory."
         )
 
 
@@ -34,7 +55,7 @@ def build_store(settings: Settings):
         from .postgres_store import PostgresStore
 
         if not settings.database_url:
-            raise ConfigurationError("DATABASE_URL is required for postgres persistence")
+            raise ConfigurationError(f"{DATABASE_ENV} is required for postgres persistence")
         return PostgresStore(settings.database_url)
 
     if settings.env == "production":
