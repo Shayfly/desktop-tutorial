@@ -31,9 +31,10 @@ jobs:
           SENDER: ${{ github.event.sender.login }}
         run: |
           set -euo pipefail
-          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .permission)
+          # .role_name, not .permission: the legacy .permission field reports triage as read and maintain as write
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .role_name 2>/dev/null || echo none)
           case "$perm" in
-            admin|maintain|write) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
+            admin|maintain|write|triage) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
             *) echo "::error title=inbox gate::labeller $SENDER has '$perm' -- not copied"; exit 1;;
           esac
       - uses: actions/checkout@v4
