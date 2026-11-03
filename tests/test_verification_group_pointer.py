@@ -42,6 +42,9 @@ PREVIEW_NO_PTR = R(False, (F('PREVIEW', 'preview did not start: health check tim
 BEHAVIOR_PTR = R(False, tuple(F('BEHAVIOR', f'step S{i} expected 400 got 201') for i in range(1, 4))
                  + (F('BEHAVIOR', 'S4 a score of 2.9 is accepted at app.py:23'),))
 BUILD = R(False, (F('A1', 'remote build failed: at app.py:3'),))
+LONG = 'x' * 300
+BROWSER = R(False, (F('BROWSER', 'console error on load'), F('BROWSER', f'TypeError {LONG} at static/app.js:41')))
+SAME_RANK = R(False, (F('BROWSER', 'form submit did nothing'),))
 
 
 class Controls(unittest.TestCase):
@@ -74,14 +77,11 @@ class Controls(unittest.TestCase):
         self.assertFalse(any(f.acceptance_id == SUMMARY_FAILURE_ID for f in out.failures))
 
     def test_4_the_second_failure_carries_the_pointer_and_survives_the_summary_line(self):
-        long = 'x' * 300
-        browser = R(False, (F('BROWSER', 'console error on load'), F('BROWSER', f'TypeError {long} at static/app.js:41')))
-        same_rank = R(False, (F('BROWSER', 'form submit did nothing'),))
-        out = run(('BrowserFlowExecutor', same_rank), ('BrowserFlowExecutor2', browser))
+        out = run(('BrowserFlowExecutor', SAME_RANK), ('BrowserFlowExecutor2', BROWSER))
         show('4a same rank: stage whose 2nd failure carries the pointer', out)
         self.assertIn('static/app.js:41', out.failures[1].message)               # chosen stage, in full
         self.assertNotIn('form submit', out.failures[0].message)
-        out = run(('BuildCheckExecutor', BUILD), ('BrowserFlowExecutor', browser))
+        out = run(('BuildCheckExecutor', BUILD), ('BrowserFlowExecutor', BROWSER))
         show('4b the same stage summarised in ALSO_FAILING (past 220 chars)', out)
         line = out.failures[-1].message
         print('   summary tail:', repr(line[-45:]), '| len', len(line))
@@ -94,6 +94,23 @@ class Controls(unittest.TestCase):
         show('5 review(ptr) vs preview(ptr)', out)
         self.assertEqual(out.failures[0].acceptance_id, 'PREVIEW')
         self.assertIn('REVIEW:', out.failures[-1].message)
+
+    def test_6_controls_discriminate_against_the_old_code(self):
+        from unittest import mock
+        import omni_prod.verification_group as vg
+        old_key = lambda t: (t[0], t[1])
+        def old_summary(r):
+            f = r.failures[0]
+            more = f' (+{len(r.failures) - 1} more)' if len(r.failures) > 1 else ''
+            return f"{f.acceptance_id}: {' '.join(f.message.split())[:220]}{more}"
+        with mock.patch.object(vg, '_rank_key', old_key), mock.patch.object(vg, '_summary_line', old_summary):
+            out = run(('BrowserFlowExecutor', SAME_RANK), ('BrowserFlowExecutor2', BROWSER))
+            show('6a OLD code, same rank', out)
+            self.assertEqual(out.failures[0].message, 'form submit did nothing')
+            out = run(('PreviewReadyExecutor', PREVIEW_NO_PTR), ('BehaviorAcceptanceExecutor', BEHAVIOR_PTR))
+            show('6b OLD code, preview(no ptr) vs behaviour(ptr)', out)
+            self.assertEqual(out.failures[0].acceptance_id, 'PREVIEW')
+            self.assertNotIn('app.py:23', out.failures[-1].message)
 
 
 if __name__ == '__main__':

@@ -63,6 +63,13 @@ class T4VerificationBoundaries(unittest.TestCase):
         art = json.loads((ROOT / 'smoke' / 't4-verification-boundaries.json').read_text(encoding='utf-8'))
         for path, digest in art['source_sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)
+        # The MD table must carry the JSON's hash for every key (2026-11-03: the MD kept behavior_acceptance.py at
+        # 32454280 after bbe8586 moved the JSON to 31a069ae, and nothing noticed because only the JSON was read).
+        md = (ROOT / 'smoke' / 't4-verification-boundaries.md').read_text(encoding='utf-8')
+        import re
+        rows = dict(re.findall(r'^\| `([^`]+)` \| `([0-9a-f]{64})` \|$', md, re.M))
+        for path, digest in art['source_sha256'].items():
+            self.assertEqual(rows.get(path), digest, f'smoke/t4-verification-boundaries.md row for {path}')
         now = {f['case']: ('MET' if not f['boundary_violated'] else 'VIOLATED') for f in self.out['findings']}
         now.update({e['case']: ('MET' if not e['boundary_violated'] else 'VIOLATED') for e in self.out['t4_extra']})
         self.assertEqual({r['id']: r['result'] for r in art['cases'] + art['t4_cases']}, now)
