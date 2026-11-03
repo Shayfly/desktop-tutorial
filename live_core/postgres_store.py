@@ -20,6 +20,25 @@ from .store import (
 )
 
 
+LIVE_CORE_MIGRATION_VERSION = 42
+
+
+def migration_applied(conn) -> bool:
+    """True when schema_migrations records version 042, so the fallback DDL must not run.
+
+    Two queries: the second would not parse on a database without schema_migrations.
+    """
+    row = conn.execute("SELECT to_regclass('public.schema_migrations') IS NOT NULL AS present").fetchone()
+    present = row["present"] if isinstance(row, dict) else row[0]
+    if not present:
+        return False
+    row = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = %s) AS applied",
+        (LIVE_CORE_MIGRATION_VERSION,),
+    ).fetchone()
+    return bool(row["applied"] if isinstance(row, dict) else row[0])
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS live_users (
     id UUID PRIMARY KEY,
@@ -139,7 +158,10 @@ class PostgresStore:
         with self._schema_lock:
             if self._schema_ready:
                 return
-            conn.execute(SCHEMA)
+            # Migration 042 (infra/postgres/042_live_core_tables.sql) owns these tables.
+            # The DDL below is only a fallback for a database the runner has not reached.
+            if not migration_applied(conn):
+                conn.execute(SCHEMA)
             self._schema_ready = True
 
     def create_user(self, email: str, password_hash: str) -> UserRecord:
