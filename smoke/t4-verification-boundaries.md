@@ -1,19 +1,19 @@
 # T4 verification boundaries — per-case evidence
 
 - command: `python3 -I tools/redteam_verification_boundaries.py` → exit **0**
-- generated on top of commit `52f8502118b1e5088f443fc3e02c493389d21f19` (the code under test is this file's own commit; source SHA-256 below)
+- generated on top of commit `51e085e89171f4142cd86bd38a02ef7f8f91f071` (the code under test is this file's own commit; source SHA-256 below)
 - original 26: **26/26 met**, false successes **0**; T4 cases: **16/16 met**
 - probe stdout SHA-256: `07a67642c422c2b467cd0883b957c8f62d234aabc98b595fdfb8523d3885757c`
 
-| file | SHA-256 |
-|---|---|
-| `omni_prod/verification_verdict.py` | `5f989166af717df53237a57e2f6ecda33183d7391675605c5108ea4522b331d8` |
-| `omni_prod/browser_probe.py` | `2fba2146a944330f30e2b1a4693c6e7b0b7390ffc6429870461fb63cd173d9b0` |
-| `omni_prod/visual_qa.py` | `8bc50c1bb6af62f7ee47587290c27fc3891c0c2d4132ebf6ddb9f5368fde4769` |
-| `omni_prod/behavior_acceptance.py` | `32454280b6b0d505a3967d179b8190a81dc5ca77f68d6a4bd663e4b6f02e5004` |
-| `omni_prod/preview_smoke.py` | `99f30307d985d2fcb4a5a6e9f9a141cbfcbab507b89cc25929559b8cd7c5e343` |
-| `omni_prod/verification_group.py` | `e7ceaaae16d9641d37dcdc5addfdeca4d916621c3260d37914ee708806ce48b5` |
-| `tools/redteam_verification_boundaries.py` | `b7bf43a075963c3d626b1817f23fc3ad9a34d0f7195bc1b123e3ecfe3e45fbf1` |
+| file | SHA-256 | line |
+|---|---|---|
+| `omni_prod/verification_verdict.py` | `5f989166af717df53237a57e2f6ecda33183d7391675605c5108ea4522b331d8` | — |
+| `omni_prod/browser_probe.py` | `2fba2146a944330f30e2b1a4693c6e7b0b7390ffc6429870461fb63cd173d9b0` | — |
+| `omni_prod/visual_qa.py` | `8bc50c1bb6af62f7ee47587290c27fc3891c0c2d4132ebf6ddb9f5368fde4769` | — |
+| `omni_prod/behavior_acceptance.py` | `31a069aeb56ef5c729788996bc5e512fcb1d98b4056baae45c939482663b8002` | — |
+| `omni_prod/preview_smoke.py` | `99f30307d985d2fcb4a5a6e9f9a141cbfcbab507b89cc25929559b8cd7c5e343` | — |
+| `omni_prod/verification_group.py` | `a81051965ada45ef07626328b857de1dfa0f7d0c365bc77d3b72797f47417023` | — |
+| `tools/redteam_verification_boundaries.py` | `b7bf43a075963c3d626b1817f23fc3ad9a34d0f7195bc1b123e3ecfe3e45fbf1` | — |
 
 ## The 26 original cases
 
