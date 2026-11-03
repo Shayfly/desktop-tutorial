@@ -164,8 +164,13 @@ class FakeVerificationTests(unittest.TestCase):
         for argv in (('true',), (':',), ('echo', 'ok'), ('python', '-c', 'pass'), ('python3', '-c', 'print(1)'),
                      ('sh', '-c', 'exit 0'), ('bash', '-c', 'true'), ('exit', '0')):
             self.assertTrue(fake(argv), argv)
-        for argv in (('python', '-m', 'pytest', '-q'), ('python', '-m', 'unittest'),
-                     ('python', '-c', 'import app; assert app.ok()'), ('node', 'test.js')):
+        # audit 2026-11-02 finding 3: a positive requirement -- only a recognised test runner is evidence. An inline
+        # `python -c` (even with assert) and an arbitrary script are no longer accepted as tests.
+        for argv in (('python', '-c', 'import app; assert app.ok()'), ('python', '-c', 'import app'), ('node', 'test.js'),
+                     ('python', 'app.py'), ('python', '-m', 'pytest', '--collect-only')):
+            self.assertTrue(fake(argv), argv)
+        for argv in (('python', '-m', 'pytest', '-q'), ('python', '-m', 'unittest'), ('pytest', 'tests/test_app.py::test_a1'),
+                     ('python3.12', '-m', 'pytest', '-q', 'tests/test_app.py::test_a1')):
             self.assertFalse(fake(argv), argv)
 
     def test_remote_runner_refuses_a_noop_verify_command(self):

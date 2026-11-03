@@ -40,6 +40,10 @@ class RemoteSandboxTests(unittest.TestCase):
         def fake(req,timeout): return FakeResponse({'returncode':0,'stdout':'ok','stderr':''})
         cfg=RemoteSandboxConfig('https://runner','x'*32); ex=RemoteSandboxRepositoryExecutor(cfg,urlopen=fake)
         spec=demo_spec('Build CRM'); repo=create_demo_repository('Build CRM',spec)
+        # audit 2026-11-02 finding 3: the demo's inline `python -c` checks are not tests any more; verify with pytest
+        m=json.loads(repo['.omni/project.json'])
+        for c in m['verify']: c['argv']=['python','-m','pytest','-q',f"tests/test_demo.py::test_{c['acceptance_ids'][0].lower()}"]
+        repo['.omni/project.json']=json.dumps(m)
         self.assertTrue(ex.execute(repository=repo,spec=spec).passed)
     def test_remote_executor_maps_verification_failure(self):
         calls={'n':0}

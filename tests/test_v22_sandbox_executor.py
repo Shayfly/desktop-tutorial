@@ -23,7 +23,8 @@ def repo():
         'app.py':'print("ok")',
         '.omni/project.json':json.dumps({
             'build':[['python','-m','compileall','-q','.']],
-            'verify':[{'name':'acceptance','argv':['python','app.py'],'acceptance_ids':['A1']}],
+            # audit 2026-11-02 finding 3: `python app.py` is not a test runner any more; a real pytest command is
+            'verify':[{'name':'acceptance','argv':['python','-m','pytest','-q'],'acceptance_ids':['A1']}],
         })
     }
 

@@ -69,21 +69,38 @@ def verify_failure_message(name: str, argv, returncode: int, prefix: str = 'veri
     return f'{prefix}: {name}'
 
 
+_PYTHON_EXE = re.compile(r'python(?:3(?:\.\d+)?)?')
+# Flags with which the runner executes no test at all (it lists, plans or prints and exits 0).
+_RUNS_NOTHING = {'--collect-only', '--co', '--setup-plan', '--setup-only', '--fixtures', '--fixtures-per-test',
+                 '--markers', '--version', '-V', '--help', '-h', '--trace-config'}
+_EVIDENCE_RUNNERS = 'python -m pytest | pytest | python -m unittest'
+
+
+def verification_evidence_problem(argv) -> str | None:
+    """Audit 2026-11-02 finding 3: the detector was a NEGATIVE list (echo, true, `python -c` without the word "import"
+    ...), so `python -c "import app"` counted as a test. It is now a POSITIVE requirement: a verify command is
+    evidence only when it runs a recognised test runner -- python -m pytest / pytest / python -m unittest -- and
+    not in a mode that runs no test (--collect-only, --help, ...). Returns why it is not evidence, or None."""
+    argv = tuple(str(a) for a in (argv or ()))
+    if not argv:
+        return 'empty command'
+    exe = argv[0].rsplit('/', 1)[-1]
+    if exe in ('pytest', 'py.test'):
+        rest = argv[1:]
+    elif _PYTHON_EXE.fullmatch(exe) and len(argv) >= 3 and argv[1] == '-m' and argv[2] in ('pytest', 'unittest'):
+        rest = argv[3:]
+    else:
+        return f'not a test runner ({_EVIDENCE_RUNNERS}): {" ".join(argv)[:80]}'
+    nothing = sorted(set(rest) & _RUNS_NOTHING)
+    if nothing:
+        return f'the runner is asked to run no test ({", ".join(nothing)})'
+    return None
+
+
 def _is_fake_verification(argv: tuple[str, ...]) -> bool:
-    """A verify command that cannot fail is not evidence (audit 2026-10-10:
-    the remote runner, used in production, did not apply this check)."""
-    argv = tuple(str(a) for a in argv)
-    if not argv or argv[0] in ('true', ':') or any(token == 'echo' for token in argv):
-        return True
-    if argv[0] in ('exit',) and argv[1:] in ((), ('0',)):
-        return True
-    if argv[0] in ('sh', 'bash') and len(argv) >= 3 and argv[1] == '-c':
-        script = argv[2].strip()
-        return script in _NOOP or script.startswith('echo ') or script.startswith('exit 0')
-    if argv[0].startswith('python') and len(argv) >= 3 and argv[1] == '-c':
-        code = argv[2]
-        return not any(word in code for word in ('import', 'assert', 'pytest', 'unittest', 'raise', 'exit('))
-    return False
+    """A verify command that cannot fail is not evidence (audit 2026-10-10: the remote runner, used in production, did
+    not apply this check). Since audit 2026-11-02 finding 3 this is the positive requirement above."""
+    return verification_evidence_problem(argv) is not None
 
 class SandboxRepositoryExecutor:
     def __init__(
@@ -180,8 +197,8 @@ class SandboxRepositoryExecutor:
                             AcceptanceFailure(
                                 aid,
                                 f'verification failed: {check.name}',
-                                '[FATAL] Fake verification command detected. You must write an '
-                                'executable test framework (pytest, jest, etc).',
+                                '[FATAL] Fake verification command detected (not a test): ' + str(verification_evidence_problem(check.argv)) +
+                                '. Write pytest tests and verify with "python -m pytest -q <node id>".',
                             )
                         )
                     continue

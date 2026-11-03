@@ -78,12 +78,12 @@ class RemoteSandboxRepositoryExecutor:
                 p=_pointer(out, set(repository))
                 # 'failed: at …' -- the colon keeps the taxonomy key remote_build_failed (founder 2026-11-01 18:59)
                 return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed'+(f': at {p}' if p else ''),_window(out)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
-        from .sandbox_executor import _is_fake_verification, verify_failure_message
+        from .sandbox_executor import _is_fake_verification, verification_evidence_problem, verify_failure_message
         for check in manifest.verify:
             if _is_fake_verification(tuple(check.argv)):
                 failures.extend(AcceptanceFailure(aid, f'verification failed: {check.name}',
-                                                  '[FATAL] Fake verification command detected (it cannot fail). '
-                                                  'Write an executable test (pytest/unittest) that exercises the product.')
+                                                  '[FATAL] Fake verification command detected (not a test): '+str(verification_evidence_problem(check.argv))+
+                                                  '. Write pytest tests and verify with "python -m pytest -q <node id>".')
                                 for aid in check.acceptance_ids)
                 continue
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
