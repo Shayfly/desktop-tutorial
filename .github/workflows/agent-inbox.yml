@@ -17,6 +17,9 @@ concurrency:
 
 jobs:
   copy:
+    # An issues payload's `sender` has no author_association (a plain user object).
+    # The labeller's permission is the control: the Gate step below checks role_name.
+    # Do not bring back a sender/author_association clause here.
     if: >-
       github.event.label.name == 'agent-inbox'
     runs-on: ubuntu-latest
