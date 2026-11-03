@@ -133,7 +133,7 @@ def create_router(
         if enabled is not None and not enabled():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="live_core is disabled (OMNI_LIVE_ENABLED is not on)",
+                detail="live_core is disabled: set OMNI_LIVE_ENABLED=1 (or true) to enable it; other values such as yes or on keep it off",
             )
 
     router = APIRouter(dependencies=[Depends(require_enabled)])

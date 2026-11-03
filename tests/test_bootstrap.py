@@ -139,7 +139,8 @@ def test_switch_off_by_default_every_live_route_is_503_before_the_store(monkeypa
     for method, path, body in _PROTECTED_PROBES:
         response = client.request(method, path, json=body)
         assert response.status_code == 503, (path, response.status_code, response.text)
-        assert "OMNI_LIVE_ENABLED" in response.json()["detail"], (path, response.text)
+        # The message names the exact value, so "yes" is not mistaken for on.
+        assert "OMNI_LIVE_ENABLED=1 (or true)" in response.json()["detail"], (path, response.text)
 
 
 def test_switch_off_for_values_that_are_not_exactly_on(monkeypatch):
