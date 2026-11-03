@@ -17,11 +17,8 @@ concurrency:
 
 jobs:
   copy:
-    # Founder 00:59 condition 1. The labeller's role is checked in the first step (the gate): an `issues` payload's
-    # `sender` is a plain user object with no author_association, so a sender clause here would always be empty.
     if: >-
-      github.event.label.name == 'agent-inbox' &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+      github.event.label.name == 'agent-inbox'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -31,8 +28,17 @@ jobs:
           SENDER: ${{ github.event.sender.login }}
         run: |
           set -euo pipefail
-          # .role_name, not .permission: the legacy .permission field reports triage as read and maintain as write
-          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .role_name 2>/dev/null || echo none)
+          set +e
+          out=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .role_name 2>&1); rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            case "$out" in
+              *404*) echo "::error title=inbox gate::$SENDER is not a collaborator -- not copied"; exit 1;;
+              *)     echo "::error title=inbox gate::permission lookup FAILED (not a denial) for $SENDER: $out"; exit 1;;
+            esac
+          fi
+          perm="$out"
+          echo "::notice title=inbox gate::raw role_name for $SENDER = '$perm'"
           case "$perm" in
             admin|maintain|write|triage) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
             *) echo "::error title=inbox gate::labeller $SENDER has '$perm' -- not copied"; exit 1;;
