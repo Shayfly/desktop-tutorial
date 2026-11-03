@@ -71,7 +71,7 @@ def platform_for(plan):
 
 
 def passing_engine():
-    report=SimpleNamespace(passed=True, failures=(), build_log='ok')
+    report=SimpleNamespace(passed=True, failures=(), build_log='ok', tests_executed=2)   # audit finding 14
     return SimpleNamespace(executor=verified_chain(), build=lambda prompt: SimpleNamespace(
         status='ready', report=report, spec=ACCEPTED_SPEC, repository={'app.py':'x'}, repair_rounds=0))
 

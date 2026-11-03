@@ -28,6 +28,9 @@ class ExecutionReport:
     passed: bool
     failures: tuple[AcceptanceFailure, ...] = ()
     build_log: str = ''
+    # Audit 2026-11-02 findings 2+14: how many tests EXECUTED (passed/failed/error, not skipped) across the verify
+    # commands, read from the runner's own summary. None = no recognised runner reported a count.
+    tests_executed: int | None = None
 
 @dataclass(frozen=True)
 class AutonomousResult:
