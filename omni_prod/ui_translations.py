@@ -36,6 +36,27 @@ UI_COPY = {
 'uk': dict(hero='Describe your web app.', lead='Describe your web app. 148AI plans, builds, tests and previews it.', account='АКАУНТ 148AI', project='МОЇ ПРИВАТНІ ПРОЄКТИ', request='ЩО ВИ ХОЧЕТЕ СТВОРИТИ?', build='Створити з 148AI', history='Версії', rights='Права та IP', original='Оригінальна альтернатива', company='Company OS', integration='Інтеграції', refresh='Готовність', ready='ГЛОБАЛЬНА ГОТОВНІСТЬ', output='BUILD / ПРАВА / ВЕРСІЯ', markets='ЦІЛЬОВІ РИНКИ', register='Створити безкоштовний акаунт', login='Увійти', new_project='Новий проєкт'),
 }
 
+# Keys used by ui/live-runner.js (#232, part B). Added to all 20 launch locales;
+# English is the fallback wherever no translation exists yet. setdefault never
+# overrides copy a locale already has.
+_LIVE_RUNNER_COPY_EN = dict(
+    describe='Describe what you want to build (at least 3 characters).',
+    building='Building…',
+    buildFailed='The build did not finish. Try again or change the description.',
+    failed='Failed',
+)
+_LIVE_RUNNER_COPY = {
+    'he': dict(
+        describe='תארו מה תרצו לבנות (לפחות 3 תווים).',
+        building='בונה…',
+        buildFailed='הבנייה לא הסתיימה. נסו שוב או שנו את התיאור.',
+        failed='נכשל',
+    ),
+}
+for _locale, _copy in UI_COPY.items():
+    for _key, _text in {**_LIVE_RUNNER_COPY_EN, **_LIVE_RUNNER_COPY.get(_locale, {})}.items():
+        _copy.setdefault(_key, _text)
+
 
 def ui_translation_payload() -> dict:
     return {'languages': UI_LANGUAGES, 'copy': UI_COPY, 'fallback': 'en', 'locale_count': len(UI_LANGUAGES)}
