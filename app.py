@@ -14,12 +14,17 @@ from fastapi.staticfiles import StaticFiles
 
 from omni_prod.investor_app import app
 from live_core.api import create_router
-from live_core.config import Settings, build_store
+from live_core.config import Settings, build_store, live_enabled
 
 # Routes are registered at import; the store is built by the first /api/live/*
 # request that needs it. A missing OMNI_DATABASE_URL fails that request with an
 # explicit 503 (ConfigurationError), never the boot. No fallback to DATABASE_URL.
-app.include_router(create_router(store_factory=lambda: build_store(Settings.from_env())))
+# Kill switch: until OMNI_LIVE_ENABLED is on, every live_core route answers 503
+# before any store or database access.
+app.include_router(create_router(
+    store_factory=lambda: build_store(Settings.from_env()),
+    enabled=live_enabled,
+))
 
 # Blocker 4: serve ui/ (index.html, app.js, app.css, live-runner.js) under /ui/.
 app.mount("/ui", StaticFiles(directory=Path(__file__).resolve().parent / "ui"), name="ui")

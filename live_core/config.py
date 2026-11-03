@@ -15,6 +15,14 @@ DATABASE_ENV = "OMNI_DATABASE_URL"
 # Memory persistence must be asked for by name. An unset OMNI_ENV is not
 # treated as permission to run without a database.
 MEMORY_OPT_IN_ENV = "OMNI_LIVE_PERSISTENCE"
+# Kill switch (#232, decision (א)): live_core serves nothing until the owner turns
+# it on. Off unless set to exactly "1" or "true"; read per request, so turning it
+# on or off takes effect on the next deployment without a code change.
+LIVE_ENABLED_ENV = "OMNI_LIVE_ENABLED"
+
+
+def live_enabled() -> bool:
+    return (os.getenv(LIVE_ENABLED_ENV) or "").strip().lower() in ("1", "true")
 
 
 @dataclass(frozen=True)

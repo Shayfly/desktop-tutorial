@@ -120,12 +120,23 @@ def create_router(
     store: Store | None = None,
     *,
     store_factory: Callable[[], Store] | None = None,
+    enabled: Callable[[], bool] | None = None,
 ) -> APIRouter:
     if (store is None) == (store_factory is None):
         raise TypeError("create_router needs exactly one of store or store_factory")
     if store_factory is not None:
         store = _LazyStore(store_factory)
-    router = APIRouter()
+
+    def require_enabled() -> None:
+        # Router-level dependency: runs before require_user and every handler, so a
+        # disabled live_core never builds the store or touches the database.
+        if enabled is not None and not enabled():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="live_core is disabled (OMNI_LIVE_ENABLED is not on)",
+            )
+
+    router = APIRouter(dependencies=[Depends(require_enabled)])
     service = CustomerService(store)
 
     def require_user(request: Request) -> UserRecord:
