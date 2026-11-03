@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import mimetypes
+from threading import Lock
+from typing import Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
+from .config import ConfigurationError
 from .security import hash_password, new_session_token, token_digest, verify_password
 from .service import CustomerService
 from .store import BuildRecord, ProjectRecord, Store, UserRecord, VersionRecord
@@ -82,7 +85,46 @@ def _build_payload(build: BuildRecord) -> dict:
     }
 
 
-def create_router(store: Store) -> APIRouter:
+class _LazyStore:
+    """Builds the real store on first use, not at import (#232, decision (ג)).
+
+    Registering the routes and wiring their dependency are separate steps: the
+    router is registered at import, the store is built by the first request that
+    needs it. A configuration error is raised to that request as an explicit 503
+    and is not cached, so the next request tries again once the env is fixed.
+    """
+
+    def __init__(self, factory: Callable[[], Store]) -> None:
+        self._factory = factory
+        self._store: Store | None = None
+        self._lock = Lock()
+
+    def _resolve(self) -> Store:
+        if self._store is None:
+            with self._lock:
+                if self._store is None:
+                    try:
+                        self._store = self._factory()
+                    except ConfigurationError as exc:
+                        raise HTTPException(
+                            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail=f"live_core is not configured: {exc}",
+                        ) from exc
+        return self._store
+
+    def __getattr__(self, name: str):
+        return getattr(self._resolve(), name)
+
+
+def create_router(
+    store: Store | None = None,
+    *,
+    store_factory: Callable[[], Store] | None = None,
+) -> APIRouter:
+    if (store is None) == (store_factory is None):
+        raise TypeError("create_router needs exactly one of store or store_factory")
+    if store_factory is not None:
+        store = _LazyStore(store_factory)
     router = APIRouter()
     service = CustomerService(store)
 

@@ -16,9 +16,10 @@ from omni_prod.investor_app import app
 from live_core.api import create_router
 from live_core.config import Settings, build_store
 
-# Fails loudly (ConfigurationError) when OMNI_DATABASE_URL is missing and memory
-# persistence was not explicitly requested. No silent fallback to DATABASE_URL.
-app.include_router(create_router(build_store(Settings.from_env())))
+# Routes are registered at import; the store is built by the first /api/live/*
+# request that needs it. A missing OMNI_DATABASE_URL fails that request with an
+# explicit 503 (ConfigurationError), never the boot. No fallback to DATABASE_URL.
+app.include_router(create_router(store_factory=lambda: build_store(Settings.from_env())))
 
 # Blocker 4: serve ui/ (index.html, app.js, app.css, live-runner.js) under /ui/.
 app.mount("/ui", StaticFiles(directory=Path(__file__).resolve().parent / "ui"), name="ui")
