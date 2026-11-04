@@ -1,3 +1,8 @@
+// B3 (#235): state shared by the runner. Undeclared, the first click threw a
+// ReferenceError on clearTimeout(pollTimer) before any request was sent.
+let pollTimer = null;
+let currentProjectId = null;
+
 async function pollLiveBuild(buildId, timeoutMs = 55000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -101,6 +106,7 @@ async function openLivePreview(projectId, versionId) {
   window.open(created.url, '_blank', 'noopener');
 }
 
+// B3: buildBtn runs the live_core flow. ui/app.js no longer binds it to the v28 build.
 document.addEventListener('DOMContentLoaded', () => {
   $('buildBtn').onclick = runPromptFirstBuild;
 });
