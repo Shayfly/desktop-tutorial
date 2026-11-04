@@ -222,7 +222,7 @@ class WorkerEvidenceTests(unittest.TestCase):
                             headers={"x-request-id": "req_build_1"})])
         gw.complete(system="s", user="u")  # what the engine would do during generation
         harness = ContractBuildHarness(gateway=gw)
-        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0"}
+        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0", "components": {"llm_maximum_usd": "1.00"}}
         harness.subs.settle.return_value = {"settled": True}
         self.assertEqual(harness.run(), "ready")
         evidence = harness.final["evidence_json"]
@@ -239,7 +239,7 @@ class WorkerEvidenceTests(unittest.TestCase):
                             headers={"x-request-id": "req_build_2"})])
         gw.complete(system="s", user="u")
         harness = ContractBuildHarness(gateway=gw)
-        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0"}
+        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0", "components": {"llm_maximum_usd": "1.00"}}
         harness.subs.settle.return_value = {}
         harness.run()
         self.assertIsNone(harness.subs.settle.call_args.kwargs["actual_provider_cost_usd"])
