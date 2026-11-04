@@ -431,9 +431,12 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
              patch.object(investor_app, '_m5_cost_inputs', cost), \
              patch.object(investor_app, 'PostgresBuildContractRepository'), \
              patch.object(investor_app, 'PostgresBuildRepository', return_value=jobs), \
-             patch.object(investor_app, 'enqueue_build', enqueue):
+             patch.object(investor_app, 'enqueue_build', enqueue), \
+             patch('omni_prod.brief_repository.PostgresBriefRepository') as approval_repo, \
+             patch.object(investor_app, '_bind_execution_plan', return_value={'verified': True}):
+            approval_repo.return_value.consume.return_value = {'brief_fingerprint': 'approved-fixture-fingerprint'}
             req = investor_app.V27BuildRequest(prompt='Build a CRM', build_contract_id='bc_1',
-                                               idempotency_key=idempotency_key)
+                                               idempotency_key=idempotency_key, approval_id='approved-fixture-id')
             try:
                 return investor_app.v28_build_async('prj_1', req, MagicMock()), reserve, enqueue, jobs, None
             except investor_app.HTTPException as exc:
