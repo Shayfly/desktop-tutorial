@@ -41,3 +41,12 @@ The patch blocks all legacy jobs without a durable `llm_maximum_usd` before paid
 ## Release gate
 
 HOLD: update affected test fixtures to carry an authorized quote and explicit approval where appropriate; preserve negative tests for missing budget/approval. Confirm deployed worker DB and outbox, run all CI to green, then request independent review. Do not merge or deploy until all conditions are met.
+
+## Fixture remediation — follow-up
+
+- `tests/test_m5_build_economics.py`: positive durable-build route fixture carries an approved approval_id and consumed-approval mock. Negative `test_build_without_an_approval_is_refused` explicitly omits it; the test's 409 assertion is unchanged.
+- `tests/test_m3_preview_logic.py`: shared worker request fixture carries a positive LLM maximum; the gateway-shaped fixture now exposes `bind_budget`, preserving its pre-recorded model-spend ledger. This fixture has no CostClass to avoid changing unrelated historical spend assertions; dedicated CostClass negative tests remain in `tests/test_worker_budget_binding.py`.
+- Earlier head `ac110438a90f674860a41064eea86575baef5abd` still had V11 Overlay CI, intake-budget-pg and v24-ci failures. Latest changes require a fresh CI run.
+- Remaining worker fixtures in other test modules may need the same explicit authorization; **not verified as fixed**.
+- Active Oracle/worker database configuration cannot be established from the two Neon project queries. **Worker identity: NO ACCESS / NOT VERIFIED**. The database inventory is not a substitute for worker runtime environment or Redis/RQ queue inspection.
+- No merge and no independent review request before CI green and worker verification.
