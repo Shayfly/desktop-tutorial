@@ -19,6 +19,33 @@ function rememberBuild(projectId, buildId) {
   } catch (_) {}
 }
 
+// B3: draw the build's stages into #liveTimeline. Accepts the build object from
+// fetchBuild ({stage, status, events: [...]}) or a bare events array. Missing,
+// empty or malformed events draw nothing and never throw. Text only (no innerHTML):
+// event messages come from the server.
+function renderTimeline(buildOrEvents) {
+  const list = $('liveTimeline');
+  if (!list) return;
+  const events = Array.isArray(buildOrEvents)
+    ? buildOrEvents
+    : (buildOrEvents && Array.isArray(buildOrEvents.events) ? buildOrEvents.events : []);
+  list.replaceChildren();
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue;
+    const item = document.createElement('li');
+    item.className = 'timelineStep';
+    const stage = document.createElement('b');
+    stage.textContent = String(event.stage || '');
+    item.append(stage);
+    if (event.message) {
+      const message = document.createElement('span');
+      message.textContent = ` ${String(event.message)}`;
+      item.append(message);
+    }
+    list.append(item);
+  }
+}
+
 // B3: one build's state and events from live_core.
 async function fetchBuild(buildId) {
   return req(`/api/live/builds/${encodeURIComponent(buildId)}`, { headers: auth() });
