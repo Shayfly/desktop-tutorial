@@ -10,6 +10,20 @@ function t(key) {
   return (LIVE_COPY && typeof LIVE_COPY[key] === 'string' && LIVE_COPY[key]) || key;
 }
 
+// B3: the last build per project, so the catch path can recover a build that
+// finished while the request that started it failed (read in runPromptFirstBuild).
+function rememberBuild(projectId, buildId) {
+  if (!projectId || !buildId) return;
+  try {
+    localStorage.setItem(`148ai_last_build_${projectId}`, buildId);
+  } catch (_) {}
+}
+
+// B3: one build's state and events from live_core.
+async function fetchBuild(buildId) {
+  return req(`/api/live/builds/${encodeURIComponent(buildId)}`, { headers: auth() });
+}
+
 async function pollLiveBuild(buildId, timeoutMs = 55000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
