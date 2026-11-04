@@ -65,6 +65,9 @@ function showReady(build) {
     status.textContent = 'Ready';
     status.className = 'status ok';
   }
+  // Replace the "building" message, on the normal path and on the recovery path in
+  // runPromptFirstBuild's catch, which both end here. Plain text for the same reason.
+  if ($('state')) msg('state', 'Your project is ready to review.', 'good');
 }
 
 // B3: the project's live_core versions, shown in #output. reveal=false keeps the
