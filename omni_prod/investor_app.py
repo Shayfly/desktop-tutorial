@@ -2636,7 +2636,10 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))
-                        elif _approval_required():
+                        else:
+                            # Durable paid builds always require a consumed approval.
+                            # OMNI_REQUIRE_APPROVAL=0 remains available for legacy
+                            # test-only routes, never for the async paid admission.
                             raise HTTPException(409, detail={'error': 'approval_required',
                                                              'message': 'Approve the summary and plan first.'})
                         # DEVIATION: reserve() now takes project_id=key (see
