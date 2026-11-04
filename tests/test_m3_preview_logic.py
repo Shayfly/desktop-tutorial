@@ -844,7 +844,10 @@ def real_spend_gateway(calls: int, per_call: str) -> SimpleNamespace:
     authorize_model_call(endpoint=local, policy=policy, state=state, estimated_cost_usd=Decimal('0'))
     for _ in range(calls):
         authorize_model_call(endpoint=ext, policy=policy, state=state, estimated_cost_usd=Decimal(per_call))
-    return SimpleNamespace(state=state, events=[])
+    def bind_budget(authorized):
+        policy.external_budget_usd = min(policy.external_budget_usd, Decimal(str(authorized)))
+        return {'effective_budget_usd': str(policy.external_budget_usd)}
+    return SimpleNamespace(state=state, events=[], bind_budget=bind_budget)
 
 
 class TestBillingRules(unittest.TestCase):
@@ -888,7 +891,7 @@ class FakeJobs:
             'target_markets': ('US',), 'branding_visible': None, 'white_label_name': None,
             'rights_evidence': [RightsEvidence('ev1', RightKind.TRADEMARK, 'Acme', 'license', 'global').to_dict()],
             'public_project_id': 'proj_public',
-            'economics_quote': {'components': {'llm_maximum_usd': '0.35', 'cost_class': 'light'}},
+            'economics_quote': {'components': {'llm_maximum_usd': '1.00'}},
         }
         self.claim = claim
         self.transitions: list[dict] = []
