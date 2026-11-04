@@ -46,6 +46,42 @@ function renderTimeline(buildOrEvents) {
   }
 }
 
+// B3: show the "ready" card for a finished build. A missing or partial build
+// still shows the card, with whatever fields it has.
+function showReady(build) {
+  const card = $('resultCard');
+  if (card) card.classList.remove('hidden');
+  const meta = $('resultMeta');
+  if (meta) {
+    const parts = [];
+    if (build && build.version_id) parts.push(`version ${build.version_id}`);
+    if (build && build.stage) parts.push(String(build.stage));
+    meta.textContent = parts.join(' · ');
+  }
+  const status = $('buildStatus');
+  if (status) {
+    // Plain text on purpose: the copy key "ready" is the GLOBAL READINESS heading, and a new
+    // key would have to exist in all 20 locales (test_i18n_contract).
+    status.textContent = 'Ready';
+    status.className = 'status ok';
+  }
+}
+
+// B3: the project's live_core versions, shown in #output. reveal=false keeps the
+// "Advanced controls" panel closed (the build flow loads versions in the background).
+async function loadVersions(projectId, reveal = true) {
+  if (!projectId) return [];
+  const data = await req(`/api/live/projects/${encodeURIComponent(projectId)}/versions`, { headers: auth() });
+  const versions = (data && Array.isArray(data.versions)) ? data.versions : [];
+  const output = $('output');
+  if (output) output.textContent = JSON.stringify(versions, null, 2);
+  if (reveal) {
+    const panel = document.querySelector('.advanced');
+    if (panel) panel.open = true;
+  }
+  return versions;
+}
+
 // B3: one build's state and events from live_core.
 async function fetchBuild(buildId) {
   return req(`/api/live/builds/${encodeURIComponent(buildId)}`, { headers: auth() });
