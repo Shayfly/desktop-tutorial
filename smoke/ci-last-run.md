@@ -1,9 +1,9 @@
-# v24-ci — last main run (2026-10-26T10:57:10Z)
+# v24-ci — last main run (2026-11-04T21:28:38Z)
 
-- commit: `93136719c1f72d9a5d9568f08f45414c02cdbe50`
-- run_id: [40310581731](https://github.com/Shayfly/desktop-tutorial/actions/runs/40310581731) (attempt 1)
+- commit: `57ac5336d0dd7869bef761e31c142afc68ac2be5`
+- run_id: [41915056408](https://github.com/Shayfly/desktop-tutorial/actions/runs/41915056408) (attempt 1)
 - test job: **SUCCESS**
-- tests: **PASS** — 2067 passed, 0 failed, 187 skipped
+- tests: **PASS** — 2556 passed, 0 failed, 204 skipped
 - AcceptanceW: **PASS**
 
 ## Failing tests
@@ -21,31 +21,41 @@
 
 | module | PASS/FAIL | passed | failed | skipped |
 |---|---|---|---|---|
-| `integration` | PASS | 6 | 0 | 34 |
+| `integration` | PASS | 6 | 0 | 35 |
 | `test_acceptance_coverage` | PASS | 3 | 0 | 0 |
 | `test_actual_cost_settlement` | PASS | 14 | 0 | 2 |
 | `test_agent_loop_workflow` | PASS | 4 | 0 | 0 |
 | `test_agent_os` | PASS | 15 | 0 | 5 |
 | `test_amateur_cost_class_lock` | PASS | 5 | 0 | 0 |
+| `test_api_security` | PASS | 4 | 0 | 0 |
 | `test_architect_assignment_gate` | PASS | 5 | 0 | 0 |
 | `test_architect_spec_shape` | PASS | 4 | 0 | 0 |
 | `test_architect_website_no_crud` | PASS | 1 | 0 | 0 |
 | `test_asset_requirements` | PASS | 6 | 0 | 0 |
 | `test_attempt_ledger` | PASS | 13 | 0 | 0 |
+| `test_auth` | PASS | 4 | 0 | 0 |
 | `test_auth_error_mapping` | PASS | 7 | 0 | 0 |
 | `test_backup_restore` | PASS | 3 | 0 | 0 |
 | `test_behavior_acceptance_in_build` | PASS | 5 | 0 | 0 |
+| `test_bootstrap` | PASS | 14 | 0 | 0 |
 | `test_brief_capability_detection` | PASS | 4 | 0 | 0 |
 | `test_browser_probe` | PASS | 5 | 0 | 4 |
+| `test_build_allowance_message` | PASS | 17 | 0 | 0 |
 | `test_build_cancel_and_log` | PASS | 8 | 0 | 5 |
+| `test_build_flow` | PASS | 2 | 0 | 0 |
 | `test_build_state_machine` | PASS | 3 | 0 | 3 |
 | `test_c34_hermetic_canary` | PASS | 4 | 0 | 0 |
 | `test_c34_netns_canary` | PASS | 2 | 0 | 6 |
-| `test_ci_workflow_concurrency` | PASS | 1 | 0 | 0 |
+| `test_c6_detector_decides_completeness` | PASS | 8 | 0 | 0 |
+| `test_ci_scope` | PASS | 7 | 0 | 0 |
+| `test_ci_workflow_concurrency` | PASS | 6 | 0 | 0 |
+| `test_ci_yaml_validation` | PASS | 3 | 0 | 0 |
 | `test_company_loss` | PASS | 5 | 0 | 0 |
+| `test_config` | PASS | 6 | 0 | 0 |
 | `test_consistency_gate` | PASS | 14 | 0 | 0 |
 | `test_content_only_site` | PASS | 17 | 0 | 0 |
 | `test_controls_counts` | PASS | 5 | 0 | 0 |
+| `test_conversation_fallback` | PASS | 3 | 0 | 0 |
 | `test_conversation_os` | PASS | 34 | 0 | 4 |
 | `test_conversation_ux` | PASS | 5 | 0 | 0 |
 | `test_crash_recovery_and_change_parity` | PASS | 0 | 0 | 5 |
@@ -55,26 +65,38 @@
 | `test_database_pool_health` | PASS | 2 | 0 | 0 |
 | `test_db_fingerprint` | PASS | 4 | 0 | 0 |
 | `test_demand_driven_infrastructure` | PASS | 17 | 0 | 0 |
+| `test_dependency_gate_tests_py` | PASS | 8 | 0 | 0 |
 | `test_dependency_policy` | PASS | 17 | 0 | 0 |
 | `test_deploy_rollback_snapshot` | PASS | 10 | 0 | 0 |
 | `test_deployment_endpoint_public` | PASS | 2 | 0 | 0 |
 | `test_deployment_verification` | PASS | 51 | 0 | 0 |
-| `test_discovery_and_approval` | PASS | 9 | 0 | 7 |
+| `test_discovery_and_approval` | PASS | 9 | 0 | 8 |
 | `test_discovery_endpoints` | PASS | 8 | 0 | 0 |
+| `test_e2e_contract` | PASS | 1 | 0 | 0 |
 | `test_economics_report` | PASS | 7 | 0 | 0 |
 | `test_entitlements` | PASS | 7 | 0 | 0 |
+| `test_env_example_intake` | PASS | 4 | 0 | 0 |
+| `test_env_example_pricing` | PASS | 3 | 0 | 0 |
 | `test_evidence_export` | PASS | 6 | 0 | 4 |
 | `test_evidence_json` | PASS | 5 | 0 | 0 |
+| `test_executor` | PASS | 6 | 0 | 0 |
 | `test_expect_text_contains_list` | PASS | 6 | 0 | 0 |
+| `test_failed_build_release_pg` | PASS | 0 | 0 | 2 |
+| `test_failed_build_releases_credits` | PASS | 6 | 0 | 0 |
 | `test_failure_injection` | PASS | 12 | 0 | 0 |
 | `test_failure_replay` | PASS | 5 | 0 | 0 |
 | `test_failure_taxonomy` | PASS | 12 | 0 | 0 |
 | `test_financial_journal_guard` | PASS | 2 | 0 | 0 |
+| `test_first_pass_requires_a_passed_build` | PASS | 8 | 0 | 0 |
+| `test_gate_labels` | PASS | 3 | 0 | 0 |
+| `test_gate_mark` | PASS | 4 | 0 | 0 |
 | `test_gate_says_what_is_missing` | PASS | 3 | 0 | 0 |
 | `test_golden_mod_path_live_postgres` | PASS | 0 | 0 | 6 |
 | `test_history_without_artifact_download` | PASS | 1 | 0 | 0 |
+| `test_i18n_contract` | PASS | 22 | 0 | 0 |
 | `test_infisical_secret_store` | PASS | 10 | 0 | 0 |
 | `test_inspect_round_artifacts_workflow` | PASS | 13 | 0 | 0 |
+| `test_intake_approve_and_goal` | PASS | 31 | 0 | 3 |
 | `test_intake_assistant_he` | PASS | 18 | 0 | 0 |
 | `test_intake_budget_pg` | PASS | 2 | 0 | 23 |
 | `test_intake_complexity` | PASS | 11 | 0 | 0 |
@@ -93,7 +115,9 @@
 | `test_j3_three_repair_round_policy` | PASS | 4 | 0 | 0 |
 | `test_janitor_redispatch` | PASS | 3 | 0 | 1 |
 | `test_legacy_paths_guard` | PASS | 3 | 0 | 0 |
+| `test_live_auth_matrix` | PASS | 62 | 0 | 0 |
 | `test_live_build_stores_spec` | PASS | 2 | 0 | 0 |
+| `test_live_core_migration` | PASS | 9 | 0 | 2 |
 | `test_luna_not_for_code_writing` | PASS | 5 | 0 | 0 |
 | `test_m2_native_logic` | PASS | 7 | 0 | 0 |
 | `test_m3_preview_logic` | PASS | 85 | 0 | 0 |
@@ -153,21 +177,29 @@
 | `test_modification_diff` | PASS | 13 | 0 | 0 |
 | `test_modification_repository` | PASS | 43 | 0 | 0 |
 | `test_modifier_engine` | PASS | 10 | 0 | 0 |
+| `test_negative_controls_runner` | PASS | 16 | 0 | 0 |
+| `test_no_repeat_questions` | PASS | 13 | 0 | 1 |
 | `test_overlay` | PASS | 4 | 0 | 0 |
 | `test_plan_driven_execution` | PASS | 13 | 0 | 14 |
 | `test_plan_repair_budget` | PASS | 5 | 0 | 0 |
+| `test_plan_reserve_allowance` | PASS | 3 | 0 | 0 |
+| `test_poll_build_single_timer` | PASS | 1 | 0 | 0 |
 | `test_postdeploy_paid_verify_missing_version` | PASS | 2 | 0 | 0 |
 | `test_postdeploy_r2_artifact` | PASS | 6 | 0 | 0 |
 | `test_preflight_propagation_real_behaviour` | PASS | 2 | 0 | 0 |
 | `test_preview_access` | PASS | 0 | 0 | 5 |
+| `test_preview_allowance_full_reserve` | PASS | 3 | 0 | 0 |
 | `test_preview_data_durability` | PASS | 9 | 0 | 0 |
+| `test_preview_requires_durable_backend` | PASS | 2 | 0 | 0 |
 | `test_preview_router` | PASS | 4 | 0 | 0 |
 | `test_preview_smoke` | PASS | 6 | 0 | 0 |
 | `test_product_evolution` | PASS | 5 | 0 | 0 |
 | `test_production_smoke_publication` | PASS | 3 | 0 | 0 |
 | `test_profit_protection` | PASS | 20 | 0 | 0 |
+| `test_projects` | PASS | 3 | 0 | 0 |
 | `test_provider_quota_and_dialects` | PASS | 24 | 0 | 0 |
 | `test_public_pricing_economics` | PASS | 8 | 0 | 0 |
+| `test_pytest_collect_tests_py` | PASS | 10 | 0 | 0 |
 | `test_qa_budget` | PASS | 20 | 0 | 0 |
 | `test_qa_plan_parity` | PASS | 12 | 0 | 0 |
 | `test_qstash_scheduler` | PASS | 18 | 0 | 0 |
@@ -179,34 +211,45 @@
 | `test_redaction_fail_closed` | PASS | 8 | 0 | 0 |
 | `test_redaction_single_layer` | PASS | 5 | 0 | 0 |
 | `test_registry_audit` | PASS | 16 | 0 | 0 |
+| `test_registry_lint` | PASS | 10 | 0 | 0 |
 | `test_rehearsal` | PASS | 3 | 0 | 0 |
 | `test_release_blocks_on_failed_acceptance` | PASS | 2 | 0 | 0 |
 | `test_release_policy` | PASS | 18 | 0 | 1 |
+| `test_repair_fingerprint` | PASS | 30 | 0 | 0 |
+| `test_repair_plan_floor` | PASS | 9 | 0 | 0 |
 | `test_repair_sees_main_file` | PASS | 4 | 0 | 0 |
 | `test_repair_stop_loss` | PASS | 11 | 0 | 0 |
 | `test_replicate_connection` | PASS | 10 | 0 | 0 |
 | `test_replicate_image_test` | PASS | 8 | 0 | 0 |
 | `test_repo_control_async` | PASS | 6 | 0 | 0 |
 | `test_repo_control_hardening` | PASS | 9 | 0 | 0 |
+| `test_repo_control_retarget_contained` | PASS | 10 | 0 | 0 |
 | `test_repo_control_security` | PASS | 12 | 0 | 0 |
+| `test_repo_summary_secrets` | PASS | 8 | 0 | 0 |
 | `test_requirement_ledger` | PASS | 7 | 0 | 0 |
+| `test_reservation_reconciler` | PASS | 4 | 0 | 0 |
+| `test_reservation_reconciler_pg` | PASS | 0 | 0 | 4 |
 | `test_reservation_worker_sigterm` | PASS | 2 | 0 | 0 |
 | `test_round_preflight` | PASS | 17 | 0 | 0 |
 | `test_run1_create_step_body` | PASS | 10 | 0 | 0 |
+| `test_runtime_bridge` | PASS | 2 | 0 | 0 |
 | `test_sandbox_callers_real_policy` | PASS | 5 | 0 | 0 |
 | `test_sandbox_cleanup` | PASS | 4 | 0 | 0 |
 | `test_sandbox_runner_health` | PASS | 8 | 0 | 0 |
 | `test_secret_scan_ci_exemption` | PASS | 7 | 0 | 0 |
 | `test_skills_runtime_and_review` | PASS | 17 | 0 | 0 |
+| `test_skip_only_is_not_pass` | PASS | 9 | 0 | 0 |
 | `test_spec_language` | PASS | 5 | 0 | 0 |
 | `test_spec_repository` | PASS | 5 | 0 | 0 |
+| `test_status_docs_integrity` | PASS | 4 | 0 | 0 |
 | `test_t3_json_no_silent_trailing` | PASS | 8 | 0 | 0 |
 | `test_t3_rejected_json_durable` | PASS | 15 | 0 | 0 |
 | `test_t4_verification_boundaries` | PASS | 8 | 0 | 0 |
 | `test_t5_codegen_route_every_class` | PASS | 10 | 0 | 0 |
 | `test_t5_configured_routes_quality_floor` | PASS | 15 | 0 | 0 |
 | `test_t8_resource_overlap` | PASS | 11 | 0 | 0 |
-| `test_task_quality_routing` | PASS | 6 | 0 | 0 |
+| `test_task_quality_routing` | PASS | 8 | 0 | 0 |
+| `test_taxonomy_live_and_early_failure` | PASS | 4 | 0 | 0 |
 | `test_universal_family_skill_resolution` | PASS | 10 | 0 | 0 |
 | `test_uploaded_logo` | PASS | 8 | 0 | 0 |
 | `test_v12_core` | PASS | 7 | 0 | 0 |
@@ -234,17 +277,27 @@
 | `test_v7_semantic_intake_architect` | PASS | 10 | 0 | 0 |
 | `test_v7_semantic_marker_provenance` | PASS | 3 | 0 | 0 |
 | `test_v7_visitor_no_login_boundary` | PASS | 3 | 0 | 0 |
+| `test_venice_allowed_models` | PASS | 15 | 0 | 0 |
+| `test_venice_in_conversation` | PASS | 17 | 0 | 2 |
+| `test_venice_live_wiring` | PASS | 18 | 0 | 0 |
+| `test_venice_provider` | PASS | 10 | 0 | 0 |
+| `test_venice_two_modes` | PASS | 12 | 0 | 0 |
 | `test_vercel_entrypoint` | PASS | 3 | 0 | 0 |
 | `test_verification_group` | PASS | 14 | 0 | 0 |
+| `test_verification_group_pointer` | PASS | 7 | 0 | 0 |
+| `test_visible_delegation` | PASS | 3 | 0 | 0 |
 | `test_visual_edit` | PASS | 14 | 0 | 5 |
 | `test_visual_qa` | PASS | 5 | 0 | 2 |
 | `test_website_requirements_regression` | PASS | 2 | 0 | 0 |
 | `test_worker_budget_binding` | PASS | 5 | 0 | 0 |
+| `test_worker_build_not_found` | PASS | 4 | 0 | 1 |
 | `test_worker_deploy_recovery` | PASS | 35 | 0 | 4 |
 | `test_worker_entrypoint` | PASS | 8 | 0 | 0 |
+| `test_worker_no_contact_measurement` | PASS | 2 | 0 | 0 |
 | `test_worker_repository_parity` | PASS | 10 | 0 | 0 |
 | `test_workspace_version_conflict` | PASS | 14 | 0 | 0 |
 | `test_wp1_gap_detector` | PASS | 21 | 0 | 0 |
+| `test_write_env_dedicated_secrets` | PASS | 18 | 0 | 0 |
 | `test_write_env_secret_lengths` | PASS | 6 | 0 | 0 |
 
 _Test names and counts only; failure messages are not published._
