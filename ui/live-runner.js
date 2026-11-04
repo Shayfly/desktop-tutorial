@@ -99,6 +99,12 @@ async function pollLiveBuild(buildId, timeoutMs = 55000) {
 }
 
 async function runPromptFirstBuild() {
+  // B3 step 4: no live_core session means the sign-in form, not a request that 401s.
+  if (!liveToken()) {
+    showAuth();
+    setMode('login');
+    return msg('accountState', 'Sign in to build.', 'error');
+  }
   const prompt = $('prompt').value.trim();
   if (prompt.length < 3) return msg('state', t('describe'), 'error');
 
