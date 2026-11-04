@@ -36,7 +36,13 @@ def failed_worker_without_contact(*, subscriptions, build_id):
     harness = ContractBuildHarness(gateway=gateway)
     harness.engine = engine
     harness.platform.subscriptions = subscriptions
-    harness.jobs.request['economics_quote'] = {'infrastructure_maximum_usd': '0.25'}
+    # Positive admission fixture: authorize model budget explicitly so the
+    # separate negative model-policy test can reach its intended denial path.
+    # This does not authorize an external call: observed_gateway() remains blocked.
+    harness.jobs.request['economics_quote'] = {
+        'infrastructure_maximum_usd': '0.25',
+        'components': {'llm_maximum_usd': '0.35'},
+    }
     from omni_prod.worker_tasks import _run_live_build_job
     try:
         _run_live_build_job(build_id, jobs=harness.jobs, platform=harness.platform,
