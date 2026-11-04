@@ -845,8 +845,10 @@ def real_spend_gateway(calls: int, per_call: str) -> SimpleNamespace:
     for _ in range(calls):
         authorize_model_call(endpoint=ext, policy=policy, state=state, estimated_cost_usd=Decimal(per_call))
     def bind_budget(authorized):
-        policy.external_budget_usd = min(policy.external_budget_usd, Decimal(str(authorized)))
-        return {'effective_budget_usd': str(policy.external_budget_usd)}
+        # ModelUsePolicy is immutable; this fixture records the preflight ceiling
+        # without mutating the already-produced synthetic spend ledger.
+        effective = min(policy.external_budget_usd, Decimal(str(authorized)))
+        return {'effective_budget_usd': str(effective)}
     return SimpleNamespace(state=state, events=[], bind_budget=bind_budget)
 
 
