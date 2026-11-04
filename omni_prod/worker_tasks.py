@@ -473,23 +473,39 @@ def asset_capability_status(plan) -> dict | None:
 
 
 def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
-    """Admission reserved `components.llm_maximum_usd` for model calls; the
-    worker's gateway may not spend more than that, whatever its own
-    environment says (the API and worker are configured separately).
+    """Fail closed before paid model calls; reuse the existing gateway budget.
 
-    Requests without a component breakdown predate the M5 quote and are left
-    unchanged, recorded as `legacy_unbound`.
+    The durable admission quote is the authority. Cost-class caps additionally
+    constrain LIGHT and STANDARD; neither worker environment nor legacy
+    requests may enlarge their model-spend authorization.
     """
+    from .pricing import CostClass, m5_class_llm_cap
+
     components = (request.get('economics_quote') or {}).get('components') or {}
     if 'llm_maximum_usd' not in components:
-        return {'binding': 'legacy_unbound'}
-    if not hasattr(gateway, 'bind_budget'):
-        return {'binding': 'not_applicable'}
-    out = {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
-    # CEO 2026-10-19: the plan's cost class also limits WHICH models may run.
-    if components.get('cost_class') and hasattr(gateway, 'restrict_to_cost_class'):
-        out['model_allowlist'] = gateway.restrict_to_cost_class(components['cost_class'])
-    return out
+        raise PermissionError('model_budget_missing: legacy request has no authorized LLM budget')
+    if not callable(getattr(gateway, 'bind_budget', None)):
+        raise PermissionError('model_budget_unenforceable: gateway cannot bind authorization')
+
+    try:
+        reserved = Decimal(str(components['llm_maximum_usd']))
+        if not reserved.is_finite() or reserved < 0:
+            raise ValueError('invalid reserved LLM budget')
+        class_name = components.get('cost_class')
+        if class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
+            reserved = min(reserved, m5_class_llm_cap(class_name))
+        elif not class_name:
+            # Older quotes with a valid reserved maximum remain supported;
+            # they are never allowed to fall back to the worker env budget.
+            pass
+        out = {'binding': 'bound', **gateway.bind_budget(reserved)}
+        if class_name:
+            if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
+                raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
+            out['model_allowlist'] = gateway.restrict_to_cost_class(class_name)
+        return out
+    except (ValueError, ArithmeticError) as exc:
+        raise PermissionError('invalid model budget authorization') from exc
 
 
 def llm_cap_overage(request: dict, spent) -> dict | None:
