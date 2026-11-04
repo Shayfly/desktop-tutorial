@@ -389,7 +389,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     total (LLM + capabilities + generated-app infra + retry) once, before enqueue."""
 
     def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None, require_approval='0',
-             idempotency_result=(True, None), idempotency_key='caller-retry-key-1'):
+             idempotency_result=(True, None), idempotency_key='caller-retry-key-1', approval_present=True):
         from omni_prod.build_cost_plan import BuildCostInputs, CostQuoteUnknown
         from omni_prod.build_contract import BuildContractStatus
 
@@ -436,7 +436,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
              patch.object(investor_app, '_bind_execution_plan', return_value={'verified': True}):
             approval_repo.return_value.consume.return_value = {'brief_fingerprint': 'approved-fixture-fingerprint'}
             req = investor_app.V27BuildRequest(prompt='Build a CRM', build_contract_id='bc_1',
-                                               idempotency_key=idempotency_key, approval_id='approved-fixture-id')
+                                               idempotency_key=idempotency_key, approval_id='approved-fixture-id' if approval_present else None)
             try:
                 return investor_app.v28_build_async('prj_1', req, MagicMock()), reserve, enqueue, jobs, None
             except investor_app.HTTPException as exc:
@@ -469,7 +469,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
 
     def test_build_without_an_approval_is_refused(self):
         # Directive 2026-10-09 §5: a direct API call does not bypass approval.
-        _, reserve, enqueue, jobs, exc = self._run(require_approval='1')
+        _, reserve, enqueue, jobs, exc = self._run(require_approval='1', approval_present=False)
         self.assertEqual(exc.status_code, 409)
         self.assertEqual(exc.detail['error'], 'approval_required')
         reserve.assert_not_called()
