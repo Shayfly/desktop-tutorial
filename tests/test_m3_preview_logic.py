@@ -888,6 +888,7 @@ class FakeJobs:
             'target_markets': ('US',), 'branding_visible': None, 'white_label_name': None,
             'rights_evidence': [RightsEvidence('ev1', RightKind.TRADEMARK, 'Acme', 'license', 'global').to_dict()],
             'public_project_id': 'proj_public',
+            'economics_quote': {'components': {'llm_maximum_usd': '0.35', 'cost_class': 'light'}},
         }
         self.claim = claim
         self.transitions: list[dict] = []
