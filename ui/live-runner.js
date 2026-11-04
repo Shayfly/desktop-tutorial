@@ -3,6 +3,13 @@
 let pollTimer = null;
 let currentProjectId = null;
 
+// B3: minimal translation lookup. Falls back to the key itself so a missing string
+// never stops the runner. Loading the server copy (/api/v28/ui/translations) is a later step.
+let LIVE_COPY = {};
+function t(key) {
+  return (LIVE_COPY && typeof LIVE_COPY[key] === 'string' && LIVE_COPY[key]) || key;
+}
+
 async function pollLiveBuild(buildId, timeoutMs = 55000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
