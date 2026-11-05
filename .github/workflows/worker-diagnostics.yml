@@ -59,6 +59,18 @@ jobs:
             echo "::notice title=${title}::${body:-<empty>}"
           }
           publish "containers" docker ps -a --format '{{.Names}}  {{.Status}}  {{.Image}}'
+          # Resolve the running worker revision, never the workflow checkout SHA.
+          cid=omni-worker-worker-1
+          label=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$cid" 2>/dev/null || true)
+          env_revision=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$cid" 2>/dev/null | sed -n 's/^OMNI_SOURCE_COMMIT=//p' | head -n 1 || true)
+          method=UNKNOWN
+          revision=UNKNOWN
+          if [[ "$label" =~ ^[a-f0-9]{40}$ ]]; then
+            revision="$label"; method=container_label
+          elif [[ "$env_revision" =~ ^[a-f0-9]{40}$ ]]; then
+            revision="$env_revision"; method=container_env
+          fi
+          echo "::notice title=worker-live-revision::revision=$revision method=$method attempted=container_label,container_env"
           publish "restarts" docker inspect -f '{{.Name}} status={{.State.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}}' omni-worker-worker-1 omni-worker-sandbox-runner-1
           publish "sandbox image" docker image inspect omni-sandbox:latest -f 'omni-sandbox:latest arch={{.Architecture}} created={{.Created}}'
           publish "worker log" docker logs --tail "$n" omni-worker-worker-1
