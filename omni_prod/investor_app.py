@@ -1887,6 +1887,8 @@ class V28DiscoveryAnswers(BaseModel):
 class V28ApprovalRequest(BaseModel):
     build_contract_id: str = Field(min_length=1, max_length=160)
     brief_revision: int = Field(ge=1)
+    # C4: discovery.approval_fingerprint of the approval screen the customer saw. An approval covers what was shown.
+    shown_fingerprint: str | None = Field(default=None, max_length=64)
 
 
 def _brief_repo():
@@ -2400,6 +2402,11 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     from .brief_repository import ApprovalError
     account = _discovery_account(request, project_id)
     _, row = _brief_prompt(project_id, req.brief_revision)
+    from . import discovery as d
+    if req.shown_fingerprint != d.approval_fingerprint(row.brief):
+        raise HTTPException(409, detail={'error': 'approval_not_shown',
+                                         'message': 'The approval screen you saw is not the request being locked. '
+                                                    'Review the summary again.'})
     _bind_execution_plan(project_id, row.fingerprint)
     contracts = PostgresBuildContractRepository(_v28_pool)
     try:

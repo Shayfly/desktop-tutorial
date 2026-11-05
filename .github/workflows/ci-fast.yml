@@ -36,5 +36,6 @@ jobs:
           node --check omni_prod/assets/app.js
           node --check omni_prod/assets/visual-edit.js
           node --check tests/customer_flow_browser.cjs
+          node --check tests/approval_screen_browser.cjs
       - name: CI policy regressions
         run: python -m unittest discover -s tests -p 'test_ci_*.py' -v
