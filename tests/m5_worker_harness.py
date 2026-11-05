@@ -43,6 +43,8 @@ class ContractBuildHarness:
             'user_id': 'usr_1', 'internal_project_id': 'tenant_abc', 'prompt': prompt,
             'target_markets': ('US',), 'branding_visible': None, 'white_label_name': None,
             'rights_evidence': [], 'public_project_id': contract.project_id if contract else 'proj_public',
+            # Offline success fixture: an explicit zero-cost LLM authorization.
+            'economics_quote': {'components': {'llm_maximum_usd': '0'}},
         }
         if contract is not None:
             request.update({
@@ -65,7 +67,8 @@ class ContractBuildHarness:
         self.workspace = MagicMock()
         self.workspace.commit.return_value = SimpleNamespace(id='ver_1', artifact_key='repositories/abc.zip')
         self.gateway = gateway if gateway is not None else SimpleNamespace(
-            state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0), events=[])
+            state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0), events=[],
+            bind_budget=lambda ceiling: {'effective_budget_usd': str(ceiling)})
         report = ExecutionReport(
             passed=verified,
             failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),

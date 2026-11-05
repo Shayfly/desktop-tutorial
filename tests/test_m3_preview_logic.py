@@ -39,6 +39,7 @@ from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
 from omni_prod.job_repository import PostgresBuildRepository
 from omni_prod.model_gateway import ModelEndpoint
 from omni_prod.model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
+from omni_prod.provider_usage import ProviderUsage, ProviderUsageLedger
 from omni_prod.models import BuildStatus
 from omni_prod.preview_repository import PostgresPreviewRepository
 from omni_prod.preview_runtime import (
@@ -842,14 +843,22 @@ def real_spend_gateway(calls: int, per_call: str) -> SimpleNamespace:
     ext = ModelEndpoint(name='ext', base_url='https://api.example', model='m', api_key='k', external=True)
     local = ModelEndpoint(name='local', base_url='http://127.0.0.1:1', model='m')
     authorize_model_call(endpoint=local, policy=policy, state=state, estimated_cost_usd=Decimal('0'))
-    for _ in range(calls):
+    usage = ProviderUsageLedger()
+    for idx in range(calls):
         authorize_model_call(endpoint=ext, policy=policy, state=state, estimated_cost_usd=Decimal(per_call))
+        # The positive billing fixture models a provider response for each call;
+        # estimates alone cannot establish an actual settled cost.
+        usage.record(ProviderUsage(
+            provider='ext', model='m', external=True, request_id=f'fixture-call-{idx}',
+            request_id_source='header:x-request-id', response_id=None,
+            input_tokens=1, output_tokens=1, cached_tokens=None,
+            provider_reported_cost_usd=Decimal(per_call), usage_reported=True))
     def bind_budget(authorized):
         # ModelUsePolicy is frozen: binding returns the effective authorization
         # without mutating the policy used to produce the historical spend ledger.
         effective_budget = min(policy.external_budget_usd, Decimal(str(authorized)))
         return {'effective_budget_usd': str(effective_budget)}
-    return SimpleNamespace(state=state, events=[], bind_budget=bind_budget)
+    return SimpleNamespace(state=state, events=[], bind_budget=bind_budget, usage=usage)
 
 
 class TestBillingRules(unittest.TestCase):
@@ -968,7 +977,10 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
         self.assertEqual(h.final['target'], BuildStatus.READY)
         self.assertEqual(h.final['result_version_id'], 'ver_1')
         self.assertEqual(h.final['actual_provider_cost_usd'], Decimal('0.50'))
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_called_once_with(
+            build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'),
+            revenue_usd=None, infra_cost_usd=Decimal('0'),
+        )
         h.subs.release.assert_not_called()
         ev = h.final['evidence_json']
         self.assertEqual(set(ev['gates']), {'verification', 'quality', 'security', 'rights'})
