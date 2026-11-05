@@ -977,7 +977,10 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
         self.assertEqual(h.final['target'], BuildStatus.READY)
         self.assertEqual(h.final['result_version_id'], 'ver_1')
         self.assertEqual(h.final['actual_provider_cost_usd'], Decimal('0.50'))
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_called_once_with(
+            build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'),
+            revenue_usd=None, infra_cost_usd=Decimal('0'),
+        )
         h.subs.release.assert_not_called()
         ev = h.final['evidence_json']
         self.assertEqual(set(ev['gates']), {'verification', 'quality', 'security', 'rights'})
