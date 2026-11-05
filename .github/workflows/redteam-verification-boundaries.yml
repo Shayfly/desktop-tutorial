@@ -1,0 +1,63 @@
+name: redteam verification boundaries (worker host)
+# 2026-10-20: runs tools/redteam_verification_boundaries.py (from branch redteam/golden-evidence-20261019, PR #74)
+# on the self-hosted worker runner, inside the worker image (the deployed omni_prod), and returns raw stdout.
+# Dispatch only. The file is verified against the founder-supplied SHA-256 before it runs; nothing is fixed,
+# stopped, built into the compose images or paid for.
+#
+# transport_double: the file at that SHA-256 has NO real-transport mode -- it always injects its own synthetic
+# Transport (lines 35-45; its docstring: "The injected sandbox responses are synthetic, never live E2E evidence").
+# transport_double=false is therefore refused with an explicit message instead of silently running the double.
+on:
+  workflow_dispatch:
+    inputs:
+      transport_double:
+        description: "false = real transport (NOT supported by the pinned file: refused); true = the file's own synthetic transport"
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      tool_commit:
+        description: Commit that holds the tool file
+        default: "5b40369312b4d4609646c39788a9ff633471cc92"
+      tool_sha256:
+        description: Expected SHA-256 of tools/redteam_verification_boundaries.py
+        default: "37cddac501f5f13d02844b698b750462ef5ae2149667face9f8452f42d2a96ac"
+permissions:
+  contents: read
+concurrency:
+  group: redteam-boundaries
+  cancel-in-progress: false
+jobs:
+  boundaries:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 10
+    steps:
+      - name: Fetch and verify the tool (no checkout of the deploy workspace)
+        env:
+          TOOL_COMMIT: ${{ inputs.tool_commit }}
+          TOOL_SHA256: ${{ inputs.tool_sha256 }}
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/redteam"; rm -rf "$D"; mkdir -p "$D"
+          git -C "$D" init -q && git -C "$D" remote add origin "https://github.com/${{ github.repository }}"
+          git -C "$D" fetch -q --depth 1 origin "$TOOL_COMMIT"
+          git -C "$D" show "FETCH_HEAD:tools/redteam_verification_boundaries.py" > "$D/tool.py"
+          got=$(sha256sum "$D/tool.py" | cut -d' ' -f1)
+          echo "tool sha256: $got (expected $TOOL_SHA256)"
+          [ "$got" = "$TOOL_SHA256" ] || { echo "::error title=redteam::SHA-256 mismatch: $got != $TOOL_SHA256 -- not running"; exit 1; }
+      - name: Run on the worker image, raw stdout
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+        env:
+          TRANSPORT_DOUBLE: ${{ inputs.transport_double }}
+        run: |
+          set +e
+          if [ "$TRANSPORT_DOUBLE" != "true" ]; then
+            echo "::error title=redteam::transport_double=false requested, but the pinned file has no real-transport mode (it always uses its synthetic Transport). Refused rather than run the double under a false label."
+            exit 2
+          fi
+          echo "deployed worker code: $(git -C ../.. rev-parse HEAD)  (transport_double=true: the file's synthetic Transport)"
+          docker compose run --rm --no-deps -T \
+            -v "$RUNNER_TEMP/redteam/tool.py:/app/tools/redteam_verification_boundaries.py:ro" \
+            worker python tools/redteam_verification_boundaries.py
+          rc=$?
+          echo "redteam exit code: $rc"
+          exit $rc
