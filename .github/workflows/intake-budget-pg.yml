@@ -108,14 +108,36 @@ jobs:
               print(f'::error title=skipped::{s}')
           sys.exit(1 if skipped or not cases else 0)
           PY
-      - name: Retain PostgreSQL and Docker regression report
+      # 2026-10-28 (#82, extended): the job log is not readable from the agent environment. Every failed or errored
+      # test is printed as a ::notice with its exact pytest id, so a reviewer reads WHICH test failed from the check-run
+      # annotations without downloading the artifact. Known flake: test_real_docker_drain_recovery.py::test_5 (see
+      # SMELLS.md, #150); its OOM assertion is not touched here.
+      - name: Failed tests as annotations (one ::notice per failed test)
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          if not os.path.exists('intake-pg.xml'):
+              print('::notice title=pg failed test::no junit report was written (pytest did not finish)')
+              raise SystemExit(0)
+          failed = 0
+          for c in ET.parse('intake-pg.xml').getroot().iter('testcase'):
+              for bad in list(c.iter('failure')) + list(c.iter('error')):
+                  failed += 1
+                  test_id = (c.get('file') or c.get('classname', '').replace('.', '/') + '.py') + '::' + c.get('name', '')
+                  msg = ' '.join((bad.get('message') or '').split())[:300].replace('%', '%25')
+                  print(f"::notice title=pg failed test::{test_id} ({bad.tag}) {msg}")
+          print(f'::notice title=pg failed tests::{failed} failed or errored')
+          PY
+      # 2026-10-20: keep the junit report on every outcome (the step above reads it; the artifact is the full record).
+      - name: Upload the junit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: intake-pg-report
+          name: intake-pg-junit
           path: intake-pg.xml
-          retention-days: 7
           if-no-files-found: warn
+          retention-days: 14
   pg:
     # Preserve the required check name and fail closed if classification fails.
     needs: [changes, pg-tests]
