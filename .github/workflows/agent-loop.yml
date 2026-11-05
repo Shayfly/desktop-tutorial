@@ -1,10 +1,17 @@
 name: agent loop
 on:
+  # Second, idempotent trigger. The primary one is the repo-control service, which dispatches this workflow every
+  # 15 minutes (GitHub's schedule fired once in ten hours). Off the crowded :00/:15/:30/:45 minutes.
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "4,19,34,49 * * * *"
   workflow_dispatch:
+# The service trigger and GitHub's schedule never run retarget/sweep at the same time; nothing is cancelled.
+concurrency:
+  group: agent-loop
+  cancel-in-progress: false
 permissions:
   contents: read
+  actions: read
 jobs:
   loop:
     runs-on: ubuntu-latest
@@ -38,3 +45,14 @@ jobs:
             exit 1
           fi
           python scripts/check_agent_loop_result.py sweep < "$response"
+      # C10 (CEO 2026-10-27): a stalled loop FAILS the run (a warning is silent green). Runs after the work, always.
+      - name: stall gate (no successful run in 45 minutes fails the run)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          last=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/agent-loop.yml/runs?status=success&per_page=1" \
+                 -q '.workflow_runs[0].updated_at' 2>/dev/null || true)
+          python scripts/check_agent_loop_stall.py "$last"
