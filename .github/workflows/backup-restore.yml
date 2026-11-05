@@ -31,6 +31,17 @@ jobs:
       run:
         working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Write environment file
+        working-directory: ${{ github.workspace }}
+        env:
+          WORKER_ENV: ${{ secrets.WORKER_ENV }}
+          WORKER_ENV_OVERRIDES: ${{ secrets.WORKER_ENV_OVERRIDES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: bash infra/worker-host/write-env.sh
+
       - name: Prepare
         run: |
           set -euo pipefail
