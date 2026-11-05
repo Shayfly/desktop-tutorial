@@ -2,6 +2,8 @@
 
 Deployment repository for the current **148AI V28** online review environment.
 
+**Binding for every agent, branch and PR:** [docs/IRON_LAWS_HE.md](docs/IRON_LAWS_HE.md) (חוקי הברזל של 148AI).
+
 ## What this deployment contains
 - Real V28 Python/FastAPI runtime packaged in `omni_prod_runtime.zip`
 - Customer-facing 148AI workspace UI
