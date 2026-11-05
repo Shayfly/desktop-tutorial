@@ -185,7 +185,7 @@ class WorkerContractBindingTests(unittest.TestCase):
             "build_contract": contract.to_dict(),
             "build_contract_fingerprint": contract.contract_fingerprint,
             "build_contract_binding": "BOUND",
-            "economics_quote": {},
+            "economics_quote": {"components": {"llm_maximum_usd": "0"}},
         }
         jobs = _Jobs(request)
         stage = _PassingStage()
@@ -215,13 +215,16 @@ class WorkerContractBindingTests(unittest.TestCase):
         )
         workspace = MagicMock()
         workspace.commit.return_value = SimpleNamespace(id="v1", artifact_key="a.zip")
+        gateway = SimpleNamespace(
+            state=SimpleNamespace(external_spend_usd=Decimal("0"), external_calls=0),
+            events=[], bind_budget=lambda ceiling: {"effective_budget_usd": str(ceiling)})
 
         out = worker_tasks._run_live_build_job(
             "b1",
             jobs=jobs,
             platform=platform,
             workspace=workspace,
-            components_factory=lambda: (engine, None),
+            components_factory=lambda: (engine, gateway),
             quality_fn=lambda **kw: SimpleNamespace(passed=True, score=100, minimum_score=80, blockers=(), to_dict=lambda: {"passed": True}),
             security_fn=lambda repo: SimpleNamespace(passed=True, findings=(), to_dict=lambda: {"passed": True}),
             capability_stage=stage,
