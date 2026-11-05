@@ -53,8 +53,10 @@ def _same_origin(request, allowed_origins: Iterable[str]) -> bool:
     return origin == own or origin in {o.lower().rstrip("/") for o in allowed_origins}
 
 
-def extract_session_token(request, *, allowed_origins: Iterable[str]) -> tuple[str, str]:
-    raw = str(request.headers.get("authorization", "") or "")
+def extract_session_token(request, *, allowed_origins: Iterable[str],
+                          ignore_authorization: bool = False) -> tuple[str, str]:
+    # Cookie fallback must always enforce the same CSRF guard as ordinary cookie auth.
+    raw = "" if ignore_authorization else str(request.headers.get("authorization", "") or "")
     if raw.startswith("Bearer ") and raw[7:].strip():
         return raw[7:].strip(), "bearer"
     if raw:
