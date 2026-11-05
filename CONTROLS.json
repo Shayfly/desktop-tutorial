@@ -154,6 +154,27 @@
     "restore from a Neon branch (no Neon API access from the builder session; the drill restores the R2 dump into a throwaway Postgres instead)",
     "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
    ]
+  },
+  {
+   "control": "C17",
+   "date": "2026-11-05",
+   "result": "PASS (stored-copy restore verified; independent review pending)",
+   "runs": [
+    "42002340022"
+   ],
+   "workflow": ".github/workflows/backup-restore.yml (schedule on main 57ac5336, self-hosted omni-worker)",
+   "times_utc": {
+    "started": "2026-11-05T09:26:05Z",
+    "stamp": "20261105T092610Z",
+    "finished": "2026-11-05T09:26:52Z"
+   },
+   "proof": "snapshot tables=14 migrations=42 preview_data_files=21 versions=0; db.dump 656743 bytes sha256 prefix 911531af05e3039a uploaded to R2 and fetched back with checksum validation; pg_restore to disposable PostgreSQL 0 error lines; verify tables checked=14 short={} migrations_equal=true preview_data restored=21/21 missing_or_changed=[] verified=true; backup job 127160390246 PASS",
+   "not_proven": [
+    "rebuild any project version (source manifest had 0 project versions)",
+    "restore directly from a Neon branch (verified R2 copy restored into disposable PostgreSQL)",
+    "current R2 object listing and current runner Online status not independently checked",
+    "identity/value comparison of a named database row (verifier compares counts and migrations)"
+   ]
   }
  ],
  "s01": {
