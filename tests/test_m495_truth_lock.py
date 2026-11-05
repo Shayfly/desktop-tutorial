@@ -76,6 +76,17 @@ class MachineTruthLockTests(unittest.TestCase):
         self.assertFalse([v for v in venice[0].values() if isinstance(v, (int, float))])   # no price in the file
         self.assertIn('COST_MODEL.md', files)
 
+    def test_hand_written_cost_sections_survive_regeneration(self):
+        # owner 2026-10-26: the generator includes the hand-written section instead of deleting it, so the
+        # truth-lock check is clean on main (a warning that is always on is noise)
+        files = render_truth_files()
+        hand = (Path(__file__).resolve().parents[1] / 'docs' / 'COST_MODEL_HANDWRITTEN.md').read_text(encoding='utf-8')
+        self.assertIn('## Profit Protection v1', hand)
+        self.assertIn('## Profit Protection v1', files['COST_MODEL.md'])
+        self.assertNotIn('<!--', files['COST_MODEL.md'])
+        committed = (Path(__file__).resolve().parents[1] / 'COST_MODEL.md').read_text(encoding='utf-8')
+        self.assertEqual(files['COST_MODEL.md'], committed)
+
     def test_status_fingerprint_is_required_by_truth_check(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
