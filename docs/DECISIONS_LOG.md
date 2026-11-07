@@ -62,6 +62,10 @@
 | 30 | **תקציב ה-class הוא הקובע ב-worker.** ה-env הוא תקרה עולמית בלבד: כשהוא נמוך מתקציב ה-class נרשמת התרעה ב-log, ואין חסימה שקטה | `WORKER_BUDGET_BELOW_CLASS` (WARNING) | `routed_gateway.bind_budget`; טסט `test_pro_keeps_its_class_budget_when_worker_env_is_lower` (env ‏$0.50, ‏Pro מקבל $1.60) |
 | 31 | **ספי allowlist** (מחיר output מקסימלי ל-1M טוקנים) | LIGHT ≤ $1.50 · STANDARD ≤ $5 · ADVANCED ≤ $8 · HEAVY ו-EXTREME ללא תקרה · ZERO ‏$0 | `M5_CLASS_MAX_OUTPUT_PER_MILLION`; טסט `test_pro_and_studio_get_different_allowlists` |
 | 32 | הצ'אט של ה-intake מציג את הקרדיטים של ה-class (במקום 60 קבוע) | — | `investor_app._supervisor`; טסט `tests/test_intake_credits_by_plan.py` |
+| 33 | **אין שאלון.** Venice מנהלת את השיחה: מקבלת את מה שעוד פתוח במפרט כרשימת בדיקה ושואלת שאלה אחת בשפה טבעית. אם המודל לא ענה בזמן, הלקוח מקבל הודעה גלויה, לא שאלון (מנכ"ל 2026-11-08) | — | `supervisor.py`, `intake/interpreter.py` (#257) |
+| 34 | תקרות שיחת intake: ‎$0.015 להודעה, ‎$0.50 לפרויקט, ‎$1 ליום בכל המערכות (מנכ"ל 2026-11-08) | — | Vercel `OMNI_INTAKE_*_BUDGET_USD` |
+| 35 | **מודל חזק ל-LIGHT ול-STANDARD לתיקון ולבדיקת QA בלבד** (Claude Sonnet 5.5, `repair`+`review`); ה-Hard Cap של ה-class נשאר (מנכ"ל 2026-11-08, ב) | — | `pricing.m5_task_only_models`, `routed_gateway.restrict_to_cost_class` |
+| 36 | **חשבון המייסד בונה עם כל המודלים**, תחת אותה תקרת class (מנכ"ל 2026-11-08, א) | — | `OMNI_FOUNDER_ACCOUNT_IDS` (worker) |
 
 **ל-#31:** בהתחלה הוצע LIGHT ≤ $1. בסף כזה היה נשאר ל-Amateur ול-Free רק `gpt-6-luna`, שמסומן `INSUFFICIENT_CREDIT` ‏(אין קרדיט ב-OpenAI) ו-`UNVERIFIED`. התוצאה הייתה שכל בנייה שלהם נכשלת. לכן הוכרע LIGHT ≤ $1.50.
 

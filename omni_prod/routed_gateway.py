@@ -136,16 +136,31 @@ class RoutedModelGateway:
                                                        None if primary is None else primary.endpoint.name,
                                                        [r.endpoint.name for r in fallback]))
 
-    def restrict_to_cost_class(self, cost_class) -> dict:
-        """Bind the build class and restrict its catalog by the existing price ceiling."""
-        from .pricing import _as_cost_class, m5_model_allowed
+    def restrict_to_cost_class(self, cost_class, *, unrestricted: bool = False) -> dict:
+        """Bind the build class and restrict its catalog by the existing price ceiling.
+
+        CEO 2026-11-08 (b): a model above the class ceiling may still serve the tasks
+        pricing.m5_task_only_models names for the class (a strong model for repair and QA
+        review on LIGHT/STANDARD). (a): `unrestricted` (a founder account) keeps the whole
+        catalog. Either way the class's hard spend cap (bind_budget) is unchanged."""
+        from .pricing import _as_cost_class, m5_model_allowed, m5_task_only_models
         self.cost_class = _as_cost_class(cost_class)
         catalog = self.ranked
         before = [m.endpoint.name for m in catalog]
-        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million))
-        kept = [m.endpoint.name for m in self.ranked]
+        if unrestricted:
+            self.task_only = {}
+            return {'cost_class': self.cost_class.value, 'allowed_models': before, 'excluded_models': [],
+                    'task_only_models': {}, 'unrestricted': True}
+        task_only = m5_task_only_models(self.cost_class)
+        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million)
+                            or m.endpoint.name in task_only)
+        self.task_only = {m.endpoint.name: task_only[m.endpoint.name] for m in self.ranked
+                          if m.endpoint.name in task_only
+                          and not m5_model_allowed(self.cost_class, m.option.output_per_million)}
+        kept = [m.endpoint.name for m in self.ranked if m.endpoint.name not in self.task_only]
         return {'cost_class': self.cost_class.value, 'allowed_models': kept,
-                'excluded_models': [n for n in before if n not in kept], 'task_only_models': {}}
+                'excluded_models': [n for n in before if n not in kept and n not in self.task_only],
+                'task_only_models': {k: sorted(v) for k, v in self.task_only.items()}}
 
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Set the whole-build external budget to what was reserved for this
@@ -393,6 +408,9 @@ class RoutedModelGateway:
         for model in self.ranked:
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
+                continue
+            only = getattr(self, 'task_only', {}).get(model.endpoint.name)
+            if only is not None and task not in only:      # above the class ceiling: only its named tasks
                 continue
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).

@@ -13,7 +13,9 @@ Worst-case margin targets: Amateur 72%, Pro 63%, Studio 62%.
 """
 import json
 import pathlib
+import os
 import unittest
+from unittest import mock
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -212,8 +214,30 @@ class AllowlistAndOverageTests(unittest.TestCase):
         s_models = {m.endpoint.name for m in studio.ranked}
         self.assertTrue(p_models, 'Pro must keep at least one routable model')
         self.assertTrue(p_models < s_models, (p_models, s_models))
-        self.assertTrue(all(m.option.output_per_million <= Decimal('5.00') for m in pro.ranked))
+        # CEO 2026-11-08 (b): above the ceiling only as a task-only model (repair, review)
+        self.assertTrue(all(m.option.output_per_million <= Decimal('5.00') or m.endpoint.name in pro.task_only
+                            for m in pro.ranked))
+        self.assertEqual(set(pro.task_only), {'anthropic-claude-sonnet-5-5'})
+        self.assertEqual(pro.task_only['anthropic-claude-sonnet-5-5'], frozenset({'repair', 'review'}))
         self.assertTrue(any(m.option.output_per_million > Decimal('5.00') for m in studio.ranked))
+
+    def test_task_only_model_serves_only_its_tasks_and_founder_gets_everything(self):
+        light = _gateway(); light.restrict_to_cost_class(CostClass.LIGHT)
+        def names(gw, task):
+            return {r.endpoint.name for r, _, _ in gw.ranked_routes({'system': 's', 'user': 'u', 'max_tokens': 1000}, task)}
+        self.assertNotIn('anthropic-claude-sonnet-5-5', names(light, 'codegen'))
+        self.assertIn('anthropic-claude-sonnet-5-5', names(light, 'review'))
+        with mock.patch.dict(os.environ, {'OMNI_TASK_ONLY_MODELS_LIGHT': 'none'}):
+            off = _gateway(); off.restrict_to_cost_class(CostClass.LIGHT)
+            self.assertNotIn('anthropic-claude-sonnet-5-5', {m.endpoint.name for m in off.ranked})
+        founder = _gateway(); info = founder.restrict_to_cost_class(CostClass.LIGHT, unrestricted=True)
+        self.assertEqual(info['excluded_models'], [])
+        self.assertIn('anthropic-claude-sonnet-5-5', names(founder, 'codegen'))
+        with mock.patch.dict(os.environ, {'OMNI_FOUNDER_ACCOUNT_IDS': 'usr_a, usr_b'}):
+            from omni_prod.pricing import m5_founder_account
+            self.assertTrue(m5_founder_account('usr_b'))
+            self.assertFalse(m5_founder_account('usr_c'))
+            self.assertFalse(m5_founder_account(None))
 
     def test_soft_cap_records_overage_and_alerts_above_2x(self):
         self.assertEqual(llm_overage('0.30', '0.35')['status'], 'WITHIN_CAP')
