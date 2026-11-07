@@ -19,6 +19,7 @@ class FakeJobs:
             'target_markets': ('US',), 'branding_visible': None, 'white_label_name': None,
             'rights_evidence': [], 'public_project_id': 'proj-a',
             'authorized_provider_cost_usd': Decimal('1.00'),
+            'economics_quote': {'components': {'llm_maximum_usd': '0'}},
         }
         self.plan = plan
         self.transitions = []
@@ -103,9 +104,12 @@ class WorkerCapabilityGateTests(unittest.TestCase):
         quality=lambda **kw:(order.append('quality') or SimpleNamespace(passed=True,score=100,minimum_score=80,blockers=(),to_dict=lambda:{'passed':True}))
         security=lambda repo:(order.append('security') or SimpleNamespace(passed=True,findings=(),to_dict=lambda:{'passed':True}))
         workspace=MagicMock(); workspace.commit.return_value=SimpleNamespace(id='v1', artifact_key='a.zip')
+        gateway = SimpleNamespace(
+            state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0),
+            events=[], bind_budget=lambda ceiling: {'effective_budget_usd': str(ceiling)})
         out=worker_tasks._run_live_build_job(
             'b1', jobs=jobs, platform=platform, workspace=workspace,
-            components_factory=lambda:(engine,None), quality_fn=quality, security_fn=security,
+            components_factory=lambda:(engine,gateway), quality_fn=quality, security_fn=security,
             capability_stage=stage,
         )
         self.assertEqual(out, 'ready')

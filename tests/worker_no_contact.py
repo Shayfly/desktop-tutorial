@@ -36,7 +36,13 @@ def failed_worker_without_contact(*, subscriptions, build_id):
     harness = ContractBuildHarness(gateway=gateway)
     harness.engine = engine
     harness.platform.subscriptions = subscriptions
-    harness.jobs.request['economics_quote'] = {'infrastructure_maximum_usd': '0.25'}
+    # Positive admission fixture: the zero-cost kill switch stays enabled, so
+    # the authorized LLM slice is zero. This reaches the separate model-policy
+    # denial without attempting to raise a frozen zero-cost policy budget.
+    harness.jobs.request['economics_quote'] = {
+        'infrastructure_maximum_usd': '0.25',
+        'components': {'llm_maximum_usd': '0'},
+    }
     from omni_prod.worker_tasks import _run_live_build_job
     try:
         _run_live_build_job(build_id, jobs=harness.jobs, platform=harness.platform,

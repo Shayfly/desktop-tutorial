@@ -38,7 +38,7 @@
 | 21 | קרדיטים לתוכנית | Free 150 · Amateur 1000 · Pro 4500 · Studio 10000 | `PLAN_CATALOG` |
 | 22 | Free | ZERO + LIGHT, 150 קרדיטים (כ-3 בנייות בחודש) | `PLAN_CATALOG` |
 | 23 | Enterprise | EXTREME, פטור מרצפת המרווח (תמחור בחוזה) | `MARGIN_FLOOR_EXEMPT_PLANS` |
-| 24 | תקרת תקציב מודלים לבנייה, **soft cap** (לא דוחה בנייה, רק רושם חריגה) | ZERO $0.05 · LIGHT $0.35 · STANDARD $1.60 · ADVANCED $3.00 · HEAVY $5.50 · EXTREME $18.00. לכל class יש משתנה env נפרד: `OMNI_BUILD_LLM_CAP_<CLASS>_USD` | `m5_class_llm_cap`, ‏`m5_llm_budget` |
+| 24 | תקרת הוצאות מודלים **Hard Cap** ב־LIGHT ($0.35) וב־STANDARD ($1.60) | שאר תקרות ה־CostClass נותרו לפי המדיניות הקיימת. ב־`omni_prod/worker_tasks.py`, `bind_model_budget_to_reservation` חותכת את תקציב ה־gateway למינימום בין סכום ה־LLM המאושר לתקרת המחלקה לפני קריאת מודל. בקשה ללא `llm_maximum_usd` או gateway ללא `bind_budget` נחסמים (fail closed), ללא מנגנון חיוב נוסף. נתיב ה־async ב־`investor_app.py` מחייב `approval_id` גם כש־`OMNI_REQUIRE_APPROVAL=0`; המסלולים הישנים האחרים לא שונו. בדיקות רגרסיה: `tests/test_worker_budget_binding.py`; CI/E2E מחייבים אימות לפני מיזוג. |
 | 25 | חריגה של יותר מפי 2 מהתקרה | התרעה בלוג (`LLM_SPEND_ALERT`) | `pricing.llm_overage`, ‏`worker_tasks.llm_cap_overage` |
 | 26 | רצפת 60% לא יורדת. אם תקרה שוברת את הרצפה, התקציב נחתך לגובה הרצפה (אפשרות 1) | — | `m5_llm_budget` |
 | 27 | יעד מרווח במקרה הגרוע (כל התקרה מנוצלת) | Amateur 72% · Pro 63% · Studio 62% | מושג: 73.2% / 63.6% / 63.2% |
