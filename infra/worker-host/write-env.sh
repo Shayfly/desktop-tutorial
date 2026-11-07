@@ -46,6 +46,7 @@ for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_U
     fi
     sed -i "/^${key_name}=/d" .env
     printf '%s=%s\n' "$key_name" "$key_value" >> .env
+    dedicated_from_secret="${dedicated_from_secret:-} ${key_name}"
     echo "::notice title=dedicated secrets::${key_name} from its GitHub secret (${outcome})"
   elif grep -q "^${key_name}=." .env; then
     echo "::notice title=dedicated secrets::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used (none is set)"
@@ -115,15 +116,18 @@ echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | so
 # Golden E2E #1 (2026-10-07): a build passed generation and sandbox
 # verification and then failed at the very end on R2 with "Credential access
 # key has length 34, should be 32" -- a pasted value had extra characters.
+# 2026-11-06: a value that came from its own GitHub secret must be fixed THERE, not in WORKER_ENV
+# (deploy 149 told the owner to edit WORKER_ENV for a quoted OMNI_REDIS_URL that came from secret OMNI_REDIS_URL).
+secret_for() { case " ${dedicated_from_secret:-} " in *" $1 "*) echo "secret $1";; *) echo "WORKER_ENV";; esac; }
 problems=0
 while IFS= read -r line; do
   case "$line" in ''|'#'*) continue;; esac
   name=${line%%=*}; value=${line#*=}
   if [[ "$value" =~ ^[[:space:]] || "$value" =~ [[:space:]]$ ]]; then
-    echo "::error title=WORKER_ENV::${name} has spaces before or after the value"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} has spaces before or after the value"; problems=1
   fi
   if [[ "$value" =~ ^[\"\'] || "$value" =~ [\"\']$ ]]; then
-    echo "::error title=WORKER_ENV::${name} is wrapped in quotes; paste the value without quotes"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} is wrapped in quotes; paste the value without quotes"; problems=1
   fi
   if printf '%s' "$value" | LC_ALL=C grep -q '[^ -~]'; then
     echo "::error title=WORKER_ENV::${name} contains invisible or non-ASCII characters (often copied from a web page); type or re-copy the value"; problems=1
@@ -165,6 +169,6 @@ secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
 echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
 unset ak sk sandbox_secret secret_key
 if [ "$problems" -ne 0 ]; then
-  echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
+  echo "::error title=WORKER_ENV::fix each line above in the GitHub secret named in its title (a dedicated secret such as OMNI_REDIS_URL, otherwise WORKER_ENV), then run Deploy build worker again"
   exit 1
 fi
