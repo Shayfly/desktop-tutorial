@@ -22,7 +22,23 @@
 
 הריצה `42209069046` הייתה ידנית, על main ב-`57ac533`. היא נעצרה בשלב "Write environment file" עם השגיאה `OMNI_REDIS_URL is wrapped in quotes`. הערך מגיע מה-**secret הייעודי `OMNI_REDIS_URL`**, שמחליף את הערך מ-`WORKER_ENV`. הודעת השגיאה הפנתה ל-`WORKER_ENV`, וזו הפניה שגויה. **תוקן:** כל שורה בהודעה מציינת עכשיו את ה-secret שממנו הערך הגיע.
 
-**ה-worker לא הושפע.** הריצה נעצרה לפני ה-drain ולפני הבנייה, כך שה-worker ממשיך לרוץ על `ef9d156`. **כדי להמשיך:** הבעלים צריך להסיר את המרכאות מה-secret `OMNI_REDIS_URL` ב-GitHub, ואז להריץ שוב את Deploy build worker על main.
+**ה-worker לא הושפע.** הריצה נעצרה לפני ה-drain ולפני הבנייה, כך שה-worker המשיך לרוץ על `ef9d156`.
+
+## איך ה-worker הגיע ל-main (7.11)
+
+| פריסה | Run ID | תוצאה | סיבה |
+|---|---|---|---|
+| 150–152 | `42214443331`, `42215277287`, `42216121365` | נעצרו ב-Write environment file | ה-secret `OMNI_REDIS_URL` עדיין עטוף במרכאות. העדכון לא נשמר |
+| 153 | `42225161840` | נעצרה ב-Drain, בבטחה | `redis: AuthenticationError`. שער ה-drain סירב לעצור משהו, וה-rollback אישר שהצרכנים לא נגעו |
+| **154** | **`42403347277`** | **הצליחה, כל השלבים** | הכתובת הועתקה מחדש מ-Upstash `148ai-redis` (`sharp-satyr-200692`), עם `rediss://` (TLS) |
+
+ראיות מפריסה 154, על `ref=main sha=57ac5336d0dd7869bef761e31c142afc68ac2be5`:
+- `verified quiet; draining is safe`. כל הצרכנים נעצרו אחרי 2 שניות. היו 4, והתמונות הקודמות נשמרו ל-rollback.
+- שלב המיגרציות עבר, והמסד נשאר `COMPATIBLE 42/42`.
+- `PASS` לבדיקות האלה: sandbox בלי רשת, browser sandbox, preview edge (`*.151-145-89-132.sslip.io`), שמירת נתוני preview אחרי restart ואחרי גרסה חדשה, ו-R2.
+- `PASS job 2e19d60c-… enqueued on omni-builds was executed by worker … on this host`. ה-worker החדש צורך את תור הבנייות מאותו Redis שה-API משתמש בו.
+
+**לקח:** בכתובת ש-Upstash מציג (`redis-cli --tls -u redis://…`), ההצפנה נקבעת על ידי הדגל `--tls`. כשמעבירים את הכתובת לבד, צריך לכתוב `rediss://`.
 
 ## חפיפה בין #244, #245 ו-#246
 
@@ -37,7 +53,7 @@
 |---|---|---|
 | API | Vercel, `148aiv28`, פרודקשן על `57ac533` | `dpl_9kRr52sjPvcF35KHYRePnAyU6s5t`, `/api/v28/deployment` |
 | מסד | Neon `ep-delicate-wind-b9cgx8fb`, `COMPATIBLE 42/42` | `/api/v28/deployment` |
-| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, על `ef9d156` | פריסה 148. גם ה-job של הגיבוי ב-6.11 רץ על ה-runner הזה |
+| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, **על `57ac533` (main)** מ-7.11 | פריסה 154 (`42403347277`). לפני כן: `ef9d156` (פריסה 148) |
 | מסד של ה-worker | אותו מסד כמו הפרודקשן (`57afb09577d6`) | פריסה 148 ו-db-identity |
 | Redis | Upstash (אינטגרציה מותקנת ב-Vercel). הערך עצמו לא קריא | Vercel integrations |
 | אחסון | Cloudflare R2, בצד ה-worker | `storage-probe … host_suffix=r2.cloudflarestorage.com` |
