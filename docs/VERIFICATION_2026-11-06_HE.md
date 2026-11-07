@@ -57,7 +57,21 @@
 |---|---|---|
 | API | Vercel, `148aiv28`, פרודקשן על `57ac533` | `dpl_9kRr52sjPvcF35KHYRePnAyU6s5t`, `/api/v28/deployment` |
 | מסד | Neon `ep-delicate-wind-b9cgx8fb`, `COMPATIBLE 42/42` | `/api/v28/deployment` |
-| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, **על `57ac533` (main)** מ-7.11 | פריסה 154 (`42403347277`). לפני כן: `ef9d156` (פריסה 148) |
+| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, **על `cedcc43` (main)** מ-7.11 | פריסה 155 (`42405765412`, push). לפני כן: 154 על `57ac533`, ו-148 על `ef9d156` |
 | מסד של ה-worker | אותו מסד כמו הפרודקשן (`57afb09577d6`) | פריסה 148 ו-db-identity |
 | Redis | Upstash (אינטגרציה מותקנת ב-Vercel). הערך עצמו לא קריא | Vercel integrations |
 | אחסון | Cloudflare R2, בצד ה-worker | `storage-probe … host_suffix=r2.cloudflarestorage.com` |
+
+## אחרי המיזוג (7.11)
+
+| שלב | תוצאה | ראיה |
+|---|---|---|
+| C17 ב-`CONTROLS.json` | נרשם: `2026-11-06`, `PASS`, `42194235767` | commit `9543021`; ‏`registry_lint: 31 controls … 0 violation(s)` |
+| CI על #248 | הכל ירוק, כולל V11 (`validate`) | head `9543021` |
+| כשל ביניים ב-pg | `test_5_an_oom_kill…` נכשל פעמיים ועבר בהרצה השלישית, בלי שינוי בקוד | ריצה `42404222487`. ה-OOM לא קרה, וה-job נהרג במועד של 60 שניות (`exit 137`). הבדיקה עברה על `4cd1b67` 8 דקות קודם. השינוי (CONTROLS.json, בדיקת lint, docs) לא נוגע ב-drain. **בדיקה לא יציבה, פתוח לטיפול** |
+| מיזוג #248 | **`cedcc434b9bd242671509fd9d6caa80a79361d19`** | merge commit ב-main |
+| פריסה אוטומטית מה-push | **155** (`42405765412`), ‏`event=push`, הצליחה | `ref=main sha=cedcc434…`. ה-drain אומת, כל ה-PASS עברו, וה-worker הריץ job מ-`omni-builds`. ה-trigger החדש עובד |
+| #246 | הבסיס הוחלף ל-main (19 commits, 12 קבצים) | commits של #245 הם ancestors של `0c9d643`. ‏`omni_prod/` ו-`docs/` זהים ל-#244 |
+| #244, #245 | נסגרו כ-superseded, עם הערה בכל אחד | אפשר לפתוח מחדש |
+
+**הערה:** השלב "Verify maintenance services use 1800-second intervals" רץ רק ב-`workflow_dispatch`, ולכן ב-155 הוא דולג. זה לפי ההגדרה ב-workflow, לא כשל.
