@@ -114,12 +114,13 @@ class GatewayTests(unittest.TestCase):
     def test_negative_control_gemini_quote_cannot_pay_for_venice(self):
         """The hole this PR closes: a reservation priced on the Gemini catalog is too small for a Venice model,
         so every call was refused before contact and the conversation silently stayed deterministic."""
-        from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS, SYSTEM
-        q = B.quote(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)       # no venice env: Gemini catalog
+        from omni_prod.intake.interpreter import SYSTEM
+        tokens = 700   # pinned: the control is about catalogs, not the output limit (raised to 1400 on 2026-11-08)
+        q = B.quote(system=SYSTEM, user=MSG, max_tokens=tokens)                  # no venice env: Gemini catalog
         fake = FakeVenice()
         g = V.VeniceIntakeGateway(q.amount_usd, env=KEY, transport=fake)
         with self.assertRaises(VeniceBudgetExceeded):
-            g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+            g.complete_json(system=SYSTEM, user=MSG, max_tokens=tokens)
         self.assertEqual(fake.chats, [])
 
     def test_models_over_the_ceiling_are_never_selected(self):
@@ -232,7 +233,8 @@ class CustomerWordsEvidence(unittest.TestCase):
         self.assertIn(MSG, fake.chats[0][2]['messages'][-1]['content'])     # Venice saw the customer's words
         self.assertEqual(t.interpretation['interpreter'], 'model+deterministic')
         self.assertEqual((t.interpretation['cost_state'], t.interpretation['cost_usd']), (B.CONFIRMED, '0.0007'))
-        self.assertTrue(t.reply.startswith(ANSWER['reply']))
+        self.assertEqual(t.reply, ANSWER['reply'])          # CEO 2026-11-08: Venice's reply IS the answer (no questionnaire)
+        self.assertEqual(t.questions, [])                    # no quick-reply buttons while Venice leads
         for words in ('אילת', 'מזומן'):
             self.assertIn(words, t.reply)
         self.assertEqual(t.interpretation['requirements'], ANSWER['requirements'])
