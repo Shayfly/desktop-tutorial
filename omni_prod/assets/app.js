@@ -83,7 +83,7 @@ const T = {
  errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
     errPlanNotIncluded:'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.', errAllowanceExhausted:'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
-    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
+    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 55 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
     dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
     shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
@@ -197,7 +197,7 @@ const T = {
  errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
     errPlanNotIncluded:'This build is not included in your plan. Upgrade your plan to continue.', errAllowanceExhausted:'Your budget or credits have run out. Add credits or build a smaller project.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
-    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
+    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 55 seconds. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
     dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
     shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
@@ -281,7 +281,7 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   // A request that never answers must not freeze the page (2026-10-08: the
   // change panel kept saying "sent" after the candidate was ready).
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  const timer = ctl ? setTimeout(() => ctl.abort(), 30000) : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 55000) : null;
   try { res = await fetch(path, { method, headers, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined, body: body === undefined ? undefined : JSON.stringify(body) }); }
   catch (e) { throw new ApiError(0, e && e.name === 'AbortError' ? 'timeout' : t('errNet')); }
   finally { if (timer) clearTimeout(timer); }

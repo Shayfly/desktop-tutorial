@@ -137,6 +137,7 @@ _TXT = {
            'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
+           'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
@@ -163,6 +164,7 @@ _TXT = {
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
+           'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
            'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
@@ -666,6 +668,18 @@ class ConversationSupervisor:
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
+        # CEO 2026-11-08: no questionnaire. While the conversation is still listening (no gate 1, no blocker, no
+        # conflict), the customer sees the model's own reply and question, not the detector's question, the
+        # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
+        # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
+        listening = not (row.complete and gap_q is None) and not res.conflicts and not turn.blocked
+        model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
+                       and bool((interp.reply or '').strip()))
+        if listening and model_reply:
+            turn.reply, turn.questions = interp.reply.strip(), []
+        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
+            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
+            turn.reply, turn.questions = T['model_unavailable'], []
         return turn
 
     @staticmethod
