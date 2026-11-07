@@ -1059,9 +1059,10 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; preview edge",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: .github/workflows/worker-diagnostics.yml",
+   "evidence": [],
+   "stale_evidence": [
     "deploy-worker run 38083162363"
    ],
    "last_verified_at": "2026-10-10T20:15Z",
@@ -7678,10 +7679,10 @@
   "agents_total": 54,
   "agents": {
    "NOT_IMPLEMENTED": 11,
-   "IMPLEMENTED": 26,
+   "IMPLEMENTED": 27,
    "UNIT_TESTED": 8,
    "INTEGRATION_TESTED": 0,
-   "REAL_SERVER_VERIFIED": 5,
+   "REAL_SERVER_VERIFIED": 4,
    "LIVE": 0,
    "BLOCKED": 4
   },
