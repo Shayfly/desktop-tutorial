@@ -123,3 +123,18 @@
 לא בוצעה, משתי סיבות. אין לי מכאן גישה לרשת אל `148aiv28.vercel.app` (ה-proxy מחזיר 403), ואין דפדפן מחובר. אפשרויות:
 - הבעלים מריץ את הבדיקה מהטלפון ב-`/`, ואני מאמת מהצד של השרת: Neon, תור ה-worker ו-artifacts.
 - workflow שמריץ את הבדיקה מ-runner של GitHub עם חשבון בדיקה. זה דורש אישור, כי זו כתיבה לפרודקשן ויש לה עלות.
+
+## מיזוגים באישור מפורש (עובדיה, 7.11, 22:51)
+
+| PR | נושא | SHA של המיזוג | פריסת worker |
+|---|---|---|---|
+| #250 | drain: זיהוי OOM שמגיע באיחור, ונתוני אבחון | `cc4df55e467dace230861c6c82e680417b921c60` | 156 (`42413104173`), push. נבנתה על `2836b11` (main כבר כלל את #251), הצליחה. `drain: consumers stopped after 1s` |
+| #251 | deployment-verify: מגבלה של 45 שניות ל-`conversation_turn`, ו-`elapsed_ms` | `2836b1123dd9dde0d62887d758fec9284118efe3` | נכלל ב-156 |
+| #252 | docs: ביקורת מסלול הקרדיטים, OOM ו-verify | `c807fc43187f11b3bcbb5cbb7fc5ee5943e4a6f6` | docs בלבד |
+| #246 | Hard Cap ב-LIGHT/STANDARD, ואישור חובה בבנייה async (מחליף את #244 ו-#245) | **`65488f693def35295f61ee3fc04f5cce658c04ec`** | **157** (`42413848957`), push, הצליחה |
+
+- **CI של #246 לפני המיזוג:** הענף עודכן מ-main אחרי המיזוגים של #250 עד #252 (head `dc75072`), וכל הבדיקות היו ירוקות. אין חפיפה בקבצים בין #246 לבין #250 ו-#251.
+- **ה-worker על הקוד הממוזג:** בפריסה 157 נרשם `ref=main sha=65488f6…`, ונרשמו ההודעות `verified quiet; draining is safe` ו-`all consumers stopped cleanly after 2s`. כל בדיקות ה-PASS עברו: sandbox, דפדפן, preview edge, שמירה אחרי restart, R2, ו-`PASS job … enqueued on omni-builds was executed by worker … on this host`.
+- **ה-API:** `GET /api/v28/deployment` מחזיר `source_commit=65488f6…` ו-`schema COMPATIBLE 42/42`, על אותו מסד (`57afb09577d6`). ה-API וה-worker רצים על אותו commit.
+- **החלטה #24** ב-`DECISIONS_LOG.md` היא עכשיו Hard Cap ב-LIGHT ($0.35) וב-STANDARD ($1.60), באישור הבעלים.
+- **משימת הקרדיטים:** issue #253. היקף המשימה: checkout חד-פעמי, webhook שמזכה פעם אחת בדיוק, וכפתור "הוסף קרדיטים". המשימה ממתינה לשני דברים מהבעלים: חבילות ומחירים, ומפתחות Stripe ב-Vercel.
