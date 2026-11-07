@@ -28,6 +28,8 @@ if is_compose and 'ps' in a and '-q' in a:
     if cfg.get('ps_rc'): sys.exit(cfg['ps_rc'])
     if svc in cfg.get('services', []): print('cid-' + svc)
     sys.exit(0)
+if a[0] == 'inspect' and a[2] == '{{.Id}}':           # full id, matched against the fake kernel log
+    print('full-' + a[3][4:] + '-0123456789abcdef'); sys.exit(0)
 if a[0] == 'inspect':
     fmt, cid = a[2], a[3]; svc = cid[4:]
     if svc in cfg.get('inspect_fails', []) and fmt == '{{.Image}}': sys.exit(1)
@@ -79,6 +81,10 @@ def run(script, cfg, extra_env=None):
     docker = bindir / 'docker'
     docker.write_text(FAKE_DOCKER)
     docker.chmod(docker.stat().st_mode | stat.S_IEXEC)
+    if cfg.get('kernel_log'):                       # a fake `dmesg` on the same PATH as the fake docker
+        dmesg = bindir / 'dmesg'
+        dmesg.write_text('#!/bin/sh\ncat <<\'EOF\'\n' + cfg['kernel_log'] + '\nEOF\n')
+        dmesg.chmod(0o755)
     (state / 'cfg.json').write_text(json.dumps(cfg))
     deploy = Path(tmp) / 'deploy-state'
     env = {**os.environ, 'PATH': f'{bindir}:{os.environ["PATH"]}', 'FAKE_STATE': str(state),
@@ -115,6 +121,14 @@ class DrainTests(unittest.TestCase):
             self.assertNotIn('deadline', reasons)                     # an OOM kill is not reported as a deadline kill
             self.assertIn(f'drain: preview-worker exit=137 oom=true (from {src})', r.stdout)
             self.assertIn('event=oom', log.read_text())            if src == 'event' else None
+
+    def test_an_oom_kill_only_the_kernel_log_records_is_still_an_oom_kill(self):
+        # 2026-11-08: engine flag false, no `oom` event; the kernel log names the container's cgroup
+        line = '[263.1] Memory cgroup stats for /system.slice/docker-full-preview-worker-0123456789abcdef.scope:'
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'preview-worker': 137}, 'kernel_log': line})
+        reasons = (st / 'drain-failed').read_text()
+        self.assertIn('preview-worker was OOM-killed (exit 137; engine kernel)', reasons)
+        self.assertNotIn('deadline', reasons)
 
     def test_a_deadline_kill_without_any_oom_signal_stays_a_deadline_kill(self):
         r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'worker': 137}})

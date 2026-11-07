@@ -109,7 +109,18 @@ echo "drain: consumers stopped after ${waited}s (deadline ${DEADLINE}s, stop exi
 # exit 137 the engine is asked again, from two sources: the flag after a short settle, and the engine's own `oom`
 # event for that container since the drain started. Either one marks the kill as OOM. Read-only.
 OOM_SETTLE="${DRAIN_OOM_SETTLE_SECONDS:-3}"
-oom_seen() {  # $1 = container id; prints "flag", "event" or nothing
+# 2026-11-08 (run 42424210180): on a cgroup-v2 host (Docker 28.0.4, kernel 7.0) the kernel OOM-killed the job
+# (its log names the container's cgroup) while the engine reported OOMKilled=false and no `oom` event at all
+# (events: kill, stop, die). So the kernel log is the third source, read only if this host lets us read it.
+kernel_oom() {  # $1 = container id; succeeds if the kernel log records an OOM kill inside that container's cgroup
+  local full log
+  full=$(docker inspect -f '{{.Id}}' "$1" 2>/dev/null) || return 1
+  [ -n "$full" ] || return 1
+  log=$(dmesg 2>/dev/null || sudo -n dmesg 2>/dev/null) || return 1
+  grep -F "$full" <<<"$log" | grep -qiE 'oom-kill|out of memory|memory cgroup stats'
+}
+
+oom_seen() {  # $1 = container id; prints "flag", "event", "kernel" or nothing
   local cid="$1" i
   for ((i = 0; i <= OOM_SETTLE; i++)); do
     [ "$(docker inspect -f '{{.State.OOMKilled}}' "$cid" 2>/dev/null)" = "true" ] && { echo flag; return; }
@@ -117,6 +128,7 @@ oom_seen() {  # $1 = container id; prints "flag", "event" or nothing
                  --filter event=oom --format '{{.Action}}' 2>/dev/null | head -n1)" ]; then
       echo event; return
     fi
+    kernel_oom "$cid" && { echo kernel; return; }
     [ "$i" -lt "$OOM_SETTLE" ] && sleep 1
   done
 }
