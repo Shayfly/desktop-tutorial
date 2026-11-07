@@ -315,7 +315,8 @@ class RealDockerDrainRecovery(unittest.TestCase):
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])
-        self.assertIn('was OOM-killed', reasons)          # the engine's own OOMKilled flag, not just exit 137
+        self.assertIn('was OOM-killed', reasons)          # the engine's own OOMKilled flag or oom event, not just exit 137
+        self.assertNotIn('deadline', reasons)             # the allocator dies at once; it never reaches the 60s deadline
         r = self.recover()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue(self.all_running_again())
