@@ -57,7 +57,69 @@
 |---|---|---|
 | API | Vercel, `148aiv28`, פרודקשן על `57ac533` | `dpl_9kRr52sjPvcF35KHYRePnAyU6s5t`, `/api/v28/deployment` |
 | מסד | Neon `ep-delicate-wind-b9cgx8fb`, `COMPATIBLE 42/42` | `/api/v28/deployment` |
-| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, **על `57ac533` (main)** מ-7.11 | פריסה 154 (`42403347277`). לפני כן: `ef9d156` (פריסה 148) |
+| worker | Oracle `148ai-worker-01`, runner `self-hosted,omni-worker`, **על `cedcc43` (main)** מ-7.11 | פריסה 155 (`42405765412`, push). לפני כן: 154 על `57ac533`, ו-148 על `ef9d156` |
 | מסד של ה-worker | אותו מסד כמו הפרודקשן (`57afb09577d6`) | פריסה 148 ו-db-identity |
 | Redis | Upstash (אינטגרציה מותקנת ב-Vercel). הערך עצמו לא קריא | Vercel integrations |
 | אחסון | Cloudflare R2, בצד ה-worker | `storage-probe … host_suffix=r2.cloudflarestorage.com` |
+
+## אחרי המיזוג (7.11)
+
+| שלב | תוצאה | ראיה |
+|---|---|---|
+| C17 ב-`CONTROLS.json` | נרשם: `2026-11-06`, `PASS`, `42194235767` | commit `9543021`; ‏`registry_lint: 31 controls … 0 violation(s)` |
+| CI על #248 | הכל ירוק, כולל V11 (`validate`) | head `9543021` |
+| כשל ביניים ב-pg | `test_5_an_oom_kill…` נכשל פעמיים ועבר בהרצה השלישית, בלי שינוי בקוד | ריצה `42404222487`. ה-OOM לא קרה, וה-job נהרג במועד של 60 שניות (`exit 137`). הבדיקה עברה על `4cd1b67` 8 דקות קודם. השינוי (CONTROLS.json, בדיקת lint, docs) לא נוגע ב-drain. **בדיקה לא יציבה, פתוח לטיפול** |
+| מיזוג #248 | **`cedcc434b9bd242671509fd9d6caa80a79361d19`** | merge commit ב-main |
+| פריסה אוטומטית מה-push | **155** (`42405765412`), ‏`event=push`, הצליחה | `ref=main sha=cedcc434…`. ה-drain אומת, כל ה-PASS עברו, וה-worker הריץ job מ-`omni-builds`. ה-trigger החדש עובד |
+| #246 | הבסיס הוחלף ל-main (19 commits, 12 קבצים) | commits של #245 הם ancestors של `0c9d643`. ‏`omni_prod/` ו-`docs/` זהים ל-#244 |
+| #244, #245 | נסגרו כ-superseded, עם הערה בכל אחד | אפשר לפתוח מחדש |
+
+**הערה:** השלב "Verify maintenance services use 1800-second intervals" רץ רק ב-`workflow_dispatch`, ולכן ב-155 הוא דולג. זה לפי ההגדרה ב-workflow, לא כשל.
+
+## הוראות עובדיה, 7.11 בערב
+
+| שלב | מצב | ראיה |
+|---|---|---|
+| מיזוג #249 (docs) | **מוזג** | `309df93044115dd3f2a39abae181f963b8aaa3f7`. הוא לא הפעיל פריסת worker, כי השינוי הוא docs בלבד. ה-worker נשאר על `cedcc43` |
+| CI ל-#246 מול main | **ירוק** | main מוזג לענף (`update-branch`), head `90890c8`. כל הבדיקות עברו, כולל V11, pg, v24 ו-deployment-verify (`42406715305`) |
+| מיזוג #246 | **ממתין** | בלי מסלול קרדיטים (ראו בהמשך) |
+| OOM (`test_5_an_oom_kill`) | **PR #250, ממתין למיזוג. שורש הבעיה לא אומת** | פירוט בהמשך |
+| deployment-verify, `conversation_turn` | **PR #251, CI ירוק, ממתין למיזוג** | פירוט בהמשך |
+| בדיקה מקצה לקצה דרך `/` | **לא בוצעה. חסומה מכאן** | פירוט בהמשך |
+
+### מסלול הקרדיטים (נבדק בקוד של main `309df93`)
+
+1. **הלקוח רואה את העלות לפני הבנייה: כן.** `POST /api/v28/projects/{id}/build-contracts` מחזיר `credits_required` ו-`allowance.credits_remaining`. בדף `/`, הקובץ `omni_prod/assets/app.js:705-707` מציג את שניהם לפני כפתור האישור. השלב הזה לא שומר קרדיטים.
+2. **מסלול להוסיף קרדיט: אין.**
+   - אין רכישה חד-פעמית של קרדיטים. `POST /api/v28/billing/checkout` יוצר רק **מנוי** (`mode: subscription`) לאחד המסלולים basic, pro או business.
+   - **אין ב-Vercel אף משתנה `STRIPE_*`.** לכן ה-checkout מחזיר 503 (`STRIPE_SECRET_KEY is not configured`).
+   - **ב-UI אין כפתור** שקורא ל-checkout.
+   - כשנגמרים הקרדיטים, השרת מחזיר `402 build_allowance_exhausted` עם ההודעה "Add credits or build a smaller project", אבל אין לאן ללכת.
+   - שמות המסלולים ב-Stripe (BASIC/PRO/BUSINESS) לא תואמים את החלטות 21 ו-22 (Free/Amateur/Pro/Studio).
+3. **חסרים ארבעה דברים:**
+   - חבילות קרדיט ומחירים. זו החלטת בעלים.
+   - checkout חד-פעמי ב-Stripe (`mode: payment`), עם webhook שמזכה את ה-ledger בדיוק פעם אחת.
+   - כפתור "הוסף קרדיטים" במקום שבו מוצגים העלות וההודעה על 402.
+   - מפתחות Stripe ב-Vercel. זה עניין של הבעלים.
+
+### OOM
+
+- **ממצא:** ב-4 ריצות על #248 הבדיקה עברה 2 פעמים ונכשלה 2 פעמים, באותו קוד. בכל הכשלים מופיע `preview-worker exit=137 oom=false`, כלומר המנוע לא סימן OOM.
+- **PR #250:** ב-`drain.sh`, כשיש exit 137 בלי הדגל, הסקריפט קורא שוב את `State.OOMKilled` במשך עד 3 שניות, ובודק אם יש `docker events --filter event=oom` לאותו container. כל אחד מהם מספיק כדי לסמן OOM. בנוסף, הריגה בגלל OOM כבר לא מדווחת גם כהריגה בגלל המגבלה.
+- **תוצאות:** על `ba26bad` היו 3 הצלחות ו-1 כשל, ובכשל גם הבדיקה החוזרת לא מצאה סימן ל-OOM. על `e41c001` היו **6 הצלחות מתוך 6** (ריצה `42408564062`, ניסיונות 1 עד 6).
+- **מה לא אומת:** שורש הבעיה. ההשערה הראשונה, מרוץ בין אירוע ה-OOM לאירוע היציאה, לא הסבירה את הכשל השלישי. לכן נוספו ל-`e41c001` נתוני אבחון לכל כשל עתידי: משך העצירה, `State` המלא, האירועים של ה-container, שורות OOM מה-kernel, וגרסאות המנוע וה-cgroup. הגדלת ההקצאה לא נעשתה: ה-allocator כבר מבקש 64MiB מתוך מגבלה של 48MiB בלי swap, ואין ראיה שההקצאה היא הבעיה.
+
+### deployment-verify, `conversation_turn`
+
+- **ממצא:** כשל אחד מתוך 60 הריצות האחרונות (`42099576142`, 5.11). באותה ריצה `conversation_persists` עבר מיד אחרי, כלומר השרת סיים את התור, אבל הלקוח כבר ויתר אחרי 15 שניות. בענף ה-preview ב-Neon (`br-shy-surf-b9il6jys`) אין reservation של intake, כך שהעיכוב לא נבע מהמתנה למודל.
+- **מדידה:** אחרי התיקון, בריצה תקינה (`42407163938`), `conversation_turn` לקח **11,522ms**. שאר הבקשות לקחו בין 0.15 ל-4.6 שניות. כלומר, מגבלה של 15 שניות משאירה מרווח קטן מדי.
+- **PR #251:**
+  - ל-`conversation_turn` מוקצות 45 שניות. זה פחות מ-`maxDuration: 60`, כך ששרת תקוע עדיין יחזיר TIMEOUT.
+  - שאר הבקשות נשארות על 15 שניות.
+  - כל בדיקת HTTP רושמת `elapsed_ms`.
+
+### בדיקה מקצה לקצה דרך `/`
+
+לא בוצעה, משתי סיבות. אין לי מכאן גישה לרשת אל `148aiv28.vercel.app` (ה-proxy מחזיר 403), ואין דפדפן מחובר. אפשרויות:
+- הבעלים מריץ את הבדיקה מהטלפון ב-`/`, ואני מאמת מהצד של השרת: Neon, תור ה-worker ו-artifacts.
+- workflow שמריץ את הבדיקה מ-runner של GitHub עם חשבון בדיקה. זה דורש אישור, כי זו כתיבה לפרודקשן ויש לה עלות.
