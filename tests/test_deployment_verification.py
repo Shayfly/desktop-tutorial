@@ -455,7 +455,9 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.FAILED)
         self.assertEqual(self.status(r, 'conversation_turn'), vc.FAIL)
         self.assertEqual(r['commit_sha'], SHA)
-        self.assertEqual(self.ev(r, 'conversation_turn'), {'status': 500, 'error_class': 'HTTP_500'})
+        ev = self.ev(r, 'conversation_turn')
+        self.assertIsInstance(ev.pop('elapsed_ms'), int)              # 2026-11-07: every HTTP check records its duration
+        self.assertEqual(ev, {'status': 500, 'error_class': 'HTTP_500'})
         self.assert_not_promotable(r)
 
     def test_scenario_e_schema_mismatch_blocks_promotion(self):
@@ -560,6 +562,15 @@ class DeploymentVerifyTests(unittest.TestCase):
         r = self.run_stub(sleep_on='memory', timeout=0.5)
         self.assertEqual(self.ev(r, 'project_memory')['error_class'], 'TIMEOUT')
         self.assertEqual(r['verdict'], vc.FAILED)
+
+    def test_a_conversation_turn_slower_than_the_default_timeout_still_passes(self):
+        # 2026-11-07 (run 42099576142): the turn may wait for the worker's intake model; the client must not give up
+        # at the default per-request timeout while the server is still answering. Other calls keep the default.
+        r = self.run_stub(sleep_on='conversation', timeout=0.5)
+        self.assertEqual(self.status(r, 'conversation_turn'), vc.PASS, self.ev(r, 'conversation_turn'))
+        self.assertGreaterEqual(self.ev(r, 'conversation_turn')['elapsed_ms'], 1400)
+        self.assertGreater(dv.CONVERSATION_TURN_TIMEOUT, 15.0)
+        self.assertLess(dv.CONVERSATION_TURN_TIMEOUT, 60.0)              # under vercel.json maxDuration: a hang still times out
 
     def test_oversized_and_non_json_responses_fail(self):
         r = self.run_stub(huge_on='deployment')
