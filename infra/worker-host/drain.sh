@@ -99,6 +99,7 @@ fi
 docker compose stop -t "$DEADLINE" "${rest[@]}"
 rc=$?
 waited=$(( $(date +%s) - start ))
+echo "drain: consumers stopped after ${waited}s (deadline ${DEADLINE}s, stop exit $rc)"
 
 [ "$rc" -eq 0 ] || reasons+=("docker compose stop exited $rc")
 

@@ -315,6 +315,14 @@ class RealDockerDrainRecovery(unittest.TestCase):
         reasons = (self.state / 'drain-failed').read_text() if (self.state / 'drain-failed').exists() else ''
         self.assertEqual(d.returncode, 1, d.stdout)
         print('\nEVIDENCE oom drain-failed:', reasons.strip(), '|', [l for l in d.stdout.splitlines() if l.startswith('drain:')])
+        if 'was OOM-killed' not in reasons:     # 2026-11-07: say WHY before failing (flag, events, kernel), not just that
+            print('EVIDENCE oom state:', self.inspect(cid, '{{json .State}}'))
+            print('EVIDENCE oom events:', sh('docker', 'events', '--since', '10m', '--until', '0s', '--filter',
+                                               f'container={cid}', '--format', '{{.Action}}').stdout.split())
+            print('EVIDENCE oom kernel:', [l for l in sh('sudo', '-n', 'dmesg').stdout.splitlines()
+                                           if 'oom' in l.lower() or 'memory cgroup' in l.lower()][-6:])
+            print('EVIDENCE oom engine:', sh('docker', 'version', '-f', '{{.Server.Version}}').stdout.strip(),
+                  sh('docker', 'info', '-f', '{{.CgroupVersion}} {{.KernelVersion}}').stdout.strip())
         self.assertIn('was OOM-killed', reasons)          # the engine's own OOMKilled flag or oom event, not just exit 137
         self.assertNotIn('deadline', reasons)             # the allocator dies at once; it never reaches the 60s deadline
         r = self.recover()
