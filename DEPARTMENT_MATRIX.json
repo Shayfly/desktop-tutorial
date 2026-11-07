@@ -476,7 +476,7 @@
     "sre_reliability_agent": "IMPLEMENTED"
    },
    "support_agents": {
-    "diagnostic_agent": "REAL_SERVER_VERIFIED",
+    "diagnostic_agent": "IMPLEMENTED",
     "platform_capability_auditor": "UNIT_TESTED"
    },
    "skills": {
