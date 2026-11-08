@@ -261,6 +261,11 @@ Skills in the §9 catalog (137): VERIFIED 7, STALE 29, TESTED 17, IMPLEMENTED 7,
 | skill.text_locale@1 | INSTRUCTION + VALIDATOR | STALE | injected into: generator, repair, evolution, reviewer | STALE — was verified for: guidance injected; model review found no blocking issue at dbd1232; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | — |
 | skill.data_integrity@1 | INSTRUCTION + VALIDATOR | STALE | injected into: architect, generator, repair, evolution, reviewer | STALE — was verified for: guidance injected; model review found no blocking issue at dbd1232; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37841459920 — skills_applied recorded in the build; QA review against their checklists, 0 blocking | no conflict/404 probe against the running app yet |
 | skill.visual_design@1 | INSTRUCTION + VALIDATOR | STALE | injected into: generator, repair, evolution, reviewer | STALE — was verified for: CSS heuristic passed; model review 0 blocking at 727af63; code changed since: omni_prod/skills_runtime.py | golden-rehearsal run 37858017258 — library prompt: ready, quality 86, design static check passed, review 0 blocking | checked by a CSS heuristic and code review, not by looking at a screenshot (directive §11: not a design approval); not yet seen by the founder in a preview |
+| skill.spec_precision@1 | INSTRUCTION | CONNECTED | injected into: architect, reviewer | none | tests/test_skills_runtime_and_review.py | — |
+| skill.acceptance_plan@1 | INSTRUCTION | CONNECTED | injected into: generator, repair, evolution | none | tests/test_skills_runtime_and_review.py | — |
+| skill.test_design@1 | INSTRUCTION | CONNECTED | injected into: generator, repair, evolution | none | tests/test_skills_runtime_and_review.py | — |
+| skill.repair_method@1 | INSTRUCTION | CONNECTED | injected into: repair, evolution | none | tests/test_skills_runtime_and_review.py | — |
+| skill.security_basics@1 | INSTRUCTION | CONNECTED | injected into: generator, repair, evolution, reviewer | none | tests/test_skills_runtime_and_review.py | — |
 
 ## Mismatches found
 

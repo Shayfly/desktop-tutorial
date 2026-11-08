@@ -271,7 +271,7 @@ DATA_INTEGRITY = Skill(
         'when the request implies uniqueness) and answer 409 with a readable message on a conflict; acting on a missing '
         'id answers 404. Data lives under DATA_DIR. The architect turns each such rule into an acceptance criterion. '
         # T8 (founder 2026-10-21): a resource that can be booked for a time range.
-        'Bookable resources (a room, a slot, any resource with capacity): the overlap rule lives IN THE SERVER, inside '
+        'ONLY when the product books a resource for a time range (a room, a slot, a class, any resource with capacity) -- skip this for every other product: the overlap rule lives IN THE SERVER, inside '
         'one write transaction, never only in the page. With SQLite (no SELECT ... FOR UPDATE) the equivalent is: '
         'open the connection with isolation_level=None, run BEGIN IMMEDIATE (takes the write lock before reading), '
         'SELECT the resource row, then SELECT any booking of that resource with start < :new_end AND end > :new_start '
@@ -326,7 +326,105 @@ VISUAL_DESIGN = Skill(
     static_checks=(_styled_page,),
 )
 
-WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN)
+
+# CEO 2026-11-08 ("skills precise at world-class programmer level, really tied to what each model does"): the pack
+# above is product quality only. Founder build bld_ca727ba7 showed what the stations themselves lacked: a chained
+# acceptance plan whose first capture failed took three checks with it, the repair answer explained instead of
+# patching, and the weekly view was an unfiltered list. These skills describe HOW each station works.
+
+ACCEPTANCE_PLAN = Skill(
+    key='skill.acceptance_plan', version='1',
+    purpose='The web_saas_acceptance plan proves the approved criteria against the real app, step by step, without '
+            'false failures.',
+    boundaries='The plan in .omni/project.json; not product code.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Acceptance plan (how a senior QA engineer writes it): each step is one HTTP request whose expectation is '
+        'derived from the code you wrote, never guessed. Order steps as a story: read -> create -> read back -> '
+        'update -> delete -> confirm gone. Prefer data the plan creates itself over seed rows: create the record, '
+        'capture its id from THAT response ("capture": {"item_id": "id"}), then use ${item_id}. When you capture from a '
+        'list, the response must be a JSON array or an object holding one, and the path must exist in it ("[0].id" for '
+        'a top-level array, "items[0].id" for {"items": [...]}); a capture that does not resolve fails every later step '
+        'that uses the variable. Assert what the criterion is about (status plus one or two expect_json_contains keys '
+        'whose values you control), not incidental fields such as generated timestamps. Dates: ${today} or '
+        '${date_plus_N}, never a fixed calendar date. Every acceptance id appears on at least one step of a kind that '
+        'really exercises it; before answering, walk the plan once against your own handlers and fix any step that '
+        'your code would answer differently.'),
+    checklist=('Every capture path resolves in the response the step receives.',
+               'Each acceptance id is covered by a step that exercises it end-to-end.'),
+)
+
+TEST_DESIGN = Skill(
+    key='skill.test_design', version='1',
+    purpose='The repository tests prove the acceptance criteria and fail for the right reason.',
+    boundaries='tests/ only; the sandbox rules (stdlib + pytest, loopback, 180 s) stay as stated.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Tests: one test function per acceptance criterion, named after it (test_a2_register_for_class), plus one '
+        'invalid-input test per form. Each test sets DATA_DIR to tmp_path BEFORE importing or starting the app, so the '
+        'database starts empty and tests do not depend on each other or on order. Arrange the data the test needs '
+        'through the public API, act once, then assert status AND body. Start the server once per module with a fixture '
+        '(port 0, daemon thread, shutdown in teardown). A test that fails must print what it got: assert with a '
+        'message containing the status and the first 300 characters of the body. Never weaken an assertion to make it '
+        'pass; fix the product.'),
+    checklist=('Every acceptance criterion has a test that would fail if the behaviour broke.',
+               'Tests are independent: each uses its own empty DATA_DIR.'),
+)
+
+REPAIR_METHOD = Skill(
+    key='skill.repair_method', version='1',
+    purpose='A repair round finds the root cause of each failure and changes exactly the code that causes it.',
+    boundaries='Repair and evolution rounds; does not change the approved scope.',
+    roles=(ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Repair method (how a senior engineer debugs): 1) Read every failure and its evidence; group failures that '
+        'share one cause (a crash in init_db() fails every test: fix that first). 2) For each group find the exact file '
+        'and function from the traceback or the failing request, and read that code in the repository you were given. '
+        '3) Decide whether the product, the test, or the acceptance step is wrong: the approved acceptance text is the '
+        'authority -- fix the product when it disagrees; fix a test or plan step only when it contradicts the approved '
+        'text or uses a path/variable that does not exist (e.g. a capture path missing from the response). 4) Make the '
+        'smallest change that removes the cause, keep every behaviour that already passed, and return each changed '
+        'file in full. 5) Before answering, re-run the failing step in your head against the new code. If the previous '
+        'round changed nothing (NO_PROGRESS), your diagnosis was wrong: pick a different cause. Never put the '
+        'explanation outside the JSON.'),
+    checklist=('Each failure group was traced to code and changed there.',
+               'Nothing that passed before was removed or weakened.'),
+)
+
+SECURITY_BASICS = Skill(
+    key='skill.security_basics', version='1',
+    purpose='The product is safe by default: no injection, no leaked secrets, no unsafe trust in the client.',
+    boundaries='Application code; platform sign-in rules stay with the platform.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Security basics: every SQL statement uses parameters (?), never string formatting; user input never reaches '
+        'a shell, eval/exec, open() of a client-chosen path, or a redirect target without an allow-list. No secret, '
+        'key or password in code, HTML or logs; read configuration from os.environ. The server re-checks every rule '
+        'the page checks (prices, capacity, ownership) and never trusts ids or roles sent by the client. Answer errors '
+        'with a short message, never a traceback. Send Content-Type on every response and "X-Content-Type-Options: '
+        'nosniff" on HTML and JSON.'),
+    checklist=('All SQL is parameterised; no secrets in the repository; errors show no traceback.',
+               'Server re-validates every client-side rule.'),
+)
+
+SPEC_PRECISION = Skill(
+    key='skill.spec_precision', version='1',
+    purpose='Every requirement is concrete enough that two engineers would build the same behaviour.',
+    boundaries='The architect specification; not code.',
+    roles=(ROLE_ARCHITECT, ROLE_REVIEWER),
+    guidance=(
+        'Specification precision (how a senior product architect writes it): turn every phrase of the request into '
+        'observable behaviour with its boundaries. A time view names its window ("weekly schedule" = the classes of the '
+        'current week, Sunday 00:00 to Saturday 23:59 Asia/Jerusalem unless the request says otherwise, with previous/next '
+        'week navigation), a list names its order and filter, a limit names what happens when it is reached (full class '
+        '-> waitlist or a 409 with a message), and every state change names who may do it. Each acceptance criterion '
+        'states the input, the action and the exact observable result, so its test is obvious. Do not leave a word such '
+        'as "manage", "track" or "schedule" without saying which screens and actions it means.'),
+    checklist=('Every view states its window, order and filter; every limit states its outcome.',),
+)
+
+WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN,
+                                   SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:
