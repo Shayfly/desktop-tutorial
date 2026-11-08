@@ -139,14 +139,16 @@ _CONTENT_SUFFIXES = ('.py', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.html', '.css
 _CONTENT_SKIP_PREFIXES = ('node_modules/', 'vendor/', 'dist/', 'build/', '.git/', '.148ai/', 'rights/', 'docs/')
 _CONTENT_SKIP_NAMES = ('package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'poetry.lock')
 _MAX_FILE_CONTENT_CHARS = 16_000
-_MAX_TOTAL_CONTENT_CHARS = 64_000
+_MAX_TOTAL_CONTENT_CHARS = 200_000
 
 
 # Crash run 37962802899 (2026-10-09): a single-file web app (server +
 # embedded page) is larger than 16k characters, so the main file was left out
 # and the repair model answered "app.py was omitted from prompt content".
 # Files the failures name, and the app entry point, may be larger and go first.
-_MAX_FOCUS_FILE_CHARS = 48_000
+# bld_624610bc (2026-11-09): app.py was 51K, so every repair round answered "I can't see app.py" and the
+# build stopped with the cause in plain sight. Current models read 1M tokens; 120K chars is ~35K tokens.
+_MAX_FOCUS_FILE_CHARS = 120_000
 _ENTRY_NAMES = ('app.py', 'main.py', 'server.py', 'index.js', 'server.js', 'app.js')
 
 

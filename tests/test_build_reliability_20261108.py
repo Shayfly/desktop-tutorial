@@ -210,3 +210,22 @@ class SkillStaticCheckTests(unittest.TestCase):
             self.assertIn((skill, 'advisory'), got)
         clean = {'app.py': 'cur.execute("SELECT 1 WHERE a=?", (a,))'}
         self.assertFalse([f for f in static_findings(clean) if f.skill == 'skill.security_basics'])
+
+
+class RepairVisibilityTests(unittest.TestCase):
+    """bld_624610bc (2026-11-09): a 51K-char app.py was hidden from every repair round."""
+
+    def test_large_entry_file_is_shown_to_the_repairer(self):
+        from omni_prod.modifier_engine import repo_summary
+        repo = {'app.py': 'x = 1\n' * 9000, '.omni/project.json': '{}'}      # 54K chars
+        files = {f['path']: f for f in repo_summary(repo, [])['files']}
+        self.assertIn('content', files['app.py'])
+
+    def test_sonnet_output_cap_and_code_structure_skill(self):
+        import pathlib
+        from omni_prod.skills_runtime import WEB_SKILLS
+        catalog = json.loads(pathlib.Path('infra/worker-host/model-catalog.json').read_text())
+        items = catalog if isinstance(catalog, list) else catalog['models']
+        sonnet = next(m for m in items if m['name'] == 'anthropic-claude-sonnet-5-5')
+        self.assertGreaterEqual(sonnet['max_output_tokens'], 40000)
+        self.assertIn('skill.code_structure', {s.key for s in WEB_SKILLS})

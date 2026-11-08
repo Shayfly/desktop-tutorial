@@ -395,7 +395,11 @@ ACCEPTANCE_PLAN = Skill(
         'a top-level array, "items[0].id" for {"items": [...]}); a capture that does not resolve fails every later step '
         'that uses the variable. Assert what the criterion is about (status plus one or two expect_json_contains keys '
         'whose values you control), not incidental fields such as generated timestamps. Dates: ${today} or '
-        '${date_plus_N}, never a fixed calendar date. Every acceptance id appears on at least one step of a kind that '
+        '${date_plus_N}, never a fixed calendar date. Test data obeys every rule of the field it fills, also in a '
+        'security step: a hostile name such as "<b>x</b>\' OR 1=1" stays within the length and format limits, so the '
+        'step proves safe storage and not a length error. A step that needs a record in a particular state (a class that '
+        'has not started, a slot with room) creates that record itself or reads it from a filtered list, never assumes '
+        'that seed row 1 is in that state. Every acceptance id appears on at least one step of a kind that '
         'really exercises it; before answering, walk the plan once against your own handlers and fix any step that '
         'your code would answer differently.'),
     checklist=('Every capture path resolves in the response the step receives.',
@@ -504,7 +508,9 @@ DATA_MODEL = Skill(
         'INTEGER PRIMARY KEY id, created_at (UTC ISO), and NOT NULL / CHECK / UNIQUE / FOREIGN KEY constraints that '
         'mirror the business rules (PRAGMA foreign_keys=ON on every connection). Add an index for every column used to '
         'filter or join. Store money as integers, times as UTC ISO, enums as TEXT with a CHECK list. Seed data only when '
-        'the request asks for example content, and never in a way tests depend on: tests create their own rows. The '
+        'the request asks for example content (or a working demo needs it), dated relative to the moment the app starts '
+        '(today + N days, never a fixed calendar date, so it never lies in the past), and never in a way tests depend '
+        'on: tests create their own rows. The '
         'architect names the entities and their relations in the summary so the generator builds the same model.'),
     checklist=('Constraints in the schema mirror the business rules; foreign keys are enforced.',
                'Startup on an existing database keeps its data.'),
@@ -614,10 +620,25 @@ GAME_2D = Skill(
                'Scores are validated on the server; the config is served as JSON.'),
 )
 
+CODE_STRUCTURE = Skill(
+    key='skill.code_structure', version='1',
+    purpose='The repository is split so every file can be read, reviewed and repaired whole.',
+    boundaries='File layout of the generated repository; not features.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Code structure (how a senior engineer lays out a small product): no file over about 600 lines or 25,000 '
+        'characters. Split by responsibility: app.py (start-up and routing only), db.py (schema and queries), '
+        'api.py or handlers/ (one function per endpoint), rules.py (business rules as pure functions -- easy to unit '
+        'test), and static/ for the page (index.html, app.js, styles.css served by the app). Pure functions for every '
+        'rule (capacity, overlap, price) so tests call them directly as well as over HTTP. A repair changes the file '
+        'that owns the behaviour and returns only the files it changed.'),
+    checklist=('No file is so large that it cannot be reviewed whole; rules live in pure functions.',),
+)
+
 WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN,
                                    SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS,
                                    API_DESIGN, DATA_MODEL, ERROR_RESILIENCE, ACCESSIBILITY, PERFORMANCE_BASICS,
-                                   COPY_QUALITY, LANDING_CONVERSION, GAME_2D)
+                                   COPY_QUALITY, LANDING_CONVERSION, GAME_2D, CODE_STRUCTURE)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:
