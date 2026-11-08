@@ -193,6 +193,52 @@ def _innerhtml_interpolation(repository: dict, context: dict) -> list[StaticFind
     return out
 
 
+def _sql_string_formatting(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.security_basics: execute() with an f-string, % or .format() builds SQL from values."""
+    out = []
+    pat = re.compile(r'\.execute(?:many)?\(\s*(?:f["\']|["\'][^"\']*["\']\s*(?:%|\.format\())')
+    for path, text in _text_files(repository).items():
+        if path.endswith('.py'):
+            for n, line in enumerate(text.splitlines(), 1):
+                if pat.search(line):
+                    out.append(StaticFinding('skill.security_basics', 'advisory', f'{path}:{n}',
+                                             'SQL built with string formatting: ' + line.strip()[:120],
+                                             'pass values as parameters: execute("... WHERE id = ?", (item_id,))'))
+    return out
+
+
+_PLACEHOLDER = re.compile(r'lorem ipsum|dolor sit amet|\bItem [0-9]\b|Your Company|Company Name', re.I)
+
+
+def _placeholder_copy(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.copy_quality: template text left in what the user sees."""
+    out = []
+    for path, text in _text_files(repository).items():
+        if path.lower().endswith(('.html', '.htm')) or '<html' in text.lower():
+            m = _PLACEHOLDER.search(text)
+            if m:
+                out.append(StaticFinding('skill.copy_quality', 'advisory', path,
+                                         f'placeholder text in the product: {m.group(0)!r}',
+                                         'write the real text for this business, or a clearly marked owner field'))
+    return out
+
+
+def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.accessibility: an <input>/<select>/<textarea> with an id that no <label for> names."""
+    out = []
+    for path, text in _text_files(repository).items():
+        if '<html' not in text.lower() and not path.lower().endswith(('.html', '.htm')):
+            continue
+        ids = re.findall(r'<(?:input|select|textarea)\b(?![^>]*type=["\'](?:hidden|submit|button)["\'])[^>]*\bid=["\']([^"\']+)', text, re.I)
+        labelled = set(re.findall(r'<label\b[^>]*\bfor=["\']([^"\']+)', text, re.I))
+        missing = [i for i in ids if i not in labelled and f'aria-label' not in text.split(f'id="{i}"')[0][-200:]]
+        if missing:
+            out.append(StaticFinding('skill.accessibility', 'advisory', path,
+                                     f'form fields without a <label for>: {", ".join(missing[:5])}',
+                                     'give every field a visible <label for="id">'))
+    return out
+
+
 # ---------------------------------------------------------------- the skill pack
 
 REQUEST_FIDELITY = Skill(
@@ -407,6 +453,7 @@ SECURITY_BASICS = Skill(
         'nosniff" on HTML and JSON.'),
     checklist=('All SQL is parameterised; no secrets in the repository; errors show no traceback.',
                'Server re-validates every client-side rule.'),
+    static_checks=(_sql_string_formatting,),
 )
 
 SPEC_PRECISION = Skill(
@@ -494,6 +541,7 @@ ACCESSIBILITY = Skill(
         'survives 200% zoom and 320px width without horizontal page scroll.'),
     checklist=('Every input has a label; status messages are announced (role="status").',
                'All actions are reachable and usable with the keyboard; focus is visible.'),
+    static_checks=(_unlabelled_inputs,),
 )
 
 PERFORMANCE_BASICS = Skill(
@@ -525,6 +573,7 @@ COPY_QUALITY = Skill(
         'rather than inventing facts.'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
                'Buttons name their outcome; errors say how to fix the problem.'),
+    static_checks=(_placeholder_copy,),
 )
 
 LANDING_CONVERSION = Skill(

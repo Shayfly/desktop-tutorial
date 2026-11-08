@@ -198,3 +198,15 @@ class StationSkillPackTests(unittest.TestCase):
         self.assertIn('skill.repair_method@1', agents._REPAIR_SYSTEM)
         self.assertIn('skill.acceptance_plan@1', agents._GENERATOR_SYSTEM)
         self.assertIn('skill.spec_precision@1', agents._ARCHITECT_SYSTEM)
+
+
+class SkillStaticCheckTests(unittest.TestCase):
+    def test_new_checks_report_advisory_findings(self):
+        from omni_prod.skills_runtime import static_findings
+        repo = {'app.py': 'cur.execute(f"SELECT * FROM t WHERE id={x}")\ncur.execute("SELECT 1 WHERE a=?", (a,))',
+                'index.html': '<html><label for="n">n</label><input id="n"><input id="p"><p>Lorem ipsum</p></html>'}
+        got = {(f.skill, f.severity) for f in static_findings(repo)}
+        for skill in ('skill.security_basics', 'skill.accessibility', 'skill.copy_quality'):
+            self.assertIn((skill, 'advisory'), got)
+        clean = {'app.py': 'cur.execute("SELECT 1 WHERE a=?", (a,))'}
+        self.assertFalse([f for f in static_findings(clean) if f.skill == 'skill.security_basics'])
