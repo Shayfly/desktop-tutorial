@@ -1050,6 +1050,10 @@ function friendlyError(b) {
     const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
     return known + (match && match[1] ? ' — ' + match[1] : '');
   }
+  // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
+  // not the providers being down (bld_e6b94762 showed 'providers unavailable' while every route was over budget).
+  if (b.error_code === 'model_unavailable' && /does not fit the remaining budget/.test(String(b.error_message || '')))
+    return (t('errCodes') || {}).model_budget_exhausted || known;
   return known || b.error_message || b.error_code || '';
 }
 

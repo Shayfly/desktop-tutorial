@@ -189,8 +189,13 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
+def _founder(account_id) -> bool:
+    from .pricing import m5_founder_account
+    return m5_founder_account(account_id)
+
+
 def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None,
-                              cost_class=None):
+                              cost_class=None, founder: bool = False):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
@@ -252,11 +257,16 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
             minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
             internal_qa=funding == 'internal_qa')
 
+    if founder:   # CEO 2026-11-08: founder test builds, paid by us, measured; never a customer price
+        from .pricing import m5_founder_build_budget
+        provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
     quote, components = _quote(provider_budget)
     if cost_class is not None:
         components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
                       'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
-    if funding == 'internal_qa' or exempt:
+    if founder:
+        components = {**components, 'founder_test': True}
+    if funding == 'internal_qa' or exempt or founder:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
         # of the margin floor. The caller must run authorize_qa_build().
@@ -2415,7 +2425,8 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     try:
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account.id))
     except CostQuoteUnknown as exc:
         raise HTTPException(402, detail={'error': 'cost_quote_unknown',
                                          'unpriced': unpriced_capabilities(exc.unknown)}) from exc
@@ -2458,7 +2469,8 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
         # the same caps as POST .../builds (checked read-only here).
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account.id))
         if internal_qa:
             from .qa_budget import QABudgetDenied, preauthorize_qa_build
             try:
@@ -2549,7 +2561,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
                 plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
-                funding='internal_qa' if internal_qa else None, cost_class=cost_class)
+                funding='internal_qa' if internal_qa else None, cost_class=cost_class,
+                founder=_founder(account.id))
         except CostQuoteUnknown as exc:
             logging.getLogger(__name__).info('build %s: cost quote unknown: %s', project_id, list(exc.unknown))
             raise HTTPException(402, detail={'error': 'cost_quote_unknown',
