@@ -255,7 +255,9 @@ TEXT_LOCALE = Skill(
         'Text and locale: store user text exactly as typed (parameterised SQL) and escape it only when rendering - set '
         'textContent / create elements, never html.escape before saving and never innerHTML with user data. For a Hebrew '
         'request use <html lang="he" dir="rtl"> and Hebrew labels; store dates as ISO (YYYY-MM-DD) and show them as '
-        'DD/MM/YYYY; times as HH:MM 24h.'),
+        'DD/MM/YYYY; times as HH:MM 24h. For another language use that locale\'s conventions (lang attribute, '
+        'direction, date order, decimal separator, currency symbol placement); amounts are stored as integers of the '
+        'smallest unit (agorot/cents) and formatted only for display.'),
     checklist=('A name with quotes or <b> is shown exactly as typed, not as &#x27; or bold.',
                'Hebrew pages are RTL; dates show as DD/MM/YYYY.'),
     static_checks=(_escape_once, _rtl_for_hebrew, _innerhtml_interpolation),
@@ -423,8 +425,150 @@ SPEC_PRECISION = Skill(
     checklist=('Every view states its window, order and filter; every limit states its outcome.',),
 )
 
+# CEO 2026-11-08 23:04 ("10-20 world-class skills that close every corner"): the remaining corners of a product a
+# senior team would never ship without. Family-specific skills say when they apply in their first words, because the
+# guidance is part of a fixed system prompt for every product.
+
+API_DESIGN = Skill(
+    key='skill.api_design', version='1',
+    purpose='The JSON API is predictable: consistent resources, shapes and status codes.',
+    boundaries='HTTP API of the generated app; not the page layout.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'API design: resources under /api/<plural-noun> -- GET list, GET /<id>, POST create, PUT/PATCH update, DELETE. '
+        'A list endpoint returns a JSON array of objects (or {"items": [...], "total": n} when paginated -- pick one '
+        'shape for every list and say it in the acceptance plan); every object carries its integer "id". POST answers '
+        '201 with the created object, PUT/PATCH 200 with the updated object, DELETE 204 (or 200 with {"ok": true}); '
+        'bad input 400, missing 404, conflict 409, not allowed 403, all with {"error": "<readable message>"} in the '
+        'request language. Query filters are named parameters (?week=2027-01-10&status=open), validated like body fields. '
+        'JSON keys are snake_case and identical between create, read and list responses.'),
+    checklist=('Every list has one documented shape and every object has an id.',
+               'Status codes follow 201/200/204/400/404/409 with a readable error body.'),
+)
+
+DATA_MODEL = Skill(
+    key='skill.data_model', version='1',
+    purpose='The stored data has a clear schema that cannot drift into an inconsistent state.',
+    boundaries='Storage schema and its creation; not business screens.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Data model: one SQLite file under DATA_DIR, schema created idempotently at startup (CREATE TABLE IF NOT EXISTS, '
+        'then additive ALTER TABLE guarded by a PRAGMA table_info check -- never drop user data). Every table has '
+        'INTEGER PRIMARY KEY id, created_at (UTC ISO), and NOT NULL / CHECK / UNIQUE / FOREIGN KEY constraints that '
+        'mirror the business rules (PRAGMA foreign_keys=ON on every connection). Add an index for every column used to '
+        'filter or join. Store money as integers, times as UTC ISO, enums as TEXT with a CHECK list. Seed data only when '
+        'the request asks for example content, and never in a way tests depend on: tests create their own rows. The '
+        'architect names the entities and their relations in the summary so the generator builds the same model.'),
+    checklist=('Constraints in the schema mirror the business rules; foreign keys are enforced.',
+               'Startup on an existing database keeps its data.'),
+)
+
+ERROR_RESILIENCE = Skill(
+    key='skill.error_resilience', version='1',
+    purpose='The app starts reliably, never crashes on bad input, and says what went wrong.',
+    boundaries='Runtime behaviour of the server; not product features.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Resilience: read PORT and DATA_DIR from the environment, create DATA_DIR, initialise the schema, then listen on '
+        '0.0.0.0 -- in that order, and fail with one clear log line if a step fails. Every request handler is wrapped: an '
+        'unexpected exception is logged with a short request id and answered 500 {"error": "...", "request_id": "..."} '
+        'in the request language, never a traceback page and never a dropped connection. Parse JSON bodies defensively '
+        '(missing/invalid body -> 400). Log one line per request (method, path, status, ms) to stdout. The page handles '
+        'a failed fetch by showing the error in its status area and keeping the user\'s input.'),
+    checklist=('No request can crash the server; errors are JSON with a readable message.',
+               'Startup order: env -> data dir -> schema -> listen.'),
+)
+
+ACCESSIBILITY = Skill(
+    key='skill.accessibility', version='1',
+    purpose='Everyone can use the product: keyboard, screen reader, zoom and colour-blind users.',
+    boundaries='Markup and interaction semantics; visual style stays with skill.visual_design.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Accessibility (WCAG 2.2 AA): semantic HTML first -- header/nav/main/footer, one h1, headings in order, '
+        '<button> for actions and <a href> for navigation, <table> with <th scope> for tabular data. Every input has a '
+        '<label for>, required fields have aria-required and the error text is linked with aria-describedby; the status '
+        'area is role="status" aria-live="polite". Everything works with the keyboard alone in a logical order, with a '
+        'visible focus ring; dialogs (if any) trap and return focus and close on Escape. Images have alt text (empty for '
+        'decoration). Colour is never the only signal (badges have text), contrast is at least 4.5:1, and the layout '
+        'survives 200% zoom and 320px width without horizontal page scroll.'),
+    checklist=('Every input has a label; status messages are announced (role="status").',
+               'All actions are reachable and usable with the keyboard; focus is visible.'),
+)
+
+PERFORMANCE_BASICS = Skill(
+    key='skill.performance_basics', version='1',
+    purpose='The product stays fast with real amounts of data and on a phone connection.',
+    boundaries='Server queries and page weight; not infrastructure.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_REVIEWER),
+    guidance=(
+        'Performance: no query inside a loop over rows (one JOIN or one IN query instead); lists over 50 rows are '
+        'paginated or filtered server-side (a week, a page, a search), never sent whole and filtered in the page. The '
+        'page is one HTML document with inline CSS/JS under ~150 KB, no blocking third-party scripts, images sized to '
+        'their box and lazy-loaded below the fold. Fetch the data a screen needs in one or two requests, and re-render '
+        'only the list that changed after an action.'),
+    checklist=('No per-row queries; long lists are paginated or filtered on the server.',),
+)
+
+COPY_QUALITY = Skill(
+    key='skill.copy_quality', version='1',
+    purpose='Every word in the product reads as if a professional copywriter of that business wrote it.',
+    boundaries='User-facing text; not code identifiers.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Copy: write real, specific text for the business in the request -- never lorem ipsum, "Item 1", "Test", '
+        '"Your company" or English leftovers in a Hebrew product. Natural, correct Hebrew (or the request language), '
+        'addressed consistently (plural or gender-neutral imperative in Hebrew UI: "הירשמו", "שמרו"). Buttons are verbs '
+        'that say the outcome ("הרשמה לשיעור", not "שלח"); empty states say what to do next; errors say what happened '
+        'and how to fix it, without blame or codes. Use the names, prices, hours and details the customer gave exactly; '
+        'where something is missing, write a neutral placeholder the owner will obviously replace ("[כתובת הסטודיו]") '
+        'rather than inventing facts.'),
+    checklist=('No placeholder, English leftover or invented business fact appears in the product.',
+               'Buttons name their outcome; errors say how to fix the problem.'),
+)
+
+LANDING_CONVERSION = Skill(
+    key='skill.landing_conversion', version='1',
+    purpose='A website or landing page turns visitors into leads: clear offer, trust and one obvious next step.',
+    boundaries='ONLY content/marketing sites and landing pages; web apps ignore this skill.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'ONLY for a website or landing page (CONTENT-ONLY or marketing pages) -- skip for apps: structure the page as '
+        'hero (who it is for + the main promise in one line + the primary call to action), benefits (3-4, concrete), '
+        'proof (testimonials, numbers, logos -- only those the customer gave), offer/prices exactly as given, FAQ that '
+        'answers real objections, and a final call to action; the same primary action (call, WhatsApp, form) is visible '
+        'on a phone without scrolling and repeated at the end. SEO basics in <head>: a unique <title> under 60 '
+        'characters, meta description under 160, lang/dir, Open Graph title/description, canonical-friendly clean '
+        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given.'),
+    checklist=('The main call to action is visible above the fold on a phone and repeated at the end.',
+               'Title, meta description and Open Graph tags are present and specific.'),
+)
+
+GAME_2D = Skill(
+    key='skill.game_2d', version='1',
+    purpose='A 2D browser game that is fun, fair, responsive and verifiable.',
+    boundaries='ONLY when the request is a game; every other product ignores this skill.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'ONLY for a game -- skip for every other product: GET / serves the game as one HTML page with a <canvas> and '
+        'inline JavaScript (no libraries). Use a fixed-timestep loop (requestAnimationFrame + accumulator, update at 60 '
+        'Hz, render each frame) so speed is the same on every device; scale the canvas to the screen with '
+        'devicePixelRatio while game logic uses fixed world units. Clear states: menu -> playing -> paused -> game over, '
+        'with restart; pause on blur. Controls for keyboard AND touch (on-screen buttons or swipe), shown on the menu. '
+        'Difficulty ramps gradually; collisions use axis-aligned boxes or circles, generous to the player. Put levels, '
+        'speeds and scoring in one JSON config served at /api/game-config so it can be checked and tuned; the server keeps '
+        'high scores (POST /api/scores validates name length and that the score is a non-negative integer within the '
+        'config maximum, GET returns the top 10). The architect writes acceptance on what HTTP can prove: the page has '
+        'the canvas and the controls text, the config endpoint, and the score rules. Sound only after a user gesture, '
+        'with a mute button.'),
+    checklist=('The game has menu, play, pause and game-over states, keyboard and touch controls.',
+               'Scores are validated on the server; the config is served as JSON.'),
+)
+
 WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN,
-                                   SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS)
+                                   SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS,
+                                   API_DESIGN, DATA_MODEL, ERROR_RESILIENCE, ACCESSIBILITY, PERFORMANCE_BASICS,
+                                   COPY_QUALITY, LANDING_CONVERSION, GAME_2D)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:

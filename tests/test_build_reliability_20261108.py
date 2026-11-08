@@ -173,3 +173,28 @@ class FounderDraftTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StationSkillPackTests(unittest.TestCase):
+    """CEO 2026-11-08 23:04: 10-20 world-class skills, each tied to the stations that use it."""
+
+    def test_pack_size_and_every_station_has_a_method(self):
+        from omni_prod.skills_runtime import WEB_SKILLS, skills_for
+        self.assertTrue(10 <= len(WEB_SKILLS) <= 20)
+        keys = {role: {s.key for s in skills_for(role)} for role in ('architect', 'generator', 'repair', 'reviewer')}
+        self.assertIn('skill.spec_precision', keys['architect'])
+        self.assertIn('skill.acceptance_plan', keys['generator'])
+        self.assertIn('skill.repair_method', keys['repair'])
+        self.assertIn('skill.security_basics', keys['reviewer'])
+
+    def test_family_specific_skills_say_when_they_apply(self):
+        from omni_prod.skills_runtime import DATA_INTEGRITY, GAME_2D, LANDING_CONVERSION
+        self.assertTrue(GAME_2D.guidance.startswith('ONLY for a game'))
+        self.assertTrue(LANDING_CONVERSION.guidance.startswith('ONLY for a website or landing page'))
+        self.assertIn('ONLY when the product books a resource', DATA_INTEGRITY.guidance)
+
+    def test_prompts_carry_the_skills(self):
+        import omni_prod.autonomous_agents as agents
+        self.assertIn('skill.repair_method@1', agents._REPAIR_SYSTEM)
+        self.assertIn('skill.acceptance_plan@1', agents._GENERATOR_SYSTEM)
+        self.assertIn('skill.spec_precision@1', agents._ARCHITECT_SYSTEM)
