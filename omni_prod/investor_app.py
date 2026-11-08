@@ -831,6 +831,8 @@ def _live_components():
         # CEO 2026-11-08: up to 6 repair rounds for a product build (was 3). The build's hard cost cap still stops
         # repairs once the budget is spent; OMNI_MAX_REPAIR_ROUNDS may lower it, never above REPAIR_ROUNDS_HARD_MAX.
         executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','6')),repair_ceiling=6)
+    # CEO 2026-11-08 (bld_ca727ba7 stopped after 2 of 6 rounds): one second chance after a no-progress round.
+    engine.no_progress_retries=max(0,min(2,int(os.getenv('OMNI_NO_PROGRESS_RETRIES','1') or 1)))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:

@@ -69,6 +69,11 @@ def _retry_after(exc) -> float | None:
 
 API_STYLES = frozenset({'openai', 'openai_reasoning', 'anthropic'})
 ANTHROPIC_VERSION = '2023-06-01'
+# Models whose default is adaptive thinking and whose documented "thinking off" is between_tools ("disabled" is a 400).
+ANTHROPIC_NO_UPFRONT_THINKING = frozenset({'claude-sonnet-5-5'})
+ANTHROPIC_JSON_ONLY_RULE = ('\n\nOUTPUT FORMAT (mandatory): your whole reply is ONE JSON object in the requested schema. '
+                            'The first character of the reply is { and the last is }. No explanation, summary, '
+                            'heading or markdown before or after it; put any notes inside the JSON fields the schema has.')
 
 
 def quota_exhausted(exc) -> bool:
@@ -196,6 +201,11 @@ class OpenAICompatibleGateway:
                 headers['Authorization'] = f'Bearer {self.endpoint.api_key}'
         for key, raw in self.endpoint.extra_body:
             body.setdefault(key, json.loads(raw))
+        if style == 'anthropic' and str(self.endpoint.model) in ANTHROPIC_NO_UPFRONT_THINKING:
+            # Founder build bld_ca727ba7 (2026-11-08): with the default adaptive thinking at high effort Sonnet 5.5
+            # spent the whole 16,384-token cap thinking and returned no text. Holds even when the deployed catalog
+            # (OMNI_MODEL_CATALOG_JSON) predates the catalog's extra_body.
+            body.setdefault('thinking', {'type': 'between_tools'})
         req = request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         self.last_usage = None
         self.last_finish_reason = None
@@ -245,6 +255,11 @@ class OpenAICompatibleGateway:
     last_finish_reason = None
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
+        if self.endpoint.api_style == 'anthropic':
+            # Founder build bld_ca727ba7 (2026-11-08): the Sonnet repair answer opened with "The six setup errors came
+            # from ..." and T3 rejects leading prose. Prefill is a 400 on Claude 4.6+ and generic structured outputs
+            # cannot express an open object, so the rule is stated where the model weighs it most: last in system.
+            system = (system or '') + ANTHROPIC_JSON_ONLY_RULE
         raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens)
         self.last_raw_response = raw                       # T3: the raw answer is kept, accepted or not
         obj, diag = parse_model_json(raw)
