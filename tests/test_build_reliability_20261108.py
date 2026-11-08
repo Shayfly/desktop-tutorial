@@ -229,3 +229,21 @@ class RepairVisibilityTests(unittest.TestCase):
         sonnet = next(m for m in items if m['name'] == 'anthropic-claude-sonnet-5-5')
         self.assertGreaterEqual(sonnet['max_output_tokens'], 40000)
         self.assertIn('skill.code_structure', {s.key for s in WEB_SKILLS})
+
+
+class BuildRestoreUiTests(unittest.TestCase):
+    """2026-11-09: a queued/running build vanished after a reload; a finished build's result was not shown again."""
+
+    def setUp(self):
+        import pathlib
+        self.js = pathlib.Path('omni_prod/assets/app.js').read_text(encoding='utf-8')
+
+    def test_background_quote_never_clears_an_active_build(self):
+        self.assertIn("if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;", self.js)
+        self.assertNotIn("    S.build = null; renderDiscovery(); renderPlan(); renderTrack();", self.js)
+
+    def test_finished_build_is_restored_without_preview_start(self):
+        start = self.js.index('async function restoreBuild()')
+        body = self.js[start:self.js.index('\n}\n', start)]
+        self.assertIn('if (isTerminal(b.status))', body)
+        self.assertNotIn('startPreview', body)
