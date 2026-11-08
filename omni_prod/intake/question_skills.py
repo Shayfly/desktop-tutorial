@@ -8,7 +8,7 @@ customer. Versioned: change the text -> bump SKILL_VERSION.
 """
 from __future__ import annotations
 
-SKILL_VERSION = 'question-skills/1'
+SKILL_VERSION = 'question-skills/2'
 
 _COMMON = (
     'who uses it (customer, staff, the owner) and what each one does',
@@ -21,6 +21,9 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
         'what data is kept about people and who may see it',
         'who manages it and what the manager must see or change',
         'notifications the users expect (none, email, SMS/WhatsApp)',
+        'money: is anything paid (online payment, deposit, subscription, invoice) or only recorded',
+        'what exists today (paper, Excel, another system) and whether its data must be brought in',
+        'how the owner will know it works (the number or moment that means success)',
         'look and language (colours, tone, mobile first)',
     ),
     'website': _COMMON + (

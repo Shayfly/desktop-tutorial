@@ -193,6 +193,52 @@ def _innerhtml_interpolation(repository: dict, context: dict) -> list[StaticFind
     return out
 
 
+def _sql_string_formatting(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.security_basics: execute() with an f-string, % or .format() builds SQL from values."""
+    out = []
+    pat = re.compile(r'\.execute(?:many)?\(\s*(?:f["\']|["\'][^"\']*["\']\s*(?:%|\.format\())')
+    for path, text in _text_files(repository).items():
+        if path.endswith('.py'):
+            for n, line in enumerate(text.splitlines(), 1):
+                if pat.search(line):
+                    out.append(StaticFinding('skill.security_basics', 'advisory', f'{path}:{n}',
+                                             'SQL built with string formatting: ' + line.strip()[:120],
+                                             'pass values as parameters: execute("... WHERE id = ?", (item_id,))'))
+    return out
+
+
+_PLACEHOLDER = re.compile(r'lorem ipsum|dolor sit amet|\bItem [0-9]\b|Your Company|Company Name', re.I)
+
+
+def _placeholder_copy(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.copy_quality: template text left in what the user sees."""
+    out = []
+    for path, text in _text_files(repository).items():
+        if path.lower().endswith(('.html', '.htm')) or '<html' in text.lower():
+            m = _PLACEHOLDER.search(text)
+            if m:
+                out.append(StaticFinding('skill.copy_quality', 'advisory', path,
+                                         f'placeholder text in the product: {m.group(0)!r}',
+                                         'write the real text for this business, or a clearly marked owner field'))
+    return out
+
+
+def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.accessibility: an <input>/<select>/<textarea> with an id that no <label for> names."""
+    out = []
+    for path, text in _text_files(repository).items():
+        if '<html' not in text.lower() and not path.lower().endswith(('.html', '.htm')):
+            continue
+        ids = re.findall(r'<(?:input|select|textarea)\b(?![^>]*type=["\'](?:hidden|submit|button)["\'])[^>]*\bid=["\']([^"\']+)', text, re.I)
+        labelled = set(re.findall(r'<label\b[^>]*\bfor=["\']([^"\']+)', text, re.I))
+        missing = [i for i in ids if i not in labelled and f'aria-label' not in text.split(f'id="{i}"')[0][-200:]]
+        if missing:
+            out.append(StaticFinding('skill.accessibility', 'advisory', path,
+                                     f'form fields without a <label for>: {", ".join(missing[:5])}',
+                                     'give every field a visible <label for="id">'))
+    return out
+
+
 # ---------------------------------------------------------------- the skill pack
 
 REQUEST_FIDELITY = Skill(
@@ -255,7 +301,9 @@ TEXT_LOCALE = Skill(
         'Text and locale: store user text exactly as typed (parameterised SQL) and escape it only when rendering - set '
         'textContent / create elements, never html.escape before saving and never innerHTML with user data. For a Hebrew '
         'request use <html lang="he" dir="rtl"> and Hebrew labels; store dates as ISO (YYYY-MM-DD) and show them as '
-        'DD/MM/YYYY; times as HH:MM 24h.'),
+        'DD/MM/YYYY; times as HH:MM 24h. For another language use that locale\'s conventions (lang attribute, '
+        'direction, date order, decimal separator, currency symbol placement); amounts are stored as integers of the '
+        'smallest unit (agorot/cents) and formatted only for display.'),
     checklist=('A name with quotes or <b> is shown exactly as typed, not as &#x27; or bold.',
                'Hebrew pages are RTL; dates show as DD/MM/YYYY.'),
     static_checks=(_escape_once, _rtl_for_hebrew, _innerhtml_interpolation),
@@ -271,7 +319,7 @@ DATA_INTEGRITY = Skill(
         'when the request implies uniqueness) and answer 409 with a readable message on a conflict; acting on a missing '
         'id answers 404. Data lives under DATA_DIR. The architect turns each such rule into an acceptance criterion. '
         # T8 (founder 2026-10-21): a resource that can be booked for a time range.
-        'Bookable resources (a room, a slot, any resource with capacity): the overlap rule lives IN THE SERVER, inside '
+        'ONLY when the product books a resource for a time range (a room, a slot, a class, any resource with capacity) -- skip this for every other product: the overlap rule lives IN THE SERVER, inside '
         'one write transaction, never only in the page. With SQLite (no SELECT ... FOR UPDATE) the equivalent is: '
         'open the connection with isolation_level=None, run BEGIN IMMEDIATE (takes the write lock before reading), '
         'SELECT the resource row, then SELECT any booking of that resource with start < :new_end AND end > :new_start '
@@ -326,7 +374,250 @@ VISUAL_DESIGN = Skill(
     static_checks=(_styled_page,),
 )
 
-WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN)
+
+# CEO 2026-11-08 ("skills precise at world-class programmer level, really tied to what each model does"): the pack
+# above is product quality only. Founder build bld_ca727ba7 showed what the stations themselves lacked: a chained
+# acceptance plan whose first capture failed took three checks with it, the repair answer explained instead of
+# patching, and the weekly view was an unfiltered list. These skills describe HOW each station works.
+
+ACCEPTANCE_PLAN = Skill(
+    key='skill.acceptance_plan', version='1',
+    purpose='The web_saas_acceptance plan proves the approved criteria against the real app, step by step, without '
+            'false failures.',
+    boundaries='The plan in .omni/project.json; not product code.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Acceptance plan (how a senior QA engineer writes it): each step is one HTTP request whose expectation is '
+        'derived from the code you wrote, never guessed. Order steps as a story: read -> create -> read back -> '
+        'update -> delete -> confirm gone. Prefer data the plan creates itself over seed rows: create the record, '
+        'capture its id from THAT response ("capture": {"item_id": "id"}), then use ${item_id}. When you capture from a '
+        'list, the response must be a JSON array or an object holding one, and the path must exist in it ("[0].id" for '
+        'a top-level array, "items[0].id" for {"items": [...]}); a capture that does not resolve fails every later step '
+        'that uses the variable. Assert what the criterion is about (status plus one or two expect_json_contains keys '
+        'whose values you control), not incidental fields such as generated timestamps. Dates: ${today} or '
+        '${date_plus_N}, never a fixed calendar date. Every acceptance id appears on at least one step of a kind that '
+        'really exercises it; before answering, walk the plan once against your own handlers and fix any step that '
+        'your code would answer differently.'),
+    checklist=('Every capture path resolves in the response the step receives.',
+               'Each acceptance id is covered by a step that exercises it end-to-end.'),
+)
+
+TEST_DESIGN = Skill(
+    key='skill.test_design', version='1',
+    purpose='The repository tests prove the acceptance criteria and fail for the right reason.',
+    boundaries='tests/ only; the sandbox rules (stdlib + pytest, loopback, 180 s) stay as stated.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Tests: one test function per acceptance criterion, named after it (test_a2_register_for_class), plus one '
+        'invalid-input test per form. Each test sets DATA_DIR to tmp_path BEFORE importing or starting the app, so the '
+        'database starts empty and tests do not depend on each other or on order. Arrange the data the test needs '
+        'through the public API, act once, then assert status AND body. Start the server once per module with a fixture '
+        '(port 0, daemon thread, shutdown in teardown). A test that fails must print what it got: assert with a '
+        'message containing the status and the first 300 characters of the body. Never weaken an assertion to make it '
+        'pass; fix the product.'),
+    checklist=('Every acceptance criterion has a test that would fail if the behaviour broke.',
+               'Tests are independent: each uses its own empty DATA_DIR.'),
+)
+
+REPAIR_METHOD = Skill(
+    key='skill.repair_method', version='1',
+    purpose='A repair round finds the root cause of each failure and changes exactly the code that causes it.',
+    boundaries='Repair and evolution rounds; does not change the approved scope.',
+    roles=(ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Repair method (how a senior engineer debugs): 1) Read every failure and its evidence; group failures that '
+        'share one cause (a crash in init_db() fails every test: fix that first). 2) For each group find the exact file '
+        'and function from the traceback or the failing request, and read that code in the repository you were given. '
+        '3) Decide whether the product, the test, or the acceptance step is wrong: the approved acceptance text is the '
+        'authority -- fix the product when it disagrees; fix a test or plan step only when it contradicts the approved '
+        'text or uses a path/variable that does not exist (e.g. a capture path missing from the response). 4) Make the '
+        'smallest change that removes the cause, keep every behaviour that already passed, and return each changed '
+        'file in full. 5) Before answering, re-run the failing step in your head against the new code. If the previous '
+        'round changed nothing (NO_PROGRESS), your diagnosis was wrong: pick a different cause. Never put the '
+        'explanation outside the JSON.'),
+    checklist=('Each failure group was traced to code and changed there.',
+               'Nothing that passed before was removed or weakened.'),
+)
+
+SECURITY_BASICS = Skill(
+    key='skill.security_basics', version='1',
+    purpose='The product is safe by default: no injection, no leaked secrets, no unsafe trust in the client.',
+    boundaries='Application code; platform sign-in rules stay with the platform.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Security basics: every SQL statement uses parameters (?), never string formatting; user input never reaches '
+        'a shell, eval/exec, open() of a client-chosen path, or a redirect target without an allow-list. No secret, '
+        'key or password in code, HTML or logs; read configuration from os.environ. The server re-checks every rule '
+        'the page checks (prices, capacity, ownership) and never trusts ids or roles sent by the client. Answer errors '
+        'with a short message, never a traceback. Send Content-Type on every response and "X-Content-Type-Options: '
+        'nosniff" on HTML and JSON.'),
+    checklist=('All SQL is parameterised; no secrets in the repository; errors show no traceback.',
+               'Server re-validates every client-side rule.'),
+    static_checks=(_sql_string_formatting,),
+)
+
+SPEC_PRECISION = Skill(
+    key='skill.spec_precision', version='1',
+    purpose='Every requirement is concrete enough that two engineers would build the same behaviour.',
+    boundaries='The architect specification; not code.',
+    roles=(ROLE_ARCHITECT, ROLE_REVIEWER),
+    guidance=(
+        'Specification precision (how a senior product architect writes it): turn every phrase of the request into '
+        'observable behaviour with its boundaries. A time view names its window ("weekly schedule" = the classes of the '
+        'current week, Sunday 00:00 to Saturday 23:59 Asia/Jerusalem unless the request says otherwise, with previous/next '
+        'week navigation), a list names its order and filter, a limit names what happens when it is reached (full class '
+        '-> waitlist or a 409 with a message), and every state change names who may do it. Each acceptance criterion '
+        'states the input, the action and the exact observable result, so its test is obvious. Do not leave a word such '
+        'as "manage", "track" or "schedule" without saying which screens and actions it means.'),
+    checklist=('Every view states its window, order and filter; every limit states its outcome.',),
+)
+
+# CEO 2026-11-08 23:04 ("10-20 world-class skills that close every corner"): the remaining corners of a product a
+# senior team would never ship without. Family-specific skills say when they apply in their first words, because the
+# guidance is part of a fixed system prompt for every product.
+
+API_DESIGN = Skill(
+    key='skill.api_design', version='1',
+    purpose='The JSON API is predictable: consistent resources, shapes and status codes.',
+    boundaries='HTTP API of the generated app; not the page layout.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'API design: resources under /api/<plural-noun> -- GET list, GET /<id>, POST create, PUT/PATCH update, DELETE. '
+        'A list endpoint returns a JSON array of objects (or {"items": [...], "total": n} when paginated -- pick one '
+        'shape for every list and say it in the acceptance plan); every object carries its integer "id". POST answers '
+        '201 with the created object, PUT/PATCH 200 with the updated object, DELETE 204 (or 200 with {"ok": true}); '
+        'bad input 400, missing 404, conflict 409, not allowed 403, all with {"error": "<readable message>"} in the '
+        'request language. Query filters are named parameters (?week=2027-01-10&status=open), validated like body fields. '
+        'JSON keys are snake_case and identical between create, read and list responses.'),
+    checklist=('Every list has one documented shape and every object has an id.',
+               'Status codes follow 201/200/204/400/404/409 with a readable error body.'),
+)
+
+DATA_MODEL = Skill(
+    key='skill.data_model', version='1',
+    purpose='The stored data has a clear schema that cannot drift into an inconsistent state.',
+    boundaries='Storage schema and its creation; not business screens.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Data model: one SQLite file under DATA_DIR, schema created idempotently at startup (CREATE TABLE IF NOT EXISTS, '
+        'then additive ALTER TABLE guarded by a PRAGMA table_info check -- never drop user data). Every table has '
+        'INTEGER PRIMARY KEY id, created_at (UTC ISO), and NOT NULL / CHECK / UNIQUE / FOREIGN KEY constraints that '
+        'mirror the business rules (PRAGMA foreign_keys=ON on every connection). Add an index for every column used to '
+        'filter or join. Store money as integers, times as UTC ISO, enums as TEXT with a CHECK list. Seed data only when '
+        'the request asks for example content, and never in a way tests depend on: tests create their own rows. The '
+        'architect names the entities and their relations in the summary so the generator builds the same model.'),
+    checklist=('Constraints in the schema mirror the business rules; foreign keys are enforced.',
+               'Startup on an existing database keeps its data.'),
+)
+
+ERROR_RESILIENCE = Skill(
+    key='skill.error_resilience', version='1',
+    purpose='The app starts reliably, never crashes on bad input, and says what went wrong.',
+    boundaries='Runtime behaviour of the server; not product features.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION),
+    guidance=(
+        'Resilience: read PORT and DATA_DIR from the environment, create DATA_DIR, initialise the schema, then listen on '
+        '0.0.0.0 -- in that order, and fail with one clear log line if a step fails. Every request handler is wrapped: an '
+        'unexpected exception is logged with a short request id and answered 500 {"error": "...", "request_id": "..."} '
+        'in the request language, never a traceback page and never a dropped connection. Parse JSON bodies defensively '
+        '(missing/invalid body -> 400). Log one line per request (method, path, status, ms) to stdout. The page handles '
+        'a failed fetch by showing the error in its status area and keeping the user\'s input.'),
+    checklist=('No request can crash the server; errors are JSON with a readable message.',
+               'Startup order: env -> data dir -> schema -> listen.'),
+)
+
+ACCESSIBILITY = Skill(
+    key='skill.accessibility', version='1',
+    purpose='Everyone can use the product: keyboard, screen reader, zoom and colour-blind users.',
+    boundaries='Markup and interaction semantics; visual style stays with skill.visual_design.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Accessibility (WCAG 2.2 AA): semantic HTML first -- header/nav/main/footer, one h1, headings in order, '
+        '<button> for actions and <a href> for navigation, <table> with <th scope> for tabular data. Every input has a '
+        '<label for>, required fields have aria-required and the error text is linked with aria-describedby; the status '
+        'area is role="status" aria-live="polite". Everything works with the keyboard alone in a logical order, with a '
+        'visible focus ring; dialogs (if any) trap and return focus and close on Escape. Images have alt text (empty for '
+        'decoration). Colour is never the only signal (badges have text), contrast is at least 4.5:1, and the layout '
+        'survives 200% zoom and 320px width without horizontal page scroll.'),
+    checklist=('Every input has a label; status messages are announced (role="status").',
+               'All actions are reachable and usable with the keyboard; focus is visible.'),
+    static_checks=(_unlabelled_inputs,),
+)
+
+PERFORMANCE_BASICS = Skill(
+    key='skill.performance_basics', version='1',
+    purpose='The product stays fast with real amounts of data and on a phone connection.',
+    boundaries='Server queries and page weight; not infrastructure.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_REVIEWER),
+    guidance=(
+        'Performance: no query inside a loop over rows (one JOIN or one IN query instead); lists over 50 rows are '
+        'paginated or filtered server-side (a week, a page, a search), never sent whole and filtered in the page. The '
+        'page is one HTML document with inline CSS/JS under ~150 KB, no blocking third-party scripts, images sized to '
+        'their box and lazy-loaded below the fold. Fetch the data a screen needs in one or two requests, and re-render '
+        'only the list that changed after an action.'),
+    checklist=('No per-row queries; long lists are paginated or filtered on the server.',),
+)
+
+COPY_QUALITY = Skill(
+    key='skill.copy_quality', version='1',
+    purpose='Every word in the product reads as if a professional copywriter of that business wrote it.',
+    boundaries='User-facing text; not code identifiers.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Copy: write real, specific text for the business in the request -- never lorem ipsum, "Item 1", "Test", '
+        '"Your company" or English leftovers in a Hebrew product. Natural, correct Hebrew (or the request language), '
+        'addressed consistently (plural or gender-neutral imperative in Hebrew UI: "הירשמו", "שמרו"). Buttons are verbs '
+        'that say the outcome ("הרשמה לשיעור", not "שלח"); empty states say what to do next; errors say what happened '
+        'and how to fix it, without blame or codes. Use the names, prices, hours and details the customer gave exactly; '
+        'where something is missing, write a neutral placeholder the owner will obviously replace ("[כתובת הסטודיו]") '
+        'rather than inventing facts.'),
+    checklist=('No placeholder, English leftover or invented business fact appears in the product.',
+               'Buttons name their outcome; errors say how to fix the problem.'),
+    static_checks=(_placeholder_copy,),
+)
+
+LANDING_CONVERSION = Skill(
+    key='skill.landing_conversion', version='1',
+    purpose='A website or landing page turns visitors into leads: clear offer, trust and one obvious next step.',
+    boundaries='ONLY content/marketing sites and landing pages; web apps ignore this skill.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'ONLY for a website or landing page (CONTENT-ONLY or marketing pages) -- skip for apps: structure the page as '
+        'hero (who it is for + the main promise in one line + the primary call to action), benefits (3-4, concrete), '
+        'proof (testimonials, numbers, logos -- only those the customer gave), offer/prices exactly as given, FAQ that '
+        'answers real objections, and a final call to action; the same primary action (call, WhatsApp, form) is visible '
+        'on a phone without scrolling and repeated at the end. SEO basics in <head>: a unique <title> under 60 '
+        'characters, meta description under 160, lang/dir, Open Graph title/description, canonical-friendly clean '
+        'URLs, one h1, and structured data (JSON-LD LocalBusiness) when an address or hours were given.'),
+    checklist=('The main call to action is visible above the fold on a phone and repeated at the end.',
+               'Title, meta description and Open Graph tags are present and specific.'),
+)
+
+GAME_2D = Skill(
+    key='skill.game_2d', version='1',
+    purpose='A 2D browser game that is fun, fair, responsive and verifiable.',
+    boundaries='ONLY when the request is a game; every other product ignores this skill.',
+    roles=(ROLE_ARCHITECT, ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'ONLY for a game -- skip for every other product: GET / serves the game as one HTML page with a <canvas> and '
+        'inline JavaScript (no libraries). Use a fixed-timestep loop (requestAnimationFrame + accumulator, update at 60 '
+        'Hz, render each frame) so speed is the same on every device; scale the canvas to the screen with '
+        'devicePixelRatio while game logic uses fixed world units. Clear states: menu -> playing -> paused -> game over, '
+        'with restart; pause on blur. Controls for keyboard AND touch (on-screen buttons or swipe), shown on the menu. '
+        'Difficulty ramps gradually; collisions use axis-aligned boxes or circles, generous to the player. Put levels, '
+        'speeds and scoring in one JSON config served at /api/game-config so it can be checked and tuned; the server keeps '
+        'high scores (POST /api/scores validates name length and that the score is a non-negative integer within the '
+        'config maximum, GET returns the top 10). The architect writes acceptance on what HTTP can prove: the page has '
+        'the canvas and the controls text, the config endpoint, and the score rules. Sound only after a user gesture, '
+        'with a mute button.'),
+    checklist=('The game has menu, play, pause and game-over states, keyboard and touch controls.',
+               'Scores are validated on the server; the config is served as JSON.'),
+)
+
+WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN,
+                                   SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS,
+                                   API_DESIGN, DATA_MODEL, ERROR_RESILIENCE, ACCESSIBILITY, PERFORMANCE_BASICS,
+                                   COPY_QUALITY, LANDING_CONVERSION, GAME_2D)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:
