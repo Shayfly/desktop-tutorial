@@ -828,7 +828,9 @@ def _live_components():
     recorder=getattr(gateway,'recorder',None)
     if recorder is not None: executor=RecordingExecutor(executor,recorder)
     engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
-        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','3')))
+        # CEO 2026-11-08: up to 6 repair rounds for a product build (was 3). The build's hard cost cap still stops
+        # repairs once the budget is spent; OMNI_MAX_REPAIR_ROUNDS may lower it, never above REPAIR_ROUNDS_HARD_MAX.
+        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','6')),repair_ceiling=6)
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:

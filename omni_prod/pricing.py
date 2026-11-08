@@ -181,7 +181,7 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
 # Repair budget per plan (founder decision 2026-10-19): the SEAM only, not active. Until OMNI_PLAN_REPAIR_BUDGET=1
 # every plan gets DEFAULT_REPAIR_ROUNDS (today's behaviour); the plan values are switched on only after the failure
 # taxonomy (smoke/failure-taxonomy.jsonl) shows more rounds pay off. Plans not listed get the default.
-DEFAULT_REPAIR_ROUNDS = 3
+DEFAULT_REPAIR_ROUNDS = 6   # CEO 2026-11-08 (was 3)
 PLAN_REPAIR_ROUNDS: dict[PlanCode, int] = {PlanCode.AMATEUR: 3, PlanCode.PRO: 5, PlanCode.STUDIO: 8}
 
 
