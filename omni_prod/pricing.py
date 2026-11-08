@@ -291,10 +291,23 @@ def m5_task_only_models(cost_class) -> dict[str, frozenset]:
     return out
 
 
+_FOUNDER_DEFAULT = 'usr_GCWlMxENgr9vpwph'   # the founder's account id (not a secret); OMNI_FOUNDER_ACCOUNT_IDS overrides
+
+
 def m5_founder_account(account_id) -> bool:
-    """CEO 2026-11-08 (a): founder accounts build with the whole catalog (still under the class hard cap)."""
-    ids = {x.strip() for x in os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', '').split(',') if x.strip()}
+    """CEO 2026-11-08 (a): founder accounts build with the whole catalog."""
+    raw = os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', _FOUNDER_DEFAULT)
+    ids = {x.strip() for x in raw.split(',') if x.strip()}
     return bool(account_id) and str(account_id) in ids
+
+
+def m5_founder_build_budget() -> Decimal:
+    """CEO 2026-11-08 20:09: founder test builds may spend up to $2 on models (paid by us, not a customer
+    price), to measure what a real build costs before pricing is set. OMNI_FOUNDER_BUILD_LLM_USD overrides."""
+    value = Decimal(os.getenv('OMNI_FOUNDER_BUILD_LLM_USD', '2.00').strip() or '2.00')
+    if not value.is_finite() or value < 0 or value > Decimal('10'):
+        raise PermissionError('invalid founder build budget')
+    return value
 
 
 def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:

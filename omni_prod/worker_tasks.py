@@ -492,7 +492,11 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
         if not reserved.is_finite() or reserved < 0:
             raise ValueError('invalid reserved LLM budget')
         class_name = components.get('cost_class')
-        if class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
+        from .pricing import m5_founder_account, m5_founder_build_budget
+        founder_test = bool(components.get('founder_test')) and m5_founder_account(request.get('user_id'))
+        if founder_test:   # CEO 2026-11-08: the founder's admitted test budget, never above the founder cap
+            reserved = min(reserved, m5_founder_build_budget())
+        elif class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
             reserved = min(reserved, m5_class_llm_cap(class_name))
         elif not class_name:
             # Older quotes with a valid reserved maximum remain supported;
@@ -502,7 +506,6 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
         if class_name:
             if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
                 raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
-            from .pricing import m5_founder_account
             founder = m5_founder_account(request.get('user_id'))
             out['model_allowlist'] = (gateway.restrict_to_cost_class(class_name, unrestricted=True) if founder
                                       else gateway.restrict_to_cost_class(class_name))
