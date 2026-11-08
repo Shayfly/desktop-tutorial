@@ -138,7 +138,8 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(path, '/chat/completions')
         self.assertEqual(body['model'], 'private-e2ee')                     # never the cheaper non-private one
         self.assertEqual(body['venice_parameters'], {'include_venice_system_prompt': False,
-                                                     'strip_thinking_response': True})
+                                                     'strip_thinking_response': True,
+                                                     'disable_thinking': True})
         self.assertEqual([m['content'] for m in body['messages'][1:]], ['SYS', MSG])
         self.assertEqual(body['max_tokens'], 500)
         fake503 = FakeVenice(chat_status=503)
@@ -175,13 +176,21 @@ class GatewayTests(unittest.TestCase):
             g.complete_json(system='S', user=MSG, max_tokens=100)
         self.assertFalse(W.meter(g, {'max_tokens': 100})['contacted'])
 
-    def test_answer_must_be_exactly_one_json_object(self):
+    def test_the_json_object_is_found_and_plain_text_is_kept(self):
+        # 2026-11-08: Claude Haiku via Venice put text around the JSON. The object is the answer; text without
+        # any object is not JSON, but it is kept on the error so the worker can use it as the reply.
         body = json.dumps(ANSWER, ensure_ascii=False)
         self.assertEqual(V.parse_json_object('```json\n' + body + '\n```'), ANSWER)
-        for bad in (body + '\nאגב, הוספתי גם סליקה.', 'הנה: ' + body, '[1, 2]', 'not json', ''):
+        for ok in (body + '\nאגב, הוספתי גם סליקה.', 'הנה: ' + body):
+            with self.subTest(ok=ok[:30]):
+                self.assertEqual(V.parse_json_object(ok), ANSWER)
+        for bad in ('[1, 2]', ''):
             with self.subTest(bad=bad[:30]):
                 with self.assertRaises(V.VeniceOutputInvalid):
                     V.parse_json_object(bad)
+        with self.assertRaises(V.VeniceOutputInvalid) as caught:
+            V.parse_json_object('שלום! לכמה מתאמנות יש מקום בכל שיעור?')
+        self.assertEqual(caught.exception.text, 'שלום! לכמה מתאמנות יש מקום בכל שיעור?')
 
     def test_each_call_is_metered_alone(self):
         g = gateway(FakeVenice())

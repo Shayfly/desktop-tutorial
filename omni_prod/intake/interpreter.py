@@ -307,9 +307,13 @@ def validate_model_output(raw, message: str) -> tuple[Interpretation | None, lis
         dropped.append('delegate_rest not a boolean')
         delegate = False
     reply=raw.get('reply','')
-    if not isinstance(reply,str) or len(reply)>600:
+    if not isinstance(reply,str):
         reply=''
-        dropped.append('reply must be text up to 600 characters')
+        dropped.append('reply must be text')
+    elif len(reply)>1200:          # 2026-11-08: a long reply is cut at a sentence, never thrown away
+        cut=reply[:1200]
+        reply=cut[:max(cut.rfind('. '), cut.rfind('? '), cut.rfind('\n'))+1] or cut
+        dropped.append('reply cut to 1200 characters')
     semantic, semantic_drops = validate_decisions(raw.get('semantic_decisions', []), customer_text=message)
     dropped.extend(semantic_drops)
     return Interpretation(lang, family, props, delegate, reqs, 'model', dropped,
