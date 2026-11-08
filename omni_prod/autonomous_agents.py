@@ -196,7 +196,8 @@ class GeneratorAgent:
             user=json.dumps(spec.to_dict(), ensure_ascii=False),
             # Rehearsal 37840698696: with the quality skills the code is longer
             # and 12k output tokens truncated the JSON on every model.
-            max_tokens=24000,
+            max_tokens=40000,  # bld_624610bc (2026-11-09): a 51K-char app.py needs ~15K tokens alone
+
         )
         return parse_patch(data)
 
@@ -224,7 +225,7 @@ class RepairAgent:
         payload = {'spec': spec.to_dict(), 'repository': _filter_repo_summary(repo_summary), 'failures': failures}
         if not structured:
             data = self.gateway.complete_json(
-                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=20000)
+                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=32000)
             return parse_patch(data)
         from .repair_contracts import validated_file_patches, sanitized_tail
         from .repository_patch import PatchValidationError

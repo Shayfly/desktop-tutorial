@@ -274,6 +274,7 @@ Skills in the §9 catalog (137): VERIFIED 7, STALE 29, TESTED 17, IMPLEMENTED 7,
 | skill.copy_quality@1 | INSTRUCTION + VALIDATOR | CONNECTED | injected into: generator, repair, evolution, reviewer | none | tests/test_skills_runtime_and_review.py | — |
 | skill.landing_conversion@1 | INSTRUCTION | CONNECTED | injected into: architect, generator, repair, evolution, reviewer | none | tests/test_skills_runtime_and_review.py | — |
 | skill.game_2d@1 | INSTRUCTION | CONNECTED | injected into: architect, generator, repair, evolution, reviewer | none | tests/test_skills_runtime_and_review.py | — |
+| skill.code_structure@1 | INSTRUCTION | CONNECTED | injected into: generator, repair, evolution | none | tests/test_skills_runtime_and_review.py | — |
 
 ## Mismatches found
 
