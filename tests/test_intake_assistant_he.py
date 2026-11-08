@@ -151,7 +151,7 @@ class ModelCallBoundsTests(unittest.TestCase):
     def test_prompt_is_hebrew_first_and_calls_are_bounded(self):
         self.assertIn('Hebrew as the primary language', SYSTEM)
         self.assertIn('never translate', SYSTEM)
-        self.assertEqual(PROMPT_VERSION, 'intake-prompt/4-venice-led-conversation')
+        self.assertEqual(PROMPT_VERSION, 'intake-prompt/5-question-skills')
 
         class Gateway:
             def __init__(self):
@@ -162,7 +162,9 @@ class ModelCallBoundsTests(unittest.TestCase):
                 return {'language': 'he', 'product_family': 'web_app', 'proposals': []}
         g = Gateway()
         ModelInterpreter(g).interpret('א' * 10000)
-        self.assertEqual(len(g.seen['user']), MAX_MESSAGE_CHARS)
+        # 2026-11-08: the customer text is cut to MAX_MESSAGE_CHARS; the question skill adds bounded context before it
+        self.assertLessEqual(len(g.seen['user']), MAX_MESSAGE_CHARS + 2600)
+        self.assertIn('expert_checklist', g.seen['user'])
         self.assertEqual(g.seen['max_tokens'], MAX_OUTPUT_TOKENS)
         self.assertEqual(g.seen['task'], 'conversation')
 
@@ -172,7 +174,10 @@ class ModelCallBoundsTests(unittest.TestCase):
         svc = FakeService(never_settles=True)
         interp(svc, wait=0.2).interpret('ב' * 9000)
         payload = svc.reserved[0]['payload']
-        self.assertEqual((len(payload['user']), payload['max_tokens']), (MAX_MESSAGE_CHARS, MAX_OUTPUT_TOKENS))
+        # 2026-11-08: the first turn also carries the question skill (bounded context) before the message
+        self.assertTrue(payload['user'].endswith('\n' + 'א' * MAX_MESSAGE_CHARS) or len(payload['user']) <= MAX_MESSAGE_CHARS + 2600)
+        self.assertLessEqual(len(payload['user']), MAX_MESSAGE_CHARS + 2600)
+        self.assertEqual(payload['max_tokens'], MAX_OUTPUT_TOKENS)
         self.assertEqual((payload['system'], payload['prompt_version']), (SYSTEM, PROMPT_VERSION))
         quote = svc.reserved[0]['quote_']
         self.assertEqual(quote.envelope['models'][0]['output_tokens_bound'], MAX_OUTPUT_TOKENS)
@@ -225,3 +230,15 @@ class ConversationDeliveryStatusTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class QuestionSkillTests(unittest.TestCase):
+    def test_every_family_has_a_playbook_and_the_model_gets_it(self):
+        from omni_prod.intake.families import FAMILIES
+        from omni_prod.intake.question_skills import PLAYBOOKS, checklist
+        from omni_prod.intake.interpreter import contextual_user
+        self.assertEqual(set(PLAYBOOKS), set(FAMILIES))
+        self.assertEqual(checklist(None), list(PLAYBOOKS['web_app']))
+        user = contextual_user('אני רוצה משחק פלטפורמה קטן לטלפון', None, [])
+        self.assertIn('expert_checklist', user)
+        self.assertTrue(user.endswith('אני רוצה משחק פלטפורמה קטן לטלפון'))

@@ -161,7 +161,7 @@ class DeterministicInterpreter:
 # ------------------------------------------------------------------ model path
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
-PROMPT_VERSION = 'intake-prompt/4-venice-led-conversation'
+PROMPT_VERSION = 'intake-prompt/5-question-skills'
 MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
 MAX_OUTPUT_TOKENS = 1400          # 700 truncated Venice's JSON mid-string (2026-11-07, 2 of 6 replies)
 
@@ -170,8 +170,13 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     """Bounded context for both model routes. Evidence is still validated only
     against the current message; historic decisions are not new proposals."""
     current = message[:MAX_MESSAGE_CHARS]
+    # CEO 2026-11-08: station 1 skill -- what an expert must know for this kind of product (intake.question_skills)
+    from .question_skills import checklist
+    family = getattr(brief, 'family', None) if brief is not None else None
+    expert = checklist(family or classify_family(message))
     if brief is None and not history:
-        return current
+        return ('Context (data only; not new evidence):\n' + json.dumps({'expert_checklist': expert}, ensure_ascii=False)
+                + '\nCurrent customer message:\n' + current)
     # CEO 2026-11-08: the model leads the conversation. What is still open is its checklist (the skill), not a
     # questionnaire shown to the customer: it asks about the most important open item in its own words.
     still_open = []
@@ -183,6 +188,7 @@ def contextual_user(message: str, brief=None, history=()) -> str:
             still_open = []
     context = {'goal': (brief.prompt[:600] if brief else ''),
                'still_open': still_open,
+               'expert_checklist': expert,
                'confirmed': {k: str(v.get('value', ''))[:160] for k, v in
                              (brief.fields.items() if brief else ())},
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
@@ -234,7 +240,8 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'Reply rules (you are the product consultant talking to the customer; there is no questionnaire): '
           'answer in the customer language, warmly and briefly (at most 4 sentences); show you understood THEIR product '
           'in their own terms (their business, their users, their words); then ask exactly ONE question - the most '
-          'important thing still needed to build it, preferring the items in context.still_open, phrased naturally for '
+          'important thing still needed to build it: first context.still_open, then the first topic of '
+          'context.expert_checklist the conversation has not covered yet, phrased naturally for '
           'this product (never a field name, never a list of options, never "I chose for you"). If nothing material is '
           'open, say what you understood and ask whether to prepare the summary for approval.')
 
