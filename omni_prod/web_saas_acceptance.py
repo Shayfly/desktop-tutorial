@@ -515,8 +515,45 @@ def _capture(capture: Mapping[str, str], response: HttpResponse, variables: dict
     data = response.json()
     for variable, dotted_path in capture.items():
         current = data
-        for part in str(dotted_path).split('.'):
+        for part in _capture_parts(str(dotted_path)):
+            if isinstance(part, _DigitKey) and isinstance(current, list):
+                part = int(part)
+            if isinstance(part, int):
+                if not isinstance(current, list) or not -len(current) <= part < len(current):
+                    raise AssertionError(f'capture path {dotted_path!r} missing from response')
+                current = current[part]
+                continue
             if not isinstance(current, Mapping) or part not in current:
                 raise AssertionError(f'capture path {dotted_path!r} missing from response')
             current = current[part]
         variables[str(variable)] = current
+
+
+_CAPTURE_TOKEN = re.compile(r'\[(-?\d+)\]|([^.\[\]]+)')
+
+
+def _capture_parts(dotted_path: str) -> list:
+    """Split a capture path into keys and list indexes.
+
+    Founder build bld_ca727ba7 (2026-11-08): GET /api/classes returned a JSON
+    array whose first item had id 1, the plan captured '[0].id', and the old
+    resolver only walked object keys, so a correct app failed A2-A4. Accepted
+    forms: '[0].id', 'items[0].id', 'items.0.id', '$.items[0].id', 'id'.
+    A digit-only segment indexes a list only when the current value is a list
+    (an object key '0' still works, see _capture)."""
+    path = dotted_path.strip()
+    if path.startswith('$'):
+        path = path[1:].lstrip('.')
+    parts: list = []
+    for m in _CAPTURE_TOKEN.finditer(path):
+        if m.group(1) is not None:
+            parts.append(int(m.group(1)))
+        else:
+            seg = m.group(2).strip()
+            if seg:
+                parts.append(_DigitKey(seg) if seg.lstrip('-').isdigit() else seg)
+    return parts
+
+
+class _DigitKey(str):
+    """A dotted segment like '0': an index into a list, or the key '0' of an object."""

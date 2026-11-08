@@ -668,6 +668,25 @@ def resolve_m5_billing(
     return 'settled', evidence, actual
 
 
+_FOUNDER_DRAFT_CODES = frozenset({'verification_failed', 'quality_gate_failed', 'preview_not_ready',
+                                  'release_policy_failed', 'capability_gate_failed'})
+
+
+def _founder_draft_allowed(request, error_code) -> bool:
+    """Founder-only draft version of a failed build (CEO 2026-11-08). Never for a security finding."""
+    import os
+    if os.getenv('OMNI_FOUNDER_DRAFT_VERSIONS', '1') == '0' or error_code not in _FOUNDER_DRAFT_CODES:
+        return False
+    from .pricing import m5_founder_account
+    return bool(m5_founder_account((request or {}).get('user_id')))
+
+
+def _version_message(build_id: str, founder_draft: bool) -> str:
+    if founder_draft:
+        return f'148AI DRAFT (failed checks, founder preview only) build {build_id}'
+    return f'148AI async live build {build_id}'
+
+
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
@@ -937,6 +956,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # rights gate documents as committed-but-not-releasable) becomes a
         # version.
         commit_version = ready or error_code == 'rights_gate_not_clear'
+        # CEO 2026-11-08 (bld_ca727ba7: a failed founder build left nothing to open): for the founder account only, the
+        # best repaired candidate of a build that failed verification/quality is still committed as a DRAFT version,
+        # so it can be opened in Preview next to the list of failed checks. The build stays FAILED and nothing is
+        # released or billed as ready; customers are unchanged (Golden E2E #1 rule). OMNI_FOUNDER_DRAFT_VERSIONS=0 off.
+        founder_draft = (not commit_version and _founder_draft_allowed(request, error_code)
+                         and bool(getattr(result, 'repository', None)))
+        commit_version = commit_version or founder_draft
         pool = getattr(workspace, 'pool', None)
         if not commit_version:
             version = None
@@ -945,12 +971,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 with conn.transaction():
                     with conn.cursor() as cur:
                         version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                                   message=f'148AI async live build {build_id}', cur=cur)
+                                                   message=_version_message(build_id, founder_draft), cur=cur)
                         spec_repo.save(version_id=version.id, project_id=internal_project_id,
                                        spec=result.spec, cur=cur)
         else:
             version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                       message=f'148AI async live build {build_id}')
+                                       message=_version_message(build_id, founder_draft))
         version_id = version.id if version is not None else None
         artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
@@ -965,6 +991,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'rights': rights.to_dict(),
             },
             'release_ready': ready,
+            'founder_draft_version': bool(founder_draft),
             'build_contract': contract_evidence,
             'capabilities': capability_evidence,
             'infrastructure': infrastructure_evidence,

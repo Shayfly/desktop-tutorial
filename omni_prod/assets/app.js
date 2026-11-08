@@ -46,6 +46,7 @@ const T = {
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
     repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
     buildFailed:'הבנייה נכשלה',
+    openDraftPreview:'פתח את הטיוטה בתצוגה (לא עברה את כל הבדיקות)',
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
@@ -160,6 +161,7 @@ const T = {
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
     repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
     buildFailed:'Build failed',
+    openDraftPreview:'Open the draft in Preview (did not pass every check)',
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
@@ -948,6 +950,12 @@ function renderTrack() {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
+    // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
+    if (b.result_version_id) {
+      const btn = h('button', { class: 'btn', type: 'button' }, t('openDraftPreview'));
+      btn.addEventListener('click', () => startPreview(b.result_version_id));
+      msg.append(h('div', {}, btn));
+    }
   }
   else msg.textContent = '';
 }
