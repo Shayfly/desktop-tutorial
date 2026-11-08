@@ -137,7 +137,8 @@ class GatewayTests(unittest.TestCase):
         (_, path, body), = fake.chats
         self.assertEqual(path, '/chat/completions')
         self.assertEqual(body['model'], 'private-e2ee')                     # never the cheaper non-private one
-        self.assertEqual(body['venice_parameters'], {'include_venice_system_prompt': False})
+        self.assertEqual(body['venice_parameters'], {'include_venice_system_prompt': False,
+                                                     'strip_thinking_response': True})
         self.assertEqual([m['content'] for m in body['messages'][1:]], ['SYS', MSG])
         self.assertEqual(body['max_tokens'], 500)
         fake503 = FakeVenice(chat_status=503)
@@ -320,3 +321,10 @@ class VeniceThroughTheReservationRoute(PG):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReasoningModelOutputTests(unittest.TestCase):
+    def test_visible_thinking_before_the_json_is_not_the_answer(self):
+        from omni_prod.providers.venice_gateway import parse_json_object
+        self.assertEqual(parse_json_object('<think>\nweighing {options}\n</think>\n{"reply": "שלום"}'), {'reply': 'שלום'})
+        self.assertEqual(parse_json_object('```json\n{"a": 1}\n```'), {'a': 1})
