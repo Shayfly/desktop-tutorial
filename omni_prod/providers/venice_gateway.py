@@ -75,8 +75,12 @@ class Recorder:
 _FENCE = re.compile(r'\A```(?:json)?\s*\n(?P<body>.*?)\n?```\Z', re.S)
 
 
+_THINK = re.compile(r'\A\s*<think>.*?</think>\s*', re.S)
+
+
 def parse_json_object(text: str) -> dict:
-    s = (text or '').strip()
+    # 2026-11-08: reasoning models (DeepSeek V4 on Venice) may prefix their visible thinking; it is never the answer
+    s = _THINK.sub('', (text or '')).strip()
     m = _FENCE.match(s)
     if m:
         s = m.group('body').strip()
@@ -137,7 +141,9 @@ class VeniceIntakeGateway:
                                    messages=[{'role': 'system', 'content': system},
                                              {'role': 'user', 'content': user}],
                                    max_tokens=int(max_tokens), idempotency_key=request_id,
-                                   venice_parameters={'include_venice_system_prompt': False})
+                                   venice_parameters={'include_venice_system_prompt': False,
+                                                      # reasoning models: return the answer, not the thinking
+                                                      'strip_thinking_response': True})
         except VeniceBudgetExceeded:
             raise                            # refused before contact: no record, nothing spent
         except Exception as exc:
