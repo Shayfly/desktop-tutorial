@@ -124,6 +124,11 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
                                     task=task)
     except Exception as exc:
         error = f'{type(exc).__name__}: {str(exc)[:300]}'
+        # CEO 2026-11-08: the model always answers. If it wrote plain text instead of the JSON envelope, its text
+        # IS the reply (no structured requirements are taken from it; the brief stays as it was).
+        prose = (getattr(exc, 'text', '') or '').strip()
+        if prose and not prose.lstrip().startswith(('{', '[')):
+            raw, error = {'reply': prose[:1200], 'proposals': [], 'requirements': []}, None
     m = meter(gateway, r.quote)
     if m['cost_state'] == B.COST_UNKNOWN:
         reason = m.get('reason') or error or 'usage not reported'

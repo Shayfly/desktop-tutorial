@@ -49,7 +49,9 @@ def price_ceiling(env=None) -> tuple[Decimal, Decimal]:
 
 
 class VeniceOutputInvalid(VeniceError):
-    pass
+    def __init__(self, message: str, text: str = ''):
+        super().__init__(message)
+        self.text = text           # what the model wrote (the worker may still use it as the reply)
 
 
 @dataclass
@@ -87,9 +89,19 @@ def parse_json_object(text: str) -> dict:
     try:
         obj, end = json.JSONDecoder().raw_decode(s)
     except ValueError as exc:
-        raise VeniceOutputInvalid(f'Venice answer is not JSON: {exc.msg}') from None
-    if s[end:].strip():
-        raise VeniceOutputInvalid('Venice answer has text after the JSON object')
+        # 2026-11-08: Claude Haiku via Venice answered with text before the JSON ('Expecting value' at 0).
+        # Take the first JSON object in the answer; if there is none, the text itself is kept for the caller.
+        start = s.find('{')
+        found = None
+        while start != -1 and found is None:
+            try:
+                found, _ = json.JSONDecoder().raw_decode(s[start:])
+            except ValueError:
+                start = s.find('{', start + 1)
+        if not isinstance(found, dict):
+            raise VeniceOutputInvalid(f'Venice answer is not JSON: {exc.msg}', text=s) from None
+        obj = found
+    # text after the object (a closing remark) is ignored: the object is the answer
     if not isinstance(obj, dict):
         raise VeniceOutputInvalid('Venice answer is JSON but not an object')
     return obj
@@ -142,8 +154,9 @@ class VeniceIntakeGateway:
                                              {'role': 'user', 'content': user}],
                                    max_tokens=int(max_tokens), idempotency_key=request_id,
                                    venice_parameters={'include_venice_system_prompt': False,
-                                                      # reasoning models: return the answer, not the thinking
-                                                      'strip_thinking_response': True})
+                                                      # reasoning models: answer directly, never the thinking
+                                                      'strip_thinking_response': True,
+                                                      'disable_thinking': True})
         except VeniceBudgetExceeded:
             raise                            # refused before contact: no record, nothing spent
         except Exception as exc:

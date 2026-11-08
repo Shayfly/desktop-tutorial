@@ -166,7 +166,7 @@ class Outcome:
 # conversation_turn TIMEOUT, then conversation_persists PASS on the same project; no intake reservation on that
 # preview branch, so not a model wait). 45 s stays under the function's maxDuration (60 s in vercel.json), so a
 # hung server is still reported as a timeout. elapsed_ms in the evidence shows the real duration from now on.
-CONVERSATION_TURN_TIMEOUT = 45.0
+CONVERSATION_TURN_TIMEOUT = 125.0   # 2026-11-08: the server may wait up to 110 s for the model (maxDuration 120)
 
 
 class Client:
