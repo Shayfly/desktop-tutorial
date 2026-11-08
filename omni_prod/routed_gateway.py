@@ -434,7 +434,12 @@ class RoutedModelGateway:
                 authors |= self.models_by_task.get(t, set())
         # Models meeting the task's floor first (cheapest among them), then the
         # rest as escalation; the base minimum_quality filter above still holds.
-        candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors, c[0]))
+        # CEO 2026-11-08: then the station's preferred models in order, then the rest cheapest first.
+        from .intelligence.task_policy import task_class as _tc
+        prefer = _tc(task, cost_class=self.cost_class).prefer_models
+        rank = {name: i for i, name in enumerate(prefer)}
+        candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors,
+                                       rank.get(c[1].endpoint.name, len(rank)), c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
     # Smallest output allowance still useful per task: below it a response is

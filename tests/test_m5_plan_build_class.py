@@ -239,6 +239,18 @@ class AllowlistAndOverageTests(unittest.TestCase):
             self.assertFalse(m5_founder_account('usr_c'))
             self.assertFalse(m5_founder_account(None))
 
+    def test_station_models_come_first_when_the_whole_catalog_is_allowed(self):
+        # CEO 2026-11-08: code -> Sonnet, QA -> GPT-6.1 Sol (and never the author), architect -> Sonnet
+        gw = _gateway(); gw.restrict_to_cost_class(CostClass.LIGHT, unrestricted=True)
+        def first(task):
+            return gw.ranked_routes({'system': 's', 'user': 'u', 'max_tokens': 1000}, task)[0][0].endpoint.name
+        self.assertEqual(first('codegen'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('repair'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('architecture'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('review'), 'openai-gpt-6-1-sol')
+        gw.models_by_task = {'codegen': {'openai-gpt-6-1-sol'}}          # Sol wrote it: it does not review it
+        self.assertNotEqual(first('review'), 'openai-gpt-6-1-sol')
+
     def test_soft_cap_records_overage_and_alerts_above_2x(self):
         self.assertEqual(llm_overage('0.30', '0.35')['status'], 'WITHIN_CAP')
         self.assertEqual(llm_overage('0.50', '0.35')['status'], 'OVER_CAP')
