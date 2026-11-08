@@ -1385,8 +1385,9 @@ function renderChat() {
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
       h('img', { src: `/api/v28/projects/${pid()}/attachments/${encodeURIComponent(a.id)}`, alt: t('attachedImage'), loading: 'lazy', width: 72, height: 72 }))));
     if (i === lastAssistant) {
-      const turnQs = (S.chat.turn && S.chat.turn.questions) || [];
-      const qs = turnQs.length ? turnQs : (S.disc && !S.disc.complete ? (S.disc.questions || []).slice(0, 2) : []);
+      // CEO 2026-11-08: no questionnaire. Only the buttons the server sent with this turn; never the detector's
+      // pending questions as a fallback (Venice asks in words; the server sends none while she leads).
+      const qs = (S.chat.turn && S.chat.turn.questions) || [];
       if (qs.length) bubble.append(quickReplies(qs));
       const acts = actionButtons(m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []));
       if (acts) bubble.append(acts);
