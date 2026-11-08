@@ -80,7 +80,12 @@ class ReservedWorkerInterpreter:
             return base
         if r.state == B.RESERVED:
             try:
-                self.enqueue(r.id)
+                try:
+                    self.enqueue(r.id)
+                except Exception as first:   # one retry on a fresh connection: the failures were intermittent
+                    logging.getLogger(__name__).warning('intake enqueue retry for %s after %s', r.id,
+                                                        type(first).__name__)
+                    self.enqueue(r.id)       # same job id: a duplicate Redis job is harmless (claim is atomic)
                 self.svc.mark_enqueued(r.id)
             except Exception as exc:    # queue down: nothing was sent, so give the money back now
                 # 2026-11-08: 6 of 13 releases read only 'enqueue failed: ValueError'. Keep the message (credentials
