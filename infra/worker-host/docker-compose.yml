@@ -64,6 +64,9 @@ services:
       OMNI_SANDBOX_RUNNER_URL: http://sandbox-runner:8010
       OMNI_CREATOR_PERSISTENCE: postgres
       OMNI_ENABLE_LIVE_BUILD: "1"
+      # CEO 2026-11-08 (a): the founder's account builds with every catalog model (class hard cap unchanged).
+      # An account id, not a secret. WORKER_ENV may override it.
+      OMNI_FOUNDER_ACCOUNT_IDS: ${OMNI_FOUNDER_ACCOUNT_IDS:-usr_GCWlMxENgr9vpwph}
     depends_on:
       sandbox-runner:
         condition: service_healthy

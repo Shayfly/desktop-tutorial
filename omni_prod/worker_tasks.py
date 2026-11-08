@@ -502,7 +502,10 @@ def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
         if class_name:
             if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
                 raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
-            out['model_allowlist'] = gateway.restrict_to_cost_class(class_name)
+            from .pricing import m5_founder_account
+            founder = m5_founder_account(request.get('user_id'))
+            out['model_allowlist'] = (gateway.restrict_to_cost_class(class_name, unrestricted=True) if founder
+                                      else gateway.restrict_to_cost_class(class_name))
         return out
     except (ValueError, ArithmeticError) as exc:
         raise PermissionError('invalid model budget authorization') from exc

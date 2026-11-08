@@ -268,6 +268,35 @@ def m5_class_llm_cap(cost_class) -> Decimal:
     return cap
 
 
+# CEO 2026-11-08 (b): LIGHT and STANDARD may use a strong model for repair and QA review only (the builds failed
+# verification after 3 repair rounds with only Flash-Lite and GPT-6 Luna). The class hard cap still bounds spend.
+# Override per class: OMNI_TASK_ONLY_MODELS_<CLASS>="model:task+task,model:task" ("none" disables).
+_M5_TASK_ONLY_DEFAULT: dict[CostClass, str] = {
+    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:repair+review',
+    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:repair+review',
+}
+
+
+def m5_task_only_models(cost_class) -> dict[str, frozenset]:
+    cc = _as_cost_class(cost_class)
+    raw = os.getenv(f'OMNI_TASK_ONLY_MODELS_{cc.value.upper()}', '').strip() or _M5_TASK_ONLY_DEFAULT.get(cc, '')
+    out: dict[str, frozenset] = {}
+    if raw.lower() == 'none':
+        return out
+    for item in raw.split(','):
+        name, _, tasks = item.strip().partition(':')
+        names = frozenset(t.strip() for t in tasks.split('+') if t.strip())
+        if name.strip() and names:
+            out[name.strip()] = names
+    return out
+
+
+def m5_founder_account(account_id) -> bool:
+    """CEO 2026-11-08 (a): founder accounts build with the whole catalog (still under the class hard cap)."""
+    ids = {x.strip() for x in os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', '').split(',') if x.strip()}
+    return bool(account_id) and str(account_id) in ids
+
+
 def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:
     # LIGHT no longer widens its price ceiling for codegen (founder 2026-10-22).
     cc = _as_cost_class(cost_class)
