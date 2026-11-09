@@ -73,7 +73,9 @@ ANTHROPIC_VERSION = '2023-06-01'
 ANTHROPIC_NO_UPFRONT_THINKING = frozenset({'claude-sonnet-5-5'})
 ANTHROPIC_JSON_ONLY_RULE = ('\n\nOUTPUT FORMAT (mandatory): your whole reply is ONE JSON object in the requested schema. '
                             'The first character of the reply is { and the last is }. No explanation, summary, '
-                            'heading or markdown before or after it; put any notes inside the JSON fields the schema has.')
+                            'heading or markdown before or after it; put any notes inside the JSON fields the schema has. '
+                            'Every file "content" is the exact file text: keep every newline (\\n) and every leading space of '
+                            'indentation -- never flatten, minify or abbreviate code.')
 
 
 def quota_exhausted(exc) -> bool:

@@ -481,7 +481,7 @@ class RoutedModelGateway:
     # Called after a provider attempt is written ahead (worker: flush the ledger).
     on_attempt_start: Callable[[], None] | None = None
 
-    def _route(self, method: str, kwargs: dict, task: str = 'general'):
+    def _route(self, method: str, kwargs: dict, task: str = 'general', validate: Callable | None = None):
         if self.before_call is not None:
             self.before_call(task)
         last_error: Exception | None = None
@@ -535,9 +535,15 @@ class RoutedModelGateway:
                     continue
             for retry in range(self.transient_retries + 1):
                 try:
-                    return self._attempt(route, method, call_kwargs,
-                                         why if retry == 0 else f'{why}; transient retry #{retry}',
-                                         task=task, option=option, rank=rank, candidate_set=candidate_set)
+                    result = self._attempt(route, method, call_kwargs,
+                                           why if retry == 0 else f'{why}; transient retry #{retry}',
+                                           task=task, option=option, rank=rank, candidate_set=candidate_set)
+                    if validate is not None:
+                        # A well-formed answer that is unusable for the caller (e.g. code whose indentation was
+                        # lost, bld_5b2e8f58) is a model-output failure like invalid JSON: escalate to the next
+                        # route instead of spending a repair round on it.
+                        validate(result)
+                    return result
                 except Exception as exc:
                     last_error = exc
                     if isinstance(exc, AttemptLedgerUnavailable):
@@ -611,9 +617,10 @@ class RoutedModelGateway:
             'max_tokens': max_tokens,
         }, task)
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general') -> dict:
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general',
+                      validate: Callable | None = None) -> dict:
         return self._route('complete_json', {
             'system': system,
             'user': user,
             'max_tokens': max_tokens,
-        }, task)
+        }, task, validate=validate)

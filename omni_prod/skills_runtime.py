@@ -631,7 +631,8 @@ CODE_STRUCTURE = Skill(
         'api.py or handlers/ (one function per endpoint), rules.py (business rules as pure functions -- easy to unit '
         'test), and static/ for the page (index.html, app.js, styles.css served by the app). Pure functions for every '
         'rule (capacity, overlap, price) so tests call them directly as well as over HTTP. A repair changes the file '
-        'that owns the behaviour and returns only the files it changed.'),
+        'that owns the behaviour and returns only the files it changed. requirements.txt lists runtime packages only '
+        '(never pytest or other test tools: the sandbox provides them) and stays empty when the stdlib is enough.'),
     checklist=('No file is so large that it cannot be reviewed whole; rules live in pure functions.',),
 )
 
