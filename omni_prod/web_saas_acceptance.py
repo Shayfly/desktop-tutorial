@@ -37,13 +37,39 @@ _NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 # or the approved brief make those behaviours mandatory; otherwise they are
 # NOT_REQUIRED (a booking app that only creates, lists and cancels is not
 # failed for having no "edit"). Sign-in approved as NONE removes auth/role.
-_UPDATE_WORDS = ('edit', 'update', 'change', 'rename', 'mark', 'complete', 'done', 'toggle', 'status',
-                 'עריכ', 'ערוך', 'לערוך', 'עדכון', 'לעדכן', 'שינוי', 'לשנות', 'סימון', 'לסמן', 'סמן', 'הושלם',
-                 'בוצע', 'השלמה', 'סטטוס', 'מצב')
-# 2026-11-09: the three-letter stems 'בטל', 'מחק', 'הסר' matched "בטלפון" (on the phone), "מחקר", "הסרט" and made
-# data_delete mandatory for a café landing page. Only whole delete/cancel forms count.
-_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחקו', 'למחיקה', 'להסיר', 'הסרה',
-                 'ביטול', 'לבטל', 'בטלו', 'ארכיון')
+# 2026-11-10: whole Hebrew words with prefixes, never substrings: the stems 'בטל', 'מחק', 'הסר' matched "בטלפון",
+# "מחקר", "הסרט" and 'מצב' matched "במצב רוח". This file runs alone inside the sandbox, so the matcher is a copy of
+# omni_prod.vocabulary (tests/test_vocabulary_20261110.py keeps both identical).
+_UPDATE_WORDS = (
+    'edit*', 'update*', 'change', 'changes', 'changing', 'rename*', 'mark', 'marks', 'marked', 'done', 'complete',
+    'completed', 'completion', 'toggle*', 'status', 'statuses', 'modify', 'reschedule*', 'עריכה', 'עריכת', 'לערוך',
+    'ערוך', 'ערכו', 'עורך', 'עורכת', 'נערך', 'עדכון', 'עדכונים', 'לעדכן', 'עדכן', 'עדכנו', 'מעדכן', 'מעדכנת',
+    'מתעדכן', 'שינוי', 'שינויים', 'לשנות', 'סימון', 'לסמן', 'סמן', 'סמנו', 'מסמן', 'הושלם', 'הושלמה', 'בוצע',
+    'בוצעה', 'השלמה', 'סטטוס', 'סטטוסים', 'מצב המשימה', 'מצב ההזמנה', 'מצב הטיפול', 'להזיז', 'הזזה', 'לדחות',
+    'דחייה', 'לתקן פרטים', 'תיקון פרטים',
+)
+_DELETE_WORDS = (
+    'delete*', 'remove*', 'cancel*', 'archive*', 'unsubscribe*', 'מחיקה', 'מחיקת', 'למחוק', 'מחק', 'מחקו', 'מוחק',
+    'מוחקת', 'נמחק', 'נמחקת', 'למחיקה', 'להסיר', 'הסר', 'הסירו', 'הסרה', 'הסרת', 'מסיר', 'ביטול', 'ביטולים', 'לבטל',
+    'בטל', 'בטלו', 'מבטל', 'מבטלת', 'בוטל', 'בוטלה', 'ארכיון', 'לארכב', 'ארכוב', 'להוריד מהרשימה', 'הסרה מהרשימה',
+    'הסרה מרשימת',
+)
+_HE = '\u0590-\u05FF'
+_PREFIX = r'(?:ו|ש|כש|מ|ב|ל|כ|ה|וה|וב|ול|ומ|וש|שה|שב|של|שמ|מה|בה|לה|כה|וכש)?'
+
+
+def _vocab_entry(word: str) -> str:
+    stem = word.endswith('*')
+    w = word[:-1] if stem else word
+    body = re.escape(w).replace(r'\ ', r'[\s\-]+').replace("'", '[\'\u05F3]').replace('"', '["\u05F4]')
+    if re.search(f'[{_HE}]', w):
+        return _PREFIX + body + (f'[{_HE}]*' if stem else '')
+    return body + (r'\w*' if stem else '')
+
+
+def _has_any(text: str, words) -> bool:
+    alts = '|'.join(_vocab_entry(w) for w in sorted(set(words), key=len, reverse=True))
+    return bool(re.search(f'(?<![\\w{_HE}])(?:{alts})(?![\\w{_HE}])', text or '', re.I))
 
 
 def _no_login(contract: Mapping[str, Any]) -> bool:
@@ -68,9 +94,9 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
         text = str(build_contract.get('prompt') or '').lower()
         if _no_login(build_contract):
             not_required += ['auth', 'role']
-        if not any(w in text for w in _UPDATE_WORDS):
+        if not _has_any(text, _UPDATE_WORDS):
             not_required.append('data_update')
-        if not any(w in text for w in _DELETE_WORDS):
+        if not _has_any(text, _DELETE_WORDS):
             not_required.append('data_delete')
     # A content-only website approved in the brief (no sign-in, no personal data, no external integration,
     # no storage/scheduled/outbound infrastructure) has no record to create. Only data_create is waived; data_read

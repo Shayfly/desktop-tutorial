@@ -133,7 +133,7 @@ _INTEGRATION_WORDS = (
     # 2026-11-09: "כפתור הזמנה ב-WhatsApp" is a link, not a messaging integration. Only SENDING messages counts.
     ('sms', r'(\bsms\b|הודעות? טקסט|שליחת הודעות|לשלוח הודעות|תזכורות? (?:ב|ל)?(?:sms|וואטסאפ|whatsapp)|'
             r'send (?:sms|whatsapp)|whatsapp (?:notifications|reminders|messages to))'),
-    ('maps', r'(מפה|google maps|mapbox|\bmap\b)'),
+    ('maps', r'((?<![\w\u0590-\u05FF])(?:ו|ב|ה|על ה)?(?:מפה|מפת|מפות)(?![\u0590-\u05FF])|google maps|mapbox|\bmaps?\b)'),
     ('calendar', r'(google calendar|יומן גוגל|outlook calendar)'),
     ('ai_model', r'(צ\'?אטבוט|chatbot|בינה מלאכותית|\bai\b|gpt|llm)'),
 )

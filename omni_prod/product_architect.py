@@ -38,22 +38,15 @@ _SELF_CONTAINED_STACK = ("Python standard library", "SQLite (sqlite3)", "Web UI 
 # requirement and never adds object storage to the product.
 _MANAGED_DB_TERMS = ("postgres", "postgresql", "mysql", "mariadb", "sql server", "managed database",
                      "production database", "פוסטגרס", "מסד נתונים מנוהל")
-_UPLOAD_TERMS = ("upload", "attachment", "file storage", "store files", "documents storage", "העלאת קבצים",
-                 "העלאת", "צרופה", "צרופות", "אחסון קבצים")
-_SCHEDULE_TERMS = ("schedule", "reminder", "cron", "recurring", "every day", "every week", "daily digest",
-                   "weekly digest", "background job", "follow-up", "follow-ups", "תזכורת", "מתוזמן", "כל יום")
-_OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push notification",
-                   "מייל", "אימייל", 'דוא"ל', "דואל")
+# 2026-11-10: shared Hebrew-aware vocabulary (whole words + prefixes). "העלאת מחירים" (a price rise) was an upload and
+# "פתוח כל יום" (opening hours) was a scheduled job.
+from .vocabulary import (OUTBOUND_ACTION_WORDS as _OUTBOUND_ACTION_TERMS, OUTBOUND_CHANNEL_WORDS as _OUTBOUND_TERMS,  # noqa: E402
+                         SCHEDULE_WORDS as _SCHEDULE_TERMS, UPLOAD_WORDS as _UPLOAD_TERMS, has_any as _has_any)
 
 # Contact details such as "email: contact@example.org" are not an outbound
 # sending service. Preserve explicitly requested email notifications, marketing,
 # SMS or webhook delivery; never silently remove a capability the planner has
 # already marked required.
-_OUTBOUND_ACTION_TERMS = ("send", "sending", "notify", "notification", "mailing",
-                          "automated email", "outbound", "dispatch", "deliver",
-                          "שלח", "לשלוח", "שולח", "שליחה", "שליחת", "התראה",
-                          "התראות", "דיוור", "משלוח", "נשלח", "יישלח")
-
 
 def _requires_outbound_delivery(prompt: str) -> bool:
     low = (prompt or "").casefold()
@@ -66,11 +59,10 @@ def _requires_outbound_delivery(prompt: str) -> bool:
     if re.search(r"(?:לקבל|קבלת|יישלח|נשלח|subscribe|receive|weekly|שבועי)"
                  r"[^.!?\n]{0,140}(?:למייל|באימייל|אימייל|מייל|email|e-mail)", low):
         return True
-    return (any(term in low for term in _OUTBOUND_TERMS)
-            and any(action in low for action in _OUTBOUND_ACTION_TERMS))
+    return _has_any(low, _OUTBOUND_TERMS) and _has_any(low, _OUTBOUND_ACTION_TERMS)
 
 
-_NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|משתמשים)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
+_NO_LOGIN = re.compile(r"(בלי|ללא|אין צורך ב|לא צריך)\s*-?\s*(התחברות|להתחבר|הרשמה|להירשם|סיסמ|משתמשים|חשבון|חשבונות)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
                        r"sign-in:\s*none", re.I)
 
 
@@ -134,7 +126,7 @@ def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = 
     database is required, in which case both are platform-managed. Object
     storage, scheduled work and outbound delivery appear only on demand."""
     low = prompt.casefold()
-    wants = lambda terms: any(t in low for t in terms)  # noqa: E731
+    wants = lambda terms: _has_any(low, terms)  # noqa: E731  (whole words, Hebrew prefixes)
     integration_keys = set(integrations or ())
     managed_db = wants(_MANAGED_DB_TERMS)
     needed = {
