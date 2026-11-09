@@ -300,3 +300,46 @@ class BuildRestoreUiTests(unittest.TestCase):
         body = self.js[start:self.js.index('\n}\n', start)]
         self.assertIn('if (isTerminal(b.status))', body)
         self.assertNotIn('startPreview', body)
+
+
+class ReviewConvergenceTests(unittest.TestCase):
+    """bld_9bd3c1c4 (2026-11-09): all checks passed; five review rounds kept finding new edge cases."""
+
+    def executor(self, rounds):
+        from omni_prod.autonomous_core import ExecutionReport
+        from omni_prod.product_review import ProductReviewExecutor
+
+        class Gw:
+            accepts_task_tag = True
+            last_usage = None
+
+            def __init__(self):
+                self.calls = []
+
+            def complete_json(self, **kw):
+                self.calls.append(json.loads(kw['user']))
+                return {'findings': rounds.pop(0)}
+
+        class Inner:
+            def execute(self, **kw):
+                return ExecutionReport(True)
+        gw = Gw()
+        return ProductReviewExecutor(Inner(), gateway=gw, max_reviews=6), gw
+
+    def f(self, skill, file, problem='p'):
+        return {'skill': skill, 'severity': 'blocking', 'file': file, 'problem': problem, 'fix': 'x'}
+
+    def test_new_minor_finding_in_a_re_review_does_not_block(self):
+        ex, gw = self.executor([[self.f('skill.ui_states', 'static/app.js')],
+                                [self.f('skill.form_validation', 'rules.py', 'lone surrogate -> 500')]])
+        self.assertFalse(ex.execute(repository={'app.py': ''}, spec=None).passed)
+        self.assertTrue(ex.execute(repository={'app.py': ''}, spec=None).passed)
+        self.assertIn('previous_blocking', gw.calls[1])
+
+    def test_repeated_or_security_findings_still_block(self):
+        ex, _ = self.executor([[self.f('skill.ui_states', 'static/app.js')],
+                               [self.f('skill.ui_states', 'static/app.js'), self.f('skill.security_basics', 'db.py')]])
+        ex.execute(repository={'app.py': ''}, spec=None)
+        report = ex.execute(repository={'app.py': ''}, spec=None)
+        self.assertFalse(report.passed)
+        self.assertEqual(len(report.failures), 2)

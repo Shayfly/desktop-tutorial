@@ -33,7 +33,11 @@ _REVIEW_SYSTEM = (
     'change>"}]}. blocking = a user-visible defect against the spec or checklist (wrong data accepted, error shown in '
     'a browser dialog, an excluded feature present, data shown escaped or hidden, a crash, a security hole); '
     'advisory = everything else, including defects that need unusual timing, rapid repeated clicks or a slow '
-    'network to appear, and polish beyond the checklist. At most '
+    'network to appear, hostile or malformed input no real user sends (integers beyond 64 bits, lone surrogates, '
+    'deeply nested JSON, whitespace-only bodies) unless it corrupts or leaks data, and polish beyond the checklist. '
+    'When "previous_blocking" is given, this is a re-review after a repair: block only on a previous finding that '
+    'is still present, a regression the repair introduced, data loss or corruption, or a security hole; every other '
+    'new observation is advisory. At most '
     '6 findings, most important first. Write problem and fix in English.'
 )
 
@@ -64,6 +68,9 @@ class ProductReviewExecutor:
             'checklist': checklist_for_review(),
             'repository': repo_summary(repository),
         }
+        previous = self._previous_blocking()
+        if previous:
+            payload['previous_blocking'] = previous
         kwargs = dict(system=_REVIEW_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=3000)
         try:
             if getattr(self._gateway, 'accepts_task_tag', False):
@@ -85,6 +92,29 @@ class ProductReviewExecutor:
                         'source': 'reviewer'})
         return out, meta
 
+    # Founder build bld_9bd3c1c4 (2026-11-09): every test and behaviour check passed, yet five review rounds each
+    # found NEW edge cases (64-bit overflow, lone surrogates, deeply nested JSON) and the build failed on the last.
+    # A re-review converges: a blocking finding stays blocking only when it repeats a previous blocking finding
+    # (same skill and file), or concerns security or data integrity; anything else new becomes advisory.
+    _ALWAYS_BLOCKING = frozenset({'skill.security_basics', 'skill.data_integrity'})
+
+    def _previous_blocking(self) -> list:
+        prior = [f for r in self.reviews for f in r.get('findings', ())
+                 if f.get('severity') == 'blocking' and f.get('source') == 'reviewer']
+        return [{'skill': f['skill'], 'file': f['file'], 'problem': f['problem']} for f in prior][-12:]
+
+    def _converge(self, llm: list) -> list:
+        prior = {(f['skill'], f['file'].split(':')[0]) for f in self._previous_blocking()}
+        if not self.reviews:
+            return llm
+        out = []
+        for f in llm:
+            key = (f['skill'], f['file'].split(':')[0])
+            if f['severity'] == 'blocking' and key not in prior and f['skill'] not in self._ALWAYS_BLOCKING:
+                f = {**f, 'severity': 'advisory', 'downgraded': 'new finding in a re-review'}
+            out.append(f)
+        return out
+
     # VerificationGroup (2026-10-19): the review is one of the post-build checks and tells the group it wants to know
     # whether the other checks failed in the same round.
     group_context = True
@@ -101,7 +131,7 @@ class ProductReviewExecutor:
         other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
         findings = [f.to_dict() for f in static_findings(repository, self._context(spec))]
         llm, meta = self._llm_findings(repository, spec)
-        findings += llm
+        findings += self._converge(llm)
         blocking = [f for f in findings if f['severity'] == 'blocking']
         enforce = others_failed or len([r for r in self.reviews if r['enforced'] and not r.get('alongside')]) < self._max_reviews
         self.reviews.append({'round': len(self.reviews) + 1, 'enforced': bool(blocking) and enforce, **meta,
