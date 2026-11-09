@@ -487,9 +487,19 @@ async function restoreBuild() {
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/latest`);
     const b = d && d.build;
-    if (!b || isTerminal(b.status) || S.build) return;
+    if (!b || S.build) return;
+    if (isTerminal(b.status)) {
+      // 2026-11-09: a finished build (its result, failure reason and the founder's draft) is shown again after a
+      // reload instead of disappearing. Read once; no polling and no automatic preview start.
+      const full = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.build_id)}`);
+      if (S.build) return;
+      S.build = { id: b.build_id, ...full };
+      await pollEvents();
+      renderTrack(); renderEvidence(); renderPlan();
+      return;
+    }
     S.build = { id: b.build_id, status: b.status, phase: '', evidence: {} };
-    renderTrack(); pollBuild();
+    renderTrack(); renderPlan(); pollBuild();
   } catch (e) { /* older server: nothing to restore */ }
 }
 
@@ -538,7 +548,11 @@ async function requestBriefPlan(open = true) {
   try {
     S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
-    S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
+    // 2026-11-09: the background quote fetched while a project opens (open=false) resolved AFTER restoreBuild()
+    // and wiped the queued/running build from the screen. Only a plan the user asked for replaces a finished build;
+    // a queued or running build always stays.
+    if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;
+    renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
 }
 function questionCard(q, current) {
