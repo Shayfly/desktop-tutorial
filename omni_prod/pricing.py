@@ -126,9 +126,9 @@ def _env_decimal_renamed(name: str, legacy_name: str, default: str) -> Decimal:
 
 PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     PlanCode.FREE: PlanDefinition(
-        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, _env_decimal('OMNI_PROVIDER_CAP_FREE_USD','1.05'), 2, 1,
+        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, _env_decimal('OMNI_PROVIDER_CAP_FREE_USD','1.80'), 2, 1,
         # CEO 2026-10-19: Free = ZERO + LIGHT, 150 credits (~3 LIGHT builds/month),
-        # margin-floor exempt; monthly paid-provider cap = 3 builds x $0.35 LIGHT cap.
+        # margin-floor exempt; monthly paid-provider cap = 3 builds x $0.60 LIGHT cap (was 3 x $0.35 until 2026-11-09).
         (CostClass.ZERO, CostClass.LIGHT), 'required', False, False, 'standard',
         (
             'up to 3 light builds a month', 'version history', 'rights/IP checks',
@@ -218,7 +218,7 @@ M5_CLASS_BUILD_CREDITS: dict[CostClass, int] = {
 # its own env var OMNI_BUILD_LLM_CAP_<CLASS>_USD. A class without a cap fails closed.
 # Soft cap: admission never refuses on it; overage is recorded (llm_overage).
 _M5_CLASS_LLM_CAP_DEFAULT_USD: dict[CostClass, str] = {
-    CostClass.ZERO: '0.05', CostClass.LIGHT: '0.35', CostClass.STANDARD: '1.60',
+    CostClass.ZERO: '0.05', CostClass.LIGHT: '0.60', CostClass.STANDARD: '1.60',
     CostClass.ADVANCED: '3.00', CostClass.HEAVY: '5.50', CostClass.EXTREME: '18.00',
 }
 
@@ -231,7 +231,7 @@ M5_CLASS_MAX_OUTPUT_PER_MILLION: dict[CostClass, Decimal | None] = {
 }
 
 # Exempt from the 60% build-margin floor (CEO 2026-10-19): Enterprise is priced by
-# contract; Free gets its class cap as an acquisition cost (<= $0.35/build).
+# contract; Free gets its class cap as an acquisition cost (<= $0.60/build).
 MARGIN_FLOOR_EXEMPT_PLANS = frozenset({PlanCode.ENTERPRISE, PlanCode.FREE})
 
 # Actual model spend above this multiple of the class cap is logged as an alert.
@@ -271,9 +271,13 @@ def m5_class_llm_cap(cost_class) -> Decimal:
 # CEO 2026-11-08 (b): LIGHT and STANDARD may use a strong model for repair and QA review only (the builds failed
 # verification after 3 repair rounds with only Flash-Lite and GPT-6 Luna). The class hard cap still bounds spend.
 # Override per class: OMNI_TASK_ONLY_MODELS_<CLASS>="model:task+task,model:task" ("none" disables).
+# CEO 2026-11-09 ("מאשר הכול גם את השדרוגים שלך"): codegen joins the list. A new customer's LIGHT builds failed
+# because the cheap models wrote an empty catalog and front-end calls to routes they never defined; repair cannot
+# rescue a first draft that thin. The LIGHT cap rose 0.35 -> 0.60 to pay for it; the 60% margin floor still clips
+# paid plans (Amateur lands near $0.50), so no ceiling is bypassed.
 _M5_TASK_ONLY_DEFAULT: dict[CostClass, str] = {
-    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:repair+review',
-    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:repair+review',
+    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
+    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
 }
 
 
