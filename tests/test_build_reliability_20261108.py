@@ -428,6 +428,33 @@ class CapabilityNegationTests(unittest.TestCase):
         self.assertIn('integration.payment', {r.key for r in c.capability_plan.requirements})
 
 
+class LandingSmokeTests(unittest.TestCase):
+    """bld_c85cca89 (2026-11-09): a café landing page (only a WhatsApp link) failed 6 rounds as 'placeholder'."""
+
+    def run_smoke(self, html):
+        import http.server, pathlib, subprocess, sys, tempfile, threading
+        from omni_prod.preview_smoke import _SMOKE
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'index.html').write_text(html, encoding='utf-8')
+        (d / 'serve.py').write_text(
+            'import http.server, os, functools\n'
+            'h = functools.partial(http.server.SimpleHTTPRequestHandler, directory=os.path.dirname(__file__))\n'
+            'http.server.ThreadingHTTPServer(("127.0.0.1", int(os.environ["PORT"])), h).serve_forever()\n')
+        (d / '.omni').mkdir()
+        import socket
+        s = socket.socket(); s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]; s.close()
+        (d / '.omni' / 'project.json').write_text(json.dumps({'port': port, 'start': [sys.executable, 'serve.py']}))
+        r = subprocess.run([sys.executable, '-c', _SMOKE], cwd=d, capture_output=True, text=True, timeout=60)
+        return r.stdout.splitlines()[0]
+
+    def test_content_page_with_only_links_passes(self):
+        page = ('<!doctype html><html lang="he" dir="rtl"><head><title>קפה</title></head><body><h1>קפה בוקר טוב</h1>'
+                '<p>' + 'הקפה הכי טוב בשכונה, מאפים טריים כל בוקר וישיבה בחוץ. ' * 8 + '</p>'
+                '<a href="https://wa.me/972501234567">הזמנה ב-WhatsApp</a></body></html>')
+        self.assertEqual(self.run_smoke(page), 'PREVIEW-SMOKE OK')
+
+    def test_bare_placeholder_still_fails(self):
+        self.assertIn('placeholder', self.run_smoke('<!doctype html><html><body><p>Coming soon</p></body></html>'))
 class SemanticIntegrationAuthorityTests(unittest.TestCase):
     """2026-11-09: the conversation model's validated decisions are the one authority for integrations."""
 
