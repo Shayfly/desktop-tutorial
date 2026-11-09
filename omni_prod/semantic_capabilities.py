@@ -119,7 +119,7 @@ _EXPLICIT_USER_INTENT = {
     "media.audio.tts": re.compile(r"\b(?:text.to.speech|narration|tts|voice.over)\b|קריינות", re.I),
     # 2026-11-09: a model may exclude payments ("בלי תשלום") but never a clear request to take money online.
     "integration.payment": re.compile(r"\b(?:checkout|credit card|online payment|pay online|stripe|paypal)\b|"
-                                      r"סליקה|כרטיס אשראי|תשלום (?:באשראי|אונליין|מקוון|באתר)", re.I),
+                                      r"סליקה|כרטיס אשראי|(?:תשלום|לשלם|ישלמו|שלמו) (?:באשראי|אונליין|מקוון|באתר|דרך האתר|בכרטיס)", re.I),
     "integration.email": re.compile(r"\b(?:send (?:an? )?email|email notifications?|newsletter)\b|שליחת?\s+(?:מייל|דוא)", re.I),
 }
 

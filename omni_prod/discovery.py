@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Mapping
 
+from . import vocabulary as _vocab
+
 DELEGATE = '__delegate__'
 GUIDED, RECOMMEND = 'guided', 'recommend'
 SOURCES = ('message', 'answer', 'delegated', 'default')
@@ -174,15 +176,16 @@ _RULES: tuple[tuple[str, str, str, str], ...] = (
     (r'(הרשאות|תפקידים)', 'login', 'roles', 'hint'),
     (r'(בלי|ללא)\s+(איסוף\s+|שמירת\s+|שמירה\s+של\s+|שמירה\s+)?(של\s+)?(פרטים|מידע|נתונים)\s+אישיים', 'personal_data', 'no', 'high'),
     (r'\b(no|without)\s+(collecting\s+|storing\s+|saving\s+)?(any\s+)?personal\s+(data|details|information)', 'personal_data', 'no', 'high'),
-    (r'(דף נחיתה|אתר תדמית|landing page|brochure site)', 'content_only', 'yes', 'hint'),
-    (r'(טלפון|מייל|אימייל|דוא"ל|כתובת מגורים|ת\.?ז)', 'personal_data', 'yes', 'hint'),
-    (r'(לקוחות|ציבור|מטופלים|גולשים)', 'audience', 'public', 'hint'),
-    (r'(צוות|עובדים|פנימי|שלי בלבד)', 'audience', 'internal', 'hint'),
+    (_vocab.terms('דף נחיתה', 'עמוד נחיתה', 'אתר תדמית', 'אתר תוכן', 'אתר עסקי', 'כרטיס ביקור דיגיטלי', 'אתר הצגה',
+                  'landing page', 'brochure site', 'one-page site', 'one page site'), 'content_only', 'yes', 'hint'),
+    (_vocab.PERSONAL_DATA_COLLECT, 'personal_data', 'yes', 'hint'),
+    (_vocab.terms('לקוחות', 'ציבור', 'הציבור', 'מטופלים', 'גולשים', 'מבקרים', 'אורחים', 'סועדים'), 'audience', 'public', 'hint'),
+    (_vocab.terms('צוות', 'עובדים', 'פנימי', 'פנימית', 'שלי בלבד', 'לשימוש פנימי'), 'audience', 'internal', 'hint'),
     (r'בעברית', 'languages', 'he', 'high'),
     (r'(באנגלית|in english)', 'languages', 'en', 'high'),
     (r'(כחול)', 'color', 'blue', 'high'), (r'(ירוק)', 'color', 'green', 'high'), (r'(סגול)', 'color', 'purple', 'high'),
     (r'(כתום)', 'color', 'orange', 'high'), (r'(טורקיז)', 'color', 'teal', 'high'),
-    (r'(תאריך|תור|הזמנ|שעה)', 'dates', 'future_year', 'hint'),
+    (_vocab.terms(*_vocab.BOOKING_WORDS), 'dates', 'future_year', 'hint'),
 )
 
 

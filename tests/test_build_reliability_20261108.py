@@ -476,9 +476,9 @@ class ContentOnlyKindsTests(unittest.TestCase):
     """bld_2ded07f0 (2026-11-09): every check passed; 'missing data_delete' failed a café landing page."""
 
     def test_phone_is_not_cancel(self):
-        from omni_prod.web_saas_acceptance import _DELETE_WORDS
-        self.assertFalse([w for w in _DELETE_WORDS if w in 'צבעים חמים, נראה טוב בטלפון. מחקר שוק. הסרטון'])
-        self.assertTrue([w for w in _DELETE_WORDS if w in 'אפשר לבטל הרשמה'])
+        from omni_prod.web_saas_acceptance import _DELETE_WORDS, _has_any
+        self.assertFalse(_has_any('צבעים חמים, נראה טוב בטלפון. מחקר שוק. הסרטון', _DELETE_WORDS))
+        self.assertTrue(_has_any('אפשר לבטל הרשמה', _DELETE_WORDS))
 
     def test_content_only_site_waives_all_data_kinds(self):
         from omni_prod.web_saas_acceptance import acceptance_scope

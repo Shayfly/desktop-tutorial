@@ -87,32 +87,44 @@ def _norm(text: str) -> str:
 
 # (pattern, field, value, confidence). First match per field wins inside a tier;
 # high beats medium. Evidence is the matched text.
+# 2026-11-10: word lists come from omni_prod.vocabulary (whole words, Hebrew prefixes): 'חם' matched "לחם" and
+# "קפה חם", 'שמח' matched "נשמח", 'תור' matched "תורה", a business phone number counted as collecting personal data.
+from ..vocabulary import (BOOKING_WORDS as _BOOKING, CLEAN_STYLE_WORDS as _CLEAN, FORMAL_STYLE_WORDS as _FORMAL,  # noqa: E402
+                          PERSONAL_DATA_COLLECT as _COLLECT, PLAYFUL_STYLE_WORDS as _PLAYFUL,
+                          WARM_STYLE_WORDS as _WARM, terms as _terms)
+_LOGIN_WORDS = _terms('התחברות', 'להתחבר', 'לוגין', 'login', 'log-in', 'sign in', 'sign-in', 'כניסה עם סיסמה',
+                      'כניסה למערכת', 'אזור אישי', 'חשבון אישי', 'חשבון משתמש', 'משתמש וסיסמה', 'שם משתמש וסיסמה')
+_PUBLIC_WORDS = _terms('לקוחות', 'לקוח', 'הציבור', 'ציבור', 'גולשים', 'מטופלים', 'מבקרים', 'קהל', 'קהל הרחב',
+                       'אורחים', 'סועדים', 'תלמידים', 'הורים', 'customers', 'clients', 'the public', 'visitors', 'guests')
+_STAFF_WORDS = _terms('צוות', 'עובדים', 'עובדי', 'אנשי הצוות', 'מלצרים', 'מדריכים', 'staff', 'employees', 'my team',
+                      'team members')
+
 RULES: tuple[tuple[str, str, str, str], ...] = (
-    (r'(בלי|ללא|לא צריך|אין צורך ב)\s*-?\s*(התחברות|הרשמה|סיסמה|לוגין|משתמשים)', 'login', 'none', HIGH),
+    (r'(בלי|ללא|לא צריך|אין צורך ב|לא צריכים|לא חייב)\s*-?\s*(התחברות|להתחבר|הרשמה|להירשם|סיסמה|סיסמאות|לוגין|משתמשים|חשבון|חשבונות)', 'login', 'none', HIGH),
     (r'\b(no|without|don\'?t need( a)?)\s+(login|sign ?in|accounts?|passwords?|users)\b', 'login', 'none', HIGH),
     (r'(מנהל ו(עובד|עובדים|משתמשים)|הרשאות שונות|תפקידים שונים|admin and (staff|users)|different roles|role[- ]based)', 'login', 'roles', HIGH),
     (r'((עם|צריך|דרוש)\s+(התחברות|סיסמה|לוגין)|users? (must|should|need to) (login|sign in)|requires? (login|sign in))', 'login', 'simple', HIGH),
-    (r'(התחברות|לוגין|\blogin\b|sign in)', 'login', 'simple', MEDIUM),
+    (_LOGIN_WORDS, 'login', 'simple', MEDIUM),
     (r'(בלי|ללא|לא לשמור)\s+(פרטים אישיים|פרטים מזהים)|no personal (data|details)', 'personal_data', 'no', HIGH),
-    (r'(טלפון|מספר נייד|אימייל|מייל|כתובת מגורים|ת\.?ז|phone( number)?|e-?mail address|email|home address)', 'personal_data', 'yes', MEDIUM),
+    (_COLLECT, 'personal_data', 'yes', MEDIUM),
     (r'(רק (אני|לי|בשבילי)|לשימוש (אישי|פנימי)|for (myself|me only|internal use)|internal tool|just for (me|my team))', 'audience', 'internal', HIGH),
-    (r'(לקוחות|הציבור|גולשים|מטופלים|customers|clients|the public|visitors)', 'audience', 'public', MEDIUM),
-    (r'(צוות|עובדים|staff|employees|my team)', 'audience', 'internal', MEDIUM),
+    (_PUBLIC_WORDS, 'audience', 'public', MEDIUM),
+    (_STAFF_WORDS, 'audience', 'internal', MEDIUM),
     (r'(עברית ואנגלית|אנגלית ועברית|דו[- ]?לשוני|hebrew and english|english and hebrew|bilingual)', 'languages', 'he_en', HIGH),
-    (r'(בעברית|in hebrew)', 'languages', 'he', HIGH),
-    (r'(באנגלית|in english)', 'languages', 'en', HIGH),
+    (r'(בעברית|עברית בלבד|רק עברית|in hebrew|hebrew only)', 'languages', 'he', HIGH),
+    (r'(באנגלית|אנגלית בלבד|רק אנגלית|in english|english only)', 'languages', 'en', HIGH),
     (r'(כחול|blue)', 'color', 'blue', HIGH), (r'(ירוק|green)', 'color', 'green', HIGH),
     (r'(סגול|purple)', 'color', 'purple', HIGH), (r'(כתום|orange)', 'color', 'orange', HIGH),
     (r'(טורקיז|teal|turquoise)', 'color', 'teal', HIGH), (r'(אפור|שחור|neutral|monochrome)', 'color', 'neutral', MEDIUM),
-    (r'(נקי|מינימליסטי|מודרני|minimal|clean|modern)', 'style', 'clean', MEDIUM),
-    (r'(חם|מזמין|warm|friendly)', 'style', 'warm', MEDIUM),
-    (r'(רשמי|עסקי|formal|corporate)', 'style', 'formal', MEDIUM),
-    (r'(צבעוני|שמח|playful|colou?rful)', 'style', 'playful', MEDIUM),
+    (_terms(*_CLEAN), 'style', 'clean', MEDIUM),
+    (_terms(*_WARM), 'style', 'warm', MEDIUM),
+    (_terms(*_FORMAL), 'style', 'formal', MEDIUM),
+    (_terms(*_PLAYFUL), 'style', 'playful', MEDIUM),
     (r'\bheebo\b', 'font', 'heebo', HIGH), (r'\bassistant\b', 'font', 'assistant', HIGH), (r'\brubik\b', 'font', 'rubik', HIGH),
     (r'(בלי לוגו|no logo)', 'logo', 'none', HIGH),
     (r'(יש לי לוגו|i have a logo|my logo)', 'logo', 'later', HIGH),
     (r'(בלי תאריכים|no dates)', 'dates', 'none', HIGH),
-    (r'(תור|תורים|הזמנ|פגישות|booking|appointment|reservation|schedul)', 'dates', 'future_year', MEDIUM),
+    (_terms(*_BOOKING), 'dates', 'future_year', MEDIUM),
     (r'(למנוע כפילויות|בלי כפילויות|לא לאפשר כפילויות|no duplicates|prevent (double|duplicate)|לא (יהיו )?שתי הזמנות)', 'duplicates', 'block', HIGH),
 )
 DELEGATE_RX = r'(תחליט(ו)? (אתה|אתם|בשבילי)|תבחר(ו)? (אתה|אתם|בשבילי)|לא משנה לי|מה שנראה לך|you decide|up to you|whatever you think|your call|choose for me)'
