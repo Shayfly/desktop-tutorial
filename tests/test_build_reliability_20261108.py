@@ -231,6 +231,59 @@ class RepairVisibilityTests(unittest.TestCase):
         self.assertIn('skill.code_structure', {s.key for s in WEB_SKILLS})
 
 
+class IndentationGuardTests(unittest.TestCase):
+    """bld_3f5dc453 / bld_5b2e8f58 (2026-11-09): flattened Python from Sonnet was adopted and burned every round."""
+
+    FLAT = {'files': [{'path': 'app.py', 'content': 'def f():\nreturn 1\n'}]}
+    GOOD = {'files': [{'path': 'app.py', 'content': 'def f():\n    return 1\n'}]}
+
+    def test_guard_rejects_only_lost_indentation(self):
+        from omni_prod.autonomous_agents import _code_shape_guard
+        from omni_prod.model_gateway import ModelJSONRejected
+        with self.assertRaises(ModelJSONRejected):
+            _code_shape_guard(self.FLAT)
+        _code_shape_guard(self.GOOD)
+        _code_shape_guard({'files': [{'path': 'a.py', 'content': 'x = (\n'}]})   # other syntax: repair's job
+        _code_shape_guard({'files': [{'path': 'index.html', 'content': '<p>\n</p>'}]})
+
+    def test_router_escalates_to_the_next_model(self):
+        from decimal import Decimal
+        from omni_prod.autonomous_agents import _code_shape_guard
+        from omni_prod.model_catalog import CatalogModel
+        from omni_prod.model_policy import ModelUsePolicy
+        from omni_prod.model_router import ModelOption, RoutingPolicy
+        from omni_prod.routed_gateway import RoutedModelGateway
+
+        def m(name, price):
+            return CatalogModel(endpoint=ModelEndpoint(name=name, base_url='https://x.invalid', model=name, api_key='k',
+                                                       external=True),
+                                option=ModelOption('p', name, 90, 1000, Decimal(price), Decimal(price)),
+                                max_output_tokens=4000, api_key_env='K')
+        gw = RoutedModelGateway(ranked=(m('first', '1'), m('second', '5')),
+                                routing_policy=RoutingPolicy(minimum_quality=0, prefer_cost=True),
+                                policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
+                                                      external_budget_usd=Decimal('10'),
+                                                      max_external_calls_per_build=10))
+        used = []
+
+        def attempt(route, method, kwargs, why, **kw):
+            used.append(route.endpoint.name)
+            return self.FLAT if route.endpoint.name == 'first' else self.GOOD
+        with mock.patch.object(gw, '_attempt', side_effect=attempt):
+            out = gw.complete_json(system='s', user='u', max_tokens=100, task='codegen', validate=_code_shape_guard)
+        self.assertEqual(out, self.GOOD)
+        self.assertEqual(used, ['first', 'second'])
+
+
+class MissingKindHintTests(unittest.TestCase):
+    def test_missing_delete_says_what_a_passing_step_is(self):
+        from omni_prod.behavior_acceptance import _failure_text
+        msg, evidence = _failure_text({'checks': [], 'missing_kinds': ['data_delete']})
+        self.assertIn('SUCCESSFULLY removes or cancels', msg + evidence)
+
+    def test_reviewer_treats_timing_edge_cases_as_advisory(self):
+        from omni_prod.product_review import _REVIEW_SYSTEM
+        self.assertIn('rapid repeated clicks', _REVIEW_SYSTEM)
 class BuildRestoreUiTests(unittest.TestCase):
     """2026-11-09: a queued/running build vanished after a reload; a finished build's result was not shown again."""
 
