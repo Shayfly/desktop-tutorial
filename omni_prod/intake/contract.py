@@ -190,8 +190,13 @@ def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
                                origin('personal_data'), confidence('personal_data')))
     from ..product_architect import strip_whatsapp_links  # a WhatsApp link is a hyperlink, not an SMS integration
     integ_text = strip_negated(strip_whatsapp_links(text_all))
+    from ..semantic_capabilities import overrides as _semantic
+    decided = _semantic(getattr(brief, 'semantic_decisions', None) or (), prompt=brief.prompt)
+    _cap = {'payments': 'integration.payment', 'sms': 'integration.messaging', 'email': 'integration.email',
+            'maps': 'integration.maps'}
     integrations = [{'kind': k, 'detected_from': 'request text', 'status': 'requires capability check'}
-                    for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)]
+                    for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)
+                    and decided.get(_cap.get(k, '')) != 'not_required']
     reqs = fr + nfr
     content_only = d._content_only(v, login)
     ac = [{'id': 'AC1', 'covers': 'F1',

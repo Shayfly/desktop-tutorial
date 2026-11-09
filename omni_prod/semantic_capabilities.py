@@ -19,7 +19,7 @@ MAX_DECISIONS = 16
 # Never allow a model to suppress the build, testing, preview or security floor.
 SUPPORTED = frozenset({
     "target.agent", "ai.agent.tools", "ai.agent.memory", "ai.agent.eval",
-    "integration.maps", "integration.messaging", "integration.email",
+    "integration.maps", "integration.messaging", "integration.email", "integration.payment",
     "integration.webhook", "media.audio.tts", "media.audio.stt",
     "media.audio.realtime_voice", "media.image.generate",
     "media.video.generate", "target.mobile", "target.automation",
@@ -117,6 +117,9 @@ _EXPLICIT_USER_INTENT = {
     "target.agent": re.compile(r"\b(?:AI agent|AI assistant|voice assistant|chatbot|autonomous agent)\b|סוכן\s*(?:AI|בינה)", re.I),
     "integration.maps": re.compile(r"\b(?:interactive maps?|map integration|GPS map)\b|מפות?\s+אינטראקטיבי", re.I),
     "media.audio.tts": re.compile(r"\b(?:text.to.speech|narration|tts|voice.over)\b|קריינות", re.I),
+    # 2026-11-09: a model may exclude payments ("בלי תשלום") but never a clear request to take money online.
+    "integration.payment": re.compile(r"\b(?:checkout|credit card|online payment|pay online|stripe|paypal)\b|"
+                                      r"סליקה|כרטיס אשראי|תשלום (?:באשראי|אונליין|מקוון|באתר)", re.I),
     "integration.email": re.compile(r"\b(?:send (?:an? )?email|email notifications?|newsletter)\b|שליחת?\s+(?:מייל|דוא)", re.I),
 }
 

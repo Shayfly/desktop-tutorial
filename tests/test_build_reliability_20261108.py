@@ -455,3 +455,18 @@ class LandingSmokeTests(unittest.TestCase):
 
     def test_bare_placeholder_still_fails(self):
         self.assertIn('placeholder', self.run_smoke('<!doctype html><html><body><p>Coming soon</p></body></html>'))
+class SemanticIntegrationAuthorityTests(unittest.TestCase):
+    """2026-11-09: the conversation model's validated decisions are the one authority for integrations."""
+
+    def test_model_can_exclude_a_keyword_hit_but_not_an_explicit_ask(self):
+        from omni_prod.product_architect import _without_excluded
+        no_pay = [{'key': 'integration.payment', 'decision': 'not_required', 'evidence': 'אין תשלום', 'reason': 'r'}]
+        self.assertEqual(_without_excluded(('payments', 'maps'), no_pay, 'מחירים בתפריט, אין תשלום'), ('maps',))
+        self.assertEqual(_without_excluded(('payments',), no_pay, 'צריך תשלום באשראי באתר'), ('payments',))
+
+    def test_payment_is_a_supported_decision_and_the_prompt_says_so(self):
+        from omni_prod.intake.interpreter import SYSTEM
+        from omni_prod.semantic_capabilities import SUPPORTED
+        self.assertIn('integration.payment', SUPPORTED)
+        self.assertIn('integration.payment', SYSTEM)
+        self.assertIn('NOT integration.messaging', SYSTEM)
