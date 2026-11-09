@@ -107,7 +107,9 @@ if [ -n "$suffix" ] && ! grep -q '^PREVIEW_DOMAIN_TEMPLATE=.' .env; then
 fi
 # Non-secret build knobs, published with their values so a limit lower than a
 # real build needs is visible in the deploy (rehearsal 2026-10-08 used 17 calls).
-grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=40" >> .env
+# 150 since 2026-11-09: agentic repair spends up to 6 calls per round (bld_c85cca89 hit 40 at $1.27). The
+# build's dollar cap still bounds spend; this only stops a runaway loop.
+grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=150" >> .env
 knobs=$(grep -E '^(OMNI_EXTERNAL_CALLS_PER_BUILD|OMNI_EXTERNAL_BUDGET_USD|OMNI_MAX_REPAIR_ROUNDS|OMNI_MODEL_ROUTING|OMNI_MODEL_MIN_QUALITY|OMNI_MODEL_TASK_MIN_QUALITY|OMNI_ZERO_COST_MODE|OMNI_ALLOW_EXTERNAL_FALLBACK)=' .env | tr '\n' ' ')
 echo "::notice title=build-knobs::${knobs:-none set}"
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
