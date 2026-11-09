@@ -110,6 +110,15 @@ fi
 # 150 since 2026-11-09: agentic repair spends up to 6 calls per round (bld_c85cca89 hit 40 at $1.27). The
 # build's dollar cap still bounds spend; this only stops a runaway loop.
 grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=150" >> .env
+# CEO 2026-11-09: a lower value pasted earlier into WORKER_ENV (40) must not keep stopping builds; raise it to the
+# floor and say so. OMNI_EXTERNAL_CALLS_FLOOR=0 keeps whatever WORKER_ENV says.
+floor="${OMNI_EXTERNAL_CALLS_FLOOR:-150}"
+calls=$(sed -n 's/^OMNI_EXTERNAL_CALLS_PER_BUILD=//p' .env | tail -n 1)
+if [ "$floor" != "0" ] && [[ "$calls" =~ ^[0-9]+$ ]] && [ "$calls" -lt "$floor" ]; then
+  sed -i '/^OMNI_EXTERNAL_CALLS_PER_BUILD=/d' .env
+  echo "OMNI_EXTERNAL_CALLS_PER_BUILD=$floor" >> .env
+  echo "::notice title=build-knobs::OMNI_EXTERNAL_CALLS_PER_BUILD raised from $calls to $floor (dollar cap unchanged)"
+fi
 knobs=$(grep -E '^(OMNI_EXTERNAL_CALLS_PER_BUILD|OMNI_EXTERNAL_BUDGET_USD|OMNI_MAX_REPAIR_ROUNDS|OMNI_MODEL_ROUTING|OMNI_MODEL_MIN_QUALITY|OMNI_MODEL_TASK_MIN_QUALITY|OMNI_ZERO_COST_MODE|OMNI_ALLOW_EXTERNAL_FALLBACK)=' .env | tr '\n' ' ')
 echo "::notice title=build-knobs::${knobs:-none set}"
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
