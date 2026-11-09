@@ -158,6 +158,19 @@ def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = 
     return tuple(out)
 
 
+_INTEGRATION_CAPABILITY = {"payments": "integration.payment", "messaging": "integration.messaging",
+                           "maps": "integration.maps", "email": "integration.email", "webhook": "integration.webhook"}
+
+
+def _without_excluded(integrations, semantic_decisions, prompt: str) -> tuple:
+    """One authority for integrations (2026-11-09): the conversation model's validated decisions, bound into the
+    approved brief, remove an integration a keyword detector found (\"בלי תשלום\"); the explicit-request guard in
+    semantic_capabilities.overrides keeps a clear ask (\"תשלום באשראי\") however the model decided."""
+    from .semantic_capabilities import overrides
+    decided = overrides(semantic_decisions, prompt=prompt)
+    return tuple(i for i in integrations if decided.get(_INTEGRATION_CAPABILITY.get(i, "")) != "not_required")
+
+
 class ProductArchitect:
     """Compile product intent into the immutable M5 Web/SaaS Build Contract.
 
@@ -220,8 +233,10 @@ class ProductArchitect:
         # security needed when contact/lead data is still being collected.
         # Fully content-only sites need neither user nor admin sessions.
         operator_login_required = no_login_early and _collects_visitor_contact_data(intent)
+        integrations_found = _without_excluded(self._infer_integrations(intent, capability_plan),
+                                               semantic_decisions, clean)
         infrastructure = _infer_infrastructure(
-            intent, self._infer_integrations(intent, capability_plan),
+            intent, integrations_found,
             no_login=(no_login_early and not operator_login_required))
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
@@ -259,7 +274,7 @@ class ProductArchitect:
             # "No sign-in" is honoured: one kind of user, no roles or sessions.
             roles, role_defaults = ("user",), ["no_login_single_user"]
         data_requirements = self._infer_data_requirements(intent, decision.plan.modules)
-        integrations = self._infer_integrations(intent, capability_plan)
+        integrations = integrations_found
         questions = self._material_questions(intent, data_requirements)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         static_default = ["static_content_site"] if content_only else []
