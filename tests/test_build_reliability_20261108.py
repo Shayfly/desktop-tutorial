@@ -273,3 +273,14 @@ class IndentationGuardTests(unittest.TestCase):
             out = gw.complete_json(system='s', user='u', max_tokens=100, task='codegen', validate=_code_shape_guard)
         self.assertEqual(out, self.GOOD)
         self.assertEqual(used, ['first', 'second'])
+
+
+class MissingKindHintTests(unittest.TestCase):
+    def test_missing_delete_says_what_a_passing_step_is(self):
+        from omni_prod.behavior_acceptance import _failure_text
+        msg, evidence = _failure_text({'checks': [], 'missing_kinds': ['data_delete']})
+        self.assertIn('SUCCESSFULLY removes or cancels', msg + evidence)
+
+    def test_reviewer_treats_timing_edge_cases_as_advisory(self):
+        from omni_prod.product_review import _REVIEW_SYSTEM
+        self.assertIn('rapid repeated clicks', _REVIEW_SYSTEM)

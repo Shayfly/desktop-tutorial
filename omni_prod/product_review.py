@@ -31,7 +31,9 @@ _REVIEW_SYSTEM = (
     'spec and checklist. Return only JSON: {"findings": [{"skill": "<checklist skill key or spec>", "severity": '
     '"blocking" | "advisory", "file": "<path>", "problem": "<what a user would experience>", "fix": "<concrete '
     'change>"}]}. blocking = a user-visible defect against the spec or checklist (wrong data accepted, error shown in '
-    'a browser dialog, an excluded feature present, data shown escaped or hidden); advisory = everything else. At most '
+    'a browser dialog, an excluded feature present, data shown escaped or hidden, a crash, a security hole); '
+    'advisory = everything else, including defects that need unusual timing, rapid repeated clicks or a slow '
+    'network to appear, and polish beyond the checklist. At most '
     '6 findings, most important first. Write problem and fix in English.'
 )
 

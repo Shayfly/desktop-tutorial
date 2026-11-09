@@ -2536,6 +2536,14 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     token = _v28_bearer(request)
     try:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        # 2026-11-09: a second build of the same project was accepted while the first was still running (the screen
+        # had lost the first after a reload) and spent another $1.76. One active build per project: the caller gets
+        # the active build back (200, same shape as the latest-build route) instead of a new one.
+        if _v28_pool:
+            active = PostgresBuildRepository(_v28_pool).latest_for_project(key)
+            if active and active.get('status') in ('queued', 'running'):
+                return {'build_id': active['build_id'], 'status': active['status'], 'duplicate': True,
+                        'already_active': True}
         contracts = PostgresBuildContractRepository(_v28_pool)
         try:
             build_contract = _m5_resolve_build_contract(
