@@ -390,3 +390,19 @@ class IntakeFalseBlockerTests(unittest.TestCase):
         js = pathlib.Path('omni_prod/assets/app.js').read_text(encoding='utf-8')
         self.assertIn('await whenVisible();', js)
         self.assertIn("if (err.status !== 0 || err.detail === 'timeout' || attempt >= 3) throw err;", js)
+
+
+class IntakeNegationEinTests(unittest.TestCase):
+    """2026-11-09 19:55: 'אין תשלום ואין שליחת הודעות' still blocked as payments + SMS."""
+
+    def kinds(self, text):
+        import re
+        from omni_prod.intake.contract import _INTEGRATION_WORDS, strip_negated
+        t = strip_negated(text)
+        return [k for k, p in _INTEGRATION_WORDS if re.search(p, t, re.I)]
+
+    def test_ein_negates(self):
+        self.assertEqual(self.kinds('אין תשלום ואין שליחת הודעות, רק כפתור קישור ל-וואטסאפ'), [])
+
+    def test_a_need_after_a_negation_is_kept(self):
+        self.assertEqual(self.kinds('אין לי אתר ואני צריך תשלום באשראי'), ['payments'])

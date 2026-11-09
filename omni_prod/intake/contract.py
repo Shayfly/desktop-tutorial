@@ -139,8 +139,8 @@ _INTEGRATION_WORDS = (
 )
 
 
-_NEGATION = re.compile(r'(?:(?<![\w\u0590-\u05FF])ו?(?:בלי|ללא|אין צורך ב|לא צריך|לא רוצה)|\b(?:without|no))'
-                       r'(?:\s+|\s*[-–]\s*)[^.,;:\n]{0,60}', re.I)
+_NEGATION = re.compile(r'(?:(?<![\w\u0590-\u05FF])ו?(?:בלי|ללא|אין|לא צריך|לא רוצה|לא יהיה|לא כולל|לא נדרש|לא נדרשת)|\b(?:without|no))'
+                       r'(?:\s+|\s*[-–]\s*)(?:(?!צריך|רוצה|חייב|need|want)[^.,;:\n]){0,60}', re.I)
 
 
 def strip_negated(text: str) -> str:
