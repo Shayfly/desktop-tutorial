@@ -32,7 +32,8 @@ class LunaOutOfCodeWritingTests(unittest.TestCase):
 
     def test_codegen_repair_and_modification_never_go_to_luna_in_the_light_class(self):
         # Founder 2026-10-22: LIGHT keeps flash-lite for codegen; Luna remains excluded until measured.
-        self.assertEqual(models(self.light, 'codegen'), ['gemini-3.1-flash-lite'])
+        # CEO 2026-11-09: Sonnet (task-only) writes LIGHT codegen first; Luna still never writes code.
+        self.assertEqual(models(self.light, 'codegen'), ['claude-sonnet-5-5', 'gemini-3.1-flash-lite'])
         self.assertEqual(models(self.light, 'modification'), ['gemini-3.1-flash-lite'])
         # CEO 2026-11-08 (b): a strong model may repair in LIGHT (task-only; the class hard cap still binds)
         self.assertEqual(models(self.light, 'repair'), ['claude-sonnet-5-5', 'gemini-3.1-flash-lite'])

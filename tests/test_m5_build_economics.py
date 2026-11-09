@@ -446,15 +446,16 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         response, reserve, enqueue, jobs, exc = self._run()
         self.assertIsNone(exc)
         # 0.20 LLM + 0.01 image + 0.05 generated-app infra + 0.05 retry
-        # CEO 2026-10-19: the model budget is the plan's class cap (Amateur LIGHT $0.35),
-        # not OMNI_EXTERNAL_BUDGET_USD ($0.20); retry 0.05 + capability 0.01 + 0.05 are unchanged.
-        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.46'))
+        # CEO 2026-10-19: the model budget is the plan's class cap, not OMNI_EXTERNAL_BUDGET_USD ($0.20).
+        # CEO 2026-11-09: LIGHT cap $0.60, so Amateur's model budget is clipped by the 60% margin floor and the
+        # whole reservation lands on the floor (0.5220 = 40% of the $1.305 revenue basis).
+        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.5220'))
         enqueue.assert_called_once()
         evidence = jobs.create_with_cursor.call_args.kwargs['evidence_json']['economics_quote']
         self.assertEqual(evidence['components']['capability_authorization_usd'], '0.01')
-        self.assertEqual(evidence['total_authorized_variable_usd'], '0.46')
+        self.assertEqual(evidence['total_authorized_variable_usd'], '0.5220')
         self.assertEqual(evidence['components']['cost_class'], 'light')
-        self.assertEqual(evidence['components']['llm_class_cap_usd'], '0.35')
+        self.assertEqual(evidence['components']['llm_class_cap_usd'], '0.60')
         claim = jobs.claim_build_request_idempotency.call_args.kwargs
         self.assertEqual(claim['idempotency_key'], 'caller-retry-key-1')
         self.assertEqual(len(claim['request_fingerprint']), 64)
