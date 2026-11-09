@@ -161,7 +161,7 @@ class DeterministicInterpreter:
 # ------------------------------------------------------------------ model path
 _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS}
 
-PROMPT_VERSION = 'intake-prompt/5-question-skills'
+PROMPT_VERSION = 'intake-prompt/6-semantic-integrations'
 MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
 MAX_OUTPUT_TOKENS = 2400          # 700 truncated (2026-11-07); 1400 truncated a reply to a long brief (2026-11-09)
 
@@ -227,8 +227,12 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'Location of pots for sunlight is not an interactive map. '
           'A newsletter sign-up requires contact persistence and possibly email sending, not webhook automatically. '
           'Never assert a model, maps, narration or agent is required based on a single ambiguous word. '
+          'A WhatsApp/phone button or link is NOT integration.messaging (only SENDING messages is). Prices on a menu '
+          'are NOT integration.payment (only taking money in the product is). When the customer says without/no '
+          'X ("בלי תשלום", "אין שליחת הודעות"), record X as not_required with those words as evidence. '
           'Use only registered keys: target.agent, ai.agent.tools, ai.agent.memory, ai.agent.eval, '
-          'integration.maps, integration.messaging, integration.email, integration.webhook, media.audio.tts, '
+          'integration.maps, integration.messaging, integration.email, integration.payment, integration.webhook, '
+          'media.audio.tts, '
           'media.audio.stt, media.audio.realtime_voice, media.image.generate, media.video.generate, '
           'target.automation. If unsure choose uncertain. '
           'Allowed fields and values: ' +
