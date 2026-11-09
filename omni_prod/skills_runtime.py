@@ -575,8 +575,8 @@ COPY_QUALITY = Skill(
         'addressed consistently (plural or gender-neutral imperative in Hebrew UI: "הירשמו", "שמרו"). Buttons are verbs '
         'that say the outcome ("הרשמה לשיעור", not "שלח"); empty states say what to do next; errors say what happened '
         'and how to fix it, without blame or codes. Use the names, prices, hours and details the customer gave exactly; '
-        'where something is missing, write a neutral placeholder the owner will obviously replace ("[כתובת הסטודיו]") '
-        'rather than inventing facts.'),
+        'where a detail is missing, leave that line out of the public page (no "[כתובת הסטודיו]" placeholders, no '
+        'invented facts); if the owner must fill it, put it in an owner-only settings field.'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
                'Buttons name their outcome; errors say how to fix the problem.'),
     static_checks=(_placeholder_copy,),
