@@ -406,3 +406,23 @@ class IntakeNegationEinTests(unittest.TestCase):
 
     def test_a_need_after_a_negation_is_kept(self):
         self.assertEqual(self.kinds('אין לי אתר ואני צריך תשלום באשראי'), ['payments'])
+
+
+class CapabilityNegationTests(unittest.TestCase):
+    """2026-11-09 20:20: café landing page stuck on 'no verified price' for integration.payment from 'ובלי תשלום'."""
+
+    PROMPT = ('אני רוצה דף נחיתה לבית קפה. תפריט עם מחירים: קפה הפוך – 14 ₪. כפתור ירוק "הזמנה ב-WhatsApp" למעלה ובסוף. '
+              'בלי הרשמה, בלי התחברות ובלי תשלום. רק דף שמציג את העסק.')
+
+    def test_excluded_payment_is_not_a_capability(self):
+        from omni_prod.product_architect import ProductArchitect
+        c = ProductArchitect().compile(self.PROMPT, project_id='p', contract_version=1)
+        keys = {r.key for r in c.capability_plan.requirements}
+        self.assertNotIn('integration.payment', keys)
+        self.assertNotIn('integration.messaging', keys)
+        self.assertEqual(tuple(c.required_integrations), ())
+
+    def test_requested_payment_still_is(self):
+        from omni_prod.product_architect import ProductArchitect
+        c = ProductArchitect().compile('חנות קטנה עם תשלום באשראי בסוף ההזמנה', project_id='p', contract_version=1)
+        self.assertIn('integration.payment', {r.key for r in c.capability_plan.requirements})
