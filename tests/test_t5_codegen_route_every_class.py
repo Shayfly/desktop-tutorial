@@ -33,7 +33,8 @@ class CodegenHasARouteInEveryCostClass(unittest.TestCase):
                 self.assertTrue(all(q >= (70 if cc == CostClass.LIGHT else 85) for _, q in r), r)              # the floor is mandatory, no escalation below
 
     def test_light_codegen_uses_its_available_quality_70_model(self):
-        self.assertEqual(routes(CostClass.LIGHT, 'codegen'), [('gemini-3.1-flash-lite', 70)])
+        # CEO 2026-11-09: Sonnet (task-only) writes the first draft; the quality-70 lane stays as the fallback.
+        self.assertEqual(routes(CostClass.LIGHT, 'codegen'), [('claude-sonnet-5-5', 92), ('gemini-3.1-flash-lite', 70)])
 
     def test_the_zero_class_has_no_external_route_for_any_task_by_design(self):
         # ZERO is the $0 class (no plan maps to it): no external model at all, for codegen or anything else.

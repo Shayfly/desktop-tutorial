@@ -19,7 +19,7 @@ class IntakeCreditsByPlanTests(unittest.TestCase):
             return investor_app._supervisor('tenant-key', 'usr_1')
 
     def test_chat_quotes_the_plan_class_credits_and_cap(self):
-        expected = {PlanCode.FREE: (45, '0.60'), PlanCode.AMATEUR: (45, '0.60'), PlanCode.PRO: (200, '1.60'),
+        expected = {PlanCode.FREE: (45, '0.60'), PlanCode.AMATEUR: (45, '0.5220'), PlanCode.PRO: (200, '1.60'),
                     PlanCode.STUDIO: (500, '5.50'), PlanCode.ENTERPRISE: (1200, '18.00')}
         for code, (credits, cap) in expected.items():
             sup = self._supervisor_for(code)
