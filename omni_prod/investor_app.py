@@ -2874,6 +2874,22 @@ def _preview_key(project_id: str, request: Request) -> str:
 
 @app.post('/api/v28/projects/{project_id}/versions/{version_id}/previews')
 def v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
+    # 2026-11-09, first READY build (bld_56f74e0c): every launch answered 500 and Vercel kept only the first line
+    # ("Exception in ASGI application"), so nobody could see why. Unexpected errors are now logged on ONE line
+    # with their type and location, and the caller gets a 503 naming the failing step instead of a bare 500.
+    try:
+        return _v28_preview_launch(project_id, version_id, request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import traceback
+        frames = traceback.extract_tb(exc.__traceback__)[-4:]
+        where = ' <- '.join(f'{os.path.basename(f.filename)}:{f.lineno}:{f.name}' for f in reversed(frames))
+        print(f'preview_launch_failed type={type(exc).__name__} at={where} msg={str(exc)[:300]!r}', flush=True)
+        raise HTTPException(503, f'preview launch failed ({type(exc).__name__} at {where}); try again or report this')
+
+
+def _v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
     _require_durable_backend('Real running preview')
     try:
         external_preview_url('probe', os.getenv('PREVIEW_DOMAIN_TEMPLATE'))
