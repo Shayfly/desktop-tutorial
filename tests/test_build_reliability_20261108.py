@@ -470,3 +470,22 @@ class SemanticIntegrationAuthorityTests(unittest.TestCase):
         self.assertIn('integration.payment', SUPPORTED)
         self.assertIn('integration.payment', SYSTEM)
         self.assertIn('NOT integration.messaging', SYSTEM)
+
+
+class ContentOnlyKindsTests(unittest.TestCase):
+    """bld_2ded07f0 (2026-11-09): every check passed; 'missing data_delete' failed a café landing page."""
+
+    def test_phone_is_not_cancel(self):
+        from omni_prod.web_saas_acceptance import _DELETE_WORDS
+        self.assertFalse([w for w in _DELETE_WORDS if w in 'צבעים חמים, נראה טוב בטלפון. מחקר שוק. הסרטון'])
+        self.assertTrue([w for w in _DELETE_WORDS if w in 'אפשר לבטל הרשמה'])
+
+    def test_content_only_site_waives_all_data_kinds(self):
+        from omni_prod.web_saas_acceptance import acceptance_scope
+        contract = {'prompt': 'דף נחיתה לבית קפה, אפשר לבטל', 'defaults_applied': ['static_content_site'],
+                    'user_roles': [], 'infrastructure': [], 'required_integrations': []}
+        with mock.patch('omni_prod.web_saas_acceptance._no_login', return_value=True):
+            required, waived = acceptance_scope(contract)
+        for kind in ('data_create', 'data_update', 'data_delete'):
+            self.assertIn(kind, waived)
+            self.assertNotIn(kind, required)
