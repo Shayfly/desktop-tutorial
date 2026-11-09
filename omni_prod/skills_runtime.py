@@ -223,6 +223,43 @@ def _placeholder_copy(repository: dict, context: dict) -> list[StaticFinding]:
     return out
 
 
+_PHONE = re.compile(r'(?<![\d])(?:\+?972[\s-]?|0)(?:5\d|[2-489]|7\d)[\s-]?\d{3}[\s-]?\d{4}(?![\d])')
+_STREET = re.compile(r'(?:רחוב|רח\'|שדרות|שד\')\s+((?:[א-ת"\'-]+\s+){0,2}?[א-ת"\'-]+)\s+\d{1,4}\b')
+
+
+def _phone_digits(text: str) -> str:
+    d = re.sub(r'\D', '', text)
+    return '0' + d[3:] if d.startswith('972') else d
+
+
+def _visible_and_links(text: str) -> str:
+    """Page text plus tel:/wa.me targets; scripts and styles dropped, other attributes ignored."""
+    text = re.sub(r'<(script|style)\b.*?</\1>', ' ', text, flags=re.S | re.I)
+    links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s-]{7,})', text, re.I))
+    return re.sub(r'<[^>]+>', ' ', text) + ' ' + links
+
+
+def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.copy_quality, CEO 2026-11-09: the cafe page showed 050-1234567 and "רחוב הנביאים 12" -- neither was in the
+    request. A phone number or street on the public page must come from the request (digits compared, 972 = 0)."""
+    request = context.get('request', '') or ''
+    known = {_phone_digits(m.group(0)) for m in _PHONE.finditer(request)}
+    out = []
+    for path, text in _text_files(repository).items():
+        if not (path.lower().endswith(('.html', '.htm')) or '<html' in text.lower()):
+            continue
+        page = _visible_and_links(text)
+        phones = sorted({_phone_digits(m.group(0)) for m in _PHONE.finditer(page)} - known)
+        streets = sorted({m.group(0).strip() for m in _STREET.finditer(page) if m.group(1) not in request})
+        if phones or streets:
+            what = ', '.join(phones[:3] + streets[:3])
+            out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                     f'contact details the request did not give (invented): {what}',
+                                     'remove them; show only the phone/WhatsApp number and address the request gives, '
+                                     'and leave a contact line or button out when it has no real value'))
+    return out
+
+
 def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.accessibility: an <input>/<select>/<textarea> with an id that no <label for> names."""
     out = []
@@ -576,10 +613,13 @@ COPY_QUALITY = Skill(
         'that say the outcome ("הרשמה לשיעור", not "שלח"); empty states say what to do next; errors say what happened '
         'and how to fix it, without blame or codes. Use the names, prices, hours and details the customer gave exactly; '
         'where a detail is missing, leave that line out of the public page (no "[כתובת הסטודיו]" placeholders, no '
-        'invented facts); if the owner must fill it, put it in an owner-only settings field.'),
+        'invented facts); if the owner must fill it, put it in an owner-only settings field. Never invent a phone or '
+        'WhatsApp number, a street address, an e-mail, or testimonials with customer names: show only those the '
+        'request gives; without a number, a WhatsApp/phone button is left out (CEO 2026-11-09).'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
+               'No phone number, address or named testimonial that the request did not give.',
                'Buttons name their outcome; errors say how to fix the problem.'),
-    static_checks=(_placeholder_copy,),
+    static_checks=(_placeholder_copy, _invented_contact),
 )
 
 LANDING_CONVERSION = Skill(

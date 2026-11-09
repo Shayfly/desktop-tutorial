@@ -893,6 +893,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .uploaded_assets import install as install_uploaded_assets
         install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
                                 project_id=request.get('public_project_id'),account_id=str(request['user_id']))
+        # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
+        from .page_locale import install as install_page_locale
+        install_page_locale(engine, prompt)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.

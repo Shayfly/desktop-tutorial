@@ -433,16 +433,21 @@ def missing(brief: Brief) -> dict:
 
 _COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
               'neutral': '#334155', 'white': '#ffffff', 'black': '#000000', 'red': '#dc2626',
-              'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080'}
+              'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080',
+              # CEO 2026-11-09: the cafe brief said "חום, קרם וירוק" and the summary showed only green.
+              'brown': '#6b4226', 'beige': '#e8dcc4', 'navy': '#1e3a5f', 'burgundy': '#7f1d1d',
+              'lightblue': '#7dd3fc', 'silver': '#c0c0c0'}
 _COLOUR_ALIASES = {'כחול': 'blue', 'ירוק': 'green', 'סגול': 'purple', 'כתום': 'orange',
                    'טורקיז': 'teal', 'לבן': 'white', 'שחור': 'black', 'אדום': 'red', 'צהוב': 'yellow',
                    'ורוד': 'pink', 'שמנת': 'cream', 'זהב': 'gold', 'אפור': 'gray', 'grey': 'gray',
-                   'turquoise': 'teal', **{name: name for name in _COLOR_HEX}}
+                   'turquoise': 'teal', 'חום': 'brown', 'קרם': 'cream', "בז'": 'beige', 'בז׳': 'beige',
+                   'בורדו': 'burgundy', 'נייבי': 'navy', 'כחול כהה': 'navy', 'תכלת': 'lightblue',
+                   'light blue': 'lightblue', **{name: name for name in _COLOR_HEX}}
 
 
 def colour_palette(text: str, *, preserve_words: bool = False) -> list[str]:
     """Ordered, bounded tokens from stated colour words or hex colours."""
-    words = '|'.join(re.escape(word) for word in _COLOUR_ALIASES)
+    words = '|'.join(re.escape(word) for word in sorted(_COLOUR_ALIASES, key=len, reverse=True))   # "כחול כהה" before "כחול"
     pattern = r'(#[0-9a-f]{6}\b|#[0-9a-f]{3}\b)|(?<!\w)(?:וב|ו|ב)?(' + words + r')(?!\w)'
     tokens = []
     words_seen = []
