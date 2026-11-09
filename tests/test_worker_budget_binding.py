@@ -92,8 +92,8 @@ class BudgetBindingTests(unittest.TestCase):
         gw = _gw("5")
         ev = bind_model_budget_to_reservation(gw, {"economics_quote": {"components": {
             "llm_maximum_usd": "3.00", "cost_class": "light"}}})
-        self.assertEqual(ev["effective_budget_usd"], "0.35")
-        self.assertEqual(gw.policy.external_budget_usd, Decimal("0.35"))
+        self.assertEqual(ev["effective_budget_usd"], "0.60")
+        self.assertEqual(gw.policy.external_budget_usd, Decimal("0.60"))
 
     def test_founder_test_build_gets_its_admitted_budget_up_to_the_founder_cap(self):
         # CEO 2026-11-08 20:09: founder test builds may spend up to $2 (measured, paid by us)
@@ -103,7 +103,7 @@ class BudgetBindingTests(unittest.TestCase):
         req["economics_quote"]["components"]["llm_maximum_usd"] = "9.00"      # never above the founder cap
         self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
         req["user_id"] = "usr_someone_else"                                    # the flag alone grants nothing
-        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "0.35")
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "0.60")
 
     def test_standard_class_cap_clamps_oversized_reservation(self):
         gw = _gw("5")
