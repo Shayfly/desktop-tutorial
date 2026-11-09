@@ -253,6 +253,14 @@ def rejected_json_evidence(gateway) -> dict:
                                                'failed': len(rows) - stored}}
 
 
+def _design_reviews(engine) -> list:
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), VisualQAExecutor)
+    critic = getattr(target, 'design_critic', None) if target is not None else None
+    return list(getattr(critic, 'reviews', []) or [])[-8:]
+
+
 def visual_evidence(engine) -> dict | None:
     from .behavior_acceptance import find_in_chain
     from .visual_qa import VisualQAExecutor
@@ -913,6 +921,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             raise RuntimeError('strict durable round evidence backend unavailable')
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
+        from .design_review import install_design_critic
+        design_review_on = install_design_critic(engine, request, prompt)
         install_rejected_json_sink(gateway, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
@@ -1024,6 +1034,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
             'agentic_repair': {'enabled': bool(agentic_repair),
                                'trace': list(getattr(getattr(engine, 'repairer', None), 'trace', []) or [])[-60:]},
             'llm_cap_overage': llm_cap_overage(request, spent),

@@ -67,6 +67,11 @@ def _retry_after(exc) -> float | None:
     except (TypeError, ValueError):
         return None
 
+def _b64(data: bytes) -> str:
+    import base64
+    return base64.b64encode(bytes(data)).decode('ascii')
+
+
 API_STYLES = frozenset({'openai', 'openai_reasoning', 'anthropic'})
 ANTHROPIC_VERSION = '2023-06-01'
 # Models whose default is adaptive thinking and whose documented "thinking off" is between_tools ("disabled" is a 400).
@@ -163,7 +168,7 @@ class OpenAICompatibleGateway:
         self.last_idempotency_key = None
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1,
-                 max_tokens: int = 4096, idempotency_key: str | None = None) -> str:
+                 max_tokens: int = 4096, idempotency_key: str | None = None, images: tuple = ()) -> str:
         if not 0 <= temperature <= 2:
             raise ValueError('temperature out of range')
         if max_tokens < 1:
@@ -177,8 +182,12 @@ class OpenAICompatibleGateway:
         if idempotency_key and str(idempotency_key).strip():
             headers['Idempotency-Key'] = str(idempotency_key).strip()[:255]
         if style == 'anthropic':
+            content = user if not images else [
+                *({'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg',
+                                               'data': _b64(img)}} for img in images),
+                {'type': 'text', 'text': user}]
             body = {'model': self.endpoint.model, 'system': system,
-                    'messages': [{'role': 'user', 'content': user}], 'max_tokens': max_tokens}
+                    'messages': [{'role': 'user', 'content': content}], 'max_tokens': max_tokens}
             url = self.endpoint.base_url.rstrip('/') + '/messages'
             if self.endpoint.api_key:
                 headers['x-api-key'] = self.endpoint.api_key
@@ -188,7 +197,10 @@ class OpenAICompatibleGateway:
                 'model': self.endpoint.model,
                 'messages': [
                     {'role': 'system', 'content': system},
-                    {'role': 'user', 'content': user},
+                    {'role': 'user', 'content': user if not images else [
+                        {'type': 'text', 'text': user},
+                        *({'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,' + _b64(img)}}
+                          for img in images)]},
                 ],
             }
             if style == 'openai_reasoning':
@@ -256,13 +268,14 @@ class OpenAICompatibleGateway:
 
     last_finish_reason = None
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, images: tuple = ()) -> dict:
         if self.endpoint.api_style == 'anthropic':
             # Founder build bld_ca727ba7 (2026-11-08): the Sonnet repair answer opened with "The six setup errors came
             # from ..." and T3 rejects leading prose. Prefill is a 400 on Claude 4.6+ and generic structured outputs
             # cannot express an open object, so the rule is stated where the model weighs it most: last in system.
             system = (system or '') + ANTHROPIC_JSON_ONLY_RULE
-        raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens)
+        raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens,
+                            **({'images': tuple(images)} if images else {}))
         self.last_raw_response = raw                       # T3: the raw answer is kept, accepted or not
         obj, diag = parse_model_json(raw)
         diag['finish_reason'] = getattr(self, 'last_finish_reason', None)

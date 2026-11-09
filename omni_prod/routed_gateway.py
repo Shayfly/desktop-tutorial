@@ -401,7 +401,8 @@ class RoutedModelGateway:
         Returns (route, call_kwargs, option) tuples in selection order.
         """
         text = f"{kwargs.get('system', '')}{kwargs.get('user', '')}"
-        input_tokens = len(text.encode('utf-8')) + 64
+        # An image (design review, 2026-11-09) costs ~1.6K input tokens at vision providers; 3K keeps an upper bound.
+        input_tokens = len(text.encode('utf-8')) + 64 + 3000 * len(kwargs.get('images') or ())
         requested = int(kwargs.get('max_tokens', 4096))
         policy = self.routing_policy
         candidates = []
@@ -463,7 +464,8 @@ class RoutedModelGateway:
             return None
         current = int(call_kwargs.get('max_tokens', 0))
         text = f"{call_kwargs.get('system', '')}{call_kwargs.get('user', '')}"
-        input_tokens = len(text.encode('utf-8')) + 64
+        # An image (design review, 2026-11-09) costs ~1.6K input tokens at vision providers; 3K keeps an upper bound.
+        input_tokens = len(text.encode('utf-8')) + 64 + 3000 * len(call_kwargs.get('images') or ())
         remaining = self.policy.external_budget_usd - self.state.external_spend_usd
         out_price = Decimal(str(option.output_per_million)) / Decimal(1_000_000)
         if out_price <= 0:
@@ -618,9 +620,10 @@ class RoutedModelGateway:
         }, task)
 
     def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general',
-                      validate: Callable | None = None) -> dict:
+                      validate: Callable | None = None, images: tuple = ()) -> dict:
         return self._route('complete_json', {
             'system': system,
             'user': user,
             'max_tokens': max_tokens,
+            **({'images': tuple(images)} if images else {}),
         }, task, validate=validate)
