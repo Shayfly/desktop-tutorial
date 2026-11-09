@@ -284,3 +284,19 @@ class MissingKindHintTests(unittest.TestCase):
     def test_reviewer_treats_timing_edge_cases_as_advisory(self):
         from omni_prod.product_review import _REVIEW_SYSTEM
         self.assertIn('rapid repeated clicks', _REVIEW_SYSTEM)
+class BuildRestoreUiTests(unittest.TestCase):
+    """2026-11-09: a queued/running build vanished after a reload; a finished build's result was not shown again."""
+
+    def setUp(self):
+        import pathlib
+        self.js = pathlib.Path('omni_prod/assets/app.js').read_text(encoding='utf-8')
+
+    def test_background_quote_never_clears_an_active_build(self):
+        self.assertIn("if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;", self.js)
+        self.assertNotIn("    S.build = null; renderDiscovery(); renderPlan(); renderTrack();", self.js)
+
+    def test_finished_build_is_restored_without_preview_start(self):
+        start = self.js.index('async function restoreBuild()')
+        body = self.js[start:self.js.index('\n}\n', start)]
+        self.assertIn('if (isTerminal(b.status))', body)
+        self.assertNotIn('startPreview', body)
