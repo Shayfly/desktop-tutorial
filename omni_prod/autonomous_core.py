@@ -82,6 +82,9 @@ class AutonomousProductEngine:
         diagnostic = '\n'.join(str(f.get('message', '')) + '\n' + str(f.get('evidence', ''))
                                for f in failures if isinstance(f, dict))
         summary['candidate_files'] = attributed_files(repo, stderr=diagnostic)
+        # Agentic repair (2026-11-09): the working copy the repair agent reads and edits. Underscore key: never
+        # serialised into a prompt (RepairAgent's _filter_repo_summary keeps only named keys). Already redacted.
+        summary['_repository'] = dict(repo)
         return summary
 
     @staticmethod

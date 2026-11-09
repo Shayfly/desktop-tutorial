@@ -472,6 +472,26 @@ def asset_capability_status(plan) -> dict | None:
     return _status(plan)
 
 
+def _install_agentic_repair(engine, request) -> bool:
+    """CEO order 2026-11-09 (b): the repair model works inside the repository with tools. Founder builds only for
+    now (OMNI_AGENTIC_REPAIR=founder, the default); 'all' turns it on for every build, '0' turns it off."""
+    import os
+    mode = os.getenv('OMNI_AGENTIC_REPAIR', 'founder').strip().lower()
+    if mode in ('0', 'off', 'false', ''):
+        return False
+    if mode != 'all':
+        from .pricing import m5_founder_account
+        if not m5_founder_account((request or {}).get('user_id')):
+            return False
+    repairer = getattr(engine, 'repairer', None)
+    gateway = getattr(repairer, 'gateway', None)
+    if repairer is None or gateway is None or type(repairer).__name__ == 'AgenticRepairAgent':
+        return False
+    from .agentic_repair import AgenticRepairAgent
+    engine.repairer = AgenticRepairAgent(gateway, fallback=repairer)
+    return True
+
+
 def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
     """Fail closed before paid model calls; reuse the existing gateway budget.
 
@@ -866,6 +886,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
                                 project_id=request.get('public_project_id'),account_id=str(request['user_id']))
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
+        agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
@@ -1003,6 +1024,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'agentic_repair': {'enabled': bool(agentic_repair),
+                               'trace': list(getattr(getattr(engine, 'repairer', None), 'trace', []) or [])[-60:]},
             'llm_cap_overage': llm_cap_overage(request, spent),
             'asset_capabilities': asset_capability_status(capability_plan),
             # Agent OS §11: which skills shaped the build and what QA review found.
