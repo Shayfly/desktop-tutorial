@@ -54,6 +54,8 @@ _FEAS_KEYS = (('payments', r'(תשלו[םמ]|סליקה|payment|stripe|checkout)
 _CAP_HE = {'payments': 'תשלומים', 'sign-in': 'התחברות משתמשים', 'email': 'שליחת מיילים', 'sms': 'הודעות SMS/וואטסאפ',
            'mobile app': 'אפליקציה לנייד', 'publishing': 'פרסום לכתובת קבועה', 'images': 'יצירת תמונות'}
 _REASON_HE = {F.BLOCKED: 'עוד לא מחובר בפלטפורמה', F.UNSUPPORTED: 'עוד לא נתמך', F.WITH_CONSTRAINTS: 'אפשרי עם מגבלות'}
+_INTEGRATION_HE = {'payments': 'תשלומים וסליקה', 'email': 'שליחת מיילים', 'sms': 'שליחת הודעות SMS/WhatsApp',
+                   'maps': 'מפות', 'calendar': 'יומן', 'ai_model': 'מודל בינה מלאכותית'}
 _ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסיף אותם כשהחיבור יהיה זמין', 'sign-in': 'כלי פנימי בלי התחברות, בקישור פרטי',
            'email': 'לבנות עכשיו בלי שליחת מיילים', 'sms': 'לבנות עכשיו בלי הודעות', 'mobile app': 'גרסת ווב שעובדת גם בנייד',
            'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
@@ -899,6 +901,12 @@ class ConversationSupervisor:
     def _finding_message(f, lang, T):
         if lang == 'he' and f['item'].startswith('sign-in'):
             return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את דרישת ההתחברות או להשאיר אותה להמשך'
+        if lang == 'he' and f['item'].startswith('integration: '):
+            # 2026-11-09: the customer saw "integration: payments חלופה: build without payments now ..." in English.
+            kind = f['item'].split(': ', 1)[1]
+            name = _INTEGRATION_HE.get(kind, kind)
+            alt = _ALT_HE.get(kind) or 'לבנות עכשיו בלי החיבור הזה ולהוסיף אותו כשיהיה זמין'
+            return f'חיבור ל{name} עדיין לא זמין' + T['alt'].format(x=alt)
         return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
 
     _last_reply_was_why = False

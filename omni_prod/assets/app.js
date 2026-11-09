@@ -1319,6 +1319,12 @@ async function restoreConversation() {
   }
 }
 let chatBusy = false;
+function whenVisible() {
+  if (document.visibilityState !== 'hidden') return Promise.resolve();
+  return new Promise(r => document.addEventListener('visibilitychange', function f() {
+    if (document.visibilityState !== 'hidden') { document.removeEventListener('visibilitychange', f); r(); }
+  }));
+}
 async function sendChat(body, shownText, path) {
   if (chatBusy || !S.projectId) return;
   const retrySignature=JSON.stringify([S.projectId,body]);
@@ -1327,7 +1333,20 @@ async function sendChat(body, shownText, path) {
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${(path || convPath)()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    const url = `${(path || convPath)()}?lang=${S.lang}`, payload = { ...body, request_key: S.chatRetry.key };
+    let view;
+    // 2026-11-09: iOS Safari drops an open request when the page goes to the background (switching apps to take a
+    // screenshot), and the customer saw "no connection" although the server had answered. The send is idempotent
+    // per request_key, so a dropped request is re-sent quietly with the SAME key -- after the page is visible
+    // again -- and the server returns the answer it already stored instead of asking the model twice.
+    for (let attempt = 0; ; attempt++) {
+      try { view = await api(url, { method: 'POST', body: payload }); break; }
+      catch (err) {
+        if (err.status !== 0 || err.detail === 'timeout' || attempt >= 3) throw err;
+        await whenVisible();
+        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      }
+    }
     S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
