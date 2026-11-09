@@ -203,6 +203,11 @@ class ProductArchitect:
         # brief text 148AI wrote; the full text still binds the spec and code.
         from .discovery import detection_text
         intent = detection_text(clean) or clean
+        # 2026-11-09 (café landing page blocked by an unpriced "integration.payment" from "ובלי תשלום"): what the
+        # customer explicitly excludes is removed before ANY detector reads the request -- the brain, the
+        # capability planner, integrations and infrastructure. Sign-in/content-only rules still read `clean`.
+        from .intake.contract import strip_negated
+        intent = strip_negated(intent) or intent
         from .semantic_capabilities import read_approved
         semantic_decisions = read_approved(clean)
         decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
@@ -518,7 +523,9 @@ class ProductArchitect:
             ("webhook", ("webhook", "web hook")),
             ("payments", ("payment", "payments", "checkout", "תשלום")),
             ("maps", ("map", "maps", "gps", "מפה")),
-            ("messaging", ("message", "messaging", "whatsapp", "chat", "הודעות")),
+            # A WhatsApp button/link is not a messaging integration (2026-11-09); sending messages is.
+            ("messaging", ("send message", "whatsapp message", "whatsapp notification", "reminder", "messaging", "sms",
+                           "chat", "שליחת הודעות", "לשלוח הודעות", "תזכורת")),
         )
         for key, terms in direct:
             if any(term in low for term in terms):
