@@ -40,8 +40,10 @@ _NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 _UPDATE_WORDS = ('edit', 'update', 'change', 'rename', 'mark', 'complete', 'done', 'toggle', 'status',
                  'עריכ', 'ערוך', 'לערוך', 'עדכון', 'לעדכן', 'שינוי', 'לשנות', 'סימון', 'לסמן', 'סמן', 'הושלם',
                  'בוצע', 'השלמה', 'סטטוס', 'מצב')
-_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחק', 'הסר', 'להסיר', 'ביטול', 'לבטל',
-                 'בטל', 'ארכיון')
+# 2026-11-09: the three-letter stems 'בטל', 'מחק', 'הסר' matched "בטלפון" (on the phone), "מחקר", "הסרט" and made
+# data_delete mandatory for a café landing page. Only whole delete/cancel forms count.
+_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחקו', 'למחיקה', 'להסיר', 'הסרה',
+                 'ביטול', 'לבטל', 'בטלו', 'ארכיון')
 
 
 def _no_login(contract: Mapping[str, Any]) -> bool:
@@ -77,7 +79,10 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
             and _no_login(build_contract) and 'integration' in not_required
             and not (kinds & {'object_storage', 'scheduled_http', 'outbound'})
             and 'prompt' in build_contract):
-        not_required.append('data_create')
+        # bld_2ded07f0 (2026-11-09, café landing page): a word in the approved text ("בטל", "remove"...) kept
+        # data_delete required for a site that stores nothing, and the build failed "missing data_delete" with
+        # every check passing. A content-only site has no records: nothing to create, change or delete.
+        not_required += ['data_create', 'data_update', 'data_delete']
     waived = tuple(dict.fromkeys(not_required))
     return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k not in waived), waived
 
