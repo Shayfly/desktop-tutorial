@@ -343,3 +343,50 @@ class ReviewConvergenceTests(unittest.TestCase):
         report = ex.execute(repository={'app.py': ''}, spec=None)
         self.assertFalse(report.passed)
         self.assertEqual(len(report.failures), 2)
+
+
+class IntakeTruncatedReplyTests(unittest.TestCase):
+    """2026-11-09 19:24: a long brief made Haiku spend all 1,400 output tokens; the user saw 'the agent could not answer'."""
+
+    def test_reply_is_salvaged_from_cut_json(self):
+        from omni_prod.intake.reservation_worker import salvage_reply
+        self.assertEqual(salvage_reply('{"reply": "שלום! הבנתי את הבקשה לדף נחיתה.", "proposals": [{"x": "'),
+                         'שלום! הבנתי את הבקשה לדף נחיתה.')
+        self.assertIsNone(salvage_reply('{"proposals": ['))
+
+    def test_output_budget_and_message_cap(self):
+        from decimal import Decimal
+        from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS
+        self.assertGreaterEqual(MAX_OUTPUT_TOKENS, 2400)
+        # Venice price ceiling 0.90 USD per million output tokens: still far under the 0.015 per-message cap.
+        self.assertLess(Decimal(MAX_OUTPUT_TOKENS) * Decimal('0.90') / Decimal(10**6), Decimal('0.005'))
+
+
+class IntakeFalseBlockerTests(unittest.TestCase):
+    """2026-11-09 19:32: a café landing page with a WhatsApp button and 'בלי תשלום' was blocked as payments + SMS."""
+
+    def kinds(self, text):
+        import re
+        from omni_prod.intake.contract import _INTEGRATION_WORDS, strip_negated
+        from omni_prod.product_architect import strip_whatsapp_links
+        t = strip_negated(strip_whatsapp_links(text))
+        return [k for k, p in _INTEGRATION_WORDS if re.search(p, t, re.I)]
+
+    def test_excluded_and_link_only_features_are_not_integrations(self):
+        self.assertEqual(self.kinds('כפתור "הזמנה ב-WhatsApp" למעלה. תפריט עם מחירים. בלי הרשמה, בלי התחברות ובלי תשלום.'), [])
+        self.assertEqual(self.kinds('No payments, without stripe.'), [])
+
+    def test_real_integrations_are_still_found(self):
+        self.assertEqual(self.kinds('צריך תשלום באשראי ושליחת הודעות תזכורת'), ['payments', 'sms'])
+        self.assertIn('payments', self.kinds('notes: checkout with stripe'))
+
+    def test_blocker_is_hebrew(self):
+        from omni_prod.conversation.supervisor import ConversationSupervisor, _TXT
+        msg = ConversationSupervisor._finding_message({'item': 'integration: payments', 'alternative': 'x'}, 'he', _TXT['he'])
+        self.assertNotRegex(msg, r'[A-Za-z]{4,}')
+
+    def test_chat_resends_a_dropped_request_with_the_same_key(self):
+        import pathlib
+        js = pathlib.Path('omni_prod/assets/app.js').read_text(encoding='utf-8')
+        self.assertIn('await whenVisible();', js)
+        self.assertIn("if (err.status !== 0 || err.detail === 'timeout' || attempt >= 3) throw err;", js)

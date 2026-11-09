@@ -163,7 +163,7 @@ _ALLOWED = {q.field: (q.kind, {o.value for o in q.options}) for q in d.QUESTIONS
 
 PROMPT_VERSION = 'intake-prompt/5-question-skills'
 MAX_MESSAGE_CHARS = 4000          # longer messages are truncated before any model call (cost bound)
-MAX_OUTPUT_TOKENS = 1400          # 700 truncated Venice's JSON mid-string (2026-11-07, 2 of 6 replies)
+MAX_OUTPUT_TOKENS = 2400          # 700 truncated (2026-11-07); 1400 truncated a reply to a long brief (2026-11-09)
 
 
 def contextual_user(message: str, brief=None, history=()) -> str:

@@ -130,11 +130,23 @@ def validate(c: RequirementsContract) -> list[str]:
 _INTEGRATION_WORDS = (
     ('payments', r'(תשלו[םמ]|סליקה|כרטיס אשראי|stripe|paypal|payment|checkout)'),
     ('email', r'(שליחת מייל|שליחת אימייל|newsletter|send email|email notification)'),
-    ('sms', r'(sms|הודעת טקסט|וואטסאפ|whatsapp)'),
+    # 2026-11-09: "כפתור הזמנה ב-WhatsApp" is a link, not a messaging integration. Only SENDING messages counts.
+    ('sms', r'(\bsms\b|הודעות? טקסט|שליחת הודעות|לשלוח הודעות|תזכורות? (?:ב|ל)?(?:sms|וואטסאפ|whatsapp)|'
+            r'send (?:sms|whatsapp)|whatsapp (?:notifications|reminders|messages to))'),
     ('maps', r'(מפה|google maps|mapbox|\bmap\b)'),
     ('calendar', r'(google calendar|יומן גוגל|outlook calendar)'),
     ('ai_model', r'(צ\'?אטבוט|chatbot|בינה מלאכותית|\bai\b|gpt|llm)'),
 )
+
+
+_NEGATION = re.compile(r'(?:(?<![\w\u0590-\u05FF])ו?(?:בלי|ללא|אין צורך ב|לא צריך|לא רוצה)|\b(?:without|no))'
+                       r'(?:\s+|\s*[-–]\s*)[^.,;:\n]{0,60}', re.I)
+
+
+def strip_negated(text: str) -> str:
+    """2026-11-09 ("בלי הרשמה, בלי התחברות ובלי תשלום" became a payments integration that blocked the build):
+    what the customer explicitly excludes is not a requirement."""
+    return _NEGATION.sub(' ', text or '')
 
 
 def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
@@ -177,7 +189,7 @@ def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
         nfr.append(Requirement('S1', 'Personal details are visible only to authorized people', 'security',
                                origin('personal_data'), confidence('personal_data')))
     from ..product_architect import strip_whatsapp_links  # a WhatsApp link is a hyperlink, not an SMS integration
-    integ_text = strip_whatsapp_links(text_all)
+    integ_text = strip_negated(strip_whatsapp_links(text_all))
     integrations = [{'kind': k, 'detected_from': 'request text', 'status': 'requires capability check'}
                     for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)]
     reqs = fr + nfr
