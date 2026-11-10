@@ -336,15 +336,21 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
             # A section passes when it is labelled as sample, or every quote on it is one the request gave.
             from .fact_canon import norm_quote
             section = text[head.end():head.end() + 4000]
-            quotes = re.findall(r'[“"„]([^”"<]{12,})[”"]', re.sub(r'<[^>]+>', ' ', section))
-            blocks = len(re.findall(r'<blockquote', section, re.I))
+            plain = re.sub(r'<[^>]+>', ' ', section)
+            quotes = re.findall(r'[“"„\u05F4]([^”"\u05F4<]{12,})[”"\u05F4]', plain)
+            block_texts = [re.sub(r'<[^>]+>', ' ', b) for b in
+                           re.findall(r'<(?:blockquote|figure|q)\b[^>]*>(.*?)</(?:blockquote|figure|q)>', section, re.S | re.I)]
+            blocks = len(block_texts)
             given = canon.values('review')
-            unknown = [q for q in quotes if norm_quote(q) not in given]
-            sourced = bool(quotes) and not unknown
+            # A quote is sourced when one of the given reviews is in it (the page may add "!" or the name).
+            candidates = quotes or block_texts
+            unknown = [c.strip()[:60] for c in candidates if not any(g and g in norm_quote(c) for g in given)]
+            sourced = bool(candidates) and not unknown
             if (len(quotes) >= 2 or blocks >= 2) and not sourced and not _TESTIMONIAL_LABEL.search(section) \
                     and not _TESTIMONIAL_LABEL.search(head.group(0)):
                 out.append(StaticFinding('skill.copy_quality', 'blocking', path,
-                                         'testimonials with no source in the approved request and no "לדוגמה" label',
+                                         'testimonials with no source in the approved request and no "לדוגמה" label'
+                                         + (f': {"; ".join(unknown[:3])}' if unknown else ''),
                                          'label the section "(לדוגמה)" / "sample reviews", or remove it until the owner '
                                          'provides real reviews', anchor=_anchor(head.group(0) + section[:600])))
     return out
