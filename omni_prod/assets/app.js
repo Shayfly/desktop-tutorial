@@ -114,7 +114,8 @@ const T = {
     chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
-    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט', actConfirmMod:'שליחת השינוי לביצוע',
+    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
+    canonAck:'אני מאשר/ת שהאתר ייבנה בלי טלפון וכתובת (הם לא יומצאו)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
@@ -230,7 +231,8 @@ const T = {
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
-    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec', actConfirmMod:'Send this change',
+    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
+    canonAck:'I confirm the site is built without a phone and address (they will not be invented)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
@@ -1403,7 +1405,16 @@ function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
     if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
-    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ brief_fingerprint: a.brief_fingerprint }, t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec')));
+    if (a.type === 'approve_spec') {
+      // Michael 2026-11-10 condition 3: an incomplete fact canon needs an explicit tick before the spec is approved.
+      const incomplete = a.canon && a.canon.status === 'CANON_INCOMPLETE';
+      const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => sendChat(
+        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false },
+        t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec'));
+      const box = incomplete ? h('input', { type: 'checkbox', id: 'canonAck', onchange: (e) => { btn.disabled = !e.target.checked; } }) : null;
+      if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));
+      out.push(btn);
+    }
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),

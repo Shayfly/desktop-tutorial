@@ -50,10 +50,12 @@ class StaticFinding:
     problem: str
     fix: str
     anchor: str | None = None      # hash of the DOM node judged (markup gates); None for code checks
+    probe: str | None = None       # the check that produced it (omni_prod.probe_manifest key)
 
     def to_dict(self) -> dict:
         return {'skill': self.skill, 'severity': self.severity, 'file': self.file,
-                'problem': self.problem, 'fix': self.fix, 'source': 'static', 'anchor': self.anchor}
+                'problem': self.problem, 'fix': self.fix, 'source': 'static', 'anchor': self.anchor,
+                'probe': self.probe}
 
 
 @dataclass(frozen=True)
@@ -151,6 +153,10 @@ def _unguarded_int_conversion(repository: dict, context: dict) -> list[StaticFin
             for m in _CONVERSION.finditer(line):
                 arg = _call_argument(line, m.end() - 1)
                 if not any(h in arg for h in _INPUT_HINTS):
+                    continue
+                # 2026-11-10 (gate regression fixture): int(os.environ["PORT"]) is configuration, not request input;
+                # every product reads its port this way (preview contract).
+                if re.search(r'os\.(?:environ|getenv)\b', arg):
                     continue
                 window = lines[max(0, n - 14):n] + [line[:m.start()]]
                 if any(re.search(r'^\s*try\s*:', w) for w in window) or any('isinstance(' in w for w in window):
@@ -790,9 +796,10 @@ def checklist_for_review() -> list[dict]:
 def static_findings(repository: dict, context: dict | None = None) -> list[StaticFinding]:
     context = context or {}
     out: list[StaticFinding] = []
+    import dataclasses
     for skill in WEB_SKILLS:
         for check in skill.static_checks:
-            out.extend(check(repository, context))
+            out.extend(dataclasses.replace(f, probe=check.__name__) for f in check(repository, context))
     return out
 
 

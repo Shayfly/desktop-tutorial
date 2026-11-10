@@ -145,6 +145,7 @@ _TXT = {
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'corrected': 'עדכנתי',
            'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
+           'canon_ack': 'לפני האישור: סמנו את התיבה שמאשרת שהאתר ייבנה בלי טלפון וכתובת, או כתבו אותם בהודעה.',
            'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
@@ -173,6 +174,7 @@ _TXT = {
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'corrected': 'Updated',
            'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
+           'canon_ack': 'Before approving: tick the box confirming the site is built without a phone and address, or send them in a message.',
            'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
            'approve': 'To start, approve the summary and cost with "Approve and start building".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
@@ -450,7 +452,7 @@ class ConversationSupervisor:
 
     # ------------------------------------------------------------- gate 1 -> plan -> verifier -> gate 2
     def approve_spec(self, *, project_id: str, account_id: str, brief_fingerprint: str, request_key: str | None = None,
-                     lang: str | None = None) -> Turn:
+                     lang: str | None = None, canon_ack: bool = False) -> Turn:
         """Gate 1: the customer approves THIS spec (by fingerprint). Only now is a plan made; the separate verifier
         checks it before the customer sees it; then gate 2 shows the exact cost next to the range said earlier."""
         from ..intake import approval_flow as AF
@@ -461,6 +463,15 @@ class ConversationSupervisor:
         shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
+        # Michael 2026-11-10 condition 3: a shown warning is read like noise. An incomplete fact canon (a business site
+        # with no phone and no address) is approved only when the customer ticked the box that says so.
+        if feasible and not canon_ack:
+            from ..fact_canon import canon_view
+            canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
+                               family='website' if d.is_website(row.brief) else 'app', lang=lang)
+            if canon['status'] == 'CANON_INCOMPLETE':
+                turn.reply = ' '.join([T['canon_ack']] + self._gate1(turn, row, lang))
+                return self._finish(project_id, account_id, turn, request_key)
         flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
                                         for m in self.store.messages_for(project_id, limit=2)) else {}
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,

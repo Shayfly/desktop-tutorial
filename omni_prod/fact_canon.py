@@ -101,8 +101,13 @@ def parse_phone(raw: str, cc: str = 'IL') -> PhoneResult:
     elif s.startswith('972') and len(s) >= 11:
         s = s[3:]
     elif not s.startswith('0'):
-        # No 0 and no 972: a local number printed without its area code. Not decidable -> AMBIGUOUS, never a guess.
-        return PhoneResult(False, reason='SHORT' if len(s) < 7 else 'AMBIGUOUS')
+        # No 0 and no 972 (Michael 2026-11-10 bounds): < 7 digits SHORT, > 9 LONG, 7/8/9 a subscriber number without
+        # its area code -> AMBIGUOUS, never a guess.
+        if len(s) < 7:
+            return PhoneResult(False, reason='SHORT')
+        if len(s) > 9:
+            return PhoneResult(False, reason='LONG')
+        return PhoneResult(False, reason='AMBIGUOUS')
     if s.startswith('0'):
         s = s[1:]
     if re.fullmatch(r'0+', s) or re.fullmatch(r'(\d)\1+', s) or s in ('12345678', '123456789'):

@@ -84,6 +84,11 @@ FALSE_POSITIVES = {
     'english page sets its own direction': lambda p: p.replace('lang="he" dir="rtl"', 'lang="en" dir="ltr"'),
 }
 
+# Code-probe false positives (2026-11-10 gate regression): a correct product's SOURCE must not block either.
+CODE_FALSE_POSITIVES = {
+    'port from the environment': 'import os\nPORT = int(os.environ["PORT"])\nP2 = int(os.getenv("PORT", "8000"))\n',
+}
+
 
 class MutationTests(unittest.TestCase):
     def test_every_mutation_is_caught(self):
@@ -112,6 +117,13 @@ class MutationTests(unittest.TestCase):
                 wrong.append(f'{name}: {found}')
         _annotate(f'gate false positives: {len(FALSE_POSITIVES) - len(wrong)}/{len(FALSE_POSITIVES)} clean')
         self.assertEqual(wrong, [], 'gates blocked a correct product')
+
+
+class CodeProbeFalsePositives(unittest.TestCase):
+    def test_correct_source_does_not_block(self):
+        for name, src in CODE_FALSE_POSITIVES.items():
+            found = blocking([f.to_dict() for f in static_findings({'app.py': src}, {'request': REQUEST})])
+            self.assertEqual(found, [], name)
 
 
 class GatesJudgeTheServedPage(unittest.TestCase):
