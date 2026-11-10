@@ -258,3 +258,65 @@ class FormCheckUnits(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SourceIdentity(unittest.TestCase):
+    """Michael 2026-11-10 fix 1: the RUNNER and GATE CODE, not only what the pipeline says. The whole import closure of
+    the gates, as ASTs, equals the baseline after removing only declared flag additions."""
+
+    BASE = json.load(open('docs/identity/source-2c1d6cb.json', encoding='utf-8'))
+
+    def test_the_gate_code_is_the_baseline_with_the_flag_off(self):
+        from omni_prod.pipeline_identity import source_manifest
+        got = source_manifest()
+        self.assertEqual(got['leaked_flag_only'], [], 'a flag-only name is used outside a flag block')
+        self.assertEqual(set(got['files']), set(self.BASE['files']), 'the gate import closure changed')
+        changed = sorted(p for p in got['files'] if got['files'][p] != self.BASE['files'][p])
+        if os.getenv('GITHUB_ACTIONS'):
+            print(f"::notice title=source identity::{len(got['files'])} files in the gate closure; changed vs "
+                  f"{self.BASE['baseline_sha'][:7]}: {len(changed)}")
+        self.assertEqual(changed, [], 'gate code differs from the baseline with the flag off')
+
+    def test_the_closure_is_computed_not_listed(self):
+        from omni_prod.pipeline_identity import closure
+        files = closure()
+        self.assertIn('omni_prod/web_saas_acceptance.py', files)
+        self.assertIn('omni_prod/fact_canon.py', files)              # imported by the gates, not listed anywhere
+        self.assertGreater(len(files), 20)
+
+    # ---- the tool catches what it must (mutations of the identity check itself)
+    def mutated(self, path, change):
+        from omni_prod.pipeline_identity import ROOT, source_manifest
+
+        def read(p):
+            text = (ROOT / p).read_text(encoding='utf-8')
+            return change(text) if p == path else text
+        return source_manifest(read)
+
+    def test_a_live_change_outside_a_flag_is_caught(self):
+        got = self.mutated('omni_prod/web_saas_acceptance.py',
+                           lambda t: t.replace("float(timeout_seconds)", "float(timeout_seconds) * 2", 1))
+        self.assertNotEqual(got['files']['omni_prod/web_saas_acceptance.py'],
+                            self.BASE['files']['omni_prod/web_saas_acceptance.py'])
+
+    def test_a_change_inside_a_flag_block_is_not_counted(self):
+        got = self.mutated('omni_prod/skills_runtime.py',
+                           lambda t: t.replace("    WEB_SKILLS = WEB_SKILLS + (SITE_AUTH,)",
+                                               "    WEB_SKILLS = WEB_SKILLS + (SITE_AUTH, SITE_AUTH)", 1))
+        self.assertEqual(got['files']['omni_prod/skills_runtime.py'], self.BASE['files']['omni_prod/skills_runtime.py'])
+
+    def test_comments_and_formatting_do_not_count(self):
+        got = self.mutated('omni_prod/fact_canon.py', lambda t: t.replace('\n\n\ndef ', '\n\n\n# note\ndef ', 1))
+        self.assertEqual(got['files']['omni_prod/fact_canon.py'], self.BASE['files']['omni_prod/fact_canon.py'])
+
+    def test_a_flag_only_name_used_outside_a_flag_block_is_caught(self):
+        got = self.mutated('omni_prod/skills_runtime.py',
+                           lambda t: t.replace("def guidance_for(role: str) -> str:\n",
+                                               "def guidance_for(role: str) -> str:\n    _ = SITE_AUTH\n", 1))
+        self.assertIn('SITE_AUTH', got['leaked_flag_only'])
+
+    def test_declaring_a_live_name_flag_only_does_not_hide_its_change(self):
+        # hiding web_saas_acceptance's runner behind _FLAG_ONLY: its uses elsewhere expose it
+        got = self.mutated('omni_prod/web_saas_acceptance.py',
+                           lambda t: t + "\n_FLAG_ONLY = {'site_auth_v2': ('acceptance_scope',)}\n")
+        self.assertIn('acceptance_scope', got['leaked_flag_only'])

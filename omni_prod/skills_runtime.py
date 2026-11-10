@@ -836,6 +836,11 @@ CODE_STRUCTURE = Skill(
     checklist=('No file is so large that it cannot be reviewed whole; rules live in pure functions.',),
 )
 
+# Names that exist only for flag site_auth_v2. omni_prod/pipeline_identity.py strips exactly these (and `if FLAG:`
+# blocks) before comparing with the baseline, and fails if any of them is referenced outside a flag block.
+_FLAG_ONLY = {'site_auth_v2': ('_auth_source_rules', 'SITE_AUTH')}
+
+
 @reads_source('password hashing and secrets in logs/URLs are server code; the served page never shows them')
 def _auth_source_rules(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.site_auth (flag site_auth_v2): a product with sign-in hashes passwords with a memory-hard KDF and never
