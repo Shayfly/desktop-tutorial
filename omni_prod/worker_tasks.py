@@ -253,6 +253,25 @@ def rejected_json_evidence(gateway) -> dict:
                                                'failed': len(rows) - stored}}
 
 
+def _install_quarantine_history(jobs, build_id: str) -> None:
+    """Michael condition 5: the review asks whether an EARLIER build quarantined the same probe (read-only query)."""
+    from . import product_review
+    pool = getattr(jobs, 'pool', None) or getattr(jobs, '_pool', None)
+    if pool is None:
+        product_review._QUARANTINE_HISTORY = None
+        return
+
+    def lookup(probe: str):
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT id FROM build_jobs WHERE id <> %s AND evidence_json->'gate_waste'->'quarantined_gates' "
+                "@> %s::jsonb ORDER BY created_at DESC LIMIT 1",
+                (build_id, json.dumps([{'probe': probe}]))).fetchone()
+        return row[0] if row else None
+
+    product_review._QUARANTINE_HISTORY = lookup
+
+
 def _gate_waste(engine, spent, repair_rounds) -> dict:
     from .behavior_acceptance import find_in_chain
     from .product_review import ProductReviewExecutor
@@ -919,6 +938,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
         from .product_review import install_review_request
         install_review_request(engine, prompt)
+        _install_quarantine_history(jobs, build_id)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
@@ -1093,10 +1113,14 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         else:
             billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
             settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
+        from .build_control import GateEscalation
+        escalated = isinstance(exc, GateEscalation)
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.CANCELLED,
-            error_code='cancelled_by_user', error_message=str(exc)[:500],
+            error_code='gate_escalation' if escalated else 'cancelled_by_user', error_message=str(exc)[:500],
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           **({'gate_waste': _gate_waste(engine, None, 0), 'escalation': str(exc)[:500]}
+                              if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),

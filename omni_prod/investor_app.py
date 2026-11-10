@@ -2020,6 +2020,8 @@ class V28SpecApproval(BaseModel):
     """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
     brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
     request_key: str | None = Field(default=None, max_length=80)
+    # Michael 2026-11-10 condition 3: an incomplete fact canon is approved only with this box ticked.
+    canon_ack: bool = False
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2207,7 +2209,8 @@ def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -
     try:
         turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
                                                          brief_fingerprint=req.brief_fingerprint,
-                                                         request_key=req.request_key, lang=lang)
+                                                         request_key=req.request_key, lang=lang,
+                                                         canon_ack=req.canon_ack)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)

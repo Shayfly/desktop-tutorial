@@ -23,9 +23,23 @@ from decimal import Decimal
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .skills_runtime import applied_skills, checklist_for_review, static_findings
 
-# Gates whose quarantine must never pass silently (Michael 2026-11-10): a Hebrew page served LTR, a fabricated phone, a
-# missing alt. Their quarantine keeps the build moving but withdraws release_ready and shows a banner on the preview.
-CRITICAL_GATES = frozenset({'skill.text_locale', 'skill.copy_quality', 'skill.accessibility'})
+# Critical probes are DECLARED in omni_prod.probe_manifest (critical: True), not hard-coded here (Michael condition 2).
+from .probe_manifest import is_critical  # noqa: E402
+
+
+def _previously_quarantined(probe: str | None) -> str | None:
+    """The latest earlier build whose evidence quarantined this probe, or None. Read-only; any error -> None."""
+    if not probe:
+        return None
+    lookup = _QUARANTINE_HISTORY
+    try:
+        return lookup(probe) if callable(lookup) else None
+    except Exception:
+        return None
+
+
+# Set by the worker to a read-only lookup over build_jobs.evidence_json (tests set a function directly).
+_QUARANTINE_HISTORY = None
 
 
 def install_review_request(engine, prompt: str) -> bool:
@@ -74,6 +88,7 @@ class ProductReviewExecutor:
         self.gate_waste_calls = 0
         self._spend_at_review: list[tuple[Decimal, int]] = []
         self.canon = None
+        self.escalate: str | None = None
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
@@ -117,13 +132,20 @@ class ProductReviewExecutor:
         for f in static:
             key = (f['skill'], f['problem'], f.get('anchor'))
             if f['severity'] == 'blocking' and f.get('anchor') and key in repeated:
-                critical = f['skill'] in CRITICAL_GATES
+                critical = is_critical(f.get('probe'))
                 note = ('same static finding and identical DOM node in three consecutive rounds: the gate is suspected '
                         'of judging the wrong artefact')
                 f = {**f, 'severity': 'advisory', 'quarantined': note, 'classification': 'probe_bug', 'critical': critical}
                 if not any(q['skill'] == f['skill'] and q['problem'] == f['problem'] for q in self.quarantined):
+                    # Michael condition 5: a probe quarantined in an EARLIER build of this system is not chance --
+                    # the build stops for a human instead of counting three rounds again.
+                    repeat = _previously_quarantined(f.get('probe'))
                     self.quarantined.append({'skill': f['skill'], 'problem': f['problem'], 'anchor': f.get('anchor'),
-                                             'round': len(self.reviews) + 1, 'critical': critical})
+                                             'probe': f.get('probe'), 'round': len(self.reviews) + 1,
+                                             'critical': critical, 'repeat_quarantine': repeat})
+                    if repeat:
+                        self.escalate = (f"probe {f.get('probe')} quarantined again (also in build {repeat}): "
+                                         'the gate is broken; stopping for a human')
                     self.gate_waste_rounds += 2
                     # Measured, not estimated: spend and calls between the first repeat and now (the two wasted rounds).
                     if len(self._spend_at_review) >= 2:
@@ -222,6 +244,9 @@ class ProductReviewExecutor:
                              'alongside': others_failed, 'canon_hash': getattr(self.canon, 'hash', None),
                              'judged': 'served page' if self._served() else 'repository files',
                              'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
+        if self.escalate:
+            from .build_control import GateEscalation
+            raise GateEscalation(self.escalate)
         if not blocking or not enforce:
             return report
         failures = tuple(AcceptanceFailure(REVIEW_FAILURE_ID, f"QA review ({f['skill']}): {f['problem']}",
