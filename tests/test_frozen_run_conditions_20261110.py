@@ -32,7 +32,8 @@ class ManifestIsTheLaw(unittest.TestCase):
             self.assertEqual(PROBES[name]['skill'], skill, name)
 
     def test_source_readers_are_exactly_the_declared_six(self):
-        readers = sorted(n for n, p in PROBES.items() if p['reads_source'])
+        # probes behind a flag (site_auth_v2) are not part of the baseline set
+        readers = sorted(n for n, p in PROBES.items() if p['reads_source'] and not p.get('flag'))
         self.assertEqual(len(readers), 6, readers)              # 5 code checks + the quality gate's secret scan
         self.assertIn('quality_gate.secret_scan', readers)
         for name, (check, _) in self.checks().items():

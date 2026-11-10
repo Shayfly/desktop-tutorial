@@ -30,6 +30,8 @@ PROBES: dict[str, dict] = {
                                  'reads_source': 'innerHTML with interpolation is a script-level XSS pattern'},
     '_sql_string_formatting': {'skill': 'skill.security_basics', 'critical': False,
                                'reads_source': 'SQL built with f-strings/format is server code'},
+    '_auth_source_rules': {'skill': 'skill.site_auth', 'critical': True, 'flag': 'site_auth_v2',
+                           'reads_source': 'password hashing and credentials in logs/URLs are server code'},
     # ---- outside skills_runtime ----
     'quality_gate.secret_scan': {'skill': 'quality_gate', 'critical': False,
                                  'reads_source': 'a hard-coded key is in source files, never in the served page'},

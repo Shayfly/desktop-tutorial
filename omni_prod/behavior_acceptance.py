@@ -33,6 +33,12 @@ from .sandbox_script import staged_script
 
 BEHAVIOR_FAILURE_ID = 'BEHAVIOR'
 _RUNNER_SOURCE = (Path(__file__).with_name('web_saas_acceptance.py')).read_text(encoding='utf-8')
+# Flag site_auth_v2 (read in omni_prod.feature_flags only): the hardening checks are APPENDED to the runner and the
+# script builds the hardened runner. With the flag off both are the baseline bytes.
+from .feature_flags import SITE_AUTH_V2 as _SITE_AUTH_V2  # noqa: E402
+if _SITE_AUTH_V2:
+    _RUNNER_SOURCE = _RUNNER_SOURCE + '\n\n' + (Path(__file__).with_name('web_saas_auth_hardening.py')).read_text(
+        encoding='utf-8')
 
 PLAN_SHAPE = (
     'The behavioural acceptance plan lives in .omni/project.json under "web_saas_acceptance": '
@@ -79,6 +85,8 @@ except Exception:
 report["server_log_tail"] = out.decode("utf-8", "replace")[-1500:]
 print("BEHAVIOR-ACCEPTANCE " + json.dumps(report, ensure_ascii=False))
 '''
+if _SITE_AUTH_V2:
+    _SCRIPT = _SCRIPT.replace('mod.WebSaaSAcceptanceRunner(', 'mod.HardenedAcceptanceRunner(')
 
 
 def find_in_chain(executor, cls):

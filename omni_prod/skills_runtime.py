@@ -836,10 +836,73 @@ CODE_STRUCTURE = Skill(
     checklist=('No file is so large that it cannot be reviewed whole; rules live in pure functions.',),
 )
 
+@reads_source('password hashing and secrets in logs/URLs are server code; the served page never shows them')
+def _auth_source_rules(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.site_auth (flag site_auth_v2): a product with sign-in hashes passwords with a memory-hard KDF and never
+    puts a password or token in a log line or a URL."""
+    out = []
+    files = {p: t for p, t in _text_files(repository).items() if p.endswith('.py') and not p.startswith('tests/')}
+    signin = any(re.search(r'password', t, re.I) and re.search(r'/(?:auth/)?(?:login|signin|signup|register)', t)
+                 for t in files.values())
+    if not signin:
+        return out
+    joined = '\n'.join(files.values())
+    if not re.search(r'hashlib\.scrypt\(|argon2', joined):
+        weak = re.search(r'hashlib\.(?:md5|sha1|sha256|sha512)\([^)]*password', joined, re.I)
+        out.append(StaticFinding('skill.site_auth', 'blocking', '(server code)',
+                                 'passwords are not hashed with a memory-hard KDF' + (' (a plain hash is used)' if weak else ''),
+                                 'hash with hashlib.scrypt(password, salt=os.urandom(16), n=2**14, r=8, p=5, dklen=32) '
+                                 'and compare with hmac.compare_digest'))
+    for path, text in files.items():
+        for n, line in enumerate(text.splitlines(), 1):
+            if re.search(r'(?:print|log(?:ger)?\.\w+|logging\.\w+)\([^)]*\b(password|token|sid)\b', line, re.I):
+                out.append(StaticFinding('skill.site_auth', 'blocking', f'{path}:{n}',
+                                         'a password or session token is written to a log', 'never log credentials'))
+            if re.search(r'[?&](password|token)=', line, re.I):
+                out.append(StaticFinding('skill.site_auth', 'blocking', f'{path}:{n}',
+                                         'a password or token travels in a URL', 'send it in the POST body only'))
+    return out
+
+
+# Work order 001 (Michael 2026-11-10), mapped to this codebase: hardened sign-in for every product with accounts.
+# Argon2id needs a third-party package and the preview runtime is stdlib-only (founder decision 2026-10-07 #25), so
+# the KDF is scrypt with OWASP's equal-strength profile (n=2**14, r=8, p=5, 16 MiB) until that decision changes.
+SITE_AUTH = Skill(
+    key='skill.site_auth', version='1',
+    purpose='Sign-in that cannot embarrass the customer: passwords, sessions and limits done the safe way.',
+    boundaries='Products with user accounts; content-only and no-login products have no sign-in at all.',
+    roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
+    guidance=(
+        'Sign-in (only when the product has accounts): the e-mail is the identity, stored lower-cased and unique. '
+        'Passwords: hashlib.scrypt(password.encode(), salt=os.urandom(16), n=2**14, r=8, p=5, dklen=32), store salt '
+        'and hash, compare with hmac.compare_digest; never store or log the password. Sessions: an opaque token from '
+        'secrets.token_urlsafe(32), stored only as sha256(token); cookie "__Host-sid=<token>; HttpOnly; Secure; '
+        'SameSite=Lax; Path=/" with no Domain, valid 30 days; on every login issue a NEW token and delete the old '
+        'one (rotation); changing the password deletes all of that user\'s sessions. Endpoints: POST /auth/signup '
+        '(201 + session; 400 bad input; 409 e-mail exists), POST /auth/login (200 + session; 401), POST /auth/logout '
+        '(204), GET /auth/me (200 or 401), POST /auth/reset/request (always 202, even for an unknown e-mail -- never '
+        'reveal who is registered; no e-mail is sent: a stub), POST /auth/reset/confirm (200; 400/401). One error '
+        'text for a wrong e-mail or a wrong password ("אימייל או סיסמה שגויים" in Hebrew). Rate limits in memory: '
+        'at most 5 requests per minute per client IP and 20 per hour per account on signup, login and reset/*; the '
+        'next one answers 429 with a Retry-After header. No password or token in a URL or a log line. The sign-in '
+        'form: every field has a visible <label>, an error message element referenced by the field\'s '
+        'aria-describedby, focus moves to the first wrong field, and the form fits 320px wide at 140% zoom.'),
+    checklist=('Passwords hashed with scrypt (or Argon2id) and compared in constant time; no credential in logs or URLs.',
+               'Session cookie is __Host-sid with HttpOnly, Secure, SameSite=Lax, Path=/; a new token on every login.',
+               'The 6th login attempt within a minute from one IP answers 429; wrong e-mail and wrong password give the '
+               'same error.',
+               'The sign-in form has labels, aria-describedby errors, focus on the wrong field, and fits 320px at 140%.'),
+    static_checks=(_auth_source_rules,),
+)
+
 WEB_SKILLS: tuple[Skill, ...] = (REQUEST_FIDELITY, FORM_VALIDATION, UI_STATES, TEXT_LOCALE, DATA_INTEGRITY, VISUAL_DESIGN,
                                    SPEC_PRECISION, ACCEPTANCE_PLAN, TEST_DESIGN, REPAIR_METHOD, SECURITY_BASICS,
                                    API_DESIGN, DATA_MODEL, ERROR_RESILIENCE, ACCESSIBILITY, PERFORMANCE_BASICS,
                                    COPY_QUALITY, LANDING_CONVERSION, GAME_2D, CODE_STRUCTURE)
+# The flag is read in omni_prod/feature_flags.py only; with it off WEB_SKILLS is exactly the baseline tuple.
+from .feature_flags import SITE_AUTH_V2 as _SITE_AUTH_V2  # noqa: E402
+if _SITE_AUTH_V2:
+    WEB_SKILLS = WEB_SKILLS + (SITE_AUTH,)
 
 
 def skills_for(role: str, skills: tuple[Skill, ...] = WEB_SKILLS) -> tuple[Skill, ...]:
