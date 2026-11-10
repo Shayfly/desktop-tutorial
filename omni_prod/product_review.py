@@ -49,13 +49,51 @@ class ProductReviewExecutor:
         self._max_reviews = max_reviews
         self._request = request_text
         self.reviews: list[dict] = []
+        # Michael 2026-11-10 §4: a static gate that repeats the same finding in three consecutive rounds is suspected
+        # of judging the wrong artefact. It is quarantined: reported as advisory with the reason, and the rounds it
+        # cost are counted as gate waste in the evidence.
+        self.quarantined: list[dict] = []
+        self.gate_waste_rounds = 0
+        self.canon = None
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
 
     def _context(self, spec) -> dict:
         text = ' '.join(str(x) for x in (self._request, getattr(spec, 'title', ''), getattr(spec, 'summary', '')))
-        return {'request': text}
+        ctx = {'request': text}
+        # The page the product SERVES (preview smoke, same round), so no gate judges a string inside page.py.
+        from .behavior_acceptance import find_in_chain
+        from .preview_smoke import PreviewReadyExecutor
+        preview = find_in_chain(self._inner, PreviewReadyExecutor)
+        pages = getattr(preview, 'last_pages', None) if preview is not None else None
+        if isinstance(pages, dict):
+            ctx['rendered_pages'] = pages
+        if self.canon is None:
+            from .fact_canon import build_canon
+            self.canon = build_canon(self._request or text)
+        ctx['canon'] = self.canon
+        return ctx
+
+    def _quarantine(self, static: list[dict]) -> list[dict]:
+        # One repeat can be a repair that missed; the SAME static finding in three consecutive rounds is a gate that
+        # does not see the product (Michael: "a third probe_bug repair -> stop, the gate is broken").
+        if len(self.reviews) < 2:
+            return static
+        def blocking_static(review):
+            return {(f['skill'], f['problem']) for f in review.get('findings', ())
+                    if f.get('source') == 'static' and f.get('severity') == 'blocking'}
+        repeated = blocking_static(self.reviews[-1]) & blocking_static(self.reviews[-2])
+        out = []
+        for f in static:
+            if f['severity'] == 'blocking' and (f['skill'], f['problem']) in repeated:
+                note = 'same static finding in three consecutive rounds: the gate is suspected of judging the wrong artefact'
+                f = {**f, 'severity': 'advisory', 'quarantined': note, 'classification': 'probe_bug'}
+                if not any(q['skill'] == f['skill'] and q['problem'] == f['problem'] for q in self.quarantined):
+                    self.quarantined.append({'skill': f['skill'], 'problem': f['problem'], 'round': len(self.reviews) + 1})
+                    self.gate_waste_rounds += 2
+            out.append(f)
+        return out
 
     def _llm_findings(self, repository: dict, spec) -> tuple[list[dict], dict]:
         if self._gateway is None:
@@ -98,6 +136,12 @@ class ProductReviewExecutor:
     # (same skill and file), or concerns security or data integrity; anything else new becomes advisory.
     _ALWAYS_BLOCKING = frozenset({'skill.security_basics', 'skill.data_integrity'})
 
+    def _served(self) -> bool:
+        from .behavior_acceptance import find_in_chain
+        from .preview_smoke import PreviewReadyExecutor
+        preview = find_in_chain(self._inner, PreviewReadyExecutor)
+        return bool(preview is not None and getattr(preview, 'last_pages', None))
+
     def _previous_blocking(self) -> list:
         prior = [f for r in self.reviews for f in r.get('findings', ())
                  if f.get('severity') == 'blocking' and f.get('source') == 'reviewer']
@@ -129,13 +173,14 @@ class ProductReviewExecutor:
         """The review on a report in which the build passed. `max_reviews` bounds the review ROUNDS that block: a round
         counts only when the review is what still blocks (others_failed=False), exactly as when it ran last. While
         other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
-        findings = [f.to_dict() for f in static_findings(repository, self._context(spec))]
+        findings = self._quarantine([f.to_dict() for f in static_findings(repository, self._context(spec))])
         llm, meta = self._llm_findings(repository, spec)
         findings += self._converge(llm)
         blocking = [f for f in findings if f['severity'] == 'blocking']
         enforce = others_failed or len([r for r in self.reviews if r['enforced'] and not r.get('alongside')]) < self._max_reviews
         self.reviews.append({'round': len(self.reviews) + 1, 'enforced': bool(blocking) and enforce, **meta,
-                             'alongside': others_failed,
+                             'alongside': others_failed, 'canon_hash': getattr(self.canon, 'hash', None),
+                             'judged': 'served page' if self._served() else 'repository files',
                              'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
         if not blocking or not enforce:
             return report

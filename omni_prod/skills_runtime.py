@@ -70,6 +70,28 @@ def _hebrew(context: dict) -> bool:
     return bool(re.search(r'[֐-׿]', context.get('request', '') or ''))
 
 
+def _pages(repository: dict, context: dict) -> dict[str, str]:
+    """The pages a gate judges (Michael 2026-11-10: "no gate reads source code; all run against the served page").
+
+    When the preview smoke captured what GET / serves (context['rendered_pages']), that is the only page judged: a
+    page built inside a Python string or a template is seen as the user sees it (bld_1721136c: dir="rtl" was in the
+    rendered page, the gate read page.py and burned two repair rounds). Without a rendered page -- unit tests, the
+    quality gate before any sandbox run -- only real .html/.htm files count; HTML inside .py/.js is never judged,
+    because a string in code is not the page."""
+    rendered = context.get('rendered_pages')
+    if isinstance(rendered, dict) and isinstance(rendered.get('/'), str) and rendered['/'].strip():
+        return {'(served page /)': rendered['/']}
+    return {p: c for p, c in _text_files(repository).items() if p.lower().endswith(('.html', '.htm'))}
+
+
+def _page_css(repository: dict, context: dict, pages: dict) -> str:
+    css = ' '.join(re.findall(r'<style[^>]*>(.*?)</style>', ' '.join(pages.values()), re.S | re.I))
+    rendered = context.get('rendered_pages')
+    if isinstance(rendered, dict) and isinstance(rendered.get('assets'), str):
+        return css + ' ' + rendered['assets']
+    return css + ' ' + ' '.join(c for p, c in _text_files(repository).items() if p.lower().endswith('.css'))
+
+
 # ---------------------------------------------------------------- static checks
 
 def _no_browser_dialogs(repository: dict, context: dict) -> list[StaticFinding]:
@@ -134,9 +156,12 @@ def _escape_once(repository: dict, context: dict) -> list[StaticFinding]:
 def _rtl_for_hebrew(repository: dict, context: dict) -> list[StaticFinding]:
     if not _hebrew(context):
         return []
-    pages = [c for p, c in _text_files(repository).items() if '<html' in c.lower()]
-    if pages and not any(re.search(r'dir\s*=\s*["\']rtl', c, re.I) for c in pages):
-        return [StaticFinding('skill.text_locale', 'blocking', '(html page)',
+    pages = _pages(repository, context)
+    # A page that sets dir itself (an English version with dir="ltr") made its choice; one with no dir at all did not.
+    missing = [p for p, c in pages.items() if '<html' in c.lower() and not re.search(r'dir\s*=\s*["\']rtl', c, re.I)
+               and not re.search(r'<html\b[^>]*\bdir\s*=', c, re.I)]
+    if missing:
+        return [StaticFinding('skill.text_locale', 'blocking', missing[0],
                               'Hebrew product without dir="rtl" on the page',
                               'set <html lang="he" dir="rtl">')]
     return []
@@ -162,12 +187,10 @@ def css_declaration_count(css: str) -> int:
 def _styled_page(repository: dict, context: dict) -> list[StaticFinding]:
     """Founder 2026-10-09: "no colour, not a real site that looks good". The
     page must carry a real design system, not the browser's default look."""
-    files = _text_files(repository)
-    pages = [c for c in files.values() if '<html' in c.lower()]
+    pages = {p: c for p, c in _pages(repository, context).items() if '<html' in c.lower()}
     if not pages:
         return []
-    css = ' '.join(re.findall(r'<style[^>]*>(.*?)</style>', ' '.join(pages), re.S | re.I))
-    css += ' '.join(c for p, c in files.items() if p.lower().endswith('.css'))
+    css = _page_css(repository, context, pages)
     declarations = css_declaration_count(css)
     problems = []
     if declarations < 40:
@@ -207,65 +230,95 @@ def _sql_string_formatting(repository: dict, context: dict) -> list[StaticFindin
     return out
 
 
-_PLACEHOLDER = re.compile(r'lorem ipsum|dolor sit amet|\bItem [0-9]\b|Your Company|Company Name', re.I)
+# 2026-11-10 (mutation fixture): "[שם העסק]" / "[כתובת]" bracket placeholders in Hebrew were not caught.
+_PLACEHOLDER = re.compile(r'lorem ipsum|dolor sit amet|\bItem [0-9]\b|Your Company|Company Name|'
+                          r'\[(?:שם|כתובת|טלפון|מייל|תיאור|לוגו|שעות|מחיר)[^\]]{0,30}\]|'
+                          r'\[(?:name|address|phone|email|description|logo|hours|price)[^\]]{0,30}\]|TODO:|TBD\b', re.I)
 
 
 def _placeholder_copy(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.copy_quality: template text left in what the user sees."""
     out = []
-    for path, text in _text_files(repository).items():
-        if path.lower().endswith(('.html', '.htm')) or '<html' in text.lower():
-            m = _PLACEHOLDER.search(text)
-            if m:
-                out.append(StaticFinding('skill.copy_quality', 'advisory', path,
-                                         f'placeholder text in the product: {m.group(0)!r}',
-                                         'write the real text for this business, or a clearly marked owner field'))
+    for path, text in _pages(repository, context).items():
+        m = _PLACEHOLDER.search(text)
+        if m:
+            out.append(StaticFinding('skill.copy_quality', 'advisory', path,
+                                     f'placeholder text in the product: {m.group(0)!r}',
+                                     'write the real text for this business, or a clearly marked owner field'))
     return out
 
 
-_PHONE = re.compile(r'(?<![\d])(?:\+?972[\s-]?|0)(?:5\d|[2-489]|7\d)[\s-]?\d{3}[\s-]?\d{4}(?![\d])')
-_STREET = re.compile(r'(?:רחוב|רח\'|שדרות|שד\')\s+((?:[א-ת"\'-]+\s+){0,2}?[א-ת"\'-]+)\s+\d{1,4}\b')
+_PHONE = re.compile(r'(?<![\d])(?:\+?972[\s\-.]?|0)(?:5\d|7\d|[2-489])[\s\-.]?\d{3}[\s\-.]?\d{4}(?![\d])')
+_STREET = re.compile(r"(?:רחוב|רח['\u05F3]|שדרות|שד['\u05F3]|דרך|סמטת|כיכר)\s+(?:[\u0590-\u05FF\"'\u05F3\u05F4-]+\s+){0,3}?\d{1,4}\b")
+_TESTIMONIAL_HEAD = re.compile(r'<h[1-4][^>]*>[^<]*(?:המלצות|ביקורות|לקוחות מספרים|מה אומרים|testimonials|reviews|what (?:our )?customers say)[^<]*</h[1-4]>', re.I)
+_TESTIMONIAL_LABEL = re.compile(r'לדוגמה|להמחשה|דוגמה בלבד|sample|illustrative|example', re.I)
 
 
-def _phone_digits(text: str) -> str:
-    d = re.sub(r'\D', '', text)
-    return '0' + d[3:] if d.startswith('972') else d
+def _canon(context: dict):
+    from .fact_canon import Canon, build_canon
+    given = context.get('canon')
+    if isinstance(given, Canon):
+        return given
+    if isinstance(given, dict):
+        return Canon.from_dict(given)
+    return build_canon(context.get('request', '') or '')
 
 
 def _visible_and_links(text: str) -> str:
     """Page text plus tel:/wa.me targets; scripts and styles dropped, other attributes ignored."""
     text = re.sub(r'<(script|style)\b.*?</\1>', ' ', text, flags=re.S | re.I)
-    links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s-]{7,})', text, re.I))
+    links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s\-.]{7,})', text, re.I))
     return re.sub(r'<[^>]+>', ' ', text) + ' ' + links
 
 
 def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
-    """skill.copy_quality, CEO 2026-11-09: the cafe page showed 050-1234567 and "רחוב הנביאים 12" -- neither was in the
-    request. A phone number or street on the public page must come from the request (digits compared, 972 = 0)."""
-    request = context.get('request', '') or ''
-    known = {_phone_digits(m.group(0)) for m in _PHONE.finditer(request)}
+    """skill.copy_quality truth gate (CEO 2026-11-09, Michael 2026-11-10): the served page is compared with the fact
+    canon of the approved request, not with a guess. A phone/WhatsApp number (E.164) or a street address (normalised)
+    on the page that is not in the canon is invented. Testimonials need a canon source or an "לדוגמה" label."""
+    from .fact_canon import norm_address, phone_e164
+    canon = _canon(context)
+    phones, streets = canon.values('phone'), canon.values('address')
     out = []
-    for path, text in _text_files(repository).items():
-        if not (path.lower().endswith(('.html', '.htm')) or '<html' in text.lower()):
-            continue
+    for path, text in _pages(repository, context).items():
         page = _visible_and_links(text)
-        phones = sorted({_phone_digits(m.group(0)) for m in _PHONE.finditer(page)} - known)
-        streets = sorted({m.group(0).strip() for m in _STREET.finditer(page) if m.group(1) not in request})
-        if phones or streets:
-            what = ', '.join(phones[:3] + streets[:3])
+        bad_phones = sorted({phone_e164(m.group(0)) or m.group(0) for m in _PHONE.finditer(page)} - phones)
+        bad_streets = sorted({m.group(0).strip() for m in _STREET.finditer(page)
+                              if not any(norm_address(m.group(0)) in s or s in norm_address(m.group(0)) for s in streets)})
+        if bad_phones or bad_streets:
+            what = ', '.join(bad_phones[:3] + bad_streets[:3])
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,
-                                     f'contact details the request did not give (invented): {what}',
-                                     'remove them; show only the phone/WhatsApp number and address the request gives, '
-                                     'and leave a contact line or button out when it has no real value'))
+                                     f'contact details not in the approved request (invented): {what}',
+                                     'show only the phone/WhatsApp number and address the request gives '
+                                     f'(canon {canon.hash}); leave a contact line or button out when it has no real value'))
+        head = _TESTIMONIAL_HEAD.search(text)
+        if head and not canon.values('review'):
+            section = text[head.end():head.end() + 4000]
+            quotes = len(re.findall(r'<blockquote|[“"„][^”"]{12,}[”"]', section))
+            if quotes >= 2 and not _TESTIMONIAL_LABEL.search(section) and not _TESTIMONIAL_LABEL.search(head.group(0)):
+                out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                         'testimonials with no source in the approved request and no "לדוגמה" label',
+                                         'label the section "(לדוגמה)" / "sample reviews", or remove it until the owner '
+                                         'provides real reviews'))
+    return out
+
+
+def _images_without_alt(repository: dict, context: dict) -> list[StaticFinding]:
+    """skill.accessibility: a content <img> with no alt (mutation fixture 2026-11-10 found no gate for it)."""
+    out = []
+    for path, text in _pages(repository, context).items():
+        imgs = re.findall(r'<img\b[^>]*>', text, re.I)
+        missing = [i for i in imgs if not re.search(r'\balt\s*=', i, re.I) and 'aria-hidden' not in i and 'role="presentation"' not in i]
+        if missing:
+            out.append(StaticFinding('skill.accessibility', 'advisory', path,
+                                     f'{len(missing)} image(s) without alt text',
+                                     'give every content image an alt that says what it shows; alt="" only for decoration'))
     return out
 
 
 def _unlabelled_inputs(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.accessibility: an <input>/<select>/<textarea> with an id that no <label for> names."""
     out = []
-    for path, text in _text_files(repository).items():
-        if '<html' not in text.lower() and not path.lower().endswith(('.html', '.htm')):
-            continue
+    for path, text in _pages(repository, context).items():
         ids = re.findall(r'<(?:input|select|textarea)\b(?![^>]*type=["\'](?:hidden|submit|button)["\'])[^>]*\bid=["\']([^"\']+)', text, re.I)
         labelled = set(re.findall(r'<label\b[^>]*\bfor=["\']([^"\']+)', text, re.I))
         missing = [i for i in ids if i not in labelled and f'aria-label' not in text.split(f'id="{i}"')[0][-200:]]
@@ -584,7 +637,7 @@ ACCESSIBILITY = Skill(
         'survives 200% zoom and 320px width without horizontal page scroll.'),
     checklist=('Every input has a label; status messages are announced (role="status").',
                'All actions are reachable and usable with the keyboard; focus is visible.'),
-    static_checks=(_unlabelled_inputs,),
+    static_checks=(_unlabelled_inputs, _images_without_alt),
 )
 
 PERFORMANCE_BASICS = Skill(
@@ -615,7 +668,8 @@ COPY_QUALITY = Skill(
         'where a detail is missing, leave that line out of the public page (no "[כתובת הסטודיו]" placeholders, no '
         'invented facts); if the owner must fill it, put it in an owner-only settings field. Never invent a phone or '
         'WhatsApp number, a street address, an e-mail, or testimonials with customer names: show only those the '
-        'request gives; without a number, a WhatsApp/phone button is left out (CEO 2026-11-09).'),
+        'request gives; without a number, a WhatsApp/phone button is left out (CEO 2026-11-09). Testimonials: only '
+        'those the request gives; sample ones carry a visible "(לדוגמה)" label.'),
     checklist=('No placeholder, English leftover or invented business fact appears in the product.',
                'No phone number, address or named testimonial that the request did not give.',
                'Buttons name their outcome; errors say how to fix the problem.'),
