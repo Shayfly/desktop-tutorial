@@ -879,23 +879,32 @@ SITE_AUTH = Skill(
     roles=(ROLE_GENERATOR, ROLE_REPAIR, ROLE_EVOLUTION, ROLE_REVIEWER),
     guidance=(
         'Sign-in (only when the product has accounts): the e-mail is the identity, stored lower-cased and unique. '
-        'Passwords: hashlib.scrypt(password.encode(), salt=os.urandom(16), n=2**14, r=8, p=5, dklen=32), store salt '
-        'and hash, compare with hmac.compare_digest; never store or log the password. Sessions: an opaque token from '
+        'Passwords: salt=os.urandom(16), hashlib.scrypt(password.encode(), salt=salt, n=2**16, r=8, p=1, dklen=64, '
+        'maxmem=128*1024*1024), stored as one string "scrypt$65536$8$1$<salt hex>$<hash hex>"; verify by reading n, r, '
+        'p and the salt FROM that string and compare with hmac.compare_digest; never store or log the password. '
+        'Sessions: an opaque token from '
         'secrets.token_urlsafe(32), stored only as sha256(token); cookie "__Host-sid=<token>; HttpOnly; Secure; '
         'SameSite=Lax; Path=/" with no Domain, valid 30 days; on every login issue a NEW token and delete the old '
-        'one (rotation); changing the password deletes all of that user\'s sessions. Endpoints: POST /auth/signup '
-        '(201 + session; 400 bad input; 409 e-mail exists), POST /auth/login (200 + session; 401), POST /auth/logout '
-        '(204), GET /auth/me (200 or 401), POST /auth/reset/request (always 202, even for an unknown e-mail -- never '
+        'one (rotation); changing the password deletes all of that user\'s sessions; logout DELETES the session row on '
+        'the server (clearing the cookie is not enough: the old token must answer 401). Endpoints: POST /auth/signup '
+        '(201 + session; 400 bad input; 409 e-mail exists -- a documented choice: without e-mail sending, "200 always" '
+        'would be a lie; the privacy note says sign-up reveals whether an account exists), POST /auth/login (200 + '
+        'session; 401), POST /auth/logout (204), GET /auth/me (200 or 401), POST /auth/reset/request (always 202, even for an unknown e-mail -- never '
         'reveal who is registered; no e-mail is sent: a stub), POST /auth/reset/confirm (200; 400/401). One error '
         'text for a wrong e-mail or a wrong password ("אימייל או סיסמה שגויים" in Hebrew). Rate limits in memory: '
-        'at most 5 requests per minute per client IP and 20 per hour per account on signup, login and reset/*; the '
-        'next one answers 429 with a Retry-After header. No password or token in a URL or a log line. The sign-in '
+        'at most 5 requests per minute per client and 20 per hour per account on signup, login and reset/*; the '
+        'next one answers 429 with a Retry-After header. The client is the first X-Forwarded-For address ONLY when the '
+        'direct peer is a trusted proxy (TRUSTED_PROXIES from the environment, default "127.0.0.1,::1" -- the platform '
+        'proxy); otherwise the peer address. Behind the proxy every visitor shares its IP, so counting the peer would '
+        'block everyone at once. No password or token in a URL or a log line. The sign-in '
         'form: every field has a visible <label>, an error message element referenced by the field\'s '
         'aria-describedby, focus moves to the first wrong field, and the form fits 320px wide at 140% zoom.'),
-    checklist=('Passwords hashed with scrypt (or Argon2id) and compared in constant time; no credential in logs or URLs.',
-               'Session cookie is __Host-sid with HttpOnly, Secure, SameSite=Lax, Path=/; a new token on every login.',
-               'The 6th login attempt within a minute from one IP answers 429; wrong e-mail and wrong password give the '
-               'same error.',
+    checklist=('Passwords: scrypt n=2**16 r=8 p=1 dklen=64 stored as scrypt$65536$8$1$salt$hash (or Argon2id), '
+               'constant-time compare; no credential in logs or URLs.',
+               'Session cookie is __Host-sid with HttpOnly, Secure, SameSite=Lax, Path=/; a new token on every login; '
+               'logout deletes the session on the server.',
+               'The 6th login attempt within a minute from one client answers 429, counted per client behind the '
+               'trusted proxy; wrong e-mail and wrong password give the same error.',
                'The sign-in form has labels, aria-describedby errors, focus on the wrong field, and fits 320px at 140%.'),
     static_checks=(_auth_source_rules,),
 )

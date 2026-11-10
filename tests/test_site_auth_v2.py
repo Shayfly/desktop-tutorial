@@ -58,11 +58,21 @@ class Identity(unittest.TestCase):
 
 
 # ------------------------------------------------------------------ a real product with sign-in (stdlib only)
-def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True):
+def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True, trust_xff=True, server_logout=True):
     users, sessions, hits = {}, {}, {}
+    trusted = {'127.0.0.1', '::1'}
 
-    def kdf(pw, salt):
-        return hashlib.scrypt(pw.encode(), salt=salt, n=2 ** 14, r=8, p=5, dklen=32)
+    def hash_password(pw):
+        salt = os.urandom(16)
+        h = hashlib.scrypt(pw.encode(), salt=salt, n=2 ** 16, r=8, p=1, dklen=64, maxmem=128 * 1024 * 1024)
+        return f'scrypt$65536$8$1${salt.hex()}${h.hex()}'
+
+    def verify(pw, stored):
+        # the parameters are read FROM the stored string, never from the code (Michael fix 5)
+        algo, n, r, p, salt, h = stored.split('$')
+        got = hashlib.scrypt(pw.encode(), salt=bytes.fromhex(salt), n=int(n), r=int(r), p=int(p),
+                             dklen=len(bytes.fromhex(h)), maxmem=128 * 1024 * 1024)
+        return algo == 'scrypt' and hmac.compare_digest(got, bytes.fromhex(h))
 
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -83,10 +93,15 @@ def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True):
             n = int(self.headers.get('Content-Length') or 0)
             return json.loads(self.rfile.read(n) or b'{}')
 
+        def _client(self):
+            peer = self.client_address[0]
+            fwd = (self.headers.get('X-Forwarded-For') or '').split(',')[0].strip()
+            return fwd if (trust_xff and fwd and peer in trusted) else peer
+
         def _limited(self):
             if not rate_limit:
                 return False
-            ip = self.client_address[0]
+            ip = self._client()
             now = time.time()
             hits[ip] = [t for t in hits.get(ip, []) if now - t < 60] + [now]
             return len(hits[ip]) > 5
@@ -104,8 +119,7 @@ def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True):
                 email = str(body.get('email', '')).lower()
                 if email in users:
                     return self._json(409, {'error': 'exists'})
-                salt = os.urandom(16)
-                users[email] = (salt, kdf(str(body.get('password', '')), salt))
+                users[email] = hash_password(str(body.get('password', '')))
                 return self._json(201, {'ok': True}, self._session(email))
             if self.path == '/auth/login':
                 if self._limited():
@@ -114,10 +128,25 @@ def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True):
                 rec = users.get(email)
                 if rec is None:
                     return self._json(401, {'error': 'אימייל או סיסמה שגויים' if uniform else 'אין משתמש כזה'})
-                if not hmac.compare_digest(kdf(str(body.get('password', '')), rec[0]), rec[1]):
+                if not verify(str(body.get('password', '')), rec):
                     return self._json(401, {'error': 'אימייל או סיסמה שגויים'})
                 return self._json(200, {'ok': True}, self._session(email))
+            if self.path == '/auth/logout':
+                sid = self._sid()
+                if server_logout:
+                    sessions.pop(sid, None)
+                self.send_response(204)
+                self.send_header('Set-Cookie', '__Host-sid=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0')
+                self.end_headers()
+                return
             self._json(404, {'error': 'not found'})
+
+        def _sid(self):
+            for part in (self.headers.get('Cookie') or '').split(';'):
+                k, _, v = part.strip().partition('=')
+                if k == '__Host-sid':
+                    return v
+            return None
 
         def do_GET(self):
             sid = None
@@ -130,6 +159,7 @@ def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True):
             self._json(200, {'ok': True})
 
     server = ThreadingHTTPServer(('127.0.0.1', 0), H)
+    server.users, server.verify = users, verify
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
@@ -181,10 +211,71 @@ class HardenedAcceptance(unittest.TestCase):
         r = hardening(uniform=False)
         self.assertFalse(r['auth_uniform_error'][0])
 
+    def test_logout_that_only_clears_the_cookie_fails(self):
+        r = hardening(server_logout=False)
+        self.assertFalse(r['auth_logout_server_side'][0])
+        self.assertIn('401', r['auth_logout_server_side'][1])
+
+    def test_counting_the_proxy_instead_of_the_client_fails(self):
+        r = hardening(trust_xff=False)
+        self.assertFalse(r['auth_rate_limit_per_client'][0])
+
+    def test_the_stored_password_string_carries_its_parameters(self):
+        import re as _re
+        app = make_app()
+        try:
+            from omni_prod.web_saas_auth_hardening import HardenedSessionTransport
+            HardenedSessionTransport().request(method='POST', url=f'http://127.0.0.1:{app.server_port}/auth/signup',
+                                               json_body={'email': 'x@example.com', 'password': 'Correct-Horse-9'})
+            stored = app.users['x@example.com']
+            self.assertRegex(stored, r'^scrypt\$65536\$8\$1\$[0-9a-f]{32}\$[0-9a-f]{128}$')
+            self.assertTrue(app.verify('Correct-Horse-9', stored))
+            # verification follows the string: an older, weaker record still verifies with ITS parameters
+            salt = os.urandom(16)
+            old = 'scrypt$16384$8$1$' + salt.hex() + '$' + hashlib.scrypt(b'pw', salt=salt, n=16384, r=8, p=1, dklen=32).hex()
+            self.assertTrue(app.verify('pw', old))
+            self.assertFalse(app.verify('wrong', old))
+        finally:
+            app.shutdown()
+        from omni_prod.skills_runtime import SITE_AUTH
+        self.assertIn('scrypt$65536$8$1$<salt hex>$<hash hex>', SITE_AUTH.guidance)
+        self.assertTrue(_re.search(r'n=2\*\*16, r=8, p=1, dklen=64', SITE_AUTH.guidance))
+
+    def test_the_hardened_runner_keeps_the_base_floor(self):
+        """Michael fix 6: hardening adds checks, it never replaces the base runner's floor."""
+        from omni_prod.web_saas_acceptance import WebSaaSAcceptanceRunner
+        from omni_prod.web_saas_auth_hardening import HardenedAcceptanceRunner
+        contract = {'prompt': 'מערכת תורים עם התחברות ללקוחות ולמנהלת, לקוחה מבטלת ומעדכנת תור', 'roles': ['user', 'admin'],
+                    'infrastructure': []}
+        server = make_app()
+        try:
+            url = {'preview_url': f'http://127.0.0.1:{server.server_port}'}
+            base = WebSaaSAcceptanceRunner(build_contract=contract).verify(url, CONTRACT, PLAN)
+            hard = HardenedAcceptanceRunner(build_contract=contract).verify(url, CONTRACT, PLAN)
+        finally:
+            server.shutdown()
+        self.assertEqual(hard.missing_kinds, base.missing_kinds)
+        self.assertTrue(base.missing_kinds)                 # this plan only signs in: the floor still asks for more
+        self.assertEqual(hard.status, 'FAIL')
+        self.assertTrue(set(c.step_id for c in base.checks) <= set(c.step_id for c in hard.checks))
+
+    def test_secure_host_cookie_is_returned_on_loopback(self):
+        """__Host-/Secure on http://127.0.0.1: browsers treat loopback as secure; the checker does the same, so a
+        correct product does not fail on environment."""
+        app = make_app()
+        try:
+            from omni_prod.web_saas_auth_hardening import HardenedSessionTransport
+            t = HardenedSessionTransport()
+            base = f'http://127.0.0.1:{app.server_port}'
+            t.request(method='POST', url=base + '/auth/signup', json_body={'email': 'l@example.com', 'password': 'Pw-123456'})
+            self.assertEqual(t.request(method='GET', url=base + '/auth/me').status, 200)
+        finally:
+            app.shutdown()
+
     def test_no_rate_limit_fails(self):
         r = hardening(rate_limit=False)
         self.assertFalse(r['auth_rate_limit'][0])
-        self.assertIn('no 429', r['auth_rate_limit'][1])
+        self.assertIn('the 6th must answer 429', r['auth_rate_limit'][1])
 
     def test_a_plan_without_a_login_step_cannot_pass(self):
         from omni_prod.web_saas_auth_hardening import HardenedAcceptanceRunner
@@ -276,10 +367,17 @@ class SourceIdentity(unittest.TestCase):
         got = source_manifest()
         self.assertEqual(got['leaked_flag_only'], [], 'a flag-only name is used outside a flag block')
         self.assertEqual(set(got['files']), set(base['files']), 'the gate import closure changed')
+        self.assertEqual(set(got['data']), set(base['data']), 'the set of non-Python gate inputs changed')
         changed = sorted(p for p in got['files'] if got['files'][p] != base['files'][p])
-        print(f"::notice title=source identity::{len(got['files'])} files in the gate closure; changed vs "
-              f"{BASELINE_SHA[:7]} with the flag off: {len(changed)}")
+        changed_data = sorted(p for p in got['data'] if got['data'][p] != base['data'][p])
+        t = got['stripped_total']
+        print(f"::notice title=source identity::{len(got['files'])} Python files (AST) + {len(got['data'])} data inputs "
+              f"(bytes); changed vs {BASELINE_SHA[:7]} with the flag off: {len(changed)} + {len(changed_data)}")
+        print(f"::{'warning' if t['needs_human_review'] else 'notice'} title=stripped for the flag::{t['names']} "
+              f"flag-only names, {t['blocks']} blocks, {t['lines']} lines in {t['files']} files"
+              + (' -- large: review the flag-only code by eye' if t['needs_human_review'] else ''))
         self.assertEqual(changed, [], 'gate code differs from the baseline with the flag off')
+        self.assertEqual(changed_data, [], 'a non-Python gate input differs from the baseline')
 
     def test_the_closure_is_computed_not_listed(self):
         from omni_prod.pipeline_identity import closure
@@ -296,6 +394,52 @@ class SourceIdentity(unittest.TestCase):
 
     def test_no_flag_only_name_leaks_today(self):
         self.assertEqual(self.BASE['leaked_flag_only'], [])
+
+    def test_the_two_checks_cover_every_gate_input(self):
+        """Michael fix 1: the union of the AST identity and the byte identity covers every input of the gates."""
+        import ast as _ast
+        from omni_prod.pipeline_identity import ROOT, _DATA_EXT, _flag_only, _Strip
+        covered = set(self.BASE['files']) | set(self.BASE['data'])
+        uncovered = set()
+        for p in self.BASE['files']:
+            tree = _ast.parse((ROOT / p).read_text(encoding='utf-8'))
+            for node in _ast.walk(_Strip(_flag_only(tree)).visit(tree)):     # flag-off inputs
+                v = node.value if isinstance(node, _ast.Constant) else None
+                if isinstance(v, str) and v.endswith(_DATA_EXT + ('.py',)) and len(v) < 160 and '\n' not in v:
+                    for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / p).parent / v):
+                        if cand.is_file():
+                            rel = str(cand.resolve().relative_to(ROOT))
+                            if rel.startswith(('omni_prod/', '.github/', 'docs/', 'infra/')) and rel not in covered:
+                                uncovered.add(rel)
+                            break
+        self.assertEqual(sorted(uncovered), [], 'a gate input is covered by neither identity check')
+        self.assertIn('omni_prod/assets/app.js', self.BASE['data'])
+        self.assertIn('.github/workflows/gate-regression.yml', self.BASE['data'])
+
+    def test_flag_only_modules_are_outside_the_flag_off_closure(self):
+        # 2026-11-10: a file NAME inside a flag block pulled the flag-only module into the closure; it must not.
+        for module in ('omni_prod/web_saas_auth_hardening.py', 'omni_prod/auth_form_check.py', 'omni_prod/feature_flags.py'):
+            self.assertNotIn(module, self.BASE['files'])
+
+    def test_stripping_is_reported(self):
+        t = self.BASE['stripped_total']
+        self.assertEqual((t['names'], t['needs_human_review']), (2, False))
+        self.assertIn('omni_prod/skills_runtime.py', self.BASE['stripped'])
+        self.assertGreater(t['blocks'], 0)
+
+    def test_a_large_flag_only_rewrite_asks_for_a_human(self):
+        from omni_prod import pipeline_identity as pi
+        saved = pi.REVIEW_LINES
+        try:
+            pi.REVIEW_LINES = 10
+            self.assertTrue(pi.source_manifest()['stripped_total']['needs_human_review'])
+        finally:
+            pi.REVIEW_LINES = saved
+
+    def test_a_data_input_change_is_caught(self):
+        from omni_prod.pipeline_identity import ROOT, source_manifest
+        got = source_manifest(read_bytes=lambda p: (ROOT / p).read_bytes() + (b'x' if p.endswith('app.js') else b''))
+        self.assertNotEqual(got['data']['omni_prod/assets/app.js'], self.BASE['data']['omni_prod/assets/app.js'])
 
     def mutated(self, path, change):
         from omni_prod.pipeline_identity import ROOT, source_manifest

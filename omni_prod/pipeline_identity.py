@@ -101,6 +101,8 @@ def _flag_only(tree) -> set[str]:
 class _Strip(ast.NodeTransformer):
     def __init__(self, flag_only: set[str]):
         self.flag_only = flag_only
+        self.removed_blocks = 0          # Michael fix 2: what was removed is reported, never silent
+        self.removed_lines = 0
 
     def _keep(self, node) -> bool:
         if isinstance(node, ast.If) and _is_flag_test(node):
@@ -118,6 +120,10 @@ class _Strip(ast.NodeTransformer):
     def generic_visit(self, node):
         for field, value in ast.iter_fields(node):
             if isinstance(value, list) and value and isinstance(value[0], ast.stmt):
+                for n in value:
+                    if not self._keep(n):
+                        self.removed_blocks += 1
+                        self.removed_lines += (getattr(n, 'end_lineno', n.lineno) or n.lineno) - n.lineno + 1
                 kept = [self.visit(n) for n in value if self._keep(n)]
                 setattr(node, field, kept or [ast.Pass()])
             elif isinstance(value, ast.AST):
@@ -129,11 +135,14 @@ class _Strip(ast.NodeTransformer):
         return node
 
 
-def stripped(source: str) -> tuple[str, set[str], set[str]]:
+def stripped(source: str, stats: dict | None = None) -> tuple[str, set[str], set[str]]:
     """(AST dump with flag additions removed, flag-only names, names still referenced after stripping)."""
     tree = ast.parse(source)
     flag_only = _flag_only(tree)
-    tree = _Strip(flag_only).visit(tree)
+    strip = _Strip(flag_only)
+    tree = strip.visit(tree)
+    if stats is not None:
+        stats.update(blocks=strip.removed_blocks, lines=strip.removed_lines, names=len(flag_only))
     used = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | \
         {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
     return ast.dump(tree, include_attributes=False), flag_only, used
@@ -171,6 +180,24 @@ def gate_roots() -> list[str]:
     return sorted(set(freeze['gate_files']) | {'omni_prod/web_saas_acceptance.py', 'omni_prod/behavior_acceptance.py'})
 
 
+def _named_py(source: str, path: str) -> set[str]:
+    """Python files a module NAMES in a string literal (it reads them as text -- e.g. the runner source shipped into
+    the sandbox). They are gate inputs exactly like imports (the coverage test found four on day one)."""
+    out = set()
+    tree = ast.parse(source)
+    tree = _Strip(_flag_only(tree)).visit(tree)          # a name inside a flag block is not a flag-off input
+    for node in ast.walk(tree):
+        v = node.value if isinstance(node, ast.Constant) else None
+        if isinstance(v, str) and v.endswith('.py') and len(v) < 160 and '\n' not in v:
+            for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / path).parent / v):
+                if cand.is_file():
+                    rel = str(cand.resolve().relative_to(ROOT))
+                    if rel.startswith('omni_prod/'):
+                        out.add(rel)
+                    break
+    return out
+
+
 def closure(read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
     todo = [p for p in gate_roots() if p.endswith('.py')]
     seen: set[str] = set()
@@ -179,24 +206,59 @@ def closure(read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
         if p in seen:
             continue
         seen.add(p)
-        todo.extend(_imports(read(p), p) - seen)
+        src = read(p)
+        todo.extend((_imports(src, p) | _named_py(src, p)) - seen)
     return sorted(seen)
 
 
-def source_manifest(read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> dict:
-    """{path: sha256 of the stripped AST (Python) or of the bytes (other gate files)}, plus the flag-only names."""
-    files, flag_only, used = {}, {}, set()
-    for p in closure(read):
-        dump, only, refs = stripped(read(p))
+_DATA_EXT = ('.json', '.yaml', '.yml', '.txt', '.md', '.html', '.css', '.js', '.toml', '.csv', '.sql')
+# Above these, the flag-only part of a change is large enough that a person must read it (Michael fix 2).
+REVIEW_NAMES, REVIEW_LINES = 8, 250
+
+
+def data_inputs(py_files, read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
+    """Michael fix 1: every NON-Python input of the gates, so no input falls between the two identity checks:
+    the non-Python gate files, every file under omni_prod/ that is not Python (assets, catalogs, templates), and
+    every repo file a module of the closure names in a string literal (a catalog it opens, a workflow it reads)."""
+    out = {p for p in gate_roots() if not p.endswith('.py')}
+    for f in (ROOT / 'omni_prod').rglob('*'):
+        if f.is_file() and f.suffix != '.py' and '__pycache__' not in f.parts and f.suffix not in ('.pyc',):
+            out.add(str(f.relative_to(ROOT)))
+    for p in py_files:
+        tree = ast.parse(read(p))
+        for node in ast.walk(_Strip(_flag_only(tree)).visit(tree)):
+            v = node.value if isinstance(node, ast.Constant) else None
+            if isinstance(v, str) and v.endswith(_DATA_EXT) and len(v) < 160 and '\n' not in v:
+                for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / p).parent / v):
+                    if cand.is_file():
+                        out.add(str(cand.resolve().relative_to(ROOT)))
+                        break
+    return sorted(out)
+
+
+def source_manifest(read=lambda p: (ROOT / p).read_text(encoding='utf-8'),
+                    read_bytes=lambda p: (ROOT / p).read_bytes()) -> dict:
+    """{path: sha256 of the stripped AST} for every Python file of the gate closure, {path: sha256 of the bytes} for
+    every non-Python input, the flag-only names, and how much was stripped (reported, never silent)."""
+    files, flag_only, used, stripped_stats = {}, {}, set(), {}
+    py = closure(read)
+    for p in py:
+        st: dict = {}
+        dump, only, refs = stripped(read(p), st)
         files[p] = hashlib.sha256(dump.encode('utf-8')).hexdigest()
         if only:
             flag_only[p] = sorted(only)
+        if st.get('blocks'):
+            stripped_stats[p] = st
         used |= refs
-    for p in gate_roots():
-        if not p.endswith('.py'):
-            files[p] = hashlib.sha256(read(p).encode('utf-8')).hexdigest()
+    data = {p: hashlib.sha256(read_bytes(p)).hexdigest() for p in data_inputs(py, read)}
     leaked = sorted(n for names in flag_only.values() for n in names if n in used)
-    return {'files': files, 'flag_only': flag_only, 'leaked_flag_only': leaked}
+    total = {'files': len(stripped_stats), 'blocks': sum(s['blocks'] for s in stripped_stats.values()),
+             'lines': sum(s['lines'] for s in stripped_stats.values()),
+             'names': sum(len(v) for v in flag_only.values())}
+    total['needs_human_review'] = total['names'] > REVIEW_NAMES or total['lines'] > REVIEW_LINES
+    return {'files': files, 'data': data, 'flag_only': flag_only, 'leaked_flag_only': leaked,
+            'stripped': stripped_stats, 'stripped_total': total}
 
 
 def digest() -> str:

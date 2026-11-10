@@ -1,0 +1,8 @@
+{
+  "baseline_sha": "2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49",
+  "rule": "Michael 2026-11-10 fix 3: a change to the frozen system is ADDITIVE. Every line deleted from the baseline must be listed here with its reason; anything else fails the identity workflow.",
+  "allowed": {
+    "smoke/t4-verification-boundaries.json": "T4 evidence pins the sha256 of omni_prod/behavior_acceptance.py; the file gained a flag-gated block, so its pinned hash line is replaced (probe stdout unchanged).",
+    "smoke/t4-verification-boundaries.md": "the same pinned hash, in the human-readable copy of the T4 evidence."
+  }
+}
