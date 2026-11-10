@@ -151,9 +151,13 @@ class HardenedAcceptanceRunner(WebSaaSAcceptanceRunner):
         def client():                      # an isolated bucket per check: a fresh documentation-range address
             return '203.0.113.%d' % (1 + _s.randbelow(250)), '198.51.100.%d' % (1 + _s.randbelow(250))
 
-        def attempt_as(ip, payload):
+        def attempt_as(ip, payload, spoof=None):
+            # The real path (Michael fix 2): the platform proxy (127.0.0.1, trusted) appends the visitor's address,
+            # after any entries the visitor wrote himself. A second trusted hop sits on the right.
+            chain = ([spoof] if spoof else []) + [ip, '127.0.0.1']
             return self._new_transport().request(method='POST', url=base_url + path, json_body=payload,
-                                                 headers={'X-Forwarded-For': ip}, timeout_seconds=self.timeout_seconds)
+                                                 headers={'X-Forwarded-For': ', '.join(chain)},
+                                                 timeout_seconds=self.timeout_seconds)
         ip_a, ip_b = client()
         a, b = attempt_as(ip_a, wrong), attempt_as(ip_b, unknown)
         same = a.status == b.status and a.status in (400, 401) and a.text().strip() == b.text().strip()
@@ -161,11 +165,13 @@ class HardenedAcceptanceRunner(WebSaaSAcceptanceRunner):
                               'wrong password and unknown e-mail answer the same' if same else
                               f'wrong password -> {a.status} {a.text()[:60]!r}; unknown e-mail -> {b.status} {b.text()[:60]!r}'))
         ip_c, ip_d = client()
-        statuses = [attempt_as(ip_c, wrong).status for _ in range(6)]
+        # Michael fix 1: every attempt forges a NEW left-most address; the limit must still hold for the real client.
+        statuses = [attempt_as(ip_c, wrong, spoof='1.2.3.%d' % i).status for i in range(6)]
         limited = statuses[5] == 429
         out.append(_hardening('auth_rate_limit', limited,
-                              f'6 logins in a minute from one client -> {statuses}'
-                              + ('' if limited else ': the 6th must answer 429 (limit 5/minute/client)')))
+                              f'6 logins in a minute from one client (each with a forged X-Forwarded-For entry) -> '
+                              f'{statuses}' + ('' if limited else ': the 6th must answer 429 -- count the right-most '
+                                               'untrusted hop, not the left-most (forgeable) entry')))
         other = attempt_as(ip_d, wrong).status
         out.append(_hardening('auth_rate_limit_per_client', other != 429,
                               f'another client behind the same proxy -> {other}'

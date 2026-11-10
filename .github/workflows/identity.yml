@@ -37,13 +37,24 @@ jobs:
           import json, sys
           deleted = [l.strip() for l in open(sys.argv[1]) if l.strip()]
           allowed = json.load(open("docs/identity/allowed-deletions.json"))["allowed"]
-          bad = [p for p in deleted if p not in allowed]
+          # Michael fix 4: a declaration is not a self-waiver -- each needs a reviewer who is not the author.
+          bad, unreviewed = [], []
           for p in deleted:
-              print(f"::notice title=deletion::{p}: {allowed.get(p, 'NOT DECLARED')}")
+              d = allowed.get(p)
+              if not isinstance(d, dict) or not d.get("reason"):
+                  bad.append(p)
+                  continue
+              who = str(d.get("reviewer") or "").strip()
+              if not who or who.lower() in ("claude", "author", "pending") or who == d.get("author"):
+                  unreviewed.append(p)
+              print(f"::notice title=deletion::{p}: {d.get('reason')} (author {d.get('author')}, reviewer {who or 'NONE'})")
           if bad:
-              print(f"::error title=additive only::lines deleted from the baseline in {', '.join(bad)} without a declared reason (docs/identity/allowed-deletions.json)")
+              print(f"::error title=additive only::lines deleted from the baseline in {', '.join(bad)} without a declared reason")
+          if unreviewed:
+              print(f"::error title=additive only::deletions in {', '.join(unreviewed)} have no reviewer note (a reviewer other than the author must sign in docs/identity/allowed-deletions.json)")
+          if bad or unreviewed:
               sys.exit(1)
-          print(f"::notice title=additive only::{len(deleted)} file(s) with deletions, all declared")
+          print(f"::notice title=additive only::{len(deleted)} file(s) with deletions, all declared and reviewed")
           PY
       - name: Baseline manifests from a worktree of the baseline commit
         run: |
@@ -64,3 +75,11 @@ jobs:
           if [ "$head" = "$base" ]; then echo "::notice title=behavioural identity::$head equals the baseline"; \
           else echo "::error title=behavioural identity::$head != baseline $base"; exit 1; fi
           python -m unittest tests.test_site_auth_v2.SourceIdentity -v
+          python - <<'PY'
+          from omni_prod.pipeline_identity import source_manifest
+          m = source_manifest()
+          for path, s in sorted(m["stripped"].items()):
+              level = "warning" if s["lines"] > 60 else "notice"
+              print(f"::{level} title=stripped {path}::{s['blocks']} blocks, {s['lines']} lines"
+                    + (" -- over 60 lines in one file: read the flag-only code by eye" if level == "warning" else ""))
+          PY

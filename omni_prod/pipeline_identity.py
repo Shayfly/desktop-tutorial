@@ -183,19 +183,8 @@ def gate_roots() -> list[str]:
 def _named_py(source: str, path: str) -> set[str]:
     """Python files a module NAMES in a string literal (it reads them as text -- e.g. the runner source shipped into
     the sandbox). They are gate inputs exactly like imports (the coverage test found four on day one)."""
-    out = set()
-    tree = ast.parse(source)
-    tree = _Strip(_flag_only(tree)).visit(tree)          # a name inside a flag block is not a flag-off input
-    for node in ast.walk(tree):
-        v = node.value if isinstance(node, ast.Constant) else None
-        if isinstance(v, str) and v.endswith('.py') and len(v) < 160 and '\n' not in v:
-            for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / path).parent / v):
-                if cand.is_file():
-                    rel = str(cand.resolve().relative_to(ROOT))
-                    if rel.startswith('omni_prod/'):
-                        out.add(rel)
-                    break
-    return out
+    # a name inside a flag block is not a flag-off input (named_files scans the stripped tree)
+    return {rel for rel in named_files(source, path) if rel.endswith('.py') and rel.startswith('omni_prod/')}
 
 
 def closure(read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
@@ -213,7 +202,7 @@ def closure(read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
 
 _DATA_EXT = ('.json', '.yaml', '.yml', '.txt', '.md', '.html', '.css', '.js', '.toml', '.csv', '.sql')
 # Above these, the flag-only part of a change is large enough that a person must read it (Michael fix 2).
-REVIEW_NAMES, REVIEW_LINES = 8, 250
+REVIEW_NAMES, REVIEW_LINES, REVIEW_FILE_LINES = 5, 120, 60      # Michael 2026-11-10: total and per file
 
 
 def data_inputs(py_files, read=lambda p: (ROOT / p).read_text(encoding='utf-8')) -> list[str]:
@@ -225,15 +214,32 @@ def data_inputs(py_files, read=lambda p: (ROOT / p).read_text(encoding='utf-8'))
         if f.is_file() and f.suffix != '.py' and '__pycache__' not in f.parts and f.suffix not in ('.pyc',):
             out.add(str(f.relative_to(ROOT)))
     for p in py_files:
-        tree = ast.parse(read(p))
-        for node in ast.walk(_Strip(_flag_only(tree)).visit(tree)):
-            v = node.value if isinstance(node, ast.Constant) else None
-            if isinstance(v, str) and v.endswith(_DATA_EXT) and len(v) < 160 and '\n' not in v:
-                for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / p).parent / v):
-                    if cand.is_file():
-                        out.add(str(cand.resolve().relative_to(ROOT)))
-                        break
+        for rel in named_files(read(p), p):
+            # omni_prod Python joins the AST closure; everything else named by a gate -- incl. tests/*.py or app.py it
+            # reads by path -- is compared byte for byte (the any-suffix scan found 11 such files)
+            if not (rel.endswith('.py') and rel.startswith('omni_prod/')):
+                out.add(rel)
     return sorted(out)
+
+
+def named_files(source: str, path: str) -> set[str]:
+    """Every existing repo FILE a module names in a string literal, whatever its suffix (Michael fix 5: a skill YAML,
+    a fixtures file, a template -- not only .py), scanned on the flag-stripped tree."""
+    out = set()
+    tree = ast.parse(source)
+    for node in ast.walk(_Strip(_flag_only(tree)).visit(tree)):
+        v = node.value if isinstance(node, ast.Constant) else None
+        if not (isinstance(v, str) and 2 < len(v) < 160 and '\n' not in v and '.' in v.split('/')[-1]
+                and not v.startswith(('http:', 'https:', '/'))):
+            continue
+        for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / path).parent / v):
+            try:
+                if cand.is_file() and cand.resolve().is_relative_to(ROOT):
+                    out.add(str(cand.resolve().relative_to(ROOT)))
+                    break
+            except (OSError, ValueError):
+                break
+    return out
 
 
 def source_manifest(read=lambda p: (ROOT / p).read_text(encoding='utf-8'),
@@ -256,7 +262,9 @@ def source_manifest(read=lambda p: (ROOT / p).read_text(encoding='utf-8'),
     total = {'files': len(stripped_stats), 'blocks': sum(s['blocks'] for s in stripped_stats.values()),
              'lines': sum(s['lines'] for s in stripped_stats.values()),
              'names': sum(len(v) for v in flag_only.values())}
-    total['needs_human_review'] = total['names'] > REVIEW_NAMES or total['lines'] > REVIEW_LINES
+    heavy = sorted(p for p, s in stripped_stats.items() if s['lines'] > REVIEW_FILE_LINES)
+    total['heavy_files'] = heavy
+    total['needs_human_review'] = total['names'] > REVIEW_NAMES or total['lines'] > REVIEW_LINES or bool(heavy)
     return {'files': files, 'data': data, 'flag_only': flag_only, 'leaked_flag_only': leaked,
             'stripped': stripped_stats, 'stripped_total': total}
 

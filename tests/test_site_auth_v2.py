@@ -58,9 +58,17 @@ class Identity(unittest.TestCase):
 
 
 # ------------------------------------------------------------------ a real product with sign-in (stdlib only)
-def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True, trust_xff=True, server_logout=True):
+def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True, trust_xff=True, server_logout=True,
+             xff_leftmost=False):
+    import ipaddress
     users, sessions, hits = {}, {}, {}
-    trusted = {'127.0.0.1', '::1'}
+    trusted = [ipaddress.ip_network('127.0.0.1/32'), ipaddress.ip_network('::1/128')]
+
+    def is_trusted(ip):
+        try:
+            return any(ipaddress.ip_address(ip) in net for net in trusted)
+        except ValueError:
+            return False
 
     def hash_password(pw):
         salt = os.urandom(16)
@@ -95,8 +103,15 @@ def make_app(*, httponly=True, rotate=True, uniform=True, rate_limit=True, trust
 
         def _client(self):
             peer = self.client_address[0]
-            fwd = (self.headers.get('X-Forwarded-For') or '').split(',')[0].strip()
-            return fwd if (trust_xff and fwd and peer in trusted) else peer
+            if not trust_xff or not is_trusted(peer):            # deny by default: XFF only from a trusted peer
+                return peer
+            hops = [h.strip() for h in (self.headers.get('X-Forwarded-For') or '').split(',') if h.strip()]
+            if xff_leftmost:                                     # the classic hole: the forgeable left-most entry
+                return hops[0] if hops else peer
+            for hop in reversed(hops):                           # right-most untrusted hop
+                if not is_trusted(hop):
+                    return hop
+            return peer
 
         def _limited(self):
             if not rate_limit:
@@ -219,6 +234,25 @@ class HardenedAcceptance(unittest.TestCase):
     def test_counting_the_proxy_instead_of_the_client_fails(self):
         r = hardening(trust_xff=False)
         self.assertFalse(r['auth_rate_limit_per_client'][0])
+
+    def test_trusting_the_left_most_forwarded_entry_fails(self):
+        # Michael fix 1: a forged X-Forwarded-For: 1.2.3.x on every attempt must not escape the limit
+        r = hardening(xff_leftmost=True)
+        self.assertFalse(r['auth_rate_limit'][0])
+        self.assertIn('right-most untrusted hop', r['auth_rate_limit'][1])
+
+    def test_a_peer_that_is_not_a_trusted_proxy_cannot_choose_its_address(self):
+        import types
+        server = make_app()
+        try:
+            handler = server.RequestHandlerClass
+            fake = types.SimpleNamespace(client_address=('203.0.113.9', 1), headers={'X-Forwarded-For': '1.2.3.4'})
+            self.assertEqual(handler._client(fake), '203.0.113.9')          # deny by default
+            fake = types.SimpleNamespace(client_address=('127.0.0.1', 1),
+                                         headers={'X-Forwarded-For': '1.2.3.4, 198.51.100.7, 127.0.0.1'})
+            self.assertEqual(handler._client(fake), '198.51.100.7')         # right-most untrusted
+        finally:
+            server.shutdown()
 
     def test_the_stored_password_string_carries_its_parameters(self):
         import re as _re
@@ -397,22 +431,14 @@ class SourceIdentity(unittest.TestCase):
 
     def test_the_two_checks_cover_every_gate_input(self):
         """Michael fix 1: the union of the AST identity and the byte identity covers every input of the gates."""
-        import ast as _ast
-        from omni_prod.pipeline_identity import ROOT, _DATA_EXT, _flag_only, _Strip
+        from omni_prod.pipeline_identity import ROOT, named_files
         covered = set(self.BASE['files']) | set(self.BASE['data'])
         uncovered = set()
         for p in self.BASE['files']:
-            tree = _ast.parse((ROOT / p).read_text(encoding='utf-8'))
-            for node in _ast.walk(_Strip(_flag_only(tree)).visit(tree)):     # flag-off inputs
-                v = node.value if isinstance(node, _ast.Constant) else None
-                if isinstance(v, str) and v.endswith(_DATA_EXT + ('.py',)) and len(v) < 160 and '\n' not in v:
-                    for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / p).parent / v):
-                        if cand.is_file():
-                            rel = str(cand.resolve().relative_to(ROOT))
-                            if rel.startswith(('omni_prod/', '.github/', 'docs/', 'infra/')) and rel not in covered:
-                                uncovered.add(rel)
-                            break
+            # every repo file named in a literal, ANY suffix (Michael fix 5), on the flag-stripped tree
+            uncovered |= named_files((ROOT / p).read_text(encoding='utf-8'), p) - covered
         self.assertEqual(sorted(uncovered), [], 'a gate input is covered by neither identity check')
+        self.assertIn('.env.example', self.BASE['data'])            # found only once the scan knew every suffix
         self.assertIn('omni_prod/assets/app.js', self.BASE['data'])
         self.assertIn('.github/workflows/gate-regression.yml', self.BASE['data'])
 
@@ -421,11 +447,15 @@ class SourceIdentity(unittest.TestCase):
         for module in ('omni_prod/web_saas_auth_hardening.py', 'omni_prod/auth_form_check.py', 'omni_prod/feature_flags.py'):
             self.assertNotIn(module, self.BASE['files'])
 
-    def test_stripping_is_reported(self):
+    def test_stripping_is_reported_per_file(self):
         t = self.BASE['stripped_total']
-        self.assertEqual((t['names'], t['needs_human_review']), (2, False))
-        self.assertIn('omni_prod/skills_runtime.py', self.BASE['stripped'])
-        self.assertGreater(t['blocks'], 0)
+        self.assertEqual(t['names'], 2)
+        # Michael fix 3: 5 names / 120 lines total or 60 lines in ONE file asks for a human -- skills_runtime holds the
+        # whole flag-only skill (~67 lines), so this change is flagged for review by eye, as it should be.
+        self.assertEqual(t['heavy_files'], ['omni_prod/skills_runtime.py'])
+        self.assertTrue(t['needs_human_review'])
+        self.assertEqual(set(self.BASE['stripped']), {'omni_prod/skills_runtime.py', 'omni_prod/behavior_acceptance.py',
+                                                      'omni_prod/investor_app.py', 'omni_prod/probe_manifest.py'})
 
     def test_a_large_flag_only_rewrite_asks_for_a_human(self):
         from omni_prod import pipeline_identity as pi
@@ -435,6 +465,13 @@ class SourceIdentity(unittest.TestCase):
             self.assertTrue(pi.source_manifest()['stripped_total']['needs_human_review'])
         finally:
             pi.REVIEW_LINES = saved
+
+    def test_any_suffix_named_in_a_literal_is_an_input(self):
+        from omni_prod.pipeline_identity import named_files
+        src = "A = 'omni_prod/agent_os/skills_taxonomy.json'\nB = '.env.example'\nC = 'https://x.y/z.json'\n"
+        self.assertEqual(named_files(src, 'omni_prod/x.py'), {'omni_prod/agent_os/skills_taxonomy.json', '.env.example'})
+        flag = "from .feature_flags import SITE_AUTH_V2\nif SITE_AUTH_V2:\n    A = '.env.example'\n"
+        self.assertEqual(named_files(flag, 'omni_prod/x.py'), set())
 
     def test_a_data_input_change_is_caught(self):
         from omni_prod.pipeline_identity import ROOT, source_manifest
