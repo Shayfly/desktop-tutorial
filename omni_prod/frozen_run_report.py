@@ -17,8 +17,18 @@ def _ts(value):
         return None
 
 
+REQUIRED_FIELDS = ('arm', 'build_id', 'baselineSha', 'passed', 'rounds', 'codeChangingRounds', 'gateWasteRounds',
+                   'gateWasteUsd', 'costUsd', 'gateWasteShare', 'humanCodeFixes', 'humanDecisions', 'degraded',
+                   'warned', 'informed', 'models', 'offPinModels', 'quarantinedProbes', 'timeToPreviewSec',
+                   'designScore', 'canonHash', 'knownGaps')
+KNOWN_GAPS = ('json_ld_schema',)
+
+
 def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned_models: set[str] | None = None,
-               human_decisions: int = 0, human_code_fixes: int = 0) -> dict:
+               human_decisions: int = 0, human_code_fixes: int = 0, informed: bool = False,
+               warned: dict | None = None) -> dict:
+    """`warned` (florist-new): {'shown': bool, 'tick_required': bool, 'refused_until_ticked': bool}. The arm passes only
+    when all three are true -- a warned arm must not count like a clean pass."""
     gate = evidence.get('gate_waste') or {}
     quarantined = gate.get('quarantined_gates') or []
     reviews = (evidence.get('design_review') or {}).get('reviews') or []
@@ -31,9 +41,13 @@ def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned
     started, finished = _ts(job.get('started_at')), _ts(job.get('finished_at'))
     cost = float(job.get('actual_provider_cost_usd') or evidence.get('provider_spend_usd') or 0)
     waste = float(gate.get('measured_usd') or 0)
+    clean = job.get('status') == 'ready' and rounds == 0 and human_code_fixes == 0 and not (critical or off_pin)
+    warned_ok = warned is None or all(bool(warned.get(k)) for k in ('shown', 'tick_required', 'refused_until_ticked'))
     return {
         'arm': arm, 'build_id': job.get('id'), 'baselineSha': baseline_sha,
-        'passed': job.get('status') == 'ready' and rounds == 0 and human_code_fixes == 0,
+        'passed': clean and warned_ok,
+        'warned': warned is not None, 'warnedChecks': warned, 'informed': informed,
+        'models': sorted(m for m in answered if m), 'knownGaps': list(KNOWN_GAPS),
         'status': job.get('status'), 'rounds': rounds, 'codeChangingRounds': rounds,
         'gateWasteRounds': int(gate.get('rounds') or 0), 'gateWasteUsd': waste, 'costUsd': cost,
         'gateWasteShare': round(waste / cost, 4) if cost else 0.0,

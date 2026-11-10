@@ -331,10 +331,18 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
                                      f'(canon {canon.hash}); leave a contact line or button out when it has no real value',
                                      anchor=_anchor(what)))
         head = _TESTIMONIAL_HEAD.search(text)
-        if head and not canon.values('review'):
+        if head:
+            # 2026-11-10 gate regression: the cafe's request GAVE its three reviews ("..." – דנה); they are canon facts.
+            # A section passes when it is labelled as sample, or every quote on it is one the request gave.
+            from .fact_canon import norm_quote
             section = text[head.end():head.end() + 4000]
-            quotes = len(re.findall(r'<blockquote|[“"„][^”"]{12,}[”"]', section))
-            if quotes >= 2 and not _TESTIMONIAL_LABEL.search(section) and not _TESTIMONIAL_LABEL.search(head.group(0)):
+            quotes = re.findall(r'[“"„]([^”"<]{12,})[”"]', re.sub(r'<[^>]+>', ' ', section))
+            blocks = len(re.findall(r'<blockquote', section, re.I))
+            given = canon.values('review')
+            unknown = [q for q in quotes if norm_quote(q) not in given]
+            sourced = bool(quotes) and not unknown
+            if (len(quotes) >= 2 or blocks >= 2) and not sourced and not _TESTIMONIAL_LABEL.search(section) \
+                    and not _TESTIMONIAL_LABEL.search(head.group(0)):
                 out.append(StaticFinding('skill.copy_quality', 'blocking', path,
                                          'testimonials with no source in the approved request and no "לדוגמה" label',
                                          'label the section "(לדוגמה)" / "sample reviews", or remove it until the owner '

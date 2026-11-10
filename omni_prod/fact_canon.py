@@ -22,10 +22,13 @@ from dataclasses import dataclass, field
 # Candidate spans: anything that looks like a phone, in any digit script; parse_phone decides what it is.
 _PHONE = re.compile(r'(?<![\d\u0660-\u0669\u06F0-\u06F9])(?:\+|00)?[\d\u0660-\u0669\u06F0-\u06F9][\d\u0660-\u0669\u06F0-\u06F9()\s\-.\u2010-\u2015]{5,16}[\d\u0660-\u0669\u06F0-\u06F9](?![\d\u0660-\u0669\u06F0-\u06F9])')
 _EMAIL = re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+', re.I)
-_STREET = re.compile(r"(?:רחוב|רח['׳]|שדרות|שד['׳]|דרך|סמטת|כיכר)\s+(?:[֐-׿\"'׳״-]+\s+){0,3}?\d{1,4}"
-                     r"(?:\s*[,/]?\s*[֐-׿]{2,}(?:\s[֐-׿]{2,})?)?")
-_HOURS = re.compile(r"(?:[א-ת]['׳]?\s*[-–]\s*[א-ת]['׳]?\s*)?\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}")
-_NAME = re.compile(r"(?:^|\n)\s*(?:שם(?: העסק| המקום)?|business name|name)\s*[:\-]\s*([^\n,.]{2,60})", re.I)
+# City: one word after a comma, or a known two-word city ("תל אביב"); never the next unrelated word ("חיפה טלפון").
+_CITY2 = r"(?:תל|באר|ראש|כפר|בית|קריית|קרית|נווה|רמת|גבעת|מעלה|אור|בני|נס|מגדל|נצרת|יבנה|זכרון)\s[\u0590-\u05FF]{2,}"
+_STREET = re.compile(r"(?:רחוב|רח['\u05F3]|ר[\"\u05F4]ח|שדרות|שד['\u05F3]|דרך|סמטת|כיכר)\s+(?:[\u0590-\u05FF\"'\u05F3\u05F4-]+\s+){0,3}?\d{1,4}"
+                     r"(?:\s*,\s*(?:" + _CITY2 + r"|[\u0590-\u05FF]{2,})"
+                     r"|\s+(?:" + _CITY2 + r"|[\u0590-\u05FF]{2,})(?=\s*[,.;\n]|$))?")
+_HOURS = re.compile(r"(?:[א-ת]['\u05F3]?\s*(?:[-–]\s*[א-ת]['\u05F3]?\s*)?)?\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}")
+_NAME = re.compile(r"(?:^|\n|\s)(?:שם העסק|שם המקום|business name)\s*:\s*([^\n,.–—:]{2,40}?)(?=\s*(?:[–—,.\n]|כתובת|טלפון|$))", re.I)
 
 
 # ---- normalisation (Michael 2026-11-10: pure functions, a reason on failure, Hebrew/Arabic edge cases) ----
@@ -249,7 +252,21 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
         add('hours', re.sub(r'\s+', ' ', m.group(0)).strip(), m.group(0))
     for m in _NAME.finditer(text):
         add('name', m.group(1).strip(), m.group(0))
+    # Reviews the customer GAVE: a quote followed by a dash and a name ("הקפה הכי טוב בחיפה" – דנה).
+    for m in _QUOTE.finditer(text):
+        add('review', norm_quote(m.group(1)), m.group(0))
     return canon
+
+
+# A review the customer gave: a quote, a dash and a short name (1-3 words), then a separator.
+_QUOTE = re.compile(r'[“"„\u05F4]([^”"\u05F4\n]{8,200})[”"\u05F4]\s*[–—-]\s*'
+                    r'((?:[\u0590-\u05FF\w\'\u05F3]+\s?){1,3}?)(?=\s*(?:[•\n"“]|\d+\.|$))')
+
+
+def norm_quote(text: str) -> str:
+    """Comparison form of a review quote: no punctuation, single spaces, final letters folded."""
+    t = re.sub(r'[^\w\s\u0590-\u05FF]', ' ', text or '')
+    return re.sub(r'\s+', ' ', t).strip().lower().translate(_FINALS)
 
 
 def page_phones(page_text: str) -> tuple[set[str], list[str]]:
