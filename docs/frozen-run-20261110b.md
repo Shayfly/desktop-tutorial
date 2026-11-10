@@ -33,3 +33,30 @@ fixes are not. **Decision gate: 5 of 6 pass, and gate waste under 15%.**
 phone=2 (+972521234567, +97289876543), address=1, hours=1, canon hash `38d1ca8224efb559` -> the strict gate passes
 at canon level. Extraction gaps recorded as arm `warnings`, NOT fixed (frozen code): the quoted business name (no
 'שם העסק:' prefix), the reviews line ('— author' with semicolons, not the • format), the textual Fri/Sat hours.
+
+## Correction 1 — 2026-11-10T22:12Z (after arm 1, before arm 2) — Michael 2026-11-11 00:07
+
+A timestamped correction, never a silent edit. Nothing above this line changed.
+
+**The run is declared `routing-open`, all six arms, uniformly.** "Pinned" means the pinned model ANSWERED — not
+that the catalog was available. Two separate states: a fallback declared in advance in the registration = still
+pinned; a runtime choice from the catalog ("cheapest eligible") = NOT pinned. By that rule both the
+gemini-3.8-flash escalation and the gpt-6.1-sol review routing in arm 1 were not pinned — but marking one arm
+`degraded` would mark all six and the flag would mean nothing. So: arm 1 stays `passed`, the run carries
+`routing-open` as a run-level limitation in the report, and `modelsUsed` is recorded per arm. Pinning should have
+been ENFORCED before arm 1 and was not; documented now, the enforcement fix goes on the post-run list. No code
+changes during the run.
+
+**Arm 1 leads with its real flag: NOT AUTONOMOUS.** 13 human decisions for one brief, over the declared threshold
+(>=12 = not autonomous). The technical pass does not lead the arm's reporting; this does.
+
+**Findings of arm 1 (findings, not warnings; recorded, not fixed during the run):**
+1. The reviews never entered the canon, so the truth gate never checked them in the hard arm. The brief beat the
+   extraction ('— author' + semicolons vs the • format). A hole, not a warning.
+2. Two punctuation-free owner messages ("לא תתחיל מאשר לך", "לא מאשר") were read as refusals. Conservative under
+   ambiguity, but an intake that reads shorthand as refusal burns turns: 2 messages = 2 turns.
+3. The intake re-asked a question the approved brief had already settled (content-only vs contact form).
+4. Cost $1.549 ran on a founder account — not comparable to customer-lane caps; tagged `founder-account`.
+
+Arm 1 `modelsUsed`: claude-sonnet-5-5 (architect, codegen, repairs); gemini-3.8-flash (catalog escalation after a
+sonnet invalid-JSON repair reply); gpt-6.1-sol (review, runtime catalog choice).
