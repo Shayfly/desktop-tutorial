@@ -17,7 +17,7 @@ gateFreeze:          # Michael 2026-11-10: the baseline must settle before it is
   starts: "the moment PR #291 merges"
   length: 72h
   rule: "no change to gate files (docs/gate-freeze.json gate_files) for 72h; product fixes only. The baseline SHA is the
-         main commit at the END of the window; tests/test_gate_freeze.py fails any PR that touches a gate file while
+         main commit at the END of the window; .github/workflows/gate-freeze.yml fails any PR that touches a gate file while
          docs/gate-freeze.json says the freeze is active"
 blindReview: "the design critic sees screenshots and the brief only -- never the arm name, the cost or other arms"
 rollback:            # by layer (Michael 2026-11-10), written, not judged case by case
