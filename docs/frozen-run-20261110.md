@@ -6,9 +6,16 @@ with a new id.
 ```yaml
 run: frozen-2026-11-11
 baselineSha: <the main commit that merges PR #289 -- filled in the run report, never edited here>
-hypothesis: "The system at baselineSha produces passing pages for a new brief with no human code fix."
+baseline:            # all three identify the frozen system; recorded in the run report, never edited here
+  sha: <main commit after PR #290>
+  manifestHash: <sha256 of omni_prod/probe_manifest.py at sha>
+  fixturesCommit: <last commit touching tests/test_gate_mutations_20261110.py and tests/test_frozen_run_conditions_20261110.py>
+hypothesis: "The system at baseline.sha produces passing pages for a new brief with no human code fix."
 failure: "any repair round that changed code, or any human code fix, in any arm"
-noFixRule: "no code change on main until the last arm finishes; fixes go to a branch and merge after"
+noFixRule: "no code change on main until the last arm finishes; fixes go to a branch and merge after the run"
+blindReview: "the design critic sees screenshots and the brief only -- never the arm name, the cost or other arms"
+rollback: "if the gate regression on the approved builds fails, the last PR is reverted first and fixed after"
+knownGaps: ["json_ld_schema: no probe exists; a florist page passes without structured data -- 'passed' is not 'complete'"]
 models:              # pinned: the catalog at baselineSha (infra/worker-host/model-catalog.json)
   architect: gemini-3.1-flash-lite (LIGHT lane) | claude-sonnet-5-5 (founder)
   builder:   claude-sonnet-5-5 (task-only codegen, LIGHT/STANDARD)
@@ -25,19 +32,29 @@ model answering than pinned marks that arm `degraded`.
 
 | arm | brief | what it measures |
 |---|---|---|
-| restaurant-a | the cafe brief, unchanged | pass/fail |
-| restaurant-b | the same brief again | variance (a vs b) |
-| florist-new | a florist landing page, no contact details | generalisation; `CANON_INCOMPLETE` ticked |
-| florist-hard | the florist with a real phone and address | canon + truth gate under a real load |
-| negative | a request outside the capability matrix (e.g. native iOS app with payments) | a clean refusal, no half build |
+| arm | brief | what it measures | marked |
+|---|---|---|---|
+| restaurant-a | the cafe brief, unchanged | pass/fail | |
+| restaurant-b | the same brief again | variance (a vs b) | |
+| florist-hard | Michael's florist brief, passed on **verbatim** (local phone with dashes, "רח'", uneven hours, a reviews line with no reviews) | canon + truth gate under a real load | `informed` (written by someone who knows the parser) |
+| florist-new | the same florist brief with the phone and address removed | the incomplete-canon path | `informed`, `warned` |
+| negative | a request outside the capability matrix (native iOS app with in-app payments) | a clean refusal, no half build | |
+
+`warned` (florist-new) passes ONLY if all three happened: the `CANON_INCOMPLETE` warning was shown, the tick box was
+required, and the server refused the approval until it was ticked. Otherwise the arm fails -- it must not count like
+a clean pass. A truly blind generalisation test needs a real customer; it is not claimed here.
 
 ## Recorded per arm (report schema)
 
+Every field below is mandatory (`omni_prod/frozen_run_report.py`, `REQUIRED_FIELDS`):
+
 ```json
 { "arm": "florist-new", "build_id": "bld_…", "baselineSha": "…", "passed": false, "rounds": 3,
-  "codeChangingRounds": 3, "gateWasteRounds": 1, "gateWasteUsd": 0.21, "costUsd": 0.81,
-  "humanCodeFixes": 0, "humanDecisions": 4, "degraded": false,
-  "quarantinedProbes": ["_invented_contact"], "timeToPreviewSec": 214, "designScore": 83, "canonHash": "…" }
+  "codeChangingRounds": 3, "gateWasteRounds": 1, "gateWasteUsd": 0.21, "costUsd": 0.81, "gateWasteShare": 0.26,
+  "humanCodeFixes": 0, "humanDecisions": 4, "degraded": false, "warned": true, "informed": true,
+  "models": ["claude-sonnet-5-5", "gemini-3.1-flash-lite"], "offPinModels": [],
+  "quarantinedProbes": ["_invented_contact"], "timeToPreviewSec": 214, "designScore": 83, "canonHash": "…",
+  "knownGaps": ["json_ld_schema"] }
 ```
 
 `humanDecisions` = customer answers + approvals in the conversation before the build (counted from the conversation
@@ -54,11 +71,12 @@ store). `omni_prod/frozen_run_report.py` derives every other field from the buil
 
 | result | next |
 |---|---|
-| 4/5 arms pass and gate waste < 15% of cost | expand to the first media asset |
-| 2–3 pass | one more stabilisation round, no expansion |
-| fewer than 2 | stop expansion, back to the gates |
+| restaurant-a AND restaurant-b pass, 2 of the other 3 pass, gate waste < 15% of total cost | expand to the first media asset |
+| restaurant a/b split, or 1 of the other 3 | one more stabilisation round, no expansion |
+| both restaurant arms fail, or 0 of the other 3 | stop expansion, back to the gates |
 
-`restaurant-a` and `restaurant-b` count as two arms; `negative` passes when it is refused cleanly.
+The two restaurant arms are one brief: variance is AND, never OR. `negative` passes when it is refused cleanly.
+`warned` passes only under the rule above. A `degraded` arm never counts as a pass.
 
 ## What this run does not show
 

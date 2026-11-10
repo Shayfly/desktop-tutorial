@@ -46,10 +46,12 @@ jobs:
           with _v28_pool.connection() as c:
               with c.transaction():
                   c.execute("SET TRANSACTION READ ONLY")
-                  sql = ("SELECT b.id, v.artifact_key, coalesce(b.evidence_json->'build_contract'->>'prompt', "
-                         "(SELECT k.contract_json->>'prompt' FROM m5_build_contracts k WHERE k.project_id = b.project_id "
-                         "AND k.created_at <= b.created_at ORDER BY k.created_at DESC LIMIT 1), '') "
+                  # 2026-11-10 first run: the prompt came back empty (wrong source), so every canon was empty and the
+                  # cafe "failed" on its own given phone, street and reviews. The approved prompt is build_requests.prompt;
+                  # an empty one is now an error, never a silent empty canon.
+                  sql = ("SELECT b.id, v.artifact_key, r.prompt "
                          "FROM build_jobs b JOIN project_versions v ON v.id = b.result_version_id "
+                         "JOIN build_requests r ON r.build_id = b.id "
                          "WHERE b.status = 'ready' AND (cardinality(%s::text[]) = 0 OR b.id = ANY(%s::text[])) "
                          "ORDER BY b.finished_at")
                   rows = c.execute(sql, (ids, ids)).fetchall()
@@ -60,6 +62,8 @@ jobs:
           store.client.meta.events.register("before-call.s3", only_get_object)
           builds = []
           for bid, key, prompt in rows:
+              if not (prompt or "").strip():
+                  raise SystemExit(f"::error title=no prompt::{bid}: approved prompt is empty; refusing an empty canon")
               data = store.client.get_object(Bucket=store.bucket, Key=key)["Body"].read()
               with zipfile.ZipFile(io.BytesIO(data)) as zf:
                   repo = {n: zf.read(n).decode("utf-8", errors="replace") for n in zf.namelist()}
@@ -83,6 +87,7 @@ jobs:
               r = run(b["repository"], b["prompt"])
               line = {"build": b["build_id"], "passed": r["passed"], "served": r["served"], "smoke": r["smoke"],
                       "canon_hash": r["canon_hash"], "canon_facts": len(r["canon_facts"]),
+                      "canon_keys": sorted({f["key"] for f in r["canon_facts"]}),
                       "blocking": [f'{f.get("probe")}: {f["problem"]}' for f in r["blocking"]],
                       "advisory": [f'{f.get("probe")}: {f["problem"]}' for f in r["advisory"]][:8]}
               level = "notice" if r["passed"] else "error"

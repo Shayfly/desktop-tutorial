@@ -161,3 +161,83 @@ class ReportRow(unittest.TestCase):
         self.assertEqual(row['timeToPreviewSec'], 391)
         self.assertEqual(row['gateWasteShare'], round(0.30 / 0.74, 4))
         self.assertEqual((row['designScore'], row['canonHash'], row['offPinModels']), (83, 'abc', []))
+
+
+class RegressionFindings20261110(unittest.TestCase):
+    """The first gate-regression run (2026-11-10) failed the approved cafe. Diagnosis: the workflow read an empty prompt
+    (wrong table), and reviews the customer GAVE were not canon facts. Both are fixtures now."""
+
+    CAFE = ('שם העסק: קפה "בוקר טוב" – בית קפה שכונתי כתובת: רחוב הנביאים 12, חיפה טלפון ו-WhatsApp: 050-1234567 '
+            'שעות פתיחה: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00 5. שלוש ביקורות של לקוחות: • "הקפה הכי טוב בחיפה" – דנה '
+            '• "ארוחת בוקר מושלמת, נחזור" – יוסי ומיכל • "שירות חם ומחירים הוגנים" – אבי 6. שעות')
+    FLORIST = ('תבנה לי דף לחנות הפרחים שלי, "שושנת העמקים", ברח\' נתיב המזלות 22, ירושלים.\n'
+               'שיהיה כפתור להתקשר 052-1234567 וכפתור וואטסאפ לאותו מספר, עם הודעה מוכנה "היי, אשמח להזמין זר".\n'
+               "אנחנו פתוחים א'–ה' 8:00–19:00, ו' 8:00–13:00, שבת סגור.\n"
+               'שיהיה קטע עם מה שאומרים עלינו, ורשימה של זרים לחתונה, ליומולדת ולניחומים.')
+
+    def page(self, reviews, contact):
+        quotes = ''.join(f'<blockquote>“{q}” – {n}</blockquote>' for q, n in reviews)
+        return (f'<html lang="he" dir="rtl"><body><h2>מה אומרים עלינו</h2>{quotes}{contact}</body></html>')
+
+    def blocking(self, prompt, page):
+        from omni_prod.fact_canon import build_canon
+        ctx = {'request': prompt, 'canon': build_canon(prompt), 'rendered_pages': {'/': page, 'assets': ''}}
+        return [(f.probe, f.problem) for f in static_findings({'a.py': 'x'}, ctx)
+                if f.severity == 'blocking' and f.probe != '_styled_page']
+
+    def test_canon_facts_of_both_briefs(self):
+        from omni_prod.fact_canon import build_canon
+        cafe = build_canon(self.CAFE)
+        self.assertEqual(cafe.values('phone'), {'+972501234567'})
+        self.assertEqual(cafe.values('address'), {'רחוב הנביאים 12 חיפה'})       # never "חיפה טלפון"
+        self.assertEqual(len(cafe.values('review')), 3)                          # the business name is not a review
+        self.assertEqual(cafe.values('name'), {'קפה "בוקר טוב"'})
+        florist = build_canon(self.FLORIST)
+        self.assertEqual(florist.values('phone'), {'+972521234567'})
+        self.assertEqual(florist.values('address'), {'רחוב נתיב המזלות 22 ירושלים'})
+        self.assertEqual(florist.values('hours'), {"א'–ה' 8:00–19:00", "ו' 8:00–13:00"})
+        self.assertEqual(florist.values('review'), set())
+
+    def test_cafe_with_its_given_reviews_passes(self):
+        page = self.page([('הקפה הכי טוב בחיפה', 'דנה'), ('ארוחת בוקר מושלמת, נחזור!', 'יוסי ומיכל'),
+                          ('שירות חם ומחירים הוגנים', 'אבי')],
+                         '<p>רחוב הנביאים 12</p><a href="tel:050-1234567">050-1234567</a><a href="https://wa.me/972501234567">x</a>')
+        self.assertEqual(self.blocking(self.CAFE, page), [])
+
+    def test_cafe_with_one_invented_review_blocks(self):
+        page = self.page([('הקפה הכי טוב בחיפה', 'דנה'), ('הכי טעים שיש, ממליצה בחום', 'רותי')], '')
+        self.assertTrue(any('testimonials' in p for _, p in self.blocking(self.CAFE, page)))
+
+    def test_florist_reviews_need_the_sample_label(self):
+        contact = '<a href="tel:+972521234567">052-1234567</a><p>רח\' נתיב המזלות 22</p>'
+        invented = self.page([('הזרים הכי יפים בעיר', 'שירה'), ('שירות מהיר ואדיב', 'דני')], contact)
+        self.assertTrue(any('testimonials' in p for _, p in self.blocking(self.FLORIST, invented)))
+        labelled = invented.replace('מה אומרים עלינו', 'מה אומרים עלינו (לדוגמה)')
+        self.assertEqual(self.blocking(self.FLORIST, labelled), [])
+
+    def test_workflow_reads_the_approved_prompt_and_refuses_an_empty_one(self):
+        wf = open('.github/workflows/gate-regression.yml', encoding='utf-8').read()
+        self.assertIn('JOIN build_requests r ON r.build_id = b.id', wf)
+        self.assertIn('refusing an empty canon', wf)
+        self.assertIn('SET TRANSACTION READ ONLY', wf)
+        self.assertIn('--network none', wf)
+
+
+class PreRegistration(unittest.TestCase):
+    def test_document_has_the_rules(self):
+        doc = open('docs/frozen-run-20261110.md', encoding='utf-8').read()
+        for needle in ('noFixRule:', 'blindReview:', 'rollback:', 'manifestHash:', 'fixturesCommit:', 'knownGaps:',
+                       'restaurant-a AND restaurant-b pass', '`informed`', '`warned`', 'verbatim'):
+            self.assertIn(needle, doc)
+
+    def test_every_required_field_and_the_warned_rule(self):
+        from omni_prod.frozen_run_report import REQUIRED_FIELDS, report_row
+        job = {'id': 'b', 'status': 'ready', 'repair_rounds': 0, 'actual_provider_cost_usd': '0.4'}
+        row = report_row(arm='florist-new', job=job, evidence={}, baseline_sha='s', informed=True,
+                         warned={'shown': True, 'tick_required': True, 'refused_until_ticked': False})
+        self.assertEqual([f for f in REQUIRED_FIELDS if f not in row], [])
+        self.assertFalse(row['passed'])                  # the server accepted before the tick -> not a pass
+        ok = report_row(arm='florist-new', job=job, evidence={}, baseline_sha='s', informed=True,
+                        warned={'shown': True, 'tick_required': True, 'refused_until_ticked': True})
+        self.assertTrue(ok['passed'] and ok['warned'] and ok['informed'])
+        self.assertEqual(ok['knownGaps'], ['json_ld_schema'])
