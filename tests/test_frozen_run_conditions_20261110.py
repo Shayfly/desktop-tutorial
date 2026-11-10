@@ -261,6 +261,12 @@ class LiteralReviewsAndAggregates(unittest.TestCase):
                 '<blockquote>"שֵׁירוּת חם, ומחירים הוגנים" – אבי</blockquote><p>מעל 50 ביקורות</p>')
         self.assertEqual(self.blocking(body), [])
 
+    def test_html_entities_are_decoded(self):
+        # the approved cafe writes its quotes as &ldquo;...&rdquo; (regression run 42821926825)
+        body = ('<blockquote>&ldquo;הקפה הכי טוב בחיפה&rdquo; &ndash; דנה</blockquote>'
+                '<blockquote>&quot;שירות חם ומחירים הוגנים&quot; – אבי</blockquote>')
+        self.assertEqual(self.blocking(body), [])
+
     def test_paraphrase_blocks(self):
         body = '<blockquote>“הקפה הטוב ביותר בחיפה” – דנה</blockquote><blockquote>“שירות חם ומחירים הוגנים” – אבי</blockquote>'
         self.assertTrue(any('testimonials' in p for p in self.blocking(body)))

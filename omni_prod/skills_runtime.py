@@ -293,15 +293,20 @@ def _canon(context: dict):
 
 def _visible_and_links(text: str) -> str:
     """Page text plus tel:/wa.me targets; scripts and styles dropped, other attributes ignored."""
+    import html as _html
     text = re.sub(r'<(script|style)\b.*?</\1>', ' ', text, flags=re.S | re.I)
     links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s\-.]{7,})', text, re.I))
-    return re.sub(r'<[^>]+>', ' ', text) + ' ' + links
+    return _html.unescape(re.sub(r'<[^>]+>', ' ', text)) + ' ' + links
 
 
 def _testimonial_items(section: str) -> list[tuple[str, str]]:
     """(normalised quote, normalised author) for each testimonial in a section: one per <blockquote>/<figure>/<q>/<li>,
     else one per quoted span followed by a dash and a name."""
+    import html as _html
     from .fact_canon import norm_quote
+    # 2026-11-10 regression on the approved cafe: its quotes are written as &ldquo;...&rdquo; -- judge the text a
+    # visitor reads, so entities are decoded first.
+    section = _html.unescape(section)
     blocks = re.findall(r'<(blockquote|figure|li)\b[^>]*>(.*?)</\1>', section, re.S | re.I)
     texts = [re.sub(r'<[^>]+>', ' ', b) for _, b in blocks] or \
         [m.group(0) for m in re.finditer(r'[“"„\u05F4][^”"\u05F4<]{8,}[”"\u05F4][^“"„<]{0,40}', re.sub(r'<[^>]+>', ' ', section))]
@@ -352,7 +357,7 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
             out.append(StaticFinding('skill.copy_quality', 'advisory', path,
                                      f'number(s) that look like a phone but do not parse: {", ".join(odd[:3])}',
                                      'write phone numbers with their prefix (050-123-4567 or +972-50-123-4567)'))
-        claims = [c for c in _aggregate_claims(re.sub(r'<[^>]+>', ' ', text), canon)
+        claims = [c for c in _aggregate_claims(page, canon)
                   if not _TESTIMONIAL_LABEL.search(text)]
         if claims:
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,
