@@ -85,12 +85,14 @@ jobs:
           builds = json.load(open("/out/builds.json"))
           failed = 0
           rows = []
+          results = []
           inert = 0
           enc = lambda s: str(s).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           for b in builds:
               r = run(b["repository"], b["prompt"])
               rows.append((b["build_id"], b["prompt"], r["canon_hash"]))
               inert += 1 if r["truth_inert"] else 0
+              results.append((b["build_id"], r["passed"], r["truth_inert"]))
               line = {"build": b["build_id"], "passed": r["passed"], "served": r["served"], "smoke": r["smoke"],
                       "canon_hash": r["canon_hash"], "canon_facts": len(r["canon_facts"]),
                       "canon_keys": sorted({f["key"] for f in r["canon_facts"]}), "truth_inert": r["truth_inert"],
@@ -100,6 +102,10 @@ jobs:
               failed += 0 if r["passed"] else 1
               print(f"::{level} title=gate regression {b['build_id'][:16]}::{enc(json.dumps(line, ensure_ascii=False))}")
           check_distinct(rows)
-          print(f"::notice title=gate regression summary::{len(builds) - failed}/{len(builds)} approved builds pass the current gates; {inert} truth-inert (no facts: the truth gate did not test them)")
+          active = len(builds) - inert
+          active_pass = sum(1 for b, ok, ti in results if ok and not ti)
+          # Michael 2026-11-10: inert builds are out of the truth denominator; "2/2" with one inert is misleading.
+          print(f"::notice title=gate regression summary::{len(builds) - failed}/{len(builds)} approved builds pass; "
+                f"truth gate active on {active}/{len(builds)}; truth pass rate {active_pass}/{active} (inert excluded)")
           sys.exit(1 if failed or not builds else 0)
           PY

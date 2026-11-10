@@ -314,3 +314,45 @@ class RegressionToolGolden(unittest.TestCase):
         r = run({'page.py': 'x'}, 'מערכת משימות לצוות', pages={'/': GOOD_PAGE.replace('050-1234567', ''), 'assets': ''})
         self.assertTrue(r['truth_inert'])
         self.assertFalse(run({'page.py': 'x'}, REQUEST, pages={'/': GOOD_PAGE, 'assets': ''})['truth_inert'])
+
+
+class EntitiesAuthorsTypedCounts(unittest.TestCase):
+    """Michael 2026-11-10 (merge conditions 1-3 for #291)."""
+
+    REQ = ('ביקורות: "קפה & קרואסונים, הכי טוב" – דנה כהן • "שירות 5 כוכבים" – אבי • יש לנו מעל 50 ביקורות בגוגל '
+           'ודירוג 4.8 • מגישים 120 מנות ביום')
+
+    def blocking(self, body, req=None):
+        from omni_prod.fact_canon import build_canon
+        req = req or self.REQ
+        page = f'<html lang="he" dir="rtl"><body><h2>מה אומרים עלינו</h2>{body}<h2>תפריט</h2></body></html>'
+        ctx = {'request': req, 'canon': build_canon(req), 'rendered_pages': {'/': page, 'assets': ''}}
+        return [f.problem for f in static_findings({'a.py': 'x'}, ctx) if f.severity == 'blocking' and f.probe == '_invented_contact']
+
+    def test_every_entity_form_is_decoded_on_both_sides(self):
+        second = '<blockquote>“שירות 5 כוכבים” – אבי</blockquote>'
+        for first in ('&ldquo;קפה &amp; קרואסונים, הכי&nbsp;טוב&rdquo; – דנה כהן',
+                      '&quot;קפה &#38; קרואסונים, הכי טוב&quot; – דנה כהן',
+                      '&#8220;קפה &#x26; קרואסונים, הכי טוב&#8221; &#8211; דנה כהן',
+                      '“קפה & קרואסונים, הכי טוב” &#39;–&#x27; דנה כהן'.replace("&#39;–&#x27;", '–')):
+            self.assertEqual(self.blocking(f'<blockquote>{first}</blockquote>{second}'), [], first)
+        encoded_req = self.REQ.replace('&', '&amp;').replace('"', '&quot;')
+        self.assertEqual(self.blocking('<blockquote>“קפה & קרואסונים, הכי טוב” – דנה כהן</blockquote>' + second,
+                                       req=encoded_req), [])
+
+    def test_author_prefix_subset_and_city(self):
+        second = '<blockquote>“שירות 5 כוכבים” – אבי</blockquote>'
+        for author in ('דנה כהן', 'דנה', "דנה כ'", 'דנה, חיפה', 'דנה כהן, תל אביב'):
+            body = f'<blockquote>“קפה & קרואסונים, הכי טוב” – {author}</blockquote>{second}'
+            self.assertEqual(self.blocking(body), [], author)
+        body = '<blockquote>“קפה & קרואסונים, הכי טוב” – דוד</blockquote>' + second
+        self.assertTrue(any('testimonials' in p for p in self.blocking(body)))
+
+    def test_counts_are_typed(self):
+        from omni_prod.fact_canon import build_canon
+        canon = build_canon(self.REQ)
+        self.assertEqual(canon.values('reviewCount'), {'50'})
+        self.assertIn('4.8', canon.values('rating'))
+        self.assertEqual(self.blocking('<p>מעל 50 ביקורות, דירוג 4.8</p>'), [])
+        self.assertTrue(any('counts' in p for p in self.blocking('<p>120 ביקורות</p>')))   # 120 is a dish count
+        self.assertTrue(any('counts' in p for p in self.blocking('<p>50 לקוחות מרוצים</p>')))  # 50 is reviews, not customers

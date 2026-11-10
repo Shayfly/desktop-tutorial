@@ -231,8 +231,11 @@ class Canon:
 
 def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     """Every phone, address, e-mail, opening-hours span and declared name in the approved request."""
-    text = request_text or ''
-    canon = Canon(source_hash=hashlib.sha256(text.encode('utf-8')).hexdigest()[:16])
+    # Entities are decoded on BOTH sides before any comparison (Michael 2026-11-10): the request may carry &amp; or
+    # &nbsp; just as the page does. source_ref keeps the decoded span; the hash keeps the raw text.
+    raw = request_text or ''
+    text = decode_entities(raw)
+    canon = Canon(source_hash=hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16])
     seen: set[tuple[str, str]] = set()
 
     def add(key, value, ref):
@@ -256,9 +259,9 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     # "<normalised text>|<normalised author>"; a page review matches only when BOTH are identical after normalisation.
     for m in _QUOTE.finditer(text):
         add('review', norm_quote(m.group(1)) + '|' + norm_quote(m.group(2)), m.group(0))
-    # Aggregate claims the customer gave ("מעל 50 ביקורות", "4.9 כוכבים"): the number is a fact.
-    for m in _AGGREGATE.finditer(text):
-        add('aggregate', aggregate_key(m), m.group(0))
+    # Typed counts the customer gave ("מעל 50 ביקורות" -> reviewCount 50, "4.9 כוכבים" -> rating 4.9).
+    for kind, value, ref in count_facts(text):
+        add(kind, value, ref)
     return canon
 
 
@@ -268,17 +271,45 @@ _QUOTE = re.compile(r'[“"„\u05F4]([^”"\u05F4\n]{8,200})[”"\u05F4]\s*[–
 
 
 # The number must stand alone: "14:00 ביקורות" (hours, then the word) is not "00 reviews" -- the golden fixture caught it.
-_AGGREGATE = re.compile(r'(?<![\d:.,\-–])(\d+(?:[.,]\d+)?)\s*\+?\s*(ביקורות|חוות דעת|לקוחות מרוצים|לקוחות|כוכבים|דירוג|reviews|ratings|stars|'
-                        r'happy customers|customers)', re.I)
+# Typed count facts (Michael 2026-11-10): a claim is compared with a fact of the SAME type, never with "the number
+# appears somewhere in the request" -- "50 מנות" in the request must not source "50 ביקורות" on the page.
+_COUNT_TYPES = (
+    ('reviewCount', r'ביקורות|חוות דעת|המלצות|reviews?'),
+    ('rating', r'כוכבים|stars?|דירוג|rating'),
+    ('customerCount', r'לקוחות מרוצים|לקוחות|happy customers|customers'),
+)
+# The number must stand alone: "14:00 ביקורות" (hours, then the word) is not "00 reviews" -- the golden fixture caught it.
+_AGGREGATE = re.compile(r'(?<![\d:.,\-–])(\d+(?:[.,]\d+)?)\s*\+?\s*(' + '|'.join(p for _, p in _COUNT_TYPES) + r')', re.I)
+_RATING_FIRST = re.compile(r'(?:דירוג|rating)\s*(?:של\s*)?(\d(?:[.,]\d)?)', re.I)
 
 
-def aggregate_key(m) -> str:
-    return m.group(1).replace(',', '.') + ' ' + norm_quote(m.group(2))
+def count_type(noun: str) -> str:
+    for kind, pattern in _COUNT_TYPES:
+        if re.fullmatch(pattern, noun.strip(), re.I):
+            return kind
+    return 'count'
+
+
+def aggregate_key(m) -> tuple[str, str]:
+    """(fact type, value): ('reviewCount', '50'), ('rating', '4.9')."""
+    return count_type(m.group(2)), m.group(1).replace(',', '.')
+
+
+def count_facts(text: str) -> list[tuple[str, str, str]]:
+    out = [(*aggregate_key(m), m.group(0)) for m in _AGGREGATE.finditer(text or '')]
+    out += [('rating', m.group(1).replace(',', '.'), m.group(0)) for m in _RATING_FIRST.finditer(text or '')]
+    return out
+
+
+def decode_entities(text: str) -> str:
+    """Every HTML entity (named, decimal, hex) to its character; non-breaking and other invisible spaces to a space."""
+    import html
+    return _INVISIBLE.sub(' ', html.unescape(text or ''))
 
 
 def norm_quote(text: str) -> str:
     """Comparison form of a review quote: no punctuation, single spaces, final letters folded."""
-    t = unicodedata.normalize('NFC', text or '')
+    t = unicodedata.normalize('NFC', decode_entities(text))
     t = _HEBREW_MARKS.sub('', t)
     t = re.sub(r'[^\w\s\u0590-\u05FF]', ' ', t)
     return re.sub(r'\s+', ' ', t).strip().lower().translate(_FINALS)
@@ -306,7 +337,7 @@ def validate_canon(canon: Canon, request_text: str) -> list[dict]:
     for f in canon.facts:
         if not f.source_ref:
             issues.append({'code': 'FACT_NO_SOURCE', 'fatal': True, 'at': f.key})
-        if f.source == 'brief' and f.source_ref and f.source_ref not in (request_text or ''):
+        if f.source == 'brief' and f.source_ref and f.source_ref not in decode_entities(request_text):
             issues.append({'code': 'FACT_NOT_IN_BRIEF', 'fatal': True, 'at': f.source_ref})
         if f.key == 'phone' and not f.value.startswith('+972'):
             issues.append({'code': 'PHONE_UNPARSEABLE', 'fatal': True, 'at': f.source_ref})

@@ -293,20 +293,19 @@ def _canon(context: dict):
 
 def _visible_and_links(text: str) -> str:
     """Page text plus tel:/wa.me targets; scripts and styles dropped, other attributes ignored."""
-    import html as _html
     text = re.sub(r'<(script|style)\b.*?</\1>', ' ', text, flags=re.S | re.I)
     links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s\-.]{7,})', text, re.I))
-    return _html.unescape(re.sub(r'<[^>]+>', ' ', text)) + ' ' + links
+    from .fact_canon import decode_entities
+    return decode_entities(re.sub(r'<[^>]+>', ' ', text)) + ' ' + links
 
 
 def _testimonial_items(section: str) -> list[tuple[str, str]]:
     """(normalised quote, normalised author) for each testimonial in a section: one per <blockquote>/<figure>/<q>/<li>,
     else one per quoted span followed by a dash and a name."""
-    import html as _html
-    from .fact_canon import norm_quote
+    from .fact_canon import decode_entities, norm_quote
     # 2026-11-10 regression on the approved cafe: its quotes are written as &ldquo;...&rdquo; -- judge the text a
-    # visitor reads, so entities are decoded first.
-    section = _html.unescape(section)
+    # visitor reads; every entity is decoded (the canon side does the same).
+    section = decode_entities(section)
     blocks = re.findall(r'<(blockquote|figure|li)\b[^>]*>(.*?)</\1>', section, re.S | re.I)
     texts = [re.sub(r'<[^>]+>', ' ', b) for _, b in blocks] or \
         [m.group(0) for m in re.finditer(r'[“"„\u05F4][^”"\u05F4<]{8,}[”"\u05F4][^“"„<]{0,40}', re.sub(r'<[^>]+>', ' ', section))]
@@ -321,15 +320,29 @@ def _testimonial_items(section: str) -> list[tuple[str, str]]:
         else:
             parts = re.split(r'\s[–—-]\s', t)
             quote, author = (' – '.join(parts[:-1]), parts[-1]) if len(parts) > 1 else (t, '')
-        out.append((norm_quote(quote), norm_quote(author)))
+        # a city may follow the author after a comma ("דנה, חיפה"): drop it before normalising
+        out.append((norm_quote(quote), norm_quote(author.split(',')[0])))
     return out
+
+
+def _review_matches(quote: str, author: str, given: str) -> bool:
+    """Quote identical after normalisation; author compatible (Michael 2026-11-10): the page author, before a comma
+    (a city may follow), is a prefix or a token subset of the canon author or the other way round. "דנה כ'" and
+    "דנה, חיפה" match "דנה"; "דוד" never matches "דנה"."""
+    g_quote, _, g_author = given.partition('|')
+    if quote != g_quote:
+        return False
+    page = (author or '').strip()
+    pt, gt = page.split(), g_author.split()
+    if not pt or not gt:
+        return True            # omitting the author, or a request that gave none, invents nothing
+    return (set(pt) <= set(gt) or set(gt) <= set(pt) or g_author.startswith(page) or page.startswith(g_author))
 
 
 def _aggregate_claims(page_text: str, canon) -> list[str]:
     """Michael 2026-11-10: "מעל 50 ביקורות" is not a quote. A count/rating claim needs that number in the canon."""
-    from .fact_canon import _AGGREGATE, aggregate_key
-    given = canon.values('aggregate')
-    return sorted({m.group(0).strip() for m in _AGGREGATE.finditer(page_text) if aggregate_key(m) not in given})
+    from .fact_canon import count_facts
+    return sorted({ref.strip() for kind, value, ref in count_facts(page_text) if value not in canon.values(kind)})
 
 
 def _street_core(page_span: str, canon_addr: str) -> bool:
@@ -382,7 +395,7 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
             given = canon.values('review')
             # Michael 2026-11-10: LITERAL. An item is sourced only when its quote is identical to a given review after
             # normalisation (punctuation, spaces, niqqud) AND its author is that review's author. A paraphrase blocks.
-            unknown = [f'{q[:50]} – {a[:20]}' for q, a in items if f'{q}|{a}' not in given]
+            unknown = [f'{q[:50]} – {a[:20]}' for q, a in items if not any(_review_matches(q, a, g) for g in given)]
             sourced = bool(items) and not unknown
             if len(items) >= 2 and not sourced and not _TESTIMONIAL_LABEL.search(section) \
                     and not _TESTIMONIAL_LABEL.search(head.group(0)):
