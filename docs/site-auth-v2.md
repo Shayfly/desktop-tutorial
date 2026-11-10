@@ -34,8 +34,19 @@ form in a real browser at 320px / 140%.
 - additive only: every line deleted from the baseline is declared in `docs/identity/allowed-deletions.json`.
 
 ## Merging on 13.11 (the gate freeze)
-The `freeze` job fails on #292 by design. The merge is NOT a silent override:
-1. after 13.11 17:52 a separate PR sets `"active": false` in `docs/gate-freeze.json` with the reason and the frozen
-   run's report link -- the freeze job logs that the definition itself changed;
-2. that PR merges first; #292 is rebased on it, CI reruns (freeze passes, identity passes);
-3. only then #292 merges; the merge commit SHA, the CI run and the identity annotations go in the run report.
+The `freeze` job fails on #292 by design, and the merge is NOT a silent override. Michael's order constraint
+(2026-11-10): the freeze comes off, #292 merges immediately, the freeze restarts from the new SHA, and no other PR
+lands in between. A separate freeze-off PR cannot guarantee that -- between it and #292, main would sit unfrozen.
+So #292 itself carries the freeze change, and there is never a moment with the freeze off:
+
+1. After 13.11 17:52: gate regression on the tip of main (both approved builds pass, `self_check` green), the tip
+   SHA is recorded as the final baseline, and the frozen run (5 arms, flag off) runs against it.
+2. With Michael's explicit approval, ONE closing commit on #292 rewrites `docs/gate-freeze.json`:
+   `"active": true`, `"starts": "merge of PR #292"`, 72h, reason pointing at the frozen run's report. The freeze
+   check passes a PR that changes the definition itself (logged as `::notice ... a reviewed decision`) -- that is
+   the only sanctioned way through, which is why this commit needs the approval on record.
+3. Before pressing merge: `git log <final-baseline-SHA>..origin/main` must be EMPTY. If anything landed, main moved
+   since the frozen run -- go back to step 1. Then #292 merges (squash); from that instant the new freeze definition
+   is on main and any PR touching a gate file is blocked again. Old freeze until the merge, new freeze from the
+   merge: no gap, no PR in between by construction.
+4. The merge commit SHA, the CI run, the identity annotations and the new freeze window go in the run report.
