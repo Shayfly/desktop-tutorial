@@ -227,7 +227,8 @@ class PreRegistration(unittest.TestCase):
     def test_document_has_the_rules(self):
         doc = open('docs/frozen-run-20261110.md', encoding='utf-8').read()
         for needle in ('noFixRule:', 'blindReview:', 'rollback:', 'manifestHash:', 'fixturesCommit:', 'knownGaps:',
-                       'restaurant-a AND restaurant-b pass', '`informed`', '`warned`', 'verbatim'):
+                       'restaurant-a AND restaurant-b pass', '`informed`', '`warned`', 'verbatim',
+                       'service:', 'measurement:', '`truth-inert`'):
             self.assertIn(needle, doc)
 
     def test_every_required_field_and_the_warned_rule(self):
@@ -241,3 +242,69 @@ class PreRegistration(unittest.TestCase):
                         warned={'shown': True, 'tick_required': True, 'refused_until_ticked': True})
         self.assertTrue(ok['passed'] and ok['warned'] and ok['informed'])
         self.assertEqual(ok['knownGaps'], ['json_ld_schema'])
+
+
+class LiteralReviewsAndAggregates(unittest.TestCase):
+    """Michael 2026-11-10 items 1-2: a review matches only verbatim (after normalisation) with its author; a count is a
+    separate claim that needs its number in the canon."""
+
+    REQ = 'ביקורות: "הקפה הכי טוב בחיפה" – דנה • "שירות חם ומחירים הוגנים" – אבי • יש לנו מעל 50 ביקורות בגוגל'
+
+    def blocking(self, body):
+        from omni_prod.fact_canon import build_canon
+        page = f'<html lang="he" dir="rtl"><body><h2>מה אומרים עלינו</h2>{body}<h2>תפריט</h2><ul><li>אספרסו 10</li><li>הפוך 14</li></ul></body></html>'
+        ctx = {'request': self.REQ, 'canon': build_canon(self.REQ), 'rendered_pages': {'/': page, 'assets': ''}}
+        return [f.problem for f in static_findings({'a.py': 'x'}, ctx) if f.severity == 'blocking' and f.probe == '_invented_contact']
+
+    def test_verbatim_with_punctuation_and_niqqud_passes(self):
+        body = ('<blockquote>“הקפה הכי טוב בחיפה!” – דנה</blockquote>'
+                '<blockquote>"שֵׁירוּת חם, ומחירים הוגנים" – אבי</blockquote><p>מעל 50 ביקורות</p>')
+        self.assertEqual(self.blocking(body), [])
+
+    def test_paraphrase_blocks(self):
+        body = '<blockquote>“הקפה הטוב ביותר בחיפה” – דנה</blockquote><blockquote>“שירות חם ומחירים הוגנים” – אבי</blockquote>'
+        self.assertTrue(any('testimonials' in p for p in self.blocking(body)))
+
+    def test_wrong_author_blocks(self):
+        body = '<blockquote>“הקפה הכי טוב בחיפה” – רותי</blockquote><blockquote>“שירות חם ומחירים הוגנים” – אבי</blockquote>'
+        self.assertTrue(any('testimonials' in p for p in self.blocking(body)))
+
+    def test_invented_count_blocks_given_count_passes(self):
+        given = '<blockquote>“הקפה הכי טוב בחיפה” – דנה</blockquote><blockquote>“שירות חם ומחירים הוגנים” – אבי</blockquote>'
+        self.assertEqual(self.blocking(given + '<p>מעל 50 ביקורות</p>'), [])
+        self.assertTrue(any('counts' in p for p in self.blocking(given + '<p>4.9 כוכבים מ-300 ביקורות</p>')))
+
+    def test_menu_list_after_the_section_is_not_a_testimonial(self):
+        given = '<blockquote>“הקפה הכי טוב בחיפה” – דנה</blockquote><blockquote>“שירות חם ומחירים הוגנים” – אבי</blockquote>'
+        self.assertEqual(self.blocking(given), [])
+
+
+class RegressionToolGolden(unittest.TestCase):
+    """Michael 2026-11-10 item 3: the measuring tool has its own golden fixture with an EXACT fact count."""
+
+    def test_golden_self_check(self):
+        from omni_prod.gate_regression import GOLDEN_FACTS, self_check
+        self.assertEqual(self_check(), GOLDEN_FACTS)
+
+    def test_self_check_fails_on_a_wrong_count(self):
+        from omni_prod import gate_regression
+        saved = dict(gate_regression.GOLDEN_FACTS)
+        try:
+            gate_regression.GOLDEN_FACTS['phone'] = 2
+            with self.assertRaises(AssertionError):
+                gate_regression.self_check()
+        finally:
+            gate_regression.GOLDEN_FACTS.clear()
+            gate_regression.GOLDEN_FACTS.update(saved)
+
+    def test_identical_canons_for_different_prompts_are_an_error(self):
+        from omni_prod.gate_regression import check_distinct
+        with self.assertRaises(AssertionError):
+            check_distinct([('a', 'prompt one', 'h1'), ('b', 'prompt two', 'h1')])
+        check_distinct([('a', 'p1', 'h1'), ('b', 'p2', 'h2')])
+
+    def test_zero_facts_is_truth_inert(self):
+        from omni_prod.gate_regression import run
+        r = run({'page.py': 'x'}, 'מערכת משימות לצוות', pages={'/': GOOD_PAGE.replace('050-1234567', ''), 'assets': ''})
+        self.assertTrue(r['truth_inert'])
+        self.assertFalse(run({'page.py': 'x'}, REQUEST, pages={'/': GOOD_PAGE, 'assets': ''})['truth_inert'])

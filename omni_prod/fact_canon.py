@@ -252,9 +252,13 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
         add('hours', re.sub(r'\s+', ' ', m.group(0)).strip(), m.group(0))
     for m in _NAME.finditer(text):
         add('name', m.group(1).strip(), m.group(0))
-    # Reviews the customer GAVE: a quote followed by a dash and a name ("הקפה הכי טוב בחיפה" – דנה).
+    # Reviews the customer GAVE: a quote followed by a dash and a name ("הקפה הכי טוב בחיפה" – דנה). The value is
+    # "<normalised text>|<normalised author>"; a page review matches only when BOTH are identical after normalisation.
     for m in _QUOTE.finditer(text):
-        add('review', norm_quote(m.group(1)), m.group(0))
+        add('review', norm_quote(m.group(1)) + '|' + norm_quote(m.group(2)), m.group(0))
+    # Aggregate claims the customer gave ("מעל 50 ביקורות", "4.9 כוכבים"): the number is a fact.
+    for m in _AGGREGATE.finditer(text):
+        add('aggregate', aggregate_key(m), m.group(0))
     return canon
 
 
@@ -263,9 +267,20 @@ _QUOTE = re.compile(r'[“"„\u05F4]([^”"\u05F4\n]{8,200})[”"\u05F4]\s*[–
                     r'((?:[\u0590-\u05FF\w\'\u05F3]+\s?){1,3}?)(?=\s*(?:[•\n"“]|\d+\.|$))')
 
 
+# The number must stand alone: "14:00 ביקורות" (hours, then the word) is not "00 reviews" -- the golden fixture caught it.
+_AGGREGATE = re.compile(r'(?<![\d:.,\-–])(\d+(?:[.,]\d+)?)\s*\+?\s*(ביקורות|חוות דעת|לקוחות מרוצים|לקוחות|כוכבים|דירוג|reviews|ratings|stars|'
+                        r'happy customers|customers)', re.I)
+
+
+def aggregate_key(m) -> str:
+    return m.group(1).replace(',', '.') + ' ' + norm_quote(m.group(2))
+
+
 def norm_quote(text: str) -> str:
     """Comparison form of a review quote: no punctuation, single spaces, final letters folded."""
-    t = re.sub(r'[^\w\s\u0590-\u05FF]', ' ', text or '')
+    t = unicodedata.normalize('NFC', text or '')
+    t = _HEBREW_MARKS.sub('', t)
+    t = re.sub(r'[^\w\s\u0590-\u05FF]', ' ', t)
     return re.sub(r'\s+', ' ', t).strip().lower().translate(_FINALS)
 
 

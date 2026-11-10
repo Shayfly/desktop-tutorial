@@ -79,20 +79,27 @@ jobs:
           docker run --rm -i --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
             -v "$OUT:/out" -v "$GITHUB_WORKSPACE/src:/src:ro" -w /src -e PYTHONPATH=/src "$IMG" python - <<'PY'
           import json, sys
-          from omni_prod.gate_regression import run
+          from omni_prod.gate_regression import check_distinct, run, self_check
+          got = self_check()                                   # the tool proves itself first (exact golden counts)
+          print(f"::notice title=tool golden::canon facts {got}")
           builds = json.load(open("/out/builds.json"))
           failed = 0
+          rows = []
+          inert = 0
           enc = lambda s: str(s).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           for b in builds:
               r = run(b["repository"], b["prompt"])
+              rows.append((b["build_id"], b["prompt"], r["canon_hash"]))
+              inert += 1 if r["truth_inert"] else 0
               line = {"build": b["build_id"], "passed": r["passed"], "served": r["served"], "smoke": r["smoke"],
                       "canon_hash": r["canon_hash"], "canon_facts": len(r["canon_facts"]),
-                      "canon_keys": sorted({f["key"] for f in r["canon_facts"]}),
+                      "canon_keys": sorted({f["key"] for f in r["canon_facts"]}), "truth_inert": r["truth_inert"],
                       "blocking": [f'{f.get("probe")}: {f["problem"]}' for f in r["blocking"]],
                       "advisory": [f'{f.get("probe")}: {f["problem"]}' for f in r["advisory"]][:8]}
               level = "notice" if r["passed"] else "error"
               failed += 0 if r["passed"] else 1
               print(f"::{level} title=gate regression {b['build_id'][:16]}::{enc(json.dumps(line, ensure_ascii=False))}")
-          print(f"::notice title=gate regression summary::{len(builds) - failed}/{len(builds)} approved builds pass the current gates")
+          check_distinct(rows)
+          print(f"::notice title=gate regression summary::{len(builds) - failed}/{len(builds)} approved builds pass the current gates; {inert} truth-inert (no facts: the truth gate did not test them)")
           sys.exit(1 if failed or not builds else 0)
           PY

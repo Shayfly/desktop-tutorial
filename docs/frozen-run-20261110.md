@@ -7,14 +7,17 @@ with a new id.
 run: frozen-2026-11-11
 baselineSha: <the main commit that merges PR #289 -- filled in the run report, never edited here>
 baseline:            # all three identify the frozen system; recorded in the run report, never edited here
-  sha: <main commit after PR #290>
+  sha: <main commit after PR #291>
   manifestHash: <sha256 of omni_prod/probe_manifest.py at sha>
   fixturesCommit: <last commit touching tests/test_gate_mutations_20261110.py and tests/test_frozen_run_conditions_20261110.py>
 hypothesis: "The system at baseline.sha produces passing pages for a new brief with no human code fix."
 failure: "any repair round that changed code, or any human code fix, in any arm"
 noFixRule: "no code change on main until the last arm finishes; fixes go to a branch and merge after the run"
 blindReview: "the design critic sees screenshots and the brief only -- never the arm name, the cost or other arms"
-rollback: "if the gate regression on the approved builds fails, the last PR is reverted first and fixed after"
+rollback:            # by layer (Michael 2026-11-10), written, not judged case by case
+  service: "a gate regression in the SERVICE (an approved page now fails) -> revert the last PR first, fix after"
+  measurement: "a regression in the MEASURING TOOL itself -> fix forward, in the same PR, and mark the arm/run"
+  sha: <main commit after PR #291>
 knownGaps: ["json_ld_schema: no probe exists; a florist page passes without structured data -- 'passed' is not 'complete'"]
 models:              # pinned: the catalog at baselineSha (infra/worker-host/model-catalog.json)
   architect: gemini-3.1-flash-lite (LIGHT lane) | claude-sonnet-5-5 (founder)
@@ -39,6 +42,9 @@ model answering than pinned marks that arm `degraded`.
 | florist-hard | Michael's florist brief, passed on **verbatim** (local phone with dashes, "רח'", uneven hours, a reviews line with no reviews) | canon + truth gate under a real load | `informed` (written by someone who knows the parser) |
 | florist-new | the same florist brief with the phone and address removed | the incomplete-canon path | `informed`, `warned` |
 | negative | a request outside the capability matrix (native iOS app with in-app payments) | a clean refusal, no half build | |
+
+`truth-inert`: an arm or regression build whose canon has zero facts. The truth gate had nothing to compare, so its
+pass says nothing about truth coverage; it is reported separately and never counted like a build the gate tested.
 
 `warned` (florist-new) passes ONLY if all three happened: the `CANON_INCOMPLETE` warning was shown, the tick box was
 required, and the server refused the approval until it was ticked. Otherwise the arm fails -- it must not count like
