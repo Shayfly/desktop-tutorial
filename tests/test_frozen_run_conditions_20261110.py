@@ -8,7 +8,7 @@ from omni_prod.fact_canon import parse_phone
 from omni_prod.probe_manifest import NOT_YET_PROBED, PROBES, critical_probes, is_critical
 from omni_prod.skills_runtime import WEB_SKILLS, static_findings
 
-from test_gate_mutations_20261110 import GOOD_PAGE, REQUEST
+from tests.test_gate_mutations_20261110 import GOOD_PAGE, REQUEST
 
 
 class PhoneBounds(unittest.TestCase):
