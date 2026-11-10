@@ -18,7 +18,7 @@ class InventedContactTests(unittest.TestCase):
         found = _invented_contact({'index.html': CAFE_PAGE}, {'request': 'דף נחיתה לבית קפה שכונתי בחיפה'})
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0].severity, 'blocking')
-        self.assertIn('0501234567', found[0].problem)
+        self.assertIn('+972501234567', found[0].problem)
         self.assertIn('רחוב הנביאים 12', found[0].problem)
 
     def test_details_from_the_request_pass_in_any_format(self):

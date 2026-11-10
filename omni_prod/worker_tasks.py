@@ -253,6 +253,18 @@ def rejected_json_evidence(gateway) -> dict:
                                                'failed': len(rows) - stored}}
 
 
+def _gate_waste(engine, spent, repair_rounds) -> dict:
+    from .behavior_acceptance import find_in_chain
+    from .product_review import ProductReviewExecutor
+    review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
+    rounds = int(getattr(review, 'gate_waste_rounds', 0) or 0) if review is not None else 0
+    quarantined = list(getattr(review, 'quarantined', []) or []) if review is not None else []
+    total = max(int(repair_rounds or 0) + 1, 1)
+    est = (Decimal(str(spent or 0)) * rounds / total).quantize(Decimal('0.0001')) if rounds else Decimal('0')
+    return {'rounds': rounds, 'estimated_usd': str(est), 'basis': 'spend x wasted rounds / rounds run',
+            'quarantined_gates': quarantined}
+
+
 def _design_reviews(engine) -> list:
     from .behavior_acceptance import find_in_chain
     from .visual_qa import VisualQAExecutor
@@ -1045,6 +1057,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             # Agent OS §11: which skills shaped the build and what QA review found.
             'skills_applied': _skills_applied(),
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
+            # Michael 2026-11-10: gates that judged the wrong artefact, and what they cost -- a separate line, never
+            # hidden inside the build's cost.
+            'gate_waste': _gate_waste(engine, spent, result.repair_rounds),
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
