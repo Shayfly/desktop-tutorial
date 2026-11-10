@@ -27,6 +27,21 @@ ROLE_EVOLUTION = 'evolution'
 ROLE_REVIEWER = 'reviewer'
 
 
+def reads_source(reason: str):
+    """Michael 2026-11-10 condition 4: a static check that reads SOURCE files (not the served page) must say why.
+    tests/test_gate_mutations_20261110.py fails on any check that calls _text_files without this declaration."""
+    def mark(fn):
+        fn.reads_source = reason
+        return fn
+    return mark
+
+
+def _anchor(text: str) -> str:
+    """Short hash of the DOM node a finding points at; identical anchors across rounds mean the product did not change there."""
+    import hashlib
+    return hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:12]
+
+
 @dataclass(frozen=True)
 class StaticFinding:
     skill: str
@@ -34,10 +49,11 @@ class StaticFinding:
     file: str
     problem: str
     fix: str
+    anchor: str | None = None      # hash of the DOM node judged (markup gates); None for code checks
 
     def to_dict(self) -> dict:
         return {'skill': self.skill, 'severity': self.severity, 'file': self.file,
-                'problem': self.problem, 'fix': self.fix, 'source': 'static'}
+                'problem': self.problem, 'fix': self.fix, 'source': 'static', 'anchor': self.anchor}
 
 
 @dataclass(frozen=True)
@@ -94,6 +110,7 @@ def _page_css(repository: dict, context: dict, pages: dict) -> str:
 
 # ---------------------------------------------------------------- static checks
 
+@reads_source('alert()/confirm()/prompt() are JavaScript calls: they exist only in code, never in the served DOM')
 def _no_browser_dialogs(repository: dict, context: dict) -> list[StaticFinding]:
     out = []
     for path, text in _text_files(repository).items():
@@ -121,6 +138,7 @@ def _call_argument(line: str, open_paren: int) -> str:
     return line[open_paren + 1:]
 
 
+@reads_source('int() of request input is server code; the served page cannot show it')
 def _unguarded_int_conversion(repository: dict, context: dict) -> list[StaticFinding]:
     """Run 39313029465 (2026-10-19): POST /api/matches did int(score), so 2.9 and true were accepted as other scores.
     An int()/float() of request input with no try in the 15 lines up to it and no isinstance( before it in them."""
@@ -143,6 +161,7 @@ def _unguarded_int_conversion(repository: dict, context: dict) -> list[StaticFin
     return out
 
 
+@reads_source('html.escape() before an INSERT is server code: double-escaping is visible only at the source')
 def _escape_once(repository: dict, context: dict) -> list[StaticFinding]:
     out = []
     for path, text in _text_files(repository).items():
@@ -161,9 +180,10 @@ def _rtl_for_hebrew(repository: dict, context: dict) -> list[StaticFinding]:
     missing = [p for p, c in pages.items() if '<html' in c.lower() and not re.search(r'dir\s*=\s*["\']rtl', c, re.I)
                and not re.search(r'<html\b[^>]*\bdir\s*=', c, re.I)]
     if missing:
+        tag = re.search(r'<html\b[^>]*>', pages[missing[0]], re.I)
         return [StaticFinding('skill.text_locale', 'blocking', missing[0],
                               'Hebrew product without dir="rtl" on the page',
-                              'set <html lang="he" dir="rtl">')]
+                              'set <html lang="he" dir="rtl">', anchor=_anchor(tag.group(0) if tag else ''))]
     return []
 
 
@@ -206,6 +226,7 @@ def _styled_page(repository: dict, context: dict) -> list[StaticFinding]:
                           'styled form controls and buttons, table styling, status badges, and a phone layout')]
 
 
+@reads_source('innerHTML with interpolation is a script-level XSS pattern; the DOM shows the symptom only when attacked')
 def _innerhtml_interpolation(repository: dict, context: dict) -> list[StaticFinding]:
     out = []
     for path, text in _text_files(repository).items():
@@ -216,6 +237,7 @@ def _innerhtml_interpolation(repository: dict, context: dict) -> list[StaticFind
     return out
 
 
+@reads_source('SQL built with f-strings/format is server code with no trace on the page')
 def _sql_string_formatting(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.security_basics: execute() with an f-string, % or .format() builds SQL from values."""
     out = []
@@ -248,8 +270,7 @@ def _placeholder_copy(repository: dict, context: dict) -> list[StaticFinding]:
     return out
 
 
-_PHONE = re.compile(r'(?<![\d])(?:\+?972[\s\-.]?|0)(?:5\d|7\d|[2-489])[\s\-.]?\d{3}[\s\-.]?\d{4}(?![\d])')
-_STREET = re.compile(r"(?:רחוב|רח['\u05F3]|שדרות|שד['\u05F3]|דרך|סמטת|כיכר)\s+(?:[\u0590-\u05FF\"'\u05F3\u05F4-]+\s+){0,3}?\d{1,4}\b")
+_STREET = re.compile(r"(?:רחוב|רח['\u05F3]|ר[\"\u05F4]ח|שדרות|שד['\u05F3]|דרך|סמטת|כיכר|שارع|ش\.?)\s+(?:[\u0590-\u05FF\u0600-\u06FF\"'\u05F3\u05F4-]+\s+){0,3}?[\d\u0660-\u0669]{1,4}\b")
 _TESTIMONIAL_HEAD = re.compile(r'<h[1-4][^>]*>[^<]*(?:המלצות|ביקורות|לקוחות מספרים|מה אומרים|testimonials|reviews|what (?:our )?customers say)[^<]*</h[1-4]>', re.I)
 _TESTIMONIAL_LABEL = re.compile(r'לדוגמה|להמחשה|דוגמה בלבד|sample|illustrative|example', re.I)
 
@@ -271,25 +292,38 @@ def _visible_and_links(text: str) -> str:
     return re.sub(r'<[^>]+>', ' ', text) + ' ' + links
 
 
+def _street_core(page_span: str, canon_addr: str) -> bool:
+    """The page may drop the city: "רח' הנביאים 12" matches canon "רחוב הנביאים 12 חיפה"."""
+    from .fact_canon import addr_key
+    page_tokens, want = addr_key(page_span).split(), addr_key(canon_addr).split()
+    return bool(page_tokens) and all(t in want for t in page_tokens) and any(t.isdigit() for t in page_tokens)
+
+
 def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
     """skill.copy_quality truth gate (CEO 2026-11-09, Michael 2026-11-10): the served page is compared with the fact
     canon of the approved request, not with a guess. A phone/WhatsApp number (E.164) or a street address (normalised)
     on the page that is not in the canon is invented. Testimonials need a canon source or an "לדוגמה" label."""
-    from .fact_canon import norm_address, phone_e164
+    from .fact_canon import addr_matches, page_phones
     canon = _canon(context)
     phones, streets = canon.values('phone'), canon.values('address')
     out = []
     for path, text in _pages(repository, context).items():
         page = _visible_and_links(text)
-        bad_phones = sorted({phone_e164(m.group(0)) or m.group(0) for m in _PHONE.finditer(page)} - phones)
+        shown, odd = page_phones(page)
+        bad_phones = sorted(shown - phones)
         bad_streets = sorted({m.group(0).strip() for m in _STREET.finditer(page)
-                              if not any(norm_address(m.group(0)) in s or s in norm_address(m.group(0)) for s in streets)})
+                              if not any(addr_matches(m.group(0), s) or _street_core(m.group(0), s) for s in streets)})
+        if odd:
+            out.append(StaticFinding('skill.copy_quality', 'advisory', path,
+                                     f'number(s) that look like a phone but do not parse: {", ".join(odd[:3])}',
+                                     'write phone numbers with their prefix (050-123-4567 or +972-50-123-4567)'))
         if bad_phones or bad_streets:
             what = ', '.join(bad_phones[:3] + bad_streets[:3])
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,
                                      f'contact details not in the approved request (invented): {what}',
                                      'show only the phone/WhatsApp number and address the request gives '
-                                     f'(canon {canon.hash}); leave a contact line or button out when it has no real value'))
+                                     f'(canon {canon.hash}); leave a contact line or button out when it has no real value',
+                                     anchor=_anchor(what)))
         head = _TESTIMONIAL_HEAD.search(text)
         if head and not canon.values('review'):
             section = text[head.end():head.end() + 4000]
@@ -298,7 +332,7 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
                 out.append(StaticFinding('skill.copy_quality', 'blocking', path,
                                          'testimonials with no source in the approved request and no "לדוגמה" label',
                                          'label the section "(לדוגמה)" / "sample reviews", or remove it until the owner '
-                                         'provides real reviews'))
+                                         'provides real reviews', anchor=_anchor(head.group(0) + section[:600])))
     return out
 
 
@@ -311,7 +345,8 @@ def _images_without_alt(repository: dict, context: dict) -> list[StaticFinding]:
         if missing:
             out.append(StaticFinding('skill.accessibility', 'advisory', path,
                                      f'{len(missing)} image(s) without alt text',
-                                     'give every content image an alt that says what it shows; alt="" only for decoration'))
+                                     'give every content image an alt that says what it shows; alt="" only for decoration',
+                                     anchor=_anchor(''.join(missing))))
     return out
 
 

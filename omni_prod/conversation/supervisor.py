@@ -326,8 +326,16 @@ class ConversationSupervisor:
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
-        turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint})
-        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), t['range'].format(lo=lo, hi=hi), t['gate1']]
+        # Michael 2026-11-10 condition 2: the fact canon is shown here and approved WITH the brief; an empty canon on a
+        # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
+        from .. import discovery as d
+        from ..fact_canon import canon_view
+        canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
+                           family='website' if d.is_website(row.brief) else 'app', lang=lang)
+        turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
+                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
+        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *canon['lines'],
+                t['range'].format(lo=lo, hi=hi), t['gate1']]
 
     def _plan(self, project_id, row):
         try:

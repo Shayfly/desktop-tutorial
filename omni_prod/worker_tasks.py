@@ -259,10 +259,15 @@ def _gate_waste(engine, spent, repair_rounds) -> dict:
     review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
     rounds = int(getattr(review, 'gate_waste_rounds', 0) or 0) if review is not None else 0
     quarantined = list(getattr(review, 'quarantined', []) or []) if review is not None else []
-    total = max(int(repair_rounds or 0) + 1, 1)
-    est = (Decimal(str(spent or 0)) * rounds / total).quantize(Decimal('0.0001')) if rounds else Decimal('0')
-    return {'rounds': rounds, 'estimated_usd': str(est), 'basis': 'spend x wasted rounds / rounds run',
-            'quarantined_gates': quarantined}
+    measured = Decimal(str(getattr(review, 'gate_waste_usd', 0) or 0)) if review is not None else Decimal('0')
+    calls = int(getattr(review, 'gate_waste_calls', 0) or 0) if review is not None else 0
+    critical = [q for q in quarantined if q.get('critical')]
+    return {'rounds': rounds, 'measured_usd': str(measured.quantize(Decimal('0.0001'))), 'model_calls': calls,
+            'basis': 'gateway spend between the first repeated review and the quarantine (measured, not estimated)',
+            'quarantined_gates': quarantined, 'critical_quarantine': bool(critical),
+            # Michael condition 1: a critical gate in quarantine never releases silently.
+            'banner': ('בדיקה קריטית הושעתה בבנייה הזו (' + ', '.join(q['skill'] for q in critical) +
+                       '). התצוגה המקדימה זמינה; פרסום לפרודקשן חסום עד שהבדיקה תתוקן.') if critical else None}
 
 
 def _design_reviews(engine) -> list:
@@ -721,9 +726,12 @@ def _founder_draft_allowed(request, error_code) -> bool:
     return bool(m5_founder_account((request or {}).get('user_id')))
 
 
-def _version_message(build_id: str, founder_draft: bool) -> str:
+def _version_message(build_id: str, founder_draft: bool, banner: str | None = None) -> str:
     if founder_draft:
         return f'148AI DRAFT (failed checks, founder preview only) build {build_id}'
+    if banner:
+        # Michael 2026-11-10 condition 1: a critical gate in quarantine is visible on the version, never silent.
+        return f'148AI PREVIEW ONLY build {build_id} — {banner}'
     return f'148AI async live build {build_id}'
 
 
@@ -908,6 +916,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
         from .page_locale import install as install_page_locale
         install_page_locale(engine, prompt)
+        # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
+        from .product_review import install_review_request
+        install_review_request(engine, prompt)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
         agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
@@ -973,6 +984,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
         ready = core_ready and capability_ready
+        gate_waste = _gate_waste(engine, None, result.repair_rounds)
         if core_ready and not capability_ready:
             error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
 
@@ -1017,12 +1029,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 with conn.transaction():
                     with conn.cursor() as cur:
                         version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                                   message=_version_message(build_id, founder_draft), cur=cur)
+                                                   message=_version_message(build_id, founder_draft, gate_waste.get('banner')), cur=cur)
                         spec_repo.save(version_id=version.id, project_id=internal_project_id,
                                        spec=result.spec, cur=cur)
         else:
             version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                       message=_version_message(build_id, founder_draft))
+                                       message=_version_message(build_id, founder_draft, gate_waste.get('banner')))
         version_id = version.id if version is not None else None
         artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
@@ -1036,7 +1048,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'security': security.to_dict(),
                 'rights': rights.to_dict(),
             },
-            'release_ready': ready,
+            'release_ready': bool(ready) and not gate_waste['critical_quarantine'],
             'founder_draft_version': bool(founder_draft),
             'build_contract': contract_evidence,
             'capabilities': capability_evidence,
@@ -1059,7 +1071,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
             # Michael 2026-11-10: gates that judged the wrong artefact, and what they cost -- a separate line, never
             # hidden inside the build's cost.
-            'gate_waste': _gate_waste(engine, spent, result.repair_rounds),
+            'gate_waste': gate_waste,
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
