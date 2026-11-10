@@ -787,6 +787,11 @@ def _verification_executor(gateway=None):
     from .visual_qa import VisualQAExecutor
     visual=VisualQAExecutor(browser,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
     stages=[preview,behaviour,browser,visual]
+    from .feature_flags import SITE_AUTH_V2
+    if SITE_AUTH_V2:
+        # Work order 001 (flag site_auth_v2): the sign-in form at 320px / 140% zoom in a real browser.
+        from .auth_form_check import AuthFormExecutor
+        stages.append(AuthFormExecutor(visual))
     # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists and static checks. Since 2026-10-19 it
     # is the LAST post-build check of the group (after the build it always runs; its findings go to the same repair).
     if gateway is not None:
