@@ -4,7 +4,7 @@
   "starts": "merge of PR #292",
   "baseline": "e196a9251efcef98f1bcfc9cd88a24401b47eac8",
   "note": "baseline = the FINAL branch head of #292 (its tree is byte-identical to merge 7e97cc7, verified); the first pin (1a95f35) predated the closing and .git-fix commits and was corrected before arm 1 (Michael 2026-11-10 22:35). The merge SHA lives in the external run report only.",
-  "until": "the end of the 5th frozen-run arm (Michael 2026-11-10 22:35: the freeze holds to the END OF THE RUN, not to a clock); the 72h figure below is only a backstop if the run never starts",
+  "until": "the end of the LAST frozen-run arm (Michael 2026-11-10 22:54: the run is now 6 arms, so no arm count and no clock -- the freeze holds to the end of the run); 72h below is only a backstop",
   "hours": 72,
   "gate_files": [
     "omni_prod/skills_runtime.py",
