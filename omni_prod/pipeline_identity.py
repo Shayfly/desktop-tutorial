@@ -232,6 +232,8 @@ def named_files(source: str, path: str) -> set[str]:
         if not (isinstance(v, str) and 2 < len(v) < 160 and '\n' not in v and '.' in v.split('/')[-1]
                 and not v.startswith(('http:', 'https:', '/'))):
             continue
+        if v == '.git' or v.startswith('.git/'):
+            continue  # never a gate input; in a git WORKTREE .git is a FILE and would pass is_file() (CI 2026-11-10)
         for cand in (ROOT / v, ROOT / 'omni_prod' / v, (ROOT / path).parent / v):
             try:
                 if cand.is_file() and cand.resolve().is_relative_to(ROOT):
