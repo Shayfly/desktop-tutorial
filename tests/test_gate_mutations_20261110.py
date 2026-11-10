@@ -9,6 +9,7 @@ Every production gate failure that reached a customer becomes a fixture here the
 import json
 import os
 import unittest
+from decimal import Decimal
 
 from omni_prod.fact_canon import build_canon, norm_address, phone_e164, validate_canon
 from omni_prod.preview_smoke import _rendered_pages
@@ -203,6 +204,131 @@ class QuarantineTests(unittest.TestCase):
         self.assertEqual(ex.gate_waste_rounds, 2)
         self.assertEqual(ex.quarantined[0]['skill'], 'skill.text_locale')
         self.assertEqual(ex.reviews[-1]['findings'][0]['classification'], 'probe_bug')
+
+
+class MichaelNormalisationFixtures(unittest.TestCase):
+    """Michael 2026-11-10: toE164 / normAddr fixtures, ported 1:1."""
+
+    def test_phone_positive(self):
+        from omni_prod.fact_canon import parse_phone
+        for raw, want in [("03-1234567", "+97231234567"), ("+972 3 123 4567", "+97231234567"),
+                          ("\u200e+972(0)3-1234567", "+97231234567"), ("00972 3 1234567", "+97231234567"),
+                          ("טלפון: 03-1234567 להזמנות", "+97231234567"), ("03-1234567 שלוחה 4", "+97231234567"),
+                          ("٠٣١٢٣٤٥٦٧", "+97231234567"), ("۰۵۰۱۲۳۴۵۶۷", "+972501234567"),
+                          ("050-123-4567", "+972501234567"), ("+972 50 123 4567", "+972501234567")]:
+            got = parse_phone(raw)
+            self.assertTrue(got.ok, (raw, got))
+            self.assertEqual(got.e164, want, raw)
+
+    def test_phone_negative_with_reason(self):
+        from omni_prod.fact_canon import parse_phone
+        for raw, reason in [("1-800-123456", "SERVICE"), ("*1234", "SERVICE"), ("+1 415 555 0100", "NON_IL"),
+                            ("03-123456", "SHORT"), ("03-12345678", "LONG"), ("06-1234567", "BAD_PREFIX"),
+                            ("000-0000000", "DUMMY"), ("1234567", "AMBIGUOUS"), ("", "EMPTY")]:
+            got = parse_phone(raw)
+            self.assertFalse(got.ok, raw)
+            self.assertEqual(got.reason, reason, raw)
+
+    def test_address_equal_and_not_equal(self):
+        from omni_prod.fact_canon import addr_matches
+        for a, b in [("רח' יפו 5", "רחוב יפו 5"), ("ברחוב יפו 5", "רחוב יפו 5"), ('ר"ח יפו 5', "רחוב יפו 5"),
+                     ("רחוב  יפו   5", "רחוב יפו 5"), ("יפו 5 רחוב", "רחוב יפו 5"), ("רחוב חמש", "רחוב 5"),
+                     ("شارع يافا ٥", "شارع يافا 5"), ("ش. يافا 5", "شارع يافا 5")]:
+            self.assertTrue(addr_matches(a, b), (a, b))
+        for a, b in [("רחוב יפו 6", "רחוב יפו 5"), ("רחוב יפו", "רחוב יפו 5"), ("شارع يافا 6", "شارع يافا 5")]:
+            self.assertFalse(addr_matches(a, b), (a, b))
+
+    def test_ambiguous_number_on_page_does_not_block(self):
+        page = GOOD_PAGE.replace('050-1234567', '8123456')
+        self.assertEqual(blocking(gates(page)), [])
+        self.assertTrue(any('do not parse' in f['problem'] for f in gates(page)))
+
+
+class QuarantineSafetyTests(unittest.TestCase):
+    """Michael 2026-11-10 condition 1: quarantine only on an identical DOM node; critical gates never release silently."""
+
+    def _review(self):
+        from omni_prod.autonomous_core import ExecutionReport
+        from omni_prod.product_review import ProductReviewExecutor
+
+        class Inner:
+            def execute(self, *, repository, spec):
+                return ExecutionReport(True, (), '')
+
+        class State:
+            external_spend_usd = 0
+            external_calls = 0
+
+        class Gw:
+            state = State()
+
+        gw = Gw()
+        ex = ProductReviewExecutor(Inner(), gateway=None, max_reviews=6, request_text=REQUEST)
+        ex._gateway = gw
+        return ex, gw
+
+    def test_changed_node_is_a_product_bug_not_quarantined(self):
+        ex, _ = self._review()
+        spec = type('S', (), {'title': '', 'summary': '', 'requirements': (), 'acceptance': ()})()
+        for attrs in ('', ' class="a"', ' class="b"'):            # the repair keeps changing the <html> tag
+            r = ex.execute(repository={'index.html': GOOD_PAGE.replace(' dir="rtl"', attrs)}, spec=spec)
+        self.assertFalse(r.passed)
+        self.assertEqual(ex.quarantined, [])
+
+    def test_critical_quarantine_is_flagged_and_waste_is_measured(self):
+        ex, gw = self._review()
+        spec = type('S', (), {'title': '', 'summary': '', 'requirements': (), 'acceptance': ()})()
+        repo = {'index.html': GOOD_PAGE.replace(' dir="rtl"', '')}
+        ex.execute(repository=repo, spec=spec)
+        gw.state.external_spend_usd, gw.state.external_calls = 0.10, 4
+        ex.execute(repository=repo, spec=spec)
+        gw.state.external_spend_usd, gw.state.external_calls = 0.31, 9
+        r = ex.execute(repository=repo, spec=spec)
+        self.assertTrue(r.passed)
+        self.assertTrue(ex.quarantined[0]['critical'])
+        self.assertEqual(str(ex.gate_waste_usd), '0.31')        # spend from the first review to the quarantine
+        self.assertEqual(ex.gate_waste_calls, 9)
+
+    def test_worker_withdraws_release_and_shows_banner(self):
+        from omni_prod.worker_tasks import _gate_waste, _version_message
+        ex, gw = self._review()
+        ex.quarantined = [{'skill': 'skill.text_locale', 'problem': 'x', 'critical': True}]
+        ex.gate_waste_rounds, ex.gate_waste_usd, ex.gate_waste_calls = 2, Decimal('0.3'), 7
+        engine = type('E', (), {'executor': ex})()
+        gw_line = _gate_waste(engine, None, 2)
+        self.assertTrue(gw_line['critical_quarantine'])
+        self.assertEqual(gw_line['measured_usd'], '0.3000')
+        self.assertIn('פרסום לפרודקשן חסום', gw_line['banner'])
+        self.assertIn('PREVIEW ONLY', _version_message('bld_x', False, gw_line['banner']))
+
+
+class SourceReadersAreDeclared(unittest.TestCase):
+    """Michael 2026-11-10 condition 4: a check that reads source files must declare it, with a reason."""
+
+    def test_every_source_reader_is_declared(self):
+        import inspect
+        from omni_prod import skills_runtime as sr
+        undeclared, declared = [], []
+        for skill in sr.WEB_SKILLS:
+            for check in getattr(skill, 'static_checks', ()):
+                src = inspect.getsource(check)
+                if '_text_files(' in src and '_pages(' not in src:
+                    (declared if getattr(check, 'reads_source', None) else undeclared).append(check.__name__)
+        _annotate(f'source-reading probes: {len(declared)} declared, {len(undeclared)} undeclared')
+        self.assertEqual(undeclared, [], 'declare @reads_source("<why the served page cannot show this>")')
+        self.assertGreaterEqual(len(declared), 5)
+
+
+class CanonOnApprovalScreen(unittest.TestCase):
+    def test_incomplete_canon_is_a_visible_warning(self):
+        from omni_prod.fact_canon import canon_view
+        v = canon_view('דף נחיתה לבית קפה בחיפה', family='website')
+        self.assertEqual(v['status'], 'CANON_INCOMPLETE')
+        self.assertIn('לא נמציא', v['lines'][0])
+        full = canon_view(REQUEST, family='website')
+        self.assertEqual(full['status'], 'OK')
+        self.assertIn('050-123-4567', full['lines'][0])
+        self.assertEqual(canon_view('מערכת משימות לצוות', family='app')['status'], 'OK')
 
 
 def _annotate(line: str) -> None:

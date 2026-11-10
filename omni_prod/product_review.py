@@ -18,9 +18,25 @@ does not fail the build (it never claims a review that did not happen).
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .skills_runtime import applied_skills, checklist_for_review, static_findings
+
+# Gates whose quarantine must never pass silently (Michael 2026-11-10): a Hebrew page served LTR, a fabricated phone, a
+# missing alt. Their quarantine keeps the build moving but withdraws release_ready and shows a banner on the preview.
+CRITICAL_GATES = frozenset({'skill.text_locale', 'skill.copy_quality', 'skill.accessibility'})
+
+
+def install_review_request(engine, prompt: str) -> bool:
+    """Give the review the approved request so its fact canon is the one the customer approved."""
+    from .behavior_acceptance import find_in_chain
+    review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
+    if review is None:
+        return False
+    review._request = prompt or ''
+    review.canon = None
+    return True
 
 REVIEW_FAILURE_ID = 'REVIEW'
 
@@ -54,6 +70,9 @@ class ProductReviewExecutor:
         # cost are counted as gate waste in the evidence.
         self.quarantined: list[dict] = []
         self.gate_waste_rounds = 0
+        self.gate_waste_usd = Decimal('0')          # measured: gateway spend between the repeated reviews
+        self.gate_waste_calls = 0
+        self._spend_at_review: list[tuple[Decimal, int]] = []
         self.canon = None
 
     def __getattr__(self, item):
@@ -75,23 +94,43 @@ class ProductReviewExecutor:
         ctx['canon'] = self.canon
         return ctx
 
+    def _spend(self) -> tuple[Decimal, int]:
+        state = getattr(self._gateway, 'state', None)
+        if state is None:
+            return Decimal('0'), 0
+        return (Decimal(str(getattr(state, 'external_spend_usd', 0) or 0)), int(getattr(state, 'external_calls', 0) or 0))
+
     def _quarantine(self, static: list[dict]) -> list[dict]:
-        # One repeat can be a repair that missed; the SAME static finding in three consecutive rounds is a gate that
-        # does not see the product (Michael: "a third probe_bug repair -> stop, the gate is broken").
+        """Michael 2026-11-10 condition 1. A gate is quarantined only when THREE consecutive rounds show the same finding
+        AND the DOM node it points at is byte-identical across them (the `anchor`). If the product changed at that
+        point, the repair is working on it and the finding is a product bug, never a probe bug. CRITICAL gates (dir,
+        tel/contact truth, alt) never release silently: the finding stays listed, release_ready is withdrawn by the
+        worker, the preview carries a banner. The quarantine lives for this build only (gates are stateless per
+        build), so it expires on the next build by construction."""
         if len(self.reviews) < 2:
             return static
         def blocking_static(review):
-            return {(f['skill'], f['problem']) for f in review.get('findings', ())
-                    if f.get('source') == 'static' and f.get('severity') == 'blocking'}
+            return {(f['skill'], f['problem'], f.get('anchor')) for f in review.get('findings', ())
+                    if f.get('source') == 'static' and f.get('severity') == 'blocking' and f.get('anchor')}
         repeated = blocking_static(self.reviews[-1]) & blocking_static(self.reviews[-2])
         out = []
         for f in static:
-            if f['severity'] == 'blocking' and (f['skill'], f['problem']) in repeated:
-                note = 'same static finding in three consecutive rounds: the gate is suspected of judging the wrong artefact'
-                f = {**f, 'severity': 'advisory', 'quarantined': note, 'classification': 'probe_bug'}
+            key = (f['skill'], f['problem'], f.get('anchor'))
+            if f['severity'] == 'blocking' and f.get('anchor') and key in repeated:
+                critical = f['skill'] in CRITICAL_GATES
+                note = ('same static finding and identical DOM node in three consecutive rounds: the gate is suspected '
+                        'of judging the wrong artefact')
+                f = {**f, 'severity': 'advisory', 'quarantined': note, 'classification': 'probe_bug', 'critical': critical}
                 if not any(q['skill'] == f['skill'] and q['problem'] == f['problem'] for q in self.quarantined):
-                    self.quarantined.append({'skill': f['skill'], 'problem': f['problem'], 'round': len(self.reviews) + 1})
+                    self.quarantined.append({'skill': f['skill'], 'problem': f['problem'], 'anchor': f.get('anchor'),
+                                             'round': len(self.reviews) + 1, 'critical': critical})
                     self.gate_waste_rounds += 2
+                    # Measured, not estimated: spend and calls between the first repeat and now (the two wasted rounds).
+                    if len(self._spend_at_review) >= 2:
+                        now_usd, now_calls = self._spend()
+                        base_usd, base_calls = self._spend_at_review[-2]
+                        self.gate_waste_usd += max(now_usd - base_usd, Decimal('0'))
+                        self.gate_waste_calls += max(now_calls - base_calls, 0)
             out.append(f)
         return out
 
@@ -174,6 +213,7 @@ class ProductReviewExecutor:
         counts only when the review is what still blocks (others_failed=False), exactly as when it ran last. While
         other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
         findings = self._quarantine([f.to_dict() for f in static_findings(repository, self._context(spec))])
+        self._spend_at_review.append(self._spend())
         llm, meta = self._llm_findings(repository, spec)
         findings += self._converge(llm)
         blocking = [f for f in findings if f['severity'] == 'blocking']
