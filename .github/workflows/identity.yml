@@ -1,0 +1,44 @@
+name: Pipeline identity vs baseline
+
+# Michael 2026-11-10 fix 1: with every flag off, the gate code (the import closure of the frozen gate files and the
+# behavioural runner, as ASTs) and everything the pipeline tells its models must equal the baseline commit. The
+# baseline is computed HERE, by the same interpreter, from a worktree of that commit -- never a stored hash.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASELINE_SHA: 2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baseline manifests from a worktree of the baseline commit
+        run: |
+          set -euo pipefail
+          git worktree add "$RUNNER_TEMP/base" "$BASELINE_SHA"
+          cp omni_prod/pipeline_identity.py "$RUNNER_TEMP/base/omni_prod/"
+          (cd "$RUNNER_TEMP/base" && OMNI_SITE_AUTH_V2=0 python -m omni_prod.pipeline_identity --source > "$RUNNER_TEMP/base-source.json" \
+             && OMNI_SITE_AUTH_V2=0 python -m omni_prod.pipeline_identity > "$RUNNER_TEMP/base-digest.txt")
+          echo "::notice title=baseline::$(cat "$RUNNER_TEMP/base-digest.txt") at ${BASELINE_SHA:0:7}"
+      - name: This commit, flag off, equals the baseline
+        env:
+          BASELINE_SOURCE_MANIFEST: ${{ runner.temp }}/base-source.json
+          OMNI_SITE_AUTH_V2: '0'
+        run: |
+          set -euo pipefail
+          head=$(python -m omni_prod.pipeline_identity)
+          base=$(cat "$RUNNER_TEMP/base-digest.txt")
+          if [ "$head" = "$base" ]; then echo "::notice title=behavioural identity::$head equals the baseline"; \
+          else echo "::error title=behavioural identity::$head != baseline $base"; exit 1; fi
+          python -m unittest tests.test_site_auth_v2.SourceIdentity -v

@@ -262,19 +262,23 @@ if __name__ == '__main__':
 
 class SourceIdentity(unittest.TestCase):
     """Michael 2026-11-10 fix 1: the RUNNER and GATE CODE, not only what the pipeline says. The whole import closure of
-    the gates, as ASTs, equals the baseline after removing only declared flag additions."""
+    the gates, as ASTs, equals the baseline after removing only declared flag additions.
 
-    BASE = json.load(open('docs/identity/source-2c1d6cb.json', encoding='utf-8'))
+    The baseline manifest is computed by the SAME interpreter from a worktree of 2c1d6cb (.github/workflows/
+    identity.yml passes it in BASELINE_SOURCE_MANIFEST): an AST dump differs between Python versions, so a stored hash
+    from another machine would compare interpreters, not code (first CI run: all 205 files "differed" on 3.12 vs 3.13).
+    The mutation tests below compare the tool with itself on one interpreter."""
 
+    @unittest.skipUnless(os.getenv('BASELINE_SOURCE_MANIFEST'), 'runs in the identity workflow against a baseline worktree')
     def test_the_gate_code_is_the_baseline_with_the_flag_off(self):
         from omni_prod.pipeline_identity import source_manifest
+        base = json.load(open(os.environ['BASELINE_SOURCE_MANIFEST'], encoding='utf-8'))
         got = source_manifest()
         self.assertEqual(got['leaked_flag_only'], [], 'a flag-only name is used outside a flag block')
-        self.assertEqual(set(got['files']), set(self.BASE['files']), 'the gate import closure changed')
-        changed = sorted(p for p in got['files'] if got['files'][p] != self.BASE['files'][p])
-        if os.getenv('GITHUB_ACTIONS'):
-            print(f"::notice title=source identity::{len(got['files'])} files in the gate closure; changed vs "
-                  f"{self.BASE['baseline_sha'][:7]}: {len(changed)}")
+        self.assertEqual(set(got['files']), set(base['files']), 'the gate import closure changed')
+        changed = sorted(p for p in got['files'] if got['files'][p] != base['files'][p])
+        print(f"::notice title=source identity::{len(got['files'])} files in the gate closure; changed vs "
+              f"{BASELINE_SHA[:7]} with the flag off: {len(changed)}")
         self.assertEqual(changed, [], 'gate code differs from the baseline with the flag off')
 
     def test_the_closure_is_computed_not_listed(self):
@@ -284,7 +288,15 @@ class SourceIdentity(unittest.TestCase):
         self.assertIn('omni_prod/fact_canon.py', files)              # imported by the gates, not listed anywhere
         self.assertGreater(len(files), 20)
 
-    # ---- the tool catches what it must (mutations of the identity check itself)
+    # ---- the tool catches what it must (mutations of the identity check itself, one interpreter)
+    @classmethod
+    def setUpClass(cls):
+        from omni_prod.pipeline_identity import source_manifest
+        cls.BASE = source_manifest()
+
+    def test_no_flag_only_name_leaks_today(self):
+        self.assertEqual(self.BASE['leaked_flag_only'], [])
+
     def mutated(self, path, change):
         from omni_prod.pipeline_identity import ROOT, source_manifest
 
