@@ -295,7 +295,54 @@ def _visible_and_links(text: str) -> str:
     """Page text plus tel:/wa.me targets; scripts and styles dropped, other attributes ignored."""
     text = re.sub(r'<(script|style)\b.*?</\1>', ' ', text, flags=re.S | re.I)
     links = ' '.join(re.findall(r'(?:tel:|wa\.me/|api\.whatsapp\.com/send\?phone=)([+\d\s\-.]{7,})', text, re.I))
-    return re.sub(r'<[^>]+>', ' ', text) + ' ' + links
+    from .fact_canon import decode_entities
+    return decode_entities(re.sub(r'<[^>]+>', ' ', text)) + ' ' + links
+
+
+def _testimonial_items(section: str) -> list[tuple[str, str]]:
+    """(normalised quote, normalised author) for each testimonial in a section: one per <blockquote>/<figure>/<q>/<li>,
+    else one per quoted span followed by a dash and a name."""
+    from .fact_canon import decode_entities, norm_quote
+    # 2026-11-10 regression on the approved cafe: its quotes are written as &ldquo;...&rdquo; -- judge the text a
+    # visitor reads; every entity is decoded (the canon side does the same).
+    section = decode_entities(section)
+    blocks = re.findall(r'<(blockquote|figure|li)\b[^>]*>(.*?)</\1>', section, re.S | re.I)
+    texts = [re.sub(r'<[^>]+>', ' ', b) for _, b in blocks] or \
+        [m.group(0) for m in re.finditer(r'[“"„\u05F4][^”"\u05F4<]{8,}[”"\u05F4][^“"„<]{0,40}', re.sub(r'<[^>]+>', ' ', section))]
+    out = []
+    for t in texts:
+        t = re.sub(r'\s+', ' ', t).strip()
+        if len(t) < 8:
+            continue
+        m = re.search(r'[“"„\u05F4]([^”"\u05F4]{4,})[”"\u05F4]\s*[–—-]?\s*(.*)$', t)
+        if m:
+            quote, author = m.group(1), m.group(2)
+        else:
+            parts = re.split(r'\s[–—-]\s', t)
+            quote, author = (' – '.join(parts[:-1]), parts[-1]) if len(parts) > 1 else (t, '')
+        # a city may follow the author after a comma ("דנה, חיפה"): drop it before normalising
+        out.append((norm_quote(quote), norm_quote(author.split(',')[0])))
+    return out
+
+
+def _review_matches(quote: str, author: str, given: str) -> bool:
+    """Quote identical after normalisation; author compatible (Michael 2026-11-10): the page author, before a comma
+    (a city may follow), is a prefix or a token subset of the canon author or the other way round. "דנה כ'" and
+    "דנה, חיפה" match "דנה"; "דוד" never matches "דנה"."""
+    g_quote, _, g_author = given.partition('|')
+    if quote != g_quote:
+        return False
+    page = (author or '').strip()
+    pt, gt = page.split(), g_author.split()
+    if not pt or not gt:
+        return True            # omitting the author, or a request that gave none, invents nothing
+    return (set(pt) <= set(gt) or set(gt) <= set(pt) or g_author.startswith(page) or page.startswith(g_author))
+
+
+def _aggregate_claims(page_text: str, canon) -> list[str]:
+    """Michael 2026-11-10: "מעל 50 ביקורות" is not a quote. A count/rating claim needs that number in the canon."""
+    from .fact_canon import count_facts
+    return sorted({ref.strip() for kind, value, ref in count_facts(page_text) if value not in canon.values(kind)})
 
 
 def _street_core(page_span: str, canon_addr: str) -> bool:
@@ -323,6 +370,13 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
             out.append(StaticFinding('skill.copy_quality', 'advisory', path,
                                      f'number(s) that look like a phone but do not parse: {", ".join(odd[:3])}',
                                      'write phone numbers with their prefix (050-123-4567 or +972-50-123-4567)'))
+        claims = [c for c in _aggregate_claims(page, canon)
+                  if not _TESTIMONIAL_LABEL.search(text)]
+        if claims:
+            out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                     f'review/rating counts not in the approved request: {", ".join(claims[:3])}',
+                                     'remove the count, use the one the request gives, or mark the section "(לדוגמה)"',
+                                     anchor=_anchor(' '.join(claims))))
         if bad_phones or bad_streets:
             what = ', '.join(bad_phones[:3] + bad_streets[:3])
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,
@@ -334,19 +388,16 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
         if head:
             # 2026-11-10 gate regression: the cafe's request GAVE its three reviews ("..." – דנה); they are canon facts.
             # A section passes when it is labelled as sample, or every quote on it is one the request gave.
-            from .fact_canon import norm_quote
             section = text[head.end():head.end() + 4000]
-            plain = re.sub(r'<[^>]+>', ' ', section)
-            quotes = re.findall(r'[“"„\u05F4]([^”"\u05F4<]{12,})[”"\u05F4]', plain)
-            block_texts = [re.sub(r'<[^>]+>', ' ', b) for b in
-                           re.findall(r'<(?:blockquote|figure|q)\b[^>]*>(.*?)</(?:blockquote|figure|q)>', section, re.S | re.I)]
-            blocks = len(block_texts)
+            nxt = re.search(r'<h[1-4]\b', section, re.I)          # the section ends at the next heading (a menu <li>
+            section = section[:nxt.start()] if nxt else section    # list after it is not a testimonial)
+            items = _testimonial_items(section)
             given = canon.values('review')
-            # A quote is sourced when one of the given reviews is in it (the page may add "!" or the name).
-            candidates = quotes or block_texts
-            unknown = [c.strip()[:60] for c in candidates if not any(g and g in norm_quote(c) for g in given)]
-            sourced = bool(candidates) and not unknown
-            if (len(quotes) >= 2 or blocks >= 2) and not sourced and not _TESTIMONIAL_LABEL.search(section) \
+            # Michael 2026-11-10: LITERAL. An item is sourced only when its quote is identical to a given review after
+            # normalisation (punctuation, spaces, niqqud) AND its author is that review's author. A paraphrase blocks.
+            unknown = [f'{q[:50]} – {a[:20]}' for q, a in items if not any(_review_matches(q, a, g) for g in given)]
+            sourced = bool(items) and not unknown
+            if len(items) >= 2 and not sourced and not _TESTIMONIAL_LABEL.search(section) \
                     and not _TESTIMONIAL_LABEL.search(head.group(0)):
                 out.append(StaticFinding('skill.copy_quality', 'blocking', path,
                                          'testimonials with no source in the approved request and no "לדוגמה" label'

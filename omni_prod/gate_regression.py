@@ -18,6 +18,33 @@ import tempfile
 from pathlib import Path
 
 
+# Golden fixture for the measuring tool itself (Michael 2026-11-10): a fixed request and the EXACT facts it must give.
+# Zero facts, or any count other than these, fails the tool before it judges a single build -- "> 0" is not enough.
+GOLDEN_REQUEST = ('שם העסק: קפה "בוקר טוב" – בית קפה שכונתי כתובת: רחוב הנביאים 12, חיפה טלפון ו-WhatsApp: 050-1234567 '
+                  'שעות פתיחה: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00 ביקורות: • "הקפה הכי טוב בחיפה" – דנה '
+                  '• "ארוחת בוקר מושלמת, נחזור" – יוסי ומיכל • "שירות חם ומחירים הוגנים" – אבי • מעל 50 ביקורות בגוגל')
+GOLDEN_FACTS = {'phone': 1, 'address': 1, 'hours': 2, 'name': 1, 'review': 3, 'reviewCount': 1}
+
+
+def self_check() -> dict:
+    from .fact_canon import build_canon
+    got: dict[str, int] = {}
+    for f in build_canon(GOLDEN_REQUEST).facts:
+        got[f.key] = got.get(f.key, 0) + 1
+    assert got == GOLDEN_FACTS, f'gate regression tool is broken: golden canon {got} != expected {GOLDEN_FACTS}'
+    return got
+
+
+def check_distinct(rows) -> None:
+    """rows: (build_id, prompt, canon_hash). Two different prompts with one canon hash = the tool read the wrong input
+    (the 2026-11-10 first run: an empty prompt gave every build the same empty canon)."""
+    seen: dict[str, tuple[str, str]] = {}
+    for bid, prompt, h in rows:
+        if h in seen and seen[h][1] != prompt:
+            raise AssertionError(f'{bid} and {seen[h][0]} have different prompts but the same canon {h}')
+        seen[h] = (bid, prompt)
+
+
 def served_page(repository: dict[str, str], *, timeout: int = 60) -> tuple[dict | None, str]:
     """Start the product as the preview smoke does and return (rendered pages, smoke verdict line)."""
     from .preview_smoke import _SMOKE, _rendered_pages
@@ -50,6 +77,8 @@ def run(repository: dict[str, str], prompt: str, *, pages: dict | None = None) -
         ctx['rendered_pages'] = pages
     findings = [f.to_dict() for f in static_findings(repository, ctx)]
     blocking = [f for f in findings if f['severity'] == 'blocking']
+    # Michael item 5: with no facts the truth gate is inert -- its pass says nothing about truth coverage.
     return {'passed': bool(pages) and not blocking, 'served': bool(pages), 'smoke': verdict,
+            'truth_inert': not ctx['canon'].facts,
             'canon_hash': ctx['canon'].hash, 'canon_facts': [f.to_dict() for f in ctx['canon'].facts],
             'blocking': blocking, 'advisory': [f for f in findings if f['severity'] != 'blocking']}

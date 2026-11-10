@@ -242,6 +242,7 @@ class ProductReviewExecutor:
         enforce = others_failed or len([r for r in self.reviews if r['enforced'] and not r.get('alongside')]) < self._max_reviews
         self.reviews.append({'round': len(self.reviews) + 1, 'enforced': bool(blocking) and enforce, **meta,
                              'alongside': others_failed, 'canon_hash': getattr(self.canon, 'hash', None),
+                             'canon_facts': len(getattr(self.canon, 'facts', []) or []),
                              'judged': 'served page' if self._served() else 'repository files',
                              'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
         if self.escalate:

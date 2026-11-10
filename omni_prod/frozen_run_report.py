@@ -20,7 +20,7 @@ def _ts(value):
 REQUIRED_FIELDS = ('arm', 'build_id', 'baselineSha', 'passed', 'rounds', 'codeChangingRounds', 'gateWasteRounds',
                    'gateWasteUsd', 'costUsd', 'gateWasteShare', 'humanCodeFixes', 'humanDecisions', 'degraded',
                    'warned', 'informed', 'models', 'offPinModels', 'quarantinedProbes', 'timeToPreviewSec',
-                   'designScore', 'canonHash', 'knownGaps')
+                   'designScore', 'canonHash', 'knownGaps', 'truthInert')
 KNOWN_GAPS = ('json_ld_schema',)
 
 
@@ -48,6 +48,9 @@ def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned
         'passed': clean and warned_ok,
         'warned': warned is not None, 'warnedChecks': warned, 'informed': informed,
         'models': sorted(m for m in answered if m), 'knownGaps': list(KNOWN_GAPS),
+        # Michael item 5: zero canon facts -> the truth gate was inert for this arm.
+        'truthInert': not any(isinstance(r, dict) and r.get('canon_facts') for r in evidence.get('product_review') or [])
+        if evidence.get('product_review') else True,
         'status': job.get('status'), 'rounds': rounds, 'codeChangingRounds': rounds,
         'gateWasteRounds': int(gate.get('rounds') or 0), 'gateWasteUsd': waste, 'costUsd': cost,
         'gateWasteShare': round(waste / cost, 4) if cost else 0.0,
