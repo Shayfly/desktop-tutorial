@@ -1,0 +1,3 @@
+# Local dev == CI: the exact pinned sets every test workflow installs.
+-r requirements-production.txt
+-r requirements-test.txt

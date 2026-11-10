@@ -1,7 +1,9 @@
 {
   "active": true,
-  "reason": "Michael 2026-11-10: 72h with no gate change after #291 so the frozen-run baseline settles",
-  "starts": "merge of PR #291",
+  "reason": "Michael 2026-11-10 merge order: re-freeze from the merge of #292 with no unfrozen moment and no PR in between; the 5-arm frozen run (flag off) executes on this tree",
+  "starts": "merge of PR #292",
+  "baseline": "1a95f353500a5388de8903db3735026b2e3117a6",
+  "note": "the freeze cannot pin the merge SHA (written before it); it pins the final branch content commit, and the merge SHA is recorded in the external run report (Michael 2026-11-10)",
   "hours": 72,
   "gate_files": [
     "omni_prod/skills_runtime.py",

@@ -6,6 +6,10 @@ name: Pipeline identity vs baseline
 on:
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Michael 2026-11-10: the coverage check (SourceIdentity, incl. test_the_two_checks_cover_every_gate_input)
+    # found gaps twice on PRs -- run it nightly on main too, to catch drift between PRs.
+    - cron: '17 2 * * *'
 
 permissions:
   contents: read

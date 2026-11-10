@@ -39,14 +39,23 @@ The `freeze` job fails on #292 by design, and the merge is NOT a silent override
 lands in between. A separate freeze-off PR cannot guarantee that -- between it and #292, main would sit unfrozen.
 So #292 itself carries the freeze change, and there is never a moment with the freeze off:
 
-1. After 13.11 17:52: gate regression on the tip of main (both approved builds pass, `self_check` green), the tip
-   SHA is recorded as the final baseline, and the frozen run (5 arms, flag off) runs against it.
-2. With Michael's explicit approval, ONE closing commit on #292 rewrites `docs/gate-freeze.json`:
-   `"active": true`, `"starts": "merge of PR #292"`, 72h, reason pointing at the frozen run's report. The freeze
-   check passes a PR that changes the definition itself (logged as `::notice ... a reviewed decision`) -- that is
-   the only sanctioned way through, which is why this commit needs the approval on record.
-3. Before pressing merge: `git log <final-baseline-SHA>..origin/main` must be EMPTY. If anything landed, main moved
-   since the frozen run -- go back to step 1. Then #292 merges (squash); from that instant the new freeze definition
-   is on main and any PR touching a gate file is blocked again. Old freeze until the merge, new freeze from the
-   merge: no gap, no PR in between by construction.
-4. The merge commit SHA, the CI run, the identity annotations and the new freeze window go in the run report.
+Michael's merge order of 2026-11-10 22:07 supersedes the 13.11 date: merge now, the 5-arm frozen run (flag
+off) executes on the merged tree right after. His correction is also in: the new freeze cannot pin the merge SHA
+(it is written before the merge exists), so it pins the FINAL BRANCH CONTENT COMMIT and the merge SHA goes in the
+external run report only.
+
+1. ONE closing commit on #292 rewrites `docs/gate-freeze.json`: `"active": true`, `"starts": "merge of PR #292"`,
+   `"baseline"` = the closing commit's parent (the last content commit), 72h. The freeze check passes a PR that
+   changes the definition itself (logged as `::notice ... a reviewed decision`) -- the only sanctioned way through,
+   which is why this commit needs the approval on record: the rewrite is a baseline deletion, declared and signed
+   by a reviewer in `docs/identity/allowed-deletions.json` like any other.
+2. Precondition, not a check: `git log <closing-commit>..origin/main` must be EMPTY. Non-empty means main moved and
+   the pinned-baseline comparison is no longer against the tree being merged -- stop and re-run the regression.
+3. #292 merges with a MERGE COMMIT, never squash: a squash drops the branch commits from main's history and the
+   pinned baseline SHA would dangle in fresh clones; a merge commit keeps it an ancestor of main forever. From that
+   instant the new freeze definition is on main and any PR touching a gate file is blocked again. Old freeze until
+   the merge, new freeze from the merge: no gap, no PR in between by construction.
+4. The merge commit SHA, the CI run, the identity annotations and the new freeze window go in the run report; then
+   the 5 arms run. `BASELINE_SHA` in identity.yml stays 2c1d6cb through this merge (flag off, #292 IS that
+   baseline -- the identity job proves it); the first gate PR after the new freeze moves it forward to the pinned
+   commit, with its own reviewed declaration.
