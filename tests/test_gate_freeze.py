@@ -19,7 +19,9 @@ class GateFreeze(unittest.TestCase):
     @unittest.skipUnless(os.getenv('GITHUB_BASE_REF'), 'only on pull requests')
     def test_no_gate_file_changes_while_frozen(self):
         base = os.environ['GITHUB_BASE_REF']
-        subprocess.run(['git', 'fetch', '--depth=1', 'origin', base], check=False, capture_output=True)
+        # an explicit refspec: a bare 'git fetch origin main' writes only FETCH_HEAD, not origin/main
+        subprocess.run(['git', 'fetch', '--depth=1', 'origin', f'+refs/heads/{base}:refs/remotes/origin/{base}'],
+                       check=False, capture_output=True)
         # CI checks out the PR merge commit, so a two-dot diff against the base is exactly the PR's change.
         diff = subprocess.run(['git', 'diff', '--name-only', f'origin/{base}', 'HEAD'], capture_output=True, text=True)
         self.assertEqual(diff.returncode, 0, f'cannot diff against {base}: {diff.stderr}')   # never pass silently
