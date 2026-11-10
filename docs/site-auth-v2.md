@@ -45,7 +45,7 @@ off) executes on the merged tree right after. His correction is also in: the new
 external run report only.
 
 1. ONE closing commit on #292 rewrites `docs/gate-freeze.json`: `"active": true`, `"starts": "merge of PR #292"`,
-   `"baseline"` = the closing commit's parent (the last content commit), 72h. The freeze check passes a PR that
+   `"baseline"` = the FINAL branch head (corrected to e196a92 before arm 1: commits after the closing commit move the head, so the pin is set last and verified tree-identical to the merge), valid until the END of frozen-run arm 5 with 72h as a backstop. The freeze check passes a PR that
    changes the definition itself (logged as `::notice ... a reviewed decision`) -- the only sanctioned way through,
    which is why this commit needs the approval on record: the rewrite is a baseline deletion, declared and signed
    by a reviewer in `docs/identity/allowed-deletions.json` like any other.
