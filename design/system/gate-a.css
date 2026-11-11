@@ -11,6 +11,8 @@ body {
   font: 16px / 1.5 var(--font-body);
 }
 
+header { padding-inline: var(--space-16); }
+
 main, header {
   max-inline-size: 1240px;
   margin-inline: auto;
@@ -18,7 +20,10 @@ main, header {
 
 h1, h2, h3, p, figure { margin: 0; }
 
-h1 { font-size: clamp(32px, 6vw, 48px); }
+h1 {
+  font-family: "Frank Ruhl Libre", Georgia, serif;
+  font-size: clamp(32px, 6vw, 48px);
+}
 h2 { font-size: 24px; }
 h3 { font-size: 16px; }
 
@@ -57,9 +62,7 @@ main { margin-block-start: var(--space-24); }
 .field-grid { grid-template-columns: repeat(auto-fit, minmax(min(192px, 100%), 1fr)); }
 
 .chip {
-  inline-size: 100%;
-  block-size: var(--space-24);
-  border: 1px solid var(--s-line);
+  border: 1px solid var(--c-field-border);
   border-radius: var(--r-1);
 }
 
@@ -83,3 +86,73 @@ main { margin-block-start: var(--space-24); }
 }
 
 .ds-skip:not(:focus) { clip-path: inset(50%); }
+
+/* Both columns stay visible at phone widths. */
+.palette {
+  border-collapse: separate;
+  border-spacing: var(--space-4);
+  inline-size: 100%;
+  table-layout: fixed;
+  text-align: start;
+}
+
+.palette col:first-child { inline-size: 25%; }
+.palette th, .palette td { padding: var(--space-4); }
+.palette th { overflow-wrap: anywhere; }
+.palette td {
+  background: var(--s-bg);
+  color: var(--s-text);
+  border: 1px solid var(--s-line);
+  border-radius: var(--r-2);
+}
+
+.palette-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+  align-items: center;
+}
+
+.palette-value code, .palette-value bdi {
+  display: block;
+  font: var(--text-small) / 1.5 var(--font-mono);
+}
+
+.palette-value bdi { color: var(--s-text-muted); }
+
+.chip {
+  display: block;
+  flex: 0 0 var(--space-48);
+  inline-size: var(--space-48);
+  block-size: var(--space-48);
+}
+
+.button-grid .sample {
+  justify-items: stretch;
+  padding-inline: var(--space-4);
+}
+
+.button-grid .ds-button {
+  justify-self: left;
+  inline-size: min(100%, 144px);
+  min-inline-size: 0;
+  padding-inline: var(--space-12);
+}
+
+.sheet, .palette-section {
+  padding-inline: var(--space-16);
+}
+
+.ds-skip {
+  z-index: 1;
+  border: 1px solid var(--c-field-border);
+  border-radius: var(--r-2);
+  text-decoration: none;
+}
+
+.ds-skip:not(:focus) {
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+}

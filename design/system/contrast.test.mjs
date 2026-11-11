@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
+const preview = readFileSync(new URL('./gate-a.html', import.meta.url), 'utf8');
+for (const name of ['tokens.css', 'primitives.css', 'gate-a.css']) {
+  const source = readFileSync(new URL(name, import.meta.url), 'utf8').trimEnd();
+  assert(preview.includes(`/* ${name} */\n${source}`), `Inline stylesheet is stale: ${name}`);
+}
+const palette = [...preview.matchAll(/<tr data-token="([^"]+)">([\s\S]*?)<\/tr>/g)];
+assert.equal(palette.length, 9);
 const pairs = [
   ['s-text', 's-bg', 's-surface'],
   ['s-text-muted', 's-bg', 's-surface'],
@@ -56,6 +63,15 @@ function check(group, label, value, threshold) {
 }
 
 for (const [theme, tokens] of [['light', base], ['dark', { ...base, ...dark }]]) {
+  for (const [, token, cells] of palette) {
+    const cell = cells.match(new RegExp(`<td data-theme="${theme}">([\\s\\S]*?)</td>`));
+    assert(cell, `Missing palette cell for ${theme}/${token}`);
+    const hex = rgb(tokens, token).map(channel => Math.round(channel * 255)
+      .toString(16).padStart(2, '0')).join('').toUpperCase();
+    const displayRatio = ratio(rgb(tokens, token), rgb(tokens, 's-bg')).toFixed(2);
+    assert(cell[1].includes(`<code dir="ltr">#${hex}</code>`));
+    assert(cell[1].includes(`<bdi>${displayRatio}:1</bdi>`));
+  }
   for (const [foreground, ...backgrounds] of pairs) {
     for (const background of backgrounds) {
       check('active', `${theme}/${foreground}/${background}`,

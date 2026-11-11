@@ -102,7 +102,7 @@
   inline-size: 100%;
   min-block-size: var(--space-48);
   padding-inline: var(--space-12);
-  border: 1px solid var(--c-field-border);
+  border: 2px solid var(--c-field-border);
   border-radius: var(--r-1);
   background: var(--c-field-bg);
   color: var(--c-field-fg);
