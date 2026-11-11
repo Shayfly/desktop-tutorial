@@ -7,6 +7,7 @@ import re
 from typing import Iterable
 
 from .agents_registry import MasterAgentsRegistry, build_canonical_agents_registry
+from .build_contract import persistence_fields
 from .build_contract import (
     BuildContract,
     BuildContractStatus,
@@ -38,22 +39,15 @@ _SELF_CONTAINED_STACK = ("Python standard library", "SQLite (sqlite3)", "Web UI 
 # requirement and never adds object storage to the product.
 _MANAGED_DB_TERMS = ("postgres", "postgresql", "mysql", "mariadb", "sql server", "managed database",
                      "production database", "פוסטגרס", "מסד נתונים מנוהל")
-_UPLOAD_TERMS = ("upload", "attachment", "file storage", "store files", "documents storage", "העלאת קבצים",
-                 "העלאת", "צרופה", "צרופות", "אחסון קבצים")
-_SCHEDULE_TERMS = ("schedule", "reminder", "cron", "recurring", "every day", "every week", "daily digest",
-                   "weekly digest", "background job", "follow-up", "follow-ups", "תזכורת", "מתוזמן", "כל יום")
-_OUTBOUND_TERMS = ("email", "e-mail", "sms", "webhook", "newsletter", "push notification",
-                   "מייל", "אימייל", 'דוא"ל', "דואל")
+# 2026-11-10: shared Hebrew-aware vocabulary (whole words + prefixes). "העלאת מחירים" (a price rise) was an upload and
+# "פתוח כל יום" (opening hours) was a scheduled job.
+from .vocabulary import (OUTBOUND_ACTION_WORDS as _OUTBOUND_ACTION_TERMS, OUTBOUND_CHANNEL_WORDS as _OUTBOUND_TERMS,  # noqa: E402
+                         SCHEDULE_WORDS as _SCHEDULE_TERMS, UPLOAD_WORDS as _UPLOAD_TERMS, has_any as _has_any)
 
 # Contact details such as "email: contact@example.org" are not an outbound
 # sending service. Preserve explicitly requested email notifications, marketing,
 # SMS or webhook delivery; never silently remove a capability the planner has
 # already marked required.
-_OUTBOUND_ACTION_TERMS = ("send", "sending", "notify", "notification", "mailing",
-                          "automated email", "outbound", "dispatch", "deliver",
-                          "שלח", "לשלוח", "שולח", "שליחה", "שליחת", "התראה",
-                          "התראות", "דיוור", "משלוח", "נשלח", "יישלח")
-
 
 def _requires_outbound_delivery(prompt: str) -> bool:
     low = (prompt or "").casefold()
@@ -66,11 +60,10 @@ def _requires_outbound_delivery(prompt: str) -> bool:
     if re.search(r"(?:לקבל|קבלת|יישלח|נשלח|subscribe|receive|weekly|שבועי)"
                  r"[^.!?\n]{0,140}(?:למייל|באימייל|אימייל|מייל|email|e-mail)", low):
         return True
-    return (any(term in low for term in _OUTBOUND_TERMS)
-            and any(action in low for action in _OUTBOUND_ACTION_TERMS))
+    return _has_any(low, _OUTBOUND_TERMS) and _has_any(low, _OUTBOUND_ACTION_TERMS)
 
 
-_NO_LOGIN = re.compile(r"(בלי|ללא)\s+(התחברות|הרשמה|סיסמ|משתמשים)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
+_NO_LOGIN = re.compile(r"(בלי|ללא|אין צורך ב|לא צריך)\s*-?\s*(התחברות|להתחבר|הרשמה|להירשם|סיסמ|משתמשים|חשבון|חשבונות)|\b(no|without)\s+(login|sign[- ]?in|user accounts)|"
                        r"sign-in:\s*none", re.I)
 
 
@@ -134,7 +127,7 @@ def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = 
     database is required, in which case both are platform-managed. Object
     storage, scheduled work and outbound delivery appear only on demand."""
     low = prompt.casefold()
-    wants = lambda terms: any(t in low for t in terms)  # noqa: E731
+    wants = lambda terms: _has_any(low, terms)  # noqa: E731  (whole words, Hebrew prefixes)
     integration_keys = set(integrations or ())
     managed_db = wants(_MANAGED_DB_TERMS)
     needed = {
@@ -156,6 +149,43 @@ def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = 
         else:
             out.append(managed)
     return tuple(out)
+
+
+def read_customer_exclusions(full_prompt: str) -> list[dict]:
+    """77: "Customer exclusions v1" from the LAST generated brief block only (never a sentence the customer typed)."""
+    import json
+    import re
+    from .discovery import BRIEF_MARKER, CUSTOMER_EXCLUSIONS_PREFIX
+    from .build_readiness import excludable
+    markers = list(re.finditer(r"(?m)^" + re.escape(BRIEF_MARKER) + r" \(binding; fingerprint [a-f0-9]{16}\) ---$",
+                               full_prompt))
+    if not markers:
+        return []
+    lines = [s for s in full_prompt[markers[-1].end():].splitlines() if s.startswith(CUSTOMER_EXCLUSIONS_PREFIX)]
+    if len(lines) != 1:
+        return []
+    try:
+        keys = json.loads(lines[0][len(CUSTOMER_EXCLUSIONS_PREFIX):])
+    except ValueError:
+        return []
+    return [{"key": k, "decision": "not_required", "customer": True}
+            for k in keys if isinstance(k, str) and excludable(k)] if isinstance(keys, list) else []
+
+
+_INTEGRATION_CAPABILITY = {"payments": "integration.payment", "messaging": "integration.messaging",
+                           "maps": "integration.maps", "email": "integration.email", "webhook": "integration.webhook",
+                           "oauth": "integration.oauth", "analytics": "integration.analytics",
+                           "storage": "integration.storage", "database": "integration.database",
+                           "source_control": "integration.source_control"}
+
+
+def _without_excluded(integrations, semantic_decisions, prompt: str) -> tuple:
+    """One authority for integrations (2026-11-09): the conversation model's validated decisions, bound into the
+    approved brief, remove an integration a keyword detector found (\"בלי תשלום\"); the explicit-request guard in
+    semantic_capabilities.overrides keeps a clear ask (\"תשלום באשראי\") however the model decided."""
+    from .semantic_capabilities import overrides
+    decided = overrides(semantic_decisions, prompt=prompt)
+    return tuple(i for i in integrations if decided.get(_INTEGRATION_CAPABILITY.get(i, "")) != "not_required")
 
 
 class ProductArchitect:
@@ -203,20 +233,47 @@ class ProductArchitect:
         # brief text 148AI wrote; the full text still binds the spec and code.
         from .discovery import detection_text
         intent = detection_text(clean) or clean
+        # 2026-11-09 (café landing page blocked by an unpriced "integration.payment" from "ובלי תשלום"): what the
+        # customer explicitly excludes is removed before ANY detector reads the request -- the brain, the
+        # capability planner, integrations and infrastructure. Sign-in/content-only rules still read `clean`.
+        from .intake.contract import strip_negated
+        intent = strip_negated(intent) or intent
         from .semantic_capabilities import read_approved
-        semantic_decisions = read_approved(clean)
+        # #309 + 77: both read the prompt with its lines intact (`clean` collapses the newlines the marker needs)
+        semantic_decisions = read_approved(prompt) + read_customer_exclusions(prompt)
         decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
         no_login_early = no_login_requested(clean)
-        content_only = no_login_early and content_only_approved(clean)
+        # R1 (docs/design/r1-r2-persistence.md): ONE precedence point for "does this product store records". A
+        # customer decision bound into the approved brief wins; without one, only STRONG cues or a storing
+        # capability make records -- weak words ("טלפון", "הזמנה", "לקוחות") never do. content_only follows it.
+        from . import persistence as P
+        roles, role_defaults = self._infer_roles(intent)
+        if no_login_early:
+            # "No sign-in" is honoured: one kind of user, no roles or sessions.
+            roles, role_defaults = ("user",), ["no_login_single_user"]
+        strong = P.strong_cues(intent)
+        pre_integrations = _without_excluded(self._infer_integrations(intent, capability_plan), semantic_decisions, clean)
+        pre_infra = _infer_infrastructure(intent, pre_integrations, no_login=no_login_early)
+        resolved = P.resolve(
+            P.read_decision(clean, legacy_content_only=no_login_early and content_only_approved(clean)),
+            strong=strong,
+            keyword_requirements=self._infer_data_requirements(intent, decision.plan.modules),
+            capabilities=P.storing_capabilities(roles=roles, infrastructure_kinds=[r.kind for r in pre_infra],
+                                                integrations=pre_integrations, strong=strong))
+        # Only a CUSTOMER decision makes a content-only site (never defaulted, never delegated -- the rule since
+        # 2026-10). A keyword 'none' carries no data requirement but is not READY: the decision is asked (8.2).
+        content_only = no_login_early and resolved.persistence == P.NONE and resolved.source == P.CUSTOMER
         # "No visitor sign-in" does not remove the admin-only management
         # security needed when contact/lead data is still being collected.
         # Fully content-only sites need neither user nor admin sessions.
         operator_login_required = no_login_early and _collects_visitor_contact_data(intent)
+        integrations_found = _without_excluded(self._infer_integrations(intent, capability_plan),
+                                               semantic_decisions, clean)
         infrastructure = _infer_infrastructure(
-            intent, self._infer_integrations(intent, capability_plan),
+            intent, integrations_found,
             no_login=(no_login_early and not operator_login_required))
         embedded_db = any(r.kind == "database" and r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
         profile = (SELF_CONTAINED_WEB_V1 if all(r.connection_mode == "SELF_CONTAINED" for r in infrastructure)
@@ -248,14 +305,25 @@ class ProductArchitect:
         # stripped on load, the fingerprint no longer matched, HTTP 500).
         product_spec = ProductSpec.from_dict(product_spec.to_dict())
 
-        roles, role_defaults = self._infer_roles(intent)
-        no_login = no_login_requested(clean)
-        if no_login:
-            # "No sign-in" is honoured: one kind of user, no roles or sessions.
-            roles, role_defaults = ("user",), ["no_login_single_user"]
-        data_requirements = self._infer_data_requirements(intent, decision.plan.modules)
-        integrations = self._infer_integrations(intent, capability_plan)
+        data_requirements = resolved.data_requirements
+        integrations = integrations_found
         questions = self._material_questions(intent, data_requirements)
+        if resolved.source == P.KEYWORD and resolved.persistence == P.NONE:
+            # 8.2 backstop: nothing in the request stores data and the customer has not decided. Discovery should have
+            # asked; if a contract still gets here it is not READY -- the same two choices, never a silent default.
+            questions = questions + (ClarificationQuestion(
+                "persistence",
+                "האם האתר שומר מידע?",
+                "no customer decision on persistence and no strong storing cue (persistence_backstop_fired)",
+                True, ("דף לקריאה בלבד — לא נשמר כלום", "אתר ששומר מידע")),)
+        if resolved.persistence == P.STALE:
+            # 8.4: the customer approved "stores nothing", then the brief gained something that stores. A stale
+            # decision never reaches a READY contract: the question is asked again.
+            questions = questions + (ClarificationQuestion(
+                "persistence_stale",
+                "הבקשה עכשיו כוללת משהו ששומר מידע. האם האתר שומר מידע?",
+                "the approved 'stores nothing' decision conflicts with: " + ", ".join(resolved.storing_capabilities),
+                True, ("דף לקריאה בלבד — לא נשמר כלום", "אתר ששומר מידע")),)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         static_default = ["static_content_site"] if content_only else []
         defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
@@ -299,6 +367,7 @@ class ProductArchitect:
             "skills_registry_version": self.skills.version,
             "agents_registry_version": self.agents.version,
         }
+        provisional.update(persistence_fields(resolved))
         contract_fingerprint = sha256_fingerprint(provisional)
         contract_id = "bc_" + sha256(
             f"{project_id}:{contract_version}:{contract_fingerprint}".encode("utf-8")
@@ -330,6 +399,10 @@ class ProductArchitect:
             agents_registry_version=self.agents.version,
             created_at=timestamp,
             contract_fingerprint=contract_fingerprint,
+            artifact_class=resolved.artifact_class,
+            persistence=resolved.persistence,
+            persistence_source=resolved.source,
+            storing_capabilities=resolved.storing_capabilities,
         )
 
     @staticmethod
@@ -518,7 +591,9 @@ class ProductArchitect:
             ("webhook", ("webhook", "web hook")),
             ("payments", ("payment", "payments", "checkout", "תשלום")),
             ("maps", ("map", "maps", "gps", "מפה")),
-            ("messaging", ("message", "messaging", "whatsapp", "chat", "הודעות")),
+            # A WhatsApp button/link is not a messaging integration (2026-11-09); sending messages is.
+            ("messaging", ("send message", "whatsapp message", "whatsapp notification", "reminder", "messaging", "sms",
+                           "chat", "שליחת הודעות", "לשלוח הודעות", "תזכורת")),
         )
         for key, terms in direct:
             if any(term in low for term in terms):

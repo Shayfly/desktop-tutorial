@@ -85,9 +85,16 @@ class TheLintCanFail(unittest.TestCase):
         self.assertFalse(any(e.startswith('R3 C10') for e in errs))                  # C10 ran 10-20, quarterly
 
     def test_R3_a_recorded_drill_moves_the_due_date(self):
-        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(lambda r: None, today=date(2026, 11, 4))))
+        def only_the_10_28_run(r):                                                   # the registry as it was on 10-28
+            r['drills_run'] = [d for d in r['drills_run'] if d.get('control') != 'C17' or d.get('date') == '2026-10-28']
+        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(only_the_10_28_run, today=date(2026, 11, 4))))
         self.assertIn('R3 C17: drill overdue since 2026-11-04 (weekly; last run 2026-10-28)',
-                      self.errors(lambda r: None, today=date(2026, 11, 5)))
+                      self.errors(only_the_10_28_run, today=date(2026, 11, 5)))
+
+    def test_R3_the_latest_recorded_run_wins(self):                                  # 11-06 run 42194235767 recorded 11-07
+        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(lambda r: None, today=date(2026, 11, 13))))
+        self.assertIn('R3 C17: drill overdue since 2026-11-13 (weekly; last run 2026-11-06)',
+                      self.errors(lambda r: None, today=date(2026, 11, 14)))
 
     def test_R3_a_live_control_with_its_own_drill(self):
         errs = self.errors(lambda r: None, today=date(2026, 11, 21))

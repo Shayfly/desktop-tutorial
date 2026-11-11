@@ -32,6 +32,9 @@ class TaskClass:
     deny_models: tuple[str, ...] = ()
     require_independent_of: tuple[str, ...] = ()
     deterministic_first: bool = False   # a parser/validator answers it when possible
+    # CEO 2026-11-08 (docs/PIPELINE_DECISIONS_2026-11-08_HE.md): the station's model, in order, among the models
+    # that meet the floor and the reviewer rule; the rest stay as fallback (cheapest first). Catalog endpoint names.
+    prefer_models: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not 0 <= self.mandatory_floor <= self.preferred_floor <= 100:
@@ -39,6 +42,9 @@ class TaskClass:
 
 
 CODE_WRITING_DENY = ('gpt-6-luna',)
+CODE_STATION = ('anthropic-claude-sonnet-5-5', 'gemini-3-8-flash')
+QA_STATION = ('openai-gpt-6-1-sol', 'gemini-3-8-flash')
+ARCHITECT_STATION = ('anthropic-claude-sonnet-5-5', 'openai-gpt-6-1-sol')
 
 TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     TaskClass('general', 'unclassified call (strict default)', 70, 70),
@@ -49,17 +55,20 @@ TASK_CLASSES: dict[str, TaskClass] = {t.key: t for t in (
     # unavailable strong model degrades to the standard lane, never below it.
     TaskClass('conversation_complex', 'complex or sensitive intake turn (escalated)', 85, 70),
     TaskClass('intake_extraction', 'structured requirements from the dialogue', 70, 70, deterministic_first=True),
-    TaskClass('architecture', 'architecture + plan for the build', 85, 70),
+    TaskClass('architecture', 'architecture + plan for the build', 85, 70, prefer_models=ARCHITECT_STATION),
     # Founder 2026-10-20: gpt-6-luna out of code writing. Paid run 39377332673 (inspect 39378559811): every
     # codegen/repair answer of it (4 of 4, 22-38k characters) was invalid JSON and was thrown away; the cost-first
     # router picked it only because it is the cheapest model the light class admits. Small calls (architecture,
     # review, a narrow pre-flight fix) answered correctly 6 of 6 and stay allowed.
     # Codegen defaults to 85. The explicit LIGHT exception is applied by task_class using the bound build class.
-    TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY),
-    TaskClass('repair', 'fix failing checks', 85, 70, deny_models=CODE_WRITING_DENY),
-    TaskClass('modification', 'change an existing product', 85, 70, deny_models=CODE_WRITING_DENY),
-    TaskClass('review', 'QA review of generated code', 85, 70, require_independent_of=('codegen', 'repair', 'modification')),
-    TaskClass('security_review', 'security review', 85, 85, require_independent_of=('codegen', 'repair', 'modification')),
+    TaskClass('codegen', 'write the product code', 85, 85, deny_models=CODE_WRITING_DENY, prefer_models=CODE_STATION),
+    TaskClass('repair', 'fix failing checks', 85, 70, deny_models=CODE_WRITING_DENY, prefer_models=CODE_STATION),
+    TaskClass('modification', 'change an existing product', 85, 70, deny_models=CODE_WRITING_DENY,
+              prefer_models=CODE_STATION),
+    TaskClass('review', 'QA review of generated code', 85, 70, require_independent_of=('codegen', 'repair', 'modification'),
+              prefer_models=QA_STATION),
+    TaskClass('security_review', 'security review', 85, 85, require_independent_of=('codegen', 'repair', 'modification'),
+              prefer_models=QA_STATION),
 )}
 
 # The floors that existed before Wave A (codegen/repair/modification/review
@@ -86,5 +95,6 @@ def eligible(task: str, *, model_id: str, quality: int, cost_class=None) -> bool
 def describe() -> list[dict]:
     return [{'task': t.key, 'description': t.description, 'preferred_floor': t.preferred_floor,
              'mandatory_floor': t.mandatory_floor, 'allow_models': list(t.allow_models), 'deny_models': list(t.deny_models),
-             'independent_of': list(t.require_independent_of), 'deterministic_first': t.deterministic_first}
+             'independent_of': list(t.require_independent_of), 'deterministic_first': t.deterministic_first,
+             'prefer_models': list(t.prefer_models)}
             for t in TASK_CLASSES.values()]

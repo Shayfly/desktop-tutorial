@@ -34,6 +34,24 @@
       "expect_failed": [
         "test_plan_eligibility_is_not_reported_as_exhausted_allowance"
       ]
+    },
+    {
+      "id": "NC3",
+      "what": "the approval route refuses with a different code than the build route (the code explain() does not know)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.\n        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost'",
+          "new": "        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.\n        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'"
+        }
+      ],
+      "targets": [
+        "tests/test_build_allowance_message.py"
+      ],
+      "expect_failed": [
+        "test_the_approval_route_refuses_with_the_same_code_as_the_build_route",
+        "test_no_route_emits_the_retired_code"
+      ]
     }
   ]
 }

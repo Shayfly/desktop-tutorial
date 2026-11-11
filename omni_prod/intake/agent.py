@@ -88,6 +88,12 @@ def apply(brief: d.Brief, interp: Interpretation, *, infer_defaults: bool = True
             continue
         old = new.fields.get(p.field)
         origin = getattr(p, 'origin', 'deterministic')
+        if p.field == 'content_only' and origin == 'model':
+            # R1/8.2: the persistence decision is the customer's, by chip. The model's guess (run 10b: proposed
+            # four times at "high") only pre-selects the chip; it never sets the field.
+            if not old:
+                new.hints[p.field] = p.value
+            continue
         if q.kind == 'text' and _off_topic(p.field, str(p.value)):
             # degrade, never block: the proposal is dropped with its reason, the turn continues
             why = f'{p.field}: {origin} proposal {str(p.value)[:40]!r} is technical text, not a requirement'

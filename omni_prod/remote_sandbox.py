@@ -63,6 +63,7 @@ class RemoteSandboxRepositoryExecutor:
         data['stderr']=sanitized_tail(data['stderr'],limit=100000)
         return data
     def execute(self, *, repository: dict[str,str], spec: ProductSpec) -> ExecutionReport:
+        from .sandbox_executor import _pointer, _window   # same helpers as the local executor (one definition)
         valid={a.id for a in spec.acceptance}; failures=[]; logs=[]; n=0
         try:
             manifest=ProjectManifest.from_repository(repository)
@@ -73,8 +74,13 @@ class RemoteSandboxRepositoryExecutor:
         for command in manifest.build:
             n+=1; r=self._run(repository,command,f'b{n}'); logs += [r['stdout'],r['stderr']]
             if int(r['returncode'])!=0:
-                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed',_output_tail(r)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
-        from .sandbox_executor import _is_fake_verification
+                out=str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')
+                p=_pointer(out, set(repository))
+                # 'failed: at …' -- the colon keeps the taxonomy key remote_build_failed (founder 2026-11-01 18:59)
+                return ExecutionReport(False,tuple(AcceptanceFailure(a.id,'remote build failed'+(f': at {p}' if p else ''),_window(out)) for a in spec.acceptance),'\n'.join(logs)[-10000:])
+        from .sandbox_executor import (NO_TEST_EXECUTED_MESSAGE, _is_fake_verification, executed_tests,
+                                       verify_failure_message)
+        executed=None     # tests that actually ran (audit 2026-11-02 finding 2)
         for check in manifest.verify:
             if _is_fake_verification(tuple(check.argv)):
                 failures.extend(AcceptanceFailure(aid, f'verification failed: {check.name}',
@@ -83,7 +89,18 @@ class RemoteSandboxRepositoryExecutor:
                                 for aid in check.acceptance_ids)
                 continue
             n+=1; r=self._run(repository,check.argv,f't{n}'); logs += [r['stdout'],r['stderr']]
+            ran=executed_tests(check.argv,str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or ''))
+            if ran is not None:
+                executed=(executed or 0)+ran
+            if int(r['returncode'])==0 and ran==0:
+                # exit 0 with every test skipped is not evidence; same taxonomy prefix (remote_verification_failed)
+                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name} \u2014 {NO_TEST_EXECUTED_MESSAGE}',
+                                                  _window(str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')))
+                                for aid in check.acceptance_ids)
+                continue
             if int(r['returncode'])!=0:
-                failures.extend(AcceptanceFailure(aid,f'remote verification failed: {check.name}',_output_tail(r)) for aid in check.acceptance_ids)
+                out=str(r.get('stdout') or '')+'\n'+str(r.get('stderr') or '')
+                p=_pointer(out, set(repository))
+                failures.extend(AcceptanceFailure(aid,verify_failure_message(check.name,check.argv,r['returncode'],'remote verification failed')+(f' at {p}' if p else ''),_window(out)) for aid in check.acceptance_ids)
         failures.extend(uncovered_acceptance_failures(manifest, spec))
-        return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:])
+        return ExecutionReport(not failures,tuple(failures),'\n'.join(logs)[-10000:],tests_executed=executed)

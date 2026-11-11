@@ -16,9 +16,12 @@ on:
         required: false
         default: ""
   push:
-    # The private candidate is deployed to the EXISTING Oracle staging host,
-    # not to main or a customer production environment.
-    branches: [milestone/pre-staging-2026-10-05, codex/148ai-verified-intake-2026-10-12]
+    # 2026-11-06: main is the only source for the worker (Oracle host, runner omni-worker).
+    # The trigger listed only milestone/pre-staging-2026-10-05 and codex/148ai-verified-intake-2026-10-12,
+    # so nothing merged to main reached the worker unless someone ran this by hand (it ran ef9d156 from
+    # 2026-11-02 while main was 50 commits ahead). Those two branches still exist and are removed here:
+    # a push to either would have deployed stale code onto the worker that serves production.
+    branches: [main]
     paths:
       - omni_prod/**
       - infra/worker-host/**
@@ -73,6 +76,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VENICE_API_KEY1: ${{ secrets.VENICE_API_KEY1 }}
           OMNI_DATABASE_URL: ${{ secrets.OMNI_DATABASE_URL }}
+          OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}
         run: bash infra/worker-host/write-env.sh
 
       - name: Confirm deployment scope and configured intake mode

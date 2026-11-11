@@ -11,6 +11,8 @@ Cue words are listed for Hebrew, Arabic and English; a model interpretation (any
 """
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 
 _BUSINESS = (r'לקוחות|למספרה|לעסק|לחנות|למסעדה|למשרד|לסטודיו|לקליניקה|תיירים|customers|clients|tourists|'
@@ -22,6 +24,16 @@ _LOOK = r'מושך את העין|מיתוג|יוקרתי|מעוצב|eye-?catchin
 _RECORDS = (r'תור|תורים|הזמנ|הרשמ|טופס|טלפון|מייל|appointment|booking|reservation|register|sign[- ]?up|form|phone|'
             r'e-?mail|موعد|مواعيد|حجز|تسجيل|نموذج|هاتف|بريد')
 _SHOWCASE = r'אתר תדמית|תספר (?:קצת )?על|לספר על|דף נחיתה|landing page|brochure|about (?:us|my business)|موقع تعريفي|صفحة هبوط'
+# R1/8.1: what STORES records (strong cues only, shared with omni_prod.persistence). _RECORDS above is still the
+# personal-data cue (a form that takes a phone collects one); it is no longer read for the persistence decision.
+def _stores_pattern() -> str:
+    from ..persistence import STRONG_TERMS
+    parts = [(r'\b' + re.escape(t) + r'\b') if t.isascii() else re.escape(t) for t in STRONG_TERMS]
+    return '|'.join(parts)
+
+
+_STORES = _stores_pattern()
+_SHOWCASE_PAGE = _SHOWCASE + r'|דף סטטי|דף לעסק|דף לחנות|דף תדמית|רק טלפון|בלי הזמנה באתר|בלי הזמנות באתר'
 _ACCOUNT = r'אזור אישי|החשבון שלי|ייכנסו עם|משתמשים רשומים|my account|user accounts|members|حسابي|حساب شخصي|الأعضاء'
 
 
@@ -54,7 +66,7 @@ _COMMON = (
     Field('references', 'none', 'inspiration'),
 )
 _SITE = (
-    Field('content_only', 'yes', 'saves_records', 4, confirm=True, implies=(('no', _RECORDS), ('yes', _SHOWCASE))),
+    Field('content_only', 'yes', 'saves_records', 4, confirm=True, implies=(('no', _STORES), ('yes', _SHOWCASE_PAGE))),
     Field('login', 'none', 'who_can_enter', 2, implies=(('none', ''),), raises=((4, _ACCOUNT),)),
 )
 _APP = (
@@ -69,7 +81,7 @@ CONDITIONAL = {f.name: f for f in (
     Field('access_scope', 'internal_link', 'link_scope', 6, confirm=True),
     Field('personal_data', 'no', 'what_is_stored', 3, confirm=True, implies=(('no', _SHOWCASE),), raises=((5, _RECORDS),)),
     Field('login', 'none', 'who_can_enter', 2, raises=((4, _ACCOUNT),)),
-    Field('content_only', 'yes', 'saves_records', 4, confirm=True, implies=(('no', _RECORDS), ('yes', _SHOWCASE))),
+    Field('content_only', 'yes', 'saves_records', 4, confirm=True, implies=(('no', _STORES), ('yes', _SHOWCASE_PAGE))),
 )}
 
 ARTIFACT_FIELDS: dict[str, tuple[Field, ...]] = {

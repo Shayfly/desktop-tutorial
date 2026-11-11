@@ -50,7 +50,7 @@ class RealAgentRepairIntegrationTests(unittest.TestCase):
         with patch.dict(os.environ, {"OMNI_REPAIR_STRUCTURED_V1": "0"}):
             result = RepairAgent(gw).repair(spec=FakeSpec(), repo_summary=summary(), failures=[])
         self.assertEqual(result, (FilePatch("src/site.py", "fixed"),))
-        self.assertEqual(gw.calls[0]["max_tokens"], 20000)
+        self.assertEqual(gw.calls[0]["max_tokens"], 32000)
 
     def test_structured_repair_uses_same_gateway(self):
         gw = FakeGateway(structured_reply([
