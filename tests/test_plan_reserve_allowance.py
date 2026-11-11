@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from omni_prod.creator_plan import build_plan_preview
 from omni_prod.build_contract_repository import MemoryBuildContractRepository
+from omni_prod.persistence import decision_line
 from omni_prod.product_architect import ProductArchitect
 from omni_prod.subscription_store import PostgresSubscriptionService
 from omni_prod.pricing import PLAN_CATALOG, PlanCode
@@ -21,7 +22,12 @@ class PlanReserveAllowanceTests(TestCase):
                                      estimated_provider_cost_usd=q.total_authorized_variable_usd)
         preview = build_plan_preview(
             architect=ProductArchitect(), repository=MemoryBuildContractRepository(), project_id='p',
-            prompt='Build a simple static page for a flower shop, no login, no personal data.',
+            # R1 (run 10b): the persistence decision is the customer's; a prompt without one is not READY. This test is
+            # about allowances, so its prompt carries the decision the intake binds, like every production prompt.
+            prompt=('Build a simple static page for a flower shop, no login, no personal data.\n'
+                    '--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\n'
+                    'Sign-in: NONE. Do not add login, sessions, users or roles.\n'
+                    'Do not store personal or contact details of people.\n' + decision_line('none')),
             economics=lambda: quote, authorize_quote=authorize,
             durable_backend=True, infrastructure_readiness={'kinds': {}}, image_readiness={'status': 'PARTIAL'})
         self.assertFalse(any('credit_reservations' in sql for sql, _ in cur.calls))
