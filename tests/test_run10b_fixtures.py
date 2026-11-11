@@ -177,3 +177,78 @@ class Guards(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class R2Discovery(unittest.TestCase):
+    """R2 in discovery (Michael's conditions 8.2, 8.4, 8.6): the decision slot exists for every family, is asked from
+    the first turn, re-asked when it goes stale, and every system-asked decision is recorded."""
+
+    def pending_ids(self, brief):
+        from omni_prod import discovery as d
+        return [q.id for q in d.pending(brief)]
+
+    def test_the_slot_exists_for_a_brief_the_classifier_calls_web_app(self):
+        from omni_prod import discovery as d
+        from omni_prod.intake.families import classify_family
+        text = typed('florist_details')
+        self.assertEqual(classify_family(text), 'web_app')            # R3 not fixed: the slot must not depend on it
+        self.assertIn('content_only', self.pending_ids(d.start(text)))  # 8.2: open from the first turn
+
+    def test_an_answer_on_a_web_app_brief_is_kept_and_bound(self):
+        from omni_prod import discovery as d
+        b = d.answer(d.start(typed('florist_details')), {'login': 'none', 'personal_data': 'no', 'content_only': 'yes'})
+        self.assertEqual(b.values().get('content_only'), 'yes')         # arm 1: the answer was deleted here
+        c = compiled(b.prompt + d.requirements_text(b))
+        self.assertEqual((c['persistence'], c['persistence_source'], c['status']), ('none', 'customer', 'READY'))
+        self.assertEqual(data_acceptance(c), [])
+
+    def test_a_strong_cue_settles_it_without_a_question(self):
+        from omni_prod import discovery as d
+        self.assertNotIn('content_only', self.pending_ids(d.start(BRIEFS['positive_contact_form'])))
+
+    def test_a_negated_cue_is_not_a_cue(self):
+        from omni_prod.persistence import strong_cues
+        self.assertEqual(strong_cues('דף נחיתה, בלי התחברות ובלי הרשמה'), ())
+
+    def test_stale_answer_is_asked_again(self):
+        from omni_prod import discovery as d
+        b = d.answer(d.start(typed('florist_details')), {'login': 'none', 'personal_data': 'no', 'content_only': 'yes'})
+        edited = d.Brief.from_dict({**b.to_dict(), 'prompt': b.prompt + ' עם הרשמה ללקוחות קבועים'})
+        d._drop_inapplicable(edited)
+        self.assertNotIn('content_only', edited.fields)                  # 8.4: never silently kept
+        self.assertEqual(edited.hints.get('content_only'), 'no')         # pre-selected to "stores"
+        self.assertIn('content_only', self.pending_ids(edited))          # and asked again
+
+    def test_a_model_guess_never_sets_the_decision(self):
+        from omni_prod import discovery as d
+        from omni_prod.intake import agent as A
+        from omni_prod.intake.interpreter import HIGH, Interpretation, Proposal
+        res = A.apply(d.start(typed('florist_details')),
+                      Interpretation('he', 'web_app', proposals=[Proposal('content_only', 'yes', HIGH, 'מידע', origin='model')]))
+        self.assertNotIn('content_only', res.brief.fields)
+        self.assertEqual(res.brief.hints.get('content_only'), 'yes')     # pre-selected only
+
+    def test_every_system_asked_decision_is_recorded(self):
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        from tests.test_conversation_os import MemoryBriefs, MemoryConversationStore
+        store = MemoryConversationStore()
+        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=store, credits=10, context=lambda p: {})
+        sup.turn(project_id='p1', account_id='a1', message=typed('florist_details'))
+        for _ in range(4):
+            asked = [m['interpretation'] for m in store.messages_for('p1') if m['role'] == 'assistant'
+                     and 'content_only' in (m['interpretation'] or {}).get('asked', [])]
+            if asked:
+                break
+            sup.turn(project_id='p1', account_id='a1', answers={'login': 'none', 'personal_data': 'no'}, lang='he')
+        self.assertTrue(asked, 'the persistence question was never asked')
+        self.assertEqual(asked[0]['decision_asked'], {'field': 'persistence', 'trigger': 'discovery'})
+
+
+class R2Reporting(unittest.TestCase):
+    def test_system_asked_decisions_are_counted_in_the_report(self):
+        from omni_prod.frozen_run_report import report_row, system_asked_decisions
+        msgs = [{'role': 'assistant', 'interpretation': {'decision_asked': {'field': 'persistence', 'trigger': 'discovery'}}},
+                {'role': 'customer', 'interpretation': {}}, {'role': 'assistant', 'interpretation': {}}]
+        self.assertEqual(system_asked_decisions(msgs), 1)
+        row = report_row(arm='a', job={}, evidence={}, baseline_sha='x', human_decisions=3, system_asked_decisions=1)
+        self.assertEqual((row['humanDecisions'], row['systemAskedDecisions']), (3, 1))

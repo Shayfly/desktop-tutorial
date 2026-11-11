@@ -108,7 +108,13 @@ QUESTIONS: tuple[Question, ...] = (
              options=(_o('yes', 'כן, אתר תוכן בלבד — בלי שמירת נתונים', 'Yes, content only: nothing is stored'),
                       _o('no', 'לא, יש נתונים שנשמרים או משתנים', 'No, some data is stored or changes')),
              delegable=False,
-             ask_if=lambda v: v.get('login') == 'none' and v.get('personal_data') == 'no' and v.get('_family') == 'website'),
+             # R1/8.2 (run 10b): no family condition. It was `_family == 'website'`, so a brief the classifier called
+             # web_app ("תבנה דף לעסק שלי") had no slot: the customer's "מידע" was lost and _drop_inapplicable removed
+             # the field even when given. Asked as soon as nothing rules it out, from the first turn.
+             # A STRONG storing cue (8.1) settles it without a question -- unless a "stores nothing" answer just went
+             # stale (8.4), which is asked again.
+             ask_if=lambda v: v.get('login', 'none') == 'none' and v.get('personal_data') != 'yes'
+             and v.get('access_scope') != 'add_login' and (not v.get('_strong') or v.get('_stale'))),
     Question('access_scope', 'access_scope', 'access',
              'ביקשתם בלי התחברות, אבל יישמרו פרטים אישיים ואנשים מבחוץ ישתמשו. איך להמשיך?',
              'No sign-in, personal data and outside users: how should we proceed?',
@@ -299,6 +305,9 @@ def _ctx(brief: 'Brief') -> dict:
     """What a question's ask_if may look at: the brief's values plus the platform's family classification."""
     v = brief.values()
     v['_family'] = 'website' if is_website(brief) else 'other'
+    from .persistence import strong_cues
+    v['_strong'] = bool(strong_cues(brief.prompt))           # R1/8.1, read by the persistence question
+    v['_stale'] = brief.hints.get('persistence_stale') == 'yes'
     return v
 
 
@@ -328,8 +337,30 @@ def _recommended(q: Question, brief: 'Brief', hints: Mapping[str, str]) -> str:
     return hints.get(q.field, q.recommended)
 
 
+def _expire_stale_persistence(brief: Brief) -> None:
+    """R1/8.4: "stores nothing" was answered, then the brief gained something that stores ("עם הרשמה"). The answer is
+    moved out and the question is asked again, pre-selected to "stores". The strong cues present when the customer
+    answered are remembered, so an answer given knowingly is never re-asked for the same words."""
+    f = brief.fields.get('content_only')
+    if not f or f.get('value') != 'yes':
+        return
+    from .persistence import strong_cues
+    v = brief.values()
+    now = set(strong_cues(' '.join([brief.prompt] + [str(v.get(k) or '') for k in ('goal', 'screens', 'content')])))
+    if 'cues_at_answer' not in f:
+        f['cues_at_answer'] = sorted(now)
+        return
+    if now - set(f['cues_at_answer']):
+        del brief.fields['content_only']
+        brief.hints['content_only'] = 'no'
+        brief.hints['persistence_stale'] = 'yes'   # read by the turn record (8.6 trigger), cleared on the next answer
+    elif brief.hints.get('persistence_stale'):
+        brief.hints.pop('persistence_stale', None)
+
+
 def _drop_inapplicable(brief: Brief) -> None:
     """A changed answer can make a dependent question irrelevant: its answer goes."""
+    _expire_stale_persistence(brief)
     changed = True
     while changed:
         changed = False

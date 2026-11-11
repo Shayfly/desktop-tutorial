@@ -70,8 +70,10 @@ class Resolved:
 
 
 def strong_cues(customer_text: str) -> tuple[str, ...]:
-    """The strong cues in what the CUSTOMER wrote (the caller strips negations and the generated brief first)."""
-    return tuple(t for t in STRONG_TERMS if has_term(customer_text or '', t))
+    """The strong cues in what the CUSTOMER wrote. What they exclude is not a cue: "בלי התחברות" is no sign-in."""
+    from .intake.contract import strip_negated
+    text = strip_negated(customer_text or '') or ''
+    return tuple(t for t in STRONG_TERMS if has_term(text, t))
 
 
 def read_decision(full_prompt: str, *, legacy_content_only: bool = False) -> Decision:
