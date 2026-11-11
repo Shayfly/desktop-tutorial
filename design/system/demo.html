@@ -421,6 +421,38 @@ button.ds-tag:hover:enabled {
   outline-offset: 2px;
 }
 
+.ds-form-field { display: grid; gap: var(--space-4); min-inline-size: 0; }
+.ds-form-field label { overflow-wrap: anywhere; }
+.ds-form-field :is(input, textarea) {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--space-48);
+  padding: var(--space-12);
+  border: 2px solid var(--c-field-border);
+  border-radius: var(--r-1);
+  background: var(--c-field-bg);
+  color: var(--c-field-fg);
+  font: inherit;
+}
+.ds-form-field [dir="ltr"] { direction: ltr; text-align: start; }
+.ds-form-field textarea { min-block-size: var(--space-104); resize: vertical; }
+.ds-form-field :is(input, textarea):enabled:is(:hover, :focus, [data-example="hover"]) { border-color: var(--s-accent); }
+.ds-form-field :is(input, textarea)[aria-invalid="true"] { border-color: var(--s-danger); }
+.ds-form-field :is(input, textarea):disabled { opacity: var(--c-disabled-opacity); cursor: not-allowed; }
+.ds-form-field :is(input, textarea):focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+.ds-form-field[aria-busy="true"] .ds-field-control { position: relative; }
+.ds-form-field[aria-busy="true"] .ds-spinner {
+  position: absolute;
+  inset-inline-end: var(--space-16);
+  inset-block-start: var(--space-16);
+  pointer-events: none;
+}
+.ds-form-field[aria-busy="true"] :is(input, textarea):not([dir="ltr"]) { padding-inline-end: var(--space-48); }
+.ds-form-field[aria-busy="true"] [dir="ltr"] { padding-inline-start: var(--space-48); }
+.ds-form-error, .ds-form-announcement { color: var(--s-danger); }
+.ds-form-announcement:empty { margin: 0; }
+
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--s-bg); color: var(--s-text); font: 16px / 1.5 var(--font-body); }
 h1, h2, h3, p { margin: 0; }
@@ -446,6 +478,7 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .stack { display: grid; gap: var(--space-16); align-content: start; min-inline-size: 0; }
 .brief { color: var(--s-text-muted); font: var(--text-small) / 1.5 var(--font-mono); }
 .brief summary { cursor: pointer; min-block-size: 44px; display: flex; align-items: center; }
+.brief-desktop { margin-inline-start: calc(-1 * var(--space-32)); padding-inline-start: var(--space-8); border-inline-start: 1px solid var(--s-line); }
 .brief-mobile { display: none; }
 .meta-strip { padding: var(--space-12) 0; }
 .gallery, .prices, .steps, .footer-grid { display: grid; gap: var(--space-16); }
@@ -454,18 +487,6 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .panel { min-inline-size: 0; padding: var(--space-16); border: 1px solid var(--s-line); background: var(--s-surface); border-radius: var(--r-2); }
 .workflow > * { grid-column: span 6; }
 .workflow > .brief { grid-column: 1 / -1; }
-.workflow input, .workflow textarea {
-  width: 100%;
-  min-block-size: var(--space-48);
-  border: 2px solid var(--c-field-border);
-  border-radius: var(--r-1);
-  padding: var(--space-12);
-  background: var(--c-field-bg);
-  color: var(--c-field-fg);
-  font: inherit;
-}
-.workflow textarea { min-block-size: var(--space-104); resize: vertical; }
-.workflow :is(input, textarea):focus { border-color: var(--s-accent); }
 .workflow ol { margin: 0; padding-inline-start: var(--space-24); }
 .workflow li { padding-block: var(--space-4); }
 .done { color: var(--s-success); }
@@ -487,7 +508,7 @@ footer { padding-block: var(--space-32); }
   .nav { position: static; }
   .nav-inner { min-block-size: var(--space-48); }
   .nav-inner .nav-links, .nav-inner > .ds-button { display: none; }
-  .mobile-nav { display: flex; position: fixed; inset: auto 0 0; z-index: 2; padding: var(--space-4) var(--space-8) calc(var(--space-4) + env(safe-area-inset-bottom)); justify-content: space-between; background: var(--s-bg); border-block-start: 1px solid var(--s-line); }
+  .mobile-nav { display: flex; position: fixed; inset: auto 0 0; z-index: 2; padding: var(--space-4) var(--space-8) calc(var(--space-4) + env(safe-area-inset-bottom)); justify-content: space-between; flex-wrap: wrap; background: var(--s-bg); border-block-start: 1px solid var(--s-line); }
   .mobile-nav a { padding-inline: var(--space-4); font-size: 12px; }
   .mobile-nav .ds-button { padding-inline: var(--space-8); }
   .hero > *, .workflow > * { grid-column: span 4; }
@@ -498,6 +519,18 @@ footer { padding-block: var(--space-32); }
   .price-action { position: sticky; inset-block-end: calc(var(--space-72) + env(safe-area-inset-bottom)); align-self: start; }
   .brief-desktop { display: none; }
   .brief-mobile { display: block; }
+}
+
+@media (max-width: 240px) {
+  .wrap { inline-size: calc(100% - var(--space-16)); }
+  h1 { font-size: 28px; overflow-wrap: anywhere; }
+  h2 { font-size: 24px; overflow-wrap: anywhere; }
+  .steps, .footer-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { padding: var(--space-8); }
+  .ds-button { max-inline-size: 100%; min-inline-size: 0; padding-inline: var(--space-8); overflow-wrap: anywhere; }
+}
+@media (max-width: 240px) {
+  body { padding-block-end: calc(var(--space-104) + env(safe-area-inset-bottom)); }
 }
 
 
@@ -534,7 +567,7 @@ footer { padding-block: var(--space-32); }
   <section class="block" id="how" aria-labelledby="how-title"><p class="brief brief-desktop">״תראו לי מה קורה בכל שלב.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תראו לי מה קורה בכל שלב.״</p></details><h2 id="how-title">ארבעה שלבים</h2><div class="steps"><article class="panel"><p class="ds-meta">01</p><h3>מתארים</h3><p>כותבים מה העסק צריך.</p></article><article class="panel"><p class="ds-meta">02</p><h3>מאשרים</h3><p>קוראים מפרט ותקרת עלות.</p></article><article class="panel"><p class="ds-meta">03</p><h3>בונים</h3><p>עוקבים אחר ההתקדמות.</p></article><article class="panel"><p class="ds-meta">04</p><h3>בודקים</h3><p>פותחים תצוגה ומורידים קוד.</p></article></div></section>
   <section class="block workflow grid" id="intake" aria-label="מסך קליטת בריף">
     <p class="brief brief-desktop">״יש לי סטודיו ואני רוצה לקבל פניות להצעת מחיר.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״יש לי סטודיו ואני רוצה לקבל פניות להצעת מחיר.״</p></details>
-    <div class="panel stack"><h2>הבריף שלכם</h2><form class="stack" action="#build"><div class="ds-field"><label for="business">שם העסק</label><input id="business" value="סטודיו נור" required></div><div class="ds-field"><label for="request">מה תרצו שהאתר יעשה?</label><textarea id="request" required>להציג שירותים ולקבל בקשות להצעת מחיר.</textarea></div><button class="ds-button" type="submit">לסטטוס הבנייה</button></form></div>
+    <div class="panel stack"><h2>הבריף שלכם</h2><form class="stack" action="#build" novalidate><p id="form-announcement" class="ds-form-announcement" role="alert" aria-atomic="true"></p><div class="ds-form-field"><label for="business">שם העסק</label><div class="ds-field-control"><input id="business" required data-required-error="יש להזין שם עסק." data-format-error="יש לבדוק את שם העסק." type="text" value="סטודיו נור"></div><p class="ds-form-error" id="business-error" hidden></p></div><div class="ds-form-field"><label for="request">מה האתר צריך לעשות?</label><div class="ds-field-control"><textarea id="request" required data-required-error="יש לתאר מה האתר צריך לעשות." data-format-error="יש לבדוק את תיאור האתר.">להציג שירותים ולקבל בקשות להצעת מחיר.</textarea></div><p class="ds-form-error" id="request-error" hidden></p></div><div class="ds-form-field"><label for="phone">טלפון</label><div class="ds-field-control"><input id="phone" dir="ltr" required data-required-error="יש להזין טלפון." data-format-error="יש להזין מספר טלפון תקין." type="tel" value="050-123-4567"></div><p class="ds-form-error" id="phone-error" hidden></p></div><div class="ds-form-field"><label for="email">מייל</label><div class="ds-field-control"><input id="email" dir="ltr" required data-required-error="יש להזין כתובת מייל." data-format-error="יש להזין כתובת מייל תקינה." type="email" value="studio@example.test"></div><p class="ds-form-error" id="email-error" hidden></p></div><div class="ds-form-field"><label for="pages">מספר עמודים</label><div class="ds-field-control"><input id="pages" dir="ltr" min="1" max="99" step="1" required data-required-error="יש להזין מספר עמודים." data-format-error="יש להזין מספר שלם בין 1 ל־99." type="number" value="3"></div><p class="ds-form-error" id="pages-error" hidden></p></div><button class="ds-button" type="submit">לסטטוס הבנייה</button></form></div>
     <div class="panel stack"><h3>מה נכנס לבריף</h3><p>אתר שירות בעברית עם טופס פנייה והצגת עבודות.</p><span class="ds-tag">טיוטה</span><p class="ds-meta">דמו סטטי · מעבר למסך לדוגמה</p></div>
   </section>
   <section class="block workflow grid" id="build" tabindex="-1" aria-label="מסך סטטוס בנייה">
@@ -551,11 +584,51 @@ footer { padding-block: var(--space-32); }
 <footer class="wrap"><div class="footer-grid"><div><strong>148AI</strong><p class="brief brief-desktop">״תנו לי דרך לחזור לעבודה שלי.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תנו לי דרך לחזור לעבודה שלי.״</p></details></div><div><a href="#examples">תוצרים</a></div><div><a href="#intake">בריף</a></div><div><a href="#faq">שאלות</a></div></div></footer>
 
 <script>
-  document.querySelector('#intake form')?.addEventListener('submit', event => {
-    event.preventDefault();
-    location.hash = 'build';
-    document.getElementById('build').focus();
-  });
+  const form = document.querySelector('#intake form');
+  if (form) {
+    const inputs = [...form.querySelectorAll('[required]')];
+    const announcement = document.getElementById('form-announcement');
+    function renderError(input, message) {
+      const error = document.getElementById(input.id + '-error');
+      error.textContent = message;
+      error.hidden = !message;
+      if (message) {
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', error.id);
+      } else {
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
+      }
+    }
+    function errorFor(input) {
+      if (input.validity.badInput) return input.dataset.formatError;
+      if (!input.value.trim()) return input.dataset.requiredError;
+      if (input.type === 'tel' && !/^\+?[0-9 ()-]{7,20}$/.test(input.value.trim())) return input.dataset.formatError;
+      return input.validity.valid ? '' : input.dataset.formatError;
+    }
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const errors = [];
+      for (const input of inputs) {
+        const message = errorFor(input);
+        renderError(input, message);
+        if (message) errors.push([input, message]);
+      }
+      if (errors.length) {
+        announcement.textContent = errors.map(([, message]) => message).join(' ');
+        errors[0][0].focus();
+        return;
+      }
+      announcement.textContent = '';
+      location.hash = 'build';
+      document.getElementById('build').focus();
+    });
+    form.addEventListener('input', event => {
+      const input = event.target;
+      if (input.matches('[aria-invalid="true"]')) renderError(input, errorFor(input));
+      announcement.textContent = '';
+    });
+  }
   for (const item of document.querySelectorAll('details.ds-accordion')) {
     const summary = item.querySelector('summary');
     item.addEventListener('toggle', () => summary.setAttribute('aria-expanded', String(item.open)));

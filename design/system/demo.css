@@ -23,6 +23,7 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .stack { display: grid; gap: var(--space-16); align-content: start; min-inline-size: 0; }
 .brief { color: var(--s-text-muted); font: var(--text-small) / 1.5 var(--font-mono); }
 .brief summary { cursor: pointer; min-block-size: 44px; display: flex; align-items: center; }
+.brief-desktop { margin-inline-start: calc(-1 * var(--space-32)); padding-inline-start: var(--space-8); border-inline-start: 1px solid var(--s-line); }
 .brief-mobile { display: none; }
 .meta-strip { padding: var(--space-12) 0; }
 .gallery, .prices, .steps, .footer-grid { display: grid; gap: var(--space-16); }
@@ -31,18 +32,6 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .panel { min-inline-size: 0; padding: var(--space-16); border: 1px solid var(--s-line); background: var(--s-surface); border-radius: var(--r-2); }
 .workflow > * { grid-column: span 6; }
 .workflow > .brief { grid-column: 1 / -1; }
-.workflow input, .workflow textarea {
-  width: 100%;
-  min-block-size: var(--space-48);
-  border: 2px solid var(--c-field-border);
-  border-radius: var(--r-1);
-  padding: var(--space-12);
-  background: var(--c-field-bg);
-  color: var(--c-field-fg);
-  font: inherit;
-}
-.workflow textarea { min-block-size: var(--space-104); resize: vertical; }
-.workflow :is(input, textarea):focus { border-color: var(--s-accent); }
 .workflow ol { margin: 0; padding-inline-start: var(--space-24); }
 .workflow li { padding-block: var(--space-4); }
 .done { color: var(--s-success); }
@@ -64,7 +53,7 @@ footer { padding-block: var(--space-32); }
   .nav { position: static; }
   .nav-inner { min-block-size: var(--space-48); }
   .nav-inner .nav-links, .nav-inner > .ds-button { display: none; }
-  .mobile-nav { display: flex; position: fixed; inset: auto 0 0; z-index: 2; padding: var(--space-4) var(--space-8) calc(var(--space-4) + env(safe-area-inset-bottom)); justify-content: space-between; background: var(--s-bg); border-block-start: 1px solid var(--s-line); }
+  .mobile-nav { display: flex; position: fixed; inset: auto 0 0; z-index: 2; padding: var(--space-4) var(--space-8) calc(var(--space-4) + env(safe-area-inset-bottom)); justify-content: space-between; flex-wrap: wrap; background: var(--s-bg); border-block-start: 1px solid var(--s-line); }
   .mobile-nav a { padding-inline: var(--space-4); font-size: 12px; }
   .mobile-nav .ds-button { padding-inline: var(--space-8); }
   .hero > *, .workflow > * { grid-column: span 4; }
@@ -75,4 +64,16 @@ footer { padding-block: var(--space-32); }
   .price-action { position: sticky; inset-block-end: calc(var(--space-72) + env(safe-area-inset-bottom)); align-self: start; }
   .brief-desktop { display: none; }
   .brief-mobile { display: block; }
+}
+
+@media (max-width: 240px) {
+  .wrap { inline-size: calc(100% - var(--space-16)); }
+  h1 { font-size: 28px; overflow-wrap: anywhere; }
+  h2 { font-size: 24px; overflow-wrap: anywhere; }
+  .steps, .footer-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { padding: var(--space-8); }
+  .ds-button { max-inline-size: 100%; min-inline-size: 0; padding-inline: var(--space-8); overflow-wrap: anywhere; }
+}
+@media (max-width: 240px) {
+  body { padding-block-end: calc(var(--space-104) + env(safe-area-inset-bottom)); }
 }
