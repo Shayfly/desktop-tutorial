@@ -1,0 +1,163 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify live production API
+        env:
+          BASE_URL: https://148aiv28.vercel.app
+        shell: bash
+        run: |
+          exec > >(tee /tmp/report.txt) 2>&1
+          python3 - <<'PY'
+          import http.cookiejar
+          import json
+          import os
+          import secrets
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["BASE_URL"].rstrip("/")
+          jar = http.cookiejar.CookieJar()
+          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+          rows = []
+
+          def request(method, path, payload=None):
+              headers = {"Accept": "application/json"}
+              data = None
+              if payload is not None:
+                  data = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
+              try:
+                  resp = opener.open(req, timeout=25)
+              except urllib.error.HTTPError as exc:
+                  resp = exc
+              except Exception as exc:
+                  print(f"{method} {path}\nHTTP: NO_RESPONSE\nERROR: {type(exc).__name__}: {exc}", flush=True)
+                  return None, None, {}
+              with resp:
+                  status = resp.status
+                  body = resp.read().decode("utf-8", errors="replace")
+                  header_map = dict(resp.headers.items())
+              # Never print or persist live session tokens. The raw token is
+              # never written to stdout (stdout is tee'd into the committed
+              # report), so no ::add-mask:: line is emitted.
+              try:
+                  safe = json.loads(body)
+                  if isinstance(safe, dict):
+                      for key in ("token", "access_token", "refresh_token"):
+                          if key in safe:
+                              safe[key] = "[REDACTED]"
+                      report_body = json.dumps(safe, ensure_ascii=False)
+                  else:
+                      report_body = body
+              except (ValueError, TypeError):
+                  report_body = body
+              print(f"{method} {path}\\nHTTP: {status}\\nBODY_RAW: {report_body}", flush=True)
+              return status, body, header_map
+
+          def check(name, actual, ok):
+              result = "PASS" if ok else "FAIL"
+              rows.append((name, result, str(actual)))
+              print(f"CHECK {name}: {result}", flush=True)
+
+          status, body, _ = request("GET", "/api/v28/deployment")
+          try:
+              schema = json.loads(body)["schema"]
+              schema_ok = (schema.get("compatible") is True and schema.get("missing") == [])
+          except (TypeError, ValueError, KeyError, AttributeError):
+              schema_ok = False
+          check("deployment schema", status, status == 200 and schema_ok)
+
+          status, body, _ = request("GET", "/api/v28/me")
+          check("unauthenticated me", status, status == 401)
+
+          suffix = str(int(time.time())) + "-" + secrets.token_hex(6)
+          credentials = {"email": "smoke-" + suffix + "@example.com",
+                         "password": "Sm0ke!" + secrets.token_urlsafe(24)}
+          # The application currently defines these endpoints under /auth/.
+          status, body, _ = request("POST", "/api/v28/auth/register", credentials)
+          check("register", status, status == 200)
+
+          jar.clear()
+          status, body, hdr = request("POST", "/api/v28/auth/login", credentials)
+          has_cookie = bool([cookie for cookie in jar if cookie.name == "148ai_session"])
+          check("login and Set-Cookie", status, status == 200 and has_cookie)
+
+          status, body, _ = request("GET", "/api/v28/me")
+          check("authenticated me", status, status == 200)
+
+          print("\n| Test | PASS/FAIL | HTTP |\n|---|---|---|")
+          for name, result, http in rows:
+              print(f"| {name} | {result} | {http} |")
+          sys.exit(1 if len(rows) != 5 or any(row[1] != "PASS" for row in rows) else 0)
+          PY
+
+      - name: summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Production Smoke — $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f /tmp/report.txt ]; then cat /tmp/report.txt >> "$GITHUB_STEP_SUMMARY"; else echo "No report generated" >> "$GITHUB_STEP_SUMMARY"; fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: publish results
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          mkdir -p smoke
+          if [ -f /tmp/report.txt ]; then
+            # Defense in depth: drop any mask lines and redact JWT-shaped strings.
+            grep -v '^::add-mask::' /tmp/report.txt | sed -E 's/eyJhbGciOi[A-Za-z0-9._-]*/[REDACTED_JWT]/g' > /tmp/report.clean.txt
+          else
+            echo "No report generated" > /tmp/report.clean.txt
+          fi
+          { echo "# Production Smoke — $(date -u +%FT%TZ)"; echo; echo "run: $GITHUB_RUN_ID"; echo '```'; cat /tmp/report.clean.txt; echo '```'; } > smoke/last-run.md
+          if grep -q -e '::add-mask::' -e 'eyJhbGciOi' smoke/last-run.md; then
+            echo "leak guard tripped" >&2
+            exit 1
+          fi
+
+      # Keep each run's evidence without writing to protected main or starting another smoke run.
+      - name: Upload smoke evidence
+        id: smoke_artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: smoke/last-run.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Link smoke evidence
+        if: ${{ always() }}
+        env:
+          ARTIFACT_URL: ${{ steps.smoke_artifact.outputs.artifact-url }}
+        shell: bash
+        run: |
+          if [ -n "$ARTIFACT_URL" ]; then
+            printf '\n[Download production smoke report](%s) — retained for 90 days.\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '\nSmoke artifact upload did not produce a link; inspect the upload step.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

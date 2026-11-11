@@ -1,0 +1,113 @@
+name: db-identity
+
+# Which database does the staging worker use? Reads the .env the running
+# worker stack was actually started with (compose working_dir of the live
+# worker container); falls back to the container's own environment if that
+# file no longer exists. Prints host + first 8 hex of sha256(OMNI_DATABASE_URL)
+# (identifies the exact URL without revealing it) and the schema_manifest
+# fingerprint sha256(host|dbname)[:12], compares the endpoint with Production, and writes the job summary.
+# No DB connection, no writes to the DB, nothing printed but host/hashes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/db-identity.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-identity
+  cancel-in-progress: false
+
+jobs:
+  identity:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 5
+    steps:
+      # BEFORE any checkout: actions/checkout cleans the runner workspace,
+      # which can hold the deploy-generated .env.
+      - name: Read the worker's database URL (no checkout yet)
+        id: ident
+        shell: bash
+        run: |
+          set -euo pipefail
+          c=$(docker ps --format '{{.Names}}' | grep -E 'worker-1$' | grep -v intake | head -1 || true)
+          if [ -z "$c" ]; then echo "::error title=db-identity::no running worker container"; exit 2; fi
+          wd=$(docker inspect "$c" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null || true)
+          url=""; src=""
+          if [ -n "$wd" ] && [ -f "$wd/.env" ]; then
+            url=$(grep -E '^OMNI_DATABASE_URL=' "$wd/.env" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+            src="$wd/.env (deploy-generated)"
+          fi
+          if [ -z "$url" ]; then
+            url=$(docker exec "$c" printenv OMNI_DATABASE_URL 2>/dev/null || true)
+            src="container $c environment (.env not found at ${wd:-unknown})"
+          fi
+          if [ -z "$url" ]; then echo "::error title=db-identity::OMNI_DATABASE_URL not found"; exit 2; fi
+          out=$(URL="$url" python3 - <<'PY'
+          import hashlib, os
+          from urllib.parse import urlsplit
+          u = os.environ['URL']; p = urlsplit(u)
+          host = p.hostname or ''; db = (p.path or '/').lstrip('/') or ''
+          print(f"host={host}")
+          print(f"dbname={db}")
+          print(f"url_sha256_8={hashlib.sha256(u.encode()).hexdigest()[:8]}")
+          print(f"db_fingerprint={hashlib.sha256(f'{host}|{db}'.encode()).hexdigest()[:12]}")
+          # Neon: '<endpoint>-pooler.<region>' and '<endpoint>.<region>' are the same database.
+          ep = host.split('.')[0].removesuffix('-pooler')
+          print(f"neon_endpoint={ep}")
+          PY
+          )
+          unset url
+          echo "$out" >> "$GITHUB_OUTPUT"
+          echo "source=$src" >> "$GITHUB_OUTPUT"
+          while IFS= read -r l; do echo "::notice title=db-identity::$l"; done <<< "$out"
+          echo "::notice title=db-identity source::$src"
+      # 2026-11-06: the report no longer commits to main. Runs 40786272189, 40831828711 and 41235131447
+      # measured correctly and then failed on "GH006: Protected branch update failed for refs/heads/main"
+      # (main requires 2 status checks; bots never push to main, C16). The result is the annotations
+      # above plus this job summary; nothing is written to the repository.
+      - name: Compare with Production and write the job summary
+        env:
+          HOST: ${{ steps.ident.outputs.host }}
+          DBNAME: ${{ steps.ident.outputs.dbname }}
+          SHA8: ${{ steps.ident.outputs.url_sha256_8 }}
+          FP: ${{ steps.ident.outputs.db_fingerprint }}
+          EP: ${{ steps.ident.outputs.neon_endpoint }}
+          SRC: ${{ steps.ident.outputs.source }}
+          PROD_URL: https://148aiv28.vercel.app/api/v28/deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          prod=$(curl -fsS --max-time 20 "$PROD_URL" || true)
+          prod_host=$(printf '%s' "$prod" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["schema"]["db_host"])' 2>/dev/null || true)
+          prod_ep=${prod_host%%.*}; prod_ep=${prod_ep%-pooler}
+          if [ -z "$prod_ep" ]; then
+            verdict="UNKNOWN (Production endpoint not readable from $PROD_URL)"
+            echo "::warning title=db-identity::$verdict"
+          elif [ "$prod_ep" = "$EP" ]; then
+            verdict="SAME as Production (Neon endpoint $EP)"
+            echo "::notice title=db-identity::$verdict"
+          else
+            verdict="DIFFERENT from Production: worker $EP, Production $prod_ep"
+            echo "::error title=db-identity::$verdict"
+          fi
+          {
+            echo "## db-identity: worker database ($(date -u +%FT%TZ))"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| source | \`${SRC}\` |"
+            echo "| host | \`${HOST}\` |"
+            echo "| dbname | \`${DBNAME}\` |"
+            echo "| sha256(OMNI_DATABASE_URL)[:8] | \`${SHA8}\` |"
+            echo "| db_fingerprint sha256(host\|dbname)[:12] | \`${FP}\` |"
+            echo "| Neon endpoint | \`${EP}\` |"
+            echo "| Production (\`${PROD_URL}\`) | \`${prod_host:-unreadable}\` |"
+            echo "| verdict | **${verdict}** |"
+            echo
+            echo "A '-pooler' host and the direct host of the same Neon endpoint are the same database but give different db_fingerprint values; the verdict compares the endpoint."
+          } >> "$GITHUB_STEP_SUMMARY"
+          # The worker shares Production's database by decision (2026-10-19, 2026-11-03); a different one fails the run.
+          case "$verdict" in DIFFERENT*) exit 1;; esac

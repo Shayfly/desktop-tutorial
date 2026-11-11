@@ -38,6 +38,16 @@ LEDGER = ProviderEvidence(
 # id in the attempt ledger. Execution evidence counts only where this is > 0.
 LEDGER_OK_CALLS = {'gemini-3.8-flash': 36, 'gemini-3.1-flash-lite': 115, 'gemini-3.5-flash-lite': 2,
                    'gpt-6-luna': 0, 'gpt-6.1-sol': 0, 'claude-sonnet-5-5': 0}
+# 2026-10-20: the first ledger observation with gpt-6-luna answering. Kept separate from LEDGER (a different
+# annotation of a different run); the validator counts successful calls from both.
+PAID_20261020 = ProviderEvidence(
+    'postdeploy-checks inspect-build run 39378559811 (annotation "attempts") of paid run 39377332673',
+    '2026-10-20T05:54Z', '4d488b4',
+    'build bld_65ee693e356847d89ab50300415d6861: gpt-6-luna 6 ok / 10 provider calls (architecture 1/1, review 4/4, '
+    'narrow pre-flight repair 1/1; codegen 0/1 and full repair 0/3: the model returned invalid JSON, '
+    'finish_reason=stop, 22-38k characters); gemini-3.1-flash-lite 4 ok / 4 (codegen 1, repair 3)')
+PAID_20261020_OK_CALLS = {'gpt-6-luna': 6, 'gemini-3.1-flash-lite': 4}
+OPENAI_MODEL_PAGE = 'https://developers.openai.com/api/docs/models/gpt-6-luna (read 2026-10-20)'
 GOLDEN = ProviderEvidence(
     'postdeploy-checks run 37961193099', '2026-10-09T16:43Z', '039574f',
     'paid golden build READY: discovery -> approval -> model-built product -> preview')
@@ -137,10 +147,14 @@ INVENTORY: tuple[ModelEntry, ...] = (
          fallback='escalation'),
     # ------------------------------------------------------------ OpenAI (worker)
     _llm('openai', 'openai-gpt-6-luna', 'gpt-6-luna', 'GPT Luna',
-         quality_tasks=('general', 'conversation', 'intake_extraction'), key_env='OPENAI_API_KEY',
-         cred=S.CREDENTIAL_PRESENT, conn=S.CONNECTION_TESTED, ver=S.UNVERIFIED, ev=(DEPLOY_NOTICE, PROBE, LEDGER),
-         ctx=None, max_out=16384, limits='no successful call: account has no credit',
-         fallback='escalation', health_note='HTTP 429 no credits remaining (2026-10-08); 0 ok / 18 in the ledger',
+         quality_tasks=('general', 'conversation', 'intake_extraction', 'architecture', 'review'),
+         key_env='OPENAI_API_KEY', cred=S.CREDENTIAL_PRESENT, conn=S.CONNECTION_TESTED, ver=S.REAL_EXECUTION_VERIFIED,
+         ev=(DEPLOY_NOTICE, PROBE, LEDGER, PAID_20261020),
+         ctx=1_050_000, max_out=128_000,
+         limits=('never used for codegen/repair/modification (task_policy.CODE_WRITING_DENY): 4 of 4 large code '
+                 'answers were invalid JSON in paid run 39377332673; small answers 6 of 6 correct. Context and output '
+                 'limits from ' + OPENAI_MODEL_PAGE + '; the catalog still caps one call at 16384 output tokens'),
+         fallback='escalation',
          commercial='OpenAI API terms: customer owns outputs; API data not used for training by default',
          adapter='routed_gateway (OpenAI reasoning dialect)'),
     _llm('openai', 'openai-gpt-6-1-sol', 'gpt-6.1-sol', 'GPT Sol',

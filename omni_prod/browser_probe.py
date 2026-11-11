@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
+from .sandbox_script import staged_script
 
 BROWSER_FAILURE_ID = 'BROWSER'
 BROWSER_PROFILE = 'browser'
@@ -171,25 +172,52 @@ class BrowserFlowExecutor:
 
     def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
-        if not report.passed or not self._enabled:
+        if not report.passed:
             return report
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report):
+        """This stage's own check on a report in which everything before it passed (VerificationGroup runs it
+        directly; execute() keeps the standalone short-circuit)."""
+        if not self._enabled:
+            return report
+        from .verification_verdict import no_checks, reraise_control, unverified
         run = getattr(self._inner, '_run', None)
         if not callable(run):
             self.last_probe = {'status': 'unavailable', 'reason': 'no sandbox runner'}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'no sandbox runner', report.build_log)       # T4: never a pass
         try:
-            result = run(repository, ('python', '-c', PROBE), 'browser-probe', profile=BROWSER_PROFILE)
+            staged, argv = staged_script(repository, 'browser_probe', PROBE)
+            result = run(staged, argv, 'browser-probe', profile=BROWSER_PROFILE)
         except TypeError:
             self.last_probe = {'status': 'unavailable', 'reason': 'sandbox runner has no browser profile'}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'sandbox runner has no browser profile', report.build_log)
         except Exception as exc:
+            reraise_control(exc)                       # T4: cancel / ledger / budget stop the build
             self.last_probe = {'status': 'unavailable', 'reason': f'{type(exc).__name__}: {exc}'[:300]}
-            return report
-        probe = parse_probe_output(str(result.get('stdout', '')))
+            return unverified(BROWSER_FAILURE_ID, f'{type(exc).__name__}: {exc}', report.build_log)
+        stdout = str(result.get('stdout', ''))
+        probe = parse_probe_output(stdout)
+        tail = (stdout + str(result.get('stderr', '')))[-600:]
         if probe is None:
-            tail = (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-600:]
             self.last_probe = {'status': 'unavailable', 'reason': 'probe produced no result', 'tail': tail}
-            return report
+            return unverified(BROWSER_FAILURE_ID, 'the probe produced no result', report.build_log)
+        if (not isinstance(probe, dict) or not isinstance(probe.get('forms'), list)
+                or not isinstance(probe.get('findings'), list)):
+            self.last_probe = {'status': 'unavailable', 'reason': 'malformed probe result', 'tail': tail}
+            return unverified(BROWSER_FAILURE_ID, 'malformed probe result (expected an object with forms and '
+                              'findings lists)', report.build_log)
+        if int(result.get('returncode', 0) or 0) != 0:
+            self.last_probe = {'status': 'unavailable', 'reason': f"probe exited {result.get('returncode')}", 'tail': tail}
+            return unverified(BROWSER_FAILURE_ID, f"the probe exited {result.get('returncode')} (a PASS payload "
+                              'does not override a failed process)', report.build_log)
+        # T4 + Matt 2026-10-21: the page itself is a real check. The probe prints only after "/" loaded and was observed
+        # for JavaScript and server errors (page_errors / server_errors), so a product without forms (a content site)
+        # is judged on that, not refused. NO_CHECKS only when the evidence shows neither a page observation nor a form.
+        page_observed = isinstance(probe.get('page_errors'), list) and isinstance(probe.get('server_errors'), list)
+        if not probe['forms'] and not probe['findings'] and not page_observed:
+            self.last_probe = {'status': 'no_checks', 'forms': 0, 'findings': []}
+            return no_checks(BROWSER_FAILURE_ID, 'neither the page nor any form was observed on "/"', report.build_log)
         blocking = [f for f in probe.get('findings', []) if f.get('kind') in BLOCKING]
         self.last_probe = {'status': 'failed' if blocking else 'passed', 'forms': len(probe.get('forms', [])),
                            'findings': probe.get('findings', [])}

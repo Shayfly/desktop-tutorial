@@ -51,7 +51,9 @@ class ExecutorTests(unittest.TestCase):
     def test_unavailable_browser_is_recorded_not_passed(self):
         for inner in (_Inner(exc=RuntimeError('no image')), _Inner(stdout='crash, no json')):
             ex = BrowserFlowExecutor(inner)
-            self.assertTrue(ex.execute(repository={}, spec=None).passed)
+            r = ex.execute(repository={}, spec=None)          # T4: "could not verify" is never "verified"
+            self.assertFalse(r.passed)
+            self.assertEqual([f.acceptance_id for f in r.failures], ['BROWSER_UNVERIFIED'])
             self.assertEqual(ex.last_probe['status'], 'unavailable')
 
     def test_disabled_does_not_run(self):

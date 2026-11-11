@@ -25,7 +25,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from . import lifecycle, prices, states as S, task_policy
-from .inventory import DEPLOY_NOTICE, GAPS, INVENTORY, LEDGER, LEDGER_OK_CALLS, LEGACY_ROUTES, PROBE, GOLDEN, REPLICATE_ACCOUNT, VERCEL_ENV_NAMES
+from .inventory import (DEPLOY_NOTICE, GAPS, INVENTORY, LEDGER, LEDGER_OK_CALLS, LEGACY_ROUTES, PAID_20261020,
+                        PAID_20261020_OK_CALLS, PROBE, GOLDEN, REPLICATE_ACCOUNT, VERCEL_ENV_NAMES)
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / 'infra' / 'worker-host' / 'model-catalog.json'
@@ -38,7 +39,10 @@ AS_OF = date(2026, 10, 11)
 
 CREDENTIAL_EVIDENCE = {DEPLOY_NOTICE.ref, VERCEL_ENV_NAMES.ref}
 CONNECTION_EVIDENCE = {PROBE.ref, REPLICATE_ACCOUNT.ref}
-EXECUTION_EVIDENCE = {LEDGER.ref, GOLDEN.ref}
+EXECUTION_EVIDENCE = {LEDGER.ref, GOLDEN.ref, PAID_20261020.ref}
+# successful calls per provider model id, from every execution-ledger observation
+OK_CALLS = {k: LEDGER_OK_CALLS.get(k, 0) + PAID_20261020_OK_CALLS.get(k, 0)
+            for k in {*LEDGER_OK_CALLS, *PAID_20261020_OK_CALLS}}
 
 
 def load_catalog(path: Path = CATALOG) -> list[dict]:
@@ -159,7 +163,7 @@ def validate(matrix: dict | None = None, catalog: list[dict] | None = None) -> l
         if e.connection_state in (S.CONNECTION_TESTED, S.CONNECTION_FAILED) and not refs & CONNECTION_EVIDENCE:
             problems.append(f'{e.model_key}: {e.connection_state} without a recorded provider answer')
         if e.verification_state == S.REAL_EXECUTION_VERIFIED:
-            if not refs & EXECUTION_EVIDENCE or LEDGER_OK_CALLS.get(e.provider_model_id, 0) <= 0:
+            if not refs & EXECUTION_EVIDENCE or OK_CALLS.get(e.provider_model_id, 0) <= 0:
                 problems.append(f'{e.model_key}: REAL_EXECUTION_VERIFIED without execution evidence '
                                 '(no successful ledger call for this model id)')
             if e.connection_state != S.CONNECTION_TESTED:

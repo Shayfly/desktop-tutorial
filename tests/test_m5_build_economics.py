@@ -86,10 +86,10 @@ class ReservationTests(unittest.TestCase):
         return PostgresSubscriptionService(pool=None)
 
     def test_reservation_shortfall_denies_without_insert(self):
-        # BASIC cap defaults to $2.50; already reserved/spent $2.30.
+        # Amateur (persisted as legacy 'basic') cap defaults to $2.50; LIGHT is its M5 build class (CEO 2026-10-19); already reserved/spent $2.30.
         cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('2.30')), None])
         d=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertFalse(d.allowed)
@@ -99,7 +99,7 @@ class ReservationTests(unittest.TestCase):
     def test_reservation_takes_user_budget_row_lock_before_deciding(self):
         cur=ScriptedCursor([('basic', self.service()._cycle_now(), 0, Decimal('0')), None], rowcounts=[1,1])
         d=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=1,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=1,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertTrue(d.allowed)
@@ -113,7 +113,7 @@ class ReservationTests(unittest.TestCase):
             ('u1', 'p1', 60, Decimal('0.30'), 'RESERVED'),
         ])
         decision=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertTrue(decision.allowed)
@@ -128,7 +128,7 @@ class ReservationTests(unittest.TestCase):
         ])
         with self.assertRaisesRegex(ValueError, 'different scope or reserved amount'):
             self.service().reserve(
-                cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+                cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
                 estimated_provider_cost_usd=Decimal('0.30'),
             )
         self.assertFalse(any('INSERT INTO credit_reservations' in sql for sql,_ in cur.calls))
@@ -139,7 +139,7 @@ class ReservationTests(unittest.TestCase):
             ('u1', 'p1', 60, Decimal('0.30'), 'SETTLED'),
         ])
         decision=self.service().reserve(
-            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='standard', credits=60,
+            cur, build_id='b1', user_id='u1', project_id='p1', cost_class='light', credits=60,
             estimated_provider_cost_usd=Decimal('0.30'),
         )
         self.assertFalse(decision.allowed)
@@ -318,18 +318,18 @@ class WorkerSettlementTruthTests(unittest.TestCase):
 
     def test_estimate_ledger_is_never_promoted_to_actual(self):
         subs=MagicMock()
-        subs.settle.return_value={'actual_provider_cost_usd':None,'provider_cost_truth':'CONSERVATIVE_RESERVATION'}
+        subs.release_failed.return_value={'credits_refunded':60,'provider_cost_truth':'CONSERVATIVE_RESERVATION'}
         action,evidence,actual=worker_tasks.resolve_m5_billing(
             subs, build_id='b1', ready=False, gateway=self.gateway('0.25',1),
             capability_evidence=None,
             economics_quote={'revenue_usd':'1.00','infrastructure_maximum_usd':'0'},
         )
-        self.assertEqual(action,'settled')
+        # founder 2026-11-02: the failed build is released (credits back), the estimate is still not promoted
+        self.assertEqual(action,'released')
         self.assertIsNone(actual)
-        subs.settle.assert_called_once_with(
-            build_id='b1', actual_provider_cost_usd=None, revenue_usd=Decimal('1.00'),
-            infra_cost_usd=Decimal('0'),
-        )
+        subs.settle.assert_not_called()
+        subs.release_failed.assert_called_once_with(build_id='b1', actual_provider_cost_usd=None)
+        self.assertEqual(evidence['action'],'released_failed')
 
     def test_failed_zero_spend_build_releases_reservation(self):
         subs=MagicMock()
@@ -389,7 +389,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
     total (LLM + capabilities + generated-app infra + retry) once, before enqueue."""
 
     def _run(self, *, reserve_allowed=True, cost_inputs_exc=None, existing_build=None, require_approval='0',
-             idempotency_result=(True, None), idempotency_key='caller-retry-key-1'):
+             idempotency_result=(True, None), idempotency_key='caller-retry-key-1', approval_present=True):
         from omni_prod.build_cost_plan import BuildCostInputs, CostQuoteUnknown
         from omni_prod.build_contract import BuildContractStatus
 
@@ -431,9 +431,12 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
              patch.object(investor_app, '_m5_cost_inputs', cost), \
              patch.object(investor_app, 'PostgresBuildContractRepository'), \
              patch.object(investor_app, 'PostgresBuildRepository', return_value=jobs), \
-             patch.object(investor_app, 'enqueue_build', enqueue):
+             patch.object(investor_app, 'enqueue_build', enqueue), \
+             patch('omni_prod.brief_repository.PostgresBriefRepository') as approval_repo, \
+             patch.object(investor_app, '_bind_execution_plan', return_value={'verified': True}):
+            approval_repo.return_value.consume.return_value = {'brief_fingerprint': 'approved-fixture-fingerprint'}
             req = investor_app.V27BuildRequest(prompt='Build a CRM', build_contract_id='bc_1',
-                                               idempotency_key=idempotency_key)
+                                               idempotency_key=idempotency_key, approval_id='approved-fixture-id' if approval_present else None)
             try:
                 return investor_app.v28_build_async('prj_1', req, MagicMock()), reserve, enqueue, jobs, None
             except investor_app.HTTPException as exc:
@@ -443,11 +446,16 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
         response, reserve, enqueue, jobs, exc = self._run()
         self.assertIsNone(exc)
         # 0.20 LLM + 0.01 image + 0.05 generated-app infra + 0.05 retry
-        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.31'))
+        # CEO 2026-10-19: the model budget is the plan's class cap, not OMNI_EXTERNAL_BUDGET_USD ($0.20).
+        # CEO 2026-11-09: LIGHT cap $0.60, so Amateur's model budget is clipped by the 60% margin floor and the
+        # whole reservation lands on the floor (0.5220 = 40% of the $1.305 revenue basis).
+        self.assertEqual(reserve.call_args.kwargs['estimated_provider_cost_usd'], Decimal('0.5220'))
         enqueue.assert_called_once()
         evidence = jobs.create_with_cursor.call_args.kwargs['evidence_json']['economics_quote']
         self.assertEqual(evidence['components']['capability_authorization_usd'], '0.01')
-        self.assertEqual(evidence['total_authorized_variable_usd'], '0.31')
+        self.assertEqual(evidence['total_authorized_variable_usd'], '0.5220')
+        self.assertEqual(evidence['components']['cost_class'], 'light')
+        self.assertEqual(evidence['components']['llm_class_cap_usd'], '0.60')
         claim = jobs.claim_build_request_idempotency.call_args.kwargs
         self.assertEqual(claim['idempotency_key'], 'caller-retry-key-1')
         self.assertEqual(len(claim['request_fingerprint']), 64)
@@ -462,7 +470,7 @@ class DurableBuildRouteReservationTests(unittest.TestCase):
 
     def test_build_without_an_approval_is_refused(self):
         # Directive 2026-10-09 §5: a direct API call does not bypass approval.
-        _, reserve, enqueue, jobs, exc = self._run(require_approval='1')
+        _, reserve, enqueue, jobs, exc = self._run(require_approval='1', approval_present=False)
         self.assertEqual(exc.status_code, 409)
         self.assertEqual(exc.detail['error'], 'approval_required')
         reserve.assert_not_called()

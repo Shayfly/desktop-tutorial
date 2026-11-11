@@ -43,6 +43,7 @@ M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
 import json
 import logging
 import os
+import re
 import socket
 import time
 from decimal import Decimal
@@ -157,6 +158,144 @@ def install_round_snapshots(engine, workspace, build_id: str, sink: list, contro
         if control is not None and decision == 'discarded':
             control.log('info', f'סבב תיקון {index} החמיר את המוצר ונזרק; ממשיכים מהגרסה הטובה ביותר.')
     engine.round_hook = hook
+
+
+def install_rejected_json_sink(gateway, workspace, build_id: str) -> None:
+    """T3 / Matt on #105: every model answer rejected as JSON is written to object storage at the moment it is
+    rejected (the FULL raw text and its diagnosis), under build-model-json/<build>/; the build evidence carries the
+    manifest (rejected_json_evidence). Without storage nothing is installed and the manifest says so."""
+    store = getattr(workspace, 'storage', None)
+    if gateway is None or store is None or not callable(getattr(store, 'put_bytes', None)):
+        return
+    import hashlib
+    counter = {'n': 0}
+
+    from .evidence_export import redact as export_redact      # covers Google keys (AIza...) on this base
+    from .secret_redaction import redact as layer_redact
+
+    def redact(text: str) -> str:
+        return export_redact(layer_redact(text))
+
+    def sink(entry: dict, raw: str) -> str:
+        # Private build store (same access and retention as the round snapshots). The text is stored WHOLE (never
+        # truncated), through the redaction layer: raw_sha256 is the digest of the original answer, and
+        # stored_redacted says whether anything key-shaped was replaced.
+        # Matt HOLD on #105 (T3_DIAGNOSTIC_REDACTION_BYPASS): EVERY text-bearing field of the stored object goes
+        # through the same layer, not only the raw answer -- diagnostic.starts / trailing_starts are excerpts of it.
+        text = redact(raw)
+        plain = {k: v for k, v in entry.items() if k not in ('raw', 'raw_truncated')}
+        meta = {**plain, **{k: redact_fields(plain[k]) for k in _REJECTED_TEXT_FIELDS if k in plain}}
+        body = json.dumps({**meta, 'build_id': build_id,
+                           'stored_text': text, 'stored_redacted': text != raw or meta != plain,
+                           'stored_truncated': False},
+                          ensure_ascii=False).encode()
+        key = (f"build-model-json/{build_id}/{counter['n']:02d}-{entry['task']}-"
+               f"{hashlib.sha256(body).hexdigest()[:12]}.json")
+        counter['n'] += 1
+        store.put_bytes(key, body)
+        return key
+    gateway.rejected_json_sink = sink
+
+
+# Text-bearing fields of a rejection entry: excerpts of the model's answer (diagnostic.starts / trailing_starts /
+# reason) and exception text (store_error). Identifiers (key, raw_sha256, model ids) are not text and are kept exact.
+_REJECTED_TEXT_FIELDS = ('diagnostic', 'store_error')
+
+
+def redact_fields(value):
+    """The rejected-JSON redaction layer applied to every string inside a JSON-shaped value (keys kept)."""
+    from .evidence_export import redact as export_redact
+    from .secret_redaction import redact as layer_redact
+    if isinstance(value, str):
+        return export_redact(layer_redact(value))
+    if isinstance(value, dict):
+        cleaned = {}
+        for k, v in value.items():
+            if k == 'tail_raw_utf8_b64' and isinstance(v, str):
+                # Redact the decoded text, then re-encode. Applying the generic
+                # long-token filter to Base64 destroys the retained evidence.
+                import base64
+                decoded = base64.b64decode(v, validate=True).decode('utf-8')
+                cleaned[k] = base64.b64encode(redact_fields(decoded).encode('utf-8')).decode('ascii')
+            else:
+                cleaned[k] = redact_fields(v)
+        return cleaned
+    if isinstance(value, (list, tuple)):
+        return [redact_fields(v) for v in value]
+    return value
+
+
+def rejected_json_evidence(gateway) -> dict:
+    """Manifest of the rejected JSON answers of THIS build (the raw text lives at each key).
+
+    Matt HOLD on #105 (T3_DURABLE_FLAG_FALSE_SUCCESS): durability is what the writes ACHIEVED, not whether a sink is
+    installed. `rejected_model_json_durable` is True only when there were rejections and every one was stored;
+    None when nothing was rejected (nothing to make durable -- not a pass); False otherwise. The state names the
+    case: NO_REJECTIONS | ALL_STORED | PARTIAL | NONE_STORED | NO_STORE."""
+    rows = list(getattr(gateway, 'rejected_json_manifest', None) or [])
+    installed = getattr(gateway, 'rejected_json_sink', None) is not None
+    stored = sum(1 for r in rows if r.get('key') and not r.get('store_error'))
+    if not rows:
+        state, durable = 'NO_REJECTIONS', None
+    elif not installed:
+        state, durable = 'NO_STORE', False
+    elif stored == len(rows):
+        state, durable = 'ALL_STORED', True
+    elif stored == 0:
+        state, durable = 'NONE_STORED', False
+    else:
+        state, durable = 'PARTIAL', False
+    return {'rejected_model_json': [{k: r.get(k) for k in ('model', 'provider_model', 'attempt_seq', 'task',
+                                                           'raw_sha256', 'raw_chars', 'key')}
+                                    | {'store_error': redact_fields(r.get('store_error')),
+                                       'reason': redact_fields((r.get('diagnostic') or {}).get('reason'))} for r in rows],
+            'rejected_model_json_durable': durable,
+            'rejected_model_json_durability': {'state': state, 'rejected': len(rows), 'stored': stored,
+                                               'failed': len(rows) - stored}}
+
+
+def _install_quarantine_history(jobs, build_id: str) -> None:
+    """Michael condition 5: the review asks whether an EARLIER build quarantined the same probe (read-only query)."""
+    from . import product_review
+    pool = getattr(jobs, 'pool', None) or getattr(jobs, '_pool', None)
+    if pool is None:
+        product_review._QUARANTINE_HISTORY = None
+        return
+
+    def lookup(probe: str):
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT id FROM build_jobs WHERE id <> %s AND evidence_json->'gate_waste'->'quarantined_gates' "
+                "@> %s::jsonb ORDER BY created_at DESC LIMIT 1",
+                (build_id, json.dumps([{'probe': probe}]))).fetchone()
+        return row[0] if row else None
+
+    product_review._QUARANTINE_HISTORY = lookup
+
+
+def _gate_waste(engine, spent, repair_rounds) -> dict:
+    from .behavior_acceptance import find_in_chain
+    from .product_review import ProductReviewExecutor
+    review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
+    rounds = int(getattr(review, 'gate_waste_rounds', 0) or 0) if review is not None else 0
+    quarantined = list(getattr(review, 'quarantined', []) or []) if review is not None else []
+    measured = Decimal(str(getattr(review, 'gate_waste_usd', 0) or 0)) if review is not None else Decimal('0')
+    calls = int(getattr(review, 'gate_waste_calls', 0) or 0) if review is not None else 0
+    critical = [q for q in quarantined if q.get('critical')]
+    return {'rounds': rounds, 'measured_usd': str(measured.quantize(Decimal('0.0001'))), 'model_calls': calls,
+            'basis': 'gateway spend between the first repeated review and the quarantine (measured, not estimated)',
+            'quarantined_gates': quarantined, 'critical_quarantine': bool(critical),
+            # Michael condition 1: a critical gate in quarantine never releases silently.
+            'banner': ('בדיקה קריטית הושעתה בבנייה הזו (' + ', '.join(q['skill'] for q in critical) +
+                       '). התצוגה המקדימה זמינה; פרסום לפרודקשן חסום עד שהבדיקה תתוקן.') if critical else None}
+
+
+def _design_reviews(engine) -> list:
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), VisualQAExecutor)
+    critic = getattr(target, 'design_critic', None) if target is not None else None
+    return list(getattr(critic, 'reviews', []) or [])[-8:]
 
 
 def visual_evidence(engine) -> dict | None:
@@ -332,12 +471,27 @@ def spend_snapshot(gateway) -> tuple[Decimal, int]:
     return Decimal(str(spent)), calls
 
 
+def taxonomy_evidence(engine, *, ready: bool = False) -> dict:
+    """C24: the failure taxonomy and first_pass of THIS build, in its evidence, on success and on every failure exit
+    (they were recorded only by rehearsals; live builds never reached first_pass_yield).
+    #95: first_pass is True only for a build this worker records as release-ready; every failure exit passes
+    ready=False, so a failed build is never counted as a first pass whatever the engine says."""
+    if engine is None:
+        return {'failure_taxonomy': [], 'first_pass': False, 'taxonomy_note': 'the engine was never built'}
+    return {'failure_taxonomy': list(getattr(engine, 'failure_taxonomy', None) or []),
+            'first_pass': bool(ready) and getattr(engine, 'first_pass', None) is True}
+
+
 def resolve_billing(subscriptions, *, build_id: str, ready: bool, spent: Decimal, external_calls: int) -> str:
-    """settle() whenever real provider spend was incurred (or the build is
-    READY); release() only when a failed build incurred no external spend."""
-    if ready or spent > 0 or external_calls > 0:
+    """READY -> settle(). FAILED -> its credits are released (founder 2026-11-02, DELIVERY-001: a failed stage is
+    not charged): release() when no external spend happened, release_failed() -- RELEASED with the real provider
+    cost kept on record -- when it did. A failed build is never SETTLED."""
+    if ready:
         subscriptions.settle(build_id=build_id, actual_provider_cost_usd=spent)
         return 'settled'
+    if spent > 0 or external_calls > 0:
+        subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=spent)
+        return 'released'
     subscriptions.release(build_id=build_id)
     return 'released'
 
@@ -363,20 +517,84 @@ def asset_capability_status(plan) -> dict | None:
     return _status(plan)
 
 
-def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
-    """Admission reserved `components.llm_maximum_usd` for model calls; the
-    worker's gateway may not spend more than that, whatever its own
-    environment says (the API and worker are configured separately).
+def _install_agentic_repair(engine, request) -> bool:
+    """CEO order 2026-11-09 (b): the repair model works inside the repository with tools. Founder builds only for
+    now (OMNI_AGENTIC_REPAIR=founder, the default); 'all' turns it on for every build, '0' turns it off."""
+    import os
+    mode = os.getenv('OMNI_AGENTIC_REPAIR', 'founder').strip().lower()
+    if mode in ('0', 'off', 'false', ''):
+        return False
+    if mode != 'all':
+        from .pricing import m5_founder_account
+        if not m5_founder_account((request or {}).get('user_id')):
+            return False
+    repairer = getattr(engine, 'repairer', None)
+    gateway = getattr(repairer, 'gateway', None)
+    if repairer is None or gateway is None or type(repairer).__name__ == 'AgenticRepairAgent':
+        return False
+    from .agentic_repair import AgenticRepairAgent
+    engine.repairer = AgenticRepairAgent(gateway, fallback=repairer)
+    return True
 
-    Requests without a component breakdown predate the M5 quote and are left
-    unchanged, recorded as `legacy_unbound`.
+
+def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
+    """Fail closed before paid model calls; reuse the existing gateway budget.
+
+    The durable admission quote is the authority. Cost-class caps additionally
+    constrain LIGHT and STANDARD; neither worker environment nor legacy
+    requests may enlarge their model-spend authorization.
     """
+    from .pricing import CostClass, m5_class_llm_cap
+
     components = (request.get('economics_quote') or {}).get('components') or {}
     if 'llm_maximum_usd' not in components:
-        return {'binding': 'legacy_unbound'}
-    if not hasattr(gateway, 'bind_budget'):
-        return {'binding': 'not_applicable'}
-    return {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
+        raise PermissionError('model_budget_missing: legacy request has no authorized LLM budget')
+    if not callable(getattr(gateway, 'bind_budget', None)):
+        raise PermissionError('model_budget_unenforceable: gateway cannot bind authorization')
+
+    try:
+        reserved = Decimal(str(components['llm_maximum_usd']))
+        if not reserved.is_finite() or reserved < 0:
+            raise ValueError('invalid reserved LLM budget')
+        class_name = components.get('cost_class')
+        from .pricing import m5_founder_account, m5_founder_build_budget
+        founder_test = bool(components.get('founder_test')) and m5_founder_account(request.get('user_id'))
+        if founder_test:   # CEO 2026-11-08: the founder's admitted test budget, never above the founder cap
+            reserved = min(reserved, m5_founder_build_budget())
+        elif class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
+            reserved = min(reserved, m5_class_llm_cap(class_name))
+        elif not class_name:
+            # Older quotes with a valid reserved maximum remain supported;
+            # they are never allowed to fall back to the worker env budget.
+            pass
+        out = {'binding': 'bound', **gateway.bind_budget(reserved)}
+        if class_name:
+            if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
+                raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
+            founder = m5_founder_account(request.get('user_id'))
+            out['model_allowlist'] = (gateway.restrict_to_cost_class(class_name, unrestricted=True) if founder
+                                      else gateway.restrict_to_cost_class(class_name))
+        return out
+    except (ValueError, ArithmeticError) as exc:
+        raise PermissionError('invalid model budget authorization') from exc
+
+
+def llm_cap_overage(request: dict, spent) -> dict | None:
+    """Soft class cap (CEO 2026-10-19): record how actual model spend compares
+    with the class cap; above 2x the cap it is logged as an alert. Never refuses."""
+    components = (request.get('economics_quote') or {}).get('components') or {}
+    cap = components.get('llm_class_cap_usd')
+    if cap in (None, 'None'):
+        return None
+    from .pricing import llm_overage
+    result = llm_overage(spent, cap)
+    if result['status'] == 'OVER_2X_CAP':
+        logging.getLogger(__name__).warning('LLM_SPEND_ALERT build class=%s spent=%s cap=%s (>2x)',
+                                            components.get('cost_class'), result['actual_usd'], result['cap_usd'])
+    elif result['status'] == 'OVER_CAP':
+        logging.getLogger(__name__).info('llm spend over class cap: class=%s spent=%s cap=%s',
+                                         components.get('cost_class'), result['actual_usd'], result['cap_usd'])
+    return result
 
 
 def capability_authorization_ceiling(request: dict) -> Decimal:
@@ -497,6 +715,14 @@ def resolve_m5_billing(
     # inputs are known. A non-zero infrastructure maximum is still a reserve,
     # not an actual, so suppress contribution rather than fabricate precision.
     revenue = None if revenue_raw is None or infra_max != 0 else Decimal(str(revenue_raw))
+    if not ready:
+        # Founder 2026-11-02 (DELIVERY-001): a failed build releases its credits; the provider cost it really incurred
+        # stays on record (reservation + plan provider-spend meter), it is never SETTLED to the customer.
+        released = subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=actual)
+        evidence = {'action': 'released_failed', 'cost_basis': cost_basis}
+        if released:
+            evidence.update(released)
+        return 'released', evidence, actual
     settlement = subscriptions.settle(
         build_id=build_id, actual_provider_cost_usd=actual,
         revenue_usd=revenue, infra_cost_usd=Decimal('0'),
@@ -507,6 +733,49 @@ def resolve_m5_billing(
     return 'settled', evidence, actual
 
 
+_FOUNDER_DRAFT_CODES = frozenset({'verification_failed', 'quality_gate_failed', 'preview_not_ready',
+                                  'release_policy_failed', 'capability_gate_failed'})
+
+
+def _founder_draft_allowed(request, error_code) -> bool:
+    """Founder-only draft version of a failed build (CEO 2026-11-08). Never for a security finding."""
+    import os
+    if os.getenv('OMNI_FOUNDER_DRAFT_VERSIONS', '1') == '0' or error_code not in _FOUNDER_DRAFT_CODES:
+        return False
+    from .pricing import m5_founder_account
+    return bool(m5_founder_account((request or {}).get('user_id')))
+
+
+def _version_message(build_id: str, founder_draft: bool, banner: str | None = None) -> str:
+    if founder_draft:
+        return f'148AI DRAFT (failed checks, founder preview only) build {build_id}'
+    if banner:
+        # Michael 2026-11-10 condition 1: a critical gate in quarantine is visible on the version, never silent.
+        return f'148AI PREVIEW ONLY build {build_id} — {banner}'
+    return f'148AI async live build {build_id}'
+
+
+# 78: the preview smoke's verdicts for "the server answered, but GET / is not a real interface". The smoke script
+# itself is a frozen gate input (pipeline_identity, smoke/t4 evidence), so the words are fixed HERE, not in it.
+_EMPTY_UI = re.compile(r'returned a placeholder page|did not return an HTML page')
+EMPTY_UI_PREFIX = 'the app started but the generated interface is empty'
+_CONTROL_KINDS = (('form', ('<form',)), ('input', ('<input', '<select', '<textarea', "createelement('input", 'createelement("input')),
+                  ('button', ('<button', "createelement('button", 'createelement("button')),
+                  ('table', ('<table', "createelement('table", 'createelement("table')))
+
+
+def _missing_controls(repository) -> list[str]:
+    """Kinds of control none of the generated files contains (a proxy for the served page, read from the code)."""
+    try:
+        text = ' '.join(str(v) for k, v in dict(repository or {}).items()
+                        if str(k).endswith(('.py', '.html', '.js', '.htm'))).lower()
+    except (TypeError, ValueError):
+        return []
+    if not text:
+        return []
+    return [k for k, tags in _CONTROL_KINDS if not any(t in text for t in tags)]
+
+
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
@@ -515,6 +784,13 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         from .preview_smoke import PREVIEW_FAILURE_ID
         if report_failures and all(getattr(f, 'acceptance_id', None) == PREVIEW_FAILURE_ID for f in report_failures):
             # Every acceptance check passed; the product would not start for preview.
+            if all(_EMPTY_UI.search(str(getattr(f, 'message', ''))) for f in report_failures):
+                # 78 (Michael 2026-11-11): the app STARTED and served an empty page -- never "did not start". Same
+                # code (same step); the right words, and what the generated code lacks.
+                missing = _missing_controls(getattr(result, 'repository', None))
+                return False, 'preview_not_ready', (
+                    f'{EMPTY_UI_PREFIX} (missing: {",".join(missing) if missing else "content"}): '
+                    + '; '.join(f.message for f in report_failures))[:2000]
             return False, 'preview_not_ready', ('the product passed its checks but did not start for preview '
                                                 'after repair: ' + '; '.join(f.message for f in report_failures))[:2000]
         if report_failures and all(getattr(f, 'acceptance_id', None) == QUALITY_FAILURE_ID for f in report_failures):
@@ -562,19 +838,59 @@ def _rights_evidence_from_dicts(items) -> tuple:
     return tuple(out)
 
 
+class BuildNotFound(RuntimeError):
+    """The worker was asked to run a build its database does not have (error_code build_not_found)."""
+
+
+BUILD_NOT_FOUND = 'build_not_found'
+
+
+def _fail_build_not_found(jobs, platform, build_id: str, exc: Exception) -> bool:
+    """Log the miss; if the build's job row exists (its request or reservation row is what is missing), mark it
+    FAILED with build_not_found and release its credits. Returns whether a row was marked."""
+    log = logging.getLogger(__name__)
+    log.error('build %s: NOT FOUND in this worker\'s database (%s); failing it, not dropping it -- check that the '
+              'worker and the web use the same OMNI_DATABASE_URL', build_id, exc)
+    marked = False
+    try:
+        marked = bool(jobs.transition(
+            build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED, error_code=BUILD_NOT_FOUND,
+            error_message=(f"The build could not be started: the build worker did not find build {build_id} "
+                           f"or its request in its database ({exc})")[:2000]))
+    except Exception:
+        log.error('build %s: could not mark it FAILED (%s)', build_id, BUILD_NOT_FOUND, exc_info=True)
+    if marked:
+        try:
+            platform.subscriptions.release(build_id=build_id)
+        except Exception:
+            log.error('build %s: credits not released after %s', build_id, BUILD_NOT_FOUND, exc_info=True)
+    else:
+        log.error('build %s: no QUEUED job row here either -- nothing could be marked; the job fails', build_id)
+    return marked
+
+
 def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_factory,
                         quality_fn, security_fn, min_quality: int = 80, preflight=None,
                         capability_stage=None, infrastructure_stage=None,
                         infrastructure_environment: str = 'preview', spec_repo=None, agent_recorder=None,
                         attempt_pool=None) -> str | None:
     """Returns the terminal BuildStatus value written, or None if nothing was
-    done (unknown build id / already claimed by another delivery)."""
+    done (already claimed by another delivery). An unknown build id raises
+    BuildNotFound after marking the build FAILED (build_not_found) where it can."""
     try:
         request = jobs.get_request(build_id)
-    except KeyError:
-        return None
+    except KeyError as exc:
+        # 2026-10-29 (production): two builds ended here in ~2.5 s as "Job OK" with no write and no log -- the worker
+        # read a different database than the web -- and stayed QUEUED in the web's database for ever. A build this
+        # worker cannot find fails LOUDLY: logged, marked FAILED where its job row exists, and the job raises.
+        _fail_build_not_found(jobs, platform, build_id, exc)
+        raise BuildNotFound(f'build {build_id} not found in this worker\'s database: {exc}') from exc
     if not jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.RUNNING):
-        return None  # duplicate delivery / already handled: idempotent no-op
+        # Duplicate delivery / already handled: an idempotent no-op that must NOT fail a build another delivery is
+        # running -- but never silent.
+        logging.getLogger(__name__).warning('build %s: not claimed (not QUEUED any more): duplicate delivery or '
+                                            'already handled -- nothing done', build_id)
+        return None
     beat = getattr(jobs, 'checkpoint', None)
     if callable(beat):  # crash recovery: the heartbeat starts at the claim
         try:
@@ -605,6 +921,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         prompt = request['prompt']
 
     gateway = None
+    engine = None
     version_id = None
     artifact_key = None
     capability_evidence = None
@@ -644,7 +961,15 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .uploaded_assets import install as install_uploaded_assets
         install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
                                 project_id=request.get('public_project_id'),account_id=str(request['user_id']))
+        # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
+        from .page_locale import install as install_page_locale
+        install_page_locale(engine, prompt)
+        # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
+        from .product_review import install_review_request
+        install_review_request(engine, prompt)
+        _install_quarantine_history(jobs, build_id)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
+        agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
@@ -671,6 +996,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             raise RuntimeError('strict durable round evidence backend unavailable')
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
+        from .design_review import install_design_critic
+        design_review_on = install_design_critic(engine, request, prompt)
+        install_rejected_json_sink(gateway, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
@@ -705,6 +1033,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
         ready = core_ready and capability_ready
+        gate_waste = _gate_waste(engine, None, result.repair_rounds)
         if core_ready and not capability_ready:
             error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
 
@@ -734,6 +1063,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # rights gate documents as committed-but-not-releasable) becomes a
         # version.
         commit_version = ready or error_code == 'rights_gate_not_clear'
+        # CEO 2026-11-08 (bld_ca727ba7: a failed founder build left nothing to open): for the founder account only, the
+        # best repaired candidate of a build that failed verification/quality is still committed as a DRAFT version,
+        # so it can be opened in Preview next to the list of failed checks. The build stays FAILED and nothing is
+        # released or billed as ready; customers are unchanged (Golden E2E #1 rule). OMNI_FOUNDER_DRAFT_VERSIONS=0 off.
+        founder_draft = (not commit_version and _founder_draft_allowed(request, error_code)
+                         and bool(getattr(result, 'repository', None)))
+        commit_version = commit_version or founder_draft
         pool = getattr(workspace, 'pool', None)
         if not commit_version:
             version = None
@@ -742,12 +1078,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 with conn.transaction():
                     with conn.cursor() as cur:
                         version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                                   message=f'148AI async live build {build_id}', cur=cur)
+                                                   message=_version_message(build_id, founder_draft, gate_waste.get('banner')), cur=cur)
                         spec_repo.save(version_id=version.id, project_id=internal_project_id,
                                        spec=result.spec, cur=cur)
         else:
             version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                       message=f'148AI async live build {build_id}')
+                                       message=_version_message(build_id, founder_draft, gate_waste.get('banner')))
         version_id = version.id if version is not None else None
         artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
@@ -761,21 +1097,30 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'security': security.to_dict(),
                 'rights': rights.to_dict(),
             },
-            'release_ready': ready,
+            'release_ready': bool(ready) and not gate_waste['critical_quarantine'],
+            'founder_draft_version': bool(founder_draft),
             'build_contract': contract_evidence,
             'capabilities': capability_evidence,
             'infrastructure': infrastructure_evidence,
             'repair_rounds': result.repair_rounds,
             'repair_stop_reason': getattr(result, 'stop_reason', None) or None,
+            **taxonomy_evidence(engine, ready=bool(ready and result.report.passed and result.status == 'ready')),
             'build_log_tail': result.report.build_log[-4000:],
-            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
+            'agentic_repair': {'enabled': bool(agentic_repair),
+                               'trace': list(getattr(getattr(engine, 'repairer', None), 'trace', []) or [])[-60:]},
+            'llm_cap_overage': llm_cap_overage(request, spent),
             'asset_capabilities': asset_capability_status(capability_plan),
             # Agent OS §11: which skills shaped the build and what QA review found.
             'skills_applied': _skills_applied(),
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
+            # Michael 2026-11-10: gates that judged the wrong artefact, and what they cost -- a separate line, never
+            # hidden inside the build's cost.
+            'gate_waste': gate_waste,
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
@@ -797,13 +1142,17 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         else:
             billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
             settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
+        from .build_control import GateEscalation
+        escalated = isinstance(exc, GateEscalation)
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.CANCELLED,
-            error_code='cancelled_by_user', error_message=str(exc)[:500],
+            error_code='gate_escalation' if escalated else 'cancelled_by_user', error_message=str(exc)[:500],
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           **({'gate_waste': _gate_waste(engine, None, 0), 'escalation': str(exc)[:500]}
+                              if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
-                           'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS, 'model_budget_binding': model_budget_binding},
             actual_provider_cost_usd=actual_cost,
@@ -827,8 +1176,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'infrastructure': exc.evidence,
-                           'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -851,8 +1200,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': exc.evidence,
-                           'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,
                            'provider_spend_basis': SPEND_BASIS},
             actual_provider_cost_usd=actual_cost,
@@ -875,8 +1224,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
-                           'provider_usage': provider_usage_evidence(gateway),
-                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])],
+                           'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
+                           'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent),
                            'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
                            'model_budget_binding': model_budget_binding},

@@ -42,6 +42,9 @@ class DiscoveryEndpointTests(unittest.TestCase):
         self.repo = _MemRepo()
         v28 = MagicMock()
         v28.resolve_project_key.return_value = (SimpleNamespace(id='usr_1'), 'tenant')
+        # plan_for must return a real plan: build terms are derived from its code.
+        from omni_prod.pricing import PLAN_CATALOG, PlanCode
+        v28.subscriptions.plan_for.return_value = PLAN_CATALOG[PlanCode.PRO]
         self.patches = [patch.object(investor_app, '_v28', v28), patch.object(investor_app, '_v28_bearer', return_value='tok'),
                         patch.object(investor_app, '_brief_repo', return_value=self.repo)]
         for p in self.patches:
@@ -94,12 +97,31 @@ class DiscoveryEndpointTests(unittest.TestCase):
 
     def test_quote_exposes_the_same_capability_block_as_build_admission(self):
         preview={'can_build':True,'blockers':[]}
-        error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
+        message='sign-in (roles): wait for sign-in support or edit the requirement.'
+        error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','message':message,'findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
         with patch.object(investor_app,'_bind_execution_plan',side_effect=error):
             investor_app._apply_execution_plan_gate(preview,'prj_1',SimpleNamespace(fingerprint='fp'))
         self.assertFalse(preview['can_build'])
         self.assertEqual(preview['blockers'][0]['code'],'capability_not_feasible')
         self.assertEqual(preview['blockers'][0]['findings'][0]['item'],'sign-in (roles)')
+        self.assertEqual(preview['blockers'][0]['message'],message)
+
+    def test_real_admission_error_names_the_missing_capability_and_next_action(self):
+        investor_app.v28_discovery_start('prj_1',investor_app.V28DiscoveryStart(
+            prompt='מערכת משימות',mode='recommend'),self.req)
+        row=self.repo.latest('prj_1')
+        finding={'item':'sign-in (roles)','outcome':'BLOCKED','reason':'identity infrastructure is unavailable',
+                 'alternative':'edit the sign-in requirement or wait for sign-in support'}
+        store=MagicMock()
+        store.plan_for.return_value={'plan':{'executable':False,'feasibility':{'outcome':'BLOCKED','findings':[finding]}}}
+        with patch('omni_prod.conversation.store.schema_ready',return_value=True), \
+             patch.object(investor_app,'_conversation_store',return_value=store):
+            with self.assertRaises(investor_app.HTTPException) as ctx:
+                investor_app._bind_execution_plan('prj_1',row.fingerprint)
+        self.assertEqual(ctx.exception.status_code,409)
+        self.assertEqual(ctx.exception.detail['findings'],[finding])
+        self.assertIn(finding['item'],ctx.exception.detail.get('message',''))
+        self.assertIn(finding['alternative'],ctx.exception.detail.get('message',''))
 
     def test_execution_gate_does_not_turn_server_errors_into_customer_blockers(self):
         with patch.object(investor_app,'_bind_execution_plan',side_effect=investor_app.HTTPException(503,'storage')):
@@ -112,6 +134,7 @@ class DiscoveryEndpointTests(unittest.TestCase):
         error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
         with patch.object(investor_app,'_bind_execution_plan',side_effect=error), \
              patch.object(investor_app,'_internal_qa_funding',return_value=(None,False)), \
+             patch.object(investor_app,'_require_durable_backend',lambda purpose: None), \
              patch.object(investor_app,'build_plan_preview',return_value={'can_build':True,'blockers':[]}):
             view=investor_app.v28_build_contract_preview('prj_1',investor_app.V28PlanRequest(prompt='מערכת משימות',brief_revision=1),self.req)
         self.assertFalse(view['can_build'])

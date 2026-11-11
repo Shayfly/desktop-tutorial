@@ -52,5 +52,5 @@ class V28CreatorPersistenceLiveTests(unittest.TestCase):
 
     def test_subscription_usage_survives_service_instance_change(self):
         email=f'sub-{uuid.uuid4().hex}@example.com'; a=PostgresAccountService(token_secret=self.secret,pool=self.pool); acct,_=a.register(email=email,password='StrongPass123!')
-        s1=PostgresSubscriptionService(pool=self.pool); s1.assign_plan(acct.id,'basic'); d=s1.authorize(user_id=acct.id,cost_class='standard',credits=10); s1.consume(user_id=acct.id,decision=d)
-        s2=PostgresSubscriptionService(pool=self.pool); snap=s2.snapshot(acct.id); self.assertEqual(snap['plan']['code'],'basic'); self.assertEqual(snap['credits_used'],10)
+        s1=PostgresSubscriptionService(pool=self.pool); s1.assign_plan(acct.id,'basic'); d=s1.authorize(user_id=acct.id,cost_class='light',credits=10); s1.consume(user_id=acct.id,decision=d)
+        s2=PostgresSubscriptionService(pool=self.pool); snap=s2.snapshot(acct.id); self.assertEqual(snap['plan']['code'],'amateur'); self.assertEqual(snap['credits_used'],10)

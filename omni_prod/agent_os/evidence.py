@@ -55,8 +55,9 @@ GATE_REPLAY = Evidence('live', 'postdeploy-checks gate-replay run 38083647077', 
 # (screenshots uploaded as a workflow artifact), quality, security, release
 # policy (agrees with the chain on 12/12; READY for all 5 current-pipeline
 # products, layout rules enforced) and stage rows written to build_stage_results.
-VERIFY_REPLAY = Evidence('live', 'postdeploy-checks verify-replay run 38083686082', 'production chain on 12 stored '
-                         'products: 5 PASS/READY, 7 FAIL (older pipeline), policy agrees 12/12', '67a0765', 'worker-host',
+VERIFY_REPLAY = Evidence('live', 'postdeploy-checks verify-replay run 39307232830', 'production chain (VerificationGroup) on '
+                         '10 stored products: 4 PASS/READY, 6 FAIL (older pipeline), policy agrees 10/10; visual QA '
+                         'measured contrast on desktop+mobile', '4b019d8', 'worker-host',
                          ('sandbox verification', 'preview smoke', 'behavioural acceptance', 'browser flow',
                           'visual QA desktop and mobile with screenshots', 'enforced layout rules: no false positive',
                           'release policy decision', 'durable stage rows'))
@@ -67,5 +68,5 @@ ECONOMICS = Evidence('live', 'postdeploy-checks economics run 38083624196', 'uni
 AT = {
     FREE.ref: '2026-10-10T20:20Z', PAID.ref: '2026-10-09T16:43Z', REHEARSAL_ACCEPT.ref: '2026-10-09T16:43Z',
     CRASH.ref: '2026-10-09T15:46Z', BACKUP.ref: '2026-10-09T16:52Z', DEPLOY.ref: '2026-10-10T20:15Z',
-    GATE_REPLAY.ref: '2026-10-10T20:24Z', VERIFY_REPLAY.ref: '2026-10-10T20:26Z', ECONOMICS.ref: '2026-10-10T20:23Z',
+    GATE_REPLAY.ref: '2026-10-10T20:24Z', VERIFY_REPLAY.ref: '2026-10-19T19:05Z', ECONOMICS.ref: '2026-10-10T20:23Z',
 }

@@ -1,0 +1,40 @@
+name: Repo Control Docker smoke
+on:
+  pull_request:
+    paths:
+      - 'services/repo-control/**'
+      - '.github/workflows/repo-control-docker-smoke.yml'
+      - 'render.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/repo-control/**'
+      - '.github/workflows/repo-control-docker-smoke.yml'
+      - 'render.yaml'
+  workflow_dispatch:
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production Dockerfile
+        run: docker build -f services/repo-control/Dockerfile -t repo-control:ci .
+      - name: Entrypoint permissions under unprivileged svc user
+        run: |
+          docker run --rm --entrypoint /bin/sh repo-control:ci -c 'test -r /app/entrypoint.sh && test -x /app/entrypoint.sh && test -r /app/askpass.sh && test -x /app/askpass.sh'
+      - name: Smoke actual HTTP health endpoint
+        run: |
+          docker run -d --name repo-control-smoke -p 127.0.0.1:18080:8000 \
+            -e SERVICE_TOKEN=ci-only-not-a-real-secret-000000000000000000000000 \
+            --entrypoint /bin/sh repo-control:ci -c 'mkdir -p /app/repo/.git && exec python /app/server.py'
+          trap 'docker logs repo-control-smoke; docker rm -f repo-control-smoke' EXIT
+          for i in $(seq 1 40); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/health > health.json 2>/dev/null; then
+              python3 -c "import json; assert json.load(open('health.json'))['ok'] is True"
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1

@@ -12,6 +12,16 @@ class ModelGatewayError(RuntimeError):
     pass
 
 
+class ModelJSONRejected(ModelGatewayError):
+    """T3 (founder 2026-10-21): the answer was not exactly one JSON object in a known envelope. The raw answer and the
+    diagnosis travel with the error, so nothing the model said is thrown away unexplained."""
+
+    def __init__(self, message: str, *, raw: str, diagnostic: dict):
+        super().__init__(message)
+        self.raw = raw
+        self.diagnostic = diagnostic
+
+
 # Provider answers that mean "temporarily unable, nothing was done": the
 # request may be retried. Golden E2E #1 on Preview (2026-10-07) failed on
 # Gemini HTTP 503 "This model is currently experiencing high demand".
@@ -57,8 +67,20 @@ def _retry_after(exc) -> float | None:
     except (TypeError, ValueError):
         return None
 
+def _b64(data: bytes) -> str:
+    import base64
+    return base64.b64encode(bytes(data)).decode('ascii')
+
+
 API_STYLES = frozenset({'openai', 'openai_reasoning', 'anthropic'})
 ANTHROPIC_VERSION = '2023-06-01'
+# Models whose default is adaptive thinking and whose documented "thinking off" is between_tools ("disabled" is a 400).
+ANTHROPIC_NO_UPFRONT_THINKING = frozenset({'claude-sonnet-5-5'})
+ANTHROPIC_JSON_ONLY_RULE = ('\n\nOUTPUT FORMAT (mandatory): your whole reply is ONE JSON object in the requested schema. '
+                            'The first character of the reply is { and the last is }. No explanation, summary, '
+                            'heading or markdown before or after it; put any notes inside the JSON fields the schema has. '
+                            'Every file "content" is the exact file text: keep every newline (\\n) and every leading space of '
+                            'indentation -- never flatten, minify or abbreviate code.')
 
 
 def quota_exhausted(exc) -> bool:
@@ -146,7 +168,7 @@ class OpenAICompatibleGateway:
         self.last_idempotency_key = None
 
     def complete(self, *, system: str, user: str, temperature: float = 0.1,
-                 max_tokens: int = 4096, idempotency_key: str | None = None) -> str:
+                 max_tokens: int = 4096, idempotency_key: str | None = None, images: tuple = ()) -> str:
         if not 0 <= temperature <= 2:
             raise ValueError('temperature out of range')
         if max_tokens < 1:
@@ -160,8 +182,12 @@ class OpenAICompatibleGateway:
         if idempotency_key and str(idempotency_key).strip():
             headers['Idempotency-Key'] = str(idempotency_key).strip()[:255]
         if style == 'anthropic':
+            content = user if not images else [
+                *({'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg',
+                                               'data': _b64(img)}} for img in images),
+                {'type': 'text', 'text': user}]
             body = {'model': self.endpoint.model, 'system': system,
-                    'messages': [{'role': 'user', 'content': user}], 'max_tokens': max_tokens}
+                    'messages': [{'role': 'user', 'content': content}], 'max_tokens': max_tokens}
             url = self.endpoint.base_url.rstrip('/') + '/messages'
             if self.endpoint.api_key:
                 headers['x-api-key'] = self.endpoint.api_key
@@ -171,7 +197,10 @@ class OpenAICompatibleGateway:
                 'model': self.endpoint.model,
                 'messages': [
                     {'role': 'system', 'content': system},
-                    {'role': 'user', 'content': user},
+                    {'role': 'user', 'content': user if not images else [
+                        {'type': 'text', 'text': user},
+                        *({'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,' + _b64(img)}}
+                          for img in images)]},
                 ],
             }
             if style == 'openai_reasoning':
@@ -186,6 +215,11 @@ class OpenAICompatibleGateway:
                 headers['Authorization'] = f'Bearer {self.endpoint.api_key}'
         for key, raw in self.endpoint.extra_body:
             body.setdefault(key, json.loads(raw))
+        if style == 'anthropic' and str(self.endpoint.model) in ANTHROPIC_NO_UPFRONT_THINKING:
+            # Founder build bld_ca727ba7 (2026-11-08): with the default adaptive thinking at high effort Sonnet 5.5
+            # spent the whole 16,384-token cap thinking and returned no text. Holds even when the deployed catalog
+            # (OMNI_MODEL_CATALOG_JSON) predates the catalog's extra_body.
+            body.setdefault('thinking', {'type': 'between_tools'})
         req = request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         self.last_usage = None
         self.last_finish_reason = None
@@ -234,62 +268,162 @@ class OpenAICompatibleGateway:
 
     last_finish_reason = None
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096) -> dict:
-        raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens)
-        text = raw.strip()
-        if text.startswith('```'):
-            lines = text.splitlines()
-            if lines and lines[0].startswith('```'):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == '```':
-                lines = lines[:-1]
-            text = '\n'.join(lines).strip()
-            if text.startswith('json'):
-                text = text[4:].lstrip()
-        obj, exc = _parse_json_object(text)
-        if exc is not None:
-            # Paid builds bld_2e55113c (2026-10-09): every repair answer of the
-            # strong model was refused with no reason; name it in the evidence.
-            finish = getattr(self, 'last_finish_reason', None)
-            raise ModelGatewayError(f'model did not return valid JSON ({exc.msg} at char {exc.pos} of {len(text)}; '
-                                    f'finish_reason={finish}; starts {text[:60]!r})') from exc
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, images: tuple = ()) -> dict:
+        if self.endpoint.api_style == 'anthropic':
+            # Founder build bld_ca727ba7 (2026-11-08): the Sonnet repair answer opened with "The six setup errors came
+            # from ..." and T3 rejects leading prose. Prefill is a 400 on Claude 4.6+ and generic structured outputs
+            # cannot express an open object, so the rule is stated where the model weighs it most: last in system.
+            system = (system or '') + ANTHROPIC_JSON_ONLY_RULE
+        raw = self.complete(system=system, user=user, temperature=0, max_tokens=max_tokens,
+                            **({'images': tuple(images)} if images else {}))
+        self.last_raw_response = raw                       # T3: the raw answer is kept, accepted or not
+        obj, diag = parse_model_json(raw)
+        diag['finish_reason'] = getattr(self, 'last_finish_reason', None)
+        self.last_json_diagnostic = diag
+        if obj is None:
+            # Paid builds bld_2e55113c (2026-10-09): name the reason in the evidence.
+            from .evidence_export import redact as _export_redact   # the excerpt lands in route events / attempt rows
+            from .secret_redaction import redact as _layer_redact
+            _redact = lambda t: _export_redact(_layer_redact(t))  # noqa: E731
+            raise ModelJSONRejected(f"model did not return valid JSON ({diag['reason']}; "
+                                    f"finish_reason={diag['finish_reason']}; starts {_redact(diag['starts'])!r}). "
+                                    'Return one JSON object only, using the requested schema. '
+                                    'Do not add text before the JSON. Preserve the requested content language.',
+                                    raw=raw, diagnostic=diag)
         if not isinstance(obj, dict):
-            raise ModelGatewayError('model JSON root must be object')
+            diag.update(verdict='rejected', reason='JSON root must be an object')
+            raise ModelJSONRejected('model JSON root must be object', raw=raw, diagnostic=diag)
         return obj
 
+    last_raw_response = None
+    last_json_diagnostic = None
 
-def _parse_json_object(text: str):
-    """(object, None) or (None, JSONDecodeError). Accepts, in order: the text
-    as JSON; the same with raw control characters inside strings (models put
-    literal newlines/tabs in code strings); the outermost {...} when the model
-    wrapped the object in prose; invalid backslash escapes doubled. Nothing
-    is invented beyond that."""
+
+_FENCE_OPEN = re.compile(r'\A```(?:json|JSON)?[ \t]*\n')
+_FENCE_CLOSE = re.compile(r'\n[ \t]*```[ \t]*\Z')
+
+
+def strip_envelope(raw: str) -> tuple[str, str]:
+    """(text, envelope). The ONLY deterministic cleanup (T3): surrounding whitespace / BOM, and one complete markdown
+    code fence (```json ... ``` or ``` ... ```) around the whole answer. Anything else is left as it is."""
+    text = (raw or '').lstrip('\ufeff').strip()
+    if _FENCE_OPEN.match(text) and _FENCE_CLOSE.search(text):
+        inner = _FENCE_CLOSE.sub('', _FENCE_OPEN.sub('', text, count=1), count=1)
+        return inner.strip(), 'markdown_fence'
+    return text, 'none'
+
+
+def parse_model_json(raw: str) -> tuple[object | None, dict]:
+    """Decode a JSON value at the start of the known envelope; classify its tail.
+
+    Leading prose (including "Here is the JSON:" / "הנה ה-JSON:") is rejected:
+    searching for braces inside arbitrary prose can adopt an unrelated example.
+    Tail prose follows an already decoded value and remains accepted by #131.
+    Classification uses JSON syntax, never an alphabet or a natural-language allowlist.
+    """
+    text, envelope = strip_envelope(raw)
+    diag = {'raw_chars': len(raw or ''), 'envelope': envelope, 'repairs': [],
+            'leading_chars': 0, 'trailing_chars': 0, 'starts': text[:60],
+            'verdict': 'rejected', 'reason': '', 'source_span': None, 'tail_class': 'benign'}
+    obj, exc = _parse_json_object(text, diag)
+    if exc is None:
+        if obj is None or obj == {}:
+            diag['reason'] = 'empty JSON value is not a successful answer'
+            return None, diag
+        start = (raw or '').find(text)
+        if start < 0: start = 0
+        local_span = diag.pop('_local_span')
+        diag['source_span'] = [start + local_span[0], start + local_span[1]]
+        diag['verdict'] = 'accepted'
+        return obj, diag
+    diag['reason'] = f'{exc.msg} at char {exc.pos} of {len(text)}'
+    diag['error_pos'] = (raw or '').find(text) + exc.pos
+    if envelope == 'none' and text.startswith(chr(96)*3):
+        diag['reason'] = 'a markdown fence that does not close at the end of the answer (content after it, or truncated)'
+    return None, diag
+
+def _parse_json_object(text: str, diag: dict | None = None):
+    diag = {} if diag is None else diag
+    lead = len(text) - len(text.lstrip())
+    body = text.lstrip()
+    if not body or body[0] not in '{[':
+        brace = body.find('{')
+        diag['leading_chars'] = brace if brace > 0 else len(body)
+        return None, json.JSONDecodeError('content before the JSON value (not a known envelope)', text, lead)
     first = None
-    for candidate in _json_candidates(text):
+    for candidate, repair in _json_candidates(body):
         for strict in (True, False):
-            try:
-                return json.loads(candidate, strict=strict), None
+            try: obj, end = json.JSONDecoder(strict=strict).raw_decode(candidate)
             except json.JSONDecodeError as exc:
                 first = first or exc
+                continue
+            if len(candidate) != len(body):
+                # Map the raw_decode end back to the original (unrepaired) text.
+                # The only length-changing repair inserts a backslash at known
+                # positions. Never confuse a repaired-string offset with source.
+                inserts = [m.start() + len(m.group(1)) for m in _BAD_ESCAPE.finditer(body)]
+                raw_end = end
+                for pos in inserts:
+                    if pos < raw_end:
+                        raw_end -= 1
+                if raw_end < 0 or raw_end > len(body):
+                    return None, json.JSONDecodeError('invalid repaired JSON span', text, lead)
+            else:
+                raw_end = end
+            rest = body[raw_end:]
+            tail = rest.strip()
+            diag['trailing_chars'] = len(tail)
+            diag['trailing_starts'] = tail[:80]
+            diag['tail'] = rest
+            diag['repairs'] = [r for r in (repair, None if strict else 'raw_control_characters') if r]
+            diag['_local_span'] = (lead, lead + raw_end)
+            # Preserve the suffix as UTF-8 evidence, except credentials: Base64
+            # is reversible and must never be used to bypass secret redaction.
+            import base64
+            from .evidence_export import redact as export_redact
+            from .secret_redaction import redact as layer_redact
+            safe_rest = export_redact(layer_redact(rest))
+            diag['tail_raw_utf8_b64'] = base64.b64encode(safe_rest.encode('utf-8')).decode('ascii')
+            diag['tail_raw_redacted'] = safe_rest != rest
+            diag['tail_start'] = lead + raw_end
+            if not tail or re.fullmatch(r'[,}\]\s]+', tail):
+                diag['tail_class'] = 'benign'
+                return obj, None
+            if tail[0] in '{[':
+                try: second, second_end = json.JSONDecoder().raw_decode(tail)
+                except json.JSONDecodeError as exc:
+                    diag['tail_class'] = 'malformed'
+                    return None, json.JSONDecodeError('malformed trailing JSON', text, lead+end+len(rest)-len(rest.lstrip())+exc.pos)
+                if tail[second_end:].strip():
+                    diag['tail_class'] = 'malformed'
+                    return None, json.JSONDecodeError('extra trailing JSON data', text, lead+end+len(rest)-len(rest.lstrip())+second_end)
+                if second != obj:
+                    diag['tail_class'] = 'conflict'
+                    return None, json.JSONDecodeError('conflicting second JSON value', text, lead+end+len(rest)-len(rest.lstrip()))
+                diag['tail_class'] = 'benign'
+                return obj, None
+            if tail.startswith(chr(96)*3):
+                if tail == chr(96)*3:
+                    diag['tail_class'] = 'benign'
+                    return obj, None
+                diag['tail_class'] = 'malformed'
+                return None, json.JSONDecodeError('malformed trailing markdown fence', text, lead+end)
+            diag['tail_class'] = 'prose'
+            return obj, None
     return None, first
-
 
 _BAD_ESCAPE = re.compile(r'(?<!\\)((?:\\\\)*)\\(?=[^"\\/bfnrtu])')
 
 
 def _json_candidates(text: str):
-    start, end = text.find('{'), text.rfind('}')
-    bases = [text]
-    if 0 <= start < end and (start > 0 or end < len(text) - 1):
-        bases.append(text[start:end + 1])
-    yield from bases
-    # A backslash before any other character is invalid JSON; models write
-    # them for regexes/paths in code ("\d+"). Doubling only those cannot change
-    # the meaning of valid JSON and recovers the literal the model wrote.
-    for base in bases:
-        fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', base)
-        if fixed != base:
-            yield fixed
+    """(candidate, repair). The text itself, then the same with invalid backslash escapes doubled. A backslash before
+    any other character is invalid JSON; models write them for regexes/paths in code ("\\d+"). Doubling only those
+    cannot change the meaning of valid JSON and recovers the literal the model wrote. No extraction of a {...} out of
+    surrounding text (T3)."""
+    yield text, None
+    fixed = _BAD_ESCAPE.sub(lambda m: m.group(1) + '\\\\', text)
+    if fixed != text:
+        yield fixed, 'invalid_escapes_doubled'
 
 
 def idempotency_key_for(*, build_id: str, task: str, attempt: int = 0, call_index: int = 0) -> str:

@@ -17,7 +17,7 @@ def test_unpaid_checkout_does_not_grant_entitlements():
 def test_subscription_update_does_not_restore_spent_credits():
  service=SubscriptionService();processor=StripeSubscriptionWebhookProcessor(service)
  processor.process(event('created','checkout.session.completed',payment_status='paid',mode='subscription'))
- service.consume(user_id='audit-user',decision=service.authorize(user_id='audit-user',cost_class=CostClass.STANDARD,credits=75))
+ service.consume(user_id='audit-user',decision=service.authorize(user_id='audit-user',cost_class=CostClass.LIGHT,credits=75))
  processor.process(event('updated','customer.subscription.updated',status='active'))
  assert service.snapshot('audit-user')['credits_used']==75
 
@@ -26,12 +26,17 @@ def test_lost_worker_unknown_call_keeps_reservation():
  gateway=SimpleNamespace(prior_metered={'calls':1,'metered_usd':Decimal('0'),'unknown_calls':1})
  with patch.object(worker_tasks,'spend_snapshot',return_value=(Decimal('0'),0)):
   action,_,actual=worker_tasks.resolve_m5_billing(service,build_id='audit-b',ready=False,gateway=gateway,capability_evidence=None,economics_quote={})
- assert action=='settled'
+ # founder 2026-11-02: a FAILED build releases its credits (RELEASED via release_failed, never SETTLED); the plain
+ # release() -- which keeps funds held on provider exposure -- is still not used, and the unknown actual stays None
+ assert action=='released'
  service.release.assert_not_called()
+ service.settle.assert_not_called()
+ service.release_failed.assert_called_once_with(build_id='audit-b',actual_provider_cost_usd=None)
  assert actual is None
 
 def test_default_margin_target_is_sixty_percent():
- env={'OMNI_ZERO_COST_MODE':'0','OMNI_ALLOW_EXTERNAL_FALLBACK':'1','OMNI_EXTERNAL_BUDGET_USD':'0.40','OMNI_EXTERNAL_CALLS_PER_BUILD':'3'}
+ # Legacy (no cost_class) quote: Amateur $29 x 60/1000 credits = $1.74 basis; 60% floor allows <= $0.70, so $0.80 is refused.
+ env={'OMNI_ZERO_COST_MODE':'0','OMNI_ALLOW_EXTERNAL_FALLBACK':'1','OMNI_EXTERNAL_BUDGET_USD':'0.80','OMNI_EXTERNAL_CALLS_PER_BUILD':'3'}
  with patch.dict('os.environ',env,clear=False):
   with pytest.raises(PermissionError):
    investor_app._m5_build_economics_quote(PLAN_CATALOG[PlanCode.BASIC],credits=60)
@@ -73,7 +78,7 @@ def test_lifecycle_events_without_payment_cannot_grant_a_paid_plan(status):
  assert service.plan_for('audit-user').code == PlanCode.FREE
 
 def test_margin_configuration_cannot_lower_sixty_percent_floor():
- env={'OMNI_ZERO_COST_MODE':'0','OMNI_ALLOW_EXTERNAL_FALLBACK':'1','OMNI_EXTERNAL_BUDGET_USD':'0.40','OMNI_EXTERNAL_CALLS_PER_BUILD':'3','OMNI_MIN_BUILD_VARIABLE_MARGIN':'0.20'}
+ env={'OMNI_ZERO_COST_MODE':'0','OMNI_ALLOW_EXTERNAL_FALLBACK':'1','OMNI_EXTERNAL_BUDGET_USD':'0.80','OMNI_EXTERNAL_CALLS_PER_BUILD':'3','OMNI_MIN_BUILD_VARIABLE_MARGIN':'0.20'}
  with patch.dict('os.environ',env,clear=False):
   with pytest.raises(PermissionError):
    investor_app._m5_build_economics_quote(PLAN_CATALOG[PlanCode.BASIC],credits=60)

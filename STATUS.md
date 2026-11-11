@@ -1,3 +1,11 @@
+# Governance audit update — 2026-10-27 (ChatGPT/Codex)
+
+- GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
+- BLOCKED: Independent execution and reviewer approval of all four audits; #152 already merged, requires retrospective review.
+- IN REVIEW: Vision law and governance branch `docs/vision-law-governance-20261027`; Claude must verify because Codex/ChatGPT authored changes.
+- NOT VERIFIED: Docker transient failure classification pending exact failed/retry run URLs; do not call it a proven flake without both.
+- NOT STARTED: Paid provider benchmark. No paid API calls authorized.
+
 # 2026-10-14 — Profit Protection v1 safety stage (PARTIAL)
 
 ## PR #34 follow-up — caller-stable build idempotency
@@ -2449,7 +2457,7 @@ Not re-claimed as live in this environment: clean-room/lifecycle Postgres proof 
 
 The Golden E2E uses an in-process fake multimodal provider with structurally valid artifacts. It proves the universal execution/verification/evidence contract, **not** that a named commercial provider is LIVE.
 
-M4.95 machine truth SHA-256: `3dc33a3e605662d2a6d7884a73a575938b8a6c55ad4788b48915c364a915c92a`
+M4.95 machine truth SHA-256: `5da248f3201ed0b7ceb079b10e7856ded5c01b6180eef550d5df28ebbf86ed88`
 
 ## M5 Production Vertical Slice — 2026-10-04
 
@@ -2598,3 +2606,59 @@ Awaiting live storage probe on new Preview. No claim that SignatureDoesNotMatch 
 ## 2026-10-11: PR17 branch reconciliation with PR11
 
 PR11 is integrated into the PR17 branch only. Schema compatibility now requires migration 038, matching the attachment migration already present in PR17. Existing drift checks remain intact. This branch push is authorized to trigger Preview; no milestone/main merge, worker deployment, live migration, or secret change is authorized by this reconciliation. Local verification covers 48 deployment verification tests; full application and PostgreSQL validation must be confirmed by CI on the resulting commit. Preview protection, unscheduled default-branch backups, and worker recovery/drain risks remain release blockers; this entry does not claim production readiness.
+
+## 2026-10-14: controlled GitHub Actions cost optimization (draft)
+
+- Implemented and independently verified: feature push/full PR trigger separation, documentation-only heavy-check selection, stable per-PR cancellation, fail-closed required pg/customer-ui checks, bounded Docker/browser jobs and retained failure reports. 16 focused CI tests pass (37 subtests), 28 workflow YAML files validate, Python/JavaScript syntax checks pass; independent re-review found no remaining important issue.
+- Implemented but awaiting external live verification: actual Linux, PostgreSQL, Docker and browser CI execution and net job-minute savings. Full local suite: 1645 passed, 63 failed, 172 skipped; no additional failing test IDs relative to the local baseline. This is not a green full-suite claim.
+- Blocked by named service/environment: GitHub Actions says jobs cannot start due to failed recent payments or the account spending limit; local Windows temporary-directory access and unavailable Linux/Docker services prevent complete integration verification. No spending limit or payment setting was changed.
+- Not implemented: measured billed savings after integration; these require successful candidate runs and a comparable billing/job-minute sample. Production deployment and merge are outside the authorization.
+
+Commands, sample of 100 historical runs, timeout policy and evidence limits: docs/CI_ACTIONS_COST_OPTIMIZATION_2026-10-14.md.
+
+## 2026-10-30 — Item 3 (Codex; awaiting independent review)
+Plan preview now calls the existing read-only subscription authorization using
+build credits and total_authorized_variable_usd, preserving internal-QA policy.
+Local: 48 tests and 8 subtests pass; item3 negative control must fail the two
+insufficient-allowance cases. No reservation or paid call in preview.
+
+## 2026-10-30 — Item 5 (Codex; awaiting independent review)
+Explicit delegation now writes the declared default for asked/held fields into
+the brief with delegated provenance, shows it, clears held state and replays the
+same decision on another supervisor. Confirmed values remain unchanged; no spec
+approval is inferred. Uncertainty alone retains its existing clarification rule.
+Local: 57 passed, 4 PostgreSQL-dependent skips, 6 subtests. NC restoring held-open
+behavior fails the new end-to-end conversation test. No deployment.
+Independent review found one Important issue: a negated mention of delegation
+was accepted by a loose regex. Fixed with full-message affirmative matching;
+Hebrew, English and quoted-refusal regressions observed RED then GREEN.
+Remaining scoped choice: typed explicit delegation covers held fields; a field's
+quick-reply delegation continues to apply to that field through discovery.answer.
+
+## 2026-10-30 — Item 4 (Codex; awaiting independent review)
+Build reservation refusals return a structured customer-facing allowance error;
+the shipped explain() renders matching Hebrew/English copy without the internal
+paid-provider reason. Local: 45 tests and 9 subtests passed; item4 NC restores
+raw decision.reason and fails the response test. No deployment.
+
+### 2026-10-30 — Item 4 review follow-up (Codex)
+Reserve denial now distinguishes plan-ineligible builds from exhausted credits
+or budget. Each has matching Hebrew/English cause and action. Existing
+qa_budget_denied remains separate from plan_cannot_authorize_cost. Observed the
+new distinction tests RED, then 59 passed with 9 subtests. NC2 restores the
+unified mapping and must fail the eligibility test; NC1 still checks raw reason.
+
+## 2026-10-30 — Item 2 (Codex; awaiting independent review)
+Existing no-contact failure release retained. Added real PostgreSQL reserve/refund
+balance and replay evidence plus a mutation removing release. Local: 3 settlement
+tests passed, 4 PostgreSQL tests skipped (no local database). Actual PG balance
+proof remains pending CI. No production calls or changes.
+
+### 2026-10-30 — Item 2 review follow-up (Codex)
+Replaced the fabricated external_calls=0 fixture with execution of the production
+worker function, actual AutonomousProductEngine agents and RoutedModelGateway.
+The actual model policy fails before HTTP. Read both ModelUseState.external_calls
+and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
+call and observes both counters reach one (HTTP is intercepted, no paid call).
+The PG balance/replay test now executes that worker path twice for the same ID.
+Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.

@@ -18,9 +18,39 @@ does not fail the build (it never claims a review that did not happen).
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 from .skills_runtime import applied_skills, checklist_for_review, static_findings
+
+# Critical probes are DECLARED in omni_prod.probe_manifest (critical: True), not hard-coded here (Michael condition 2).
+from .probe_manifest import is_critical  # noqa: E402
+
+
+def _previously_quarantined(probe: str | None) -> str | None:
+    """The latest earlier build whose evidence quarantined this probe, or None. Read-only; any error -> None."""
+    if not probe:
+        return None
+    lookup = _QUARANTINE_HISTORY
+    try:
+        return lookup(probe) if callable(lookup) else None
+    except Exception:
+        return None
+
+
+# Set by the worker to a read-only lookup over build_jobs.evidence_json (tests set a function directly).
+_QUARANTINE_HISTORY = None
+
+
+def install_review_request(engine, prompt: str) -> bool:
+    """Give the review the approved request so its fact canon is the one the customer approved."""
+    from .behavior_acceptance import find_in_chain
+    review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
+    if review is None:
+        return False
+    review._request = prompt or ''
+    review.canon = None
+    return True
 
 REVIEW_FAILURE_ID = 'REVIEW'
 
@@ -31,7 +61,13 @@ _REVIEW_SYSTEM = (
     'spec and checklist. Return only JSON: {"findings": [{"skill": "<checklist skill key or spec>", "severity": '
     '"blocking" | "advisory", "file": "<path>", "problem": "<what a user would experience>", "fix": "<concrete '
     'change>"}]}. blocking = a user-visible defect against the spec or checklist (wrong data accepted, error shown in '
-    'a browser dialog, an excluded feature present, data shown escaped or hidden); advisory = everything else. At most '
+    'a browser dialog, an excluded feature present, data shown escaped or hidden, a crash, a security hole); '
+    'advisory = everything else, including defects that need unusual timing, rapid repeated clicks or a slow '
+    'network to appear, hostile or malformed input no real user sends (integers beyond 64 bits, lone surrogates, '
+    'deeply nested JSON, whitespace-only bodies) unless it corrupts or leaks data, and polish beyond the checklist. '
+    'When "previous_blocking" is given, this is a re-review after a repair: block only on a previous finding that '
+    'is still present, a regression the repair introduced, data loss or corruption, or a security hole; every other '
+    'new observation is advisory. At most '
     '6 findings, most important first. Write problem and fix in English.'
 )
 
@@ -43,13 +79,82 @@ class ProductReviewExecutor:
         self._max_reviews = max_reviews
         self._request = request_text
         self.reviews: list[dict] = []
+        # Michael 2026-11-10 §4: a static gate that repeats the same finding in three consecutive rounds is suspected
+        # of judging the wrong artefact. It is quarantined: reported as advisory with the reason, and the rounds it
+        # cost are counted as gate waste in the evidence.
+        self.quarantined: list[dict] = []
+        self.gate_waste_rounds = 0
+        self.gate_waste_usd = Decimal('0')          # measured: gateway spend between the repeated reviews
+        self.gate_waste_calls = 0
+        self._spend_at_review: list[tuple[Decimal, int]] = []
+        self.canon = None
+        self.escalate: str | None = None
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
 
     def _context(self, spec) -> dict:
         text = ' '.join(str(x) for x in (self._request, getattr(spec, 'title', ''), getattr(spec, 'summary', '')))
-        return {'request': text}
+        ctx = {'request': text}
+        # The page the product SERVES (preview smoke, same round), so no gate judges a string inside page.py.
+        from .behavior_acceptance import find_in_chain
+        from .preview_smoke import PreviewReadyExecutor
+        preview = find_in_chain(self._inner, PreviewReadyExecutor)
+        pages = getattr(preview, 'last_pages', None) if preview is not None else None
+        if isinstance(pages, dict):
+            ctx['rendered_pages'] = pages
+        if self.canon is None:
+            from .fact_canon import build_canon
+            self.canon = build_canon(self._request or text)
+        ctx['canon'] = self.canon
+        return ctx
+
+    def _spend(self) -> tuple[Decimal, int]:
+        state = getattr(self._gateway, 'state', None)
+        if state is None:
+            return Decimal('0'), 0
+        return (Decimal(str(getattr(state, 'external_spend_usd', 0) or 0)), int(getattr(state, 'external_calls', 0) or 0))
+
+    def _quarantine(self, static: list[dict]) -> list[dict]:
+        """Michael 2026-11-10 condition 1. A gate is quarantined only when THREE consecutive rounds show the same finding
+        AND the DOM node it points at is byte-identical across them (the `anchor`). If the product changed at that
+        point, the repair is working on it and the finding is a product bug, never a probe bug. CRITICAL gates (dir,
+        tel/contact truth, alt) never release silently: the finding stays listed, release_ready is withdrawn by the
+        worker, the preview carries a banner. The quarantine lives for this build only (gates are stateless per
+        build), so it expires on the next build by construction."""
+        if len(self.reviews) < 2:
+            return static
+        def blocking_static(review):
+            return {(f['skill'], f['problem'], f.get('anchor')) for f in review.get('findings', ())
+                    if f.get('source') == 'static' and f.get('severity') == 'blocking' and f.get('anchor')}
+        repeated = blocking_static(self.reviews[-1]) & blocking_static(self.reviews[-2])
+        out = []
+        for f in static:
+            key = (f['skill'], f['problem'], f.get('anchor'))
+            if f['severity'] == 'blocking' and f.get('anchor') and key in repeated:
+                critical = is_critical(f.get('probe'))
+                note = ('same static finding and identical DOM node in three consecutive rounds: the gate is suspected '
+                        'of judging the wrong artefact')
+                f = {**f, 'severity': 'advisory', 'quarantined': note, 'classification': 'probe_bug', 'critical': critical}
+                if not any(q['skill'] == f['skill'] and q['problem'] == f['problem'] for q in self.quarantined):
+                    # Michael condition 5: a probe quarantined in an EARLIER build of this system is not chance --
+                    # the build stops for a human instead of counting three rounds again.
+                    repeat = _previously_quarantined(f.get('probe'))
+                    self.quarantined.append({'skill': f['skill'], 'problem': f['problem'], 'anchor': f.get('anchor'),
+                                             'probe': f.get('probe'), 'round': len(self.reviews) + 1,
+                                             'critical': critical, 'repeat_quarantine': repeat})
+                    if repeat:
+                        self.escalate = (f"probe {f.get('probe')} quarantined again (also in build {repeat}): "
+                                         'the gate is broken; stopping for a human')
+                    self.gate_waste_rounds += 2
+                    # Measured, not estimated: spend and calls between the first repeat and now (the two wasted rounds).
+                    if len(self._spend_at_review) >= 2:
+                        now_usd, now_calls = self._spend()
+                        base_usd, base_calls = self._spend_at_review[-2]
+                        self.gate_waste_usd += max(now_usd - base_usd, Decimal('0'))
+                        self.gate_waste_calls += max(now_calls - base_calls, 0)
+            out.append(f)
+        return out
 
     def _llm_findings(self, repository: dict, spec) -> tuple[list[dict], dict]:
         if self._gateway is None:
@@ -62,6 +167,9 @@ class ProductReviewExecutor:
             'checklist': checklist_for_review(),
             'repository': repo_summary(repository),
         }
+        previous = self._previous_blocking()
+        if previous:
+            payload['previous_blocking'] = previous
         kwargs = dict(system=_REVIEW_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=3000)
         try:
             if getattr(self._gateway, 'accepts_task_tag', False):
@@ -83,17 +191,63 @@ class ProductReviewExecutor:
                         'source': 'reviewer'})
         return out, meta
 
+    # Founder build bld_9bd3c1c4 (2026-11-09): every test and behaviour check passed, yet five review rounds each
+    # found NEW edge cases (64-bit overflow, lone surrogates, deeply nested JSON) and the build failed on the last.
+    # A re-review converges: a blocking finding stays blocking only when it repeats a previous blocking finding
+    # (same skill and file), or concerns security or data integrity; anything else new becomes advisory.
+    _ALWAYS_BLOCKING = frozenset({'skill.security_basics', 'skill.data_integrity'})
+
+    def _served(self) -> bool:
+        from .behavior_acceptance import find_in_chain
+        from .preview_smoke import PreviewReadyExecutor
+        preview = find_in_chain(self._inner, PreviewReadyExecutor)
+        return bool(preview is not None and getattr(preview, 'last_pages', None))
+
+    def _previous_blocking(self) -> list:
+        prior = [f for r in self.reviews for f in r.get('findings', ())
+                 if f.get('severity') == 'blocking' and f.get('source') == 'reviewer']
+        return [{'skill': f['skill'], 'file': f['file'], 'problem': f['problem']} for f in prior][-12:]
+
+    def _converge(self, llm: list) -> list:
+        prior = {(f['skill'], f['file'].split(':')[0]) for f in self._previous_blocking()}
+        if not self.reviews:
+            return llm
+        out = []
+        for f in llm:
+            key = (f['skill'], f['file'].split(':')[0])
+            if f['severity'] == 'blocking' and key not in prior and f['skill'] not in self._ALWAYS_BLOCKING:
+                f = {**f, 'severity': 'advisory', 'downgraded': 'new finding in a re-review'}
+            out.append(f)
+        return out
+
+    # VerificationGroup (2026-10-19): the review is one of the post-build checks and tells the group it wants to know
+    # whether the other checks failed in the same round.
+    group_context = True
+
     def execute(self, *, repository, spec):
         report = self._inner.execute(repository=repository, spec=spec)
         if not report.passed:
             return report
-        findings = [f.to_dict() for f in static_findings(repository, self._context(spec))]
+        return self.check(repository=repository, spec=spec, report=report)
+
+    def check(self, *, repository, spec, report, others_failed: bool = False):
+        """The review on a report in which the build passed. `max_reviews` bounds the review ROUNDS that block: a round
+        counts only when the review is what still blocks (others_failed=False), exactly as when it ran last. While
+        other checks fail in the same round its blocking findings are reported alongside them without using the cap."""
+        findings = self._quarantine([f.to_dict() for f in static_findings(repository, self._context(spec))])
+        self._spend_at_review.append(self._spend())
         llm, meta = self._llm_findings(repository, spec)
-        findings += llm
+        findings += self._converge(llm)
         blocking = [f for f in findings if f['severity'] == 'blocking']
-        enforce = len([r for r in self.reviews if r['enforced']]) < self._max_reviews
+        enforce = others_failed or len([r for r in self.reviews if r['enforced'] and not r.get('alongside')]) < self._max_reviews
         self.reviews.append({'round': len(self.reviews) + 1, 'enforced': bool(blocking) and enforce, **meta,
+                             'alongside': others_failed, 'canon_hash': getattr(self.canon, 'hash', None),
+                             'canon_facts': len(getattr(self.canon, 'facts', []) or []),
+                             'judged': 'served page' if self._served() else 'repository files',
                              'blocking': len(blocking), 'findings': findings, 'skills': applied_skills()})
+        if self.escalate:
+            from .build_control import GateEscalation
+            raise GateEscalation(self.escalate)
         if not blocking or not enforce:
             return report
         failures = tuple(AcceptanceFailure(REVIEW_FAILURE_ID, f"QA review ({f['skill']}): {f['problem']}",

@@ -59,6 +59,8 @@ def run(prompt: str) -> dict:
             browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
             behavior_acceptance=__import__('omni_prod.worker_tasks', fromlist=['x']).behavior_evidence(engine),
         )
+    report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
+    report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
     report.update(model_calls=calls, authorized_spend_usd=str(spent), seconds=round(time.monotonic() - started))
     report.update(cost_projection(gateway))
@@ -99,6 +101,8 @@ def annotations(report: dict) -> list[str]:
                              f"seconds={report.get('seconds')} {report.get('error', '')}"),
              note('acceptance', '\n'.join(report.get('acceptance') or [])),
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
+    lines.append(note('taxonomy', f"first_pass={report.get('first_pass')} failures="
+                                  + json.dumps(report.get('failure_taxonomy') or [], ensure_ascii=False)))
     if report.get('tokens'):
         lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
                                   f"{json.dumps(report.get('same_tokens_cost_usd'))}"))

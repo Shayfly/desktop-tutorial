@@ -49,9 +49,9 @@ class ContextTests(unittest.TestCase):
             self.assertIn('chars', entries[noisy])
 
     def test_total_content_is_bounded(self):
-        repo = {f'm{i}.py': 'y' * 15_000 for i in range(10)}
+        repo = {f'm{i}.py': 'y' * 15_000 for i in range(20)}   # 300K offered
         total = sum(len(e.get('content', '')) for e in repo_summary(repo)['files'])
-        self.assertLessEqual(total, 64_000)
+        self.assertLessEqual(total, 200_000)   # bld_624610bc (2026-11-09): budget raised from 64K
 
     def test_repair_agent_receives_content(self):
         gw = _Gateway({'files': [{'path': 'app.py', 'content': 'x = 1'}]})

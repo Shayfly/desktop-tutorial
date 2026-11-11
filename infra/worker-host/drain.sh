@@ -24,6 +24,27 @@ refuse() {
   exit 1
 }
 
+# Fallback (2026-10-19): the running container's own image object can be gone (pruned) while a
+# source-equivalent rollback image already exists (.github/workflows/148ai-rebuild-safe-rollback-images.yml).
+# Accept that existing omni-rollback/<svc>:prev ONLY if it carries a revision label AND the shipped code files
+# hash identically in the running container and in that image. Otherwise refuse exactly as before.
+VERIFY_FILES=(omni_prod/worker_tasks.py omni_prod/model_gateway.py omni_prod/preview_router.py)
+HASH_PY='import hashlib,sys;from pathlib import Path;print(" ".join(hashlib.sha256(Path("/app",p).read_bytes()).hexdigest() for p in sys.argv[1:]))'
+verified_existing_rollback() {  # $1 service, $2 container id. stdout: revision on success, reason on failure.
+  local s=$1 cid=$2 ref="omni-rollback/$1:prev" rev run_h img_h
+  docker image inspect "$ref" >/dev/null 2>&1 || { echo "no existing $ref"; return 1; }
+  rev=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$ref" 2>/dev/null)
+  if [ -z "$rev" ] || [ "$rev" = "<no value>" ]; then echo "$ref has no revision label"; return 1; fi
+  if ! run_h=$(docker exec "$cid" python -c "$HASH_PY" "${VERIFY_FILES[@]}" 2>/dev/null) || [ -z "$run_h" ]; then
+    echo "cannot hash the code of the running $s"; return 1
+  fi
+  if ! img_h=$(docker run --rm --network none --entrypoint python "$ref" -c "$HASH_PY" "${VERIFY_FILES[@]}" 2>/dev/null) || [ -z "$img_h" ]; then
+    echo "cannot hash the code of $ref"; return 1
+  fi
+  [ "$run_h" = "$img_h" ] || { echo "$ref code differs from the running $s"; return 1; }
+  echo "$rev"
+}
+
 busy=0
 prep=()
 for s in "${SERVICES[@]}"; do
@@ -36,7 +57,12 @@ for s in "${SERVICES[@]}"; do
     prep+=("cannot inspect the image of $s"); continue
   fi
   if ! docker tag "$img" "omni-rollback/$s:prev" >/dev/null 2>&1; then
-    prep+=("cannot save a rollback image for $s"); continue
+    if why=$(verified_existing_rollback "$s" "$cid"); then
+      echo "::notice title=drain::$s: its image object is gone; using the existing omni-rollback/$s:prev (revision $why; ${#VERIFY_FILES[@]} code hashes match the running container)"
+      img="omni-rollback/$s:prev"
+    else
+      prep+=("cannot save a rollback image for $s ($why)"); continue
+    fi
   fi
   echo "$s $cid $img" >> "$STATE/prev-images"
   [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = "true" ] && busy=$((busy + 1))
@@ -55,19 +81,76 @@ case "$gate_rc" in
 esac
 
 start=$(date +%s)
-docker compose stop -t "$DEADLINE" "${SERVICES[@]}"
+reasons=()
+# intake-maintain is a maintenance loop with no jobs of its own (relay outbox -> queue, reconcile expired leases;
+# a pass cut short is redone by the next one). Stop it first with a short timeout: a container still running the
+# old code ignores SIGTERM as PID 1 and would otherwise hold the drain for the whole deadline (2026-10-19).
+MAINTAIN_STOP="${MAINTAIN_STOP_SECONDS:-20}"
+maintain_killed_ok=0
+rest=()
+for s in "${SERVICES[@]}"; do [ "$s" = intake-maintain ] || rest+=("$s"); done
+if grep -q '^intake-maintain ' "$STATE/prev-images"; then
+  docker compose stop -t "$MAINTAIN_STOP" intake-maintain
+  m_rc=$?
+  [ "$m_rc" -eq 0 ] || reasons+=("docker compose stop intake-maintain exited $m_rc")
+  maintain_killed_ok=1
+  echo "drain: intake-maintain stopped first after $(( $(date +%s) - start ))s (timeout ${MAINTAIN_STOP}s)"
+fi
+docker compose stop -t "$DEADLINE" "${rest[@]}"
 rc=$?
 waited=$(( $(date +%s) - start ))
+echo "drain: consumers stopped after ${waited}s (deadline ${DEADLINE}s, stop exit $rc)"
 
-reasons=()
 [ "$rc" -eq 0 ] || reasons+=("docker compose stop exited $rc")
+
+# 2026-11-07: an exit 137 can be an OOM kill whose `State.OOMKilled` flag is not set yet when the container is
+# already reported as exited (the engine's OOM event and exit event race; seen on CI's cgroup-v2 runners as
+# "preview-worker exit=137 oom=false" in a test that deterministically exceeds the memory limit). So for every
+# exit 137 the engine is asked again, from two sources: the flag after a short settle, and the engine's own `oom`
+# event for that container since the drain started. Either one marks the kill as OOM. Read-only.
+OOM_SETTLE="${DRAIN_OOM_SETTLE_SECONDS:-3}"
+# 2026-11-08 (run 42424210180): on a cgroup-v2 host (Docker 28.0.4, kernel 7.0) the kernel OOM-killed the job
+# (its log names the container's cgroup) while the engine reported OOMKilled=false and no `oom` event at all
+# (events: kill, stop, die). So the kernel log is the third source, read only if this host lets us read it.
+kernel_oom() {  # $1 = container id; succeeds if the kernel log records an OOM kill inside that container's cgroup
+  local full log
+  full=$(docker inspect -f '{{.Id}}' "$1" 2>/dev/null) || return 1
+  [ -n "$full" ] || return 1
+  log=$(dmesg 2>/dev/null || sudo -n dmesg 2>/dev/null) || return 1
+  grep -F "$full" <<<"$log" | grep -qiE 'oom-kill|out of memory|memory cgroup stats'
+}
+
+oom_seen() {  # $1 = container id; prints "flag", "event", "kernel" or nothing
+  local cid="$1" i
+  for ((i = 0; i <= OOM_SETTLE; i++)); do
+    [ "$(docker inspect -f '{{.State.OOMKilled}}' "$cid" 2>/dev/null)" = "true" ] && { echo flag; return; }
+    if [ -n "$(docker events --since "$((start - 1))" --until "$(date +%s)" --filter "container=$cid" \
+                 --filter event=oom --format '{{.Action}}' 2>/dev/null | head -n1)" ]; then
+      echo event; return
+    fi
+    kernel_oom "$cid" && { echo kernel; return; }
+    [ "$i" -lt "$OOM_SETTLE" ] && sleep 1
+  done
+}
+
 while read -r s cid img; do
   [ -n "${s:-}" ] || continue
   read -r running code oom <<<"$(docker inspect -f '{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}' "$cid" 2>/dev/null || echo 'unknown 0 false')"
+  oom_src=""
+  [ "$oom" = "true" ] && oom_src=flag
+  if [ "$code" = "137" ] && [ -z "$oom_src" ]; then
+    oom_src="$(oom_seen "$cid")"
+    [ -n "$oom_src" ] && oom=true
+  fi
   [ "$running" = "false" ] || reasons+=("$s still running after drain")
-  [ "$code" != "137" ] || reasons+=("$s exit 137 (a job was killed at the ${DEADLINE}s deadline)")
-  [ "$oom" != "true" ] || reasons+=("$s was OOM-killed")
-  echo "drain: $s exit=$code oom=$oom running=$running"
+  if [ "$oom" = "true" ]; then
+    reasons+=("$s was OOM-killed (exit $code; engine $oom_src)")
+  elif [ "$code" = "137" ] && [ "$s" = intake-maintain ] && [ "$maintain_killed_ok" -eq 1 ]; then
+    echo "::notice title=drain::intake-maintain exit 137: killed after ${MAINTAIN_STOP}s (no jobs of its own; old code ignores SIGTERM)"
+  else
+    [ "$code" != "137" ] || reasons+=("$s exit 137 (a job was killed at the ${DEADLINE}s deadline)")
+  fi
+  echo "drain: $s exit=$code oom=$oom${oom_src:+ (from $oom_src)} running=$running"
 done < "$STATE/prev-images"
 
 # With every consumer stopped nothing new can start here, so whatever the gate still sees RUNNING (or cannot verify)

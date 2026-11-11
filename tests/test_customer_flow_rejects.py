@@ -23,7 +23,9 @@ class CustomerFlowTests(unittest.TestCase):
 
     def test_blocked_request_keeps_review_and_edit_actions(self):
         t = self.blocked()
-        self.assertIn('show_plan', [a['type'] for a in t.actions])
+        # owner 2026-10-26: no plan before the spec is approved (gate 1), so the review control is editing the spec
+        self.assertNotIn('show_plan', [a['type'] for a in t.actions])
+        self.assertIsNone(t.plan_id)
         self.assertIn('edit_requirements', [a['type'] for a in t.actions])
         self.assertNotIn('approve_build', [a['type'] for a in t.actions])
         self.assertNotIn('an internal tool', t.reply)

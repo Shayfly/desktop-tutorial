@@ -175,7 +175,8 @@ def _routed(responses, *, external_fallback=True):
     ext = ModelEndpoint(name="ext", base_url="https://api.example/v1", model="m-ext", api_key="k", external=True)
     policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=external_fallback,
                             external_budget_usd=Decimal("5"), max_external_calls_per_build=10)
-    return RoutedModelGateway(primary=ProviderRoute(local), fallback=(ProviderRoute(ext, Decimal("0.25")),),
+    return RoutedModelGateway(primary=ProviderRoute(local, declared_quality=90),
+                              fallback=(ProviderRoute(ext, Decimal("0.25"), declared_quality=90),),
                               policy=policy, state=ModelUseState(), gateway_factory=factory)
 
 
@@ -221,7 +222,8 @@ class WorkerEvidenceTests(unittest.TestCase):
                             headers={"x-request-id": "req_build_1"})])
         gw.complete(system="s", user="u")  # what the engine would do during generation
         harness = ContractBuildHarness(gateway=gw)
-        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0"}
+        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0",
+                                                  "components": {"llm_maximum_usd": "0.35"}}
         harness.subs.settle.return_value = {"settled": True}
         self.assertEqual(harness.run(), "ready")
         evidence = harness.final["evidence_json"]
@@ -238,7 +240,8 @@ class WorkerEvidenceTests(unittest.TestCase):
                             headers={"x-request-id": "req_build_2"})])
         gw.complete(system="s", user="u")
         harness = ContractBuildHarness(gateway=gw)
-        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0"}
+        harness.jobs.request["economics_quote"] = {"revenue_usd": "1.00", "infrastructure_maximum_usd": "0",
+                                                  "components": {"llm_maximum_usd": "0.35"}}
         harness.subs.settle.return_value = {}
         harness.run()
         self.assertIsNone(harness.subs.settle.call_args.kwargs["actual_provider_cost_usd"])
@@ -253,7 +256,7 @@ class WorkerEvidenceTests(unittest.TestCase):
             return OpenAICompatibleGateway(endpoint, urlopen=boom)
 
         local = ModelEndpoint(name="local", base_url="http://127.0.0.1:1/v1", model="m")
-        gw = RoutedModelGateway(primary=ProviderRoute(local), gateway_factory=factory)
+        gw = RoutedModelGateway(primary=ProviderRoute(local, declared_quality=90), gateway_factory=factory)
         engine = AutonomousProductEngine(architect=ArchitectAgent(gw), generator=GeneratorAgent(gw),
                                          repairer=RepairAgent(gw), executor=MagicMock(), max_repair_rounds=1)
         harness = ContractBuildHarness(gateway=gw)

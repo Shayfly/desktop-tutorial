@@ -2,7 +2,8 @@
 
 Admission (Vercel) and the worker (VPS) read their budgets from separate
 environments. The durable quote's `components.llm_maximum_usd` is the
-authorization; the worker's gateway budget is lowered to it, never raised.
+authorization; the worker's gateway budget is set to it (CEO 2026-10-19: lowered
+when the worker env is higher, raised with a WARNING when the env is lower).
 """
 import json
 import unittest
@@ -52,11 +53,22 @@ class BudgetBindingTests(unittest.TestCase):
         self.assertEqual((ev["worker_env_budget_usd"], ev["effective_budget_usd"]), ("5", "0.50"))
         self.assertNotEqual(gw.policy_version, before)
 
-    def test_never_raised_above_worker_env(self):
-        gw = _gw("0.50")
-        ev = bind_model_budget_to_reservation(gw, _request("5"))
-        self.assertEqual(gw.policy.external_budget_usd, Decimal("0.50"))
-        self.assertEqual(ev["effective_budget_usd"], "0.50")
+    def test_pro_keeps_its_class_budget_when_worker_env_is_lower(self):
+        # CEO 2026-10-19: the class budget decides; a lower worker env budget
+        # is logged as WORKER_BUDGET_BELOW_CLASS, never a silent block.
+        from omni_prod.pricing import PLAN_CATALOG, PlanCode, m5_build_terms, m5_llm_budget
+        cc, credits = m5_build_terms(PlanCode.PRO)
+        budget, _ = m5_llm_budget(PLAN_CATALOG[PlanCode.PRO], cc, credits)
+        self.assertEqual(budget, Decimal("1.60"))
+        gw = _gw("0.50")                                   # OMNI_EXTERNAL_BUDGET_USD=0.50 on the worker
+        request = {"economics_quote": {"components": {"llm_maximum_usd": str(budget), "cost_class": cc.value,
+                                                      "llm_class_cap_usd": "1.60"}}}
+        with self.assertLogs("omni_prod.routed_gateway", level="WARNING") as logs:
+            ev = bind_model_budget_to_reservation(gw, request)
+        self.assertEqual(gw.policy.external_budget_usd, Decimal("1.60"))
+        self.assertEqual(ev["effective_budget_usd"], "1.60")
+        self.assertTrue(ev["worker_env_below_reservation"])
+        self.assertIn("WORKER_BUDGET_BELOW_CLASS", "\n".join(logs.output))
 
     def test_zero_reservation_blocks_every_paid_call(self):
         gw = _gw("5")
@@ -66,13 +78,44 @@ class BudgetBindingTests(unittest.TestCase):
         self.assertEqual(_Fake.calls, 0)
         self.assertEqual(gw.state.external_spend_usd, Decimal("0"))
 
-    def test_legacy_request_without_components_is_marked_unbound(self):
+    def test_legacy_request_without_components_is_blocked(self):
         gw = _gw("5")
-        self.assertEqual(bind_model_budget_to_reservation(gw, {"economics_quote": {}}), {"binding": "legacy_unbound"})
-        self.assertEqual(gw.policy.external_budget_usd, Decimal("5"))
+        with self.assertRaisesRegex(PermissionError, "model_budget_missing"):
+            bind_model_budget_to_reservation(gw, {"economics_quote": {}})
+        self.assertEqual(_Fake.calls, 0)
 
-    def test_gateway_without_binding_support(self):
-        self.assertEqual(bind_model_budget_to_reservation(object(), _request("1")), {"binding": "not_applicable"})
+    def test_gateway_without_binding_support_is_blocked(self):
+        with self.assertRaisesRegex(PermissionError, "model_budget_unenforceable"):
+            bind_model_budget_to_reservation(object(), _request("1"))
+
+    def test_light_class_cap_clamps_oversized_reservation_before_paid_call(self):
+        gw = _gw("5")
+        ev = bind_model_budget_to_reservation(gw, {"economics_quote": {"components": {
+            "llm_maximum_usd": "3.00", "cost_class": "light"}}})
+        self.assertEqual(ev["effective_budget_usd"], "0.60")
+        self.assertEqual(gw.policy.external_budget_usd, Decimal("0.60"))
+
+    def test_founder_test_build_gets_its_admitted_budget_up_to_the_founder_cap(self):
+        # CEO 2026-11-08 20:09: founder test builds may spend up to $2 (measured, paid by us)
+        req = {"user_id": "usr_GCWlMxENgr9vpwph", "economics_quote": {"components": {
+            "llm_maximum_usd": "2.00", "cost_class": "light", "founder_test": True}}}
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
+        req["economics_quote"]["components"]["llm_maximum_usd"] = "9.00"      # never above the founder cap
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "2.00")
+        req["user_id"] = "usr_someone_else"                                    # the flag alone grants nothing
+        self.assertEqual(bind_model_budget_to_reservation(_gw("0.5"), req)["effective_budget_usd"], "0.60")
+
+    def test_standard_class_cap_clamps_oversized_reservation(self):
+        gw = _gw("5")
+        ev = bind_model_budget_to_reservation(gw, {"economics_quote": {"components": {
+            "llm_maximum_usd": "3.00", "cost_class": "standard"}}})
+        self.assertEqual(ev["effective_budget_usd"], "1.60")
+
+    def test_negative_and_nonfinite_budget_fail_closed(self):
+        for budget in ("-1", "NaN", "Infinity"):
+            with self.subTest(budget=budget):
+                with self.assertRaises(PermissionError):
+                    bind_model_budget_to_reservation(_gw("5"), _request(budget))
 
 
 if __name__ == "__main__":

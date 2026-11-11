@@ -46,6 +46,7 @@ jobs:
           done
           echo "::notice title=rollback::all consumer code file hashes match pinned original revision (environment metadata is not trusted)"
       - name: Rebuild previous source as a separate image (no credentials embedded)
+        timeout-minutes: 25
         shell: bash
         run: |
           set -euo pipefail

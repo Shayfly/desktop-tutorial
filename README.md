@@ -36,3 +36,5 @@ The repository CI checks:
 - `/api/status` runtime API smoke
 
 Canonical full reviewed source remains the archived **148AI V28 Launch Candidate** release package; this repository is the deployment layer.
+
+<!-- GitHub App write-access verification: 2026-10-19 -->

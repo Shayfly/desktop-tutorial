@@ -1,0 +1,109 @@
+branch	tip_sha	reason
+Shayfly-patch-1	ef8446389204ed00ce5e862cfaa37a6bc150f3cf	contained in main
+audit/cto-pack	7b1e421108cfa45ae305f774dbb2dfe8bafd23a4	PR merged at this tip
+audit/financial-fault-g3-20261014	70e3b7efc2910373824330d2205a57f52d492948	contained in main
+chatgpt/release-policy-fail-closed-2026-10-11	223206d0684e8bd2a441614a1dd82f4f1bb45618	contained in main
+chore/agent-loop	279f43aec564f3e82df8df42eacd10ef103c8a2b	contained in main
+chore/e3-push-capability-20261023	19203a0ba98545bad940e4e40417f98d0189c1dc	PR merged at this tip
+chore/pr-rebase	e1aa2f8fef383b24430832469c1becc9573a3530	contained in main
+chore/runner-pr-ops	a9815960877384fb0855c423562932361eef1ebe	contained in main
+chore/runner-pr-scan	00ced272502a7bd541f7f4f76deb32b7802ef753	contained in main
+chore/verify-replay-evidence-2026-10-19	be39672aa60284437dc84bf6d785c4eb9b5de4b3	contained in main
+chore/wire-the-vision	b14ad089673f8f407343667a2bdcc9be1f80e3bf	contained in main
+ci/inspect-round-artifacts	339361d82fb790cdcb3857cbdb7db813dc6f2c29	PR merged at this tip
+claude/adwv1-gap-audit-2026-10-11	e2dabce3c9c9d715577cb32ebafa973851221cdc	PR merged at this tip
+claude/fix-static-site-acceptance-2026-10-11	c11c2a22ae221b6fb65a89e7fe3bc8356a75d786	contained in main
+claude/g0-baseline-2026-10-09	c87499850df50b1cae4dfdeb539459e4f6029ef6	contained in main
+claude/intake-assistant-he-2026-10-11	73fc445a16b7f1885e04db028b5511fbff760f63	contained in main
+claude/plan-driven-execution-2026-10-11	2e418a55fad0550c258235abe1ca188b56305512	contained in main
+claude/visual-edit-workspace-2026-10-11	a3cc9abc1206e08b9a957d0e4796062eaf9b7bc9	contained in main
+claude/wave-a-fix-conversation-schema-2026-10-11	6296c2d9401c5befc4ee4cb9384856b1d03fc6bc	contained in main
+claude/wave-a-intelligence-platform-2026-10-11	b6a99c13fa7c8ef19d551bbc8dfcfa95e6b50a2e	contained in main
+claude/wave-a2-worker-intake-2026-10-11	73dc0fdd269bfee1c37db5fcec92975535381140	contained in main
+cleanup/pr101-routing-regressions	b9e0d51ba562bed967313ba193ef01a44801b70d	PR merged at this tip
+cleanup/pr52-summary-secrets	b7f6e2faa8883458d8062c329e1fa797b512bfa0	PR merged at this tip
+codex/148ai-verified-intake-2026-10-12	e7c1a0e6017ec203acf607086bd947063f560fde	contained in main
+codex/capability-message	11f956af897213d825741192401811e38374299f	contained in main
+codex/customer-flow-fixes-2026-10-12	310ff8d7ab04ac47b8b28cbdd9c54703657bec5a	contained in main
+codex/github-actions-cost-optimization-2026-10-14	ec3117162d9de322fa2c4e541bac73d7a30600a5	PR merged at this tip
+codex/run1-integration	fb24498f1315a5cde5e41ff4f637c5f146a54423	contained in main
+codex/smoke-artifact-publish	095e211cff578519ba4712301ed51fd4a0983004	contained in main
+codex/t3-t5-integration	f7f46df6eb784eec5e42cab86bc5a4bb716e314c	contained in main
+codex/t5-fixture-quality	5e87e679344eece27a867dc90a65d39a7fab777c	contained in main
+copilot/current-status-update	20b7a9e4e7a132a2fa5766973aa7258aabc12db1	contained in main
+copilot/grep-search-exceptions	3e7d39c9fff76657814c5c22f6e2cea5c0c5cb76	contained in main
+docs/agent-ownership-2026-10-19	a59211dddba56281d11d5efcf79b245162467dce	contained in main
+docs/agents-four-rules	ce15214775237f9e13aa374dbf33ce5aa94fd438	contained in main
+docs/batch-2026-10-20	2cdae51e342f7d9ec0761ea4fea8a447f51ddd15	contained in main
+docs/db-targets-2026-10-19	1760f9ef589cfd370455a32de118fbcca35a2543	contained in main
+docs/decisions-log-2026-10-19	4df51b3b714ffc3092c6013ff93b5f0ca3c28cfd	contained in main
+docs/decisions-wave-2026-10-20b	ed9d44da52a884e8663daec698bf730fda29b961	contained in main
+docs/deploy-worker-flakes-2026-10-19	fc3d21069176c24abfbf6e3867493113fd79bdeb	contained in main
+docs/handoff	7e7b70ae5efa59b49fef9c4d6850fe177d55aa84	contained in main
+docs/model-prices-2026-10-19	883c8dbba1fed78ff603abd8b31b41529f71dd44	contained in main
+docs/plans-2026-10-19	818b5eec1b160caf798831e62b278ee290b9af5a	contained in main
+docs/pricing-2026-10-19	56288aa5ecb9cddb12e0ae4a8488f5aad9af3909	contained in main
+docs/provider-role-policy	ce195406713a1574e18fe55d8e7bbb0081a99f89	contained in main
+docs/providers-inventory-2026-10-19	57b9c6a0e7c56d576da5cc1e812a591f2895e006	contained in main
+docs/public-routes-2026-10-19	1b2fc4115c786083257f27264169941dec72b2da	contained in main
+docs/secrets-policy-2026-10-19	ec6e17baf26fc961cc185506b0394de6640300ac	contained in main
+docs/state-main-sha-20261024	4546cc6d26a30692039e6393535c9037e3a97c08	contained in main
+docs/venice-snapshot-2026-10-19	a97d5b82b9024dd2656ed7657ee3902540029647	contained in main
+feat/amateur-studio-plans-2026-10-19	f8006fea0394c4d10c76aedb02aee1d372a45e12	contained in main
+feat/paid-verify-r2-check	cdd2c1d4609db31d01536d2604e3a960cc26dc5d	contained in main
+feat/repo-control-async-jobs-20261025	e37c9d6faa82b713908df9cb4c8ee8e0d0c81ea3	contained in main
+feat/repo-control-blueprint-20261024	4bd8aaca81c36061aa2984b3b492c6046123ca67	contained in main
+feat/venice-two-modes	f8581f079d8bdb7e656fda7fad2d33ae450a1e3c	contained in main
+feat/wp1-gap-detector	7af95523839b4091de3a909fb65e51c4a2838ac2	PR merged at this tip
+feature/intake-budget-complexity-router	f5f8e20abd9eb6a847e5cf6b25da750f40888915	contained in main
+feature/profit-protection-credit-economy-v1-20261014	fffa7dd60ab28855bb6236a2f5f0e72eb8373f7c	contained in main
+fix/148ai-t01-ci-recovery-2026-10-13	2353c60f9cfd23e35078ce1517244f15b7c97fad	contained in main
+fix/agent-loop-service-token	ad93b9433968aec4e727b1ea8522ead2b03b6f1f	PR merged at this tip
+fix/auth-error-mapping	f42c164d31edeb64ebb73aa926d90c678a430f6a	contained in main
+fix/c34-inert-tunl0-netns-20261025	fe040127b7eb20288266b0d907101a832167957e	contained in main
+fix/css-declaration-count	e1a9864af6077479a2888828cfb13f824999ea6d	PR merged at this tip
+fix/customer-flow-boot-race	513e08f053fa59522aab8b8ae2f6e74c21a003b6	contained in main
+fix/department-matrix-regen-2026-10-19	51e31c41d709cd34685295aaa66b4bdbd16b2735	contained in main
+fix/deploy-rollback-snapshot-2026-10-19	e2102e0e0863d96293ded0c34d8a696e909547c4	contained in main
+fix/deploy-scope-sigpipe-2026-10-19	3b7bdf29ea4e19d15352b7f94b899abedab06f3e	contained in main
+fix/docker-oom-rehearsal-20261013	e36415182151668da4fec1f6a38f13c78f2277ae	contained in main
+fix/drain-tolerate-unverified	2df9982eb56b751efe416480b7274bcc7bd86d9a	PR merged at this tip
+fix/expect-text-contains-list	2f20ec6171599956b189f48e42e5cbea42e05088	contained in main
+fix/financial-journal-recovery-20261014	e4d395f6f134c50e58b413c4e95698b018c114dd	contained in main
+fix/hardcoded-tmp	f11cdc7c2973bfb5b774f1f704bbf95a3c0450d3	contained in main
+fix/model-json-tail-classification-20261025	2fbb9ca3493a8396ac949d363da6dfb8887030e2	contained in main
+fix/neon-maintenance-30m-20261025	214906cbdc8f5595d277262b6fd834a9143827dd	contained in main
+fix/o10-gate-says-what-is-missing	2aa98f9b9d074936b14a53139cb5127c4ea67416	contained in main
+fix/p0-requirements-golden-path-2026-10-12	1d320029968bcb35e4cd4aaacea03f7690299eef	contained in main
+fix/preflight-validate-plan	65cd7298e0420fd00727c248cc2fcf2b017953d5	contained in main
+fix/redaction-single-layer	8dc0bc1b0178bccf5c5dcdd7625020a1ffb393b7	PR merged at this tip
+fix/rehearsal-step-bash-e-2026-10-19	0cd8fe9388456f7f03307535e659d4be8414bdf1	contained in main
+fix/repo-control-skip-contained	ec54a22a85abded00dcaef8eb49023382a9e653b	contained in main
+fix/round-preflight-review-group-2026-10-19	c2f2ff11e58b6516e9a33a86c914020fb232c2c2	contained in main
+fix/route-luna-out-of-codegen	74b2ca3179a428fb4083903b27ad4e4117aee545	contained in main
+fix/run1-create-step-body	d43909baa8407977e44a225d71ae97fcff0df05f	contained in main
+fix/sandbox-scripts-as-files-2026-10-19	c3a1ecefcd94a91cc520a8fc40b7d9c438a4b18e	contained in main
+fix/t3-json-no-silent-trailing	d393717f5a41e17a08b8fbb89ffbf3ebfcab0ef4	contained in main
+fix/t4-verification-boundaries	0f5eaa059700c08d8a75ea0e119b42c527d1dbb1	contained in main
+fix/t5-codegen-floor-85-light-path	6d052c0fd168c3a2721d90ec16dd8207ffb1041c	contained in main
+fix/t7a-v24-report-via-pr	514ade4f3ed7252c69077a3eb66e6f1427cad5c6	contained in main
+fix/t7b-paid-verify-missing-version	2fb3025e24897423c5aa960acb7243299dae7fb0	contained in main
+fix/t8-resource-overlap	390da23cf9b55e6f687353a6484028adcdcd615d	contained in main
+fix/verification-group-2026-10-19	baec32ff391405e3cd3bfa6fec479ccbdc6651f3	contained in main
+fix/write-env-secret-lengths-blocking	89c432ad696d78ca27f9d70b80b67815082efd74	contained in main
+integration/148ai-release-audit-2026-10-12	2a2bba6645bb05f4889420760f11127441a0d253	contained in main
+milestone/pre-staging-2026-10-05-final	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+milestone/pre-staging-2026-10-05-source	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+milestone/pre-staging-2026-10-05-upload	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+milestone/pre-staging-2026-10-05-work	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+registry/c31-lint	fb45a2ab5b3a66ce137dd45b3b84eba418da6777	PR merged at this tip
+registry/controls-v3	24155d002adfbe944238b030f58714958da0a90d	PR merged at this tip
+release/main-integration	bb7b64d0a90e360ddf889a98265c1f08babf1607	contained in main
+shayfly-148ai-engineering-recovery	b5f0625f694d705eb122cee174928de6d3a2ee8d	contained in main
+shayfly-profit-protection-v2-follow-up	e0feac91d181605fac57aeea830c02f883501059	contained in main
+test/hermetic-c34	01d16cbbe84895c3bdd5fcf722e19641a306a79b	contained in main
+tmp/blob-reuse-test	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+tmp/blob-reuse-test2	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+tmp/blob-reuse-test3	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+tmp/blob-reuse-test4	e8f294902e90eefb87d54023218a279af385aae5	contained in main
+tmp/tree-test-2026-10-05	e8f294902e90eefb87d54023218a279af385aae5	contained in main

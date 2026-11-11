@@ -39,6 +39,7 @@ from omni_prod.autonomous_core import AcceptanceFailure, ExecutionReport
 from omni_prod.job_repository import PostgresBuildRepository
 from omni_prod.model_gateway import ModelEndpoint
 from omni_prod.model_policy import ModelUsePolicy, ModelUseState, authorize_model_call
+from omni_prod.provider_usage import ProviderUsage, ProviderUsageLedger
 from omni_prod.models import BuildStatus
 from omni_prod.preview_repository import PostgresPreviewRepository
 from omni_prod.preview_runtime import (
@@ -842,9 +843,22 @@ def real_spend_gateway(calls: int, per_call: str) -> SimpleNamespace:
     ext = ModelEndpoint(name='ext', base_url='https://api.example', model='m', api_key='k', external=True)
     local = ModelEndpoint(name='local', base_url='http://127.0.0.1:1', model='m')
     authorize_model_call(endpoint=local, policy=policy, state=state, estimated_cost_usd=Decimal('0'))
-    for _ in range(calls):
+    usage = ProviderUsageLedger()
+    for idx in range(calls):
         authorize_model_call(endpoint=ext, policy=policy, state=state, estimated_cost_usd=Decimal(per_call))
-    return SimpleNamespace(state=state, events=[])
+        # The positive billing fixture models a provider response for each call;
+        # estimates alone cannot establish an actual settled cost.
+        usage.record(ProviderUsage(
+            provider='ext', model='m', external=True, request_id=f'fixture-call-{idx}',
+            request_id_source='header:x-request-id', response_id=None,
+            input_tokens=1, output_tokens=1, cached_tokens=None,
+            provider_reported_cost_usd=Decimal(per_call), usage_reported=True))
+    def bind_budget(authorized):
+        # ModelUsePolicy is frozen: binding returns the effective authorization
+        # without mutating the policy used to produce the historical spend ledger.
+        effective_budget = min(policy.external_budget_usd, Decimal(str(authorized)))
+        return {'effective_budget_usd': str(effective_budget)}
+    return SimpleNamespace(state=state, events=[], bind_budget=bind_budget, usage=usage)
 
 
 class TestBillingRules(unittest.TestCase):
@@ -857,17 +871,24 @@ class TestBillingRules(unittest.TestCase):
         cases = [
             (True, Decimal('0'), 0, 'settled', Decimal('0')),
             (True, Decimal('0.5'), 2, 'settled', Decimal('0.5')),
-            (False, Decimal('0.5'), 2, 'settled', Decimal('0.5')),
-            (False, Decimal('0'), 1, 'settled', Decimal('0')),
+            # founder 2026-11-02: a FAILED build is released (credits back), never settled; with spend it goes
+            # through release_failed (the real cost stays on record), without spend through release()
+            (False, Decimal('0.5'), 2, 'released_failed', Decimal('0.5')),
+            (False, Decimal('0'), 1, 'released_failed', Decimal('0')),
             (False, Decimal('0'), 0, 'released', None),
         ]
         for ready, spent, calls, expected, settle_amount in cases:
             with self.subTest(ready=ready, spent=spent, calls=calls):
                 subs = MagicMock()
                 self.assertEqual(worker_tasks.resolve_billing(subs, build_id='b', ready=ready, spent=spent,
-                                                              external_calls=calls), expected)
+                                                              external_calls=calls),
+                                 'released' if expected == 'released_failed' else expected)
                 if expected == 'settled':
                     subs.settle.assert_called_once_with(build_id='b', actual_provider_cost_usd=settle_amount)
+                    subs.release.assert_not_called()
+                elif expected == 'released_failed':
+                    subs.release_failed.assert_called_once_with(build_id='b', actual_provider_cost_usd=settle_amount)
+                    subs.settle.assert_not_called()
                     subs.release.assert_not_called()
                 else:
                     subs.release.assert_called_once_with(build_id='b')
@@ -881,6 +902,7 @@ class FakeJobs:
             'target_markets': ('US',), 'branding_visible': None, 'white_label_name': None,
             'rights_evidence': [RightsEvidence('ev1', RightKind.TRADEMARK, 'Acme', 'license', 'global').to_dict()],
             'public_project_id': 'proj_public',
+            'economics_quote': {'components': {'llm_maximum_usd': '1.00'}},
         }
         self.claim = claim
         self.transitions: list[dict] = []
@@ -918,7 +940,7 @@ class BuildHarness:
         self.workspace.commit.return_value = SimpleNamespace(id='ver_1', artifact_key='repositories/abc.zip')
         self.gateway = real_spend_gateway(calls, '0.25')
         report = ExecutionReport(passed=verified, failures=() if verified else (AcceptanceFailure('AC-1', 'tests failed', 'E'),),
-                                 build_log='log')
+                                 build_log='log', tests_executed=2 if verified else None)   # audit finding 14: the count
         self.result = SimpleNamespace(status='ready' if verified else 'failed', spec=ACCEPTED_SPEC,
                                       repository={'app.py': 'x', '.omni/project.json': '{}'}, repair_rounds=1, report=report)
         self.engine = MagicMock()
@@ -955,7 +977,10 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
         self.assertEqual(h.final['target'], BuildStatus.READY)
         self.assertEqual(h.final['result_version_id'], 'ver_1')
         self.assertEqual(h.final['actual_provider_cost_usd'], Decimal('0.50'))
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_called_once_with(
+            build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'),
+            revenue_usd=None, infra_cost_usd=Decimal('0'),
+        )
         h.subs.release.assert_not_called()
         ev = h.final['evidence_json']
         self.assertEqual(set(ev['gates']), {'verification', 'quality', 'security', 'rights'})
@@ -1008,19 +1033,22 @@ class TestAsyncBuildGatesAndBilling(unittest.TestCase):
         h.subs.settle.assert_not_called()
         self.assertEqual(h.final['evidence_json']['billing'], 'released')
 
-    def test_failed_build_with_external_spend_settles_not_releases(self):
+    def test_failed_build_with_external_spend_releases_its_credits(self):
+        # founder 2026-11-02: a failed build is RELEASED (credits back), never SETTLED; the real cost stays on record
         h = BuildHarness(security=False, calls=3)
         h.run()
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.75'))
+        h.subs.release_failed.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.75'))
+        h.subs.settle.assert_not_called()
         h.subs.release.assert_not_called()
 
-    def test_exception_after_spend_settles_and_reraises(self):
+    def test_exception_after_spend_releases_and_reraises(self):
         h = BuildHarness(calls=2)
         h.platform.branding.decorate_repository.side_effect = PermissionError('white-label requires Business')
         with self.assertRaises(PermissionError):
             h.run()
         self.assertEqual((h.final['target'], h.final['error_code']), (BuildStatus.FAILED, 'worker_exception'))
-        h.subs.settle.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.release_failed.assert_called_once_with(build_id='bld_1', actual_provider_cost_usd=Decimal('0.50'))
+        h.subs.settle.assert_not_called()
         h.subs.release.assert_not_called()
 
     def test_exception_before_any_spend_releases_and_reraises(self):

@@ -140,10 +140,20 @@ class QuotaTests(unittest.TestCase):
 class BudgetFitTests(unittest.TestCase):
     def test_a_route_that_does_not_fit_gives_way_to_a_cheaper_one(self):
         s = Script({})
-        models = (_model('cheap', 70, '0.10', '0.50'), _model('dear', 90, '2', '10'))
+        # T5: codegen's floor is a mandatory 85, so the cheaper route here is a quality-85 model (the budget-fit
+        # logic under test is unchanged); a below-85 model that fits is covered by the next test.
+        models = (_model('cheap', 85, '0.10', '0.50'), _model('dear', 90, '2', '10'))
         gw = _gw(s, models, budget='0.05')  # dear worst case: 10000 x $10/M = $0.10
         self.assertEqual(gw.complete_json(system='s', user='u', max_tokens=10000, task='codegen'), {'ok': 'cheap'})
         self.assertEqual(s.calls, ['cheap'])
+
+    def test_a_below_85_model_that_fits_does_not_write_code(self):
+        s = Script({})
+        models = (_model('cheap', 70, '0.10', '0.50'), _model('dear', 90, '2', '10'))
+        gw = _gw(s, models, budget='0.05')  # only the quality-70 model fits the budget
+        with self.assertRaisesRegex(ModelPolicyViolation, 'budget exceeded'):   # a budget stop, never a downgrade
+            gw.complete_json(system='s', user='u', max_tokens=10000, task='codegen')
+        self.assertEqual(s.calls, [])
 
     def test_nothing_fits_is_a_budget_stop(self):
         s = Script({})

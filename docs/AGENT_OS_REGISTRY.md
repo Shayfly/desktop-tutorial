@@ -4,8 +4,8 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 25, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 6, LIVE 0, BLOCKED 4
-Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 43, LIVE 0, BLOCKED 9
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 27, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 4, LIVE 0, BLOCKED 4
+Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 34, LIVE 0, BLOCKED 9
 
 ## Agents
 
@@ -25,7 +25,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | Identity & Authentication Agent (`identity_auth_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | generated-app auth is not generated or verified; platform identity only |
 | Integration Agent (`integration_agent`) | software | **NOT_IMPLEMENTED** | security_agent | no implementation | no generated-app integration path |
 | Coding Agent (`coding_agent`) | software | **IMPLEMENTED** | code_review_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
-| Code Review Agent (`code_review_agent`) | quality | **REAL_SERVER_VERIFIED** | qa_agent | verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built vers — postdeploy-checks run 37961193099, postdeploy-checks run 37961193099 (attempt ledger via inspect run 37962090098) |  |
+| Code Review Agent (`code_review_agent`) | quality | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py |  |
 | QA Agent (`qa_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/remote_sandbox.py |  |
 | Browser Rehearsal Agent (`browser_rehearsal_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | Behavioral Acceptance Agent (`behavioral_acceptance_agent`) | quality | **IMPLEMENTED** | quality_gate_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py |  |
@@ -46,7 +46,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | Localization / RTL Agent (`localization_rtl_agent`) | quality | **IMPLEMENTED** | qa_agent | model instruction only; no platform check verifies the result |  |
 | SEO / Web Quality Agent (`seo_web_quality_agent`) | quality | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Analytics Agent (`analytics_agent`) | platform | **NOT_IMPLEMENTED** | privacy_reviewer | no implementation | not implemented |
-| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
+| Product Evolution Agent (`product_evolution_agent`) | software | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py, omni_prod/modification_engine.py |  |
 | Automation Agent (`automation_agent`) | automation | **NOT_IMPLEMENTED** | qa_agent | no implementation | not implemented |
 | Media Orchestrator (`media_orchestrator`) | media | **UNIT_TESTED** | compliance_ip_agent | unit tests only — tests/test_m495_worker_capabilities.py |  |
 | Image Agent (`image_agent`) | media | **BLOCKED** | compliance_ip_agent | not configured on the worker: OMNI_IMAGE_PROVIDER_BASE_URL, OMNI_IMAGE_PROVIDER_API_KEY_REF |  |
@@ -57,7 +57,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | 2D Level Designer Agent (`level_designer_2d_agent`) | games | **NOT_IMPLEMENTED** | game_qa_2d_agent | no implementation | not implemented |
 | 2D Game Engineering Agent (`game_engineering_2d_agent`) | games | **NOT_IMPLEMENTED** | game_qa_2d_agent | no implementation | no game pipeline; Phaser is not in the sandbox allowlist |
 | 2D Game QA Agent (`game_qa_2d_agent`) | games | **NOT_IMPLEMENTED** | quality_gate_agent | no implementation | not implemented |
-| Diagnostic Agent (`diagnostic_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
+| Diagnostic Agent (`diagnostic_agent`) | platform | **IMPLEMENTED** | sre_reliability_agent | real-server evidence is stale; code changed since: .github/workflows/worker-diagnostics.yml |  |
 | Support Agent (`support_agent`) | platform | **NOT_IMPLEMENTED** | customer_success | no implementation | not implemented |
 | Platform Capability Auditor (`platform_capability_auditor`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
 | Regression Guardian (`regression_guardian`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
@@ -212,7 +212,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `file_create` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `file_modify` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/autonomous_agents.py |  |
 | `safe_refactor` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
-| `dependency_add` | Coding | **REAL_SERVER_VERIFIED** | coding_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | pinned allowlist only |
+| `dependency_add` | Coding | **IMPLEMENTED** | coding_agent | real-server evidence is stale; code changed since: omni_prod/dependency_policy.py | pinned allowlist only |
 | `dependency_remove` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `import_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
 | `type_fix` | Coding | **NOT_IMPLEMENTED** | coding_agent | no implementation | not implemented |
@@ -248,13 +248,13 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `behavioral_acceptance_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/behavior_acceptance.py, omni_prod/web_saas_acceptance.py |  |
 | `requirement_traceability_test` | QA | **IMPLEMENTED** | qa_agent | real-server evidence is stale; code changed since: omni_prod/web_saas_acceptance.py | acceptance IDs -> steps |
 | `browser_launch` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
-| `page_load_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo |  |
+| `page_load_test` | Browser | **UNIT_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/preview_smoke.py |  |
 | `click_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `form_test` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | fills forms by field type |
 | `navigation_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
-| `mobile_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 390x844; layout rules enforced |
-| `desktop_view_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | 1440x900; layout rules enforced |
-| `responsive_test` | Browser | **REAL_SERVER_VERIFIED** | browser_rehearsal_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | overflow/offscreen/viewport; enforced |
+| `mobile_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | 390x844; layout rules enforced |
+| `desktop_view_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | 1440x900; layout rules enforced |
+| `responsive_test` | Browser | **INTEGRATION_TESTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | overflow/offscreen/viewport; enforced |
 | `javascript_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py |  |
 | `network_error_detection` | Browser | **IMPLEMENTED** | browser_rehearsal_agent | real-server evidence is stale; code changed since: omni_prod/browser_probe.py | 5xx answers |
 | `browser_persistence_test` | Browser | **NOT_IMPLEMENTED** | browser_rehearsal_agent | no implementation | not implemented |
@@ -272,7 +272,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `secret_detection` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | static |
 | `secret_exposure_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `dependency_vulnerability_scan` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
-| `xss_check` | Security | **REAL_SERVER_VERIFIED** | security_agent | verified for: in-build behavioural acceptance; acceptance failure repaired; requirements-aware scope; code generation; repair loop; browser  | review + instruction, no dynamic XSS probe |
+| `xss_check` | Security | **IMPLEMENTED** | security_agent | real-server evidence is stale; code changed since: omni_prod/product_review.py, omni_prod/skills_runtime.py | review + instruction, no dynamic XSS probe |
 | `csrf_check` | Security | **UNIT_TESTED** | security_agent | unit tests only | platform API only |
 | `sql_injection_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
 | `ssrf_check` | Security | **NOT_IMPLEMENTED** | security_agent | no implementation | not implemented |
@@ -381,9 +381,9 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 82, UNIT_TESTED 29, INTEGRATION
 | `load_test` | Performance | **NOT_IMPLEMENTED** | performance_agent | no implementation | not implemented |
 | `keyboard_navigation_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `semantic_html_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
-| `label_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | unlabelled_field rule, advisory |
-| `contrast_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | WCAG AA ratio, advisory |
-| `touch_target_test` | Accessibility | **REAL_SERVER_VERIFIED** | accessibility_agent | verified for: sandbox verification; preview smoke; behavioural acceptance; browser flow; visual QA desktop and mobile with screenshots; enfo | mobile 24x24 CSS px, advisory |
+| `label_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | unlabelled_field rule, advisory |
+| `contrast_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | WCAG AA ratio, advisory |
+| `touch_target_test` | Accessibility | **INTEGRATION_TESTED** | accessibility_agent | real-server evidence is stale; code changed since: omni_prod/visual_qa.py | mobile 24x24 CSS px, advisory |
 | `screen_reader_structure_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `focus_order_test` | Accessibility | **NOT_IMPLEMENTED** | accessibility_agent | no implementation | not implemented |
 | `translation` | Localization | **NOT_IMPLEMENTED** | localization_rtl_agent | no implementation | not implemented |

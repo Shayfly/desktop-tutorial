@@ -1,0 +1,7 @@
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "consistency", "failure_type": "consistency_(syntax)", "round_index": 0, "chain_depth": 1, "was_repaired": true}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "behaviour", "failure_type": "behavioural_acceptance_failed", "round_index": 1, "chain_depth": 5, "was_repaired": false}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "behaviour", "failure_type": "behavioural_acceptance_failed", "round_index": 2, "chain_depth": 5, "was_repaired": true}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "review", "failure_type": "qa_review_(skill_data_integrity)", "round_index": 3, "chain_depth": 9, "was_repaired": false}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "review", "failure_type": "qa_review_(skill_form_validation)", "round_index": 3, "chain_depth": 9, "was_repaired": false}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "review", "failure_type": "qa_review_(spec)", "round_index": 3, "chain_depth": 9, "was_repaired": false}
+{"run_id": "39313029465", "commit": "52691cc3f172", "at": "2026-10-19T19:45:10Z", "layer": "review", "failure_type": "qa_review_(skill_ui_states)", "round_index": 3, "chain_depth": 9, "was_repaired": false}

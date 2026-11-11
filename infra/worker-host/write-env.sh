@@ -31,16 +31,31 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
 else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
-# Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
-# ANTHROPIC_API_KEY): added when set and not already given by WORKER_ENV(_OVERRIDES).
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+# Values kept as their own GitHub secrets (OPENAI_API_KEY, ANTHROPIC_API_KEY,
+# VENICE_API_KEY1, OMNI_DATABASE_URL, OMNI_REDIS_URL). When the secret is set it REPLACES any
+# value from WORKER_ENV(_OVERRIDES): the dedicated secret is the one to rotate.
+# When it is empty the WORKER_ENV(_OVERRIDES) value, if any, stays. Names only,
+# never values.
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do
   key_value="${!key_name:-}"
-  if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
+  if [ -n "$key_value" ]; then
+    if grep -q "^${key_name}=." .env; then
+      outcome="replaced the WORKER_ENV(_OVERRIDES) value"
+    else
+      outcome="added"
+    fi
     sed -i "/^${key_name}=/d" .env
     printf '%s=%s\n' "$key_name" "$key_value" >> .env
-    echo "::notice title=provider keys::${key_name} added from its GitHub secret"
-  elif [ -z "$key_value" ] && ! grep -q "^${key_name}=." .env; then
-    echo "::notice title=provider keys::${key_name} not set; its catalog models stay NOT_CONFIGURED"
+    dedicated_from_secret="${dedicated_from_secret:-} ${key_name}"
+    echo "::notice title=dedicated secrets::${key_name} from its GitHub secret (${outcome})"
+  elif grep -q "^${key_name}=." .env; then
+    echo "::notice title=dedicated secrets::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used (none is set)"
+  elif [ "$key_name" = OMNI_DATABASE_URL ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  elif [ "$key_name" = OMNI_REDIS_URL ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  else
+    echo "::notice title=dedicated secrets::${key_name} not set; its catalog models stay NOT_CONFIGURED"
   fi
 done
 unset key_value
@@ -92,7 +107,18 @@ if [ -n "$suffix" ] && ! grep -q '^PREVIEW_DOMAIN_TEMPLATE=.' .env; then
 fi
 # Non-secret build knobs, published with their values so a limit lower than a
 # real build needs is visible in the deploy (rehearsal 2026-10-08 used 17 calls).
-grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=40" >> .env
+# 150 since 2026-11-09: agentic repair spends up to 6 calls per round (bld_c85cca89 hit 40 at $1.27). The
+# build's dollar cap still bounds spend; this only stops a runaway loop.
+grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=150" >> .env
+# CEO 2026-11-09: a lower value pasted earlier into WORKER_ENV (40) must not keep stopping builds; raise it to the
+# floor and say so. OMNI_EXTERNAL_CALLS_FLOOR=0 keeps whatever WORKER_ENV says.
+floor="${OMNI_EXTERNAL_CALLS_FLOOR:-150}"
+calls=$(sed -n 's/^OMNI_EXTERNAL_CALLS_PER_BUILD=//p' .env | tail -n 1)
+if [ "$floor" != "0" ] && [[ "$calls" =~ ^[0-9]+$ ]] && [ "$calls" -lt "$floor" ]; then
+  sed -i '/^OMNI_EXTERNAL_CALLS_PER_BUILD=/d' .env
+  echo "OMNI_EXTERNAL_CALLS_PER_BUILD=$floor" >> .env
+  echo "::notice title=build-knobs::OMNI_EXTERNAL_CALLS_PER_BUILD raised from $calls to $floor (dollar cap unchanged)"
+fi
 knobs=$(grep -E '^(OMNI_EXTERNAL_CALLS_PER_BUILD|OMNI_EXTERNAL_BUDGET_USD|OMNI_MAX_REPAIR_ROUNDS|OMNI_MODEL_ROUTING|OMNI_MODEL_MIN_QUALITY|OMNI_MODEL_TASK_MIN_QUALITY|OMNI_ZERO_COST_MODE|OMNI_ALLOW_EXTERNAL_FALLBACK)=' .env | tr '\n' ' ')
 echo "::notice title=build-knobs::${knobs:-none set}"
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
@@ -101,20 +127,29 @@ echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | so
 # Golden E2E #1 (2026-10-07): a build passed generation and sandbox
 # verification and then failed at the very end on R2 with "Credential access
 # key has length 34, should be 32" -- a pasted value had extra characters.
+# 2026-11-06: a value that came from its own GitHub secret must be fixed THERE, not in WORKER_ENV
+# (deploy 149 told the owner to edit WORKER_ENV for a quoted OMNI_REDIS_URL that came from secret OMNI_REDIS_URL).
+secret_for() { case " ${dedicated_from_secret:-} " in *" $1 "*) echo "secret $1";; *) echo "WORKER_ENV";; esac; }
 problems=0
 while IFS= read -r line; do
   case "$line" in ''|'#'*) continue;; esac
   name=${line%%=*}; value=${line#*=}
   if [[ "$value" =~ ^[[:space:]] || "$value" =~ [[:space:]]$ ]]; then
-    echo "::error title=WORKER_ENV::${name} has spaces before or after the value"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} has spaces before or after the value"; problems=1
   fi
   if [[ "$value" =~ ^[\"\'] || "$value" =~ [\"\']$ ]]; then
-    echo "::error title=WORKER_ENV::${name} is wrapped in quotes; paste the value without quotes"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} is wrapped in quotes; paste the value without quotes"; problems=1
   fi
   if printf '%s' "$value" | LC_ALL=C grep -q '[^ -~]'; then
     echo "::error title=WORKER_ENV::${name} contains invisible or non-ASCII characters (often copied from a web page); type or re-copy the value"; problems=1
   fi
 done < .env
+# C23 (founder 2026-10-20): secret LENGTHS block the deploy (they were warnings). Only lengths the code itself
+# requires, and only for values known to pass today (storage-probe and sandbox-probe PASS in deploy 39472683855):
+#   OMNI_S3_ACCESS_KEY / OMNI_S3_SECRET_KEY on an R2 endpoint: 32 / 64 characters (R2 credential format)
+#   OMNI_SANDBOX_SHARED_SECRET: at least 32 (omni_prod/sandbox_service.py:52 refuses every run below that)
+# Reported by name and length only; the value itself is never printed.
+length_error() { echo "::error title=WORKER_ENV::$1"; problems=1; }
 if grep -q '^OMNI_S3_ENDPOINT=.*r2\.cloudflarestorage\.com' .env; then
   ak=$(sed -n 's/^OMNI_S3_ACCESS_KEY=//p' .env | head -n 1); sk=$(sed -n 's/^OMNI_S3_SECRET_KEY=//p' .env | head -n 1)
   if [ "${#ak}" -ne 32 ]; then
@@ -128,15 +163,23 @@ out = [f"{i+1}:{c if c in string.punctuation else 'letter' if c.isalpha() else '
 print(", ".join(out) or "none (all hex)")
 PY
 )
-    # Warning only: the documented R2 format may change, and the deploy's
-    # storage probe (real write/read-back against R2) is the authority.
-    echo "::warning title=WORKER_ENV::OMNI_S3_ACCESS_KEY has ${#ak} characters (classic R2 Access Key IDs have 32). Non-hex characters at positions: ${odd}. The storage probe decides."
+    length_error "OMNI_S3_ACCESS_KEY has ${#ak} characters; an R2 Access Key ID has 32. Non-hex characters at positions: ${odd}."
   fi
   if [ "${#sk}" -ne 64 ]; then
-    echo "::warning title=WORKER_ENV::OMNI_S3_SECRET_KEY has ${#sk} characters (classic R2 Secret Access Keys have 64). The storage probe decides."
+    length_error "OMNI_S3_SECRET_KEY has ${#sk} characters; an R2 Secret Access Key has 64."
   fi
 fi
+sandbox_secret=$(sed -n 's/^OMNI_SANDBOX_SHARED_SECRET=//p' .env | head -n 1)
+if [ "${#sandbox_secret}" -lt 32 ]; then
+  length_error "OMNI_SANDBOX_SHARED_SECRET has ${#sandbox_secret} characters; the sandbox runner refuses every run below 32 (omni_prod/sandbox_service.py:52)."
+fi
+# OMNI_SECRET_KEY (founder 2026-10-20): preflight.py:38 requires >= 48, but its length on this worker is unknown, so it
+# is DISCOVERED here first (name + length, a notice, never blocking). Once a deploy has shown it, it can join the
+# blocking checks above without risking a deploy.
+secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
+echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
+unset ak sk sandbox_secret secret_key
 if [ "$problems" -ne 0 ]; then
-  echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
+  echo "::error title=WORKER_ENV::fix each line above in the GitHub secret named in its title (a dedicated secret such as OMNI_REDIS_URL, otherwise WORKER_ENV), then run Deploy build worker again"
   exit 1
 fi

@@ -1,0 +1,48 @@
+{
+  "pr": "pr154",
+  "sha256": [
+    "tests/test_venice_live_wiring.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "a plan verifier that accepts everything",
+      "mutations": [
+        {
+          "file": "omni_prod/intake/approval_flow.py",
+          "old": "def verify(plan: dict, brief, approved_fingerprint: str) -> Verdict:\n",
+          "new": "def verify(plan: dict, brief, approved_fingerprint: str) -> Verdict:\n    return Verdict(True, ())  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_live_wiring.py"
+      ],
+      "expect_failed": [
+        "test_a_plan_the_verifier_refuses_is_never_shown",
+        "test_a_verifier_correction_is_a_visible_line",
+        "test_the_hebrew_correction_line"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the build-admission gate bypassed (two-gate flow never detected)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "    two_gate = AF.on_two_gate_flow(messages)\n",
+          "new": "    two_gate = False and AF.on_two_gate_flow(messages)  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_live_wiring.py"
+      ],
+      "expect_failed": [
+        "test_approved_spec_without_a_verified_plan_is_refused",
+        "test_http_409_plan_not_verified",
+        "test_http_409_spec_not_approved",
+        "test_no_spec_approval_no_build",
+        "test_the_quote_shows_it_as_a_blocker_not_a_server_error"
+      ]
+    }
+  ]
+}

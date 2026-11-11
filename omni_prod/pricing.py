@@ -10,10 +10,23 @@ import os
 
 class PlanCode(str, Enum):
     FREE = 'free'
-    BASIC = 'basic'
+    AMATEUR = 'amateur'
     PRO = 'pro'
-    BUSINESS = 'business'
+    STUDIO = 'studio'
     ENTERPRISE = 'enterprise'
+    # Deprecated aliases (CEO 2026-10-19: Basic->Amateur, Business->Studio).
+    # They resolve to the new members so existing references keep working.
+    BASIC = 'amateur'
+    BUSINESS = 'studio'
+
+    @classmethod
+    def _missing_(cls, value):
+        # Rows persisted before the rename (creator_subscriptions.plan_code,
+        # billing events, Stripe metadata) still say 'basic' / 'business'.
+        legacy = {'basic': cls.AMATEUR, 'business': cls.STUDIO}
+        if isinstance(value, str):
+            return legacy.get(value.strip().lower())
+        return None
 
 
 class CostClass(str, Enum):
@@ -100,34 +113,50 @@ def _env_decimal(name: str, default: str) -> Decimal:
     return Decimal(raw) if raw else Decimal(default)
 
 
+def _env_decimal_renamed(name: str, legacy_name: str, default: str) -> Decimal:
+    """New name wins; the pre-rename name (CEO 2026-10-19: Basic->Amateur,
+    Business->Studio) is still honoured so an operator value already set in
+    Vercel/worker env is not silently dropped."""
+    for key in (name, legacy_name):
+        raw = os.getenv(key, '').strip()
+        if raw:
+            return Decimal(raw)
+    return Decimal(default)
+
+
 PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     PlanCode.FREE: PlanDefinition(
-        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, Decimal('0'), 2, 1,
-        (CostClass.ZERO,), 'required', False, False, 'standard',
+        PlanCode.FREE, 'Free', Decimal('0'), Decimal('0'), 150, _env_decimal('OMNI_PROVIDER_CAP_FREE_USD','1.80'), 2, 1,
+        # CEO 2026-10-19: Free = ZERO + LIGHT, 150 credits (~3 LIGHT builds/month),
+        # margin-floor exempt; monthly paid-provider cap = 3 builds x $0.60 LIGHT cap (was 3 x $0.35 until 2026-11-09).
+        (CostClass.ZERO, CostClass.LIGHT), 'required', False, False, 'standard',
         (
-            'deterministic/local zero-paid-provider builds', 'version history', 'rights/IP checks',
+            'up to 3 light builds a month', 'version history', 'rights/IP checks',
             'export with 148AI branding', 'community/self-service support',
         ),
     ),
-    PlanCode.BASIC: PlanDefinition(
-        PlanCode.BASIC, 'Basic', _env_decimal('OMNI_PRICE_BASIC_USD','12'), _env_decimal('OMNI_PRICE_BASIC_ANNUAL_USD','120'), 900, _env_decimal('OMNI_PROVIDER_CAP_BASIC_USD','2.50'), 10, 1,
-        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD), 'subtle-required', False, False, 'standard',
+    PlanCode.AMATEUR: PlanDefinition(
+        PlanCode.AMATEUR, 'Amateur', _env_decimal_renamed('OMNI_PRICE_AMATEUR_USD', 'OMNI_PRICE_BASIC_USD','29'), _env_decimal_renamed('OMNI_PRICE_AMATEUR_ANNUAL_USD', 'OMNI_PRICE_BASIC_ANNUAL_USD','290'), 1000, _env_decimal_renamed('OMNI_PROVIDER_CAP_AMATEUR_USD', 'OMNI_PROVIDER_CAP_BASIC_USD','2.50'), 10, 1,
+        # CEO 2026-10-19: economy/light only; STANDARD starts at Pro.
+        (CostClass.ZERO, CostClass.LIGHT), 'subtle-required', False, False, 'standard',
         (
-            'everything in Free', 'budgeted local/open-weight AI', 'standard code repair',
+            'everything in Free', 'budgeted local/open-weight AI', 'light code repair',
             'limited image/audio materialization', 'private projects', 'email support',
         ),
     ),
     PlanCode.PRO: PlanDefinition(
-        PlanCode.PRO, 'Pro', _env_decimal('OMNI_PRICE_PRO_USD','39'), _env_decimal('OMNI_PRICE_PRO_ANNUAL_USD','390'), 4000, _env_decimal('OMNI_PROVIDER_CAP_PRO_USD','10'), 50, 1,
-        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD, CostClass.ADVANCED, CostClass.HEAVY),
+        PlanCode.PRO, 'Pro', _env_decimal('OMNI_PRICE_PRO_USD','99'), _env_decimal('OMNI_PRICE_PRO_ANNUAL_USD','990'), 4500, _env_decimal('OMNI_PROVIDER_CAP_PRO_USD','10'), 50, 1,
+        # CEO 2026-10-19: Pro goes up to STANDARD.
+        (CostClass.ZERO, CostClass.LIGHT, CostClass.STANDARD),
         'optional', True, False, 'priority',
         (
-            'everything in Basic', 'advanced model routing', 'deep repair loops', 'image/audio/music/voice',
+            'everything in Amateur', 'standard model routing', 'deep repair loops', 'image/audio/music/voice',
             'video/3D within usage budget', 'mobile/game pipelines', 'remove visible 148AI branding', 'priority builds',
         ),
     ),
-    PlanCode.BUSINESS: PlanDefinition(
-        PlanCode.BUSINESS, 'Business', _env_decimal('OMNI_PRICE_BUSINESS_USD','99'), _env_decimal('OMNI_PRICE_BUSINESS_ANNUAL_USD','990'), 12000, _env_decimal('OMNI_PROVIDER_CAP_BUSINESS_USD','25'), 250, 5,
+    PlanCode.STUDIO: PlanDefinition(
+        PlanCode.STUDIO, 'Studio', _env_decimal_renamed('OMNI_PRICE_STUDIO_USD', 'OMNI_PRICE_BUSINESS_USD','299'), _env_decimal_renamed('OMNI_PRICE_STUDIO_ANNUAL_USD', 'OMNI_PRICE_BUSINESS_ANNUAL_USD','2990'), 10000, _env_decimal_renamed('OMNI_PROVIDER_CAP_STUDIO_USD', 'OMNI_PROVIDER_CAP_BUSINESS_USD','25'), 250, 5,
+        # CEO 2026-10-19: Studio may use every cost class.
         tuple(CostClass), 'white-label-eligible', True, True, 'high',
         (
             'everything in Pro', '5 seats', 'team/RBAC workflows', 'API access', 'white-label exports',
@@ -144,6 +173,192 @@ PLAN_CATALOG: dict[PlanCode, PlanDefinition] = {
     ),
 }
 
+
+
+# CEO 2026-10-19: what an M5 build is, per plan. One class per plan; every
+# plan is listed (no silent STANDARD default) and each class must be inside
+# that plan's allowed_cost_classes, or reserve() refuses the build.
+# Repair budget per plan (founder decision 2026-10-19): the SEAM only, not active. Until OMNI_PLAN_REPAIR_BUDGET=1
+# every plan gets DEFAULT_REPAIR_ROUNDS (today's behaviour); the plan values are switched on only after the failure
+# taxonomy (smoke/failure-taxonomy.jsonl) shows more rounds pay off. Plans not listed get the default.
+DEFAULT_REPAIR_ROUNDS = 6   # CEO 2026-11-08 (was 3)
+PLAN_REPAIR_ROUNDS: dict[PlanCode, int] = {PlanCode.AMATEUR: 3, PlanCode.PRO: 5, PlanCode.STUDIO: 8}
+
+
+def plan_repair_budget_enabled() -> bool:
+    return os.getenv('OMNI_PLAN_REPAIR_BUDGET', '0') == '1'
+
+
+def repair_rounds_for_plan(plan, *, enabled: bool | None = None) -> int:
+    """Repair rounds a build of `plan` may use. Off (the default): DEFAULT_REPAIR_ROUNDS for every plan."""
+    if not (plan_repair_budget_enabled() if enabled is None else enabled):
+        return DEFAULT_REPAIR_ROUNDS
+    try:
+        code = plan if isinstance(plan, PlanCode) else PlanCode(str(plan).lower())
+    except ValueError:
+        return DEFAULT_REPAIR_ROUNDS
+    return PLAN_REPAIR_ROUNDS.get(code, DEFAULT_REPAIR_ROUNDS)
+
+
+M5_BUILD_COST_CLASS: dict[PlanCode, CostClass] = {
+    PlanCode.FREE: CostClass.LIGHT,
+    PlanCode.AMATEUR: CostClass.LIGHT,
+    PlanCode.PRO: CostClass.STANDARD,
+    PlanCode.STUDIO: CostClass.HEAVY,
+    PlanCode.ENTERPRISE: CostClass.EXTREME,
+}
+
+# Credits one M5 build costs, per class (CEO 2026-10-19).
+M5_CLASS_BUILD_CREDITS: dict[CostClass, int] = {
+    CostClass.ZERO: 20, CostClass.LIGHT: 45, CostClass.STANDARD: 200,
+    CostClass.ADVANCED: 300, CostClass.HEAVY: 500, CostClass.EXTREME: 1200,
+}
+
+# Whole-build model-spend cap per class (CEO 2026-10-19), each overridable by
+# its own env var OMNI_BUILD_LLM_CAP_<CLASS>_USD. A class without a cap fails closed.
+# Soft cap: admission never refuses on it; overage is recorded (llm_overage).
+_M5_CLASS_LLM_CAP_DEFAULT_USD: dict[CostClass, str] = {
+    CostClass.ZERO: '0.05', CostClass.LIGHT: '0.60', CostClass.STANDARD: '1.60',
+    CostClass.ADVANCED: '3.00', CostClass.HEAVY: '5.50', CostClass.EXTREME: '18.00',
+}
+
+# Model allowlist per class (CEO 2026-10-19 02:22): the most a routable model
+# may charge per 1M output tokens. None = no price ceiling. ZERO admits only
+# models that charge nothing.
+M5_CLASS_MAX_OUTPUT_PER_MILLION: dict[CostClass, Decimal | None] = {
+    CostClass.ZERO: Decimal('0'), CostClass.LIGHT: Decimal('1.50'), CostClass.STANDARD: Decimal('5.00'),
+    CostClass.ADVANCED: Decimal('8.00'), CostClass.HEAVY: None, CostClass.EXTREME: None,
+}
+
+# Exempt from the 60% build-margin floor (CEO 2026-10-19): Enterprise is priced by
+# contract; Free gets its class cap as an acquisition cost (<= $0.60/build).
+MARGIN_FLOOR_EXEMPT_PLANS = frozenset({PlanCode.ENTERPRISE, PlanCode.FREE})
+
+# Actual model spend above this multiple of the class cap is logged as an alert.
+LLM_OVERAGE_ALERT_MULTIPLE = Decimal('2')
+
+
+def _as_plan_code(plan_code) -> PlanCode:
+    return plan_code if isinstance(plan_code, PlanCode) else PlanCode(plan_code)
+
+
+def _as_cost_class(cost_class) -> CostClass:
+    return cost_class if isinstance(cost_class, CostClass) else CostClass(cost_class)
+
+
+def m5_build_cost_class(plan_code) -> CostClass:
+    return M5_BUILD_COST_CLASS[_as_plan_code(plan_code)]
+
+
+def m5_build_terms(plan_code) -> tuple[CostClass, int]:
+    """(cost class, credits) one M5 build reserves on this plan."""
+    cc = m5_build_cost_class(plan_code)
+    return cc, M5_CLASS_BUILD_CREDITS[cc]
+
+
+def m5_class_llm_cap(cost_class) -> Decimal:
+    cc = _as_cost_class(cost_class)
+    default = _M5_CLASS_LLM_CAP_DEFAULT_USD.get(cc)
+    raw = os.getenv(f'OMNI_BUILD_LLM_CAP_{cc.value.upper()}_USD', '').strip() or default
+    if raw is None:
+        raise PermissionError(f'no model-spend cap is decided for cost class {cc.value}')
+    cap = Decimal(raw)
+    if not cap.is_finite() or cap < 0:
+        raise PermissionError(f'invalid model-spend cap for cost class {cc.value}')
+    return cap
+
+
+# CEO 2026-11-08 (b): LIGHT and STANDARD may use a strong model for repair and QA review only (the builds failed
+# verification after 3 repair rounds with only Flash-Lite and GPT-6 Luna). The class hard cap still bounds spend.
+# Override per class: OMNI_TASK_ONLY_MODELS_<CLASS>="model:task+task,model:task" ("none" disables).
+# CEO 2026-11-09 ("מאשר הכול גם את השדרוגים שלך"): codegen joins the list. A new customer's LIGHT builds failed
+# because the cheap models wrote an empty catalog and front-end calls to routes they never defined; repair cannot
+# rescue a first draft that thin. The LIGHT cap rose 0.35 -> 0.60 to pay for it; the 60% margin floor still clips
+# paid plans (Amateur lands near $0.50), so no ceiling is bypassed.
+_M5_TASK_ONLY_DEFAULT: dict[CostClass, str] = {
+    CostClass.LIGHT: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
+    CostClass.STANDARD: 'anthropic-claude-sonnet-5-5:codegen+repair+review',
+}
+
+
+def m5_task_only_models(cost_class) -> dict[str, frozenset]:
+    cc = _as_cost_class(cost_class)
+    raw = os.getenv(f'OMNI_TASK_ONLY_MODELS_{cc.value.upper()}', '').strip() or _M5_TASK_ONLY_DEFAULT.get(cc, '')
+    out: dict[str, frozenset] = {}
+    if raw.lower() == 'none':
+        return out
+    for item in raw.split(','):
+        name, _, tasks = item.strip().partition(':')
+        names = frozenset(t.strip() for t in tasks.split('+') if t.strip())
+        if name.strip() and names:
+            out[name.strip()] = names
+    return out
+
+
+_FOUNDER_DEFAULT = 'usr_GCWlMxENgr9vpwph'   # the founder's account id (not a secret); OMNI_FOUNDER_ACCOUNT_IDS overrides
+
+
+def m5_founder_account(account_id) -> bool:
+    """CEO 2026-11-08 (a): founder accounts build with the whole catalog."""
+    raw = os.getenv('OMNI_FOUNDER_ACCOUNT_IDS', _FOUNDER_DEFAULT)
+    ids = {x.strip() for x in raw.split(',') if x.strip()}
+    return bool(account_id) and str(account_id) in ids
+
+
+def m5_founder_build_budget() -> Decimal:
+    """CEO 2026-11-08 20:09: founder test builds may spend up to $2 on models (paid by us, not a customer
+    price), to measure what a real build costs before pricing is set. OMNI_FOUNDER_BUILD_LLM_USD overrides."""
+    value = Decimal(os.getenv('OMNI_FOUNDER_BUILD_LLM_USD', '2.00').strip() or '2.00')
+    if not value.is_finite() or value < 0 or value > Decimal('10'):
+        raise PermissionError('invalid founder build budget')
+    return value
+
+
+def m5_model_allowed(cost_class, output_per_million, task: str | None = None) -> bool:
+    # LIGHT no longer widens its price ceiling for codegen (founder 2026-10-22).
+    cc = _as_cost_class(cost_class)
+    ceiling = M5_CLASS_MAX_OUTPUT_PER_MILLION[cc]
+    return ceiling is None or Decimal(str(output_per_million)) <= ceiling
+
+
+def m5_revenue_basis(plan, credits: int) -> Decimal | None:
+    """Revenue one build represents: monthly price x build credits / plan credits."""
+    if plan.monthly_price_usd in (None, Decimal('0')) or not plan.included_credits:
+        return None
+    return Decimal(plan.monthly_price_usd) * Decimal(int(credits)) / Decimal(int(plan.included_credits))
+
+
+def m5_llm_budget(plan, cost_class, credits: int, *, non_llm_usd=Decimal('0'),
+                  minimum_margin=Decimal('0.60'), internal_qa: bool = False) -> tuple[Decimal, str]:
+    """(model budget for one build, basis). The class cap, clipped so the whole
+    build (model budget + non-model components) keeps the margin floor.
+    Margin-exempt plans and internal QA get the plain cap; a plan with no
+    revenue gets 0 (no paid model spend without revenue)."""
+    from decimal import ROUND_DOWN
+    cap = m5_class_llm_cap(cost_class)
+    if internal_qa or plan.code in MARGIN_FLOOR_EXEMPT_PLANS:
+        return cap, 'class_cap'
+    revenue = m5_revenue_basis(plan, credits)
+    if revenue is None:
+        return Decimal('0'), 'no_revenue'
+    ceiling = (revenue * (Decimal('1') - Decimal(minimum_margin)) - Decimal(str(non_llm_usd))).quantize(
+        Decimal('0.0001'), rounding=ROUND_DOWN)
+    if ceiling < cap:
+        return max(Decimal('0'), ceiling), 'clipped_to_margin_floor'
+    return cap, 'class_cap'
+
+
+def llm_overage(actual_usd, cap_usd) -> dict:
+    """Soft cap (CEO 2026-10-19): never refuses; records how far spend went over."""
+    actual, cap = Decimal(str(actual_usd)), Decimal(str(cap_usd))
+    if actual <= cap:
+        status = 'WITHIN_CAP'
+    elif actual > cap * LLM_OVERAGE_ALERT_MULTIPLE:
+        status = 'OVER_2X_CAP'
+    else:
+        status = 'OVER_CAP'
+    return {'status': status, 'actual_usd': str(actual), 'cap_usd': str(cap),
+            'alert_multiple': str(LLM_OVERAGE_ALERT_MULTIPLE)}
 
 @dataclass(frozen=True)
 class UsageDecision:
@@ -314,9 +529,9 @@ def catalog_payload() -> dict:
     return {
         'currency': 'USD',
         'pricing_status': 'prelaunch-proposed-configurable',
-        'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.BASIC, PlanCode.PRO, PlanCode.BUSINESS, PlanCode.ENTERPRISE)],
+        'plans': [PLAN_CATALOG[x].public_dict() for x in (PlanCode.FREE, PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO, PlanCode.ENTERPRISE)],
         'principles': [
-            'Free uses zero-paid-provider paths only.',
+            'Free includes a small capped allowance of light paid-model builds.',
             'System bugs and missed original requirements do not consume customer credits.',
             'Paid-provider spend is hard-capped per plan before execution.',
             'Heavy media/compute is metered; no unlimited GPU promise.',
