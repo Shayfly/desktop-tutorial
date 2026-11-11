@@ -7,10 +7,17 @@ budget) for ever, although v28_build_cancel tells the customer only used work is
 
 Once the build or modification is TERMINAL, its provider-call attempts decide (under the reservation lock):
   * every attempt finished (outcome ok/error) and nothing was metered      -> RELEASE (counters restored)
-  * every attempt finished, every completed call metered, total > 0          -> SETTLE on the metered total
+  * every attempt finished, every completed call metered, total > 0          -> RELEASE_METERED: credits back, the
+                                                                                metered total kept on record
+                                                                                (subscription_store.release_failed)
   * an attempt still 'unknown', or a completed call with no metered cost    -> HOLD (real, unknown liability)
 A READY build is never touched (its settlement is the build's own). Internal-QA reservations release without
 touching customer counters, exactly as release() does.
+
+B2 (founder 2026-11-03, BILLING-FAIL-001): the reconciler only ever sees TERMINAL work that did not deliver, so it no
+longer SETTLEs anything. Before, a stuck reservation of a failed build with metered cost was SETTLED here while the
+worker's own path (resolve_billing -> release_failed, #214) RELEASED the same case: two paths, one case. The settle
+path is deleted; both now go through release_failed (one idempotent credit_ledger row per build).
 
     python -m omni_prod.reservation_reconciler            # dry run: what each RESERVED terminal row would get
     python -m omni_prod.reservation_reconciler --apply    # resolve them
@@ -47,7 +54,7 @@ def is_terminal(cur, build_id: str) -> bool:
 
 
 def verdict(cur, build_id: str) -> tuple[str, Decimal, str]:
-    """('release'|'settle'|'hold', metered_total, reason) from the build's provider-call attempts."""
+    """('release'|'release_metered'|'hold', metered_total, reason) from the build's provider-call attempts."""
     cur.execute("SELECT outcome, metered_cost_usd FROM task_attempts WHERE build_id = %s AND kind = 'provider_call'",
                 (build_id,))
     rows = cur.fetchall()
@@ -57,7 +64,7 @@ def verdict(cur, build_id: str) -> tuple[str, Decimal, str]:
         return 'hold', Decimal('0'), 'a completed provider call has no metered cost'
     total = sum((Decimal(str(m)) for _, m in rows if m is not None), Decimal('0'))
     if total > 0:
-        return 'settle', total, f'{len(rows)} finished call(s), metered {total}'
+        return 'release_metered', total, f'{len(rows)} finished call(s), metered {total}'
     return 'release', total, f'{len(rows)} finished call(s), nothing metered'
 
 

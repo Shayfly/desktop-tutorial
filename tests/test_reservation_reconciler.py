@@ -23,9 +23,9 @@ class TheVerdict(unittest.TestCase):
         self.assertEqual(verdict(Cur([('error', None)]), 'b')[0], 'release')
         self.assertEqual(verdict(Cur([]), 'b')[0], 'release')                     # no call was ever made
 
-    def test_metered_work_is_settled_on_its_total(self):
+    def test_metered_work_is_released_with_its_total_on_record(self):
         action, total, _ = verdict(Cur([('ok', Decimal('0.10')), ('error', Decimal('0.02'))]), 'b')
-        self.assertEqual((action, total), ('settle', Decimal('0.12')))
+        self.assertEqual((action, total), ('release_metered', Decimal('0.12')))   # B2: never settle
 
     def test_unknown_or_unmetered_success_is_held(self):
         self.assertEqual(verdict(Cur([('error', None), ('unknown', None)]), 'b')[0], 'hold')
