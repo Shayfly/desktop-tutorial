@@ -3616,7 +3616,24 @@ def v28_deployment() -> dict:
     return {'source_commit': os.getenv('VERCEL_GIT_COMMIT_SHA') or os.getenv('OMNI_SOURCE_COMMIT') or None,
             'environment': os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV', 'development'),
             'branch': os.getenv('VERCEL_GIT_COMMIT_REF') or None,
-            'schema': _schema_compatibility()}
+            'schema': _schema_compatibility(),
+            # 72 step 0 (isolation): which database each candidate variable points to -- host:port/db only (hosts are
+            # not secret, owner decision 2026-10-19), so a Preview can be checked against Production before switching.
+            'database_candidates': _database_candidates()}
+
+
+def _database_candidates() -> dict:
+    from .isolation_check import DB_KEYS, db_identity
+    out = {}
+    # The Neon integrations also inject prefixed copies (DB2_ = 148ai-db-v2, GENAPP_ = generated apps).
+    for key in DB_KEYS + ('DB2_DATABASE_URL', 'DB2_POSTGRES_URL', 'GENAPP_DATABASE_URL'):
+        try:
+            ident = db_identity(os.getenv(key))
+        except ValueError:
+            ident = 'unparseable'
+        if ident:
+            out[key] = ident
+    return out
 
 @app.get('/api/v28/integrations')
 def v28_integrations(request: Request) -> dict:
