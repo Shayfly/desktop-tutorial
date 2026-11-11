@@ -3,6 +3,13 @@ name: Pipeline identity vs baseline
 # Michael 2026-11-10 fix 1: with every flag off, the gate code (the import closure of the frozen gate files and the
 # behavioural runner, as ASTs) and everything the pipeline tells its models must equal the baseline commit. The
 # baseline is computed HERE, by the same interpreter, from a worktree of that commit -- never a stored hash.
+#
+# Michael 2026-11-11 (after the freeze): TWO anchors, not one.
+#   FROZEN_PIN    docs/gate-freeze.json "baseline" -- used only while the freeze is active. Blocking.
+#   rolling base  the HEAD of main this PR is measured against (the PR base; origin/main on schedule/dispatch).
+# The behavioural digest is ALWAYS computed and published as a notice. The job BLOCKS only while the freeze is active,
+# or when the PR touches the site_auth_v2 files -- there "flag off equals main" is exactly what must hold. Anything
+# else is an intended change: measured and shown, never a pile of signatures that turns into rubber.
 on:
   pull_request:
   workflow_dispatch:
@@ -15,11 +22,15 @@ permissions:
   contents: read
 
 env:
-  BASELINE_SHA: 2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49
+  # the flag-gated surface: a PR touching any of these is held to "flag off equals the anchor" even after the freeze
+  SITE_AUTH_FILES: >-
+    omni_prod/feature_flags.py omni_prod/web_saas_auth_hardening.py omni_prod/auth_form_check.py
+    tests/test_site_auth_v2.py docs/site-auth-v2.md
 
 jobs:
   identity:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,19 +38,46 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: The baseline commit is present (a shallow clone would fail on environment, not code)
-        run: |
-          if ! git cat-file -e "${BASELINE_SHA}^{commit}" 2>/dev/null; then
-            echo "::error title=baseline missing::commit ${BASELINE_SHA} is not in this clone (fetch-depth must be 0); nothing was compared"
-            exit 1
-          fi
-      - name: Additive only -- every line deleted from the baseline is declared
+      - name: Anchor and mode (one annotation per result)
+        id: mode
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          git diff --numstat "$BASELINE_SHA" HEAD | awk '$2 != "0" && $2 != "-" {print $3}' > "$RUNNER_TEMP/deleted.txt"
+          read -r active pin < <(python3 -c 'import json; f=json.load(open("docs/gate-freeze.json")); print(str(bool(f.get("active"))).lower(), f.get("baseline") or "-")')
+          rolling="${PR_BASE:-$(git rev-parse origin/main)}"
+          touched=""
+          for f in $SITE_AUTH_FILES; do
+            if git diff --name-only "$rolling" HEAD | grep -qx "$f"; then touched="$touched $f"; fi
+          done
+          if [ "$active" = "true" ]; then
+            anchor="$pin"; blocking=true; why="the gate freeze is active (FROZEN_PIN ${pin:0:7})"
+          elif [ -n "$touched" ]; then
+            anchor="$rolling"; blocking=true; why="the PR touches site_auth_v2:$touched"
+          else
+            anchor="$rolling"; blocking=false; why="no freeze and no site_auth_v2 file: measured, not blocking"
+          fi
+          if ! git cat-file -e "${anchor}^{commit}" 2>/dev/null; then
+            echo "::error title=anchor missing::commit $anchor is not in this clone (fetch-depth must be 0); nothing was compared"
+            exit 1
+          fi
+          echo "::notice title=identity mode::anchor ${anchor:0:7}; blocking=$blocking -- $why"
+          { echo "anchor=$anchor"; echo "blocking=$blocking"; } >> "$GITHUB_OUTPUT"
+      - name: Additive only -- every line deleted from the anchor is declared (blocking mode only)
+        env:
+          ANCHOR: ${{ steps.mode.outputs.anchor }}
+          BLOCKING: ${{ steps.mode.outputs.blocking }}
+        run: |
+          set -euo pipefail
+          git diff --numstat "$ANCHOR" HEAD | awk '$2 != "0" && $2 != "-" {print $3}' > "$RUNNER_TEMP/deleted.txt"
           python3 - "$RUNNER_TEMP/deleted.txt" <<'PY'
-          import json, sys
+          import json, os, sys
           deleted = [l.strip() for l in open(sys.argv[1]) if l.strip()]
+          if os.environ["BLOCKING"] != "true":
+              for p in deleted:
+                  print(f"::notice title=changed lines::{p}")
+              print(f"::notice title=additive only::not blocking (no freeze, no site_auth_v2 file): {len(deleted)} file(s) with deleted lines, listed above")
+              sys.exit(0)
           allowed = json.load(open("docs/identity/allowed-deletions.json"))["allowed"]
           # Michael fix 4: a declaration is not a self-waiver -- each needs a reviewer who is not the author.
           bad, unreviewed = [], []
@@ -53,32 +91,51 @@ jobs:
                   unreviewed.append(p)
               print(f"::notice title=deletion::{p}: {d.get('reason')} (author {d.get('author')}, reviewer {who or 'NONE'})")
           if bad:
-              print(f"::error title=additive only::lines deleted from the baseline in {', '.join(bad)} without a declared reason")
+              print(f"::error title=additive only::lines deleted from the anchor in {', '.join(bad)} without a declared reason")
           if unreviewed:
               print(f"::error title=additive only::deletions in {', '.join(unreviewed)} have no reviewer note (a reviewer other than the author must sign in docs/identity/allowed-deletions.json)")
           if bad or unreviewed:
               sys.exit(1)
           print(f"::notice title=additive only::{len(deleted)} file(s) with deletions, all declared and reviewed")
           PY
-      - name: Baseline manifests from a worktree of the baseline commit
+      - name: Anchor manifests from a worktree of the anchor commit
+        env:
+          ANCHOR: ${{ steps.mode.outputs.anchor }}
         run: |
           set -euo pipefail
-          git worktree add "$RUNNER_TEMP/base" "$BASELINE_SHA"
+          git worktree add "$RUNNER_TEMP/base" "$ANCHOR"
           cp omni_prod/pipeline_identity.py "$RUNNER_TEMP/base/omni_prod/"
           (cd "$RUNNER_TEMP/base" && OMNI_SITE_AUTH_V2=0 python -m omni_prod.pipeline_identity --source > "$RUNNER_TEMP/base-source.json" \
              && OMNI_SITE_AUTH_V2=0 python -m omni_prod.pipeline_identity > "$RUNNER_TEMP/base-digest.txt")
-          echo "::notice title=baseline::$(cat "$RUNNER_TEMP/base-digest.txt") at ${BASELINE_SHA:0:7}"
-      - name: This commit, flag off, equals the baseline
+          echo "::notice title=anchor digest::$(cat "$RUNNER_TEMP/base-digest.txt") at ${ANCHOR:0:7}"
+      - name: This commit, flag off, against the anchor (digest always published)
         env:
+          ANCHOR: ${{ steps.mode.outputs.anchor }}
+          BLOCKING: ${{ steps.mode.outputs.blocking }}
           BASELINE_SOURCE_MANIFEST: ${{ runner.temp }}/base-source.json
           OMNI_SITE_AUTH_V2: '0'
         run: |
           set -euo pipefail
           head=$(python -m omni_prod.pipeline_identity)
           base=$(cat "$RUNNER_TEMP/base-digest.txt")
-          if [ "$head" = "$base" ]; then echo "::notice title=behavioural identity::$head equals the baseline"; \
-          else echo "::error title=behavioural identity::$head != baseline $base"; exit 1; fi
-          python -m unittest tests.test_site_auth_v2.SourceIdentity -v
+          echo "::notice title=behavioural digest::$head (this commit) vs $base (anchor ${ANCHOR:0:7})"
+          if [ "$head" = "$base" ]; then
+            echo "::notice title=behavioural identity::equals the anchor"
+          elif [ "$BLOCKING" = "true" ]; then
+            echo "::error title=behavioural identity::$head != anchor $base"; exit 1
+          else
+            echo "::notice title=behavioural identity::differs from the anchor -- an intended change, not blocking"
+          fi
+          # The coverage/closure checks do not depend on the anchor: they ALWAYS block (they found real gaps twice).
+          env -u BASELINE_SOURCE_MANIFEST python -m unittest tests.test_site_auth_v2.SourceIdentity -v
+          # Only the anchor comparison follows the mode.
+          one=tests.test_site_auth_v2.SourceIdentity.test_the_gate_code_is_the_baseline_with_the_flag_off
+          if [ "$BLOCKING" = "true" ]; then
+            python -m unittest "$one" -v
+          else
+            python -m unittest "$one" -v \
+              || echo "::notice title=source identity::the gate code differs from the anchor -- an intended change, not blocking"
+          fi
           python - <<'PY'
           from omni_prod.pipeline_identity import source_manifest
           m = source_manifest()
