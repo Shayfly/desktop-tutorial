@@ -76,6 +76,24 @@ class ResetRule(unittest.TestCase):
                   '.github/workflows/neon-preview-branches.yml', '.github/workflows/deployment-verify.yml'):
             self.assertNotRegex((root / f).read_text(), r'\b0[0-9]{2}_[a-z_]+\.sql', f)   # no migration named in code
 
+    def test_a_pr_with_its_own_newer_migration_still_reads_mains_latest(self):
+        # Probe #320: the deployment checks out the PR commit; its 043 is not in main. The rule must read main's tree.
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            git = lambda *a: subprocess.run(['git', '-C', d, *a], check=True, capture_output=True, text=True).stdout
+            git('init', '-q', '-b', 'main')
+            git('config', 'user.email', 't@t'); git('config', 'user.name', 't')
+            (pathlib.Path(d) / 'infra' / 'postgres').mkdir(parents=True)
+            (pathlib.Path(d) / 'infra' / 'postgres' / '042_a.sql').write_text('select 1;')
+            git('add', '-A'); git('commit', '-q', '-m', 'main 042')
+            git('checkout', '-q', '-b', 'pr')
+            (pathlib.Path(d) / 'infra' / 'postgres' / '043_pr_own.sql').write_text('select 2;')
+            git('add', '-A'); git('commit', '-q', '-m', 'pr 043')
+            latest, at = N.latest_migration_at(d, 'main')
+        self.assertEqual(latest, '042_a.sql')
+        self.assertTrue(at)
+
     def test_never_main_backups_or_protected(self):
         branches = [br('main', created='2026-10-25T00:00:00Z', default=True, primary=True),
                     br('backup-before-042', created='2026-11-01T00:00:00Z', parent_id='br-main'),

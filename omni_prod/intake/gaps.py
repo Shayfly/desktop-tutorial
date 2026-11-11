@@ -121,7 +121,9 @@ class Spec:
             at = message.find(quote) if quote else -1
             span = Span(i, at, at + len(quote), quote) if at >= 0 else None
             if getattr(p, 'confidence', 'high') == 'high':
-                self.ledger.add(Requirement(p.field, p.value, STATED, span))       # said outright: known
+                # said outright: known. Without a quote in the words Ledger.add records it UNSOURCED, never STATED
+                # (sources.py; audit 2026-11-02 finding 4 re-checked: guarded there, value() does not return it)
+                self.ledger.add(Requirement(p.field, p.value, STATED, span))
             elif span is not None and self.ledger.current(p.field) is None:
                 # only implied by the words: an implication for THIS request (assumed or, if sensitive, confirmed)
                 self.ledger.add(Requirement(p.field, p.value, ASSUMED, span, why='implied'))
@@ -133,6 +135,12 @@ class Spec:
             f = next(x for x in list(self.fields) + list(CONDITIONAL.values()) if x.name == pending.field)
             default = language_of(' '.join(self.ledger.messages)) if f.name == 'languages' else f.default   # LANG-001
             why = 'delegated' if _DELEGATE.search(message or '') else 'not answered'
+            if f.confirm and why != 'delegated':
+                # audit 2026-11-02 finding 5: a sensitive field (privacy, data, who may enter) never takes a silent
+                # default from a reply that filled nothing; it stays missing (the conversation holds it OPEN for
+                # the approval gate) unless the customer delegates explicitly
+                self._settle(pending, filled=False)
+                return
             self.ledger.add(Requirement(f.name, default, ASSUMED, Span(i, 0, len(message), message), why=why))
             self._settle(pending, filled=why == 'delegated')
             return
