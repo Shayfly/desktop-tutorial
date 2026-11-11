@@ -75,3 +75,8 @@ ignored entirely (not merged, not used as a fallback for missing v2 fields). One
 it does not add a gap to the turn, does not change `asked`, does not change the contract, status or questions.
 Fixture: the same conversation with shadow on and off produces byte-identical contracts, turn questions and
 `decision_asked`; only the log differs.
+
+**C3 consequence (follows from it, stated so the code cannot drift):** in shadow mode the `Product decisions v2` line
+is NOT written into the generated block. The block is part of the contract prompt and its fingerprint, so writing it
+would already change contracts. In shadow the decision lives only in `brief_json["decision"]` and the log; the v2
+line (and C2's precedence) start with enforcement.
