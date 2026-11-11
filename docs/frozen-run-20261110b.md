@@ -60,3 +60,41 @@ changes during the run.
 
 Arm 1 `modelsUsed`: claude-sonnet-5-5 (architect, codegen, repairs); gemini-3.8-flash (catalog escalation after a
 sonnet invalid-JSON repair reply); gpt-6.1-sol (review, runtime catalog choice).
+
+## Correction 2 — 2026-11-11T06:35Z (after arm 2, before arm 3) — Michael 2026-11-11 08:26
+
+A timestamped correction, never a silent edit. Nothing above this line changed.
+
+**Arm 2 (florist-details) FAILED** in behavioural acceptance after 5 repair rounds: `missing required behavior kinds:
+data_create`. The contract (unified_engine keyword rule: "הזמנה" -> modules customers/availability/bookings) required a
+data_create behaviour for a page the owner explicitly made static; the builder produced a correct static page. The
+decision gate (5 of 6) is no longer reachable.
+
+**Arm 1 re-checked against its artifact, as required before the report closes.** Arm 1's contract carried the same
+data requirement, but its behaviour plan covered `data_create` with a REFUSAL check (`POST /` -> HTTP 405 expected and
+returned): the locksmith page writes no data. Arm 1's pass is NOT a pass on unrequested product. The difference
+between arm 1 and arm 2 is the model-written behaviour plan (arm 2's plan had no data_create step at all), not the
+product.
+
+**Amended plan:**
+| # | arm | status |
+|---|---|---|
+| 3 | florist-nodetails | runs as written, marked `reproduction` (and `informed`, `warned`) |
+| 4 | restaurant-a | SKIPPED -- the decision gate is already unreachable; same contract path, same information for $2-3 |
+| 5 | restaurant-b | SKIPPED -- same reason |
+| 6 | refusal-control | runs LAST -- independent of the contract path, the one clean data point left |
+
+**Outcomes of arm 3, fixed now, before it runs:**
+- fails on the SAME missing kind (`data_create`) -> the stop condition is met, the defect is proven systematic, the run
+  stops after arm 6;
+- passes through a data_create REFUSAL check (as arm 1 did) -> the contract defect is still present and recorded; the
+  pass is marked `passed-via-refusal-check` and proves only that the behaviour planner sometimes covers the kind;
+- fails on anything else -> recorded as its own failure; the run still stops after arm 6.
+
+**Findings added:**
+6. The gate-waste metric counted 0 for 5 repair rounds burned on a requirement the product must NOT meet. It measures
+   quarantine loops only. Any round spent on a requirement the product is not supposed to satisfy is gate waste.
+7. Priority is inverted in the contract: a keyword overrode an explicit decision. An explicit decision always wins.
+8. "הזמנה" sat inside a ready-made WhatsApp message (marketing copy). "The word appears" must differ from "the
+   business takes orders on the site".
+9. (pending) whether arm 2's draft invented testimonials for "מה אומרים עלינו" -- the brief gives none.
