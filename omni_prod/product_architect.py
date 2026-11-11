@@ -215,7 +215,7 @@ class ProductArchitect:
         from .intake.contract import strip_negated
         intent = strip_negated(intent) or intent
         from .semantic_capabilities import read_approved
-        semantic_decisions = read_approved(clean)
+        semantic_decisions = read_approved(prompt)   # lines intact: `clean` collapses the newlines the marker needs
         decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
