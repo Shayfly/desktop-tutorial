@@ -19,6 +19,12 @@
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-10"
+  },
+  ".github/workflows/v24-ci.yml": {
+   "reason": "the test job timeout line 15 -> 20 minutes (policy maximum); successful runs reached 14.9 min and PR #297 was cancelled at 15:00. CI configuration only, no product behaviour.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
   }
  }
 }
