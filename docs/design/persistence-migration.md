@@ -59,3 +59,19 @@ chip, and the chip must be pressed. In shadow mode nothing changes; the log show
 - v2 preferred over v1 when both exist; a v2 line typed by the customer (outside the generated block) is ignored
 - shadow: a forced SCHEMA violation is logged and does NOT change the contract
 - the artifact id is stable across brief revisions
+
+## 7. Signed (Michael 2026-11-11 14:26) — three conditions, binding
+
+**C1. No enforcement before the button exists.** Enforcement (§4 "enforce", and with it §5) is not even proposed
+until the §3 card with decision chips is live and working in the product. A customer who can only type must never
+end up with a blocking gap nobody can close. The enforce flip PR must link the merged §3 PR and a run where the
+chips were used.
+
+**C2. Version precedence.** If v1 and v2 lines both appear in the generated block, the HIGHER version wins and v1 is
+ignored entirely (not merged, not used as a fallback for missing v2 fields). One truth per brief. Fixture: v1
+`records` + v2 `none` -> `none`; v1 `none` + v2 with persistence `missing` -> NO decision (not `none`).
+
+**C3. Shadow creates no gaps that block.** In shadow mode a missing or invalid decision is written to the log only:
+it does not add a gap to the turn, does not change `asked`, does not change the contract, status or questions.
+Fixture: the same conversation with shadow on and off produces byte-identical contracts, turn questions and
+`decision_asked`; only the log differs.
