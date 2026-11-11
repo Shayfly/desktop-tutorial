@@ -61,6 +61,11 @@ GENERATION_CONSTRAINTS = (
     'write files only under os.environ.get("DATA_DIR", "/tmp") (for example a SQLite database at '
     'os.path.join(os.environ.get("DATA_DIR", "/tmp"), "app.db")), never next to the code, and create that path at '
     'startup. Tests must not write into the repository either (use pytest tmp_path and set DATA_DIR for the app). '
+    # bld_96ab03c8 / bld_99ea49df (2026-11-01): the tests were written to a root tests.py, which "python -m pytest" never
+    # collects (exit 5, "no tests ran"), and imported requests, which the offline sandbox does not have.
+    'Tests go in tests/test_<topic>.py (for example tests/test_app.py) and never in a file named tests.py at the '
+    'repository root: pytest collects only test_*.py and *_test.py. Tests import only the Python standard library and '
+    'pytest -- never requests or any other HTTP client package; call the local server with urllib.request. '
     'Tests run from the repository root with "python -m pytest -q" on Python 3.12; the preview runs Python 3.11, so '
     'use only syntax and standard-library features available in 3.11. There is no network except loopback: a test '
     'that needs the HTTP server starts it in a thread on a free port (bind port 0) and stops it afterwards.'
@@ -85,9 +90,13 @@ class UnsupportedDependency:
     name: str
     source: str
     reason: str
+    line: int | None = None        # the import's line in `source` (imports only), so the failure says file:line
+
+    def where(self) -> str:
+        return f'{self.source}:{self.line}' if self.line else self.source
 
     def to_dict(self) -> dict:
-        return {'name': self.name, 'source': self.source, 'reason': self.reason}
+        return {'name': self.name, 'source': self.source, 'line': self.line, 'reason': self.reason}
 
 
 def _norm(name: str) -> str:
@@ -97,8 +106,10 @@ def _norm(name: str) -> str:
 def _is_test_path(path: str) -> bool:
     parts = path.split('/')
     base = parts[-1]
+    # bld_96ab03c880f24b3a98065bf29eed11c3 (2026-11-01): the generator wrote the tests to `tests.py`; it was read as
+    # application code and its `import pytest` blocked all four rounds. A module named tests.py is a test module.
     return (any(p in ('tests', 'test') for p in parts[:-1]) or base.startswith('test_')
-            or base.endswith('_test.py') or base == 'conftest.py')
+            or base.endswith('_test.py') or base in ('conftest.py', 'tests.py'))
 
 
 def _version_tuple(v: str):
@@ -264,7 +275,7 @@ def _imports(repository: dict[str, str], findings: list) -> None:
                     continue
                 reason = ('test-only package imported by application code' if dist in TEST_ONLY_PACKAGES
                           else 'not in the standard library, the repository or the allowlist')
-                findings.append(UnsupportedDependency(top, path, reason))
+                findings.append(UnsupportedDependency(top, path, reason, getattr(node, 'lineno', None)))
 
 
 def _manifest(repository: dict[str, str], findings: list) -> None:
@@ -315,9 +326,43 @@ def _node(repository: dict[str, str], findings: list) -> None:
                                                   'the sandbox image has no Node toolchain'))
 
 
+UNCOLLECTED_TESTS_REASON = 'tests.py is not collected by pytest'
+UNCOLLECTED_TESTS_FIX = 'rename it to test_app.py or move it under tests/'
+_PYTEST_CONFIGS = ('pytest.ini', 'pyproject.toml', 'setup.cfg', 'tox.ini')
+
+
+def _pytest_collects(path: str) -> bool:
+    """pytest's default python_files: test_*.py and *_test.py, in any directory."""
+    base = path.rsplit('/', 1)[-1]
+    return base.endswith('.py') and (base.startswith('test_') or base.endswith('_test.py'))
+
+
+def _uncollected_tests(repository: dict[str, str], findings: list) -> None:
+    """bld_99ea49dfc6c843aabc90bb8cccbcc1d7 (2026-11-01): the gate let a root tests.py through (#205) and the verify
+    command `python -m pytest -q` collected nothing -- exit 5, "no tests ran", eight acceptance checks failed and three
+    paid repairs never saw why. Flagged when tests.py is at the root, no file matches pytest's default patterns, a
+    verify command runs pytest without naming tests.py, and no pytest configuration changes python_files."""
+    source = repository.get('tests.py')
+    if source is None or any(_pytest_collects(p) for p in repository):
+        return
+    if any('python_files' in (repository.get(c) or '') for c in _PYTEST_CONFIGS):
+        return
+    try:
+        verify = json.loads(repository.get('.omni/project.json') or '{}').get('verify') or []
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return  # manifest validity is checked by the executor
+    argvs = [[str(w) for w in (c.get('argv') or [])] for c in verify if isinstance(c, dict)]
+    if not any(any(w.rsplit('/', 1)[-1] == 'pytest' for w in a) and not any(w.endswith('tests.py') for w in a)
+               for a in argvs):
+        return
+    line = next((i for i, text in enumerate(source.splitlines(), 1) if re.match(r'\s*(async\s+)?def\s+test', text)), 1)
+    findings.append(UnsupportedDependency('tests.py', 'tests.py', UNCOLLECTED_TESTS_REASON, line))
+
+
 def scan(repository: dict[str, str]) -> tuple[UnsupportedDependency, ...]:
     findings: list[UnsupportedDependency] = []
     _manifest(repository, findings)
+    _uncollected_tests(repository, findings)
     _node(repository, findings)
     for line, source, test_scope in _requirement_files(repository):
         f = _check_requirement(line, source, test_scope=test_scope)
@@ -332,7 +377,14 @@ def scan(repository: dict[str, str]) -> tuple[UnsupportedDependency, ...]:
 
 
 def unsupported_report(findings) -> ExecutionReport:
-    detail = '; '.join(f'{f.name} ({f.source}): {f.reason}' for f in findings)
+    def one(f):
+        text = f'{f.name} ({f.where()}): {f.reason}'
+        if f.reason == 'test-only package imported by application code':
+            text += f'; fix: move the tests into tests/ (or a test_*.py file), or import {f.name} only there'
+        elif f.reason == UNCOLLECTED_TESTS_REASON:
+            text += f'; fix: {UNCOLLECTED_TESTS_FIX}'
+        return text
+    detail = '; '.join(one(f) for f in findings)
     message = f'unsupported dependency: {detail}'[:1500]
     evidence = json.dumps({'policy_version': POLICY_VERSION, 'allowed': ALLOWED_SUMMARY,
                            'findings': [f.to_dict() for f in findings]})[:4000]

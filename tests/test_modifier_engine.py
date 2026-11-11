@@ -55,7 +55,9 @@ class NeverRepairs:
 
     def repair(self, **kwargs):
         self.calls += 1
-        return parse_patch({'files': [{'path': 'app.py', 'content': 'STILL_BROKEN'}]})
+        # a different repository every round, failing the same check differently each time (as a real file:line
+        # pointer does), so this keeps testing the round cap and not stop condition 8 (no_progress_same_failure)
+        return parse_patch({'files': [{'path': 'app.py', 'content': f'STILL_BROKEN_{self.calls}'}]})
 
 
 class Unreachable:
@@ -77,7 +79,8 @@ class Executor:
         self.calls += 1
         if repository.get('app.py') == 'WORKING':
             return ExecutionReport(True)
-        return ExecutionReport(False, (AcceptanceFailure('A1', 'not working', 'app.py'),), 'failed')
+        return ExecutionReport(False, (AcceptanceFailure('A1', f"not working at {repository.get('app.py')}", 'app.py'),),
+                               'failed')
 
 
 def _spec():
@@ -145,7 +148,7 @@ class FreeRepairTests(unittest.TestCase):
         self.assertEqual(result.repair_rounds, 1)
         self.assertEqual(result.repository['app.py'], 'WORKING')
         self.assertTrue(result.report.passed)
-        self.assertEqual(executor.calls, 1)
+        self.assertEqual(executor.calls, 2)   # Brain 2 point 1: the original is verified once, then the repair
 
     def test_system_bug_repair_failures_carry_the_classifier_reason_and_followup(self):
         repairer = RepairsOnFirstTry()

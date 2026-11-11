@@ -23,9 +23,12 @@ from omni_prod.providers import venice_gateway as V
 from omni_prod.providers.venice import VeniceBudgetExceeded, VeniceKeyMissing
 from tests.test_conversation_os import MemoryBriefs
 
-KEY = {'VENICE_API_KEY1': 'test-key'}
-VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4'}
-VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation'}
+# 2026-10-28: the intake conversation runs only on OMNI_VENICE_ALLOWED_MODELS (fail closed without it)
+KEY = {'VENICE_API_KEY1': 'test-key', 'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
+VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4',
+              'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
+VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation',
+          'venice_allowed_models': ['private-e2ee']}
 AUTH = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
         'OMNI_INTAKE_DAILY_BUDGET_USD': '0.5'}
 MSG = 'אתר לחנות פרחים עם משלוחים לאילת ותשלום במזומן בלבד'
@@ -111,12 +114,13 @@ class GatewayTests(unittest.TestCase):
     def test_negative_control_gemini_quote_cannot_pay_for_venice(self):
         """The hole this PR closes: a reservation priced on the Gemini catalog is too small for a Venice model,
         so every call was refused before contact and the conversation silently stayed deterministic."""
-        from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS, SYSTEM
-        q = B.quote(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)       # no venice env: Gemini catalog
+        from omni_prod.intake.interpreter import SYSTEM
+        tokens = 700   # pinned: the control is about catalogs, not the output limit (raised to 1400 on 2026-11-08)
+        q = B.quote(system=SYSTEM, user=MSG, max_tokens=tokens)                  # no venice env: Gemini catalog
         fake = FakeVenice()
         g = V.VeniceIntakeGateway(q.amount_usd, env=KEY, transport=fake)
         with self.assertRaises(VeniceBudgetExceeded):
-            g.complete_json(system=SYSTEM, user=MSG, max_tokens=MAX_OUTPUT_TOKENS)
+            g.complete_json(system=SYSTEM, user=MSG, max_tokens=tokens)
         self.assertEqual(fake.chats, [])
 
     def test_models_over_the_ceiling_are_never_selected(self):
@@ -133,7 +137,9 @@ class GatewayTests(unittest.TestCase):
         (_, path, body), = fake.chats
         self.assertEqual(path, '/chat/completions')
         self.assertEqual(body['model'], 'private-e2ee')                     # never the cheaper non-private one
-        self.assertEqual(body['venice_parameters'], {'include_venice_system_prompt': False})
+        self.assertEqual(body['venice_parameters'], {'include_venice_system_prompt': False,
+                                                     'strip_thinking_response': True,
+                                                     'disable_thinking': True})
         self.assertEqual([m['content'] for m in body['messages'][1:]], ['SYS', MSG])
         self.assertEqual(body['max_tokens'], 500)
         fake503 = FakeVenice(chat_status=503)
@@ -170,13 +176,21 @@ class GatewayTests(unittest.TestCase):
             g.complete_json(system='S', user=MSG, max_tokens=100)
         self.assertFalse(W.meter(g, {'max_tokens': 100})['contacted'])
 
-    def test_answer_must_be_exactly_one_json_object(self):
+    def test_the_json_object_is_found_and_plain_text_is_kept(self):
+        # 2026-11-08: Claude Haiku via Venice put text around the JSON. The object is the answer; text without
+        # any object is not JSON, but it is kept on the error so the worker can use it as the reply.
         body = json.dumps(ANSWER, ensure_ascii=False)
         self.assertEqual(V.parse_json_object('```json\n' + body + '\n```'), ANSWER)
-        for bad in (body + '\nאגב, הוספתי גם סליקה.', 'הנה: ' + body, '[1, 2]', 'not json', ''):
+        for ok in (body + '\nאגב, הוספתי גם סליקה.', 'הנה: ' + body):
+            with self.subTest(ok=ok[:30]):
+                self.assertEqual(V.parse_json_object(ok), ANSWER)
+        for bad in ('[1, 2]', ''):
             with self.subTest(bad=bad[:30]):
                 with self.assertRaises(V.VeniceOutputInvalid):
                     V.parse_json_object(bad)
+        with self.assertRaises(V.VeniceOutputInvalid) as caught:
+            V.parse_json_object('שלום! לכמה מתאמנות יש מקום בכל שיעור?')
+        self.assertEqual(caught.exception.text, 'שלום! לכמה מתאמנות יש מקום בכל שיעור?')
 
     def test_each_call_is_metered_alone(self):
         g = gateway(FakeVenice())
@@ -229,7 +243,8 @@ class CustomerWordsEvidence(unittest.TestCase):
         self.assertIn(MSG, fake.chats[0][2]['messages'][-1]['content'])     # Venice saw the customer's words
         self.assertEqual(t.interpretation['interpreter'], 'model+deterministic')
         self.assertEqual((t.interpretation['cost_state'], t.interpretation['cost_usd']), (B.CONFIRMED, '0.0007'))
-        self.assertTrue(t.reply.startswith(ANSWER['reply']))
+        self.assertEqual(t.reply, ANSWER['reply'])          # CEO 2026-11-08: Venice's reply IS the answer (no questionnaire)
+        self.assertEqual(t.questions, [])                    # no quick-reply buttons while Venice leads
         for words in ('אילת', 'מזומן'):
             self.assertIn(words, t.reply)
         self.assertEqual(t.interpretation['requirements'], ANSWER['requirements'])
@@ -315,3 +330,10 @@ class VeniceThroughTheReservationRoute(PG):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReasoningModelOutputTests(unittest.TestCase):
+    def test_visible_thinking_before_the_json_is_not_the_answer(self):
+        from omni_prod.providers.venice_gateway import parse_json_object
+        self.assertEqual(parse_json_object('<think>\nweighing {options}\n</think>\n{"reply": "שלום"}'), {'reply': 'שלום'})
+        self.assertEqual(parse_json_object('```json\n{"a": 1}\n```'), {'a': 1})

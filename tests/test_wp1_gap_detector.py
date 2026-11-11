@@ -208,7 +208,9 @@ class ModelPhrasing(unittest.TestCase):
         q, m, s = self.ask(lambda f: {'field': f, 'question': 'מה האתר צריך לעשות? אפשר גם "תחליט אתה".'})
         self.assertEqual((q.source, q.rejected), ('model', ''))
         self.assertEqual(len(m.calls), 1)
-        self.assertEqual(m.calls[0]['missing']['field'], q.field)
+        # the model is given the ordered list of what is missing and chooses one field from it (2026-10-28)
+        self.assertEqual(m.calls[0]['missing'][0]['field'], q.field)
+        self.assertIn(q.field, s.detect()['missing_material'])
         self.assertNotIn('questions', json.dumps(m.calls[0]))
 
     def test_unfocused_answer_is_detected_and_the_fallback_asks(self):

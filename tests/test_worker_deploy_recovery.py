@@ -28,6 +28,8 @@ if is_compose and 'ps' in a and '-q' in a:
     if cfg.get('ps_rc'): sys.exit(cfg['ps_rc'])
     if svc in cfg.get('services', []): print('cid-' + svc)
     sys.exit(0)
+if a[0] == 'inspect' and a[2] == '{{.Id}}':           # full id, matched against the fake kernel log
+    print('full-' + a[3][4:] + '-0123456789abcdef'); sys.exit(0)
 if a[0] == 'inspect':
     fmt, cid = a[2], a[3]; svc = cid[4:]
     if svc in cfg.get('inspect_fails', []) and fmt == '{{.Image}}': sys.exit(1)
@@ -35,6 +37,8 @@ if a[0] == 'inspect':
     elif fmt == '{{.State.Running}}':
         if upped: print('false' if svc in cfg.get('not_running_after_up', []) else 'true')
         else: print('false' if stopped else 'true')
+    elif fmt == '{{.State.OOMKilled}}':                 # the drain's second look after an exit 137
+        print('true' if cfg.get('oom', {}).get(svc) or svc in cfg.get('oom_flag_late', []) else 'false')
     else:
         e = cfg.get('exit', {}).get(svc, 0); o = cfg.get('oom', {}).get(svc, False)
         print(('true' if cfg.get('still_running') == svc else 'false'), e, 'true' if o else 'false')
@@ -53,6 +57,10 @@ if a[0] == 'exec':
 if a[0] == 'run':
     ref = next(x for x in a if x.startswith('omni-rollback/')); svc = ref.split('/')[1].split(':')[0]
     print(cfg.get('image_hash', {}).get(svc, '')); sys.exit(0)
+if a[0] == 'events':                                    # `docker events ... --filter container=<cid> --filter event=oom`
+    cid = next((x.split('=', 1)[1] for x in a if x.startswith('container=')), '')
+    if cid[4:] in cfg.get('oom_event', []): print('oom')
+    sys.exit(0)
 if a[:2] == ['compose', 'stop']:
     open(os.path.join(st, 'stopped'), 'w').close(); sys.exit(cfg.get('stop_rc', 0))
 if is_compose and 'up' in a:
@@ -73,10 +81,14 @@ def run(script, cfg, extra_env=None):
     docker = bindir / 'docker'
     docker.write_text(FAKE_DOCKER)
     docker.chmod(docker.stat().st_mode | stat.S_IEXEC)
+    if cfg.get('kernel_log'):                       # a fake `dmesg` on the same PATH as the fake docker
+        dmesg = bindir / 'dmesg'
+        dmesg.write_text('#!/bin/sh\ncat <<\'EOF\'\n' + cfg['kernel_log'] + '\nEOF\n')
+        dmesg.chmod(0o755)
     (state / 'cfg.json').write_text(json.dumps(cfg))
     deploy = Path(tmp) / 'deploy-state'
     env = {**os.environ, 'PATH': f'{bindir}:{os.environ["PATH"]}', 'FAKE_STATE': str(state),
-           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0', **(extra_env or {})}
+           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'DRAIN_OOM_SETTLE_SECONDS': '0', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0', **(extra_env or {})}
     return (subprocess.run(['bash', str(HOST / script)], env=env, capture_output=True, text=True, timeout=60),
             state / 'calls.log', deploy)
 
@@ -98,6 +110,31 @@ class DrainTests(unittest.TestCase):
             self.assertEqual(r.returncode, 1, (cfg, r.stdout))
             self.assertIn(text, (st / 'drain-failed').read_text())
             self.assertIn('::error title=drain', r.stdout)
+
+    def test_an_oom_kill_the_engine_reports_late_is_still_an_oom_kill(self):
+        # 2026-11-07: exit 137 with OOMKilled=false at first read; the engine's flag or its `oom` event arrives later.
+        for extra, src in (({'oom_flag_late': ['preview-worker']}, 'flag'), ({'oom_event': ['preview-worker']}, 'event')):
+            r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'preview-worker': 137}, **extra})
+            self.assertEqual(r.returncode, 1, r.stdout)
+            reasons = (st / 'drain-failed').read_text()
+            self.assertIn(f'preview-worker was OOM-killed (exit 137; engine {src})', reasons)
+            self.assertNotIn('deadline', reasons)                     # an OOM kill is not reported as a deadline kill
+            self.assertIn(f'drain: preview-worker exit=137 oom=true (from {src})', r.stdout)
+            self.assertIn('event=oom', log.read_text())            if src == 'event' else None
+
+    def test_an_oom_kill_only_the_kernel_log_records_is_still_an_oom_kill(self):
+        # 2026-11-08: engine flag false, no `oom` event; the kernel log names the container's cgroup
+        line = '[263.1] Memory cgroup stats for /system.slice/docker-full-preview-worker-0123456789abcdef.scope:'
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'preview-worker': 137}, 'kernel_log': line})
+        reasons = (st / 'drain-failed').read_text()
+        self.assertIn('preview-worker was OOM-killed (exit 137; engine kernel)', reasons)
+        self.assertNotIn('deadline', reasons)
+
+    def test_a_deadline_kill_without_any_oom_signal_stays_a_deadline_kill(self):
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'worker': 137}})
+        reasons = (st / 'drain-failed').read_text()
+        self.assertIn('worker exit 137 (a job was killed at the 5s deadline)', reasons)
+        self.assertNotIn('OOM', reasons)
 
     def test_a_host_with_no_previous_consumers_still_drains(self):
         r, log, st = run('drain.sh', {'services': []})

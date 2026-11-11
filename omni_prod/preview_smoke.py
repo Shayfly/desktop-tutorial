@@ -74,9 +74,13 @@ if verdict == "OK":
         controls = ("<form", "<input", "<button", "<table", "<select", "<textarea",
                     "createelement('button", 'createelement("button', "createelement('input", 'createelement("input',
                     "createelement('table", 'createelement("table')
+        # A website/landing page is real UI without form controls (2026-11-09: a café page whose only action is a
+        # WhatsApp link was rejected 6 rounds as "placeholder"): headings plus real visible text also count.
+        visible = re.sub(r"(?s)<(script|style)[^>]*>.*?</\1>|<[^>]+>", " ", page)
+        content_site = len(" ".join(visible.split())) >= 300 and ("<h1" in low or "<h2" in low)
         if "text/html" not in ctype.lower() or ("<html" not in low and "<!doctype" not in low):
             verdict = "GET / did not return an HTML page (Content-Type %%r, starts %%r)" %% (ctype, page[:60])
-        elif len(page.strip()) + len(assets.strip()) < 400 or not any(t in whole for t in controls):
+        elif not content_site and (len(page.strip()) + len(assets.strip()) < 400 or not any(t in whole for t in controls)):
             verdict = ("GET / returned a placeholder page, not the product's user interface "
                        "(%%d chars of HTML, %%d chars of linked scripts/styles; starts %%r)" %% (len(page.strip()), len(assets.strip()), page.strip()[:160]))
     except Exception as e:
@@ -89,8 +93,23 @@ except Exception:
     p.kill(); out = b""
 print("PREVIEW-SMOKE " + verdict)
 print(out.decode("utf-8", "replace")[-1500:])
+if verdict == "OK":
+    # 2026-11-10 (Michael): the gates judge the page the product SERVES, not its source. The rendered page and its
+    # same-origin assets go back to the review as the last line (stdout keeps its tail).
+    print("PREVIEW-PAGE " + json.dumps({"/": page[:45000], "assets": assets[:20000]}, ensure_ascii=False))
 sys.exit(0 if verdict == "OK" else 1)
 ''' % {'seconds': SMOKE_SECONDS}
+
+
+def _rendered_pages(stdout: str) -> dict | None:
+    for line in reversed(stdout.splitlines()):
+        if line.startswith('PREVIEW-PAGE '):
+            try:
+                data = json.loads(line[len('PREVIEW-PAGE '):])
+            except ValueError:
+                return None
+            return data if isinstance(data, dict) and isinstance(data.get('/'), str) else None
+    return None
 
 
 def _failure(message: str, detail: str = '') -> ExecutionReport:
@@ -103,6 +122,8 @@ class PreviewReadyExecutor:
         self._inner = inner
         # What the last run did (release policy: NOT_RUN is not PASS).
         self.last_smoke: dict | None = None
+        # The page GET / served in the last passing smoke run, as the user receives it: {'/': html, 'assets': css+js}.
+        self.last_pages: dict | None = None
 
     def __getattr__(self, item):
         return getattr(self._inner, item)
@@ -138,7 +159,9 @@ class PreviewReadyExecutor:
                                    report.build_log)
         if int(result.get('returncode', 1)) == 0:
             self.last_smoke = {'status': 'PASS'}
+            self.last_pages = _rendered_pages(str(result.get('stdout', '')))
             return report
+        self.last_pages = None
         self.last_smoke = {'status': 'FAIL'}
         output = (str(result.get('stdout', '')) + str(result.get('stderr', '')))[-1800:]
         first = output.strip().splitlines()[0] if output.strip() else 'no output'

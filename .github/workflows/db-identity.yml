@@ -5,7 +5,7 @@ name: db-identity
 # worker container); falls back to the container's own environment if that
 # file no longer exists. Prints host + first 8 hex of sha256(OMNI_DATABASE_URL)
 # (identifies the exact URL without revealing it) and the schema_manifest
-# fingerprint sha256(host|dbname)[:12]. Writes smoke/db-identity.md [skip ci].
+# fingerprint sha256(host|dbname)[:12], compares the endpoint with Production, and writes the job summary.
 # No DB connection, no writes to the DB, nothing printed but host/hashes.
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
     paths: ['.github/workflows/db-identity.yml']
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: db-identity
@@ -64,12 +64,11 @@ jobs:
           echo "source=$src" >> "$GITHUB_OUTPUT"
           while IFS= read -r l; do echo "::notice title=db-identity::$l"; done <<< "$out"
           echo "::notice title=db-identity source::$src"
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          path: db-identity-report
-      - name: Write smoke/db-identity.md and commit [skip ci]
-        working-directory: db-identity-report
+      # 2026-11-06: the report no longer commits to main. Runs 40786272189, 40831828711 and 41235131447
+      # measured correctly and then failed on "GH006: Protected branch update failed for refs/heads/main"
+      # (main requires 2 status checks; bots never push to main, C16). The result is the annotations
+      # above plus this job summary; nothing is written to the repository.
+      - name: Compare with Production and write the job summary
         env:
           HOST: ${{ steps.ident.outputs.host }}
           DBNAME: ${{ steps.ident.outputs.dbname }}
@@ -77,29 +76,38 @@ jobs:
           FP: ${{ steps.ident.outputs.db_fingerprint }}
           EP: ${{ steps.ident.outputs.neon_endpoint }}
           SRC: ${{ steps.ident.outputs.source }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PROD_URL: https://148aiv28.vercel.app/api/v28/deployment
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p smoke
+          prod=$(curl -fsS --max-time 20 "$PROD_URL" || true)
+          prod_host=$(printf '%s' "$prod" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["schema"]["db_host"])' 2>/dev/null || true)
+          prod_ep=${prod_host%%.*}; prod_ep=${prod_ep%-pooler}
+          if [ -z "$prod_ep" ]; then
+            verdict="UNKNOWN (Production endpoint not readable from $PROD_URL)"
+            echo "::warning title=db-identity::$verdict"
+          elif [ "$prod_ep" = "$EP" ]; then
+            verdict="SAME as Production (Neon endpoint $EP)"
+            echo "::notice title=db-identity::$verdict"
+          else
+            verdict="DIFFERENT from Production: worker $EP, Production $prod_ep"
+            echo "::error title=db-identity::$verdict"
+          fi
           {
-            echo "# db-identity — staging worker database ($(date -u +%FT%TZ))"
+            echo "## db-identity: worker database ($(date -u +%FT%TZ))"
             echo
-            echo "- run_id: [${GITHUB_RUN_ID}](${RUN_URL})"
-            echo "- source: ${SRC}"
-            echo "- host: \`${HOST}\`"
-            echo "- dbname: \`${DBNAME}\`"
-            echo "- sha256(OMNI_DATABASE_URL)[:8]: \`${SHA8}\`"
-            echo "- db_fingerprint sha256(host|dbname)[:12]: \`${FP}\`"
-            echo "- Neon endpoint (pooler suffix removed): \`${EP}\`"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| source | \`${SRC}\` |"
+            echo "| host | \`${HOST}\` |"
+            echo "| dbname | \`${DBNAME}\` |"
+            echo "| sha256(OMNI_DATABASE_URL)[:8] | \`${SHA8}\` |"
+            echo "| db_fingerprint sha256(host\|dbname)[:12] | \`${FP}\` |"
+            echo "| Neon endpoint | \`${EP}\` |"
+            echo "| Production (\`${PROD_URL}\`) | \`${prod_host:-unreadable}\` |"
+            echo "| verdict | **${verdict}** |"
             echo
-            echo "Compare with Production: GET /api/v28/deployment -> schema.db_host / schema.db_fingerprint."
-            echo "A '-pooler' host and the direct host of the same Neon endpoint are the same database"
-            echo "but produce different db_fingerprint values; compare the Neon endpoint."
-          } > smoke/db-identity.md
-          git config user.name "ci-bot"; git config user.email "ci-bot@148ai.dev"
-          git add smoke/db-identity.md
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "chore: db-identity results [skip ci]"
-          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && exit 0; sleep $((i*5)); done
-          echo "::error title=db-identity::push failed"; exit 1
+            echo "A '-pooler' host and the direct host of the same Neon endpoint are the same database but give different db_fingerprint values; the verdict compares the endpoint."
+          } >> "$GITHUB_STEP_SUMMARY"
+          # The worker shares Production's database by decision (2026-10-19, 2026-11-03); a different one fails the run.
+          case "$verdict" in DIFFERENT*) exit 1;; esac

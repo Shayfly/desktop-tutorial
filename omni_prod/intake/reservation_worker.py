@@ -42,7 +42,10 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
     if (quote or {}).get('provider') == 'venice':
         from ..providers import venice_gateway   # a missing key raises here -> "no model route", no charge
         cin, cout = quote['venice_ceiling_usd_per_m']
-        return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)))
+        # the list the reservation was QUOTED with; a quote without one (older) falls back to the worker's
+        # OMNI_VENICE_ALLOWED_MODELS, and with neither the gateway refuses to build (released, no charge)
+        return venice_gateway.VeniceIntakeGateway(quoted_usd, ceiling=(Decimal(cin), Decimal(cout)),
+                                                  allowed=tuple(quote.get('venice_allowed_models') or ()) or None)
     from ..model_policy import ModelUsePolicy
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
@@ -121,6 +124,17 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
                                     task=task)
     except Exception as exc:
         error = f'{type(exc).__name__}: {str(exc)[:300]}'
+        # CEO 2026-11-08: the model always answers. If it wrote plain text instead of the JSON envelope, its text
+        # IS the reply (no structured requirements are taken from it; the brief stays as it was).
+        prose = (getattr(exc, 'text', '') or '').strip()
+        if prose and not prose.lstrip().startswith(('{', '[')):
+            raw, error = {'reply': prose[:1200], 'proposals': [], 'requirements': []}, None
+        elif prose:
+            # 2026-11-09: a long brief made Haiku fill the whole output budget; the JSON was cut after a complete
+            # "reply". The reply is still the model's answer -- show it; structured fields are not trusted.
+            salvaged = salvage_reply(prose)
+            if salvaged:
+                raw, error = {'reply': salvaged, 'proposals': [], 'requirements': []}, None
     m = meter(gateway, r.quote)
     if m['cost_state'] == B.COST_UNKNOWN:
         reason = m.get('reason') or error or 'usage not reported'
@@ -208,3 +222,24 @@ def relay_main(argv: list[str] | None = None) -> int:
 
 if __name__ == '__main__':
     raise SystemExit(relay_main())
+
+
+def salvage_reply(text: str) -> str | None:
+    """The "reply" string of a JSON object that was cut off later in the answer, or None."""
+    import json
+    import re
+    m = re.search(r'"reply"\s*:\s*"((?:[^"\\]|\\.)*)("?)', text or '', re.S)
+    if not m:
+        return None
+    body = m.group(1)
+    if not m.group(2):                       # the reply itself was cut: end at the last full sentence
+        cut = max(body.rfind('. '), body.rfind('? '), body.rfind('! '), body.rfind('\\n'))
+        body = body[:cut + 1] if cut > 40 else body
+        body = body.rstrip('\\')
+    try:
+        reply = json.loads('"' + body + '"')
+    except ValueError:
+        return None
+    reply = reply.strip()
+    return reply[:1200] if len(reply) >= 20 else None
+

@@ -1,0 +1,13 @@
+{
+  "pr": "gate-labels",
+  "sha256": ["tests/test_gate_labels.py"],
+  "controls": [{
+    "id": "NC1",
+    "what": "the panel prints the raw gate key again",
+    "mutations": [{"file": "omni_prod/assets/app.js",
+                   "old": "function gateLabel(k) { return ((t('gateNames') || {})[k]) || k; }",
+                   "new": "function gateLabel(k) { return k; }"}],
+    "targets": ["tests/test_gate_labels.py"],
+    "expect_failed": ["test_the_four_gates_are_translated"]
+  }]
+}

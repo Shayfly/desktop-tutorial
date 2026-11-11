@@ -12,10 +12,10 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch/tag/SHA of the code to migrate with. Default is the pre-merge work branch; CHANGE THE DEFAULT TO main AFTER THE MERGE (main holds no omni_prod code until then)."
+        description: "Branch/tag/SHA of the code to migrate with. Default main: an older ref does not contain the newest migration files, so it reports 'pending: none' against a database that still needs them."
         type: string
         required: false
-        default: fix/financial-journal-recovery-20261014
+        default: main
       apply:
         description: "Apply pending migrations. Unchecked = --check (read-only, lists pending)."
         type: boolean

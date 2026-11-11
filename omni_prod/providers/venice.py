@@ -5,7 +5,9 @@ OpenAI-compatible API at VENICE_CONFIG['base_url']. The key is CONFIGURATION: it
 key is a loud error that names that exact variable; there is no second name and no fallback.
 
 Model choice is by TRAIT from the provider's own /models answer, never by a model name in code:
-  * only models whose model_spec.privacy == "private";
+  * when OMNI_VENICE_ALLOWED_MODELS is set (configuration, not code): ONLY the listed ids, private or anonymized,
+    cheapest first; no listed model offered -> NoAllowedModel, never a fallback to another model;
+  * otherwise only models whose model_spec.privacy == "private";
   * when the call needs no tools, prefer capabilities.supportsE2EE (the raw idea is the most sensitive input);
     with tools, only models that support function calling;
   * then the cheapest by the provider's own pricing (USD per 1M tokens), so prices are never hard-coded.
@@ -61,6 +63,28 @@ class NoPrivateModel(VeniceError):
     pass
 
 
+class NoAllowedModel(NoPrivateModel):
+    """The allowlist is set and no listed model is offered (with prices, under the ceiling): fail closed."""
+
+
+# OMNI_VENICE_ALLOWED_MODELS (owner 2026-10-28): exact Venice model ids, comma separated, e.g. "gemini-3-8-flash".
+# When it is set, ONLY those ids may be selected, and a listed id may be "private" OR "anonymized" (Venice proxies an
+# anonymized model to its vendor without identifying us). Nothing outside the list is ever chosen -- not even a
+# cheaper private model -- and an empty match is an error, never a fallback. Unset = the trait rule below.
+ALLOWED_ENV = 'OMNI_VENICE_ALLOWED_MODELS'
+ALLOWED_PRIVACY = ('private', 'anonymized')
+
+
+def allowed_models(env) -> tuple[str, ...] | None:
+    raw = (env.get(ALLOWED_ENV) or '').strip()
+    if not raw:
+        return None
+    ids = tuple(dict.fromkeys(x.strip() for x in raw.split(',') if x.strip()))
+    if not ids or any('*' in x or ' ' in x for x in ids):
+        raise ValueError(f'{ALLOWED_ENV} must be exact Venice model ids, comma separated (got {raw!r})')
+    return ids
+
+
 def api_key(env) -> str:
     name = VENICE_CONFIG['key_env']
     value = (env.get(name) or '').strip()
@@ -94,9 +118,17 @@ class VeniceModel:
                    bool(caps.get('supportsE2EE')), bool(caps.get('supportsFunctionCalling')), usd('input'), usd('output'))
 
 
-def select_model(models: list[VeniceModel], *, needs_tools: bool = False, prefer_e2ee: bool = True) -> VeniceModel:
-    private = [m for m in models if m.privacy == 'private' and m.input_usd_per_m is not None
-               and m.output_usd_per_m is not None]
+def select_model(models: list[VeniceModel], *, needs_tools: bool = False, prefer_e2ee: bool = True,
+                 allowed: tuple[str, ...] | None = None) -> VeniceModel:
+    priced = [m for m in models if m.input_usd_per_m is not None and m.output_usd_per_m is not None]
+    if allowed is not None:                        # the allowlist decides; privacy may be private or anonymized
+        pool = [m for m in priced if m.id in set(allowed) and m.privacy in ALLOWED_PRIVACY
+                and (m.tools or not needs_tools)]
+        if not pool:
+            raise NoAllowedModel(f'none of {ALLOWED_ENV}={",".join(allowed)} is offered by Venice (with prices'
+                                 + (' and tools' if needs_tools else '') + ' and within the price ceiling)')
+        return min(pool, key=lambda m: (m.input_usd_per_m + m.output_usd_per_m, m.id))
+    private = [m for m in priced if m.privacy == 'private']
     if needs_tools:
         private = [m for m in private if m.tools]
     if not private:
@@ -166,9 +198,11 @@ class VeniceClient:
     RETRYABLE = (429, 500, 502, 503, 504)
 
     def __init__(self, env, *, budget: VeniceBudget, transport=None, timeout: float = 60.0, retries: int = 2,
-                 sleep=time.sleep):
+                 sleep=time.sleep, allowed: tuple[str, ...] | None = None):
         self._key = api_key(env)                      # loud now, not at the first customer message
         self.budget, self.timeout, self.retries, self.sleep = budget, timeout, retries, sleep
+        # the caller's list (e.g. the one a reservation was quoted with) wins over the environment's
+        self.allowed = tuple(allowed) if allowed is not None else allowed_models(env)
         self.transport = transport or _urllib_transport
 
     def __repr__(self):                                # the key never appears in a repr, a log line or an export
@@ -209,7 +243,7 @@ class VeniceClient:
     def chat(self, *, conversation: str, messages: list[dict], lang: str, max_tokens: int = 800,
              needs_tools: bool = False, cancel: threading.Event | None = None, idempotency_key: str | None = None,
              venice_parameters: dict | None = None) -> dict:
-        model = select_model(self.models(), needs_tools=needs_tools)
+        model = select_model(self.models(), needs_tools=needs_tools, allowed=self.allowed)
         prompt_chars = sum(len(str(m.get('content', ''))) for m in messages)
         worst = (model.input_usd_per_m * Decimal(prompt_chars + 64) + model.output_usd_per_m * Decimal(max_tokens)) / Decimal(1_000_000)
         self.budget.reserve(conversation, worst)

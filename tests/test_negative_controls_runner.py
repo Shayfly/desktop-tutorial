@@ -90,5 +90,100 @@ class Runner(unittest.TestCase):
         self.assertIn('return x > 0', (self.repo / 'lib.py').read_text())
 
 
+class OneSummaryNoticePerSpec(unittest.TestCase):
+    """GitHub shows at most 10 notices per step and keeps the first ones: with one notice per control the controls of
+    the later specs were cut (2026-10-28). Each spec now prints ONE summary notice after all its controls ran."""
+
+    def test_one_notice_per_spec_after_its_controls_and_an_error_for_a_fail(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        for name, ids in (('a_first.json', ('NC1', 'NC2')), ('b_second.json', ('NC1', 'NC2', 'NC3', 'NC4'))):
+            (d / name).write_text(json.dumps({'pr': name.split('.')[0], 'controls': [
+                {'id': i, 'what': f'w{i}', 'mutations': [], 'targets': [], 'expect_failed': []} for i in ids]}))
+        results = iter([(True, 'x'), (True, 'x'), (True, 'x'), (False, 'boom'), (True, 'x'), (True, 'x')])
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'run_control', lambda c, cid: next(results)), \
+                redirect_stdout(out):
+            code = nc.main([])
+        lines = out.getvalue().splitlines()
+        notices = [l for l in lines if l.startswith('::notice')]
+        self.assertEqual(notices, ['::notice title=SPEC a_first::2/2 PASS (NC1 NC2)',
+                                   "::notice title=SPEC b_second::3/4 FAIL (NC1 NC2 NC3 NC4) failed=['NC2']"])
+        self.assertEqual(code, 1)
+        self.assertTrue(any(l.startswith('::error title=b_second NC2 FAIL::') and 'boom' in l for l in lines))
+        self.assertIn('NC-EVIDENCE RESULT b_second NC4 PASS wNC4 -> x', lines)
+        # the summary comes after every control of its spec
+        self.assertGreater(lines.index(notices[1]), lines.index('NC-EVIDENCE RESULT b_second NC4 PASS wNC4 -> x'))
+
+
+class PerEnvironmentExpectations(unittest.TestCase):
+    """2026-10-28: in pg the real-store tests also run, so a mutation breaks more than v24-ci sees."""
+
+    def test_each_environment_compares_with_its_own_set(self):
+        spec = {'expect_failed': ['a'], 'expect_failed_pg': ['a', 'real_store']}
+        self.assertEqual(nc.expected_for(spec, ''), ['a'])
+        self.assertEqual(nc.expected_for(spec, 'pg'), ['a', 'real_store'])
+        self.assertEqual(nc.expected_for({'expect_failed': ['a']}, 'pg'), ['a'])     # no pg set: the default
+
+    def test_an_expected_test_that_did_not_fail_is_a_fail_everywhere(self):
+        for env in ('', 'pg'):
+            ok, note = nc.verdict(['a'], ['a', 'b'], env)
+            self.assertFalse(ok, env)
+            self.assertIn("missing=['b']", note)
+
+    def test_an_extra_failure_is_info_only_in_pg(self):
+        ok, note = nc.verdict(['a', 'x'], ['a'], 'pg')
+        self.assertTrue(ok)
+        self.assertIn("INFO extra failures in pg: ['x']", note)
+        ok, note = nc.verdict(['a', 'x'], ['a'], '')
+        self.assertFalse(ok)
+        self.assertIn("extra=['x']", note)
+
+
+class TheDetailNeverCarriesTheProcessEnvironment(unittest.TestCase):
+    """2026-10-28: `env` was both the environment NAME and the subprocess environment dict, so the dict reached the
+    annotation text (a public repo). The detail must name the environment only."""
+
+    def test_the_runner_keeps_the_two_apart(self):
+        import inspect
+        src = inspect.getsource(nc.run_control)
+        self.assertIn('proc_env = {**os.environ', src)
+        self.assertNotIn('env = {**os.environ', src.replace('proc_env = {**os.environ', ''))
+
+
+class TheInfoIsInTheSpecLine(unittest.TestCase):
+    def test_an_extra_failure_in_pg_appears_in_the_summary_notice(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': [
+            {'id': 'NC1', 'what': 'w', 'mutations': [], 'targets': [], 'expect_failed': ['a']}]}))
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(
+                nc, 'run_control', lambda c, cid: (True, "mutation m | failed=['a', 'r'] INFO extra failures in pg: ['r']")), \
+                redirect_stdout(out):
+            self.assertEqual(nc.main([]), 0)
+        notices = [l for l in out.getvalue().splitlines() if l.startswith('::notice')]
+        self.assertEqual(notices, ["::notice title=SPEC x::1/1 PASS (NC1) | INFO NC1 extra failures in pg: ['r']"])
+
+
+class AControlForOneEnvironment(unittest.TestCase):
+    def test_a_pg_only_control_is_named_in_the_spec_line_where_it_does_not_run(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': [
+            {'id': 'NC1', 'what': 'race', 'envs': ['pg'], 'mutations': [], 'targets': [], 'expect_failed': ['a']},
+            {'id': 'NC2', 'what': 'w', 'mutations': [], 'targets': [], 'expect_failed': ['b']}]}))
+        for env, want in (('', "::notice title=SPEC x::1/1 PASS (NC2) | not run here: NC1 (pg only)"),
+                          ('pg', '::notice title=SPEC x::2/2 PASS (NC1 NC2)')):
+            out = io.StringIO()
+            with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'ENV', env), \
+                    mock.patch.object(nc, 'run_control', lambda c, cid: (True, 'ok')), redirect_stdout(out):
+                nc.main([])
+            self.assertEqual([l for l in out.getvalue().splitlines() if l.startswith('::notice')], [want], env)
+
+
 if __name__ == '__main__':
     unittest.main()

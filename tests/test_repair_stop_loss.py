@@ -9,7 +9,6 @@ import unittest
 from omni_prod.autonomous_core import AcceptanceFailure, AutonomousProductEngine, ExecutionReport
 from omni_prod.repository_patch import parse_patch
 
-FAIL = ExecutionReport(False, (AcceptanceFailure('A1', 'boom'),))
 PASS = ExecutionReport(True)
 
 
@@ -38,7 +37,11 @@ class _Executor:
 
     def execute(self, *, repository, spec):
         self.runs.append(repository['app.py'])
-        return PASS if repository['app.py'] in self.passing else FAIL
+        if repository['app.py'] in self.passing:
+            return PASS
+        # the failure names the state it came from, as a real file:line pointer does; an identical failure on two
+        # different states is no_progress_same_failure (tests/test_repair_fingerprint.py), not these conditions
+        return ExecutionReport(False, (AcceptanceFailure('A1', f"boom at {repository['app.py']}"),))
 
 
 def _engine(repairer, executor, rounds=5):

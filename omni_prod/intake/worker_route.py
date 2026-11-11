@@ -15,6 +15,9 @@ unreserved path: the legacy message-only job refuses to run.
 """
 from __future__ import annotations
 
+import logging
+import re
+
 import hashlib
 import os
 import time
@@ -77,10 +80,20 @@ class ReservedWorkerInterpreter:
             return base
         if r.state == B.RESERVED:
             try:
-                self.enqueue(r.id)
+                try:
+                    self.enqueue(r.id)
+                except Exception as first:   # one retry on a fresh connection: the failures were intermittent
+                    logging.getLogger(__name__).warning('intake enqueue retry for %s after %s', r.id,
+                                                        type(first).__name__)
+                    self.enqueue(r.id)       # same job id: a duplicate Redis job is harmless (claim is atomic)
                 self.svc.mark_enqueued(r.id)
             except Exception as exc:    # queue down: nothing was sent, so give the money back now
-                self.svc.release(r.id, reason=f'enqueue failed: {type(exc).__name__}')
+                # 2026-11-08: 6 of 13 releases read only 'enqueue failed: ValueError'. Keep the message (credentials
+                # in a redis URL are masked) so the cause is visible in the reservation and the function log.
+                detail = re.sub(r'(rediss?://)[^@\s]*@', r'\1***@', str(exc))[:200]
+                logging.getLogger(__name__).warning('intake enqueue failed for %s: %s: %s',
+                                                    r.id, type(exc).__name__, detail)
+                self.svc.release(r.id, reason=f'enqueue failed: {type(exc).__name__}: {detail}')
                 base.dropped.append('model not used: intake queue unavailable')
                 base.reservation_id = r.id
                 return base

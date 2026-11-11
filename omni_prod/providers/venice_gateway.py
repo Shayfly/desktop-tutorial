@@ -6,6 +6,8 @@ them -- `complete_json(system=, user=, max_tokens=, task=)` plus a `recorder.rec
 reservation, budget or validation code:
 
   * selected only by `OMNI_INTAKE_PROVIDER=venice` on the worker; anything else keeps the routed gateway;
+  * only the models in `OMNI_VENICE_ALLOWED_MODELS` (exact ids; private or anonymized) -- filtered here, at pricing,
+    and again in venice.select_model; no list or no listed model offered -> an explicit error, never another model;
   * the key is `VENICE_API_KEY1`; a missing key fails when the gateway is BUILT, so the worker releases the
     reservation as "no model route" and the customer is never charged for a call that never happened;
   * the budget is the reservation's own quote (per call and aggregate), reserved at the worst case BEFORE contact:
@@ -25,7 +27,8 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from .venice import VeniceBudget, VeniceBudgetExceeded, VeniceClient, VeniceError, VENICE_CONFIG
+from .venice import (ALLOWED_ENV, NoAllowedModel, VeniceBudget, VeniceBudgetExceeded, VeniceClient, VeniceError,
+                     VENICE_CONFIG, allowed_models)
 
 PROVIDER_ENV = 'OMNI_INTAKE_PROVIDER'
 # USD per 1M tokens, "input,output". The reservation is quoted at this ceiling (budget.quote, API side) and the
@@ -46,7 +49,9 @@ def price_ceiling(env=None) -> tuple[Decimal, Decimal]:
 
 
 class VeniceOutputInvalid(VeniceError):
-    pass
+    def __init__(self, message: str, text: str = ''):
+        super().__init__(message)
+        self.text = text           # what the model wrote (the worker may still use it as the reply)
 
 
 @dataclass
@@ -72,17 +77,31 @@ class Recorder:
 _FENCE = re.compile(r'\A```(?:json)?\s*\n(?P<body>.*?)\n?```\Z', re.S)
 
 
+_THINK = re.compile(r'\A\s*<think>.*?</think>\s*', re.S)
+
+
 def parse_json_object(text: str) -> dict:
-    s = (text or '').strip()
+    # 2026-11-08: reasoning models (DeepSeek V4 on Venice) may prefix their visible thinking; it is never the answer
+    s = _THINK.sub('', (text or '')).strip()
     m = _FENCE.match(s)
     if m:
         s = m.group('body').strip()
     try:
         obj, end = json.JSONDecoder().raw_decode(s)
     except ValueError as exc:
-        raise VeniceOutputInvalid(f'Venice answer is not JSON: {exc.msg}') from None
-    if s[end:].strip():
-        raise VeniceOutputInvalid('Venice answer has text after the JSON object')
+        # 2026-11-08: Claude Haiku via Venice answered with text before the JSON ('Expecting value' at 0).
+        # Take the first JSON object in the answer; if there is none, the text itself is kept for the caller.
+        start = s.find('{')
+        found = None
+        while start != -1 and found is None:
+            try:
+                found, _ = json.JSONDecoder().raw_decode(s[start:])
+            except ValueError:
+                start = s.find('{', start + 1)
+        if not isinstance(found, dict):
+            raise VeniceOutputInvalid(f'Venice answer is not JSON: {exc.msg}', text=s) from None
+        obj = found
+    # text after the object (a closing remark) is ignored: the object is the answer
     if not isinstance(obj, dict):
         raise VeniceOutputInvalid('Venice answer is JSON but not an object')
     return obj
@@ -92,7 +111,7 @@ class VeniceIntakeGateway:
     provider = 'venice'
 
     def __init__(self, quoted_usd: Decimal, *, ceiling: tuple[Decimal, Decimal] | None = None, env=None,
-                 transport=None, conversation: str | None = None):
+                 transport=None, conversation: str | None = None, allowed: tuple[str, ...] | None = None):
         quoted = Decimal(str(quoted_usd))
         budget = VeniceBudget(per_conversation_usd=quoted, total_usd=quoted)
         from .venice import _urllib_transport
@@ -103,14 +122,21 @@ class VeniceIntakeGateway:
             if method == 'POST' and url.endswith('/chat/completions'):
                 self._chat_sent = True       # from here on money may have been spent
             return inner(method, url, headers, body, timeout)
-        self.client = VeniceClient(env if env is not None else os.environ, budget=budget, transport=tracked,
-                                   retries=0)
-        if ceiling is not None:   # only models the reservation's quote can pay for
-            cin, cout = (Decimal(str(x)) for x in ceiling)
-            listed = self.client.models
-            self.client.models = lambda: [m for m in listed() if m.input_usd_per_m is not None
-                                          and m.output_usd_per_m is not None
-                                          and m.input_usd_per_m <= cin and m.output_usd_per_m <= cout]
+        source = env if env is not None else os.environ
+        self.client = VeniceClient(source, budget=budget, transport=tracked, retries=0)   # a missing key raises first
+        # Fail closed (owner 2026-10-28): the intake conversation runs ONLY on a listed model -- the reservation's
+        # own list, else OMNI_VENICE_ALLOWED_MODELS. No list -> refused when BUILT (the worker releases the
+        # reservation as "no model route", nothing is sent, nothing is charged); never the cheapest private model.
+        self.allowed = tuple(allowed) if allowed else allowed_models(source)
+        if not self.allowed:
+            raise NoAllowedModel(f'{ALLOWED_ENV} is not set: the intake conversation has no allowed Venice model')
+        self.client.allowed = self.allowed                       # the selection (venice.select_model) filters ...
+        listed = self.client.models
+        cin, cout = (None, None) if ceiling is None else (Decimal(str(x)) for x in ceiling)
+        # ... and so does the pricing here: only listed models the reservation's quote can pay for are even seen
+        self.client.models = lambda: [m for m in listed() if m.id in self.allowed
+                                      and m.input_usd_per_m is not None and m.output_usd_per_m is not None
+                                      and (cin is None or (m.input_usd_per_m <= cin and m.output_usd_per_m <= cout))]
         self.conversation = conversation or 'intake:' + uuid.uuid4().hex
         self.recorder = Recorder()
         self.last_usage = None
@@ -127,7 +153,10 @@ class VeniceIntakeGateway:
                                    messages=[{'role': 'system', 'content': system},
                                              {'role': 'user', 'content': user}],
                                    max_tokens=int(max_tokens), idempotency_key=request_id,
-                                   venice_parameters={'include_venice_system_prompt': False})
+                                   venice_parameters={'include_venice_system_prompt': False,
+                                                      # reasoning models: answer directly, never the thinking
+                                                      'strip_thinking_response': True,
+                                                      'disable_thinking': True})
         except VeniceBudgetExceeded:
             raise                            # refused before contact: no record, nothing spent
         except Exception as exc:
