@@ -22,7 +22,10 @@ from typing import Any, Literal
 
 CONF = ('stated', 'inferred', 'missing')
 SRC = ('customer', 'rawBrief', 'library')
-VIA = ('button', 'text', 'extract')
+VIA = ('button', 'text', 'extract', 'model')
+# src = where the value came from; via = how it entered. They compose; only these pairs are valid (signed 14:12).
+VALID_PAIRS = frozenset({('customer', 'button'), ('customer', 'text'), ('rawBrief', 'extract'), ('rawBrief', 'model'),
+                         ('library', 'extract')})
 ARTIFACT_KINDS = ('site', 'landing', 'app', 'saas', 'game', 'song', 'video', 'agent', 'combo')
 GAME_GENRES = ('sport', 'adventure', 'strategy', 'learning', 'puzzle', 'action', 'simulation')   # F4: closed, seven
 PLAYERS = (1, 2, 4, 'online')
@@ -75,6 +78,27 @@ class Field:
 
 
 MISSING = Field()
+
+
+# Constructors: `via` is derived from the call, never written by hand at a call site (signed 14:12).
+def from_button(v) -> Field:
+    """The customer pressed a chip -- the ONLY way a decision becomes stated."""
+    return Field(v, 'stated', 'customer', 'button')
+
+
+def from_text(v) -> Field:
+    """The customer typed it -- stated content; never a stated decision."""
+    return Field(v, 'stated', 'customer', 'text')
+
+
+def inferred(v, *, by_model: bool = False) -> Field:
+    """Read from the raw brief by rules (extract) or by the model -- inferred until a button confirms it."""
+    return Field(v, 'inferred', 'rawBrief', 'model' if by_model else 'extract')
+
+
+def from_library(v) -> Field:
+    """A value the artifact kind fixes (allow-list LIBRARY_FIXED)."""
+    return Field(v, 'stated', 'library', 'extract')
 
 
 @dataclass(frozen=True)
@@ -186,6 +210,8 @@ def _field_shape(f: Field, where: str, out: list[Violation]) -> None:
         bad(f'src {f.src!r} not in {SRC}')
     if f.via not in VIA:
         bad(f'via {f.via!r} not in {VIA}')
+    if f.src in SRC and f.via in VIA and (f.src, f.via) not in VALID_PAIRS:
+        bad(f'src {f.src!r} cannot enter via {f.via!r} (valid pairs: {sorted(VALID_PAIRS)})')
     if f.conf == 'inferred' and f.src == 'customer':
         bad('inferred values come from the raw brief or the library, never from the customer')
 

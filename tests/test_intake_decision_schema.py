@@ -13,8 +13,8 @@ RAW = 'תבנה לי דף לחנות הפרחים שלי, "שושנת העמקי
 A1 = D.new_artifact_id(now_ms=1_762_860_000_000, randomness=bytes(range(10)))
 A2 = D.new_artifact_id(now_ms=1_762_860_000_001, randomness=bytes(range(10, 20)))
 
-BTN = dict(conf='stated', src='customer', via='button')
-TXT = dict(conf='stated', src='customer', via='text')
+BTN = dict(conf='stated', src='customer', via='button')     # what D.from_button builds
+TXT = dict(conf='stated', src='customer', via='text')       # what D.from_text builds
 
 
 def complete_site(**over) -> D.IntakeDecision:
@@ -124,6 +124,35 @@ class Validation(unittest.TestCase):
     def test_a_gap_on_a_field_that_does_not_exist(self):
         dec = replace(complete_site(), gaps=(D.Gap('art_nope.kind', 'build', 'customer'),))
         self.assertIn(('SCHEMA', 'art_nope.kind'), codes(D.validate(dec)))
+
+
+class SrcViaPairs(unittest.TestCase):
+    """src = where from, via = how it entered; they compose and cannot contradict (signed 14:12)."""
+
+    def test_constructors_derive_via(self):
+        self.assertEqual(D.from_button('site'), D.Field('site', **BTN))
+        self.assertEqual(D.from_text('x'), D.Field('x', **TXT))
+        self.assertEqual(D.inferred('site'), D.Field('site', 'inferred', 'rawBrief', 'extract'))
+        self.assertEqual(D.inferred('site', by_model=True).via, 'model')
+        self.assertEqual(D.from_library('none'), D.Field('none', 'stated', 'library', 'extract'))
+        for f in (D.from_button(1), D.from_text(1), D.inferred(1), D.inferred(1, by_model=True), D.from_library(1)):
+            self.assertIn((f.src, f.via), D.VALID_PAIRS)
+
+    def test_contradicting_pairs_are_rejected(self):
+        dec = complete_site()
+        for src, via in (('rawBrief', 'button'), ('library', 'button'), ('customer', 'model'), ('customer', 'extract'),
+                         ('library', 'text'), ('rawBrief', 'text')):
+            with self.subTest(src=src, via=via):
+                art = replace(dec.artifacts[0], audience=D.Field('x', 'inferred' if src != 'customer' else 'stated', src, via))
+                self.assertIn(('SCHEMA', f'{A1}.audience'), codes(D.validate(replace(dec, artifacts=(art,)))))
+
+    def test_a_model_guess_is_inferred_never_stated(self):
+        dec = complete_site()
+        art = replace(dec.artifacts[0], kind=D.Field('site', 'stated', 'rawBrief', 'model'))
+        self.assertIn(('SCHEMA', f'{A1}.kind'), codes(D.validate(replace(dec, artifacts=(art,)))))
+        art = replace(dec.artifacts[0], kind=D.inferred('site', by_model=True))
+        self.assertEqual([x for x in D.validate(replace(dec, artifacts=(art,))) if x.stop], [])
+        self.assertIn(f'{A1}.kind', [g.field for g in D.derive_gaps(replace(dec, artifacts=(art,)))])
 
 
 class GapDerivation(unittest.TestCase):
