@@ -2736,7 +2736,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             rights_evidence=rights_evidence, public_project_id=project_id,
                             build_contract_id=build_contract.id,
                         )
-                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}}
+                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'},
+                                        'environment': _build_environment()}   # 72 cond. 2: a report tells environment from product
                         if plan_binding is not None:
                             job_evidence['execution_plan'] = plan_binding
                         jobs.create_with_cursor(
@@ -2752,6 +2753,18 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "build_contract_fingerprint": build_contract.contract_fingerprint,
             })
 
+        if _preview_without_build_queue():
+            # 72 part 2 (Michael 2026-11-11): a Preview has no build queue (no OMNI_REDIS_URL; its own database since
+            # #313). The build would wait forever. It is closed now -- as an ENVIRONMENT outcome, never a product
+            # failure -- and its credits go back. Warehouse 82: a table queue + worker per Preview makes it run.
+            _close_preview_build(jobs, build_id)
+            return JSONResponse(status_code=202, content={
+                "status": "failed", "build_id": build_id, "dispatch": PREVIEW_NO_BUILD_QUEUE,
+                "error_code": PREVIEW_NO_BUILD_QUEUE, "environment": "preview",
+                "build_contract_id": build_contract.id,
+                "build_contract_fingerprint": build_contract.contract_fingerprint,
+                "credits": 0,
+            })
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
         try:
             enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
@@ -2772,6 +2785,35 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+
+PREVIEW_NO_BUILD_QUEUE = 'preview_no_build_queue'
+
+
+def _build_environment() -> str:
+    return os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV') or 'development'
+
+
+def _preview_without_build_queue() -> bool:
+    """72 part 2: a Vercel Preview with no queue of its own. OMNI_REDIS_URL is Production-only."""
+    return os.getenv('VERCEL_ENV') == 'preview' and not os.getenv('OMNI_REDIS_URL', '').strip()
+
+
+def _close_preview_build(jobs, build_id: str) -> None:
+    """QUEUED -> FAILED with the environment code and the environment's words; the reservation is released."""
+    from .models import BuildStatus
+    log = logging.getLogger(__name__)
+    try:
+        jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED,
+                        error_code=PREVIEW_NO_BUILD_QUEUE,
+                        error_message='Preview environment has no build queue: the build did not run '
+                                      '(environment, not a product failure).')
+    except Exception:
+        log.error('build %s: could not close the preview build', build_id, exc_info=True)
+    try:
+        _v28.subscriptions.release(build_id=build_id)
+    except Exception:
+        log.error('build %s: preview build credits not released', build_id, exc_info=True)
+
 
 @app.get('/api/v28/projects/{project_id}/builds/latest')
 def v28_build_latest(project_id: str, request: Request) -> dict:
