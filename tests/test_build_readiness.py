@@ -45,7 +45,36 @@ class ClosedList(unittest.TestCase):
     def test_every_reason_has_both_languages_and_a_next_step(self):
         for code, (family, he, en, nhe, nen) in R.REASONS.items():
             self.assertIn(family, R._ORDER, code)
-            self.assertTrue(all([he, en, nhe, nen]), code)
+            self.assertTrue(all(s.strip() for s in (he, en, nhe, nen)), code)
+            self.assertNotEqual(he, nhe, code)                       # the next step is a step, not the reason again
+            for lang in ('he', 'en'):                                # and it reaches the customer
+                out = R.primary_blocker({'can_build': False, 'status': 'READY', 'blockers': [{'code': code}]}, lang)
+                self.assertTrue(out['next'].strip(), (code, lang))
+
+
+# Michael 308 condition 2: every code set ever published, by version. A change to REASONS without a new entry here
+# fails; a code that leaves REASONS must go to RETIRED so old previews never show dead text.
+PUBLISHED = {
+    1: {'requirements_open', 'spec_not_approved', 'plan_not_verified', 'brief_stale', 'requirements_invalid',
+        'capability_not_feasible', 'approval_state_unavailable', 'cost_quote_unknown', 'cost_quote_unavailable',
+        'plan_cannot_authorize_cost', 'qa_budget_denied', 'durable_backend_not_configured', 'infrastructure',
+        'image_provider'},
+}
+
+
+class Versioned(unittest.TestCase):
+    def test_the_current_set_is_published_under_its_version(self):
+        self.assertEqual(set(R.REASONS), PUBLISHED[R.REASONS_VERSION],
+                         'REASONS changed: bump REASONS_VERSION and add the new set to PUBLISHED')
+
+    def test_no_published_code_is_ever_dead(self):
+        for version, codes in PUBLISHED.items():
+            for code in codes:
+                self.assertIsNotNone(R.reason_key(code), f'v{version} code {code}: keep it or map it in RETIRED')
+
+    def test_the_banner_object_carries_the_version(self):
+        out = R.primary_blocker({'can_build': False, 'status': 'READY', 'blockers': [{'code': 'brief_stale'}]})
+        self.assertEqual(out['version'], R.REASONS_VERSION)
 
 
 class PrimaryBlocker(unittest.TestCase):
