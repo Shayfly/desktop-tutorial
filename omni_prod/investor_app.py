@@ -3563,7 +3563,8 @@ def v28_deployment() -> dict:
 def _database_candidates() -> dict:
     from .isolation_check import DB_KEYS, db_identity
     out = {}
-    for key in DB_KEYS:
+    # The Neon integrations also inject prefixed copies (DB2_ = 148ai-db-v2, GENAPP_ = generated apps).
+    for key in DB_KEYS + ('DB2_DATABASE_URL', 'DB2_POSTGRES_URL', 'GENAPP_DATABASE_URL'):
         try:
             ident = db_identity(os.getenv(key))
         except ValueError:
