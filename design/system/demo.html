@@ -453,6 +453,7 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .steps, .footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .panel { min-inline-size: 0; padding: var(--space-16); border: 1px solid var(--s-line); background: var(--s-surface); border-radius: var(--r-2); }
 .workflow > * { grid-column: span 6; }
+.workflow > .brief { grid-column: 1 / -1; }
 .workflow input, .workflow textarea {
   width: 100%;
   min-block-size: var(--space-48);
@@ -536,7 +537,7 @@ footer { padding-block: var(--space-32); }
     <div class="panel stack"><h2>הבריף שלכם</h2><form class="stack" action="#build"><div class="ds-field"><label for="business">שם העסק</label><input id="business" value="סטודיו נור" required></div><div class="ds-field"><label for="request">מה תרצו שהאתר יעשה?</label><textarea id="request" required>להציג שירותים ולקבל בקשות להצעת מחיר.</textarea></div><button class="ds-button" type="submit">לסטטוס הבנייה</button></form></div>
     <div class="panel stack"><h3>מה נכנס לבריף</h3><p>אתר שירות בעברית עם טופס פנייה והצגת עבודות.</p><span class="ds-tag">טיוטה</span><p class="ds-meta">דמו סטטי · מעבר למסך לדוגמה</p></div>
   </section>
-  <section class="block workflow grid" id="build" aria-label="מסך סטטוס בנייה">
+  <section class="block workflow grid" id="build" tabindex="-1" aria-label="מסך סטטוס בנייה">
     <p class="brief brief-desktop">״אני רוצה לדעת מה כבר מוכן ומה עוד נבדק.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״אני רוצה לדעת מה כבר מוכן ומה עוד נבדק.״</p></details>
     <div class="panel stack"><h2>סטטוס הבנייה</h2><h3>אתר שירות · סטודיו נור</h3><ol><li class="done">המפרט אושר</li><li class="done">המסכים נבנו</li><li>בדיקת טופס הפנייה בתהליך</li><li>הורדת קוד לאחר בדיקה</li></ol><a class="ds-button" data-variant="secondary" href="#intake">חזרה לבריף</a></div>
     <div class="ds-preview" data-state="default">
@@ -550,7 +551,12 @@ footer { padding-block: var(--space-32); }
 <footer class="wrap"><div class="footer-grid"><div><strong>148AI</strong><p class="brief brief-desktop">״תנו לי דרך לחזור לעבודה שלי.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תנו לי דרך לחזור לעבודה שלי.״</p></details></div><div><a href="#examples">תוצרים</a></div><div><a href="#intake">בריף</a></div><div><a href="#faq">שאלות</a></div></div></footer>
 
 <script>
-  for (const item of document.querySelectorAll('.ds-accordion[open], details.ds-accordion')) {
+  document.querySelector('#intake form')?.addEventListener('submit', event => {
+    event.preventDefault();
+    location.hash = 'build';
+    document.getElementById('build').focus();
+  });
+  for (const item of document.querySelectorAll('details.ds-accordion')) {
     const summary = item.querySelector('summary');
     item.addEventListener('toggle', () => summary.setAttribute('aria-expanded', String(item.open)));
   }

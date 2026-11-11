@@ -30,6 +30,7 @@ section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16))
 .steps, .footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .panel { min-inline-size: 0; padding: var(--space-16); border: 1px solid var(--s-line); background: var(--s-surface); border-radius: var(--r-2); }
 .workflow > * { grid-column: span 6; }
+.workflow > .brief { grid-column: 1 / -1; }
 .workflow input, .workflow textarea {
   width: 100%;
   min-block-size: var(--space-48);
