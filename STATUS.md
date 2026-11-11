@@ -1,3 +1,14 @@
+## מצב עדכני — 2026-11-02 (קריאת GitHub; בסיס main d224629d8def0871a0d7e8ca8cc20b958063aad7)
+
+- main: `d224629d8def0871a0d7e8ca8cc20b958063aad7`, מיזוג #207 (repair plan floor). #203 מוזג ב-`ef9d1564a00fca3943dc67485a4fb73afcf7063e`.
+- חיפוש PR פתוחים החזיר **45 PRs** בזמן הבדיקה; ביניהם #214, #213, #212, #210, #198, #180, #177. אין להסיק שהרשימה סטטית.
+- #177 (חוקי הברזל): OPEN, ללא reviews רשומים; לא מוזג. אין ראיית אישור עצמאי או CI ירוק על head במסגרת הבדיקה הנוכחית.
+- #210: הכותרת קובעת DO NOT MERGE לפני deploy הבא; אין לראות בו מאושר.
+- Branch protection: לפי דיווח המייסד רק `test` ו-`validate` חוסמים. שינוי ההגדרות ושמות ה-checks עברו ל-C2/C5; לא בוצע שינוי.
+- כשלי CI/מוצר: קיימים דיווחים על כשל OOM drain (exit 137, oom=false) ועל בעיות build/repair/verification. **לא נבדקו כאן לוגי CI עדכניים**, ולכן אין לייחס כשל חדש ל-SHA הנוכחי או להכריז ירוק.
+- `docs/AUDIT_2026-11-02.md` לא נמצא ב-main בעת הבדיקה (404); ממצא 5 מיוחס להנחיית המייסד, לא לציטוט מסמך שנקרא.
+- הכרעה: HOLD על אכיפת branch protection עד אישור בעלים; HOLD על מיזוג #177 עד בדיקת CI ו-review עצמאי.
+
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
 - GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
