@@ -5,7 +5,7 @@ Signed by Michael 2026-11-11.
 | Resource | Production | Preview |
 |---|---|---|
 | Database | 148ai-db-v2 `main` (`OMNI_DATABASE_URL`) | its own Neon branch `preview/<git branch>` (`DB2_DATABASE_URL`, created by the Neon–Vercel integration from Production's data); no branch → no database, never Production (#313) |
-| Build queue | Redis (`OMNI_REDIS_URL`) + the Oracle worker | **none**: a build is closed at once as `preview_no_build_queue` — "בסביבת Preview אין תור בנייה — הבנייה לא רצה" — an environment outcome, not a product failure; credits released; `environment` recorded on the job |
+| Build queue | Redis (`OMNI_REDIS_URL`) + the Oracle worker | **none**: a build is closed at once as `preview_no_build_queue` — the customer reads "הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו." — an environment outcome, not a product failure; credits released; `environment` recorded on the job |
 | Branch hygiene | — | deleted when its PR closes; daily alert over 50 (#314) |
 
 ## What the Preview smoke covers — and what it does NOT

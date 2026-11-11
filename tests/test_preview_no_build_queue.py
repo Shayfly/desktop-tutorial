@@ -62,8 +62,13 @@ class Close(unittest.TestCase):
 class CustomerWords(unittest.TestCase):
     def test_both_languages_say_environment_not_failure(self):
         js = (ROOT / 'omni_prod' / 'assets' / 'app.js').read_text()
-        self.assertIn("preview_no_build_queue:'בסביבת Preview אין תור בנייה — הבנייה לא רצה.", js)
-        self.assertIn('not a product failure', js)
+        # Michael 2026-11-11: no internal term ("Preview") in what the customer reads.
+        self.assertIn("preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.'", js)
+        self.assertIn("preview_no_build_queue:'The build did not run in this version: it is a test version", js)
+        for line in js.splitlines():
+            if 'preview_no_build_queue:' in line:
+                said = line.split("preview_no_build_queue:'", 1)[1].split("'", 1)[0]
+                self.assertNotIn('Preview', said)
         self.assertNotIn("preview_no_build_queue:'הבנייה נכשלה", js)
 
     def test_the_gap_is_written_down(self):
