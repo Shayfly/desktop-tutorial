@@ -2101,10 +2101,17 @@ def _supervisor(key: str, account_id: str | None = None):
         except Exception:
             logging.getLogger(__name__).warning('intake: plan build terms unavailable for %s; showing defaults',
                                                 account_id, exc_info=True)
+    admission = None
+    if account_id is not None:
+        def admission(project_id, row, lang):   # 79: the banner's own check, saving no contract
+            from . import discovery as d
+            from .build_contract_repository import MemoryBuildContractRepository
+            prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
+            return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=credits, context=_project_context(key),
                                   budget_usd=budget_usd,
-                                  reservations=reservations, enqueue=enqueue)
+                                  reservations=reservations, enqueue=enqueue, admission=admission)
 
 
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
@@ -2456,6 +2463,50 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
 
 _PLAN_NOT_INCLUDED = 'This build is not included in your plan. Upgrade your plan to continue.'
 
+def _plan_admission(account_id: str, project_id: str, prompt: str, brief_row, repository, lang: str) -> tuple[dict, bool, object]:
+    """79: the build-admission preview -- quote, plan allowance, infrastructure, execution-plan gate, blocked_reason.
+    ONE function for the plan endpoint (saves the contract) and the chat (memory repository, saves nothing), so the
+    banner and the chat cannot disagree on whether a build can start."""
+    plan = _v28.subscriptions.plan_for(account_id)
+    from .pricing import m5_build_terms
+    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
+    qa_policy, internal_qa = _internal_qa_funding(account_id)
+
+    def economics(contract):
+        # Admission parity: the same funding decision and, for internal QA,
+        # the same caps as POST .../builds (checked read-only here).
+        inputs = _m5_cost_inputs(contract, tenant_id=account_id, project_id=project_id)
+        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account_id))
+        if internal_qa:
+            from .qa_budget import QABudgetDenied, preauthorize_qa_build
+            try:
+                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account_id,
+                                      max_cost_usd=quote.total_authorized_variable_usd)
+            except QABudgetDenied as exc:
+                logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
+                raise  # Preserve QA budget blocker, not a false customer-plan error.
+        return quote
+
+    preview = build_plan_preview(
+        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
+        economics=economics,
+        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
+            user_id=account_id, cost_class=build_class, credits=build_credits,
+            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
+        durable_backend=_async_build_mode(),
+        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
+    )
+    if brief_row is not None:
+        _apply_execution_plan_gate(preview, project_id, brief_row)
+        _plan_in_customer_language(preview, brief_row.brief, lang)
+        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
+    from .build_readiness import primary_blocker
+    preview['blocked_reason'] = primary_blocker(preview, lang)
+    return preview, internal_qa, qa_policy
+
+
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
     """M5-UX01 plan + quote step: compiles and saves the next Build Contract
@@ -2471,41 +2522,14 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
-    plan = _v28.subscriptions.plan_for(account.id)
-    from .pricing import m5_build_terms
-    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
-    qa_policy, internal_qa = _internal_qa_funding(account.id)
-
-    def economics(contract):
-        # Admission parity: the same funding decision and, for internal QA,
-        # the same caps as POST .../builds (checked read-only here).
-        inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
-        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
-                                          founder=_founder(account.id))
-        if internal_qa:
-            from .qa_budget import QABudgetDenied, preauthorize_qa_build
-            try:
-                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account.id,
-                                      max_cost_usd=quote.total_authorized_variable_usd)
-            except QABudgetDenied as exc:
-                logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
-                raise  # Preserve QA budget blocker, not a false customer-plan error.
-        return quote
-
     prompt = req.prompt
     brief_row = None
     if req.brief_revision is not None:
         prompt, brief_row = _brief_prompt(project_id, req.brief_revision)
-    preview = build_plan_preview(
-        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
-        economics=economics,
-        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
-            user_id=account.id, cost_class=build_class, credits=build_credits,
-            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
-        durable_backend=_async_build_mode(),
-        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
-    )
+    from .pricing import m5_build_terms
+    build_credits = m5_build_terms(_v28.subscriptions.plan_for(account.id).code)[1]
+    preview, internal_qa, qa_policy = _plan_admission(account.id, project_id, prompt, brief_row, repository,
+                                                      _lang(request))
     # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
     preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
@@ -2524,10 +2548,6 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
             'per_build_max_usd': str(qa_policy.build_max_usd),
             'balance_is_provider_reported': False,
         }
-    if brief_row is not None:
-        _apply_execution_plan_gate(preview, project_id, brief_row)
-        _plan_in_customer_language(preview, brief_row.brief, _lang(request))
-        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')

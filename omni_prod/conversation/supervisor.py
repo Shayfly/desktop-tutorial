@@ -244,7 +244,7 @@ def _label(field_: str, value, lang: str) -> str:
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
-                 reservations=None, enqueue=None):
+                 reservations=None, enqueue=None, admission=None):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
@@ -255,8 +255,29 @@ class ConversationSupervisor:
         self.worker_interpreter = worker_interpreter           # injected in tests
         self.reservations = reservations                       # intake.budget.ReservationService (migration 037)
         self.enqueue = enqueue                                 # RQ enqueue of a reservation id
+        # 79: the build-admission check the banner shows (plan preview: quote, plan allowance, infrastructure, gate).
+        # The chat never says "ready, approve" while this says no; if they would disagree, admission wins.
+        self.admission = admission                             # (project_id, row, lang) -> preview dict | None
 
     # ------------------------------------------------------------------ helpers
+    def _admission_block(self, project_id: str, row, lang: str) -> str | None:
+        """79: the sentence the banner shows, when admission refuses -- or None (no admission check, or it allows).
+        A failure of the check itself never blocks the chat; it is logged and the old reply stands."""
+        if self.admission is None:
+            return None
+        try:
+            preview = self.admission(project_id, row, lang)
+        except Exception:   # an admission bug must not silence the conversation
+            import logging
+            logging.getLogger(__name__).warning('admission check failed for %s', project_id, exc_info=True)
+            return None
+        if not preview or preview.get('can_build'):
+            return None
+        from ..build_readiness import primary_blocker
+        reason = preview.get('blocked_reason') or primary_blocker(preview, lang)
+        head = 'לא ניתן להתחיל בבנייה כרגע' if lang == 'he' else 'The build cannot start yet'
+        return f"{head}: {reason['message']} {reason['next']}"
+
     def intake_mode(self, project_id, account_id=None):
         from ..intake import budget as B
         from ..intake import mode as intake_mode
@@ -523,7 +544,12 @@ class ConversationSupervisor:
         parts.append(t['planned'])
         if record['corrected']:
             parts.append(t['fixed'].format(what='; '.join(record['problems'])[:400]))
-        if plan.get('executable'):
+        blocked_by_admission = self._admission_block(project_id, row, lang) if plan.get('executable') else None
+        if blocked_by_admission:
+            parts.append(blocked_by_admission)
+            turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
+                             {'type': 'edit_requirements', 'brief_revision': row.revision}]
+        elif plan.get('executable'):
             parts.extend(AF.budget_lines(cmp, lang, plan.get('complexity')))
             parts.append(t['gate2'])
             turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
@@ -665,7 +691,7 @@ class ConversationSupervisor:
                     parts.append(T['content_saved'])
                 if self._spec_ok(project_id, row):         # nothing changed since gate 1: the verified plan stands
                     turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
-                    parts.append(T['ready_again'])
+                    parts.append(self._admission_block(project_id, row, lang) or T['ready_again'])
                     turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
                 else:                                      # gate 1: the spec and the range; no plan yet
                     parts.extend(self._gate1(turn, row, lang))

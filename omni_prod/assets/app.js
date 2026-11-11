@@ -671,8 +671,10 @@ function renderProjectReadiness() {
   const p = S.plan;
   const busy = S.build && !isTerminal(S.build.status);
   const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
+  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
   const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
-    p.can_build ? t('readinessReady') : t('readinessBlocked');
+    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
   strip.className = 'projectReadiness ' + mode;
   strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
     h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
@@ -710,7 +712,8 @@ function renderPlan() {
     h('h2', {}, t('planTitle')),
     h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
       h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
-      !p.can_build ? h('p', {}, t('readinessBlockedHelp')) : null),
+      !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
+      !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
