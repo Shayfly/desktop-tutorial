@@ -1,6 +1,7 @@
 # R1 + R2 design — the persistence decision (run 10b triage, for Michael's sign-off)
 
-Status: DESIGN. No code until signed. Fixtures: tests/test_run10b_fixtures.py (PR #297).
+Status: SIGNED by Michael 2026-11-11 12:04 with six conditions (section 8). Sections 8.1-8.6 override anything
+earlier in this document that disagrees with them. Fixtures: tests/test_run10b_fixtures.py (PR #297, merged).
 
 ## 0. Where "content only: yes" fell in arm 1 — traced to the line
 
@@ -119,3 +120,60 @@ names a generic `records` module instead of passing a store-nothing contract.
 
 R3 (classifier) becomes a tie-breaker only: it may pre-select the chip, never decide. R4 (warning keyed to
 "business page") is the next PR. Pricing untouched.
+
+## 8. Conditions of the signature (Michael 2026-11-11 12:04) — binding
+
+### 8.1 Strong and weak cues
+`_infer_data_requirements` and the intake cue list are split into two typed sets:
+
+- **strong** (alone enough for `records`): sign-up / registration, sign-in, cart, payment, a list of orders or
+  bookings kept on the site, a personal area, a form that is SAVED ("נרשמים", "התחברות", "סל", "תשלום", "רשימת
+  הזמנות", "אזור אישי", "טופס שנשמר", "השארת פרטים").
+- **weak** (never enough alone): phone, e-mail, WhatsApp, "להזמין", "הזמנה" (an order by phone is not a record),
+  "לקוחות" (a page about customers stores nothing).
+
+Rule: with no customer decision, `persistence = records` only if at least one STRONG cue is present. Weak cues alone
+give `persistence = none` with `source = keyword` -- they may NAME records once a strong cue exists, never create
+the requirement. This is what keeps R2 from asking in almost every business brief.
+
+### 8.2 Where NEEDS_DECISION fires — discovery, first turn
+Not in `compile()`. The persistence question is a discovery question (like `content_only` today, minus the family
+condition), raised in the FIRST interpretation turn when it is open: login none, no strong cue, no customer answer.
+It is asked once, pre-selected from what the customer said, and answered by chip. The check at gate 1 (section 4)
+stays only as a backstop assertion: if a contract reaches gate 1 with `source = keyword` and data requirements,
+discovery failed to ask -- the same two buttons are shown AND the event is logged as a defect
+(`persistence_backstop_fired`), never silently.
+
+### 8.3 `artifact_class` is derived, never classified
+`artifact_class` is written by the resolver only: `page` iff `persistence == none` and the contract has no storing
+capability (8.5); otherwise `app`. The classifier (`classify_family`) never writes it and is not read by the
+resolver; at most it pre-selects the persistence chip.
+
+### 8.4 A stale decision is re-asked
+On every brief edit, the resolver re-reads the edited text. If `persistence == none` with `source == customer` and
+the edit adds a STRONG cue or a storing capability ("עם הרשמה"), the field is moved to `stale` and the persistence
+question is asked again, quoting the new words. A stale decision never reaches a contract: compile refuses a brief
+whose persistence is `stale`. Fixture: approve `none`, edit in "עם הרשמה" -> question asked again, no contract.
+
+### 8.5 R2 reads the contract's typed capabilities, not the brief text
+New typed contract field `storing_capabilities: tuple[str, ...]`, computed by the resolver from typed facts only:
+`auth_session` in infrastructure, roles beyond `user`, required integrations `payments` / `email` with a saved form,
+and the strong cues of 8.1 as resolved by the brain. R2's "no storing capability" is `not
+contract.storing_capabilities`. `database` infrastructure is NOT a signal: it is itself derived from persistence
+(`none` -> no database), so it cannot vote for itself.
+
+### 8.6 Every NEEDS_DECISION is counted
+Each time the persistence question is shown it is recorded in the turn interpretation
+(`decision_asked: persistence`, with `trigger: discovery | backstop | stale`), and the frozen-run report counts it in
+`humanDecisions` with a separate `systemAskedDecisions` breakdown, so a mechanism that adds questions is measured.
+
+### Fixtures added for the conditions
+| condition | fixture |
+|---|---|
+| 8.1 | the three run-10b briefs with NO decision -> `persistence=none, source=keyword`, no question, no data requirement |
+| 8.1 | "דף לעסק עם טלפון ומייל" -> no question; "דף עם טופס שנשמר" -> `records` |
+| 8.2 | first interpretation turn of an ambiguous brief carries `decision_asked: persistence` |
+| 8.3 | `artifact_class` identical with `classify_family` monkeypatched to return anything |
+| 8.4 | `none` approved, then "עם הרשמה" -> stale, re-asked, compile refuses |
+| 8.5 | positive fixtures: `storing_capabilities` non-empty; florist: empty |
+| 8.6 | the turn interpretation and the report field |
