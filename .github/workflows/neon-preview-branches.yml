@@ -42,22 +42,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0                  # the reset rule needs when the latest migration landed in main
-      - name: when did the latest migration land in main
-        id: migration
-        run: |
-          latest=$(ls infra/postgres | grep -E '^[0-9]{3}_.*\.sql$' | sort | tail -1)
-          at=$(git log -1 --diff-filter=A --format=%cI origin/main -- "infra/postgres/$latest" 2>/dev/null || true)
-          [ -n "$at" ] || at=$(git log -1 --diff-filter=A --format=%cI -- "infra/postgres/$latest")
-          echo "::notice title=latest migration::$latest landed in main at $at"
-          echo "at=$at" >> "$GITHUB_OUTPUT"
       - name: reset preview branches that predate the latest migration
         if: github.event_name != 'pull_request_target'
         env:
-          AT: ${{ steps.migration.outputs.at }}
           RESET_APPLY: ${{ (github.event_name == 'workflow_dispatch' && inputs.apply != 'true') && 'false' || 'true' }}
         run: |
           if [ "$RESET_APPLY" = "true" ]; then flag=--apply; else flag=; fi
-          python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" --reset-before "$AT" --reset-only $flag
+          python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" --reset-before latest --reset-only $flag
       - name: PR closed -- delete its preview database
         if: github.event_name == 'pull_request_target'
         env:

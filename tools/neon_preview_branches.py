@@ -111,11 +111,37 @@ def data_taken_at(branch: dict) -> dt.datetime:
     return max(times)
 
 
-def needs_reset(branches: list[dict], migration_at: dt.datetime) -> list[dict]:
-    """Preview branches whose data predates the latest migration in main. Pure: the tests drive it."""
-    return [b for b in branches
-            if b.get('name', '').startswith(PREFIX) and not (b.get('protected') or b.get('default') or b.get('primary'))
-            and b.get('parent_id') and data_taken_at(b) < migration_at]
+DEBOUNCE = dt.timedelta(hours=1)   # Michael 2026-11-11: migrations land in waves -- at most one reset per branch per hour
+
+
+def needs_reset(branches: list[dict], migration_at: dt.datetime, now: dt.datetime | None = None) -> list[dict]:
+    """Preview branches whose data predates the latest migration in main, and that were not reset in the last hour.
+    Pure: the tests drive it."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    out = []
+    for b in branches:
+        if not b.get('name', '').startswith(PREFIX) or b.get('protected') or b.get('default') or b.get('primary'):
+            continue
+        if not b.get('parent_id') or data_taken_at(b) >= migration_at:
+            continue
+        last = _ts(b.get('last_reset_at'))
+        if last and now - last < DEBOUNCE:
+            continue
+        out.append(b)
+    return out
+
+
+def latest_migration_at(repo_root: str, ref: str = 'origin/main') -> tuple[str, str]:
+    """(file, ISO time it landed on `ref`) -- read from git, never written down (Michael 2026-11-11 fix 1)."""
+    import pathlib
+    import re
+    import subprocess
+    files = sorted(p.name for p in (pathlib.Path(repo_root) / 'infra' / 'postgres').glob('*.sql')
+                   if re.fullmatch(r'\d{3}_.+\.sql', p.name))
+    latest = files[-1]
+    at = subprocess.run(['git', '-C', repo_root, 'log', '-1', '--diff-filter=A', '--format=%cI', ref, '--',
+                         f'infra/postgres/{latest}'], capture_output=True, text=True).stdout.strip()
+    return latest, at
 
 
 def main(argv=None) -> int:
@@ -135,8 +161,13 @@ def main(argv=None) -> int:
         return 2
     branches = neon_branches(a.project, neon_key)
     if a.reset_before:
+        if a.reset_before == 'latest':           # read from git, never written down
+            import pathlib
+            latest, at = latest_migration_at(str(pathlib.Path(__file__).resolve().parents[1]))
+            print(f'::notice title=latest migration::{latest} landed in main at {at}')
+            a.reset_before = at
         migration_at = _ts(a.reset_before)
-        stale = needs_reset(branches, migration_at)
+        stale = needs_reset(branches, migration_at, dt.datetime.now(dt.timezone.utc))
         for b in stale:
             if not a.apply:
                 print(f'::notice title=would reset::{b["name"]} data from {data_taken_at(b).isoformat()} < '

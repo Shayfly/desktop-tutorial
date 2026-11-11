@@ -59,6 +59,23 @@ class ResetRule(unittest.TestCase):
                last_reset_at='2026-11-11T19:00:00Z')
         self.assertEqual(N.needs_reset([b], MIGRATION_AT), [])
 
+    def test_at_most_one_reset_per_branch_per_hour(self):
+        now = dt.datetime(2026, 11, 11, 20, 0, tzinfo=dt.timezone.utc)
+        wave = dt.datetime(2026, 11, 11, 19, 50, tzinfo=dt.timezone.utc)          # a second migration, 10 min later
+        b = br('preview/fix/x', created='2026-11-01T00:00:00Z', parent_id='br-main', last_reset_at='2026-11-11T19:30:00Z')
+        self.assertEqual(N.needs_reset([b], wave, now), [])                       # reset 30 min ago: wait
+        self.assertEqual(len(N.needs_reset([b], wave, now + dt.timedelta(hours=1))), 1)
+
+    def test_the_latest_migration_is_read_from_git_not_written_down(self):
+        root = pathlib.Path(__file__).resolve().parents[1]
+        latest, at = N.latest_migration_at(str(root), 'HEAD')
+        newest = sorted(p.name for p in (root / 'infra' / 'postgres').glob('[0-9][0-9][0-9]_*.sql'))[-1]
+        self.assertEqual(latest, newest)
+        self.assertTrue(at, 'git gave no time for the newest migration')
+        for f in ('tools/neon_preview_branches.py', 'tools/preview_db_prepare.py',
+                  '.github/workflows/neon-preview-branches.yml', '.github/workflows/deployment-verify.yml'):
+            self.assertNotRegex((root / f).read_text(), r'\b0[0-9]{2}_[a-z_]+\.sql', f)   # no migration named in code
+
     def test_never_main_backups_or_protected(self):
         branches = [br('main', created='2026-10-25T00:00:00Z', default=True, primary=True),
                     br('backup-before-042', created='2026-11-01T00:00:00Z', parent_id='br-main'),
@@ -78,7 +95,42 @@ class Workflow(unittest.TestCase):
         wf = (pathlib.Path(__file__).resolve().parents[1] / '.github/workflows/neon-preview-branches.yml').read_text()
         self.assertIn("paths: ['infra/postgres/**']", wf)
         self.assertIn('fetch-depth: 0', wf)
-        self.assertIn('--diff-filter=A --format=%cI', wf)
+        self.assertIn('--reset-before latest', wf)
+
+    def test_verify_prepares_the_database_first(self):
+        wf = (pathlib.Path(__file__).resolve().parents[1] / '.github/workflows/deployment-verify.yml').read_text()
+        self.assertLess(wf.index('python tools/preview_db_prepare.py'), wf.index('python tools/deployment_verify.py'))
+        self.assertIn("if: github.event_name == 'deployment_status'", wf)
+
+
+class Prepare(unittest.TestCase):
+    """The per-preview preparation: never a fork, never without the key, the PR's migrations after the reset."""
+
+    def setUp(self):
+        import preview_db_prepare as P
+        self.P = P
+
+    def test_a_commit_that_heads_no_branch_here_is_not_prepared(self):
+        from unittest import mock
+        with mock.patch.dict('os.environ', {'NEON_API_KEY': 'k', 'GH_TOKEN': 't'}), \
+                mock.patch.object(self.P, 'branch_of', return_value=None), \
+                mock.patch.object(self.P.N, 'neon_branches') as listing:
+            self.assertEqual(self.P.main(['--project', 'p', '--repo', 'r', '--sha', 'a' * 40]), 0)
+            listing.assert_not_called()
+
+    def test_reset_then_the_prs_own_migrations(self):
+        from unittest import mock
+        calls = []
+        branch = br('preview/fix/x', created='2026-11-01T00:00:00Z', parent_id='br-main')
+        with mock.patch.dict('os.environ', {'NEON_API_KEY': 'k', 'GH_TOKEN': 't'}), \
+                mock.patch.object(self.P, 'branch_of', return_value='fix/x'), \
+                mock.patch.object(self.P.N, 'neon_branches', return_value=[branch]), \
+                mock.patch.object(self.P.N, 'latest_migration_at', return_value=('043_x.sql', '2026-11-10T00:00:00Z')), \
+                mock.patch.object(self.P.N, '_call_json', side_effect=lambda *a, **k: calls.append('reset') or (200, {})), \
+                mock.patch.object(self.P, 'connection_uri', return_value='postgresql://u:p@h/db'), \
+                mock.patch.object(self.P, 'apply_pr_migrations', side_effect=lambda sha, url: calls.append('migrate') or [43]):
+            self.assertEqual(self.P.main(['--project', 'p', '--repo', 'r', '--sha', 'a' * 40]), 0)
+        self.assertEqual(calls, ['reset', 'migrate'])
 
 
 if __name__ == '__main__':
