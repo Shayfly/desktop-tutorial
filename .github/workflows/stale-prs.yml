@@ -1,0 +1,37 @@
+name: stale PRs (two-week rule)
+# Michael 2026-11-11: a PR that has not reached main within two weeks of being opened is closed. Branch kept,
+# reopen if still relevant. Exempt: label `keep-open`, the bot report PR (ci/v24-report).
+#   * daily              -> close what is past two weeks
+#   * workflow_dispatch  -> dry run unless apply=true
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "true = close. Anything else = dry run (list only)."
+        required: false
+        default: "false"
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+concurrency:
+  group: stale-prs
+  cancel-in-progress: false
+jobs:
+  rule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: apply the two-week rule
+        env:
+          APPLY: ${{ github.event_name == 'schedule' && 'true' || inputs.apply }}
+        run: |
+          if [ "$APPLY" = "true" ]; then flag=--apply; else flag=; fi
+          python3 tools/stale_prs.py --repo "$GITHUB_REPOSITORY" $flag

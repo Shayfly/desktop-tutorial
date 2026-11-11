@@ -776,8 +776,12 @@ class SchemaCompatibilityEndpointTests(unittest.TestCase):
             body = self.app.v28_deployment()
         finally:
             os.environ.pop('VERCEL_GIT_COMMIT_SHA', None)
-        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema'})
+        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema', 'database_candidates'})
         self.assertEqual(body['source_commit'], SHA)
+        # 72 step 0: host:port/db identities only -- never a user or a password.
+        for ident in body['database_candidates'].values():
+            self.assertNotIn('@', ident)
+            self.assertRegex(ident, r'^[a-z0-9.-]+:\d+/[^/:@]*$')
 
 
 if __name__ == '__main__':
