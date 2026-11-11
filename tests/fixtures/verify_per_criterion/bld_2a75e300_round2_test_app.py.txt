@@ -1,0 +1,43 @@
+import pytest, threading, urllib.request, json, os, sqlite3
+from app import Handler, DB_PATH, init_db
+from http.server import ThreadingHTTPServer
+
+@pytest.fixture(autouse=True)
+def setup_db():
+    if os.path.exists(DB_PATH): os.remove(DB_PATH)
+    init_db()
+
+@pytest.fixture
+def server():
+    httpd = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    port = httpd.server_port
+    thread = threading.Thread(target=httpd.serve_forever)
+    thread.daemon = True
+    thread.start()
+    yield port
+    httpd.shutdown()
+    httpd.server_close()
+
+def test_flow(server):
+    base = f"http://127.0.0.1:{server}"
+    req = urllib.request.Request(f"{base}/entries", data=json.dumps({"name": "A", "score": 10}).encode(), headers={'Content-Type': 'application/json'})
+    urllib.request.urlopen(req)
+    res = urllib.request.urlopen(f"{base}/").read().decode()
+    assert "A" in res
+    assert "10" in res
+
+def test_invalid_score(server):
+    base = f"http://127.0.0.1:{server}"
+    req = urllib.request.Request(f"{base}/entries", data=json.dumps({"name": "B", "score": 2.9}).encode(), headers={'Content-Type': 'application/json'})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req)
+    assert e.value.code == 400
+
+def test_duplicate(server):
+    base = f"http://127.0.0.1:{server}"
+    req1 = urllib.request.Request(f"{base}/entries", data=json.dumps({"name": "C", "score": 5}).encode(), headers={'Content-Type': 'application/json'})
+    urllib.request.urlopen(req1)
+    req2 = urllib.request.Request(f"{base}/entries", data=json.dumps({"name": "C", "score": 6}).encode(), headers={'Content-Type': 'application/json'})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req2)
+    assert e.value.code == 409

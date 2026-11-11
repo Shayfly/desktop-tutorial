@@ -63,6 +63,11 @@ GENERATION_CONSTRAINTS = (
     'startup. Tests must not write into the repository either (use pytest tmp_path and set DATA_DIR for the app). '
     # bld_96ab03c8 / bld_99ea49df (2026-11-01): the tests were written to a root tests.py, which "python -m pytest" never
     # collects (exit 5, "no tests ran"), and imported requests, which the offline sandbox does not have.
+    # bld_2a75e300 (2026-11-02): one verify command for A1..A8 failed all eight on "1 failed, 2 passed".
+    'Verification is per acceptance criterion: .omni/project.json has one "verify" entry for EACH acceptance id, with '
+    '"acceptance_ids" exactly [that id] and an argv that names the pytest node id of the test checking that criterion, '
+    'for example {"name": "A1 a score is saved", "argv": ["python", "-m", "pytest", "-q", '
+    '"tests/test_app.py::test_a1_score_is_saved"], "acceptance_ids": ["A1"]}; write one test function per criterion. '
     'Tests go in tests/test_<topic>.py (for example tests/test_app.py) and never in a file named tests.py at the '
     'repository root: pytest collects only test_*.py and *_test.py. Tests import only the Python standard library and '
     'pytest -- never requests or any other HTTP client package; call the local server with urllib.request. '
