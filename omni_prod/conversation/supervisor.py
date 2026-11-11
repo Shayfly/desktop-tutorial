@@ -429,7 +429,12 @@ class ConversationSupervisor:
             if row is not None:
                 turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
             turn.reply = self._answer(intent, row, turn.plan, ctx, message, T, lang)
-            if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
+            blocked_now = (self._admission_block(project_id, row, lang)
+                           if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete
+                           else None)
+            if blocked_now:                                # 79: "approve" never gets a button the banner refuses
+                turn.reply = blocked_now
+            elif intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
                 turn.actions.append({'type': 'approve_build', 'brief_revision': row.revision,
                                      **({'cost': turn.plan['spec_gate']['cost']} if 'spec_gate' in turn.plan else {})})
             elif intent == 'approve' and row is not None and row.complete and not self._spec_ok(project_id, row) \

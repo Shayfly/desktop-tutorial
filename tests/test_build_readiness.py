@@ -107,6 +107,15 @@ class ChatAgreesWithBanner(unittest.TestCase):
         self.assertIn('לא ניתן להתחיל בבנייה כרגע', t.reply)
         self.assertIn('תקציב הבנייה של המסלול לחודש הזה נגמר', t.reply)
 
+    def test_typing_approve_gets_no_button_the_banner_refuses(self):
+        blocked = {'can_build': False, 'status': 'READY', 'blockers': [{'code': 'cost_quote_unavailable'}]}
+        self.run_to_gate2(lambda pid, row, lang: blocked)
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        sup = ConversationSupervisor(briefs=self.briefs, store=self.store, credits=10, context=lambda p: {},
+                                     admission=lambda pid, row, lang: blocked)
+        t = sup.turn(project_id='p1', account_id='a1', message='מאשר, תתחיל לבנות', lang='he')
+        self.assertNotIn('approve_build', [a['type'] for a in t.actions])
+
     def test_allowed_admission_keeps_the_button(self):
         t = self.run_to_gate2(lambda pid, row, lang: {'can_build': True})
         self.assertEqual([a['type'] for a in t.actions], ['show_plan', 'approve_build'])
