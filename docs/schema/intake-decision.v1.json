@@ -1,0 +1,1081 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://148ai/schema/intake-decision.v1.json",
+ "title": "IntakeDecision v1 (generated from omni_prod/intake/decision.py -- do not edit)",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "raw_brief",
+  "raw_brief_sha256",
+  "artifacts",
+  "shared",
+  "gaps",
+  "turns",
+  "mode",
+  "v",
+  "locale"
+ ],
+ "properties": {
+  "raw_brief": {
+   "type": "string"
+  },
+  "raw_brief_sha256": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "artifacts": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "id",
+     "kind",
+     "purpose",
+     "audience",
+     "must_include",
+     "persistence",
+     "requires_auth",
+     "personal_data",
+     "game",
+     "song",
+     "saas",
+     "agent"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^art_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+     },
+     "kind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "enum": [
+           "site",
+           "landing",
+           "app",
+           "saas",
+           "game",
+           "song",
+           "video",
+           "agent",
+           "combo"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "purpose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "must_include": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "enum": [
+           "none",
+           "records"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "requires_auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "type": "boolean"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "personal_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "v",
+       "conf",
+       "src",
+       "via"
+      ],
+      "properties": {
+       "v": {
+        "anyOf": [
+         {
+          "enum": [
+           "no",
+           "yes"
+          ]
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "conf": {
+        "enum": [
+         "stated",
+         "inferred",
+         "missing"
+        ]
+       },
+       "src": {
+        "enum": [
+         "customer",
+         "rawBrief",
+         "library",
+         null
+        ]
+       },
+       "via": {
+        "enum": [
+         "button",
+         "text",
+         "extract",
+         null
+        ]
+       }
+      }
+     },
+     "game": {
+      "anyOf": [
+       {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "genre",
+         "players"
+        ],
+        "properties": {
+         "genre": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "enum": [
+               "sport",
+               "adventure",
+               "strategy",
+               "learning",
+               "puzzle",
+               "action",
+               "simulation"
+              ]
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         },
+         "players": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "enum": [
+               1,
+               2,
+               4,
+               "online"
+              ]
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "song": {
+      "anyOf": [
+       {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "style",
+         "seconds",
+         "use"
+        ],
+        "properties": {
+         "style": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         },
+         "seconds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "type": "integer",
+              "minimum": 1
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         },
+         "use": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "enum": [
+               "bg",
+               "intro",
+               "ad"
+              ]
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "saas": {
+      "anyOf": [
+       {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "payer",
+         "billing"
+        ],
+        "properties": {
+         "payer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         },
+         "billing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "enum": [
+               "subscription",
+               "oneoff"
+              ]
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "agent": {
+      "anyOf": [
+       {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "skills",
+         "runtime"
+        ],
+        "properties": {
+         "skills": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "type": "array",
+              "items": {
+               "type": "string"
+              }
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         },
+         "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "v",
+           "conf",
+           "src",
+           "via"
+          ],
+          "properties": {
+           "v": {
+            "anyOf": [
+             {
+              "type": "string"
+             },
+             {
+              "type": "null"
+             }
+            ]
+           },
+           "conf": {
+            "enum": [
+             "stated",
+             "inferred",
+             "missing"
+            ]
+           },
+           "src": {
+            "enum": [
+             "customer",
+             "rawBrief",
+             "library",
+             null
+            ]
+           },
+           "via": {
+            "enum": [
+             "button",
+             "text",
+             "extract",
+             null
+            ]
+           }
+          }
+         }
+        }
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    }
+   }
+  },
+  "shared": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "tone",
+    "brand_name",
+    "business_facts"
+   ],
+   "properties": {
+    "tone": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "v",
+      "conf",
+      "src",
+      "via"
+     ],
+     "properties": {
+      "v": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "conf": {
+       "enum": [
+        "stated",
+        "inferred",
+        "missing"
+       ]
+      },
+      "src": {
+       "enum": [
+        "customer",
+        "rawBrief",
+        "library",
+        null
+       ]
+      },
+      "via": {
+       "enum": [
+        "button",
+        "text",
+        "extract",
+        null
+       ]
+      }
+     }
+    },
+    "brand_name": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "v",
+      "conf",
+      "src",
+      "via"
+     ],
+     "properties": {
+      "v": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "conf": {
+       "enum": [
+        "stated",
+        "inferred",
+        "missing"
+       ]
+      },
+      "src": {
+       "enum": [
+        "customer",
+        "rawBrief",
+        "library",
+        null
+       ]
+      },
+      "via": {
+       "enum": [
+        "button",
+        "text",
+        "extract",
+        null
+       ]
+      }
+     }
+    },
+    "business_facts": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "key",
+       "value",
+       "source",
+       "source_ref"
+      ],
+      "properties": {
+       "key": {
+        "type": "string"
+       },
+       "value": {
+        "type": "string"
+       },
+       "source": {
+        "type": "string"
+       },
+       "source_ref": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  },
+  "gaps": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "field",
+     "blocks",
+     "resolver",
+     "options",
+     "asked_count",
+     "trigger"
+    ],
+    "properties": {
+     "field": {
+      "type": "string"
+     },
+     "blocks": {
+      "enum": [
+       "build",
+       "approval",
+       "nothing"
+      ]
+     },
+     "resolver": {
+      "enum": [
+       "customer",
+       "system"
+      ]
+     },
+     "options": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "asked_count": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "trigger": {
+      "enum": [
+       "missing",
+       "stale",
+       "conflict"
+      ]
+     }
+    }
+   }
+  },
+  "turns": {
+   "type": "integer",
+   "minimum": 0
+  },
+  "mode": {
+   "enum": [
+    "menu",
+    "free"
+   ]
+  },
+  "v": {
+   "const": 1
+  },
+  "locale": {
+   "const": "he-IL"
+  }
+ }
+}
