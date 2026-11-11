@@ -95,7 +95,7 @@ configure_observability(app,_metrics)
 _PRODUCTION = os.getenv('OMNI_ENV','development')=='production'
 _ALLOWED_ORIGINS = tuple(configure_web_security(app,raw_origins=os.getenv('OMNI_ALLOWED_ORIGINS','http://127.0.0.1:8000,http://localhost:8000'),production=_PRODUCTION) or ())
 
-_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/v28/deployment','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics')
+_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/v28/deployment','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics','/api/live/')
 @app.middleware('http')
 async def production_auth(request:Request,call_next):
     if os.getenv('OMNI_ENV','development')=='production' and request.url.path.startswith('/api/') and not any(request.url.path==p or (p.endswith('/') and request.url.path.startswith(p)) for p in _PUBLIC_PREFIXES):
@@ -189,8 +189,13 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
+def _founder(account_id) -> bool:
+    from .pricing import m5_founder_account
+    return m5_founder_account(account_id)
+
+
 def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None,
-                              cost_class=None):
+                              cost_class=None, founder: bool = False):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
@@ -252,11 +257,16 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
             minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
             internal_qa=funding == 'internal_qa')
 
+    if founder:   # CEO 2026-11-08: founder test builds, paid by us, measured; never a customer price
+        from .pricing import m5_founder_build_budget
+        provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
     quote, components = _quote(provider_budget)
     if cost_class is not None:
         components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
                       'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
-    if funding == 'internal_qa' or exempt:
+    if founder:
+        components = {**components, 'founder_test': True}
+    if funding == 'internal_qa' or exempt or founder:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
         # of the margin floor. The caller must run authorize_qa_build().
@@ -777,6 +787,11 @@ def _verification_executor(gateway=None):
     from .visual_qa import VisualQAExecutor
     visual=VisualQAExecutor(browser,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
     stages=[preview,behaviour,browser,visual]
+    from .feature_flags import SITE_AUTH_V2
+    if SITE_AUTH_V2:
+        # Work order 001 (flag site_auth_v2): the sign-in form at 320px / 140% zoom in a real browser.
+        from .auth_form_check import AuthFormExecutor
+        stages.append(AuthFormExecutor(visual))
     # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists and static checks. Since 2026-10-19 it
     # is the LAST post-build check of the group (after the build it always runs; its findings go to the same repair).
     if gateway is not None:
@@ -818,7 +833,11 @@ def _live_components():
     recorder=getattr(gateway,'recorder',None)
     if recorder is not None: executor=RecordingExecutor(executor,recorder)
     engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
-        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','3')))
+        # CEO 2026-11-08: up to 6 repair rounds for a product build (was 3). The build's hard cost cap still stops
+        # repairs once the budget is spent; OMNI_MAX_REPAIR_ROUNDS may lower it, never above REPAIR_ROUNDS_HARD_MAX.
+        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','6')),repair_ceiling=6)
+    # CEO 2026-11-08 (bld_ca727ba7 stopped after 2 of 6 rounds): one second chance after a no-progress round.
+    engine.no_progress_retries=max(0,min(2,int(os.getenv('OMNI_NO_PROGRESS_RETRIES','1') or 1)))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:
@@ -2006,6 +2025,8 @@ class V28SpecApproval(BaseModel):
     """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
     brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
     request_key: str | None = Field(default=None, max_length=80)
+    # Michael 2026-11-10 condition 3: an incomplete fact canon is approved only with this box ticked.
+    canon_ack: bool = False
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2080,10 +2101,17 @@ def _supervisor(key: str, account_id: str | None = None):
         except Exception:
             logging.getLogger(__name__).warning('intake: plan build terms unavailable for %s; showing defaults',
                                                 account_id, exc_info=True)
+    admission = None
+    if account_id is not None:
+        def admission(project_id, row, lang):   # 79: the banner's own check, saving no contract
+            from . import discovery as d
+            from .build_contract_repository import MemoryBuildContractRepository
+            prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
+            return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=credits, context=_project_context(key),
                                   budget_usd=budget_usd,
-                                  reservations=reservations, enqueue=enqueue)
+                                  reservations=reservations, enqueue=enqueue, admission=admission)
 
 
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
@@ -2193,7 +2221,8 @@ def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -
     try:
         turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
                                                          brief_fingerprint=req.brief_fingerprint,
-                                                         request_key=req.request_key, lang=lang)
+                                                         request_key=req.request_key, lang=lang,
+                                                         canon_ack=req.canon_ack)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)
@@ -2415,7 +2444,8 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     try:
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account.id))
     except CostQuoteUnknown as exc:
         raise HTTPException(402, detail={'error': 'cost_quote_unknown',
                                          'unpriced': unpriced_capabilities(exc.unknown)}) from exc
@@ -2433,6 +2463,50 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
 
 _PLAN_NOT_INCLUDED = 'This build is not included in your plan. Upgrade your plan to continue.'
 
+def _plan_admission(account_id: str, project_id: str, prompt: str, brief_row, repository, lang: str) -> tuple[dict, bool, object]:
+    """79: the build-admission preview -- quote, plan allowance, infrastructure, execution-plan gate, blocked_reason.
+    ONE function for the plan endpoint (saves the contract) and the chat (memory repository, saves nothing), so the
+    banner and the chat cannot disagree on whether a build can start."""
+    plan = _v28.subscriptions.plan_for(account_id)
+    from .pricing import m5_build_terms
+    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
+    qa_policy, internal_qa = _internal_qa_funding(account_id)
+
+    def economics(contract):
+        # Admission parity: the same funding decision and, for internal QA,
+        # the same caps as POST .../builds (checked read-only here).
+        inputs = _m5_cost_inputs(contract, tenant_id=account_id, project_id=project_id)
+        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account_id))
+        if internal_qa:
+            from .qa_budget import QABudgetDenied, preauthorize_qa_build
+            try:
+                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account_id,
+                                      max_cost_usd=quote.total_authorized_variable_usd)
+            except QABudgetDenied as exc:
+                logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
+                raise  # Preserve QA budget blocker, not a false customer-plan error.
+        return quote
+
+    preview = build_plan_preview(
+        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
+        economics=economics,
+        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
+            user_id=account_id, cost_class=build_class, credits=build_credits,
+            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
+        durable_backend=_async_build_mode(),
+        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
+    )
+    if brief_row is not None:
+        _apply_execution_plan_gate(preview, project_id, brief_row)
+        _plan_in_customer_language(preview, brief_row.brief, lang)
+        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
+    from .build_readiness import primary_blocker
+    preview['blocked_reason'] = primary_blocker(preview, lang)
+    return preview, internal_qa, qa_policy
+
+
 @app.post('/api/v28/projects/{project_id}/build-contracts')
 def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
     """M5-UX01 plan + quote step: compiles and saves the next Build Contract
@@ -2448,40 +2522,14 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
-    plan = _v28.subscriptions.plan_for(account.id)
-    from .pricing import m5_build_terms
-    build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
-    qa_policy, internal_qa = _internal_qa_funding(account.id)
-
-    def economics(contract):
-        # Admission parity: the same funding decision and, for internal QA,
-        # the same caps as POST .../builds (checked read-only here).
-        inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
-        quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
-        if internal_qa:
-            from .qa_budget import QABudgetDenied, preauthorize_qa_build
-            try:
-                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account.id,
-                                      max_cost_usd=quote.total_authorized_variable_usd)
-            except QABudgetDenied as exc:
-                logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
-                raise  # Preserve QA budget blocker, not a false customer-plan error.
-        return quote
-
     prompt = req.prompt
     brief_row = None
     if req.brief_revision is not None:
         prompt, brief_row = _brief_prompt(project_id, req.brief_revision)
-    preview = build_plan_preview(
-        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
-        economics=economics,
-        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
-            user_id=account.id, cost_class=build_class, credits=build_credits,
-            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
-        durable_backend=_async_build_mode(),
-        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
-    )
+    from .pricing import m5_build_terms
+    build_credits = m5_build_terms(_v28.subscriptions.plan_for(account.id).code)[1]
+    preview, internal_qa, qa_policy = _plan_admission(account.id, project_id, prompt, brief_row, repository,
+                                                      _lang(request))
     # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
     preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
@@ -2500,10 +2548,6 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
             'per_build_max_usd': str(qa_policy.build_max_usd),
             'balance_is_provider_reported': False,
         }
-    if brief_row is not None:
-        _apply_execution_plan_gate(preview, project_id, brief_row)
-        _plan_in_customer_language(preview, brief_row.brief, _lang(request))
-        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')
@@ -2520,6 +2564,14 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     token = _v28_bearer(request)
     try:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        # 2026-11-09: a second build of the same project was accepted while the first was still running (the screen
+        # had lost the first after a reload) and spent another $1.76. One active build per project: the caller gets
+        # the active build back (200, same shape as the latest-build route) instead of a new one.
+        if _v28_pool:
+            active = PostgresBuildRepository(_v28_pool).latest_for_project(key)
+            if active and active.get('status') in ('queued', 'running'):
+                return {'build_id': active['build_id'], 'status': active['status'], 'duplicate': True,
+                        'already_active': True}
         contracts = PostgresBuildContractRepository(_v28_pool)
         try:
             build_contract = _m5_resolve_build_contract(
@@ -2549,7 +2601,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
                 plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
-                funding='internal_qa' if internal_qa else None, cost_class=cost_class)
+                funding='internal_qa' if internal_qa else None, cost_class=cost_class,
+                founder=_founder(account.id))
         except CostQuoteUnknown as exc:
             logging.getLogger(__name__).info('build %s: cost quote unknown: %s', project_id, list(exc.unknown))
             raise HTTPException(402, detail={'error': 'cost_quote_unknown',
@@ -2636,7 +2689,10 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))
-                        elif _approval_required():
+                        else:
+                            # Durable paid builds always require a consumed approval.
+                            # OMNI_REQUIRE_APPROVAL=0 remains available for legacy
+                            # test-only routes, never for the async paid admission.
                             raise HTTPException(409, detail={'error': 'approval_required',
                                                              'message': 'Approve the summary and plan first.'})
                         # DEVIATION: reserve() now takes project_id=key (see
@@ -2680,7 +2736,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             rights_evidence=rights_evidence, public_project_id=project_id,
                             build_contract_id=build_contract.id,
                         )
-                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}}
+                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'},
+                                        'environment': _build_environment()}   # 72 cond. 2: a report tells environment from product
                         if plan_binding is not None:
                             job_evidence['execution_plan'] = plan_binding
                         jobs.create_with_cursor(
@@ -2696,6 +2753,18 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "build_contract_fingerprint": build_contract.contract_fingerprint,
             })
 
+        if _preview_without_build_queue():
+            # 72 part 2 (Michael 2026-11-11): a Preview has no build queue (no OMNI_REDIS_URL; its own database since
+            # #313). The build would wait forever. It is closed now -- as an ENVIRONMENT outcome, never a product
+            # failure -- and its credits go back. Warehouse 82: a table queue + worker per Preview makes it run.
+            _close_preview_build(jobs, build_id)
+            return JSONResponse(status_code=202, content={
+                "status": "failed", "build_id": build_id, "dispatch": PREVIEW_NO_BUILD_QUEUE,
+                "error_code": PREVIEW_NO_BUILD_QUEUE, "environment": "preview",
+                "build_contract_id": build_contract.id,
+                "build_contract_fingerprint": build_contract.contract_fingerprint,
+                "credits": 0,
+            })
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
         try:
             enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
@@ -2716,6 +2785,35 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+
+PREVIEW_NO_BUILD_QUEUE = 'preview_no_build_queue'
+
+
+def _build_environment() -> str:
+    return os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV') or 'development'
+
+
+def _preview_without_build_queue() -> bool:
+    """72 part 2: a Vercel Preview with no queue of its own. OMNI_REDIS_URL is Production-only."""
+    return os.getenv('VERCEL_ENV') == 'preview' and not os.getenv('OMNI_REDIS_URL', '').strip()
+
+
+def _close_preview_build(jobs, build_id: str) -> None:
+    """QUEUED -> FAILED with the environment code and the environment's words; the reservation is released."""
+    from .models import BuildStatus
+    log = logging.getLogger(__name__)
+    try:
+        jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED,
+                        error_code=PREVIEW_NO_BUILD_QUEUE,
+                        error_message='Preview environment has no build queue: the build did not run '
+                                      '(environment, not a product failure).')
+    except Exception:
+        log.error('build %s: could not close the preview build', build_id, exc_info=True)
+    try:
+        _v28.subscriptions.release(build_id=build_id)
+    except Exception:
+        log.error('build %s: preview build credits not released', build_id, exc_info=True)
+
 
 @app.get('/api/v28/projects/{project_id}/builds/latest')
 def v28_build_latest(project_id: str, request: Request) -> dict:
@@ -2846,6 +2944,22 @@ def _preview_key(project_id: str, request: Request) -> str:
 
 @app.post('/api/v28/projects/{project_id}/versions/{version_id}/previews')
 def v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
+    # 2026-11-09, first READY build (bld_56f74e0c): every launch answered 500 and Vercel kept only the first line
+    # ("Exception in ASGI application"), so nobody could see why. Unexpected errors are now logged on ONE line
+    # with their type and location, and the caller gets a 503 naming the failing step instead of a bare 500.
+    try:
+        return _v28_preview_launch(project_id, version_id, request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import traceback
+        frames = traceback.extract_tb(exc.__traceback__)[-4:]
+        where = ' <- '.join(f'{os.path.basename(f.filename)}:{f.lineno}:{f.name}' for f in reversed(frames))
+        print(f'preview_launch_failed type={type(exc).__name__} at={where} msg={str(exc)[:300]!r}', flush=True)
+        raise HTTPException(503, f'preview launch failed ({type(exc).__name__} at {where}); try again or report this')
+
+
+def _v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
     _require_durable_backend('Real running preview')
     try:
         external_preview_url('probe', os.getenv('PREVIEW_DOMAIN_TEMPLATE'))

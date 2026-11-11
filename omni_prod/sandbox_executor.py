@@ -69,6 +69,36 @@ def verify_failure_message(name: str, argv, returncode: int, prefix: str = 'veri
     return f'{prefix}: {name}'
 
 
+NO_TEST_EXECUTED_MESSAGE = 'no test executed (every collected test was skipped); skipped is not a pass'
+_PYTEST_COUNT = re.compile(r'(\d+) (passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b')
+_PYTEST_SUMMARY = re.compile(r'\b\d+ (?:passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b.* in \d+(?:\.\d+)?s\b')
+_UNITTEST_RAN = re.compile(r'^Ran (\d+) tests? in ', re.M)
+
+
+def executed_tests(argv, output: str) -> int | None:
+    """Audit 2026-11-02 finding 2: pytest exits 0 when every test is SKIPPED, so the exit code alone turned "nothing ran"
+    into PASS. This reads the runner's own summary and returns how many tests executed (passed + failed + errors +
+    xfailed + xpassed). None when the command is not pytest/unittest or no summary is found -- unknown, never zero."""
+    words = [str(w).rsplit('/', 1)[-1] for w in (argv or ())]
+    text = output or ''
+    if 'pytest' in words or 'py.test' in words:
+        lines = [l for l in text.splitlines() if _PYTEST_SUMMARY.search(l)]
+        if not lines:
+            return None
+        counts = {}
+        for n, kind in _PYTEST_COUNT.findall(lines[-1]):
+            counts['errors' if kind == 'error' else kind] = int(n)
+        return sum(counts.get(k, 0) for k in ('passed', 'failed', 'errors', 'xfailed', 'xpassed'))
+    if 'unittest' in words:
+        ran = _UNITTEST_RAN.findall(text)
+        if not ran:
+            return None
+        tail = text[text.rfind('Ran '):]
+        skipped = re.search(r'skipped=(\d+)', tail)
+        return max(0, int(ran[-1]) - (int(skipped.group(1)) if skipped else 0))
+    return None
+
+
 def _is_fake_verification(argv: tuple[str, ...]) -> bool:
     """A verify command that cannot fail is not evidence (audit 2026-10-10:
     the remote runner, used in production, did not apply this check)."""
@@ -107,6 +137,7 @@ class SandboxRepositoryExecutor:
         except ValueError as exc:
             return invalid_manifest_report(exc, spec)
         failures = []
+        executed: int | None = None     # tests that actually ran (audit finding 2)
         logs = []
         with tempfile.TemporaryDirectory(prefix='omni-repo-') as td, \
              tempfile.TemporaryDirectory(prefix='omni-out-') as out:
@@ -196,6 +227,16 @@ class SandboxRepositoryExecutor:
                 )
                 logs.append(result.stdout)
                 logs.append(result.stderr)
+                ran = executed_tests(check.argv, (result.stdout or '') + '\n' + (result.stderr or ''))
+                if ran is not None:
+                    executed = (executed or 0) + ran
+                if result.returncode == 0 and ran == 0:
+                    # Audit 2026-11-02 finding 2: exit 0 with every test skipped is not evidence (same taxonomy prefix).
+                    for aid in check.acceptance_ids:
+                        failures.append(AcceptanceFailure(
+                            aid, f'verification failed: {check.name} \u2014 {NO_TEST_EXECUTED_MESSAGE}',
+                            _window((result.stdout or '') + '\n' + (result.stderr or ''))))
+                    continue
                 if result.returncode != 0:
                     output = (result.stdout or '') + '\n' + (result.stderr or '')
                     p = _pointer(output, set(repository))
@@ -212,4 +253,5 @@ class SandboxRepositoryExecutor:
             passed=not failures,
             failures=tuple(failures),
             build_log='\n'.join(logs)[-10000:],
+            tests_executed=executed,
         )

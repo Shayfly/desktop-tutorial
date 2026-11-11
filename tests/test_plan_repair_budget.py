@@ -10,16 +10,16 @@ from tests.test_j3_three_repair_round_policy import Architect, Generator, Repair
 
 
 class SeamIsOffByDefault(unittest.TestCase):
-    def test_every_plan_gets_three_while_the_budget_is_off(self):
+    def test_every_plan_gets_six_while_the_budget_is_off(self):   # CEO 2026-11-08: 6 (was 3)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop('OMNI_PLAN_REPAIR_BUDGET', None)
             for plan in (PlanCode.FREE, PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO, PlanCode.ENTERPRISE, 'pro'):
-                self.assertEqual(repair_rounds_for_plan(plan), 3)
-            self.assertEqual(DEFAULT_REPAIR_ROUNDS, 3)
+                self.assertEqual(repair_rounds_for_plan(plan), 6)
+            self.assertEqual(DEFAULT_REPAIR_ROUNDS, 6)
 
     def test_plan_values_once_switched_on(self):
         on = {p: repair_rounds_for_plan(p, enabled=True) for p in ('amateur', 'pro', 'studio', 'free', 'enterprise', 'basic', 'business', 'nope')}
-        self.assertEqual(on, {'amateur': 3, 'pro': 5, 'studio': 8, 'free': 3, 'enterprise': 3, 'basic': 3, 'business': 8, 'nope': 3})
+        self.assertEqual(on, {'amateur': 3, 'pro': 5, 'studio': 8, 'free': 6, 'enterprise': 6, 'basic': 3, 'business': 8, 'nope': 6})
         with mock.patch.dict(os.environ, {'OMNI_PLAN_REPAIR_BUDGET': '1'}):
             self.assertEqual(repair_rounds_for_plan(PlanCode.PRO), 5)
 

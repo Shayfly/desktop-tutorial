@@ -311,8 +311,11 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(t4.brief_row.brief.open_material, [])
         # gate 1 (owner 2026-10-26): the spec + a cost range, no plan before the customer approves the spec
         self.assertIsNone(t4.plan_id)
-        self.assertEqual(t4.actions, [{'type': 'approve_spec', 'brief_revision': t4.brief_row.revision,
-                                       'brief_fingerprint': t4.brief_row.fingerprint}])
+        # 2026-11-10: the fact canon (Michael condition 2) travels with the approve-spec action.
+        self.assertEqual([{k: v for k, v in a.items() if k != 'canon'} for a in t4.actions],
+                         [{'type': 'approve_spec', 'brief_revision': t4.brief_row.revision,
+                           'brief_fingerprint': t4.brief_row.fingerprint}])
+        self.assertEqual(t4.actions[0]['canon']['status'], 'OK')     # an internal app needs no phone/address
         self.assertIn('שלב 1 מתוך 2', t4.reply)
         self.assertEqual(self.store.plans, {})
         t5 = self.sup.approve_spec(project_id='p1', account_id='a1', brief_fingerprint=t4.brief_row.fingerprint, lang='he')
