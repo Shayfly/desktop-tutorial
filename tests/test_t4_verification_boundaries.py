@@ -63,6 +63,24 @@ class T4VerificationBoundaries(unittest.TestCase):
         art = json.loads((ROOT / 'smoke' / 't4-verification-boundaries.json').read_text(encoding='utf-8'))
         for path, digest in art['source_sha256'].items():
             self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest, path)
+        # The MD table must carry the JSON's hash for every key (2026-11-03: the MD kept behavior_acceptance.py at
+        # 32454280 after bbe8586 moved the JSON to 31a069ae, and nothing noticed because only the JSON was read).
+        md = (ROOT / 'smoke' / 't4-verification-boundaries.md').read_text(encoding='utf-8')
+        import re
+        table = {p: (h, line) for p, h, line in re.findall(r'^\| `([^`]+)` \| `([0-9a-f]{64})` \| ([^|]*) \|$', md, re.M)}
+        for path, digest in art['source_sha256'].items():
+            self.assertEqual(table.get(path, (None,))[0], digest, f'smoke/t4-verification-boundaries.md row for {path}')
+        # The line a finding points at is part of the lock too (founder 2026-11-03 10:07): every key of source_sha256
+        # is in source_lines; a number must match the MD; null means the MD claims no line for that file anywhere.
+        lines = art['source_lines']
+        self.assertEqual(sorted(lines), sorted(art['source_sha256']))
+        for path, line in lines.items():
+            cell = table[path][1].strip()
+            if line is None:
+                self.assertFalse(re.search(r'\d', cell), f'MD claims line {cell!r} for {path}; the JSON says null')
+                self.assertNotRegex(md, re.escape(path) + r':\d+', f'MD cites a line of {path}; the JSON says null')
+            else:
+                self.assertEqual(cell, str(line), f'MD line for {path}')
         now = {f['case']: ('MET' if not f['boundary_violated'] else 'VIOLATED') for f in self.out['findings']}
         now.update({e['case']: ('MET' if not e['boundary_violated'] else 'VIOLATED') for e in self.out['t4_extra']})
         self.assertEqual({r['id']: r['result'] for r in art['cases'] + art['t4_cases']}, now)

@@ -1,0 +1,80 @@
+{
+  "pr": "pr170",
+  "sha256": [
+    "tests/test_venice_allowed_models.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the selection ignores the allowlist: a cheaper private Qwen is chosen",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/venice.py",
+          "old": "        pool = [m for m in priced if m.id in set(allowed) and m.privacy in ALLOWED_PRIVACY\n",
+          "new": "        pool = [m for m in priced if m.privacy in ALLOWED_PRIVACY  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_allowed_models.py"
+      ],
+      "expect_failed": [
+        "test_qwen_in_the_price_range_is_rejected_by_the_selection",
+        "test_the_listed_gemini_is_chosen_over_a_cheaper_private_qwen",
+        "test_the_truth_tag_says_anonymized_not_private"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "the pricing layer ignores the allowlist: Qwen inside the ceiling is offered to the selection",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/venice_gateway.py",
+          "old": "        self.client.models = lambda: [m for m in listed() if m.id in self.allowed\n",
+          "new": "        self.client.models = lambda: [m for m in listed() if True  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_allowed_models.py"
+      ],
+      "expect_failed": [
+        "test_the_pricing_layer_only_sees_listed_models",
+        "test_the_reservations_list_wins_over_the_workers_env"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "no allowlist no longer fails closed when the gateway is built",
+      "mutations": [
+        {
+          "file": "omni_prod/providers/venice_gateway.py",
+          "old": "        if not self.allowed:\n            raise NoAllowedModel",
+          "new": "        if False:  # NEGATIVE CONTROL\n            raise NoAllowedModel"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_allowed_models.py"
+      ],
+      "expect_failed": [
+        "test_an_old_quote_and_no_worker_list_is_released_not_run",
+        "test_no_list_refuses_to_build"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "a Venice quote is issued without the allowlist",
+      "mutations": [
+        {
+          "file": "omni_prod/intake/budget.py",
+          "old": "        if not listed:   # fail closed",
+          "new": "        if False:   # NEGATIVE CONTROL fail closed"
+        }
+      ],
+      "targets": [
+        "tests/test_venice_allowed_models.py"
+      ],
+      "expect_failed": [
+        "test_no_venice_quote_without_the_list"
+      ]
+    }
+  ]
+}

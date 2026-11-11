@@ -193,6 +193,7 @@ class VisualQAExecutor:
         self._inner = inner
         self._enabled = enabled
         self.screenshot_sink = None
+        self.design_critic = None          # design_review.DesignCritic, installed per build (2026-11-09)
         self.last_visual: dict | None = None
         self.visual_rounds: list[dict] = []
 
@@ -215,7 +216,7 @@ class VisualQAExecutor:
         if not callable(run):
             self.last_visual = {'status': 'NOT_RUN', 'reason': 'no sandbox runner'}
             return unverified(VISUAL_FAILURE_ID, 'no sandbox runner', report.build_log)        # T4: never a pass
-        viewports, status = {}, 'PASS'
+        viewports, status, shots = {}, 'PASS', {}
         for name in VIEWPORTS:
             try:
                 staged, argv = staged_script(repository, 'visual_qa', SCRIPT, name)
@@ -242,6 +243,8 @@ class VisualQAExecutor:
             entry = {'status': 'PASS' if not data['findings'] else 'FINDINGS', 'findings': data['findings'][:40],
                      'counts': _counts(data['findings']), 'controls': data.get('controls'),
                      'text_elements': data.get('text_elements'), 'screenshot_bytes': len(shot) if shot else 0}
+            if shot:
+                shots[name] = shot
             if shot and self.screenshot_sink is not None:
                 try:
                     entry['screenshot_key'] = self.screenshot_sink(name, shot)
@@ -267,6 +270,17 @@ class VisualQAExecutor:
         self.visual_rounds.append({'status': self.last_visual['status'],
                                    'counts': {v: e.get('counts', {}) for v, e in viewports.items()}})
         if not blocking:
+            critic = self.design_critic
+            if critic is not None:
+                try:
+                    review = critic.review(spec=spec, shots=shots)
+                    self.last_visual['design_review'] = review
+                    polish = critic.failures(review)
+                except Exception as exc:          # the critic never decides a build by crashing
+                    self.last_visual['design_review'] = {'status': 'NOT_RUN', 'reason': type(exc).__name__}
+                    polish = ()
+                if polish:
+                    return ExecutionReport(False, polish, report.build_log)
             return report
         failures = tuple(AcceptanceFailure(VISUAL_FAILURE_ID, f"visual ({v}) {f['kind']}: {f['at']} {f['detail']}".strip(),
                                            'Fix the layout so it works on desktop (1440x900) and mobile (390x844).')

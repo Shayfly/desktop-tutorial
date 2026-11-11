@@ -1,5 +1,6 @@
 from __future__ import annotations
 from decimal import Decimal
+import hashlib
 import re
 import logging
 import os
@@ -94,7 +95,7 @@ configure_observability(app,_metrics)
 _PRODUCTION = os.getenv('OMNI_ENV','development')=='production'
 _ALLOWED_ORIGINS = tuple(configure_web_security(app,raw_origins=os.getenv('OMNI_ALLOWED_ORIGINS','http://127.0.0.1:8000,http://localhost:8000'),production=_PRODUCTION) or ())
 
-_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/v28/deployment','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics')
+_PUBLIC_PREFIXES=('/api/v26/auth/','/api/v27/auth/','/api/v28/auth/','/api/v28/pricing','/api/v28/brand/readiness','/api/v28/launch/readiness','/api/v28/ui/translations','/api/v28/billing/stripe/webhook','/api/v28/deployment','/api/status','/api/international/readiness','/api/integrations','/api/benchmark/catalog','/api/targets/','/api/source/','/api/v28/source/','/api/agent-team','/_omni/metrics','/api/live/')
 @app.middleware('http')
 async def production_auth(request:Request,call_next):
     if os.getenv('OMNI_ENV','development')=='production' and request.url.path.startswith('/api/') and not any(request.url.path==p or (p.endswith('/') and request.url.path.startswith(p)) for p in _PUBLIC_PREFIXES):
@@ -188,8 +189,13 @@ def _build_v28_platform():
     return V28Platform(token_secret=_control_plane_secret(),generated_app_token_secret=_generated_runtime_secret())
 _v28=_build_v28_platform()
 
+def _founder(account_id) -> bool:
+    from .pricing import m5_founder_account
+    return m5_founder_account(account_id)
+
+
 def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_components: bool = False, funding: str | None = None,
-                              cost_class=None):
+                              cost_class=None, founder: bool = False):
     """Conservative pre-execution variable-cost authorization for M5 builds.
 
     The external model budget is already a whole-build ceiling (including repair
@@ -251,11 +257,16 @@ def _m5_build_economics_quote(plan, *, credits: int, cost_inputs=None, with_comp
             minimum_margin=minimum_margin if minimum_margin is not None else Decimal('0.60'),
             internal_qa=funding == 'internal_qa')
 
+    if founder:   # CEO 2026-11-08: founder test builds, paid by us, measured; never a customer price
+        from .pricing import m5_founder_build_budget
+        provider_budget, budget_basis = m5_founder_build_budget(), 'founder_test'
     quote, components = _quote(provider_budget)
     if cost_class is not None:
         components = {**components, 'cost_class': getattr(cost_class, 'value', str(cost_class)),
                       'llm_class_cap_usd': str(class_cap), 'llm_budget_basis': budget_basis}
-    if funding == 'internal_qa' or exempt:
+    if founder:
+        components = {**components, 'founder_test': True}
+    if funding == 'internal_qa' or exempt or founder:
         # Internal QA builds have no customer revenue by definition; they are
         # authorized against the internal QA caps (omni_prod.qa_budget) instead
         # of the margin floor. The caller must run authorize_qa_build().
@@ -776,6 +787,11 @@ def _verification_executor(gateway=None):
     from .visual_qa import VisualQAExecutor
     visual=VisualQAExecutor(browser,enabled=os.getenv('OMNI_VISUAL_QA','1')!='0')
     stages=[preview,behaviour,browser,visual]
+    from .feature_flags import SITE_AUTH_V2
+    if SITE_AUTH_V2:
+        # Work order 001 (flag site_auth_v2): the sign-in form at 320px / 140% zoom in a real browser.
+        from .auth_form_check import AuthFormExecutor
+        stages.append(AuthFormExecutor(visual))
     # Agent OS §4/§10 (2026-10-08): QA Verifier with the web skills' checklists and static checks. Since 2026-10-19 it
     # is the LAST post-build check of the group (after the build it always runs; its findings go to the same repair).
     if gateway is not None:
@@ -817,7 +833,11 @@ def _live_components():
     recorder=getattr(gateway,'recorder',None)
     if recorder is not None: executor=RecordingExecutor(executor,recorder)
     engine=AutonomousProductEngine(architect=ArchitectAgent(TaskTaggedGateway(gateway,'architecture')),generator=GeneratorAgent(TaskTaggedGateway(gateway,'codegen')),repairer=RepairAgent(TaskTaggedGateway(gateway,'repair')),
-        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','3')))
+        # CEO 2026-11-08: up to 6 repair rounds for a product build (was 3). The build's hard cost cap still stops
+        # repairs once the budget is spent; OMNI_MAX_REPAIR_ROUNDS may lower it, never above REPAIR_ROUNDS_HARD_MAX.
+        executor=executor,max_repair_rounds=int(os.getenv('OMNI_MAX_REPAIR_ROUNDS','6')),repair_ceiling=6)
+    # CEO 2026-11-08 (bld_ca727ba7 stopped after 2 of 6 rounds): one second chance after a no-progress round.
+    engine.no_progress_retries=max(0,min(2,int(os.getenv('OMNI_NO_PROGRESS_RETRIES','1') or 1)))
     return engine,gateway
 
 def _live_engine()->AutonomousProductEngine:
@@ -1134,16 +1154,23 @@ async def v25_runtime_ws(websocket:WebSocket,deployment_id:str,token:str=''):
         return
 
 _ASSET_DIR=Path(__file__).resolve().parent/'assets'
+# Cache busting (2026-10-28): every deploy references its own asset version, and the assets revalidate, so a fixed
+# app.js reaches a browser that had the old one cached. An already-open tab keeps its old JS until reloaded; the API
+# stays compatible with it (e.g. the old approve_spec on the conversation route is routed to the approval action).
+_ASSET_VERSION=hashlib.sha256(b''.join((_ASSET_DIR/n).read_bytes() for n in ('app.js','visual-edit.js','app.css'))).hexdigest()[:12]
 _HTML=(_ASSET_DIR/'index.html').read_text(encoding='utf-8')
+for _n in ('app.js','visual-edit.js','app.css'):
+    _HTML=_HTML.replace(f'/assets/{_n}"', f'/assets/{_n}?v={_ASSET_VERSION}"')
+_REVALIDATE={'Cache-Control':'no-cache'}
 
 @app.get('/assets/app.css')
-def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css')
+def asset_css(): return Response((_ASSET_DIR/'app.css').read_text(encoding='utf-8'),media_type='text/css',headers=_REVALIDATE)
 
 @app.get('/assets/app.js')
-def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_js(): return Response((_ASSET_DIR/'app.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/assets/visual-edit.js')
-def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript')
+def asset_visual_edit_js(): return Response((_ASSET_DIR/'visual-edit.js').read_text(encoding='utf-8'),media_type='application/javascript',headers=_REVALIDATE)
 
 @app.get('/manifest.webmanifest')
 def pwa_manifest(): return Response((_ASSET_DIR/'manifest.webmanifest').read_text(encoding='utf-8'),media_type='application/manifest+json',headers={'Cache-Control':'public,max-age=3600'})
@@ -1582,9 +1609,48 @@ def v28_create_project(req: V26ProjectCreateRequest, request: Request) -> dict:
         # Project count is not a spend authorization. Users may maintain as
         # many projects as they need; builds retain separate cost and execution
         # admission controls. No external model call occurs on project create.
-        return _v28.create_project(token=token, title=req.title)
+        mark = _two_gate_flow_mark(account.id)
+        if mark is None:
+            project = _v28.create_project(token=token, title=req.title)
+        else:
+            project = _v28.create_project(token=token, title=req.title, in_transaction=mark)
     except PermissionError as exc:
         raise HTTPException(401, str(exc)) from exc
+    except FlowMarkNotWritten as exc:
+        logging.getLogger(__name__).error('project NOT created: its two-gate flow mark could not be written', exc_info=True)
+        raise HTTPException(503, detail={'error': 'project_not_created',
+                                         'message': 'The project was not created: its approval state could not be '
+                                                    'saved. Nothing was saved; please try again.'}) from exc
+    return project
+
+
+class FlowMarkNotWritten(RuntimeError):
+    """The two-gate flow mark failed inside the project-creation transaction; the project was rolled back."""
+
+
+def _two_gate_flow_mark(account_id):
+    """Founder 2026-10-28 (option b), Matt 2026-10-28: EVERY project created from now on is on the two-gate flow,
+    whatever path it then takes (conversation or guided questions). The mark is a hidden assistant row
+    (interpretation.system) written in the SAME transaction as the project row: if the write fails, the project is
+    rolled back and creation fails -- there is never a project without its mark (an unmarked project would take the
+    earlier path with no spec approval and no verifier). Returns the in-transaction writer, or None when there is no
+    durable backend at all (no pool: no durable build path to gate). A durable backend without the conversation
+    schema refuses creation (503 from _conversation_store) rather than create an unmarked project."""
+    from .intake import approval_flow as AF
+    if _v28_pool is None:
+        return None
+    store = _conversation_store()                      # 503 conversation_not_ready: no project is created
+
+    def write(conn, project) -> None:
+        try:
+            row = store.add_message(project_id=project.id, account_id=account_id, role='assistant', content='',
+                                    interpretation={'flow': AF.FLOW, 'system': 'project_created'},
+                                    request_key=f'flow-mark:{project.id}', conn=conn)
+        except Exception as exc:
+            raise FlowMarkNotWritten(str(exc)) from exc
+        if not row or (row.get('interpretation') or {}).get('flow') != AF.FLOW:
+            raise FlowMarkNotWritten('the flow mark row was not stored')
+    return write
 
 @app.get('/api/v28/projects')
 def v28_projects(request: Request) -> dict:
@@ -1950,6 +2016,17 @@ class V28ConversationMessage(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     attachment_ids: list[str] = Field(default_factory=list, max_length=6)
     brief_revision: int | None = Field(default=None, ge=1)
+    # Gate 1 is NOT a conversation message (2026-10-28): its own route is POST .../spec-approval; this field is kept
+    # for older clients and is routed to the same action (an empty message is valid with it).
+    approve_spec: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
+
+
+class V28SpecApproval(BaseModel):
+    """Gate 1 (owner 2026-10-26): the customer approves the spec shown to them, by its fingerprint."""
+    brief_fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
+    request_key: str | None = Field(default=None, max_length=80)
+    # Michael 2026-11-10 condition 3: an incomplete fact canon is approved only with this box ticked.
+    canon_ack: bool = False
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2024,10 +2101,17 @@ def _supervisor(key: str, account_id: str | None = None):
         except Exception:
             logging.getLogger(__name__).warning('intake: plan build terms unavailable for %s; showing defaults',
                                                 account_id, exc_info=True)
+    admission = None
+    if account_id is not None:
+        def admission(project_id, row, lang):   # 79: the banner's own check, saving no contract
+            from . import discovery as d
+            from .build_contract_repository import MemoryBuildContractRepository
+            prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
+            return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
                                   credits=credits, context=_project_context(key),
                                   budget_usd=budget_usd,
-                                  reservations=reservations, enqueue=enqueue)
+                                  reservations=reservations, enqueue=enqueue, admission=admission)
 
 
 def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
@@ -2042,7 +2126,8 @@ def _conversation_view(project_id: str, lang: str, turn=None) -> dict:
                       'actions': (m.get('interpretation') or {}).get('actions') or [],
                       'attachments': (m.get('interpretation') or {}).get('attachments') or [],
                       'ai_status': _conversation_message_status(m)}
-                     for m in store.messages_for(project_id, limit=100)],
+                     for m in store.messages_for(project_id, limit=100)
+                     if not (m.get('interpretation') or {}).get('system')],   # the flow mark is not a message
         'discovery': _discovery_view(row, lang) if row else None,
         'plan': _plan_view(plan['plan']) if plan else None, 'plan_id': plan['id'] if plan else None,
         # what will actually answer the next message (never 'model' just because a switch is on)
@@ -2083,8 +2168,15 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+    if req.approve_spec:
+        # An approval is an ACTION, not a chat message: it used to ride here with message='' and was refused as
+        # empty_message, so the spec was never approved and the build gate stayed closed ("לא ניתן להתחיל בבנייה
+        # כרגע"). The app now calls POST .../spec-approval; a client that still sends it here is approved the same way.
+        return v28_spec_approval(project_id, V28SpecApproval(brief_fingerprint=req.approve_spec,
+                                                             request_key=req.request_key), request)
     if not req.message.strip() and not req.answers and not req.attachment_ids:
-        raise HTTPException(422, detail={'error': 'empty_message'})
+        raise HTTPException(422, detail={'error': 'empty_message',
+                                         'message': 'The message is empty: write something, choose an answer or attach an image.'})
     attached = []
     if req.attachment_ids:
         from .attachments import AttachmentError, public as _att_public
@@ -2103,12 +2195,36 @@ def v28_conversation_turn(project_id: str, req: V28ConversationMessage, request:
             raise HTTPException(409, detail={'error':'brief_stale', 'message':'The request changed in another tab; review the latest plan before applying edits.'})
     try:
         turn = _supervisor(key, account.id).turn(project_id=project_id, account_id=account.id, message=req.message,
-                                     answers=req.answers, request_key=req.request_key, lang=lang,
-                                     attachments=attached)
+                                                 answers=req.answers, request_key=req.request_key, lang=lang,
+                                                 attachments=attached)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(422, detail={'error': 'invalid_answer', 'message': str(exc)}) from exc
+    return _conversation_view(project_id, turn.language, turn)
+
+
+@app.post('/api/v28/projects/{project_id}/spec-approval')
+def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -> dict:
+    """Gate 1: approve THIS spec by its fingerprint (its own route, never a chat message). A stale or incomplete spec
+    is answered in the conversation by the supervisor (no plan is made); a malformed fingerprint is a 422."""
+    from .brief_repository import StaleBrief
+    token = _v28_bearer(request)
+    try:
+        account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    lang = _lang(request) if request.query_params.get('lang') else None
+    store = _conversation_store()
+    if req.request_key and store.find_reply(project_id, req.request_key):
+        return _conversation_view(project_id, lang or 'he')   # a retried click: no second approval
+    try:
+        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
+                                                         brief_fingerprint=req.brief_fingerprint,
+                                                         request_key=req.request_key, lang=lang,
+                                                         canon_ack=req.canon_ack)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)
 
 
@@ -2151,15 +2267,36 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
     from .planning.architect import ChiefArchitect
     from .conversation.store import schema_ready
     row = _brief_repo().latest(project_id)
-    if row is None or row.fingerprint != brief_fingerprint:
-        return None
     if not schema_ready(_v28_pool):
-        # Migration 036 not applied yet: the build proceeds exactly as before
-        # Wave A (reactive agent graph, no plan binding) instead of failing.
-        logging.getLogger(__name__).warning('execution plan not bound: migration 036 pending')
-        return None
+        # 2026-10-28 (Matt): this used to return None -- "build as before Wave A, no plan binding" -- BEFORE the two
+        # gates, so a server without migration 036 built with no spec approval at all. Without the conversation tables
+        # the approval state cannot be read, and a new project cannot be told from an earlier one: fail closed.
+        logging.getLogger(__name__).error('build refused: migration 036 pending, the approval state cannot be read')
+        raise HTTPException(409, detail={'error': 'approval_state_unavailable',
+                                         'message': 'The approval state cannot be read on this server yet '
+                                                    '(database migration 036 pending); no build starts without it.'})
     store = _conversation_store()
+    # Two gates (owner 2026-10-26): on a project whose conversation asked for spec approval, a build needs that
+    # approval for THIS fingerprint and the plan the verifier accepted. Projects that never saw gate 1, and plans
+    # saved before it (no 'spec_gate'), keep the earlier path unchanged.
+    from .intake import approval_flow as AF
+    messages = store.messages_for(project_id, limit=500)
+    two_gate = AF.on_two_gate_flow(messages)
+    if row is None or row.fingerprint != brief_fingerprint:
+        if two_gate:                                   # never skip the gates on the two-gate flow
+            raise HTTPException(409, detail={'error': 'brief_stale',
+                                             'message': 'The request changed; approve the current spec.'})
+        return None                                    # an earlier project: the earlier path, unchanged
     saved = store.plan_for(project_id, brief_fingerprint)
+    if two_gate:
+        if not AF.spec_approved(messages, brief_fingerprint):
+            raise HTTPException(409, detail={'error': 'spec_not_approved',
+                                             'message': 'Approve the spec in the conversation first; no plan is made before that.'})
+        gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
+        # Founder 2026-10-28: on the two-gate flow a plan WITHOUT the verifier's gate is not verified either.
+        if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):
+            raise HTTPException(409, detail={'error': 'plan_not_verified',
+                                             'message': 'The plan for this spec has not passed the verifier.'})
     if saved is None:
         try:
             contract = C.build(row.brief)
@@ -2231,6 +2368,42 @@ def _brief_prompt(project_id: str, revision: int) -> tuple[str, object]:
     return (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000], row
 
 
+# The architect's role and data tokens (product_architect._infer_roles / _infer_data_requirements and the
+# unified_engine modules), named for the customer. A token missing here is a test failure (test_every_token_is_named).
+_ROLE_NAMES = {'admin': ('מנהל המערכת', 'Administrator'), 'manager': ('מנהל', 'Manager'),
+               'travel_agent': ('סוכן נסיעות', 'Travel agent'), 'agent': ('סוכן', 'Agent'),
+               'customer': ('לקוח', 'Customer'), 'driver': ('נהג', 'Driver'), 'member': ('חבר צוות', 'Team member')}
+_DATA_NAMES = {'customers': ('לקוחות', 'Customers'), 'bookings': ('הזמנות ותורים', 'Bookings'),
+               'leads': ('לידים', 'Leads'), 'orders': ('הזמנות', 'Orders'), 'products': ('מוצרים', 'Products'),
+               'inventory': ('מלאי', 'Inventory'), 'drivers': ('נהגים', 'Drivers'), 'rides': ('נסיעות', 'Rides'),
+               'messages': ('הודעות', 'Messages'), 'invoices': ('חשבוניות', 'Invoices'),
+               'payments': ('תשלומים', 'Payments'), 'jobs': ('משימות', 'Jobs'), 'team': ('צוות', 'Team'),
+               'availability': ('זמינות', 'Availability'), 'providers': ('ספקים', 'Providers'),
+               'players': ('שחקנים', 'Players'), 'matches': ('משחקים', 'Matches'), 'progression': ('התקדמות', 'Progression'),
+               'users': ('משתמשים', 'Users'), 'items': ('פריטים', 'Items'), 'activity': ('פעילות', 'Activity')}
+_CLARIFY_HE = {'clarify-primary-workflow': ('מה הפעולה העסקית העיקרית, ומי ישתמש בה?',
+                                          'התשובה משנה את מבנה הנתונים ואת תנאי הקבלה.')}
+
+
+def _plan_in_customer_language(preview: dict, brief, lang: str) -> None:
+    """Every customer-facing line of a brief-bound plan follows the customer's language (2026-10-28: the summary was
+    the architect's English build spec -- "M5 managed Web/SaaS contract for: ... Main action: ... Initial content:
+    ..." -- and the questions were English). The English build spec stays, for the code generator only."""
+    from . import discovery as d
+    product = preview.get('product') or {}
+    product['technical_summary'] = product.get('summary')
+    product['summary'] = d.summary(brief, lang)['goal']
+    for key, names in (('user_roles', _ROLE_NAMES), ('data_requirements', _DATA_NAMES)):
+        tokens = list(product.get(key) or [])
+        product[key + '_keys'] = tokens                      # the machine side keeps the tokens
+        product[key] = [names.get(t, (t, t))[0 if lang == 'he' else 1] for t in tokens]
+    if lang == 'he':
+        for q in preview.get('clarification_questions') or []:
+            he = _CLARIFY_HE.get(q.get('id'))
+            if he:
+                q['question'], q['reason'] = he
+
+
 def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
     """Expose the build-admission gate before showing an approval button.
     Deterministic/free; does not reserve credits or start a build."""
@@ -2238,7 +2411,9 @@ def _apply_execution_plan_gate(preview: dict, project_id: str, row) -> None:
         _bind_execution_plan(project_id, row.fingerprint)
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, dict) else {}
-        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid'}:
+        if exc.status_code != 409 or detail.get('error') not in {'capability_not_feasible', 'requirements_invalid',
+                                                                 'spec_not_approved', 'plan_not_verified',
+                                                                 'approval_state_unavailable', 'brief_stale'}:
             raise
         preview['can_build'] = False
         preview['blockers'].append({'code': detail['error'],
@@ -2269,9 +2444,14 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     try:
         inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
-    except (CostQuoteUnknown, PermissionError) as exc:
-        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build'}) from exc
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account.id))
+    except CostQuoteUnknown as exc:
+        raise HTTPException(402, detail={'error': 'cost_quote_unknown',
+                                         'unpriced': unpriced_capabilities(exc.unknown)}) from exc
+    except PermissionError as exc:
+        # One code for one meaning (2026-10-30): the same refusal as POST .../builds and the plan preview.
+        raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost', 'message': _PLAN_NOT_INCLUDED}) from exc
     try:
         return _brief_repo().create_approval(
             project_id=project_id, account_id=account.id, brief_row=row, build_contract_id=contract.id,
@@ -2281,49 +2461,75 @@ def v28_build_approval(project_id: str, req: V28ApprovalRequest, request: Reques
     except ApprovalError as exc:
         raise HTTPException(409, detail={'error': exc.code, 'message': str(exc), **exc.details}) from exc
 
-@app.post('/api/v28/projects/{project_id}/build-contracts')
-def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
-    """M5-UX01 plan + quote step: compiles and saves the next Build Contract
-    revision and reports capabilities, infrastructure readiness, the
-    conservative cost authorization and blockers. No credits are reserved and
-    no provider is called; POST .../builds with build_contract_id starts work."""
-    token = _v28_bearer(request)
-    try:
-        account, _ = _v28.resolve_project_key(token=token, project_id=project_id)
-    except PermissionError as exc:
-        raise HTTPException(403, str(exc)) from exc
-    repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
-    plan = _v28.subscriptions.plan_for(account.id)
+_PLAN_NOT_INCLUDED = 'This build is not included in your plan. Upgrade your plan to continue.'
+
+def _plan_admission(account_id: str, project_id: str, prompt: str, brief_row, repository, lang: str) -> tuple[dict, bool, object]:
+    """79: the build-admission preview -- quote, plan allowance, infrastructure, execution-plan gate, blocked_reason.
+    ONE function for the plan endpoint (saves the contract) and the chat (memory repository, saves nothing), so the
+    banner and the chat cannot disagree on whether a build can start."""
+    plan = _v28.subscriptions.plan_for(account_id)
     from .pricing import m5_build_terms
     build_class, build_credits = m5_build_terms(plan.code)   # CEO 2026-10-19
-    qa_policy, internal_qa = _internal_qa_funding(account.id)
+    qa_policy, internal_qa = _internal_qa_funding(account_id)
 
     def economics(contract):
         # Admission parity: the same funding decision and, for internal QA,
         # the same caps as POST .../builds (checked read-only here).
-        inputs = _m5_cost_inputs(contract, tenant_id=account.id, project_id=project_id)
+        inputs = _m5_cost_inputs(contract, tenant_id=account_id, project_id=project_id)
         quote = _m5_build_economics_quote(plan, credits=build_credits, cost_inputs=inputs,
-                                          funding='internal_qa' if internal_qa else None, cost_class=build_class)
+                                          funding='internal_qa' if internal_qa else None, cost_class=build_class,
+                                          founder=_founder(account_id))
         if internal_qa:
             from .qa_budget import QABudgetDenied, preauthorize_qa_build
             try:
-                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account.id,
+                preauthorize_qa_build(_v28_pool, qa_policy, account_id=account_id,
                                       max_cost_usd=quote.total_authorized_variable_usd)
             except QABudgetDenied as exc:
                 logging.getLogger(__name__).info('plan %s: internal QA build would be refused: %s', project_id, exc)
                 raise  # Preserve QA budget blocker, not a false customer-plan error.
         return quote
 
+    preview = build_plan_preview(
+        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
+        economics=economics,
+        authorize_quote=None if internal_qa else lambda quote: _v28.subscriptions.authorize(
+            user_id=account_id, cost_class=build_class, credits=build_credits,
+            estimated_provider_cost_usd=quote.total_authorized_variable_usd),
+        durable_backend=_async_build_mode(),
+        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
+    )
+    if brief_row is not None:
+        _apply_execution_plan_gate(preview, project_id, brief_row)
+        _plan_in_customer_language(preview, brief_row.brief, lang)
+        preview['brief_fingerprint'] = brief_row.fingerprint   # the spec the approval button approves
+    from .build_readiness import primary_blocker
+    preview['blocked_reason'] = primary_blocker(preview, lang)
+    return preview, internal_qa, qa_policy
+
+
+@app.post('/api/v28/projects/{project_id}/build-contracts')
+def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Request) -> dict:
+    """M5-UX01 plan + quote step: compiles and saves the next Build Contract
+    revision and reports capabilities, infrastructure readiness, the
+    conservative cost authorization and blockers. No credits are reserved and
+    no provider is called; POST .../builds with build_contract_id starts work."""
+    # 2026-10-30: the same durable-backend requirement as POST .../builds, checked first, so a server that cannot
+    # build refuses the plan with the build's own reason instead of offering a plan the build then 503s.
+    _require_durable_backend('Durable async build')
+    token = _v28_bearer(request)
+    try:
+        account, _ = _v28.resolve_project_key(token=token, project_id=project_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    repository = PostgresBuildContractRepository(_v28_pool) if _v28_pool is not None else _memory_build_contracts
     prompt = req.prompt
     brief_row = None
     if req.brief_revision is not None:
         prompt, brief_row = _brief_prompt(project_id, req.brief_revision)
-    preview = build_plan_preview(
-        architect=ProductArchitect(), repository=repository, project_id=project_id, prompt=prompt,
-        economics=economics,
-        durable_backend=_async_build_mode(),
-        infrastructure_readiness=managed_web_saas_readiness(), image_readiness=image_provider_readiness(),
-    )
+    from .pricing import m5_build_terms
+    build_credits = m5_build_terms(_v28.subscriptions.plan_for(account.id).code)[1]
+    preview, internal_qa, qa_policy = _plan_admission(account.id, project_id, prompt, brief_row, repository,
+                                                      _lang(request))
     # Customer-facing cost terms only (decision 2026-10-07 #29): credits, never provider cost.
     preview['credits_required'] = build_credits
     preview['brief_revision'] = req.brief_revision
@@ -2342,8 +2548,6 @@ def v28_build_contract_preview(project_id: str, req: V28PlanRequest, request: Re
             'per_build_max_usd': str(qa_policy.build_max_usd),
             'balance_is_provider_reported': False,
         }
-    if brief_row is not None:
-        _apply_execution_plan_gate(preview, project_id, brief_row)
     return preview
 
 @app.post('/api/v28/projects/{project_id}/builds')
@@ -2360,6 +2564,14 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
     token = _v28_bearer(request)
     try:
         account, key = _v28.resolve_project_key(token=token, project_id=project_id)
+        # 2026-11-09: a second build of the same project was accepted while the first was still running (the screen
+        # had lost the first after a reload) and spent another $1.76. One active build per project: the caller gets
+        # the active build back (200, same shape as the latest-build route) instead of a new one.
+        if _v28_pool:
+            active = PostgresBuildRepository(_v28_pool).latest_for_project(key)
+            if active and active.get('status') in ('queued', 'running'):
+                return {'build_id': active['build_id'], 'status': active['status'], 'duplicate': True,
+                        'already_active': True}
         contracts = PostgresBuildContractRepository(_v28_pool)
         try:
             build_contract = _m5_resolve_build_contract(
@@ -2389,15 +2601,15 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
             cost_inputs = _m5_cost_inputs(build_contract, tenant_id=account.id, project_id=project_id)
             economics_quote, cost_components = _m5_build_economics_quote(
                 plan, credits=credits, cost_inputs=cost_inputs, with_components=True,
-                funding='internal_qa' if internal_qa else None, cost_class=cost_class)
+                funding='internal_qa' if internal_qa else None, cost_class=cost_class,
+                founder=_founder(account.id))
         except CostQuoteUnknown as exc:
             logging.getLogger(__name__).info('build %s: cost quote unknown: %s', project_id, list(exc.unknown))
             raise HTTPException(402, detail={'error': 'cost_quote_unknown',
                                              'unpriced': unpriced_capabilities(exc.unknown)}) from exc
         except PermissionError as exc:
             logging.getLogger(__name__).info('build %s: not authorized by plan economics: %s', project_id, exc)
-            raise HTTPException(402, detail={'error': 'plan_cannot_authorize_build',
-                                             'message': 'This build is not available on your current plan.'}) from exc
+            raise HTTPException(402, detail={'error': 'plan_cannot_authorize_cost', 'message': _PLAN_NOT_INCLUDED}) from exc
         # M5 remediation: one durable reservation of the FULL conservative total
         # (LLM + required capabilities + generated-app infra + platform infra +
         # retry) before anything is enqueued. No later separate reservation.
@@ -2477,7 +2689,10 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             # Wave A: the approved brief's execution plan is bound to the build;
                             # an infeasible plan refuses the build (rolls back this transaction).
                             plan_binding = _bind_execution_plan(project_id, economics_evidence['approval'].get('brief_fingerprint'))
-                        elif _approval_required():
+                        else:
+                            # Durable paid builds always require a consumed approval.
+                            # OMNI_REQUIRE_APPROVAL=0 remains available for legacy
+                            # test-only routes, never for the async paid admission.
                             raise HTTPException(409, detail={'error': 'approval_required',
                                                              'message': 'Approve the summary and plan first.'})
                         # DEVIATION: reserve() now takes project_id=key (see
@@ -2503,7 +2718,16 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             **({'internal_qa': True} if internal_qa else {}),
                         )
                         if not decision.allowed:
-                            raise HTTPException(402, decision.reason)
+                            if decision.reason == 'cost class not included in plan':
+                                raise HTTPException(402, detail={
+                                    'error': 'plan_cannot_authorize_cost',
+                                    'message': _PLAN_NOT_INCLUDED,
+                                })
+                            raise HTTPException(402, detail={
+                                'error': 'build_allowance_exhausted',
+                                'message': 'Your budget or credits have run out. '
+                                           'Add credits or build a smaller project.',
+                            })
 
                         jobs.create_request(
                             cur, build_id=build_id, user_id=account.id, internal_project_id=key,
@@ -2512,7 +2736,8 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                             rights_evidence=rights_evidence, public_project_id=project_id,
                             build_contract_id=build_contract.id,
                         )
-                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'}}
+                        job_evidence = {'economics_quote': economics_evidence, 'build_contract': {'id': build_contract.id, 'fingerprint': build_contract.contract_fingerprint, 'binding': 'BOUND'},
+                                        'environment': _build_environment()}   # 72 cond. 2: a report tells environment from product
                         if plan_binding is not None:
                             job_evidence['execution_plan'] = plan_binding
                         jobs.create_with_cursor(
@@ -2528,6 +2753,18 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
                 "build_contract_fingerprint": build_contract.contract_fingerprint,
             })
 
+        if _preview_without_build_queue():
+            # 72 part 2 (Michael 2026-11-11): a Preview has no build queue (no OMNI_REDIS_URL; its own database since
+            # #313). The build would wait forever. It is closed now -- as an ENVIRONMENT outcome, never a product
+            # failure -- and its credits go back. Warehouse 82: a table queue + worker per Preview makes it run.
+            _close_preview_build(jobs, build_id)
+            return JSONResponse(status_code=202, content={
+                "status": "failed", "build_id": build_id, "dispatch": PREVIEW_NO_BUILD_QUEUE,
+                "error_code": PREVIEW_NO_BUILD_QUEUE, "environment": "preview",
+                "build_contract_id": build_contract.id,
+                "build_contract_fingerprint": build_contract.contract_fingerprint,
+                "credits": 0,
+            })
         redis_url = os.getenv('OMNI_REDIS_URL', 'redis://127.0.0.1:6379/0')
         try:
             enqueue_build(redis_url, "omni_prod.worker_tasks.execute_live_build_job", build_id, job_id=build_id)
@@ -2548,6 +2785,35 @@ def v28_build_async(project_id: str, req: V27BuildRequest, request: Request) -> 
         })
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
+
+PREVIEW_NO_BUILD_QUEUE = 'preview_no_build_queue'
+
+
+def _build_environment() -> str:
+    return os.getenv('VERCEL_ENV') or os.getenv('OMNI_ENV') or 'development'
+
+
+def _preview_without_build_queue() -> bool:
+    """72 part 2: a Vercel Preview with no queue of its own. OMNI_REDIS_URL is Production-only."""
+    return os.getenv('VERCEL_ENV') == 'preview' and not os.getenv('OMNI_REDIS_URL', '').strip()
+
+
+def _close_preview_build(jobs, build_id: str) -> None:
+    """QUEUED -> FAILED with the environment code and the environment's words; the reservation is released."""
+    from .models import BuildStatus
+    log = logging.getLogger(__name__)
+    try:
+        jobs.transition(build_id=build_id, expected=BuildStatus.QUEUED, target=BuildStatus.FAILED,
+                        error_code=PREVIEW_NO_BUILD_QUEUE,
+                        error_message='Preview environment has no build queue: the build did not run '
+                                      '(environment, not a product failure).')
+    except Exception:
+        log.error('build %s: could not close the preview build', build_id, exc_info=True)
+    try:
+        _v28.subscriptions.release(build_id=build_id)
+    except Exception:
+        log.error('build %s: preview build credits not released', build_id, exc_info=True)
+
 
 @app.get('/api/v28/projects/{project_id}/builds/latest')
 def v28_build_latest(project_id: str, request: Request) -> dict:
@@ -2678,6 +2944,22 @@ def _preview_key(project_id: str, request: Request) -> str:
 
 @app.post('/api/v28/projects/{project_id}/versions/{version_id}/previews')
 def v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
+    # 2026-11-09, first READY build (bld_56f74e0c): every launch answered 500 and Vercel kept only the first line
+    # ("Exception in ASGI application"), so nobody could see why. Unexpected errors are now logged on ONE line
+    # with their type and location, and the caller gets a 503 naming the failing step instead of a bare 500.
+    try:
+        return _v28_preview_launch(project_id, version_id, request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        import traceback
+        frames = traceback.extract_tb(exc.__traceback__)[-4:]
+        where = ' <- '.join(f'{os.path.basename(f.filename)}:{f.lineno}:{f.name}' for f in reversed(frames))
+        print(f'preview_launch_failed type={type(exc).__name__} at={where} msg={str(exc)[:300]!r}', flush=True)
+        raise HTTPException(503, f'preview launch failed ({type(exc).__name__} at {where}); try again or report this')
+
+
+def _v28_preview_launch(project_id: str, version_id: str, request: Request) -> dict:
     _require_durable_backend('Real running preview')
     try:
         external_preview_url('probe', os.getenv('PREVIEW_DOMAIN_TEMPLATE'))

@@ -136,16 +136,31 @@ class RoutedModelGateway:
                                                        None if primary is None else primary.endpoint.name,
                                                        [r.endpoint.name for r in fallback]))
 
-    def restrict_to_cost_class(self, cost_class) -> dict:
-        """Bind the build class and restrict its catalog by the existing price ceiling."""
-        from .pricing import _as_cost_class, m5_model_allowed
+    def restrict_to_cost_class(self, cost_class, *, unrestricted: bool = False) -> dict:
+        """Bind the build class and restrict its catalog by the existing price ceiling.
+
+        CEO 2026-11-08 (b): a model above the class ceiling may still serve the tasks
+        pricing.m5_task_only_models names for the class (a strong model for repair and QA
+        review on LIGHT/STANDARD). (a): `unrestricted` (a founder account) keeps the whole
+        catalog. Either way the class's hard spend cap (bind_budget) is unchanged."""
+        from .pricing import _as_cost_class, m5_model_allowed, m5_task_only_models
         self.cost_class = _as_cost_class(cost_class)
         catalog = self.ranked
         before = [m.endpoint.name for m in catalog]
-        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million))
-        kept = [m.endpoint.name for m in self.ranked]
+        if unrestricted:
+            self.task_only = {}
+            return {'cost_class': self.cost_class.value, 'allowed_models': before, 'excluded_models': [],
+                    'task_only_models': {}, 'unrestricted': True}
+        task_only = m5_task_only_models(self.cost_class)
+        self.ranked = tuple(m for m in catalog if m5_model_allowed(self.cost_class, m.option.output_per_million)
+                            or m.endpoint.name in task_only)
+        self.task_only = {m.endpoint.name: task_only[m.endpoint.name] for m in self.ranked
+                          if m.endpoint.name in task_only
+                          and not m5_model_allowed(self.cost_class, m.option.output_per_million)}
+        kept = [m.endpoint.name for m in self.ranked if m.endpoint.name not in self.task_only]
         return {'cost_class': self.cost_class.value, 'allowed_models': kept,
-                'excluded_models': [n for n in before if n not in kept], 'task_only_models': {}}
+                'excluded_models': [n for n in before if n not in kept and n not in self.task_only],
+                'task_only_models': {k: sorted(v) for k, v in self.task_only.items()}}
 
     def bind_budget(self, ceiling_usd: Decimal) -> dict:
         """Set the whole-build external budget to what was reserved for this
@@ -386,13 +401,17 @@ class RoutedModelGateway:
         Returns (route, call_kwargs, option) tuples in selection order.
         """
         text = f"{kwargs.get('system', '')}{kwargs.get('user', '')}"
-        input_tokens = len(text.encode('utf-8')) + 64
+        # An image (design review, 2026-11-09) costs ~1.6K input tokens at vision providers; 3K keeps an upper bound.
+        input_tokens = len(text.encode('utf-8')) + 64 + 3000 * len(kwargs.get('images') or ())
         requested = int(kwargs.get('max_tokens', 4096))
         policy = self.routing_policy
         candidates = []
         for model in self.ranked:
             option = model.option
             if not option.enabled or option.quality < policy.minimum_quality:
+                continue
+            only = getattr(self, 'task_only', {}).get(model.endpoint.name)
+            if only is not None and task not in only:      # above the class ceiling: only its named tasks
                 continue
             # Wave A: below the task's MANDATORY floor a model is never used
             # for it, not even as escalation (no silent downgrade).
@@ -416,7 +435,12 @@ class RoutedModelGateway:
                 authors |= self.models_by_task.get(t, set())
         # Models meeting the task's floor first (cheapest among them), then the
         # rest as escalation; the base minimum_quality filter above still holds.
-        candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors, c[0]))
+        # CEO 2026-11-08: then the station's preferred models in order, then the rest cheapest first.
+        from .intelligence.task_policy import task_class as _tc
+        prefer = _tc(task, cost_class=self.cost_class).prefer_models
+        rank = {name: i for i, name in enumerate(prefer)}
+        candidates.sort(key=lambda c: (c[3].quality < floor, c[1].endpoint.name in authors,
+                                       rank.get(c[1].endpoint.name, len(rank)), c[0]))
         return [(route, kw, option) for _, route, kw, option in candidates]
 
     # Smallest output allowance still useful per task: below it a response is
@@ -440,7 +464,8 @@ class RoutedModelGateway:
             return None
         current = int(call_kwargs.get('max_tokens', 0))
         text = f"{call_kwargs.get('system', '')}{call_kwargs.get('user', '')}"
-        input_tokens = len(text.encode('utf-8')) + 64
+        # An image (design review, 2026-11-09) costs ~1.6K input tokens at vision providers; 3K keeps an upper bound.
+        input_tokens = len(text.encode('utf-8')) + 64 + 3000 * len(call_kwargs.get('images') or ())
         remaining = self.policy.external_budget_usd - self.state.external_spend_usd
         out_price = Decimal(str(option.output_per_million)) / Decimal(1_000_000)
         if out_price <= 0:
@@ -458,7 +483,7 @@ class RoutedModelGateway:
     # Called after a provider attempt is written ahead (worker: flush the ledger).
     on_attempt_start: Callable[[], None] | None = None
 
-    def _route(self, method: str, kwargs: dict, task: str = 'general'):
+    def _route(self, method: str, kwargs: dict, task: str = 'general', validate: Callable | None = None):
         if self.before_call is not None:
             self.before_call(task)
         last_error: Exception | None = None
@@ -512,9 +537,15 @@ class RoutedModelGateway:
                     continue
             for retry in range(self.transient_retries + 1):
                 try:
-                    return self._attempt(route, method, call_kwargs,
-                                         why if retry == 0 else f'{why}; transient retry #{retry}',
-                                         task=task, option=option, rank=rank, candidate_set=candidate_set)
+                    result = self._attempt(route, method, call_kwargs,
+                                           why if retry == 0 else f'{why}; transient retry #{retry}',
+                                           task=task, option=option, rank=rank, candidate_set=candidate_set)
+                    if validate is not None:
+                        # A well-formed answer that is unusable for the caller (e.g. code whose indentation was
+                        # lost, bld_5b2e8f58) is a model-output failure like invalid JSON: escalate to the next
+                        # route instead of spending a repair round on it.
+                        validate(result)
+                    return result
                 except Exception as exc:
                     last_error = exc
                     if isinstance(exc, AttemptLedgerUnavailable):
@@ -588,9 +619,11 @@ class RoutedModelGateway:
             'max_tokens': max_tokens,
         }, task)
 
-    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general') -> dict:
+    def complete_json(self, *, system: str, user: str, max_tokens: int = 4096, task: str = 'general',
+                      validate: Callable | None = None, images: tuple = ()) -> dict:
         return self._route('complete_json', {
             'system': system,
             'user': user,
             'max_tokens': max_tokens,
-        }, task)
+            **({'images': tuple(images)} if images else {}),
+        }, task, validate=validate)

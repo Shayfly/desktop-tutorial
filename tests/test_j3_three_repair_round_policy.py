@@ -37,7 +37,9 @@ class Verifier:
         content = repository["app.py"]
         self.runs.append(content)
         return ExecutionReport(content in self.passing, () if content in self.passing else (
-            AcceptanceFailure("A1", "build failed", "Compiler error"),
+            # the failure names the state it came from, as a real file:line pointer does; an identical failure on
+            # two states is no_progress_same_failure (tests/test_repair_fingerprint.py), not the round ceiling
+            AcceptanceFailure("A1", "build failed at " + content, "Compiler error"),
         ))
 
 

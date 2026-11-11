@@ -179,7 +179,17 @@ class ConversationTests(unittest.TestCase):
         self.assertTrue(t.brief_row.complete, t.reply)
         t2 = self.say('תתחיל')
         self.assertEqual(t2.intent, 'approve')
-        self.assertTrue(any(a['type'] == 'approve_build' for a in t2.actions))
+        # gate 1 first (owner 2026-10-26): "start" before the spec is approved asks for the spec approval
+        self.assertEqual([a['type'] for a in t2.actions], ['approve_spec'])
+        # 2026-11-10 (Michael condition 3): a landing page with no phone/address has an incomplete fact canon, so the
+        # spec is approved only with the tick box; without it the approval is refused and the tick is asked for.
+        self.assertEqual(t2.actions[0]['canon']['status'], 'CANON_INCOMPLETE')
+        refused = self.s.approve_spec(project_id='p', account_id='a', brief_fingerprint=t2.brief_row.fingerprint, lang='he')
+        self.assertIn('סמנו את התיבה', refused.reply)
+        self.s.approve_spec(project_id='p', account_id='a', brief_fingerprint=t2.brief_row.fingerprint, lang='he',
+                            canon_ack=True)
+        t3 = self.say('תתחיל')
+        self.assertTrue(any(a['type'] == 'approve_build' for a in t3.actions))
 
     def test_prices_after_completion_are_recorded_and_change_the_fingerprint(self):
         t = self.complete()

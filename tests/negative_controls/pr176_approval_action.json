@@ -1,0 +1,125 @@
+{
+  "pr": "pr176",
+  "sha256": [
+    "tests/test_intake_approve_and_goal.py"
+  ],
+  "controls": [
+    {
+      "id": "NC1",
+      "what": "the approval's customer message loses its request_key: a parallel double click records TWO approvals",
+      "envs": [
+        "pg"
+      ],
+      "mutations": [
+        {
+          "file": "omni_prod/conversation/supervisor.py",
+          "old": "                               brief_revision=row.revision if row else None, request_key=request_key,\n                               interpretation={**({'spec_approved'",
+          "new": "                               brief_revision=row.revision if row else None, request_key=None,  # NEGATIVE CONTROL\n                               interpretation={**({'spec_approved'"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_same_request_key_in_parallel_is_one_approval_and_one_plan"
+      ]
+    },
+    {
+      "id": "NC2",
+      "what": "a plan without the verifier's gate counts as verified again",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):",
+          "new": "        if saved is None or (gate is not None and not gate.get('verification', {}).get('accepted')):  # NEGATIVE CONTROL"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_new_project_saved_plan_without_gate_is_409_plan_not_verified"
+      ]
+    },
+    {
+      "id": "NC3",
+      "what": "a project created now is not marked: a guided project builds without the spec approval, and a failed mark no longer fails creation",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        mark = _two_gate_flow_mark(account.id)\n",
+          "new": "        mark = None  # NEGATIVE CONTROL\n"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
+        "test_a_guided_project_created_now_is_marked_and_a_build_needs_the_spec_approval",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation",
+        "test_every_project_the_ui_creates_goes_through_the_one_marked_route"
+      ]
+    },
+    {
+      "id": "NC4",
+      "what": "the schema compat path returns None before both gates again (a build with no spec approval)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        logging.getLogger(__name__).error('build refused: migration 036 pending, the approval state cannot be read')\n        raise HTTPException(409, detail={'error': 'approval_state_unavailable',",
+          "new": "        return None  # NEGATIVE CONTROL\n        raise HTTPException(409, detail={'error': 'approval_state_unavailable',"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_without_the_conversation_schema_a_new_project_build_is_409_not_200"
+      ]
+    },
+    {
+      "id": "NC5",
+      "what": "the second of two racing approvals crashes: the race test must fail (it may not only count rows)",
+      "envs": [
+        "pg"
+      ],
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,\n                                                         brief_fingerprint=req.brief_fingerprint,",
+          "new": "        if req.request_key == 'double-click':  # NEGATIVE CONTROL: the second racing request crashes\n            if globals().get('_NC_SEEN'):\n                raise RuntimeError('negative control: the second racing request crashed')\n            globals()['_NC_SEEN'] = True\n        turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,\n                                                         brief_fingerprint=req.brief_fingerprint,"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_same_request_key_in_parallel_is_one_approval_and_one_plan"
+      ]
+    },
+    {
+      "id": "NC6",
+      "what": "the old behaviour: a failed flow-mark write is swallowed and the project is created UNMARKED (Matt: BIND_STATUS APPROVED, VERIFIER_GATE None)",
+      "mutations": [
+        {
+          "file": "omni_prod/investor_app.py",
+          "old": "        except Exception as exc:\n            raise FlowMarkNotWritten(str(exc)) from exc\n        if not row or (row.get('interpretation') or {}).get('flow') != AF.FLOW:\n            raise FlowMarkNotWritten('the flow mark row was not stored')\n",
+          "new": "        except Exception:  # NEGATIVE CONTROL: the write result is thrown away again\n            return\n"
+        }
+      ],
+      "targets": [
+        "tests/test_intake_approve_and_goal.py"
+      ],
+      "expect_failed": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation"
+      ],
+      "expect_failed_pg": [
+        "test_a_failed_flow_mark_write_fails_creation_and_leaves_no_project",
+        "test_a_mark_row_that_was_not_stored_also_fails_creation",
+        "test_a_mark_write_failing_after_its_insert_rolls_back_the_project"
+      ]
+    }
+  ]
+}

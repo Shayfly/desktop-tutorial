@@ -35,7 +35,10 @@ jobs:
         run: python scripts/ci_scope.py
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 -> 20 (2026-11-11), the CI-cost policy maximum (tests/test_ci_workflow_concurrency.py): successful runs on
+    # main took 12.7-14.9 min and PR #297 was cancelled at exactly 15:00. The real fix is the follow-up: move the
+    # UI negative controls to their own job so this one shrinks back.
+    timeout-minutes: 20
     steps:
       # Audited registry snapshots refer to the PR HEAD, not GitHub's
       # synthetic merge SHA, which can include unrelated base-branch changes.
@@ -49,6 +52,15 @@ jobs:
       - run: python -m pip install -r requirements-production.txt -r requirements-test.txt
       - run: python -m compileall -q omni_prod tests
       - run: python -m pytest -q --junitxml=pytest-report.xml
+        env:
+          OMNI_EVIDENCE_NOTICES: ${{ github.workspace }}/evidence-notices.txt
+      - name: Evidence notices (readable as check-run annotations, no log access needed)
+        if: always()
+        run: cat evidence-notices.txt 2>/dev/null || echo "no evidence notices were written"
+      - name: Negative controls (one SPEC ::notice per spec; per-control NC-EVIDENCE log lines; ::error on FAIL)
+        if: always()
+        timeout-minutes: 20
+        run: python scripts/run_negative_controls.py
       - name: Keep the test report for the published summary
         if: always()
         uses: actions/upload-artifact@v4

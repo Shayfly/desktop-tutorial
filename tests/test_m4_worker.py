@@ -285,12 +285,14 @@ class RunModificationJobTests(unittest.TestCase):
         self.assertIn('no stored ProductSpec', f['error_message'])
         h.subs.release.assert_called_once_with(build_id='mod_1')  # no spend incurred
 
-    def test_exception_with_real_spend_already_incurred_is_settled_not_released(self):
+    def test_exception_with_real_spend_already_incurred_releases_the_credits(self):
+        # founder 2026-11-02: a failed modification releases its credits (RELEASED, real spend on record), never SETTLED
         h = ModHarness(spend='0.10', calls=1, repairer=RaisingRepairer())
         with self.assertRaises(RuntimeError):
             h.run()
         self.assertEqual(h.jobs.final['error_code'], 'worker_exception')
-        h.subs.settle.assert_called_once_with(build_id='mod_1', actual_provider_cost_usd=Decimal('0.10'))
+        h.subs.release_failed.assert_called_once_with(build_id='mod_1', actual_provider_cost_usd=Decimal('0.10'))
+        h.subs.settle.assert_not_called()
         h.subs.release.assert_not_called()
 
     def test_duplicate_delivery_is_a_noop(self):

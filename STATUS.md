@@ -2615,3 +2615,50 @@ PR11 is integrated into the PR17 branch only. Schema compatibility now requires 
 - Not implemented: measured billed savings after integration; these require successful candidate runs and a comparable billing/job-minute sample. Production deployment and merge are outside the authorization.
 
 Commands, sample of 100 historical runs, timeout policy and evidence limits: docs/CI_ACTIONS_COST_OPTIMIZATION_2026-10-14.md.
+
+## 2026-10-30 — Item 3 (Codex; awaiting independent review)
+Plan preview now calls the existing read-only subscription authorization using
+build credits and total_authorized_variable_usd, preserving internal-QA policy.
+Local: 48 tests and 8 subtests pass; item3 negative control must fail the two
+insufficient-allowance cases. No reservation or paid call in preview.
+
+## 2026-10-30 — Item 5 (Codex; awaiting independent review)
+Explicit delegation now writes the declared default for asked/held fields into
+the brief with delegated provenance, shows it, clears held state and replays the
+same decision on another supervisor. Confirmed values remain unchanged; no spec
+approval is inferred. Uncertainty alone retains its existing clarification rule.
+Local: 57 passed, 4 PostgreSQL-dependent skips, 6 subtests. NC restoring held-open
+behavior fails the new end-to-end conversation test. No deployment.
+Independent review found one Important issue: a negated mention of delegation
+was accepted by a loose regex. Fixed with full-message affirmative matching;
+Hebrew, English and quoted-refusal regressions observed RED then GREEN.
+Remaining scoped choice: typed explicit delegation covers held fields; a field's
+quick-reply delegation continues to apply to that field through discovery.answer.
+
+## 2026-10-30 — Item 4 (Codex; awaiting independent review)
+Build reservation refusals return a structured customer-facing allowance error;
+the shipped explain() renders matching Hebrew/English copy without the internal
+paid-provider reason. Local: 45 tests and 9 subtests passed; item4 NC restores
+raw decision.reason and fails the response test. No deployment.
+
+### 2026-10-30 — Item 4 review follow-up (Codex)
+Reserve denial now distinguishes plan-ineligible builds from exhausted credits
+or budget. Each has matching Hebrew/English cause and action. Existing
+qa_budget_denied remains separate from plan_cannot_authorize_cost. Observed the
+new distinction tests RED, then 59 passed with 9 subtests. NC2 restores the
+unified mapping and must fail the eligibility test; NC1 still checks raw reason.
+
+## 2026-10-30 — Item 2 (Codex; awaiting independent review)
+Existing no-contact failure release retained. Added real PostgreSQL reserve/refund
+balance and replay evidence plus a mutation removing release. Local: 3 settlement
+tests passed, 4 PostgreSQL tests skipped (no local database). Actual PG balance
+proof remains pending CI. No production calls or changes.
+
+### 2026-10-30 — Item 2 review follow-up (Codex)
+Replaced the fabricated external_calls=0 fixture with execution of the production
+worker function, actual AutonomousProductEngine agents and RoutedModelGateway.
+The actual model policy fails before HTTP. Read both ModelUseState.external_calls
+and an instrumented OpenAI-compatible HTTP boundary. A positive canary permits a
+call and observes both counters reach one (HTTP is intercepted, no paid call).
+The PG balance/replay test now executes that worker path twice for the same ID.
+Local: 5 passed, 4 PG skipped; current-SHA PG balance proof pending CI.

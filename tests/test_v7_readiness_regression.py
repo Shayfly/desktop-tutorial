@@ -98,7 +98,9 @@ class V7ReadinessTests(unittest.TestCase):
     def test_project_creation_is_not_limited_by_subscription_slots(self):
         source = (ROOT / "omni_prod" / "investor_app.py").read_text(encoding="utf-8")
         create = source.split("def v28_create_project(", 1)[1].split("@app.get('/api/v28/projects')", 1)[0]
-        self.assertIn("return _v28.create_project(token=token, title=req.title)", create)
+        # 2026-10-28: the route also writes the two-gate flow mark, in the creation transaction, so the call is no
+        # longer a bare `return`; what this guards is unchanged -- creation is the plain call, with no slot limit.
+        self.assertIn("_v28.create_project(token=token, title=req.title)", create)
         self.assertNotIn("max_projects", create)
         self.assertNotIn("project_limit_reached", create)
 

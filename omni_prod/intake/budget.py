@@ -116,8 +116,29 @@ def quote(*, system: str, user: str, max_tokens: int, task: str = 'conversation'
     from ..intelligence.task_policy import eligible
     if not isinstance(max_tokens, int) or max_tokens <= 0 or max_calls != 1:
         raise QuoteUnavailable('only a single bounded call is quotable (no automatic retry or fallback)')
-    models = models or allowed_models()
     input_tokens = len(f'{system}{user}'.encode('utf-8')) + 64       # == RoutedModelGateway.ranked_routes
+    from ..providers import venice_gateway as VG
+    if VG.selected():   # C3: OMNI_INTAKE_PROVIDER=venice -> quote at the configured price ceiling
+        try:
+            cin, cout = VG.price_ceiling()
+            listed = VG.allowed_models(os.environ)
+        except ValueError as exc:
+            raise QuoteUnavailable(f'venice selected: {exc}') from None
+        if not listed:   # fail closed: no Venice reservation exists without the allowlist it will run on
+            raise QuoteUnavailable(f'venice selected: {VG.ALLOWED_ENV} is not set')
+        # bytes >= characters, so this bound is >= the VeniceClient's own worst case (characters + 64)
+        cost = (Decimal(input_tokens) * cin + Decimal(max_tokens) * cout) / Decimal(1_000_000)
+        amount = cost.quantize(Q, rounding=ROUND_CEILING)
+        return Quote(amount, {'task': task, 'max_calls': 1, 'transient_retries': 0, 'fallback_calls': 0,
+                              'provider': 'venice', 'allowed_models': ['venice:' + m for m in listed],
+                              'venice_allowed_models': list(listed),
+                              'venice_ceiling_usd_per_m': [str(cin), str(cout)],
+                              'models': [{'model': 'venice:' + ','.join(listed), 'input_tokens_bound': input_tokens,
+                                          'output_tokens_bound': max_tokens, 'input_per_million': str(cin),
+                                          'output_per_million': str(cout), 'price_source': 'ceiling:' + VG.CEILING_ENV,
+                                          'worst_case_usd': str(cost)}],
+                              'ceiling_basis': CEILING_BASIS, 'max_tokens': max_tokens})
+    models = models or allowed_models()
     priced = []
     for item in _catalog_items():
         model = str(item.get('model', ''))

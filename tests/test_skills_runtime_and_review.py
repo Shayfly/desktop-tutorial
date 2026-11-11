@@ -56,7 +56,10 @@ class StaticChecks(unittest.TestCase):
         found = {(f.skill, f.severity, f.problem.split(' ')[0]) for f in static_findings(repo, {'request': 'אתר בעברית'})}
         self.assertIn(('skill.form_validation', 'blocking', 'uses'), found)          # alert()
         self.assertIn(('skill.text_locale', 'blocking', 'escapes'), found)          # html.escape before INSERT
-        self.assertIn(('skill.text_locale', 'blocking', 'Hebrew'), found)           # no dir="rtl"
+        # 2026-11-10: HTML inside a Python string is not the page; the RTL gate judges the SERVED page (or .html files).
+        self.assertNotIn(('skill.text_locale', 'blocking', 'Hebrew'), found)
+        served = static_findings(repo, {'request': 'אתר בעברית', 'rendered_pages': {'/': '<html><body>שלום</body></html>'}})
+        self.assertIn(('skill.text_locale', 'blocking', 'Hebrew'), {(f.skill, f.severity, f.problem.split(' ')[0]) for f in served})
         self.assertIn(('skill.text_locale', 'advisory', 'builds'), found)           # innerHTML ${}
         self.assertFalse(any(f.file.startswith('tests/') for f in static_findings(repo, {})))
 

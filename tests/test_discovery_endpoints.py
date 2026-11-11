@@ -134,6 +134,7 @@ class DiscoveryEndpointTests(unittest.TestCase):
         error=investor_app.HTTPException(409,detail={'error':'capability_not_feasible','findings':[{'item':'sign-in (roles)','outcome':'BLOCKED'}]})
         with patch.object(investor_app,'_bind_execution_plan',side_effect=error), \
              patch.object(investor_app,'_internal_qa_funding',return_value=(None,False)), \
+             patch.object(investor_app,'_require_durable_backend',lambda purpose: None), \
              patch.object(investor_app,'build_plan_preview',return_value={'can_build':True,'blockers':[]}):
             view=investor_app.v28_build_contract_preview('prj_1',investor_app.V28PlanRequest(prompt='מערכת משימות',brief_revision=1),self.req)
         self.assertFalse(view['can_build'])

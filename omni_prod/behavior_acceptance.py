@@ -25,6 +25,7 @@ drops coverage still fails (missing IDs/kinds).
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .autonomous_core import AcceptanceFailure, ExecutionReport
@@ -32,6 +33,12 @@ from .sandbox_script import staged_script
 
 BEHAVIOR_FAILURE_ID = 'BEHAVIOR'
 _RUNNER_SOURCE = (Path(__file__).with_name('web_saas_acceptance.py')).read_text(encoding='utf-8')
+# Flag site_auth_v2 (read in omni_prod.feature_flags only): the hardening checks are APPENDED to the runner and the
+# script builds the hardened runner. With the flag off both are the baseline bytes.
+from .feature_flags import SITE_AUTH_V2 as _SITE_AUTH_V2  # noqa: E402
+if _SITE_AUTH_V2:
+    _RUNNER_SOURCE = _RUNNER_SOURCE + '\n\n' + (Path(__file__).with_name('web_saas_auth_hardening.py')).read_text(
+        encoding='utf-8')
 
 PLAN_SHAPE = (
     'The behavioural acceptance plan lives in .omni/project.json under "web_saas_acceptance": '
@@ -78,6 +85,8 @@ except Exception:
 report["server_log_tail"] = out.decode("utf-8", "replace")[-1500:]
 print("BEHAVIOR-ACCEPTANCE " + json.dumps(report, ensure_ascii=False))
 '''
+if _SITE_AUTH_V2:
+    _SCRIPT = _SCRIPT.replace('mod.WebSaaSAcceptanceRunner(', 'mod.HardenedAcceptanceRunner(')
 
 
 def find_in_chain(executor, cls):
@@ -100,18 +109,47 @@ def _sent(request) -> str:
     return text
 
 
+_APP_FRAME = re.compile(r'File "([^"]+)", line (\d+)(?:, in [^\n]*)?')
+
+
+def _app_frame(log: str) -> str | None:
+    frames = [m for m in _APP_FRAME.finditer(log or '') if 'site-packages' not in m.group(1)]
+    return f'{frames[-1].group(1)}:{frames[-1].group(2)}' if frames else None
+
+
+_KIND_HINTS = {
+    'data_create': 'add a step of kind data_create that creates a record with valid data and expects 201 (or 200), '
+                   'capturing its id (and any code the response returns) for the later steps.',
+    'data_read': 'add a step of kind data_read that GETs the list or the record the plan created and expects 200 with '
+                 'expect_json_contains on a value the plan wrote.',
+    'data_update': 'add a step of kind data_update that changes the record the plan created (PUT/PATCH/POST to its '
+                   'update route, using the captured id) and expects 200.',
+    'data_delete': 'add a step of kind data_delete that SUCCESSFULLY removes or cancels the record the plan created '
+                   '(DELETE, or the app\'s cancel route with the id and any cancel code captured from the create '
+                   'response) and expects 200/204; a step that only proves a refusal (403/404) does not show the '
+                   'behaviour working. If the app has no way to remove or cancel, the app is missing that feature.',
+}
+
+
 def _failure_text(report: dict) -> tuple[str, str]:
     failed = [c for c in report.get('checks', []) if not c.get('passed')]
+    frame = _app_frame(str(report.get('server_log_tail', '')))
     lines = []
     for c in failed[:6]:
         lines.append(f"- step {c.get('step_id')} ({c.get('kind')}, acceptance {','.join(c.get('acceptance_ids') or [])}): "
                      f"sent {_sent(c.get('request'))} -> HTTP {c.get('http_status')}; {c.get('detail')}"
+                     + (f' (server: {frame})' if frame else '')
                      + (f"; answer: {c.get('response_excerpt')!s}"[:400] if c.get('response_excerpt') else ''))
     missing = []
     if report.get('missing_acceptance_ids'):
         missing.append('acceptance criteria not covered by a passing step: ' + ','.join(report['missing_acceptance_ids']))
     if report.get('missing_kinds'):
         missing.append('behaviours that must be shown working: ' + ','.join(report['missing_kinds']))
+        # bld_d87842fb (2026-11-09): "data_delete" missing for 5 rounds -- the cancel step only ever sent a wrong code
+        # (403). Say what a passing step of each missing kind looks like.
+        for kind in report['missing_kinds']:
+            if kind in _KIND_HINTS:
+                missing.append(f'{kind}: {_KIND_HINTS[kind]}')
     waived = [str(k) for k in (report.get('not_required_kinds') or ())]
     if waived and report.get('missing_acceptance_ids'):
         missing.append('kinds NOT_REQUIRED for this approved product (never run, never counted as coverage): '
@@ -125,7 +163,7 @@ def _failure_text(report: dict) -> tuple[str, str]:
                 '.omni/project.json (keep its kind and acceptance ids) and keep the rule in the app. Only when the '
                 'request is valid under the approved requirements is the app wrong: then fix the app (validation '
                 'that rejects a valid request is a bug). Never remove coverage of an acceptance criterion.\n'
-              + 'Server log tail:\n' + str(report.get('server_log_tail', ''))[-900:] + '\n' + PLAN_SHAPE)
+              + 'Server log tail:\n' + str(report.get('server_log_tail', ''))[-2500:] + '\n' + PLAN_SHAPE)
     return message, detail
 
 
@@ -196,7 +234,7 @@ class BehaviorAcceptanceExecutor:
                 except ValueError:
                     parsed = None
         if parsed is None:
-            tail = (out + str(result.get('stderr', '')))[-900:]
+            tail = (out + str(result.get('stderr', '')))[-2500:]
             parsed = {'status': 'FAIL', 'summary': 'acceptance run produced no result', 'checks': [],
                       'server_log_tail': tail}
         if not isinstance(parsed, dict) or not isinstance(parsed.get('checks', []), list):   # T4: schema first

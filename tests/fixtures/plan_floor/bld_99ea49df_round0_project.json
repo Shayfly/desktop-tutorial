@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "runtime": "python:3.11-slim",
+  "start": ["python", "app.py"],
+  "port": 8000,
+  "health_path": "/",
+  "build": [["python", "-m", "compileall", "-q", "."]],
+  "verify": [
+    {"name": "unit tests", "argv": ["python", "-m", "pytest", "-q"], "acceptance_ids": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]}
+  ],
+  "web_saas_acceptance": {
+    "product_family": "managed_web_saas_v1",
+    "required_kinds": ["data_read", "data_create", "responsive", "api_smoke"],
+    "personas": [
+      {
+        "id": "user",
+        "steps": [
+          {"id": "S1", "kind": "data_read", "acceptance_ids": ["A1"], "method": "GET", "path": "/", "expect_status": 200},
+          {"id": "S2", "kind": "data_create", "acceptance_ids": ["A3"], "method": "POST", "path": "/api/scores", "json": {"name": "test", "score": 2.9}, "expect_status": 400},
+          {"id": "S3", "kind": "data_create", "acceptance_ids": ["A4"], "method": "POST", "path": "/api/scores", "json": {"name": "unique", "score": 10}, "expect_status": 201}
+        ]
+      }
+    ]
+  }
+}
