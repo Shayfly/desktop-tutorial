@@ -151,8 +151,32 @@ def _infer_infrastructure(prompt: str, integrations, *, no_login: bool | None = 
     return tuple(out)
 
 
+def read_customer_exclusions(full_prompt: str) -> list[dict]:
+    """77: "Customer exclusions v1" from the LAST generated brief block only (never a sentence the customer typed)."""
+    import json
+    import re
+    from .discovery import BRIEF_MARKER, CUSTOMER_EXCLUSIONS_PREFIX
+    from .build_readiness import excludable
+    markers = list(re.finditer(r"(?m)^" + re.escape(BRIEF_MARKER) + r" \(binding; fingerprint [a-f0-9]{16}\) ---$",
+                               full_prompt))
+    if not markers:
+        return []
+    lines = [s for s in full_prompt[markers[-1].end():].splitlines() if s.startswith(CUSTOMER_EXCLUSIONS_PREFIX)]
+    if len(lines) != 1:
+        return []
+    try:
+        keys = json.loads(lines[0][len(CUSTOMER_EXCLUSIONS_PREFIX):])
+    except ValueError:
+        return []
+    return [{"key": k, "decision": "not_required", "customer": True}
+            for k in keys if isinstance(k, str) and excludable(k)] if isinstance(keys, list) else []
+
+
 _INTEGRATION_CAPABILITY = {"payments": "integration.payment", "messaging": "integration.messaging",
-                           "maps": "integration.maps", "email": "integration.email", "webhook": "integration.webhook"}
+                           "maps": "integration.maps", "email": "integration.email", "webhook": "integration.webhook",
+                           "oauth": "integration.oauth", "analytics": "integration.analytics",
+                           "storage": "integration.storage", "database": "integration.database",
+                           "source_control": "integration.source_control"}
 
 
 def _without_excluded(integrations, semantic_decisions, prompt: str) -> tuple:
@@ -215,7 +239,8 @@ class ProductArchitect:
         from .intake.contract import strip_negated
         intent = strip_negated(intent) or intent
         from .semantic_capabilities import read_approved
-        semantic_decisions = read_approved(prompt)   # lines intact: `clean` collapses the newlines the marker needs
+        # #309 + 77: both read the prompt with its lines intact (`clean` collapses the newlines the marker needs)
+        semantic_decisions = read_approved(prompt) + read_customer_exclusions(prompt)
         decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())

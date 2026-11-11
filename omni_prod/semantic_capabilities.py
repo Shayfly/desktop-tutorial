@@ -134,6 +134,13 @@ def overrides(decisions: object, *, prompt: str = "") -> dict[str, str]:
         if not isinstance(decision, Mapping):
             continue
         key, status = decision.get("key"), decision.get("decision")
+        # 77: the customer's own "build without it" (product_architect.read_customer_exclusions, from the generated
+        # brief line only -- validate_decisions/read_approved rebuild every model decision without this flag).
+        if decision.get("customer") is True and status == "not_required":
+            from .build_readiness import excludable
+            if excludable(str(key)):
+                out[key] = status
+            continue
         if key not in SUPPORTED or status not in ("required", "not_required"):
             continue
         rule = _EXPLICIT_USER_INTENT.get(key)

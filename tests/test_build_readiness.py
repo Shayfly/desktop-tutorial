@@ -106,8 +106,9 @@ class PrimaryBlocker(unittest.TestCase):
 
     def test_unpriced_capability_is_named(self):
         b = R.primary_blocker({'can_build': False, 'status': 'READY',
-                               'blockers': [{'code': 'cost_quote_unknown', 'capability_keys': ['auth.login']}]})
-        self.assertIn('auth.login', b['message'])
+                               'blockers': [{'code': 'cost_quote_unknown', 'capability_keys': ['auth_session']}]})
+        self.assertIn('התחברות', b['message'])          # 77: named for the customer, never the internal key
+        self.assertNotIn('auth_session', b['message'])
 
 
 class ChatAgreesWithBanner(unittest.TestCase):
@@ -131,7 +132,7 @@ class ChatAgreesWithBanner(unittest.TestCase):
                    'blockers': [{'code': 'plan_cannot_authorize_cost', 'detail': 'paid-provider budget exhausted'}]}
         seen = []
         t = self.run_to_gate2(lambda pid, row, lang: seen.append((pid, lang)) or blocked)
-        self.assertEqual(seen, [('p1', 'he')])
+        self.assertEqual(seen[-1], ('p1', 'he'))     # 77 also checks before gate 1; gate 2 is the last call
         self.assertNotIn('approve_build', [a['type'] for a in t.actions])
         self.assertIn('לא ניתן להתחיל בבנייה כרגע', t.reply)
         self.assertIn('תקציב הבנייה של המסלול לחודש הזה נגמר', t.reply)
