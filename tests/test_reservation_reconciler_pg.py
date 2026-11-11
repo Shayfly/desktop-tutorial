@@ -2,7 +2,8 @@
 unmetered cost, and nothing reconciled afterwards -- a cancelled build kept its whole reservation RESERVED for ever.
 
 The reconciler resolves RESERVED rows whose work is terminal: RELEASE when every call finished and nothing was metered
-(counters back to their pre-reservation values), SETTLE on the metered total, HOLD while a call is still 'unknown'.
+(counters back to their pre-reservation values), RELEASE_METERED when something was metered (B2: never SETTLE --
+credits back, the metered cost on record, one credit_ledger row), HOLD while a call is still 'unknown'.
 Runs in intake-budget-pg (no skip there)."""
 from __future__ import annotations
 
@@ -100,15 +101,42 @@ class TheReservationReconciler(unittest.TestCase):
         notice('reservation reconciler PASS', f'cancelled build, 1 authorized-unmetered attempt: RESERVED -> RELEASED; '
                                               f'counters before={before} after={self.counters()}')
 
-    def test_a_metered_terminal_build_settles_on_what_was_used(self):
+    def test_positive_control_a_successful_build_is_never_reconciled_and_still_settles(self):
+        # B2 gate (founder 2026-11-03): the success path is untouched -- the reconciler never takes a READY build,
+        # and the build's own settlement still ends SETTLED with its credits charged.
+        before = self.counters()
+        bid = self.reserved_build(build_status='ready', attempts=[('ok', Decimal('0.30'), Decimal('0.12'))])
+        self.assertNotIn(bid, self.reconcile())
+        self.assertEqual(self.status(bid), 'RESERVED')
+        self.subs.settle(build_id=bid, actual_provider_cost_usd=Decimal('0.12'))
+        self.assertEqual(self.status(bid), 'SETTLED')
+        self.assertEqual(self.counters()[0], before[0] + 90)                          # credits stay charged
+        from tests.evidence_notice import notice
+        notice('B2 positive control PASS', f'READY build: not reconciled, settle -> SETTLED, credits_used '
+                                           f'{before[0]} -> {self.counters()[0]}')
+
+    def test_negative_control_a_failed_metered_build_is_released_not_settled(self):
+        # B2 (founder 2026-11-03): one path for one case -- the same release_failed the worker uses (#214).
+        before = self.counters()
         bid = self.reserved_build(build_status='failed', attempts=[('ok', Decimal('0.30'), Decimal('0.12'))])
         result = self.reconcile()[bid]
-        self.assertEqual((result['action'], result['applied']), ('settle', True))
-        self.assertEqual(self.status(bid), 'SETTLED')
+        self.assertEqual((result['action'], result['applied']), ('release_metered', True))
+        self.assertEqual(self.status(bid), 'RELEASED')
         with self.pool.connection() as conn:
             settled = conn.execute('SELECT settled_provider_cost_usd FROM credit_reservations WHERE build_id = %s',
                                    (bid,)).fetchone()[0]
-        self.assertEqual(Decimal(str(settled)), Decimal('0.12'))
+            ledger = conn.execute('SELECT account_id, delta, reason FROM credit_ledger WHERE idempotency_key = %s',
+                                  (f'failed-build-release:{bid}',)).fetchall()
+        self.assertEqual(Decimal(str(settled)), Decimal('0.12'))                    # the metered cost on record
+        self.assertEqual(ledger, [(self.user, 90, 'failed_build_released')])         # exactly one row
+        after = self.counters()
+        self.assertEqual(after[0], before[0])                                         # the whole balance back
+        self.assertGreaterEqual(after[1], before[1] + Decimal('0.12'))                # spend keeps the metered cost
+        self.assertEqual(self.reconcile().get(bid), None)                             # a second pass: nothing
+        from tests.evidence_notice import notice
+        notice('B2 negative control PASS', f'failed build metered 0.12: RESERVED -> RELEASED, ledger rows={len(ledger)} '
+                                           f'+{ledger[0][1]}, credits_used {before[0]+90} -> {after[0]}, '
+                                           f'provider_spend {before[1]} -> {after[1]}')
 
     def test_an_unknown_outcome_or_a_running_build_is_held(self):
         unknown = self.reserved_build(build_status='cancelled', attempts=[('unknown', Decimal('0.05'), None)])
