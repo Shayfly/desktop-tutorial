@@ -239,7 +239,8 @@ class ProductArchitect:
         from .intake.contract import strip_negated
         intent = strip_negated(intent) or intent
         from .semantic_capabilities import read_approved
-        semantic_decisions = read_approved(clean) + read_customer_exclusions(prompt)   # 77: lines intact, not `clean`
+        # #309 + 77: both read the prompt with its lines intact (`clean` collapses the newlines the marker needs)
+        semantic_decisions = read_approved(prompt) + read_customer_exclusions(prompt)
         decision = self.brain.decide(intent, semantic_decisions=semantic_decisions)
         capability_plan = decision.capabilities
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
