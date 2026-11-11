@@ -58,6 +58,48 @@ PLAN_REASONS = {
 }
 _ORDER = {'requirements': 0, 'gate': 1, 'quote': 2}
 
+# 77: what the customer reads for an unpriced capability or infrastructure kind -- never the internal key.
+NAMES: dict[str, tuple[str, str]] = {
+    'integration.payment': ('תשלום באתר', 'online payment'),
+    'integration.messaging': ('שליחת הודעות', 'sending messages'),
+    'integration.email': ('שליחת מיילים', 'sending email'),
+    'integration.maps': ('מפה אינטראקטיבית', 'an interactive map'),
+    'integration.webhook': ('חיבור למערכת חיצונית (webhook)', 'a webhook to another system'),
+    'integration.oauth': ('התחברות עם חשבון חיצוני', 'sign-in with an outside account'),
+    'integration.analytics': ('מדידת תנועה', 'analytics'),
+    'integration.storage': ('אחסון קבצים', 'file storage'),
+    'integration.database': ('חיבור למסד נתונים חיצוני', 'an outside database'),
+    'integration.source_control': ('חיבור למאגר קוד', 'a source-control connection'),
+    'media.video.generate': ('יצירת וידאו', 'video generation'),
+    'media.audio.tts': ('הקראה קולית', 'text to speech'),
+    'media.audio.stt': ('זיהוי דיבור', 'speech recognition'),
+    'media.audio.sfx': ('אפקטים קוליים', 'sound effects'),
+    'media.audio.music': ('יצירת מוזיקה', 'music generation'),
+    'media.audio.realtime_voice': ('שיחה קולית', 'live voice'),
+    'ai.agent.tools': ('סוכן AI', 'an AI agent'),
+    'ai.agent.memory': ('זיכרון לסוכן AI', 'AI agent memory'),
+    'ai.agent.eval': ('בדיקות לסוכן AI', 'AI agent evaluation'),
+    'target.agent': ('סוכן AI', 'an AI agent'),
+    'target.mobile': ('אפליקציה לטלפון', 'a phone app'),
+    'target.automation': ('אוטומציה', 'automation'),
+    'database': ('מסד נתונים מנוהל', 'a managed database'),
+    'auth_session': ('התחברות', 'sign-in'),
+    'object_storage': ('אחסון קבצים', 'file storage'),
+    'scheduled_http': ('משימות מתוזמנות', 'scheduled jobs'),
+    'outbound': ('שליחה החוצה (מייל / הודעות)', 'outbound email or messages'),
+}
+
+
+def display_name(key: str, lang: str = 'he') -> str:
+    he, en = NAMES.get(key, ('יכולת נוספת', 'an extra capability'))
+    return he if lang == 'he' else en
+
+
+def excludable(key: str) -> bool:
+    """A capability the customer may choose to build without (77). Infrastructure kinds and the build floor are not."""
+    return key.startswith(('integration.', 'media.', 'ai.agent.')) or key in ('target.agent', 'target.mobile',
+                                                                              'target.automation')
+
 
 def reason_key(code: str) -> str | None:
     if code in REASONS:
@@ -89,7 +131,7 @@ def primary_blocker(preview: dict, lang: str = 'he') -> dict | None:
     if key == 'plan_cannot_authorize_cost' and detail in PLAN_REASONS:
         message = PLAN_REASONS[detail][0 if lang == 'he' else 1]
     if key == 'cost_quote_unknown' and b.get('capability_keys'):
-        message += ' (' + ', '.join(b['capability_keys']) + ')'
+        message += ' (' + ', '.join(dict.fromkeys(display_name(k, lang) for k in b['capability_keys'])) + ')'
     if key == 'requirements_open':
         qs = [q.get('question') for q in preview.get('clarification_questions') or [] if q.get('question')]
         if qs:
