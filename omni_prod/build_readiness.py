@@ -13,7 +13,13 @@ Three families, each with its own wording and next step:
 """
 from __future__ import annotations
 
-# code -> (family, he, en, next_he, next_en). Every code a preview can carry MUST be here: a test enumerates the codes
+# Michael 2026-11-11 (308 condition 2): the list is VERSIONED. Changing the set of codes bumps REASONS_VERSION and
+# records the old set in tests/test_build_readiness.py; a removed code goes to RETIRED (old code -> its successor), so a
+# stored or in-flight preview carrying it still resolves to live wording -- never dead text.
+REASONS_VERSION = 1
+RETIRED: dict[str, str] = {}
+
+# code -> (family, he, en, next_he, next_en). Every entry carries a next step (condition 1). Every code a preview can carry MUST be here: a test enumerates the codes
 # emitted by creator_plan and the execution-plan gate and fails on any that is missing.
 REASONS: dict[str, tuple[str, str, str, str, str]] = {
     'requirements_open': ('requirements',
@@ -102,6 +108,7 @@ def excludable(key: str) -> bool:
 
 
 def reason_key(code: str) -> str | None:
+    code = RETIRED.get(code, code)
     if code in REASONS:
         return code
     for prefix in _PREFIXES:
@@ -137,4 +144,4 @@ def primary_blocker(preview: dict, lang: str = 'he') -> dict | None:
         if qs:
             message += ' ' + qs[0]
     return {'code': str(b.get('code') or key), 'reason': key, 'family': family, 'message': message,
-            'next': next_he if lang == 'he' else next_en}
+            'next': next_he if lang == 'he' else next_en, 'version': REASONS_VERSION}
