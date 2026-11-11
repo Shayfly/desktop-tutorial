@@ -1,0 +1,111 @@
+name: Gate regression on approved builds (read-only)
+
+# Michael 2026-11-10 condition 4: before the frozen run, the CURRENT gates must still pass every build that was
+# already approved (first production build + the cafe). If one fails, the baseline moved.
+#
+# Read-only, enforced like inspect-round-artifacts.yml: a READ ONLY transaction for the version key and the approved
+# prompt, and a botocore hook that refuses every S3 operation except GetObject. The product is then started with NO
+# network (--network none, read-only root, no capabilities) exactly as the preview smoke starts it, and only the
+# static gates judge the page it serves. No model call, no write. One ::notice / ::error line per result.
+on:
+  workflow_dispatch:
+    inputs:
+      build_ids:
+        description: "comma-separated bld_<32 hex> (default: every ready build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  regress:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Fetch approved builds (enforced read-only)
+        env:
+          IDS: ${{ inputs.build_ids }}
+        run: |
+          set -euo pipefail
+          [[ -z "$IDS" || "$IDS" =~ ^bld_[0-9a-f]{32}(,bld_[0-9a-f]{32})*$ ]] || { echo "::error title=input::build_ids must be bld_<32 hex>[,...]"; exit 1; }
+          IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")
+          OUT="$RUNNER_TEMP/regress"; rm -rf "$OUT"; mkdir -p "$OUT" && chmod 777 "$OUT"
+          docker run --rm -i --network host --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres -e IDS="$IDS" -v "$OUT:/out" "$IMG" python - <<'PY'
+          import io, json, os, zipfile
+          from omni_prod.investor_app import _v28_pool
+          from omni_prod.evidence_export import _default_store
+          ids = [x for x in os.environ["IDS"].split(",") if x]
+          with _v28_pool.connection() as c:
+              with c.transaction():
+                  c.execute("SET TRANSACTION READ ONLY")
+                  # 2026-11-10 first run: the prompt came back empty (wrong source), so every canon was empty and the
+                  # cafe "failed" on its own given phone, street and reviews. The approved prompt is build_requests.prompt;
+                  # an empty one is now an error, never a silent empty canon.
+                  sql = ("SELECT b.id, v.artifact_key, r.prompt "
+                         "FROM build_jobs b JOIN project_versions v ON v.id = b.result_version_id "
+                         "JOIN build_requests r ON r.build_id = b.id "
+                         "WHERE b.status = 'ready' AND (cardinality(%s::text[]) = 0 OR b.id = ANY(%s::text[])) "
+                         "ORDER BY b.finished_at")
+                  rows = c.execute(sql, (ids, ids)).fetchall()
+          store = _default_store(os.environ)
+          def only_get_object(model, **_):
+              if getattr(model, "name", None) != "GetObject":
+                  raise PermissionError(f"read-only: S3 {getattr(model, 'name', '?')} refused")
+          store.client.meta.events.register("before-call.s3", only_get_object)
+          builds = []
+          for bid, key, prompt in rows:
+              if not (prompt or "").strip():
+                  raise SystemExit(f"::error title=no prompt::{bid}: approved prompt is empty; refusing an empty canon")
+              data = store.client.get_object(Bucket=store.bucket, Key=key)["Body"].read()
+              with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                  repo = {n: zf.read(n).decode("utf-8", errors="replace") for n in zf.namelist()}
+              builds.append({"build_id": bid, "artifact_key": key, "prompt": prompt or "", "repository": repo})
+          json.dump(builds, open("/out/builds.json", "w"), ensure_ascii=False)
+          print(f"::notice title=fetched::{len(builds)} approved build(s)")
+          PY
+      - name: Run the current gates on each served page (no network)
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/regress"
+          IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")
+          docker run --rm -i --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -v "$OUT:/out" -v "$GITHUB_WORKSPACE/src:/src:ro" -w /src -e PYTHONPATH=/src "$IMG" python - <<'PY'
+          import json, sys
+          from omni_prod.gate_regression import check_distinct, run, self_check
+          got = self_check()                                   # the tool proves itself first (exact golden counts)
+          print(f"::notice title=tool golden::canon facts {got}")
+          builds = json.load(open("/out/builds.json"))
+          failed = 0
+          rows = []
+          results = []
+          inert = 0
+          enc = lambda s: str(s).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for b in builds:
+              r = run(b["repository"], b["prompt"])
+              rows.append((b["build_id"], b["prompt"], r["canon_hash"]))
+              inert += 1 if r["truth_inert"] else 0
+              results.append((b["build_id"], r["passed"], r["truth_inert"]))
+              line = {"build": b["build_id"], "passed": r["passed"], "served": r["served"], "smoke": r["smoke"],
+                      "canon_hash": r["canon_hash"], "canon_facts": len(r["canon_facts"]),
+                      "canon_keys": sorted({f["key"] for f in r["canon_facts"]}), "truth_inert": r["truth_inert"],
+                      "blocking": [f'{f.get("probe")}: {f["problem"]}' for f in r["blocking"]],
+                      "advisory": [f'{f.get("probe")}: {f["problem"]}' for f in r["advisory"]][:8]}
+              level = "notice" if r["passed"] else "error"
+              failed += 0 if r["passed"] else 1
+              print(f"::{level} title=gate regression {b['build_id'][:16]}::{enc(json.dumps(line, ensure_ascii=False))}")
+          check_distinct(rows)
+          active = len(builds) - inert
+          active_pass = sum(1 for b, ok, ti in results if ok and not ti)
+          # Michael 2026-11-10: inert builds are out of the truth denominator; "2/2" with one inert is misleading.
+          print(f"::notice title=gate regression summary::{len(builds) - failed}/{len(builds)} approved builds pass; "
+                f"truth gate active on {active}/{len(builds)}; truth pass rate {active_pass}/{active} (inert excluded)")
+          sys.exit(1 if failed or not builds else 0)
+          PY

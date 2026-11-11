@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "runtime": "python:3.11-slim",
+  "start": ["python", "app.py"],
+  "port": 8000,
+  "health_path": "/",
+  "build": [["python", "-m", "compileall", "-q", "."]],
+  "verify": [
+    {"name": "unit tests", "argv": ["python", "-m", "pytest", "-q"], "acceptance_ids": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]}
+  ]
+}

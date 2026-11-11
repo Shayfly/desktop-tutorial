@@ -70,14 +70,19 @@ class AccountService:
         if not acct: raise PermissionError('account not found')
         return acct
 
-    def create_project(self,*,owner_id:str,title:str)->ProjectRecord:
+    def create_project(self,*,owner_id:str,title:str,in_transaction=None)->ProjectRecord:
         title=' '.join(title.split()).strip()
         if not title: raise ValueError('title required')
         with self._lock:
             pid='prj_'+secrets.token_urlsafe(10)
             now=datetime.now(timezone.utc).isoformat()
             rec=ProjectRecord(pid,owner_id,title[:120],now,now)
-            self._projects[pid]=rec; return rec
+            self._projects[pid]=rec
+            if in_transaction is not None:
+                try: in_transaction(None,rec)
+                except BaseException:
+                    del self._projects[pid]; raise   # all or nothing: no project without what must be written with it
+            return rec
 
     def require_project(self,*,owner_id:str,project_id:str)->ProjectRecord:
         rec=self._projects.get(project_id)

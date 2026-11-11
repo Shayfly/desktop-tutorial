@@ -23,6 +23,11 @@ jobs:
         run: python -m py_compile app.py
       - name: Browser JavaScript syntax
         run: node --check omni_prod/assets/app.js
+      - name: live-runner JavaScript syntax (#232 part B)
+        # Syntax only: a green result does not mean the runner works in a browser (B3, #235).
+        run: |
+          node --check ui/live-runner.js
+          echo "::notice title=live-runner.js::node --check passed - syntax only, the runner is not exercised in a browser (B3 #235)"
       - name: Direct entrypoint and customer UI smoke
         run: |
           python - <<'PY'

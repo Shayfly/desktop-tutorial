@@ -181,6 +181,31 @@ class LiveBriefAndApprovalTests(unittest.TestCase):
             self._consume(approval['approval_id'])
         self.assertEqual(ctx.exception.code, 'approval_used')
 
+    def test_one_approval_never_starts_two_builds(self):
+        """Two builds racing on ONE approval (a double click that reached POST .../builds twice with different build
+        ids): consume() runs inside each build's transaction under SELECT ... FOR UPDATE, so exactly one build gets
+        the approval and the other is refused before it is created."""
+        from omni_prod.brief_repository import ApprovalError
+        approval = self._approve(self._complete_brief())
+        builds, outcome, barrier = ['bld_' + uuid.uuid4().hex for _ in range(2)], {}, threading.Barrier(2)
+
+        def start(build_id):
+            barrier.wait()
+            try:
+                self._consume(approval['approval_id'], build_id=build_id)
+                outcome[build_id] = 'started'
+            except ApprovalError as exc:
+                outcome[build_id] = exc.code
+        ts = [threading.Thread(target=start, args=(b,)) for b in builds]
+        [t.start() for t in ts]
+        [t.join(10) for t in ts]
+        self.assertEqual(sorted(outcome.values()), ['approval_used', 'started'])
+        winner = next(b for b, o in outcome.items() if o == 'started')
+        with self.pool.connection() as conn:
+            used_by = conn.execute('SELECT used_by_build_id FROM build_approvals WHERE id = %s',
+                                   (approval['approval_id'],)).fetchone()[0]
+        self.assertEqual(used_by, winner)                     # one approval -> one build, recorded
+
     def test_a_meaningful_change_invalidates_the_approval(self):
         from omni_prod.brief_repository import ApprovalError
         row = self._complete_brief()

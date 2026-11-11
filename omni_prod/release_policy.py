@@ -6,7 +6,7 @@ runner, flag off, browser unavailable, plan missing, review rounds exhausted);
 a skipped check used to look exactly like a passed one. This module turns the
 build's evidence into a schema-versioned QualityReport where every check has
 
-  status     PASS | FAIL | NOT_RUN | UNKNOWN | NOT_APPLICABLE
+  status     PASS | FAIL | NOT_RUN | UNKNOWN | NOT_APPLICABLE | NO_CHECKS
   required   mandatory checks block READY unless PASS (NOT_RUN/UNKNOWN block too)
   verifier   who decided: platform:<module> (deterministic, platform-owned) or
              model:<name>; `independent` is False when the verifier is the
@@ -25,6 +25,7 @@ SCHEMA = 'quality-report/1'
 POLICY_VERSION = 'release-policy/1'
 
 PASS, FAIL, NOT_RUN, UNKNOWN, NA = 'PASS', 'FAIL', 'NOT_RUN', 'UNKNOWN', 'NOT_APPLICABLE'
+NO_CHECKS = 'NO_CHECKS'   # the check ran and executed zero tests (audit 2026-11-02 finding 14); never PASS
 
 # Stage order of the build (directive §2): used for display and stage rows.
 STAGES = ('requirements', 'plan', 'files', 'dependencies', 'build', 'tests', 'repair', 'preview', 'acceptance',
@@ -65,7 +66,7 @@ class QualityReport:
         return 'READY' if not self.blocking else 'FAILED'
 
     def coverage(self) -> dict:
-        out = {s: 0 for s in (PASS, FAIL, NOT_RUN, UNKNOWN, NA)}
+        out = {s: 0 for s in (PASS, FAIL, NOT_RUN, UNKNOWN, NA, NO_CHECKS)}
         for c in self.checks:
             out[c.status] = out.get(c.status, 0) + 1
         return out
@@ -109,16 +110,22 @@ def build_report(*, build_id: str, artifact_sha256: str, result, evidence: dict,
     pre_sandbox = {'CONSISTENCY', 'UNSUPPORTED_DEPENDENCY'}
     after_tests = {'PREVIEW', 'BEHAVIOR', 'BROWSER', 'VISUAL', 'QUALITY', 'REVIEW'}
 
+    executed = getattr(result.report, 'tests_executed', None)
+
     def tests_status() -> str:
         # Chain order: consistency/dependencies -> sandbox tests -> preview ->
         # behaviour -> browser -> quality -> review.
-        if chain_passed:
-            return PASS
+        # Audit 2026-11-02 finding 14: PASS is no longer inferred from a passed chain. It needs the sandbox's own count
+        # of tests that EXECUTED: 0 -> NO_CHECKS (its own status, never PASS), unknown -> UNKNOWN.
         if failing_ids & pre_sandbox:
             return NOT_RUN
         if failing_ids - after_tests:
             return FAIL
-        return PASS if failing_ids else UNKNOWN
+        if not chain_passed and not failing_ids:
+            return UNKNOWN
+        if executed is None:
+            return UNKNOWN
+        return PASS if executed > 0 else NO_CHECKS
 
     spec = getattr(result, 'spec', None)
     acceptance = list(getattr(spec, 'acceptance', ()) or ())

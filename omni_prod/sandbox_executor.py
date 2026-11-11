@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import os
+import re
 import stat
 import tempfile
 from typing import Callable
@@ -25,6 +26,77 @@ def _materialize_repository(root: Path, repository: dict[str, str]) -> None:
 # ever invoked for them, so the sandbox can never be asked to "confirm" a
 # no-op as a pass.
 _NOOP = {'true', ':', 'exit 0', 'pass', ''}
+
+
+_FRAME = re.compile(r'File "([^"]+)", line (\d+)')
+_SHORT = re.compile(r'^(\S+\.py):(\d+): ', re.M)
+
+
+def _pointer(output: str, known: set[str]) -> str | None:
+    """file:line of the failure, preferring a path that is really in the repository."""
+    text = output or ''
+    cands = [(m.group(1), m.group(2)) for m in _FRAME.finditer(text)]
+    cands += [(m.group(1), m.group(2)) for m in _SHORT.finditer(text)]
+    if not cands:
+        return None
+    for path, line in reversed(cands):
+        norm = path.rsplit('/', 1)[-1]
+        for k in known:
+            if k == path or k.endswith('/' + path) or k == norm:
+                return f'{k}:{line}'
+    path, line = cands[-1]
+    return f'{path}:{line}'
+
+
+def _window(text: str, *, head: int = 1500, tail: int = 1500) -> str:
+    text = (text or '').strip()
+    if len(text) <= head + tail:
+        return text
+    return text[:head] + '\n…\n' + text[-tail:]
+
+
+NO_TESTS_COLLECTED_MESSAGE = "no tests were collected \u2014 the test file is not in pytest's default patterns"
+
+
+def verify_failure_message(name: str, argv, returncode: int, prefix: str = 'verification failed') -> str:
+    """bld_99ea49dfc6c843aabc90bb8cccbcc1d7 (2026-11-01): pytest exits 5 when it collected nothing ("no tests ran").
+    That is not a failing test, and "verification failed: unit tests" sent three paid repairs after test logic that
+    never ran; the message says what happened instead. Any other non-zero exit keeps the existing message."""
+    # The prefix "<prefix>: <name>" is kept (founder 2026-11-02 01:18) so failure_type() still yields the same
+    # taxonomy key (verification_failed / remote_verification_failed); the explanation follows it.
+    if int(returncode) == 5 and any(str(w).rsplit('/', 1)[-1] == 'pytest' for w in (argv or ())):
+        return f'{prefix}: {name} \u2014 {NO_TESTS_COLLECTED_MESSAGE}'
+    return f'{prefix}: {name}'
+
+
+NO_TEST_EXECUTED_MESSAGE = 'no test executed (every collected test was skipped); skipped is not a pass'
+_PYTEST_COUNT = re.compile(r'(\d+) (passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b')
+_PYTEST_SUMMARY = re.compile(r'\b\d+ (?:passed|failed|errors?|skipped|xfailed|xpassed|deselected)\b.* in \d+(?:\.\d+)?s\b')
+_UNITTEST_RAN = re.compile(r'^Ran (\d+) tests? in ', re.M)
+
+
+def executed_tests(argv, output: str) -> int | None:
+    """Audit 2026-11-02 finding 2: pytest exits 0 when every test is SKIPPED, so the exit code alone turned "nothing ran"
+    into PASS. This reads the runner's own summary and returns how many tests executed (passed + failed + errors +
+    xfailed + xpassed). None when the command is not pytest/unittest or no summary is found -- unknown, never zero."""
+    words = [str(w).rsplit('/', 1)[-1] for w in (argv or ())]
+    text = output or ''
+    if 'pytest' in words or 'py.test' in words:
+        lines = [l for l in text.splitlines() if _PYTEST_SUMMARY.search(l)]
+        if not lines:
+            return None
+        counts = {}
+        for n, kind in _PYTEST_COUNT.findall(lines[-1]):
+            counts['errors' if kind == 'error' else kind] = int(n)
+        return sum(counts.get(k, 0) for k in ('passed', 'failed', 'errors', 'xfailed', 'xpassed'))
+    if 'unittest' in words:
+        ran = _UNITTEST_RAN.findall(text)
+        if not ran:
+            return None
+        tail = text[text.rfind('Ran '):]
+        skipped = re.search(r'skipped=(\d+)', tail)
+        return max(0, int(ran[-1]) - (int(skipped.group(1)) if skipped else 0))
+    return None
 
 
 def _is_fake_verification(argv: tuple[str, ...]) -> bool:
@@ -65,6 +137,7 @@ class SandboxRepositoryExecutor:
         except ValueError as exc:
             return invalid_manifest_report(exc, spec)
         failures = []
+        executed: int | None = None     # tests that actually ran (audit finding 2)
         logs = []
         with tempfile.TemporaryDirectory(prefix='omni-repo-') as td, \
              tempfile.TemporaryDirectory(prefix='omni-out-') as out:
@@ -112,10 +185,13 @@ class SandboxRepositoryExecutor:
                 logs.append(result.stdout)
                 logs.append(result.stderr)
                 if result.returncode != 0:
+                    output = (result.stdout or '') + '\n' + (result.stderr or '')
+                    p = _pointer(output, set(repository))
                     return ExecutionReport(
                         False,
                         tuple(
-                            AcceptanceFailure(a.id, 'build command failed', ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:])
+                            # 'failed: at …' -- the colon keeps the taxonomy key build_command_failed
+                            AcceptanceFailure(a.id, 'build command failed' + (f': at {p}' if p else ''), _window(output))
                             for a in spec.acceptance
                         ),
                         '\n'.join(logs)[-10000:],
@@ -151,13 +227,25 @@ class SandboxRepositoryExecutor:
                 )
                 logs.append(result.stdout)
                 logs.append(result.stderr)
+                ran = executed_tests(check.argv, (result.stdout or '') + '\n' + (result.stderr or ''))
+                if ran is not None:
+                    executed = (executed or 0) + ran
+                if result.returncode == 0 and ran == 0:
+                    # Audit 2026-11-02 finding 2: exit 0 with every test skipped is not evidence (same taxonomy prefix).
+                    for aid in check.acceptance_ids:
+                        failures.append(AcceptanceFailure(
+                            aid, f'verification failed: {check.name} \u2014 {NO_TEST_EXECUTED_MESSAGE}',
+                            _window((result.stdout or '') + '\n' + (result.stderr or ''))))
+                    continue
                 if result.returncode != 0:
+                    output = (result.stdout or '') + '\n' + (result.stderr or '')
+                    p = _pointer(output, set(repository))
                     for aid in check.acceptance_ids:
                         failures.append(
                             AcceptanceFailure(
                                 aid,
-                                f'verification failed: {check.name}',
-                                ((result.stdout or '') + '\n' + (result.stderr or '')).strip()[-3000:],
+                                verify_failure_message(check.name, check.argv, result.returncode) + (f' at {p}' if p else ''),
+                                _window(output),
                             )
                         )
         failures.extend(uncovered_acceptance_failures(manifest, spec))
@@ -165,4 +253,5 @@ class SandboxRepositoryExecutor:
             passed=not failures,
             failures=tuple(failures),
             build_log='\n'.join(logs)[-10000:],
+            tests_executed=executed,
         )
