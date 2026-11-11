@@ -122,3 +122,12 @@ Two added conditions:
 - G2 `stated` requires a button. To make that checkable, `Field` carries its channel: `via: "button" | "text" |
   "extract" | None`. A decision `stated` with `via != "button"` is a SCHEMA violation (except the G5 allow-list); a
   content field with `via == "button"` is a SCHEMA violation (§0 both directions).
+
+## G. Signed (Michael 2026-11-11 14:12) — with one recorded follow-up
+- The F5 allow-list is re-examined when media goes live: then `requires_auth` (and `personal_data`) of a song/video
+  is opened as a real decision instead of being left unasked. Until then those fields stay `missing` on media
+  artifacts and no gap is derived for them.
+- `src` (where the value came from) and `via` (how it entered) compose; only these pairs are valid:
+  customer+button, customer+text, rawBrief+extract, rawBrief+model, library+extract. A decision is `stated` only as
+  customer+button. `via` is set by the constructors (`from_button`, `from_text`, `inferred`, `from_library`), never
+  written by hand at call sites.
