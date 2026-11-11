@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>148AI · סקיצת שער א׳</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="primitives.css">
+  <link rel="stylesheet" href="gate-a.css">
+</head>
+<body>
+  <a class="ds-skip" href="#main">דילוג לתוכן</a>
+  <header>
+    <p class="kicker">148AI / מערכת עיצוב</p>
+    <h1>חומרי הסדנה</h1>
+    <p>שער א׳ · טוקנים ופרימיטיבים</p>
+  </header>
+  <main id="main" tabindex="-1">
+    <section class="sheet" data-theme="light" aria-labelledby="light">
+      <h2 id="light">ערכה בהירה</h2>
+      <div class="group">
+        <h3>פלטת צבעים</h3>
+        <div class="sample-grid">
+          <figure class="sample"><span class="chip chip-bg" aria-hidden="true"></span><figcaption class="sample-name">נייר</figcaption></figure>
+          <figure class="sample"><span class="chip chip-surface" aria-hidden="true"></span><figcaption class="sample-name">משטח</figcaption></figure>
+          <figure class="sample"><span class="chip chip-ink" aria-hidden="true"></span><figcaption class="sample-name">דיו</figcaption></figure>
+          <figure class="sample"><span class="chip chip-muted" aria-hidden="true"></span><figcaption class="sample-name">טקסט משני</figcaption></figure>
+          <figure class="sample"><span class="chip chip-line" aria-hidden="true"></span><figcaption class="sample-name">קו</figcaption></figure>
+          <figure class="sample"><span class="chip chip-accent" aria-hidden="true"></span><figcaption class="sample-name">חרס</figcaption></figure>
+          <figure class="sample"><span class="chip chip-success" aria-hidden="true"></span><figcaption class="sample-name">הצלחה</figcaption></figure>
+          <figure class="sample"><span class="chip chip-warning" aria-hidden="true"></span><figcaption class="sample-name">אזהרה</figcaption></figure>
+          <figure class="sample"><span class="chip chip-danger" aria-hidden="true"></span><figcaption class="sample-name">שגיאה</figcaption></figure>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>כפתור ראשי</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="primary" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="primary" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="primary" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="primary" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="primary" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h3>כפתור משני</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="secondary" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="secondary" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="secondary" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="secondary" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h3>כפתור שקט</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="quiet" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="quiet" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="quiet" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="quiet" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>שדות</h3>
+        <div class="sample-grid field-grid">
+          <div class="ds-field">
+            <label for="light-field-0">ריק</label>
+            <div class="ds-field-control">
+              <input id="light-field-0" type="text" placeholder="שם העסק">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="light-field-1">ריחוף</label>
+            <div class="ds-field-control">
+              <input id="light-field-1" type="text" data-example="hover">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="light-field-2">מיקוד</label>
+            <div class="ds-field-control">
+              <input id="light-field-2" type="text" data-example="focus">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="light-field-3">מושבת</label>
+            <div class="ds-field-control">
+              <input id="light-field-3" type="text" disabled value="שם העסק">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="light-field-4">שגיאה</label>
+            <div class="ds-field-control">
+              <input id="light-field-4" type="text" aria-invalid="true" aria-describedby="light-field-4-hint">
+            </div>
+            <small class="ds-field-hint" id="light-field-4-hint">יש להזין שם עסק.</small>
+          </div>
+          <div class="ds-field" aria-busy="true">
+            <label for="light-field-5">אימות</label>
+            <div class="ds-field-control">
+              <input id="light-field-5" type="text" readonly value="סטודיו נור">
+              <span class="ds-spinner" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="light-field-6">מלא</label>
+            <div class="ds-field-control">
+              <input id="light-field-6" type="text" value="סטודיו נור">
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>תגים</h3>
+        <div class="sample-grid">
+          <div class="sample"><span class="sample-name">ברירת מחדל</span><span class="ds-tag">טיוטה</span></div>
+          <div class="sample"><span class="sample-name">מיקוד</span><button type="button" class="ds-tag" data-example="focus">טיוטה</button></div>
+          <div class="sample"><span class="sample-name">מושבת</span><button type="button" class="ds-tag" disabled>טיוטה</button></div>
+        </div>
+      </div>
+    </section>
+    <section class="sheet" data-theme="dark" aria-labelledby="dark">
+      <h2 id="dark">ערכה כהה</h2>
+      <div class="group">
+        <h3>פלטת צבעים</h3>
+        <div class="sample-grid">
+          <figure class="sample"><span class="chip chip-bg" aria-hidden="true"></span><figcaption class="sample-name">נייר</figcaption></figure>
+          <figure class="sample"><span class="chip chip-surface" aria-hidden="true"></span><figcaption class="sample-name">משטח</figcaption></figure>
+          <figure class="sample"><span class="chip chip-ink" aria-hidden="true"></span><figcaption class="sample-name">דיו</figcaption></figure>
+          <figure class="sample"><span class="chip chip-muted" aria-hidden="true"></span><figcaption class="sample-name">טקסט משני</figcaption></figure>
+          <figure class="sample"><span class="chip chip-line" aria-hidden="true"></span><figcaption class="sample-name">קו</figcaption></figure>
+          <figure class="sample"><span class="chip chip-accent" aria-hidden="true"></span><figcaption class="sample-name">חרס</figcaption></figure>
+          <figure class="sample"><span class="chip chip-success" aria-hidden="true"></span><figcaption class="sample-name">הצלחה</figcaption></figure>
+          <figure class="sample"><span class="chip chip-warning" aria-hidden="true"></span><figcaption class="sample-name">אזהרה</figcaption></figure>
+          <figure class="sample"><span class="chip chip-danger" aria-hidden="true"></span><figcaption class="sample-name">שגיאה</figcaption></figure>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>כפתור ראשי</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="primary" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="primary" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="primary" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="primary" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="primary" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="primary" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h3>כפתור משני</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="secondary" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="secondary" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="secondary" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="secondary" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="secondary" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h3>כפתור שקט</h3>
+        <div class="sample-grid">
+          <div class="sample">
+            <span class="sample-name">ברירת מחדל</span>
+            <button type="button" class="ds-button" data-variant="quiet" >
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">ריחוף</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="hover">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחיצה</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="active">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מיקוד</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-example="focus">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">מושבת</span>
+            <button type="button" class="ds-button" data-variant="quiet" disabled>
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">טעינה</span>
+            <button type="button" class="ds-button" data-variant="quiet" aria-busy="true" aria-disabled="true" aria-label="טוען">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">שגיאה</span>
+            <button type="button" class="ds-button" data-variant="quiet" data-state="error">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="sample">
+            <span class="sample-name">לחוץ עד סיום</span>
+            <button type="button" class="ds-button" data-variant="quiet" aria-pressed="true">
+              <span class="ds-button-label">המשך</span><span class="ds-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>שדות</h3>
+        <div class="sample-grid field-grid">
+          <div class="ds-field">
+            <label for="dark-field-0">ריק</label>
+            <div class="ds-field-control">
+              <input id="dark-field-0" type="text" placeholder="שם העסק">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="dark-field-1">ריחוף</label>
+            <div class="ds-field-control">
+              <input id="dark-field-1" type="text" data-example="hover">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="dark-field-2">מיקוד</label>
+            <div class="ds-field-control">
+              <input id="dark-field-2" type="text" data-example="focus">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="dark-field-3">מושבת</label>
+            <div class="ds-field-control">
+              <input id="dark-field-3" type="text" disabled value="שם העסק">
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="dark-field-4">שגיאה</label>
+            <div class="ds-field-control">
+              <input id="dark-field-4" type="text" aria-invalid="true" aria-describedby="dark-field-4-hint">
+            </div>
+            <small class="ds-field-hint" id="dark-field-4-hint">יש להזין שם עסק.</small>
+          </div>
+          <div class="ds-field" aria-busy="true">
+            <label for="dark-field-5">אימות</label>
+            <div class="ds-field-control">
+              <input id="dark-field-5" type="text" readonly value="סטודיו נור">
+              <span class="ds-spinner" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="ds-field">
+            <label for="dark-field-6">מלא</label>
+            <div class="ds-field-control">
+              <input id="dark-field-6" type="text" value="סטודיו נור">
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr class="ds-rule">
+      <div class="group">
+        <h3>תגים</h3>
+        <div class="sample-grid">
+          <div class="sample"><span class="sample-name">ברירת מחדל</span><span class="ds-tag">טיוטה</span></div>
+          <div class="sample"><span class="sample-name">מיקוד</span><button type="button" class="ds-tag" data-example="focus">טיוטה</button></div>
+          <div class="sample"><span class="sample-name">מושבת</span><button type="button" class="ds-tag" disabled>טיוטה</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
