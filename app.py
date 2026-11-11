@@ -12,7 +12,11 @@ from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
 
-from omni_prod.investor_app import app
+# 72: a Preview uses its own Neon branch, never Production's database -- before anything reads the environment.
+from omni_prod import preview_isolation as _preview_isolation
+_preview_isolation.apply()
+
+from omni_prod.investor_app import app  # noqa: E402
 from live_core.api import create_router
 from live_core.config import Settings, build_store, live_enabled
 

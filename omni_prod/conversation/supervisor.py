@@ -24,6 +24,7 @@ builds and versions are.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -244,7 +245,7 @@ def _label(field_: str, value, lang: str) -> str:
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
-                 reservations=None, enqueue=None):
+                 reservations=None, enqueue=None, admission=None):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
@@ -255,8 +256,76 @@ class ConversationSupervisor:
         self.worker_interpreter = worker_interpreter           # injected in tests
         self.reservations = reservations                       # intake.budget.ReservationService (migration 037)
         self.enqueue = enqueue                                 # RQ enqueue of a reservation id
+        # 79: the build-admission check the banner shows (plan preview: quote, plan allowance, infrastructure, gate).
+        # The chat never says "ready, approve" while this says no; if they would disagree, admission wins.
+        self.admission = admission                             # (project_id, row, lang) -> preview dict | None
 
     # ------------------------------------------------------------------ helpers
+    def _unpriced_gate(self, project_id: str, account_id: str, row, lang: str, turn) -> list[str] | None:
+        """77 (Michael 2026-11-11): before gate 1, a capability with no price is never left to the generic banner.
+        Exactly three outcomes: it is priced (None: gate 1 as usual); the customer is asked ONE question -- build
+        without it? -- and "build without" binds an explicit exclusion into the spec; or, for what cannot be left out
+        (infrastructure), the reply says plainly what is missing and what to do, with no approve button."""
+        if self.admission is None:
+            return None
+        from .. import build_readiness as R
+        he = lang == 'he'
+        f = row.brief.fields.get('unavailable') or {}
+        known = d.unpriced_keys(row.brief)
+        if f.get('value') == 'wait' and known:
+            names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in known))
+            turn.questions = [d.BY_ID['unavailable']]
+            return [(f'בסדר. {names} עדיין לא זמין אצלנו, ולכן אי אפשר להתחיל לבנות את הבקשה כפי שהיא. '
+                     'כשתרצו — בחרו "כן, לבנות בלעדיו", או ערכו את הבקשה.') if he else
+                    (f'OK. {names} is not available yet, so this request cannot be built as it is. '
+                     'Whenever you like, choose "Yes, build without it", or edit the request.')]
+        try:
+            preview = self.admission(project_id, row, lang) or {}
+        except Exception:   # a bug here never silences the conversation; the gate-2 check still stands
+            import logging
+            logging.getLogger(__name__).warning('unpriced check failed for %s', project_id, exc_info=True)
+            return None
+        keys = list(dict.fromkeys(k for b in preview.get('blockers') or [] if b.get('code') == 'cost_quote_unknown'
+                                  for k in b.get('capability_keys') or []))
+        if not keys:
+            return None
+        ask = [k for k in keys if R.excludable(k)]
+        if ask:
+            new = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            new.hints['unpriced'] = ','.join(sorted(set(known) | set(ask)))
+            new.fields.pop('unavailable', None)          # a new unpriced item is asked again
+            saved = self.briefs.save(project_id=project_id, account_id=account_id, brief=new,
+                                     expected_revision=row.revision)
+            turn.brief_row = saved
+            turn.questions = [d.BY_ID['unavailable']]
+            names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in ask))
+            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב במפרט, והשאר ייבנה כרגיל.') if he else
+                    (f'{names} is not available yet. Build without it? If so, the spec says so and the rest is built as usual.')]
+        names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in keys))
+        login = 'auth_session' in keys
+        nxt = (('אפשר לבנות בלי התחברות — כתבו "בלי התחברות".' if login else 'ערכו את הבקשה בלעדיו.') if he else
+               ('It can be built without sign-in: write "no sign-in".' if login else 'Edit the request without it.'))
+        return [(f'{names} עדיין לא זמין אצלנו, ולכן אי אפשר לבנות את הבקשה כפי שהיא. {nxt}') if he else
+                (f'{names} is not available yet, so this request cannot be built as it is. {nxt}')]
+
+    def _admission_block(self, project_id: str, row, lang: str) -> str | None:
+        """79: the sentence the banner shows, when admission refuses -- or None (no admission check, or it allows).
+        A failure of the check itself never blocks the chat; it is logged and the old reply stands."""
+        if self.admission is None:
+            return None
+        try:
+            preview = self.admission(project_id, row, lang)
+        except Exception:   # an admission bug must not silence the conversation
+            import logging
+            logging.getLogger(__name__).warning('admission check failed for %s', project_id, exc_info=True)
+            return None
+        if not preview or preview.get('can_build'):
+            return None
+        from ..build_readiness import primary_blocker
+        reason = preview.get('blocked_reason') or primary_blocker(preview, lang)
+        head = 'לא ניתן להתחיל בבנייה כרגע' if lang == 'he' else 'The build cannot start yet'
+        return f"{head}: {reason['message']} {reason['next']}"
+
     def intake_mode(self, project_id, account_id=None):
         from ..intake import budget as B
         from ..intake import mode as intake_mode
@@ -336,7 +405,11 @@ class ConversationSupervisor:
                            family='website' if d.is_website(row.brief) else 'app', lang=lang)
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
                              'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
-        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *canon['lines'],
+        from .. import build_readiness as R
+        excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
+                     f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
+                    for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
                 t['range'].format(lo=lo, hi=hi), t['gate1']]
 
     def _plan(self, project_id, row):
@@ -408,7 +481,12 @@ class ConversationSupervisor:
             if row is not None:
                 turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
             turn.reply = self._answer(intent, row, turn.plan, ctx, message, T, lang)
-            if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
+            blocked_now = (self._admission_block(project_id, row, lang)
+                           if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete
+                           else None)
+            if blocked_now:                                # 79: "approve" never gets a button the banner refuses
+                turn.reply = blocked_now
+            elif intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
                 turn.actions.append({'type': 'approve_build', 'brief_revision': row.revision,
                                      **({'cost': turn.plan['spec_gate']['cost']} if 'spec_gate' in turn.plan else {})})
             elif intent == 'approve' and row is not None and row.complete and not self._spec_ok(project_id, row) \
@@ -523,7 +601,12 @@ class ConversationSupervisor:
         parts.append(t['planned'])
         if record['corrected']:
             parts.append(t['fixed'].format(what='; '.join(record['problems'])[:400]))
-        if plan.get('executable'):
+        blocked_by_admission = self._admission_block(project_id, row, lang) if plan.get('executable') else None
+        if blocked_by_admission:
+            parts.append(blocked_by_admission)
+            turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
+                             {'type': 'edit_requirements', 'brief_revision': row.revision}]
+        elif plan.get('executable'):
             parts.extend(AF.budget_lines(cmp, lang, plan.get('complexity')))
             parts.append(t['gate2'])
             turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
@@ -665,10 +748,11 @@ class ConversationSupervisor:
                     parts.append(T['content_saved'])
                 if self._spec_ok(project_id, row):         # nothing changed since gate 1: the verified plan stands
                     turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
-                    parts.append(T['ready_again'])
+                    parts.append(self._admission_block(project_id, row, lang) or T['ready_again'])
                     turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
                 else:                                      # gate 1: the spec and the range; no plan yet
-                    parts.extend(self._gate1(turn, row, lang))
+                    unpriced = self._unpriced_gate(project_id, account_id, row, lang, turn)   # 77
+                    parts.extend(unpriced if unpriced else self._gate1(turn, row, lang))
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.blocked = [f['item'] for f in blocked]

@@ -167,6 +167,17 @@ QUESTIONS: tuple[Question, ...] = (
              'A text logo now can be replaced later.',
              options=(_o('text', 'לוגו טקסטואלי עם שם המוצר', 'Text logo with the product name'), _o('none', 'בלי לוגו', 'No logo'),
                       _o('later', 'יש לי לוגו — אעלה אחר כך', 'I have one — will upload later')), recommended='text'),
+    # 77 (Michael 2026-11-11): a capability with no price never blocks silently. When the platform finds one before
+    # gate 1 it records the keys in hints['unpriced'] and asks this ONE question. "Build without" binds a customer
+    # exclusion into the contract (Customer exclusions v1, read by product_architect); "wait" is said plainly.
+    Question('unavailable', 'unavailable', 'purpose',
+             'חלק ממה שביקשת עדיין לא זמין אצלנו. לבנות בלעדיו?',
+             'Part of what you asked for is not available yet. Build without it?',
+             'אם תבחרו לבנות בלעדיו, זה ייכתב במפרט שתאשרו. אפשר להוסיף אותו אחר כך כשיהיה זמין.',
+             'If you build without it, the spec you approve says so. It can be added later once available.',
+             options=(_o('build_without', 'כן, לבנות בלעדיו', 'Yes, build without it'),
+                      _o('wait', 'לא, אחכה שזה יהיה זמין', 'No, I will wait for it')),
+             delegable=False, ask_if=lambda v: bool(v.get('_unpriced'))),
     Question('references', 'references', 'design', 'יש אתר שאהבתם את המראה שלו? (קישור או תיאור)',
              'A site whose look you like? (link or description)', 'נשתמש בו כהשראה בלבד, לא נעתיק.',
              'Used as inspiration only, never copied.', kind='text', recommended='אין'),
@@ -308,7 +319,26 @@ def _ctx(brief: 'Brief') -> dict:
     from .persistence import strong_cues
     v['_strong'] = bool(strong_cues(brief.prompt))           # R1/8.1, read by the persistence question
     v['_stale'] = brief.hints.get('persistence_stale') == 'yes'
+    v['_unpriced'] = unpriced_keys(brief)                     # 77, read by the "unavailable" question
     return v
+
+
+CUSTOMER_EXCLUSIONS_PREFIX = 'Customer exclusions v1: '
+
+
+def unpriced_keys(brief: 'Brief') -> list[str]:
+    """77: the capabilities the platform found unpriced for this brief (set by the supervisor before gate 1)."""
+    raw = (brief.hints or {}).get('unpriced') or ''
+    return [k for k in str(raw).split(',') if k]
+
+
+def customer_exclusions(brief: 'Brief') -> list[str]:
+    """77: what the customer chose to build without -- only their own button answer counts."""
+    f = brief.fields.get('unavailable') or {}
+    if f.get('value') != 'build_without' or f.get('source') != 'answer':
+        return []
+    from .build_readiness import excludable
+    return [k for k in unpriced_keys(brief) if excludable(k)]
 
 
 def _website_screens(prompt: str) -> str:
@@ -599,6 +629,9 @@ def requirements_text(brief: Brief) -> str:
     if brief.semantic_decisions:
         from .semantic_capabilities import encode_approved
         lines.append(encode_approved(brief.semantic_decisions))
+    excluded = customer_exclusions(brief)
+    if excluded:   # 77: bound into the fingerprinted contract; product_architect reads only this generated line
+        lines.append(CUSTOMER_EXCLUSIONS_PREFIX + json.dumps(sorted(excluded)))
     return '\n'.join(lines)
 
 

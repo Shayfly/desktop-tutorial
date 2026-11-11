@@ -51,7 +51,8 @@ const T = {
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
-    errCodes:{build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
+    uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
+    errCodes:{preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.', build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
       release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
       preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
@@ -167,7 +168,8 @@ const T = {
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
     checkingApproval:'Checking approval and budget — no build has started yet.',
-    errCodes:{build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
+    uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
+    errCodes:{preview_no_build_queue:'The build did not run in this version: it is a test version without a build queue. The credits were returned.', build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
       release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
       preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
@@ -671,8 +673,10 @@ function renderProjectReadiness() {
   const p = S.plan;
   const busy = S.build && !isTerminal(S.build.status);
   const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
+  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
   const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
-    p.can_build ? t('readinessReady') : t('readinessBlocked');
+    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
   strip.className = 'projectReadiness ' + mode;
   strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
     h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
@@ -710,7 +714,8 @@ function renderPlan() {
     h('h2', {}, t('planTitle')),
     h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
       h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
-      !p.can_build ? h('p', {}, t('readinessBlockedHelp')) : null),
+      !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
+      !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
@@ -1078,6 +1083,13 @@ function friendlyError(b) {
   // not the providers being down (bld_e6b94762 showed 'providers unavailable' while every route was over budget).
   if (b.error_code === 'model_unavailable' && /does not fit the remaining budget/.test(String(b.error_message || '')))
     return (t('errCodes') || {}).model_budget_exhausted || known;
+  // 78: the app started and served an empty page -- never "the site did not start".
+  if (b.error_code === 'preview_not_ready' && /generated interface is empty/.test(String(b.error_message || ''))) {
+    const m = String(b.error_message || '').match(/missing: ([a-z,]+)/);
+    const names = t('uiMissing') || {};
+    const parts = (m ? m[1].split(',') : []).map(k => names[k]).filter(Boolean);
+    return t('uiEmpty') + (parts.length ? ': ' + t('uiMissingLead') + ' ' + parts.join(', ') : '') + ', ' + t('uiEmptyTail');
+  }
   return known || b.error_message || b.error_code || '';
 }
 

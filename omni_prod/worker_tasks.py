@@ -43,6 +43,7 @@ M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
 import json
 import logging
 import os
+import re
 import socket
 import time
 from decimal import Decimal
@@ -754,6 +755,27 @@ def _version_message(build_id: str, founder_draft: bool, banner: str | None = No
     return f'148AI async live build {build_id}'
 
 
+# 78: the preview smoke's verdicts for "the server answered, but GET / is not a real interface". The smoke script
+# itself is a frozen gate input (pipeline_identity, smoke/t4 evidence), so the words are fixed HERE, not in it.
+_EMPTY_UI = re.compile(r'returned a placeholder page|did not return an HTML page')
+EMPTY_UI_PREFIX = 'the app started but the generated interface is empty'
+_CONTROL_KINDS = (('form', ('<form',)), ('input', ('<input', '<select', '<textarea', "createelement('input", 'createelement("input')),
+                  ('button', ('<button', "createelement('button", 'createelement("button')),
+                  ('table', ('<table', "createelement('table", 'createelement("table')))
+
+
+def _missing_controls(repository) -> list[str]:
+    """Kinds of control none of the generated files contains (a proxy for the served page, read from the code)."""
+    try:
+        text = ' '.join(str(v) for k, v in dict(repository or {}).items()
+                        if str(k).endswith(('.py', '.html', '.js', '.htm'))).lower()
+    except (TypeError, ValueError):
+        return []
+    if not text:
+        return []
+    return [k for k, tags in _CONTROL_KINDS if not any(t in text for t in tags)]
+
+
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
@@ -762,6 +784,13 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         from .preview_smoke import PREVIEW_FAILURE_ID
         if report_failures and all(getattr(f, 'acceptance_id', None) == PREVIEW_FAILURE_ID for f in report_failures):
             # Every acceptance check passed; the product would not start for preview.
+            if all(_EMPTY_UI.search(str(getattr(f, 'message', ''))) for f in report_failures):
+                # 78 (Michael 2026-11-11): the app STARTED and served an empty page -- never "did not start". Same
+                # code (same step); the right words, and what the generated code lacks.
+                missing = _missing_controls(getattr(result, 'repository', None))
+                return False, 'preview_not_ready', (
+                    f'{EMPTY_UI_PREFIX} (missing: {",".join(missing) if missing else "content"}): '
+                    + '; '.join(f.message for f in report_failures))[:2000]
             return False, 'preview_not_ready', ('the product passed its checks but did not start for preview '
                                                 'after repair: ' + '; '.join(f.message for f in report_failures))[:2000]
         if report_failures and all(getattr(f, 'acceptance_id', None) == QUALITY_FAILURE_ID for f in report_failures):
