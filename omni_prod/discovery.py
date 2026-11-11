@@ -527,6 +527,13 @@ def requirements_text(brief: Brief) -> str:
         lines.append('Do not store personal or contact details of people.')
     if _content_only(v, login):
         lines.append(CONTENT_ONLY_LINE)
+    # R1: the customer's own answer is bound as a typed decision (product_architect reads it via persistence.resolve).
+    # Only a non-delegated answer is ever in fields['content_only'] (see the question's comment above).
+    from .persistence import NONE as _P_NONE, RECORDS as _P_RECORDS, decision_line as _decision_line
+    if _content_only(v, login):
+        lines.append(_decision_line(_P_NONE))
+    elif v.get('content_only') == 'no':
+        lines.append(_decision_line(_P_RECORDS))
     for fld, label in (('audience', 'Audience'), ('goal', 'Main action'), ('screens', 'Screens'), ('content', 'Initial content'),
                        ('references', 'Visual references (inspiration only)')):
         if v.get(fld):

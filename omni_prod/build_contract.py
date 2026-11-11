@@ -157,6 +157,12 @@ class BuildContract:
     agents_registry_version: str
     created_at: str
     contract_fingerprint: str
+    # R1 (docs/design/r1-r2-persistence.md): the typed persistence decision. Empty on contracts compiled before R1,
+    # and then left out of to_dict so their stored fingerprints still verify.
+    artifact_class: str = ""                 # "page" | "app" -- derived by persistence.resolve, never classified
+    persistence: str = ""                    # "none" | "records" | "stale"
+    persistence_source: str = ""             # "customer" | "keyword"
+    storing_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.id.strip() or not self.project_id.strip():
@@ -217,6 +223,8 @@ class BuildContract:
             "agents_registry_version": self.agents_registry_version,
             "created_at": self.created_at,
         }
+        if self.persistence:
+            data.update(persistence_fields(self))
         if include_fingerprint:
             data["contract_fingerprint"] = self.contract_fingerprint
         return data
@@ -268,6 +276,10 @@ class BuildContract:
             defaults_applied=tuple(str(x) for x in data.get("defaults_applied", ())),
             required_skill_keys=tuple(str(x) for x in data.get("required_skill_keys", ())),
             required_agent_keys=tuple(str(x) for x in data.get("required_agent_keys", ())),
+            artifact_class=str(data.get("artifact_class", "")),
+            persistence=str(data.get("persistence", "")),
+            persistence_source=str(data.get("persistence_source", "")),
+            storing_capabilities=tuple(str(x) for x in data.get("storing_capabilities", ())),
             skills_registry_version=str(data["skills_registry_version"]),
             agents_registry_version=str(data["agents_registry_version"]),
             created_at=str(data["created_at"]),
@@ -276,3 +288,9 @@ class BuildContract:
         if not contract.verify_fingerprint():
             raise ValueError("build contract fingerprint mismatch")
         return contract
+
+
+def persistence_fields(obj) -> dict[str, Any]:
+    """The R1 fields as serialized -- ONE shape for to_dict and for the compiler's fingerprint payload."""
+    return {"artifact_class": obj.artifact_class, "persistence": obj.persistence,
+            "persistence_source": obj.persistence_source, "storing_capabilities": list(obj.storing_capabilities)}
