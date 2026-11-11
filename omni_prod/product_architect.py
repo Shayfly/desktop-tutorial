@@ -7,6 +7,7 @@ import re
 from typing import Iterable
 
 from .agents_registry import MasterAgentsRegistry, build_canonical_agents_registry
+from .build_contract import persistence_fields
 from .build_contract import (
     BuildContract,
     BuildContractStatus,
@@ -220,7 +221,26 @@ class ProductArchitect:
         capability_fingerprint = sha256_fingerprint(capability_plan.to_dict())
         # Demand-driven infrastructure, bound into the immutable contract.
         no_login_early = no_login_requested(clean)
-        content_only = no_login_early and content_only_approved(clean)
+        # R1 (docs/design/r1-r2-persistence.md): ONE precedence point for "does this product store records". A
+        # customer decision bound into the approved brief wins; without one, only STRONG cues or a storing
+        # capability make records -- weak words ("טלפון", "הזמנה", "לקוחות") never do. content_only follows it.
+        from . import persistence as P
+        roles, role_defaults = self._infer_roles(intent)
+        if no_login_early:
+            # "No sign-in" is honoured: one kind of user, no roles or sessions.
+            roles, role_defaults = ("user",), ["no_login_single_user"]
+        strong = P.strong_cues(intent)
+        pre_integrations = _without_excluded(self._infer_integrations(intent, capability_plan), semantic_decisions, clean)
+        pre_infra = _infer_infrastructure(intent, pre_integrations, no_login=no_login_early)
+        resolved = P.resolve(
+            P.read_decision(clean, legacy_content_only=no_login_early and content_only_approved(clean)),
+            strong=strong,
+            keyword_requirements=self._infer_data_requirements(intent, decision.plan.modules),
+            capabilities=P.storing_capabilities(roles=roles, infrastructure_kinds=[r.kind for r in pre_infra],
+                                                integrations=pre_integrations, strong=strong))
+        # Only a CUSTOMER decision makes a content-only site (never defaulted, never delegated -- the rule since
+        # 2026-10). A keyword 'none' carries no data requirement but is not READY: the decision is asked (8.2).
+        content_only = no_login_early and resolved.persistence == P.NONE and resolved.source == P.CUSTOMER
         # "No visitor sign-in" does not remove the admin-only management
         # security needed when contact/lead data is still being collected.
         # Fully content-only sites need neither user nor admin sessions.
@@ -260,14 +280,25 @@ class ProductArchitect:
         # stripped on load, the fingerprint no longer matched, HTTP 500).
         product_spec = ProductSpec.from_dict(product_spec.to_dict())
 
-        roles, role_defaults = self._infer_roles(intent)
-        no_login = no_login_requested(clean)
-        if no_login:
-            # "No sign-in" is honoured: one kind of user, no roles or sessions.
-            roles, role_defaults = ("user",), ["no_login_single_user"]
-        data_requirements = self._infer_data_requirements(intent, decision.plan.modules)
+        data_requirements = resolved.data_requirements
         integrations = integrations_found
         questions = self._material_questions(intent, data_requirements)
+        if resolved.source == P.KEYWORD and resolved.persistence == P.NONE:
+            # 8.2 backstop: nothing in the request stores data and the customer has not decided. Discovery should have
+            # asked; if a contract still gets here it is not READY -- the same two choices, never a silent default.
+            questions = questions + (ClarificationQuestion(
+                "persistence",
+                "האם האתר שומר מידע?",
+                "no customer decision on persistence and no strong storing cue (persistence_backstop_fired)",
+                True, ("דף לקריאה בלבד — לא נשמר כלום", "אתר ששומר מידע")),)
+        if resolved.persistence == P.STALE:
+            # 8.4: the customer approved "stores nothing", then the brief gained something that stores. A stale
+            # decision never reaches a READY contract: the question is asked again.
+            questions = questions + (ClarificationQuestion(
+                "persistence_stale",
+                "הבקשה עכשיו כוללת משהו ששומר מידע. האם האתר שומר מידע?",
+                "the approved 'stores nothing' decision conflicts with: " + ", ".join(resolved.storing_capabilities),
+                True, ("דף לקריאה בלבד — לא נשמר כלום", "אתר ששומר מידע")),)
         status = BuildContractStatus.NEEDS_CLARIFICATION if questions else BuildContractStatus.READY
         static_default = ["static_content_site"] if content_only else []
         defaults = tuple(role_defaults + static_default + [profile.key, "vercel_release_target"])
@@ -311,6 +342,7 @@ class ProductArchitect:
             "skills_registry_version": self.skills.version,
             "agents_registry_version": self.agents.version,
         }
+        provisional.update(persistence_fields(resolved))
         contract_fingerprint = sha256_fingerprint(provisional)
         contract_id = "bc_" + sha256(
             f"{project_id}:{contract_version}:{contract_fingerprint}".encode("utf-8")
@@ -342,6 +374,10 @@ class ProductArchitect:
             agents_registry_version=self.agents.version,
             created_at=timestamp,
             contract_fingerprint=contract_fingerprint,
+            artifact_class=resolved.artifact_class,
+            persistence=resolved.persistence,
+            persistence_source=resolved.source,
+            storing_capabilities=resolved.storing_capabilities,
         )
 
     @staticmethod

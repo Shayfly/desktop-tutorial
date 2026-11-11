@@ -26,6 +26,7 @@ KNOWN_GAPS = ('json_ld_schema',)
 
 def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned_models: set[str] | None = None,
                human_decisions: int = 0, human_code_fixes: int = 0, informed: bool = False,
+               system_asked_decisions: int = 0,
                warned: dict | None = None) -> dict:
     """`warned` (florist-new): {'shown': bool, 'tick_required': bool, 'refused_until_ticked': bool}. The arm passes only
     when all three are true -- a warned arm must not count like a clean pass."""
@@ -55,6 +56,9 @@ def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned
         'gateWasteRounds': int(gate.get('rounds') or 0), 'gateWasteUsd': waste, 'costUsd': cost,
         'gateWasteShare': round(waste / cost, 4) if cost else 0.0,
         'humanCodeFixes': human_code_fixes, 'humanDecisions': human_decisions,
+        # R1/8.6: the decisions the SYSTEM asked for (turns carrying `decision_asked`), counted inside humanDecisions
+        # and broken out so a mechanism that adds questions is measured, never hidden in the total.
+        'systemAskedDecisions': system_asked_decisions,
         'degraded': bool(critical or off_pin), 'offPinModels': off_pin,
         'quarantinedProbes': [q.get('probe') or q.get('skill') for q in quarantined],
         'timeToPreviewSec': int((finished - started).total_seconds()) if started and finished else None,
@@ -62,3 +66,8 @@ def report_row(*, arm: str, job: dict, evidence: dict, baseline_sha: str, pinned
         'canonHash': next((r.get('canon_hash') for r in reversed(evidence.get('product_review') or [])
                            if isinstance(r, dict) and r.get('canon_hash')), None),
     }
+
+
+def system_asked_decisions(messages) -> int:
+    """How many assistant turns asked a system-raised decision (R1/8.6), from the stored conversation."""
+    return sum(1 for m in messages if m.get('role') == 'assistant' and (m.get('interpretation') or {}).get('decision_asked'))

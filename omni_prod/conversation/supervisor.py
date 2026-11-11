@@ -437,6 +437,12 @@ class ConversationSupervisor:
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
                                                'asked': [q.id for q in turn.questions],
+                                               # R1/8.6: every time the system asks the persistence decision it is
+                                               # counted (the frozen-run report reads it as systemAskedDecisions)
+                                               **({'decision_asked': {'field': 'persistence', 'trigger':
+                                                   'stale' if (turn.brief_row and (turn.brief_row.brief.hints or {})
+                                                               .get('persistence_stale')) else 'discovery'}}
+                                                  if any(q.id == 'content_only' for q in turn.questions) else {}),
                                                # the detector's own question, stored for the replay (_replayed_spec):
                                                # `asked` holds catalog ids only and misses a detector-only field
                                                'gap_field': ((turn.gaps or {}).get('question') or {}).get('field'),
