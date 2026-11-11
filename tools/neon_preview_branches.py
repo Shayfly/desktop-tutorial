@@ -133,14 +133,18 @@ def needs_reset(branches: list[dict], migration_at: dt.datetime, now: dt.datetim
 
 def latest_migration_at(repo_root: str, ref: str = 'origin/main') -> tuple[str, str]:
     """(file, ISO time it landed on `ref`) -- read from git, never written down (Michael 2026-11-11 fix 1)."""
-    import pathlib
     import re
     import subprocess
-    files = sorted(p.name for p in (pathlib.Path(repo_root) / 'infra' / 'postgres').glob('*.sql')
-                   if re.fullmatch(r'\d{3}_.+\.sql', p.name))
+    # The file list comes from `ref`'s tree, NOT the working tree: deployment-verify checks out the PREVIEW's commit,
+    # whose newest migration may be its own (not in main yet) -- probe #320, 2026-11-11.
+    names = subprocess.run(['git', '-C', repo_root, 'ls-tree', '--name-only', f'{ref}:infra/postgres'],
+                           capture_output=True, text=True, check=True).stdout.split()
+    files = sorted(n for n in names if re.fullmatch(r'\d{3}_.+\.sql', n))
     latest = files[-1]
     at = subprocess.run(['git', '-C', repo_root, 'log', '-1', '--diff-filter=A', '--format=%cI', ref, '--',
                          f'infra/postgres/{latest}'], capture_output=True, text=True).stdout.strip()
+    if not at:
+        raise RuntimeError(f'no landing time for {latest} on {ref}')
     return latest, at
 
 

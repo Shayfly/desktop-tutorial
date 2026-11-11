@@ -403,7 +403,8 @@ class PostgresSubscriptionService:
         """P0 2026-10-30: resolve a RESERVED reservation whose build/modification is terminal (see
         omni_prod.reservation_reconciler). release() keeps funds held while any attempt shows authorized-but-unmetered
         cost; once the work is over and every call has finished, nothing more can be metered, so the hold ends:
-        RELEASE when nothing was metered, SETTLE on the metered total otherwise, HOLD while a call is still unknown.
+        RELEASE when nothing was metered, RELEASE_METERED (release_failed: credits back, metered total on record)
+        otherwise, HOLD while a call is still unknown. Never SETTLE: terminal work did not deliver (B2, BILLING-FAIL-001).
         Everything is re-checked under the reservation lock."""
         from .reservation_reconciler import is_terminal, verdict
         with self._pool.connection() as conn:
@@ -427,14 +428,15 @@ class PostgresSubscriptionService:
                                         (credits_reserved, estimated_cost, user_id))
                         return {'build_id': build_id, 'action': 'release', 'metered_usd': str(total), 'reason': reason,
                                 'applied': True}
-        if action == 'settle':
-            # Runs AFTER the lock above is released, on purpose: settle() takes the same row lock itself (SELECT ...
-            # FOR UPDATE) and returns None unless the row is still RESERVED, so a concurrent release/settle between
-            # the two transactions makes this a no-op (applied=False), never a double resolution. The metered total
+        if action == 'release_metered':
+            # Runs AFTER the lock above is released, on purpose: release_failed() takes the same row lock itself
+            # (SELECT ... FOR UPDATE) and returns None unless the row is still RESERVED, so a concurrent resolution
+            # between the two transactions makes this a no-op (applied=False), never a double resolution; its
+            # credit_ledger row is keyed failed-build-release:<build_id> (ON CONFLICT DO NOTHING). The metered total
             # was read under the first lock; attempts of a terminal build are not written any more.
-            settled = self.settle(build_id=build_id, actual_provider_cost_usd=total)
-            return {'build_id': build_id, 'action': 'settle', 'metered_usd': str(total), 'reason': reason,
-                    'applied': settled is not None}
+            released = self.release_failed(build_id=build_id, actual_provider_cost_usd=total)
+            return {'build_id': build_id, 'action': 'release_metered', 'metered_usd': str(total), 'reason': reason,
+                    'applied': released is not None}
         return {'build_id': build_id, 'action': action, 'metered_usd': str(total), 'reason': reason, 'applied': False}
 
     def release_failed(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None) -> dict | None:
