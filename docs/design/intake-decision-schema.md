@@ -101,3 +101,24 @@ merged with the stored `asked_count`, so a gap can never be "forgotten" by a cod
 5. `persistence` for kinds that cannot store (song, video): fixed `Field("none", "stated", "library")` — a library
    fact, not a customer decision, so it is never asked. This is the ONE exception to V2 (closed list, in code). OK?
 6. V7: `asked_count >= 2` is a reported defect, not a stop — or should it stop?
+
+## F. Signature answers (Michael 2026-11-11 14:03) — binding, override A-E where they differ
+
+1. Python dataclasses are the source of truth. The JSON Schema is GENERATED and committed
+   (`docs/schema/intake-decision.v1.json`); a test regenerates it and fails on any drift. Never written by hand.
+2. `brief_json["decision"]` per revision, no migration — plus a check that `raw_brief_sha256` equals the sha256 of
+   THAT revision's raw brief, so a decision can never attach to a brief that is not its own.
+3. Both: `requires_auth: Field[bool]` is a decision PER ARTIFACT; the identity store is PROJECT-level and derived —
+   if two artifacts need sign-in it is one sign-in, not two (`IntakeDecision.identity_store`, derived, never stored).
+4. `GameGenre` closed, seven: sport · adventure · strategy · learning · puzzle · action · simulation.
+   `ArtifactId` = `art_` + ULID in Crockford base32 (26 chars): sortable, collision-free.
+5. The library exception is an explicit allow-list IN the validator (`LIBRARY_FIXED = {("song","persistence"),
+   ("video","persistence")}`); anything else stated/library is a SCHEMA violation, so it cannot widen silently.
+6. `asked_count == 2` -> reported defect (`GapAskedTwice`); `asked_count >= 3` -> stop (`GapStuck`).
+
+Two added conditions:
+- G1 Gap derivation has fixtures: a known missing set produces EXACTLY the expected gaps; a complete decision produces
+  zero. A validator that silently returns no gaps fails.
+- G2 `stated` requires a button. To make that checkable, `Field` carries its channel: `via: "button" | "text" |
+  "extract" | None`. A decision `stated` with `via != "button"` is a SCHEMA violation (except the G5 allow-list); a
+  content field with `via == "button"` is a SCHEMA violation (§0 both directions).
