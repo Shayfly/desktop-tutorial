@@ -15,6 +15,14 @@ from .build_contract import BuildContractStatus
 from .customer_views import unpriced_capabilities
 from .build_cost_plan import CostQuoteUnknown
 from .qa_budget import QABudgetDenied
+
+
+# subscription_store.authorize / pricing deny reasons that mean "the balance is too low", not "the plan excludes it"
+INSUFFICIENT_BALANCE_REASONS = ('monthly credits exhausted', 'paid-provider budget exhausted')
+
+
+class InsufficientBalance(PermissionError):
+    """The plan allows this build but the remaining credits or paid-provider budget do not cover it."""
 from .capability_worker import DEFAULT_NATIVE_BUILD_CAPABILITIES
 
 
@@ -82,8 +90,13 @@ def build_plan_preview(
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
         # Advisory only: admission rechecks under lock. A priced quote is not
         # proof that the customer's remaining allowance can cover its reserve.
-        if authorize_quote is not None and not authorize_quote(quote).allowed:
-            raise PermissionError('remaining allowance cannot cover the build reservation')
+        if authorize_quote is not None:
+            decision = authorize_quote(quote)
+            if not decision.allowed:
+                reason = str(getattr(decision, 'reason', '') or '')
+                if reason in INSUFFICIENT_BALANCE_REASONS:
+                    raise InsufficientBalance(reason)
+                raise PermissionError('remaining allowance cannot cover the build reservation')
     except CostQuoteUnknown as exc:
         names = unpriced_capabilities(exc.unknown)
         missing_quote_keys = list(dict.fromkeys(names))
@@ -95,6 +108,11 @@ def build_plan_preview(
         # per-build/total ceiling is NOT a subscription-plan restriction.
         # Preserve its actionable reason rather than a misleading upsell.
         quote_error, quote_error_code = str(exc), "qa_budget_denied"
+    except InsufficientBalance as exc:
+        # Founder 2026-11-02 19:26: 15 credits left for a 45-credit build was shown as "your plan does not authorize
+        # paid variable cost" -- a different problem with a different fix. The balance is its own blocker.
+        quote_error = f"Not enough credits or budget left for this build ({exc}). Add credits or build a smaller project."
+        quote_error_code = "insufficient_balance"
     except PermissionError:
         quote_error, quote_error_code = "This build is not available on your current plan.", "plan_cannot_authorize_cost"
 
@@ -139,7 +157,7 @@ def build_plan_preview(
         "execution_readiness": "ADMISSIBLE_NOW" if admissible else (
             "BLOCKED_REQUIREMENTS" if not ready else
             "BLOCKED_PROVIDER_OR_QUOTE" if quote_error_code == "cost_quote_unknown" or (quote is None and quote_error is None) else
-            "BLOCKED_BUDGET" if quote_error_code == "qa_budget_denied" else "BLOCKED"),
+            "BLOCKED_BUDGET" if quote_error_code in ("qa_budget_denied", "insufficient_balance") else "BLOCKED"),
         "unavailable_requirements": [{"key": key, "purpose": next((c["purpose"] for c in capabilities if c["key"] == key), key)}
                        for key in missing_quote_keys],
         "blockers": blockers,

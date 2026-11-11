@@ -31,7 +31,9 @@ class PlanReserveAllowanceTests(TestCase):
     def test_positive_balance_smaller_than_full_reserve_blocks_preview(self):
         p = self.preview(spend='2.30')
         self.assertFalse(p['can_build'])
-        self.assertIn('plan_cannot_authorize_cost', [b['code'] for b in p['blockers']])
+        # founder 2026-11-02: a balance too low is insufficient_balance, not "the plan does not authorize the cost"
+        self.assertIn('insufficient_balance', [b['code'] for b in p['blockers']])
+        self.assertNotIn('plan_cannot_authorize_cost', [b['code'] for b in p['blockers']])
 
     def test_exact_reserve_and_larger_balance_are_admissible(self):
         for spend in ('2.15', '2.00'):
@@ -41,3 +43,16 @@ class PlanReserveAllowanceTests(TestCase):
     def test_exhausted_credits_block_even_when_provider_budget_remains(self):
         p = self.preview(spend='0', used=PLAN_CATALOG[PlanCode.AMATEUR].included_credits)
         self.assertFalse(p['can_build'])
+        blocker = next(b for b in p['blockers'] if b['code'] == 'insufficient_balance')
+        self.assertIn('monthly credits exhausted', blocker['message'])
+        self.assertEqual(p['execution_readiness'], 'BLOCKED_BUDGET')
+
+    def test_a_cost_class_the_plan_excludes_is_still_plan_cannot_authorize_cost(self):
+        quote = SimpleNamespace(total_authorized_variable_usd=Decimal('0.35'))
+        refused = SimpleNamespace(allowed=False, reason='cost class not included in plan')
+        p = build_plan_preview(
+            architect=ProductArchitect(), repository=MemoryBuildContractRepository(), project_id='p',
+            prompt='Build a simple static page for a flower shop, no login, no personal data.',
+            economics=lambda: quote, authorize_quote=lambda q: refused,
+            durable_backend=True, infrastructure_readiness={'kinds': {}}, image_readiness={'status': 'PARTIAL'})
+        self.assertEqual([b['code'] for b in p['blockers']], ['plan_cannot_authorize_cost'])

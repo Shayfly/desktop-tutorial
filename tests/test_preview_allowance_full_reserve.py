@@ -77,11 +77,12 @@ class ThePreviewRouteChecksTheFullReserve(unittest.TestCase):
     def test_remaining_below_the_full_reserve_blocks_the_preview_even_if_the_model_part_fits(self):
         p = self.preview('2.30')                                   # remaining 0.20: 0.10 fits, 0.35 does not
         self.assertFalse(p['can_build'])
-        self.assertIn('plan_cannot_authorize_cost', [b['code'] for b in p['blockers']])
+        self.assertIn('insufficient_balance', [b['code'] for b in p['blockers']])   # founder 2026-11-02: the balance
 
     def test_remaining_that_covers_the_full_reserve_is_admissible(self):
-        self.assertNotIn('plan_cannot_authorize_cost',
-                         [b['code'] for b in self.preview('2.15')['blockers']])   # remaining 0.35 == reserve
+        codes = [b['code'] for b in self.preview('2.15')['blockers']]               # remaining 0.35 == reserve
+        self.assertNotIn('plan_cannot_authorize_cost', codes)
+        self.assertNotIn('insufficient_balance', codes)
 
 
 if __name__ == '__main__':
