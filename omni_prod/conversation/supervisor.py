@@ -835,7 +835,7 @@ class ConversationSupervisor:
         spec = self._family_for(spec, said, typed)
         settle, unsure, hold, assume = self._clarify(spec, previous, said, typed)
         spec.hear(said, proposals, settle=settle)      # "what?" keeps the question open (explained, not skipped)
-        if hold:
+        if hold or self._unsettled_sensitive(spec, previous, settle):
             held.add(previous)
         delegated = self._delegated_defaults(spec, previous, held, said, typed, brief=brief)
         held = {h for h in held if spec.value(h) is None}   # answered later (typed or edited): no longer open
@@ -869,6 +869,16 @@ class ConversationSupervisor:
         return {**spec.detect(pending), 'allowed': allowed, 'previous': previous, 'held_open': sorted(held),
                 'assumed_now': assumed_now,
                 'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+
+    @staticmethod
+    def _unsettled_sensitive(spec, previous, settle) -> bool:
+        """Audit 2026-11-02 finding 5: a reply that settled the question but filled nothing on a sensitive `confirm`
+        field leaves it EMPTY (Spec.hear takes no default); it is held OPEN for the approval gate, not re-asked."""
+        if not settle or not previous or spec is None or spec.value(previous) is not None:
+            return False
+        from ..intake.artifact_fields import CONDITIONAL
+        f = next((x for x in list(spec.fields) + list(CONDITIONAL.values()) if x.name == previous), None)
+        return bool(f is not None and f.confirm)
 
     @staticmethod
     def _askable(missing, closed, previous, *, unsure=False, contested=()):
@@ -960,7 +970,7 @@ class ConversationSupervisor:
                 spec = self._family_for(spec, said, typed)
                 settle, _, hold, _ = self._clarify(spec, previous, said, typed)   # the same rule as the live turn
                 spec.hear(said, props, settle=settle)
-                if hold:
+                if hold or self._unsettled_sensitive(spec, previous, settle):
                     held.add(previous)
                 self._delegated_defaults(spec, previous, held, said, typed)
                 held = {h for h in held if spec.value(h) is None}
