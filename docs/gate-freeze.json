@@ -1,5 +1,5 @@
 {
-  "active": true,
+  "active": false,
   "reason": "Michael 2026-11-10 merge order: re-freeze from the merge of #292 with no unfrozen moment and no PR in between; the 5-arm frozen run (flag off) executes on this tree",
   "starts": "merge of PR #292",
   "baseline": "e196a9251efcef98f1bcfc9cd88a24401b47eac8",
@@ -23,5 +23,6 @@
     "tests/test_gate_mutations_20261110.py",
     "tests/test_frozen_run_conditions_20261110.py",
     ".github/workflows/gate-regression.yml"
-  ]
+  ],
+  "ended": "2026-11-11T08:16Z -- the last arm (refusal-control) finished; run frozen-2026-11-10b closed (docs/frozen-run-20261110b-result.md)"
 }
