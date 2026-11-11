@@ -9,7 +9,7 @@ No secrets, keys or customer data are in this file or in the linked runs.
 - Claude's task branch: `claude/g0-baseline-2026-10-09` (fast-forward merged into the active branch after CI).
 
 ## What runs where
-- Build worker host (Oracle, self-hosted GitHub runner): worker, sandbox runner (no network), preview worker/router, Caddy. Deployed by workflow `Deploy build worker` on every push to the active branch that touches `omni_prod/**` or `infra/worker-host/**`. Previews: `https://prv-<id>.151-145-89-132.sslip.io` (private by default).
+- Build worker host (Oracle, self-hosted GitHub runner): worker, sandbox runner (no network), preview worker/router, Caddy. Deployed by workflow `Deploy build worker` (2026-11-06: on every push to `main` that touches `omni_prod/**`, `infra/**` or the workflow, and by hand on `main`; before that date the push trigger listed only two old branches, so merges to `main` did not reach the worker — see `docs/VERIFICATION_2026-11-06_HE.md`). Previews: `https://prv-<id>.151-145-89-132.sslip.io` (private by default).
 - Vercel project `148aiv28` (web UI + API), deployed from the active branch; protected by Vercel Authentication.
 - State: Neon PostgreSQL (migrations `infra/postgres/*.sql`, applied by the deploy), Upstash Redis (queue), Cloudflare R2 (artifacts, build-round snapshots, backups).
 

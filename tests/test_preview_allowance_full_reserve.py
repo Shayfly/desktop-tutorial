@@ -17,6 +17,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from tests.test_m5_build_economics import Pool, ScriptedCursor
+from omni_prod.persistence import decision_line
 
 PARTIAL = Decimal('0.10')        # provider_maximum_usd: the model budget only
 FULL = Decimal('0.35')           # total_authorized_variable_usd: what admission reserves
@@ -64,7 +65,13 @@ class ThePreviewRouteChecksTheFullReserve(unittest.TestCase):
                 mock.patch.object(IA, '_async_build_mode', lambda: True), \
                 mock.patch.object(IA, '_require_durable_backend', lambda purpose: None):
             r = client.post('/api/v28/projects/p/build-contracts',
-                            json={'prompt': 'Build a simple static page for a flower shop, no login, no personal data.'})
+                            # R1 (run 10b): the persistence decision is the customer's; the intake binds it into the
+                            # prompt, so this allowance test sends a prompt that carries it.
+                            json={'prompt': ('Build a simple static page for a flower shop, no login, no personal data.\n'
+                                             '--- Approved project brief (binding; fingerprint 0123456789abcdef) ---\n'
+                                             'Sign-in: NONE. Do not add login, sessions, users or roles.\n'
+                                             'Do not store personal or contact details of people.\n'
+                                             + decision_line('none'))})
         self.assertEqual(r.status_code, 200, r.text)
         self.assertFalse(any('credit_reservations' in sql or 'provider_spend_usd=' in sql for sql, _ in cur.calls),
                          'the preview reserved or wrote')

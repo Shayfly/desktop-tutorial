@@ -43,6 +43,7 @@ M3 Revision 2 / M1 blocker resolution changes, each verified against real code:
 import json
 import logging
 import os
+import re
 import socket
 import time
 from decimal import Decimal
@@ -251,6 +252,50 @@ def rejected_json_evidence(gateway) -> dict:
             'rejected_model_json_durable': durable,
             'rejected_model_json_durability': {'state': state, 'rejected': len(rows), 'stored': stored,
                                                'failed': len(rows) - stored}}
+
+
+def _install_quarantine_history(jobs, build_id: str) -> None:
+    """Michael condition 5: the review asks whether an EARLIER build quarantined the same probe (read-only query)."""
+    from . import product_review
+    pool = getattr(jobs, 'pool', None) or getattr(jobs, '_pool', None)
+    if pool is None:
+        product_review._QUARANTINE_HISTORY = None
+        return
+
+    def lookup(probe: str):
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT id FROM build_jobs WHERE id <> %s AND evidence_json->'gate_waste'->'quarantined_gates' "
+                "@> %s::jsonb ORDER BY created_at DESC LIMIT 1",
+                (build_id, json.dumps([{'probe': probe}]))).fetchone()
+        return row[0] if row else None
+
+    product_review._QUARANTINE_HISTORY = lookup
+
+
+def _gate_waste(engine, spent, repair_rounds) -> dict:
+    from .behavior_acceptance import find_in_chain
+    from .product_review import ProductReviewExecutor
+    review = find_in_chain(getattr(engine, 'executor', None), ProductReviewExecutor)
+    rounds = int(getattr(review, 'gate_waste_rounds', 0) or 0) if review is not None else 0
+    quarantined = list(getattr(review, 'quarantined', []) or []) if review is not None else []
+    measured = Decimal(str(getattr(review, 'gate_waste_usd', 0) or 0)) if review is not None else Decimal('0')
+    calls = int(getattr(review, 'gate_waste_calls', 0) or 0) if review is not None else 0
+    critical = [q for q in quarantined if q.get('critical')]
+    return {'rounds': rounds, 'measured_usd': str(measured.quantize(Decimal('0.0001'))), 'model_calls': calls,
+            'basis': 'gateway spend between the first repeated review and the quarantine (measured, not estimated)',
+            'quarantined_gates': quarantined, 'critical_quarantine': bool(critical),
+            # Michael condition 1: a critical gate in quarantine never releases silently.
+            'banner': ('בדיקה קריטית הושעתה בבנייה הזו (' + ', '.join(q['skill'] for q in critical) +
+                       '). התצוגה המקדימה זמינה; פרסום לפרודקשן חסום עד שהבדיקה תתוקן.') if critical else None}
+
+
+def _design_reviews(engine) -> list:
+    from .behavior_acceptance import find_in_chain
+    from .visual_qa import VisualQAExecutor
+    target = find_in_chain(getattr(engine, 'executor', None), VisualQAExecutor)
+    critic = getattr(target, 'design_critic', None) if target is not None else None
+    return list(getattr(critic, 'reviews', []) or [])[-8:]
 
 
 def visual_evidence(engine) -> dict | None:
@@ -472,24 +517,66 @@ def asset_capability_status(plan) -> dict | None:
     return _status(plan)
 
 
-def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
-    """Admission reserved `components.llm_maximum_usd` for model calls; the
-    worker's gateway may not spend more than that, whatever its own
-    environment says (the API and worker are configured separately).
+def _install_agentic_repair(engine, request) -> bool:
+    """CEO order 2026-11-09 (b): the repair model works inside the repository with tools. Founder builds only for
+    now (OMNI_AGENTIC_REPAIR=founder, the default); 'all' turns it on for every build, '0' turns it off."""
+    import os
+    mode = os.getenv('OMNI_AGENTIC_REPAIR', 'founder').strip().lower()
+    if mode in ('0', 'off', 'false', ''):
+        return False
+    if mode != 'all':
+        from .pricing import m5_founder_account
+        if not m5_founder_account((request or {}).get('user_id')):
+            return False
+    repairer = getattr(engine, 'repairer', None)
+    gateway = getattr(repairer, 'gateway', None)
+    if repairer is None or gateway is None or type(repairer).__name__ == 'AgenticRepairAgent':
+        return False
+    from .agentic_repair import AgenticRepairAgent
+    engine.repairer = AgenticRepairAgent(gateway, fallback=repairer)
+    return True
 
-    Requests without a component breakdown predate the M5 quote and are left
-    unchanged, recorded as `legacy_unbound`.
+
+def bind_model_budget_to_reservation(gateway, request: dict) -> dict:
+    """Fail closed before paid model calls; reuse the existing gateway budget.
+
+    The durable admission quote is the authority. Cost-class caps additionally
+    constrain LIGHT and STANDARD; neither worker environment nor legacy
+    requests may enlarge their model-spend authorization.
     """
+    from .pricing import CostClass, m5_class_llm_cap
+
     components = (request.get('economics_quote') or {}).get('components') or {}
     if 'llm_maximum_usd' not in components:
-        return {'binding': 'legacy_unbound'}
-    if not hasattr(gateway, 'bind_budget'):
-        return {'binding': 'not_applicable'}
-    out = {'binding': 'bound', **gateway.bind_budget(Decimal(str(components['llm_maximum_usd'])))}
-    # CEO 2026-10-19: the plan's cost class also limits WHICH models may run.
-    if components.get('cost_class') and hasattr(gateway, 'restrict_to_cost_class'):
-        out['model_allowlist'] = gateway.restrict_to_cost_class(components['cost_class'])
-    return out
+        raise PermissionError('model_budget_missing: legacy request has no authorized LLM budget')
+    if not callable(getattr(gateway, 'bind_budget', None)):
+        raise PermissionError('model_budget_unenforceable: gateway cannot bind authorization')
+
+    try:
+        reserved = Decimal(str(components['llm_maximum_usd']))
+        if not reserved.is_finite() or reserved < 0:
+            raise ValueError('invalid reserved LLM budget')
+        class_name = components.get('cost_class')
+        from .pricing import m5_founder_account, m5_founder_build_budget
+        founder_test = bool(components.get('founder_test')) and m5_founder_account(request.get('user_id'))
+        if founder_test:   # CEO 2026-11-08: the founder's admitted test budget, never above the founder cap
+            reserved = min(reserved, m5_founder_build_budget())
+        elif class_name in (CostClass.LIGHT.value, CostClass.STANDARD.value):
+            reserved = min(reserved, m5_class_llm_cap(class_name))
+        elif not class_name:
+            # Older quotes with a valid reserved maximum remain supported;
+            # they are never allowed to fall back to the worker env budget.
+            pass
+        out = {'binding': 'bound', **gateway.bind_budget(reserved)}
+        if class_name:
+            if not callable(getattr(gateway, 'restrict_to_cost_class', None)):
+                raise PermissionError('model_class_unenforceable: gateway lacks class restriction')
+            founder = m5_founder_account(request.get('user_id'))
+            out['model_allowlist'] = (gateway.restrict_to_cost_class(class_name, unrestricted=True) if founder
+                                      else gateway.restrict_to_cost_class(class_name))
+        return out
+    except (ValueError, ArithmeticError) as exc:
+        raise PermissionError('invalid model budget authorization') from exc
 
 
 def llm_cap_overage(request: dict, spent) -> dict | None:
@@ -646,6 +733,49 @@ def resolve_m5_billing(
     return 'settled', evidence, actual
 
 
+_FOUNDER_DRAFT_CODES = frozenset({'verification_failed', 'quality_gate_failed', 'preview_not_ready',
+                                  'release_policy_failed', 'capability_gate_failed'})
+
+
+def _founder_draft_allowed(request, error_code) -> bool:
+    """Founder-only draft version of a failed build (CEO 2026-11-08). Never for a security finding."""
+    import os
+    if os.getenv('OMNI_FOUNDER_DRAFT_VERSIONS', '1') == '0' or error_code not in _FOUNDER_DRAFT_CODES:
+        return False
+    from .pricing import m5_founder_account
+    return bool(m5_founder_account((request or {}).get('user_id')))
+
+
+def _version_message(build_id: str, founder_draft: bool, banner: str | None = None) -> str:
+    if founder_draft:
+        return f'148AI DRAFT (failed checks, founder preview only) build {build_id}'
+    if banner:
+        # Michael 2026-11-10 condition 1: a critical gate in quarantine is visible on the version, never silent.
+        return f'148AI PREVIEW ONLY build {build_id} — {banner}'
+    return f'148AI async live build {build_id}'
+
+
+# 78: the preview smoke's verdicts for "the server answered, but GET / is not a real interface". The smoke script
+# itself is a frozen gate input (pipeline_identity, smoke/t4 evidence), so the words are fixed HERE, not in it.
+_EMPTY_UI = re.compile(r'returned a placeholder page|did not return an HTML page')
+EMPTY_UI_PREFIX = 'the app started but the generated interface is empty'
+_CONTROL_KINDS = (('form', ('<form',)), ('input', ('<input', '<select', '<textarea', "createelement('input", 'createelement("input')),
+                  ('button', ('<button', "createelement('button", 'createelement("button')),
+                  ('table', ('<table', "createelement('table", 'createelement("table')))
+
+
+def _missing_controls(repository) -> list[str]:
+    """Kinds of control none of the generated files contains (a proxy for the served page, read from the code)."""
+    try:
+        text = ' '.join(str(v) for k, v in dict(repository or {}).items()
+                        if str(k).endswith(('.py', '.html', '.js', '.htm'))).lower()
+    except (TypeError, ValueError):
+        return []
+    if not text:
+        return []
+    return [k for k, tags in _CONTROL_KINDS if not any(t in text for t in tags)]
+
+
 def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, str | None, str | None]:
     if result.status != 'ready' or not result.report.passed:
         from .dependency_policy import UNSUPPORTED_DEPENDENCY
@@ -654,6 +784,13 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         from .preview_smoke import PREVIEW_FAILURE_ID
         if report_failures and all(getattr(f, 'acceptance_id', None) == PREVIEW_FAILURE_ID for f in report_failures):
             # Every acceptance check passed; the product would not start for preview.
+            if all(_EMPTY_UI.search(str(getattr(f, 'message', ''))) for f in report_failures):
+                # 78 (Michael 2026-11-11): the app STARTED and served an empty page -- never "did not start". Same
+                # code (same step); the right words, and what the generated code lacks.
+                missing = _missing_controls(getattr(result, 'repository', None))
+                return False, 'preview_not_ready', (
+                    f'{EMPTY_UI_PREFIX} (missing: {",".join(missing) if missing else "content"}): '
+                    + '; '.join(f.message for f in report_failures))[:2000]
             return False, 'preview_not_ready', ('the product passed its checks but did not start for preview '
                                                 'after repair: ' + '; '.join(f.message for f in report_failures))[:2000]
         if report_failures and all(getattr(f, 'acceptance_id', None) == QUALITY_FAILURE_ID for f in report_failures):
@@ -824,7 +961,15 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .uploaded_assets import install as install_uploaded_assets
         install_uploaded_assets(engine,prompt=prompt,pool=attempt_pool,store=getattr(workspace,'storage',None),
                                 project_id=request.get('public_project_id'),account_id=str(request['user_id']))
+        # CEO 2026-11-09: Hebrew/Arabic pages are right-to-left by construction (after the logo transform).
+        from .page_locale import install as install_page_locale
+        install_page_locale(engine, prompt)
+        # Michael 2026-11-10 condition 2: the truth gate's canon comes from the APPROVED request, not the spec summary.
+        from .product_review import install_review_request
+        install_review_request(engine, prompt)
+        _install_quarantine_history(jobs, build_id)
         model_budget_binding = bind_model_budget_to_reservation(gateway, request)
+        agentic_repair = _install_agentic_repair(engine, request)
         # Directive 2026-10-09 §10/§12: stop between steps; live log.
         control = BuildControl(jobs, build_id)
         install_build_control(engine, gateway, control)
@@ -851,6 +996,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             raise RuntimeError('strict durable round evidence backend unavailable')
         install_round_snapshots(engine, workspace, build_id, round_snapshots, control)
         install_visual_sink(engine, workspace, build_id)
+        from .design_review import install_design_critic
+        design_review_on = install_design_critic(engine, request, prompt)
         install_rejected_json_sink(gateway, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
@@ -886,6 +1033,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
         ready = core_ready and capability_ready
+        gate_waste = _gate_waste(engine, None, result.repair_rounds)
         if core_ready and not capability_ready:
             error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
 
@@ -915,6 +1063,13 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         # rights gate documents as committed-but-not-releasable) becomes a
         # version.
         commit_version = ready or error_code == 'rights_gate_not_clear'
+        # CEO 2026-11-08 (bld_ca727ba7: a failed founder build left nothing to open): for the founder account only, the
+        # best repaired candidate of a build that failed verification/quality is still committed as a DRAFT version,
+        # so it can be opened in Preview next to the list of failed checks. The build stays FAILED and nothing is
+        # released or billed as ready; customers are unchanged (Golden E2E #1 rule). OMNI_FOUNDER_DRAFT_VERSIONS=0 off.
+        founder_draft = (not commit_version and _founder_draft_allowed(request, error_code)
+                         and bool(getattr(result, 'repository', None)))
+        commit_version = commit_version or founder_draft
         pool = getattr(workspace, 'pool', None)
         if not commit_version:
             version = None
@@ -923,12 +1078,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 with conn.transaction():
                     with conn.cursor() as cur:
                         version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                                   message=f'148AI async live build {build_id}', cur=cur)
+                                                   message=_version_message(build_id, founder_draft, gate_waste.get('banner')), cur=cur)
                         spec_repo.save(version_id=version.id, project_id=internal_project_id,
                                        spec=result.spec, cur=cur)
         else:
             version = workspace.commit(project_id=internal_project_id, repository=repo,
-                                       message=f'148AI async live build {build_id}')
+                                       message=_version_message(build_id, founder_draft, gate_waste.get('banner')))
         version_id = version.id if version is not None else None
         artifact_key = getattr(version, 'artifact_key', None) if version is not None else None
 
@@ -942,7 +1097,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 'security': security.to_dict(),
                 'rights': rights.to_dict(),
             },
-            'release_ready': ready,
+            'release_ready': bool(ready) and not gate_waste['critical_quarantine'],
+            'founder_draft_version': bool(founder_draft),
             'build_contract': contract_evidence,
             'capabilities': capability_evidence,
             'infrastructure': infrastructure_evidence,
@@ -954,11 +1110,17 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'provider_usage': provider_usage_evidence(gateway),
             'provider_spend_usd': str(spent), 'external_model_calls': calls, 'provider_spend_basis': SPEND_BASIS,
             'model_budget_binding': model_budget_binding,
+            'design_review': {'enabled': bool(design_review_on), 'reviews': _design_reviews(engine)},
+            'agentic_repair': {'enabled': bool(agentic_repair),
+                               'trace': list(getattr(getattr(engine, 'repairer', None), 'trace', []) or [])[-60:]},
             'llm_cap_overage': llm_cap_overage(request, spent),
             'asset_capabilities': asset_capability_status(capability_plan),
             # Agent OS §11: which skills shaped the build and what QA review found.
             'skills_applied': _skills_applied(),
             'product_review': list(getattr(getattr(engine, 'executor', None), 'reviews', None) or []),
+            # Michael 2026-11-10: gates that judged the wrong artefact, and what they cost -- a separate line, never
+            # hidden inside the build's cost.
+            'gate_waste': gate_waste,
             # Directive 2026-10-09 §17: real-browser flow check ('unavailable' is never read as passed).
             'browser_check': getattr(getattr(engine, 'executor', None), 'last_probe', None),
             # Autonomous completion §1: behavioural acceptance inside the build (last run + every round).
@@ -980,10 +1142,14 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         else:
             billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
             settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
+        from .build_control import GateEscalation
+        escalated = isinstance(exc, GateEscalation)
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.CANCELLED,
-            error_code='cancelled_by_user', error_message=str(exc)[:500],
+            error_code='gate_escalation' if escalated else 'cancelled_by_user', error_message=str(exc)[:500],
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
+                           **({'gate_waste': _gate_waste(engine, None, 0), 'escalation': str(exc)[:500]}
+                              if escalated else {}),
                            'economics_settlement': settlement_evidence, 'build_contract': contract_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),

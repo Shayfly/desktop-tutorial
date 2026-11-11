@@ -4,7 +4,7 @@
 > REAL_SERVER_VERIFIED only with a real run on the deployed pre-staging system whose code is unchanged since;
 > LIVE only with such a run in production (none exists yet). Do not edit by hand.
 
-Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 26, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 5, LIVE 0, BLOCKED 4
+Agents: 54 — NOT_IMPLEMENTED 11, IMPLEMENTED 27, UNIT_TESTED 8, INTEGRATION_TESTED 0, REAL_SERVER_VERIFIED 4, LIVE 0, BLOCKED 4
 Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 30, INTEGRATION_TESTED 6, REAL_SERVER_VERIFIED 34, LIVE 0, BLOCKED 9
 
 ## Agents
@@ -57,7 +57,7 @@ Skills: 427 — NOT_IMPLEMENTED 264, IMPLEMENTED 84, UNIT_TESTED 30, INTEGRATION
 | 2D Level Designer Agent (`level_designer_2d_agent`) | games | **NOT_IMPLEMENTED** | game_qa_2d_agent | no implementation | not implemented |
 | 2D Game Engineering Agent (`game_engineering_2d_agent`) | games | **NOT_IMPLEMENTED** | game_qa_2d_agent | no implementation | no game pipeline; Phaser is not in the sandbox allowlist |
 | 2D Game QA Agent (`game_qa_2d_agent`) | games | **NOT_IMPLEMENTED** | quality_gate_agent | no implementation | not implemented |
-| Diagnostic Agent (`diagnostic_agent`) | platform | **REAL_SERVER_VERIFIED** | sre_reliability_agent | verified for: drain before replace; migrations; queue consumed; sandbox isolated (no network); storage write/read/delete; browser probe both fixtures; preview data self-test; previ — deploy-worker run 38083162363 |  |
+| Diagnostic Agent (`diagnostic_agent`) | platform | **IMPLEMENTED** | sre_reliability_agent | real-server evidence is stale; code changed since: .github/workflows/worker-diagnostics.yml |  |
 | Support Agent (`support_agent`) | platform | **NOT_IMPLEMENTED** | customer_success | no implementation | not implemented |
 | Platform Capability Auditor (`platform_capability_auditor`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |
 | Regression Guardian (`regression_guardian`) | meta | **UNIT_TESTED** | quality_gate_agent | unit tests only — tests/test_agent_os.py |  |

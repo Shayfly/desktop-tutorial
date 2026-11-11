@@ -99,19 +99,58 @@ fi
 docker compose stop -t "$DEADLINE" "${rest[@]}"
 rc=$?
 waited=$(( $(date +%s) - start ))
+echo "drain: consumers stopped after ${waited}s (deadline ${DEADLINE}s, stop exit $rc)"
 
 [ "$rc" -eq 0 ] || reasons+=("docker compose stop exited $rc")
+
+# 2026-11-07: an exit 137 can be an OOM kill whose `State.OOMKilled` flag is not set yet when the container is
+# already reported as exited (the engine's OOM event and exit event race; seen on CI's cgroup-v2 runners as
+# "preview-worker exit=137 oom=false" in a test that deterministically exceeds the memory limit). So for every
+# exit 137 the engine is asked again, from two sources: the flag after a short settle, and the engine's own `oom`
+# event for that container since the drain started. Either one marks the kill as OOM. Read-only.
+OOM_SETTLE="${DRAIN_OOM_SETTLE_SECONDS:-3}"
+# 2026-11-08 (run 42424210180): on a cgroup-v2 host (Docker 28.0.4, kernel 7.0) the kernel OOM-killed the job
+# (its log names the container's cgroup) while the engine reported OOMKilled=false and no `oom` event at all
+# (events: kill, stop, die). So the kernel log is the third source, read only if this host lets us read it.
+kernel_oom() {  # $1 = container id; succeeds if the kernel log records an OOM kill inside that container's cgroup
+  local full log
+  full=$(docker inspect -f '{{.Id}}' "$1" 2>/dev/null) || return 1
+  [ -n "$full" ] || return 1
+  log=$(dmesg 2>/dev/null || sudo -n dmesg 2>/dev/null) || return 1
+  grep -F "$full" <<<"$log" | grep -qiE 'oom-kill|out of memory|memory cgroup stats'
+}
+
+oom_seen() {  # $1 = container id; prints "flag", "event", "kernel" or nothing
+  local cid="$1" i
+  for ((i = 0; i <= OOM_SETTLE; i++)); do
+    [ "$(docker inspect -f '{{.State.OOMKilled}}' "$cid" 2>/dev/null)" = "true" ] && { echo flag; return; }
+    if [ -n "$(docker events --since "$((start - 1))" --until "$(date +%s)" --filter "container=$cid" \
+                 --filter event=oom --format '{{.Action}}' 2>/dev/null | head -n1)" ]; then
+      echo event; return
+    fi
+    kernel_oom "$cid" && { echo kernel; return; }
+    [ "$i" -lt "$OOM_SETTLE" ] && sleep 1
+  done
+}
+
 while read -r s cid img; do
   [ -n "${s:-}" ] || continue
   read -r running code oom <<<"$(docker inspect -f '{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}' "$cid" 2>/dev/null || echo 'unknown 0 false')"
+  oom_src=""
+  [ "$oom" = "true" ] && oom_src=flag
+  if [ "$code" = "137" ] && [ -z "$oom_src" ]; then
+    oom_src="$(oom_seen "$cid")"
+    [ -n "$oom_src" ] && oom=true
+  fi
   [ "$running" = "false" ] || reasons+=("$s still running after drain")
-  if [ "$code" = "137" ] && [ "$s" = intake-maintain ] && [ "$maintain_killed_ok" -eq 1 ]; then
+  if [ "$oom" = "true" ]; then
+    reasons+=("$s was OOM-killed (exit $code; engine $oom_src)")
+  elif [ "$code" = "137" ] && [ "$s" = intake-maintain ] && [ "$maintain_killed_ok" -eq 1 ]; then
     echo "::notice title=drain::intake-maintain exit 137: killed after ${MAINTAIN_STOP}s (no jobs of its own; old code ignores SIGTERM)"
   else
     [ "$code" != "137" ] || reasons+=("$s exit 137 (a job was killed at the ${DEADLINE}s deadline)")
   fi
-  [ "$oom" != "true" ] || reasons+=("$s was OOM-killed")
-  echo "drain: $s exit=$code oom=$oom running=$running"
+  echo "drain: $s exit=$code oom=$oom${oom_src:+ (from $oom_src)} running=$running"
 done < "$STATE/prev-images"
 
 # With every consumer stopped nothing new can start here, so whatever the gate still sees RUNNING (or cannot verify)

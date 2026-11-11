@@ -1,0 +1,30 @@
+{
+ "baseline_sha": "2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49",
+ "rule": "Michael 2026-11-10 fix 3: a change to the frozen system is ADDITIVE. Every line deleted from the baseline must be listed here with its reason; anything else fails the identity workflow. Each entry: {reason, author, reviewer, reviewed_at}; the reviewer must not be the author (Michael fix 4).",
+ "allowed": {
+  "smoke/t4-verification-boundaries.json": {
+   "reason": "T4 evidence pins the sha256 of omni_prod/behavior_acceptance.py; the file gained a flag-gated block, so its pinned hash line is replaced (probe stdout unchanged).",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-10"
+  },
+  "smoke/t4-verification-boundaries.md": {
+   "reason": "the same pinned hash, in the human-readable copy of the T4 evidence.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-10"
+  },
+  "docs/gate-freeze.json": {
+   "reason": "the #291 72h freeze definition is replaced by the #292 re-freeze (starts: merge of PR #292, baseline pinned to the final branch content commit); the mechanism and the immediate merge were approved in Michael's merge order of 2026-11-10",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-10"
+  },
+  ".github/workflows/v24-ci.yml": {
+   "reason": "the test job timeout line 15 -> 20 minutes (policy maximum); successful runs reached 14.9 min and PR #297 was cancelled at 15:00. CI configuration only, no product behaviour.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
+  }
+ }
+}

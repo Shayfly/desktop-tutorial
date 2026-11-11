@@ -90,7 +90,7 @@ _GENERATOR_SYSTEM = (
     # or background infrastructure; such steps would be NOT_VERIFIED, not passed.
     'The plan is run against the real app inside the build and every failing step is sent back for repair, so its test data must be valid under the product\'s own rules (dates from today within the allowed window, phone numbers in local format, unique values where duplicates are refused) and expect_text_contains must quote text the page really shows. Never write a fixed calendar date in a step: use ${today}, ${date_plus_N} or ${date_minus_N} (N days from the day the plan runs), which the platform fills in. '
     'When the approved spec stack is self-contained (embedded SQLite), omit the integration kind and any external-integration or background-job steps: they are out of scope and are reported as not verified. '
-    'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used, except that a data_create or data_update step sent with POST, PUT or PATCH must carry a non-empty "json" body with every field the endpoint requires, valid under the approved rules (a write step without a body is refused before the app is tested). Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
+    'Each persona has an id/role and HTTP steps. Every step has id, kind, acceptance_ids referencing only acceptance IDs from the approved ProductSpec, method, path and expect_status; optional headers/json/expect_json_contains/expect_text_contains/capture may be used, except that a data_create or data_update step sent with POST, PUT or PATCH must carry a non-empty "json" body with every field the endpoint requires, valid under the approved rules (a write step without a body is refused before the app is tested). Use ${name} variables captured from earlier JSON responses so login/session and CRUD can be exercised end-to-end; "capture" maps a variable name to a path into the JSON response: "id", "data.id", "items[0].id", or "[0].id" when the response itself is a JSON array. Do not hard-code a showcase domain: derive paths and payloads from the generated product. '
     'Never write outside the repository and never include secrets. Generate automated tests, README/setup, accessible responsive UI when relevant, i18n scaffolding, safe integration adapters, CI/deployment metadata, and production-grade error handling. Avoid generic AI-template styling; create a coherent design system appropriate to the product. '
     + 'Never call alert(), confirm() or prompt() in the product (also not in a repair): the build is rejected for it; show '
     'every message inside the page, in a status element (role="status") or next to the field. '
@@ -187,6 +187,32 @@ class ArchitectAgent:
                 raise ValueError(f'architect returned an invalid specification twice: {second_error} '
                                  f'(first: {first_error})') from second_error
 
+def _code_shape_guard(data) -> None:
+    """Reject an answer whose Python lost its indentation (founder builds bld_3f5dc453 / bld_5b2e8f58, 2026-11-09:
+    Sonnet answers with every block flattened -- "expected an indented block" in all files -- were adopted and burned
+    every repair round). Raised as a model-output rejection so the router escalates to the next model."""
+    from .model_gateway import ModelJSONRejected
+    files = data.get('files') if isinstance(data, dict) else None
+    for item in files or []:
+        if not isinstance(item, dict):
+            continue
+        path, content = str(item.get('path', '')), item.get('content')
+        if not path.endswith('.py') or not isinstance(content, str):
+            continue
+        try:
+            compile(content, path, 'exec')
+        except IndentationError as exc:
+            raise ModelJSONRejected(f'code lost its indentation: {path}:{exc.lineno} {exc.msg}', raw='',
+                                    diagnostic={'reason': 'indentation_lost', 'path': path, 'line': exc.lineno})
+        except (SyntaxError, ValueError):
+            continue        # other syntax problems are the repair loop's job
+
+
+def _guarded(gateway) -> dict:
+    """validate= only for the routed gateway (it escalates); plain gateways keep their old call shape."""
+    return {'validate': _code_shape_guard} if getattr(gateway, 'accepts_task_tag', False) else {}
+
+
 class GeneratorAgent:
     def __init__(self, gateway: OpenAICompatibleGateway):
         self.gateway = gateway
@@ -196,7 +222,8 @@ class GeneratorAgent:
             user=json.dumps(spec.to_dict(), ensure_ascii=False),
             # Rehearsal 37840698696: with the quality skills the code is longer
             # and 12k output tokens truncated the JSON on every model.
-            max_tokens=24000,
+            max_tokens=40000,  # bld_624610bc (2026-11-09): a 51K-char app.py needs ~15K tokens alone
+            **_guarded(self.gateway),
         )
         return parse_patch(data)
 
@@ -224,7 +251,8 @@ class RepairAgent:
         payload = {'spec': spec.to_dict(), 'repository': _filter_repo_summary(repo_summary), 'failures': failures}
         if not structured:
             data = self.gateway.complete_json(
-                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=20000)
+                system=_REPAIR_SYSTEM, user=json.dumps(payload, ensure_ascii=False), max_tokens=32000,
+                **_guarded(self.gateway))
             return parse_patch(data)
         from .repair_contracts import validated_file_patches, sanitized_tail
         from .repository_patch import PatchValidationError

@@ -46,11 +46,13 @@ const T = {
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
     repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
     buildFailed:'הבנייה נכשלה',
+    openDraftPreview:'פתח את הטיוטה בתצוגה (לא עברה את כל הבדיקות)',
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
-    errCodes:{build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
+    uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
+    errCodes:{preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.', build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
       release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
       preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
@@ -83,7 +85,7 @@ const T = {
  errAccountExists:'החשבון הזה כבר קיים. עברו ל"כניסה" עם אותה סיסמה.', err402:'אין מספיק קרדיטים או שהמסלול לא מאפשר זאת: ', tryAgain:'נסו שוב',
     errPlanNotIncluded:'הבנייה הזו לא כלולה במסלול שלך. אפשר לשדרג מסלול.', errAllowanceExhausted:'נגמר התקציב או הקרדיטים. אפשר להוסיף קרדיטים או לבנות פרויקט קטן יותר.',
     err403:'אין הרשאה לפעולה הזו.', err404:'לא נמצא.', err409:'צריך הבהרה לפני שממשיכים.',
-    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 30 שניות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
+    err503:'השירות הזה עוד לא מוגדר בשרת: ', errNet:'אין חיבור לשרת. בדקו את החיבור ונסו שוב.', errTimeout:'השרת לא ענה תוך 2 דקות. הפעולה אולי עוד רצה — רעננו בעוד רגע לפני שתנסו שוב.',
     err5xx:'שגיאה בשרת. נסו שוב בעוד רגע; אם זה חוזר, שלחו צילום מסך.', offline:'אין חיבור לאינטרנט. מה שמוצג עשוי להיות לא מעודכן; הפעולות יחזרו לעבוד כשהחיבור יחזור.',
     dataPersistent:'הנתונים שתזינו באפליקציה נשמרים גם אחרי הפעלה מחדש ובגרסה הבאה (אין עדיין גיבוי).',
     shareLabel:'מי יכול לפתוח', sharePRIVATE:'רק אני (פרטי)', shareSHARED:'כל מי שיש לו קישור שיתוף', sharePUBLIC:'כולם (ציבורי)', shareLink:'קישור שיתוף', dataTemporary:'נתונים זמניים: מה שתזינו יימחק כשהתצוגה תיעצר.',
@@ -113,7 +115,8 @@ const T = {
     chatPlaceholder:'כתבו מה תרצו לבנות או לשנות…', you:'אתם', assistant:'148AI',
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
-    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט', actConfirmMod:'שליחת השינוי לביצוע',
+    actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
+    canonAck:'אני מאשר/ת שהאתר ייבנה בלי טלפון וכתובת (הם לא יומצאו)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
@@ -160,11 +163,13 @@ const T = {
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
     repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
     buildFailed:'Build failed',
+    openDraftPreview:'Open the draft in Preview (did not pass every check)',
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
     checkingApproval:'Checking approval and budget — no build has started yet.',
-    errCodes:{build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
+    uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
+    errCodes:{preview_no_build_queue:'The build did not run in this version: it is a test version without a build queue. The credits were returned.', build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
       release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
       preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
@@ -197,7 +202,7 @@ const T = {
  errAccountExists:'This account already exists. Switch to "Sign in" with the same password.', err402:'Not enough credits or not allowed on your plan: ', tryAgain:'Try again',
     errPlanNotIncluded:'This build is not included in your plan. Upgrade your plan to continue.', errAllowanceExhausted:'Your budget or credits have run out. Add credits or build a smaller project.',
     err403:'You do not have access to this.', err404:'Not found.', err409:'Clarification is needed before continuing.',
-    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 30 seconds. The action may still be running — refresh in a moment before trying again.',
+    err503:'This service is not configured on the server yet: ', errNet:'Cannot reach the server. Check your connection and try again.', errTimeout:'The server did not answer within 2 minutes. The action may still be running — refresh in a moment before trying again.',
     err5xx:'Server error. Try again in a moment; if it repeats, send a screenshot.', offline:'You are offline. What you see may be out of date; actions work again when the connection returns.',
     dataPersistent:'Data you enter in the app survives a restart and the next version (no backup yet).',
     shareLabel:'Who can open it', sharePRIVATE:'Only me (private)', shareSHARED:'Anyone with the share link', sharePUBLIC:'Everyone (public)', shareLink:'Share link', dataTemporary:'Temporary data: what you enter is deleted when the preview stops.',
@@ -228,7 +233,8 @@ const T = {
     aiFallback:'This reply was built from fixed rules, without an AI model.',
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
-    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec', actConfirmMod:'Send this change',
+    actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
+    canonAck:'I confirm the site is built without a phone and address (they will not be invented)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
@@ -281,7 +287,7 @@ async function api(path, { method = 'GET', body, raw = false } = {}) {
   // A request that never answers must not freeze the page (2026-10-08: the
   // change panel kept saying "sent" after the candidate was ready).
   const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  const timer = ctl ? setTimeout(() => ctl.abort(), 30000) : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 125000) : null;
   try { res = await fetch(path, { method, headers, credentials: 'same-origin', signal: ctl ? ctl.signal : undefined, body: body === undefined ? undefined : JSON.stringify(body) }); }
   catch (e) { throw new ApiError(0, e && e.name === 'AbortError' ? 'timeout' : t('errNet')); }
   finally { if (timer) clearTimeout(timer); }
@@ -485,9 +491,19 @@ async function restoreBuild() {
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/latest`);
     const b = d && d.build;
-    if (!b || isTerminal(b.status) || S.build) return;
+    if (!b || S.build) return;
+    if (isTerminal(b.status)) {
+      // 2026-11-09: a finished build (its result, failure reason and the founder's draft) is shown again after a
+      // reload instead of disappearing. Read once; no polling and no automatic preview start.
+      const full = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.build_id)}`);
+      if (S.build) return;
+      S.build = { id: b.build_id, ...full };
+      await pollEvents();
+      renderTrack(); renderEvidence(); renderPlan();
+      return;
+    }
     S.build = { id: b.build_id, status: b.status, phase: '', evidence: {} };
-    renderTrack(); pollBuild();
+    renderTrack(); renderPlan(); pollBuild();
   } catch (e) { /* older server: nothing to restore */ }
 }
 
@@ -536,7 +552,11 @@ async function requestBriefPlan(open = true) {
   try {
     S.plan = await api(`/api/v28/projects/${pid()}/build-contracts?lang=${S.lang}`, { method: 'POST',
       body: { prompt: S.disc.prompt, brief_revision: S.disc.brief.revision } });
-    S.build = null; renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
+    // 2026-11-09: the background quote fetched while a project opens (open=false) resolved AFTER restoreBuild()
+    // and wiped the queued/running build from the screen. Only a plan the user asked for replaces a finished build;
+    // a queued or running build always stays.
+    if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;
+    renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
 }
 function questionCard(q, current) {
@@ -653,8 +673,10 @@ function renderProjectReadiness() {
   const p = S.plan;
   const busy = S.build && !isTerminal(S.build.status);
   const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
+  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
   const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
-    p.can_build ? t('readinessReady') : t('readinessBlocked');
+    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
   strip.className = 'projectReadiness ' + mode;
   strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
     h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
@@ -692,7 +714,8 @@ function renderPlan() {
     h('h2', {}, t('planTitle')),
     h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
       h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
-      !p.can_build ? h('p', {}, t('readinessBlockedHelp')) : null),
+      !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
+      !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
@@ -948,6 +971,12 @@ function renderTrack() {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
+    // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
+    if (b.result_version_id) {
+      const btn = h('button', { class: 'btn', type: 'button' }, t('openDraftPreview'));
+      btn.addEventListener('click', () => startPreview(b.result_version_id));
+      msg.append(h('div', {}, btn));
+    }
   }
   else msg.textContent = '';
 }
@@ -1049,6 +1078,17 @@ function friendlyError(b) {
     // This is NOT a provider billing balance; it can also be a rate/usage quota.
     const match = String(b.error_message || '').match(/AI provider quota\/credits unavailable:\s*([^;]+)/);
     return known + (match && match[1] ? ' — ' + match[1] : '');
+  }
+  // 2026-11-08: 'all model routes failed: ... does not fit the remaining budget' is the build budget running out,
+  // not the providers being down (bld_e6b94762 showed 'providers unavailable' while every route was over budget).
+  if (b.error_code === 'model_unavailable' && /does not fit the remaining budget/.test(String(b.error_message || '')))
+    return (t('errCodes') || {}).model_budget_exhausted || known;
+  // 78: the app started and served an empty page -- never "the site did not start".
+  if (b.error_code === 'preview_not_ready' && /generated interface is empty/.test(String(b.error_message || ''))) {
+    const m = String(b.error_message || '').match(/missing: ([a-z,]+)/);
+    const names = t('uiMissing') || {};
+    const parts = (m ? m[1].split(',') : []).map(k => names[k]).filter(Boolean);
+    return t('uiEmpty') + (parts.length ? ': ' + t('uiMissingLead') + ' ' + parts.join(', ') : '') + ', ' + t('uiEmptyTail');
   }
   return known || b.error_message || b.error_code || '';
 }
@@ -1293,6 +1333,12 @@ async function restoreConversation() {
   }
 }
 let chatBusy = false;
+function whenVisible() {
+  if (document.visibilityState !== 'hidden') return Promise.resolve();
+  return new Promise(r => document.addEventListener('visibilitychange', function f() {
+    if (document.visibilityState !== 'hidden') { document.removeEventListener('visibilitychange', f); r(); }
+  }));
+}
 async function sendChat(body, shownText, path) {
   if (chatBusy || !S.projectId) return;
   const retrySignature=JSON.stringify([S.projectId,body]);
@@ -1301,7 +1347,20 @@ async function sendChat(body, shownText, path) {
   const pending = shownText ? { role: 'customer', content: shownText, pending: true } : null;
   if (pending) { S.chat = S.chat || { messages: [] }; S.chat.messages = [...(S.chat.messages || []), pending]; renderChat(); }
   try {
-    const view = await api(`${(path || convPath)()}?lang=${S.lang}`, { method: 'POST', body: { ...body, request_key: S.chatRetry.key } });
+    const url = `${(path || convPath)()}?lang=${S.lang}`, payload = { ...body, request_key: S.chatRetry.key };
+    let view;
+    // 2026-11-09: iOS Safari drops an open request when the page goes to the background (switching apps to take a
+    // screenshot), and the customer saw "no connection" although the server had answered. The send is idempotent
+    // per request_key, so a dropped request is re-sent quietly with the SAME key -- after the page is visible
+    // again -- and the server returns the answer it already stored instead of asking the model twice.
+    for (let attempt = 0; ; attempt++) {
+      try { view = await api(url, { method: 'POST', body: payload }); break; }
+      catch (err) {
+        if (err.status !== 0 || err.detail === 'timeout' || attempt >= 3) throw err;
+        await whenVisible();
+        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+      }
+    }
     S.chatRetry=null;
     S.forceScroll = true;
     applyConversation(view);
@@ -1358,7 +1417,16 @@ function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
     if (a.type === 'edit_requirements') out.push(h('button',{type:'button',class:'secondary',onclick:beginBriefEdit},t('editAll')));
-    if (a.type === 'approve_spec') out.push(h('button', { type: 'button', onclick: () => sendChat({ brief_fingerprint: a.brief_fingerprint }, t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec')));
+    if (a.type === 'approve_spec') {
+      // Michael 2026-11-10 condition 3: an incomplete fact canon needs an explicit tick before the spec is approved.
+      const incomplete = a.canon && a.canon.status === 'CANON_INCOMPLETE';
+      const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => sendChat(
+        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false },
+        t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec'));
+      const box = incomplete ? h('input', { type: 'checkbox', id: 'canonAck', onchange: (e) => { btn.disabled = !e.target.checked; } }) : null;
+      if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));
+      out.push(btn);
+    }
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
@@ -1385,8 +1453,9 @@ function renderChat() {
     if (m.attachments && m.attachments.length) bubble.append(h('div', { class: 'thumbs' }, m.attachments.map(a =>
       h('img', { src: `/api/v28/projects/${pid()}/attachments/${encodeURIComponent(a.id)}`, alt: t('attachedImage'), loading: 'lazy', width: 72, height: 72 }))));
     if (i === lastAssistant) {
-      const turnQs = (S.chat.turn && S.chat.turn.questions) || [];
-      const qs = turnQs.length ? turnQs : (S.disc && !S.disc.complete ? (S.disc.questions || []).slice(0, 2) : []);
+      // CEO 2026-11-08: no questionnaire. Only the buttons the server sent with this turn; never the detector's
+      // pending questions as a fallback (Venice asks in words; the server sends none while she leads).
+      const qs = (S.chat.turn && S.chat.turn.questions) || [];
       if (qs.length) bubble.append(quickReplies(qs));
       const acts = actionButtons(m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []));
       if (acts) bubble.append(acts);

@@ -28,6 +28,9 @@ class ExecutionReport:
     passed: bool
     failures: tuple[AcceptanceFailure, ...] = ()
     build_log: str = ''
+    # Audit 2026-11-02 findings 2+14: how many tests EXECUTED (passed/failed/error, not skipped) across the verify
+    # commands, read from the runner's own summary. None = no recognised runner reported a count.
+    tests_executed: int | None = None
 
 @dataclass(frozen=True)
 class AutonomousResult:
@@ -79,6 +82,9 @@ class AutonomousProductEngine:
         diagnostic = '\n'.join(str(f.get('message', '')) + '\n' + str(f.get('evidence', ''))
                                for f in failures if isinstance(f, dict))
         summary['candidate_files'] = attributed_files(repo, stderr=diagnostic)
+        # Agentic repair (2026-11-09): the working copy the repair agent reads and edits. Underscore key: never
+        # serialised into a prompt (RepairAgent's _filter_repo_summary keeps only named keys). Already redacted.
+        summary['_repository'] = dict(repo)
         return summary
 
     @staticmethod
@@ -265,6 +271,25 @@ class AutonomousProductEngine:
         # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
         from . import plan_floor
         floor, plan_note = plan_floor.plan_block(repo), None
+        # Founder build bld_ca727ba7 (2026-11-08): the loop stopped after 2 of 6 rounds on one unchanged patch. The
+        # stop-loss stays, but production gets `no_progress_retries` second chances: the next repair is told plainly
+        # that its last answer changed nothing, before the loop gives up. 0 (the default) is the old behaviour.
+        chances = int(getattr(self, 'no_progress_retries', 0) or 0)
+        progress_note = None
+
+        def second_chance(reason: str) -> bool:
+            nonlocal chances, progress_note
+            if chances <= 0 or rounds >= self.max_repair_rounds:
+                return False
+            chances -= 1
+            self.trace[-1:] and self.trace[-1].setdefault('second_chance', reason)
+            progress_note = {'acceptance_id': 'NO_PROGRESS',
+                             'message': ('Your previous repair did not change the outcome (' + reason + '). Read the '
+                                         'failing checks again, find the code they exercise, and change THAT code. '
+                                         'If a check sends a request, make the endpoint return exactly what it expects.'),
+                             'evidence': ''}
+            return True
+
         while not report.passed and rounds < self.max_repair_rounds:
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
@@ -274,6 +299,9 @@ class AutonomousProductEngine:
             if plan_note:
                 failures = failures + [plan_note]
                 plan_note = None
+            if progress_note:
+                failures = failures + [progress_note]
+                progress_note = None
             transform = getattr(self, 'repository_transform', None)
             if transform is not None and hasattr(transform, 'redact_text'):
                 failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
@@ -287,6 +315,8 @@ class AutonomousProductEngine:
                 # Brain 2 point 4 (2026-11-02): an empty patch is its own label; no_progress_repository_unchanged is
                 # kept for a non-empty patch whose result is identical to the repository it was applied to.
                 stop_reason = 'no_progress_empty_patch'
+                if second_chance(stop_reason):
+                    continue
                 break
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
@@ -305,6 +335,8 @@ class AutonomousProductEngine:
                 # `repo` and `report` stay paired: the rejected candidate is not adopted.
                 stop_reason = ('no_progress_repository_unchanged' if candidate == repo
                                else 'no_progress_repository_cycle')
+                if second_chance(stop_reason):
+                    continue
                 break
             seen.add(fingerprint)
             candidate = self._preflight(candidate, spec, rounds)
@@ -339,7 +371,13 @@ class AutonomousProductEngine:
                 # not -- four paid rounds on one identical message. The same set of (acceptance_id, message) as the
                 # round before means the repair is not reaching the cause; stop instead of paying again.
                 stop_reason = 'no_progress_same_failure'
+                if second_chance(stop_reason):
+                    continue
                 break
+        else:
+            # The loop ran out of rounds (no break): a second chance used earlier must not leave its no_progress label.
+            if not report.passed:
+                stop_reason = 'max_repair_rounds'
         if not report.passed:
             repo, report = best_repo, best_report
         return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result

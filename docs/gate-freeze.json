@@ -1,0 +1,28 @@
+{
+  "active": false,
+  "reason": "Michael 2026-11-10 merge order: re-freeze from the merge of #292 with no unfrozen moment and no PR in between; the 5-arm frozen run (flag off) executes on this tree",
+  "starts": "merge of PR #292",
+  "baseline": "e196a9251efcef98f1bcfc9cd88a24401b47eac8",
+  "note": "baseline = the FINAL branch head of #292 (its tree is byte-identical to merge 7e97cc7, verified); the first pin (1a95f35) predated the closing and .git-fix commits and was corrected before arm 1 (Michael 2026-11-10 22:35). The merge SHA lives in the external run report only.",
+  "until": "the end of the LAST frozen-run arm (Michael 2026-11-10 22:54: the run is now 6 arms, so no arm count and no clock -- the freeze holds to the end of the run); 72h below is only a backstop",
+  "hours": 72,
+  "gate_files": [
+    "omni_prod/skills_runtime.py",
+    "omni_prod/fact_canon.py",
+    "omni_prod/probe_manifest.py",
+    "omni_prod/product_review.py",
+    "omni_prod/preview_smoke.py",
+    "omni_prod/gate_regression.py",
+    "omni_prod/web_saas_acceptance.py",
+    "omni_prod/behavior_acceptance.py",
+    "omni_prod/visual_qa.py",
+    "omni_prod/design_review.py",
+    "omni_prod/quality_gate.py",
+    "omni_prod/consistency_gate.py",
+    "omni_prod/vocabulary.py",
+    "tests/test_gate_mutations_20261110.py",
+    "tests/test_frozen_run_conditions_20261110.py",
+    ".github/workflows/gate-regression.yml"
+  ],
+  "ended": "2026-11-11T08:16Z -- the last arm (refusal-control) finished; run frozen-2026-11-10b closed (docs/frozen-run-20261110b-result.md)"
+}
