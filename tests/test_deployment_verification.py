@@ -359,6 +359,9 @@ class _Stub:
                 if method == 'POST':
                     body = json.loads(self.rfile.read(int(self.headers.get('Content-Length') or 0)) or b'{}')
                 cookie = [('Set-Cookie', 'track=1; Path=/')] if stub.f['set_cookie'] else []
+                if path == '/api/v28/deployment' and stub.f.get('schema') is not None:
+                    return self._send(200, {'source_commit': stub.f['sha'], 'environment': stub.f['env'], 'branch': 'b',
+                                            'schema': stub.f['schema']}, extra=cookie)
                 if path == '/api/v28/deployment':
                     return self._send(200, {'source_commit': stub.f['sha'], 'environment': stub.f['env'], 'branch': 'b',
                                             'schema': {'required': 36, 'compatible': stub.f['compatible'],
@@ -782,6 +785,42 @@ class SchemaCompatibilityEndpointTests(unittest.TestCase):
         for ident in body['database_candidates'].values():
             self.assertNotIn('@', ident)
             self.assertRegex(ident, r'^[a-z0-9.-]+:\d+/[^/:@]*$')
+
+
+
+class MainMigrationNotInBranchNegativeControl(unittest.TestCase):
+    """Michael 2026-11-11 (#322): a migration that EXISTS IN MAIN and is NOT APPLIED in the preview branch must fail
+    verify -- the real rule (schema_manifest.compatibility) feeding the real verifier, not a hand-made flag.
+    Real-world twin: run 43073498141 (#227's preview before the reset): {"required": 42, "applied_max": 41,
+    "status": "MIGRATIONS_PENDING", "missing": [42], "compatible": false} -> FAILED."""
+
+    def _verify(self, applied):
+        from omni_prod.schema_manifest import compatibility
+        stub = _Stub(schema=compatibility(applied))
+        try:
+            return dv.verify(stub.url, expect_sha=SHA)
+        finally:
+            stub.close()
+
+    @staticmethod
+    def _check(r, name):
+        return next(c for c in r['checks'] if c['check'] == name)
+
+    def test_main_latest_migration_missing_in_the_branch_fails_verify(self):
+        r = self._verify([v for v in EXPECTED_VERSIONS if v != REQUIRED_MIGRATION])
+        c = self._check(r, 'schema_compatible')
+        self.assertEqual(c['status'], 'FAIL')
+        self.assertEqual(c['evidence']['missing'], [REQUIRED_MIGRATION])
+        self.assertEqual(c['evidence']['status'], 'MIGRATIONS_PENDING')
+        self.assertNotEqual(r['verdict'], 'PASSED')
+
+    def test_an_older_main_migration_missing_also_fails(self):
+        r = self._verify([v for v in EXPECTED_VERSIONS if v != EXPECTED_VERSIONS[len(EXPECTED_VERSIONS) // 2]])
+        self.assertEqual(self._check(r, 'schema_compatible')['status'], 'FAIL')
+
+    def test_positive_control_all_main_migrations_applied_passes_the_schema_check(self):
+        r = self._verify(list(EXPECTED_VERSIONS))
+        self.assertEqual(self._check(r, 'schema_compatible')['status'], 'PASS')
 
 
 if __name__ == '__main__':
