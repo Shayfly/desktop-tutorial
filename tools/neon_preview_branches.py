@@ -4,6 +4,10 @@ The Neon-Vercel integration creates `preview/<git branch>` in 148ai-db-v2 for ev
 removes it. This tool:
   * --only <git ref>   deletes that one branch's database (the PR-closed policy)
   * (default)          prunes every `preview/*` branch whose git branch has no open PR and is older than --min-age-hours
+  * --reset-before T   resets from its parent (main) every preview branch whose data was taken from main before T,
+                       where T is the time the latest migration landed in main (Michael 2026-11-11). "Data taken"
+                       = the later of the branch's creation and its last reset -- a testable condition, never "looks
+                       old". Only preview/* branches; their data is disposable test data.
   * always             alerts (::error, exit 1) when more than --alert-over preview branches remain
 
 Dry run unless --apply. Never touches a non-preview branch (main, backups), a protected or default branch, or the
@@ -28,6 +32,18 @@ PREFIX = 'preview/'
 def _call(base: str, method: str, path: str, token: str, accept: str = 'application/json'):
     req = urllib.request.Request(base + path, method=method,
                                  headers={'Authorization': 'Bearer ' + token, 'Accept': accept})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            raw = r.read()
+            return r.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as e:
+        return e.code, None
+
+
+def _call_json(base: str, method: str, path: str, token: str, body: dict):
+    req = urllib.request.Request(base + path, method=method, data=json.dumps(body).encode(),
+                                 headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/json',
+                                          'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             raw = r.read()
@@ -85,6 +101,23 @@ def plan(branches: list[dict], open_refs: set[str], *, only: str | None, min_age
     return delete, keep
 
 
+def _ts(value: str | None) -> dt.datetime | None:
+    return dt.datetime.fromisoformat(value.replace('Z', '+00:00')) if value else None
+
+
+def data_taken_at(branch: dict) -> dt.datetime:
+    """When the branch's data was copied from main: its creation, or its last reset if later."""
+    times = [t for t in (_ts(branch.get('created_at')), _ts(branch.get('last_reset_at'))) if t]
+    return max(times)
+
+
+def needs_reset(branches: list[dict], migration_at: dt.datetime) -> list[dict]:
+    """Preview branches whose data predates the latest migration in main. Pure: the tests drive it."""
+    return [b for b in branches
+            if b.get('name', '').startswith(PREFIX) and not (b.get('protected') or b.get('default') or b.get('primary'))
+            and b.get('parent_id') and data_taken_at(b) < migration_at]
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--project', required=True)
@@ -93,12 +126,30 @@ def main(argv=None) -> int:
     ap.add_argument('--apply', action='store_true')
     ap.add_argument('--min-age-hours', type=float, default=1.0)
     ap.add_argument('--alert-over', type=int, default=50)
+    ap.add_argument('--reset-before', help='ISO time the latest migration landed in main')
+    ap.add_argument('--reset-only', action='store_true', help='apply the reset rule and stop (no pruning, no alert)')
     a = ap.parse_args(argv)
     neon_key, gh_token = os.environ.get('NEON_API_KEY', ''), os.environ.get('GH_TOKEN', '')
     if not neon_key:
         print('::error title=neon::NEON_API_KEY is not set (repository secret)')
         return 2
     branches = neon_branches(a.project, neon_key)
+    if a.reset_before:
+        migration_at = _ts(a.reset_before)
+        stale = needs_reset(branches, migration_at)
+        for b in stale:
+            if not a.apply:
+                print(f'::notice title=would reset::{b["name"]} data from {data_taken_at(b).isoformat()} < '
+                      f'latest migration {migration_at.isoformat()}')
+                continue
+            st, _ = _call_json(NEON, 'POST', f'/projects/{a.project}/branches/{b["id"]}/restore', neon_key,
+                               {'source_branch_id': b['parent_id']})
+            level, word = ('notice', 'reset') if st in (200, 201, 202) else ('warning', 'not reset')
+            print(f'::{level} title={word}::{b["name"]} {b["id"]} (data from {data_taken_at(b).isoformat()}) HTTP {st}')
+        print(f'::notice title=reset summary::{len(stale)} preview branches predate the latest migration '
+              f'({migration_at.isoformat()}); {"reset" if a.apply else "would be reset"}')
+    if a.reset_only:
+        return 0
     open_refs = set() if a.only else open_pr_refs(a.repo, gh_token)
     delete, keep = plan(branches, open_refs, only=a.only, min_age_hours=a.min_age_hours,
                         now=dt.datetime.now(dt.timezone.utc))

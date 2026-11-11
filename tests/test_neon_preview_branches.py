@@ -43,6 +43,29 @@ class Plan(unittest.TestCase):
         self.assertEqual(delete, [])
 
 
+MIGRATION_AT = dt.datetime(2026, 11, 3, 20, 29, 38, tzinfo=dt.timezone.utc)   # 042 landed in main
+
+
+class ResetRule(unittest.TestCase):
+    """Michael 2026-11-11: a preview branch whose data was taken from main before the latest migration is reset."""
+
+    def test_data_from_before_the_migration_is_reset(self):
+        old = br('preview/fix/reconciler', created='2026-11-02T22:28:55Z', parent_id='br-main')
+        new = br('preview/fix/new', created='2026-11-05T00:00:00Z', parent_id='br-main')
+        self.assertEqual([b['name'] for b in N.needs_reset([old, new], MIGRATION_AT)], ['preview/fix/reconciler'])
+
+    def test_a_branch_reset_after_the_migration_is_not_reset_again(self):
+        b = br('preview/fix/reconciler', created='2026-11-02T22:28:55Z', parent_id='br-main',
+               last_reset_at='2026-11-11T19:00:00Z')
+        self.assertEqual(N.needs_reset([b], MIGRATION_AT), [])
+
+    def test_never_main_backups_or_protected(self):
+        branches = [br('main', created='2026-10-25T00:00:00Z', default=True, primary=True),
+                    br('backup-before-042', created='2026-11-01T00:00:00Z', parent_id='br-main'),
+                    br('preview/fix/p', created='2026-11-01T00:00:00Z', parent_id='br-main', protected=True)]
+        self.assertEqual(N.needs_reset(branches, MIGRATION_AT), [])
+
+
 class Workflow(unittest.TestCase):
     def test_the_secret_never_meets_pr_code(self):
         wf = (pathlib.Path(__file__).resolve().parents[1] / '.github/workflows/neon-preview-branches.yml').read_text()
@@ -50,6 +73,12 @@ class Workflow(unittest.TestCase):
         self.assertNotIn('github.event.pull_request.head.sha', wf)    # no checkout of the PR head
         self.assertIn('persist-credentials: false', wf)
         self.assertIn('default: "false"', wf)                           # dispatch is a dry run by default
+
+    def test_the_reset_runs_when_a_migration_lands_and_reads_its_time_from_git(self):
+        wf = (pathlib.Path(__file__).resolve().parents[1] / '.github/workflows/neon-preview-branches.yml').read_text()
+        self.assertIn("paths: ['infra/postgres/**']", wf)
+        self.assertIn('fetch-depth: 0', wf)
+        self.assertIn('--diff-filter=A --format=%cI', wf)
 
 
 if __name__ == '__main__':
