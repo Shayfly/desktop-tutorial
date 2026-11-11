@@ -4,9 +4,14 @@ name: neon preview branches
 #   * PR closed            -> delete that PR's preview database (the deletion policy)
 #   * daily                -> list what would be pruned; ALERT (red run) if more than 50 preview branches remain
 #   * workflow_dispatch    -> prune every preview branch without an open PR; dry run unless apply=true
+#   * migration on main / daily -> RESET from main every preview branch whose data was taken before the latest
+#                            migration landed in main (Michael 2026-11-11; the condition is in the tool, testable)
 # Never touches main, backups, protected branches or the branch of an open PR. Needs the repository secret
 # NEON_API_KEY. Each result line is its own annotation.
 on:
+  push:
+    branches: [main]
+    paths: ['infra/postgres/**']
   pull_request_target:
     types: [closed]
   schedule:
@@ -36,13 +41,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0                  # the reset rule needs when the latest migration landed in main
+      - name: reset preview branches that predate the latest migration
+        if: github.event_name != 'pull_request_target'
+        env:
+          RESET_APPLY: ${{ (github.event_name == 'workflow_dispatch' && inputs.apply != 'true') && 'false' || 'true' }}
+        run: |
+          if [ "$RESET_APPLY" = "true" ]; then flag=--apply; else flag=; fi
+          python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" --reset-before latest --reset-only $flag
       - name: PR closed -- delete its preview database
         if: github.event_name == 'pull_request_target'
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" --only "$HEAD_REF" --apply --alert-over 100000
       - name: prune (dispatch) / report and alert (daily)
-        if: github.event_name != 'pull_request_target'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         env:
           APPLY: ${{ inputs.apply }}
         run: |
