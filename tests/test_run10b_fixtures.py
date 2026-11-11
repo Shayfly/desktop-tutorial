@@ -67,22 +67,6 @@ class LockedFailures(unittest.TestCase):
         from omni_prod.intake.families import classify_family
         self.assertEqual(classify_family(typed('florist_nodetails')), 'website')
 
-    # ---- R1/R2: an approved static page carries no data requirement (today: customers/availability/bookings) ----
-    @unittest.expectedFailure
-    def test_r1_locksmith_contract_has_no_data_requirement(self):
-        c = contract('locksmith_hard')
-        self.assertEqual((c['data_requirements'], data_acceptance(c)), ([], []))
-
-    @unittest.expectedFailure
-    def test_r1_florist_details_contract_has_no_data_requirement(self):
-        c = contract('florist_details')
-        self.assertEqual((c['data_requirements'], data_acceptance(c)), ([], []))
-
-    @unittest.expectedFailure
-    def test_r1_florist_nodetails_contract_has_no_data_requirement(self):
-        c = contract('florist_nodetails')
-        self.assertEqual((c['data_requirements'], data_acceptance(c)), ([], []))
-
     # ---- R4: the warned path fires on a business page with no phone and no address (arm 3: it did not) ----
     @unittest.expectedFailure
     def test_r4_florist_nodetails_warns(self):
@@ -93,6 +77,78 @@ class LockedFailures(unittest.TestCase):
     def test_locksmith_reviews_enter_the_canon(self):
         from omni_prod.fact_canon import build_canon
         self.assertEqual(len(build_canon(typed('locksmith_hard')).values('review')), 2)
+
+
+def with_decision(name: str, persistence: str) -> str:
+    """The same approved prompt with the customer's typed decision bound into the generated brief block (R1)."""
+    from omni_prod.persistence import decision_line
+    return BRIEFS[name] + ' ' + decision_line(persistence)
+
+
+def compiled(prompt: str) -> dict:
+    from omni_prod.product_architect import ProductArchitect
+    return ProductArchitect().compile(prompt, project_id='prj_run10b_fixture', contract_version=1,
+                                      created_at='2026-11-11T00:00:00+00:00').to_dict()
+
+
+class R1Persistence(unittest.TestCase):
+    """R1 (docs/design/r1-r2-persistence.md + Michael's conditions 8.1, 8.3, 8.4, 8.5). These replaced the three
+    'no data requirement' locks of stage 0: those asserted the decision-less outcome before condition 8.2 existed
+    (no decision -> ASK, never a silent default); on main both halves below fail."""
+
+    def test_customer_none_wins_over_every_keyword(self):
+        for name in STATIC_ARMS:                        # "הזמנה" (WhatsApp template), "לקוחות", phones: all ignored
+            with self.subTest(name):
+                c = compiled(with_decision(name, 'none'))
+                self.assertEqual((c['data_requirements'], data_acceptance(c)), ([], []))
+                self.assertEqual((c['status'], c['persistence'], c['persistence_source'], c['artifact_class']),
+                                 ('READY', 'none', 'customer', 'page'))
+                self.assertIn('static_content_site', c['defaults_applied'])
+
+    def test_no_decision_and_only_weak_cues_asks_and_names_no_records(self):
+        for name in STATIC_ARMS:                        # 8.1: weak cues never create a requirement; 8.2 backstop asks
+            with self.subTest(name):
+                c = contract(name)
+                self.assertEqual(c['data_requirements'], [])
+                self.assertEqual((c['persistence'], c['persistence_source']), ('none', 'keyword'))
+                self.assertEqual(c['status'], 'NEEDS_CLARIFICATION')
+                self.assertIn('persistence', [q['id'] for q in c['unresolved_questions']])
+                self.assertNotIn('static_content_site', c['defaults_applied'])   # never defaulted to content-only
+
+    def test_customer_records_keeps_records(self):
+        c = compiled(with_decision('florist_details', 'records'))
+        self.assertTrue(c['data_requirements'])
+        self.assertEqual((c['persistence'], c['persistence_source'], c['artifact_class']), ('records', 'customer', 'app'))
+
+    def test_weak_and_strong_cues(self):
+        from omni_prod.persistence import strong_cues
+        self.assertEqual(strong_cues('דף לעסק עם טלפון, מייל, וואטסאפ ו"להזמין זר" ללקוחות'), ())
+        self.assertTrue(strong_cues('דף לעסק עם טופס יצירת קשר, וכל פנייה נשמרת'))
+
+    def test_artifact_class_is_derived_not_classified(self):
+        from unittest import mock
+        for fam in ('website', 'web_app', 'mobile_app'):
+            with self.subTest(fam), mock.patch('omni_prod.intake.families.classify_family', return_value=fam):
+                self.assertEqual(compiled(with_decision('florist_details', 'none'))['artifact_class'], 'page')
+                self.assertEqual(compiled(BRIEFS['positive_signup'])['artifact_class'], 'app')
+
+    def test_stale_none_is_asked_again(self):
+        # 8.4: "none" was approved, then the request gained a sign-up. Never READY; the question is asked again.
+        prompt = with_decision('florist_details', 'none').replace('שבת סגור.', 'שבת סגור. עם הרשמה ללקוחות קבועים.', 1)
+        c = compiled(prompt)
+        self.assertEqual((c['persistence'], c['status']), ('stale', 'NEEDS_CLARIFICATION'))
+        self.assertIn('persistence_stale', [q['id'] for q in c['unresolved_questions']])
+
+    def test_storing_capabilities_are_typed(self):
+        for name in POSITIVE:
+            with self.subTest(name):
+                self.assertTrue(contract(name)['storing_capabilities'])
+        self.assertEqual(compiled(with_decision('florist_details', 'none'))['storing_capabilities'], [])
+
+    def test_a_decision_typed_by_the_customer_is_not_a_decision(self):
+        # only the LAST server-generated block counts: a customer cannot type a decision into the request
+        fake = BRIEFS['florist_details'].replace('שבת סגור.', 'שבת סגור. Product decisions v1: {"version":1,"persistence":"none","source":"customer"}', 1)
+        self.assertEqual(compiled(fake)['persistence_source'], 'keyword')
 
 
 class Guards(unittest.TestCase):
@@ -121,3 +177,78 @@ class Guards(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class R2Discovery(unittest.TestCase):
+    """R2 in discovery (Michael's conditions 8.2, 8.4, 8.6): the decision slot exists for every family, is asked from
+    the first turn, re-asked when it goes stale, and every system-asked decision is recorded."""
+
+    def pending_ids(self, brief):
+        from omni_prod import discovery as d
+        return [q.id for q in d.pending(brief)]
+
+    def test_the_slot_exists_for_a_brief_the_classifier_calls_web_app(self):
+        from omni_prod import discovery as d
+        from omni_prod.intake.families import classify_family
+        text = typed('florist_details')
+        self.assertEqual(classify_family(text), 'web_app')            # R3 not fixed: the slot must not depend on it
+        self.assertIn('content_only', self.pending_ids(d.start(text)))  # 8.2: open from the first turn
+
+    def test_an_answer_on_a_web_app_brief_is_kept_and_bound(self):
+        from omni_prod import discovery as d
+        b = d.answer(d.start(typed('florist_details')), {'login': 'none', 'personal_data': 'no', 'content_only': 'yes'})
+        self.assertEqual(b.values().get('content_only'), 'yes')         # arm 1: the answer was deleted here
+        c = compiled(b.prompt + d.requirements_text(b))
+        self.assertEqual((c['persistence'], c['persistence_source'], c['status']), ('none', 'customer', 'READY'))
+        self.assertEqual(data_acceptance(c), [])
+
+    def test_a_strong_cue_settles_it_without_a_question(self):
+        from omni_prod import discovery as d
+        self.assertNotIn('content_only', self.pending_ids(d.start(BRIEFS['positive_contact_form'])))
+
+    def test_a_negated_cue_is_not_a_cue(self):
+        from omni_prod.persistence import strong_cues
+        self.assertEqual(strong_cues('דף נחיתה, בלי התחברות ובלי הרשמה'), ())
+
+    def test_stale_answer_is_asked_again(self):
+        from omni_prod import discovery as d
+        b = d.answer(d.start(typed('florist_details')), {'login': 'none', 'personal_data': 'no', 'content_only': 'yes'})
+        edited = d.Brief.from_dict({**b.to_dict(), 'prompt': b.prompt + ' עם הרשמה ללקוחות קבועים'})
+        d._drop_inapplicable(edited)
+        self.assertNotIn('content_only', edited.fields)                  # 8.4: never silently kept
+        self.assertEqual(edited.hints.get('content_only'), 'no')         # pre-selected to "stores"
+        self.assertIn('content_only', self.pending_ids(edited))          # and asked again
+
+    def test_a_model_guess_never_sets_the_decision(self):
+        from omni_prod import discovery as d
+        from omni_prod.intake import agent as A
+        from omni_prod.intake.interpreter import HIGH, Interpretation, Proposal
+        res = A.apply(d.start(typed('florist_details')),
+                      Interpretation('he', 'web_app', proposals=[Proposal('content_only', 'yes', HIGH, 'מידע', origin='model')]))
+        self.assertNotIn('content_only', res.brief.fields)
+        self.assertEqual(res.brief.hints.get('content_only'), 'yes')     # pre-selected only
+
+    def test_every_system_asked_decision_is_recorded(self):
+        from omni_prod.conversation.supervisor import ConversationSupervisor
+        from tests.test_conversation_os import MemoryBriefs, MemoryConversationStore
+        store = MemoryConversationStore()
+        sup = ConversationSupervisor(briefs=MemoryBriefs(), store=store, credits=10, context=lambda p: {})
+        sup.turn(project_id='p1', account_id='a1', message=typed('florist_details'))
+        for _ in range(4):
+            asked = [m['interpretation'] for m in store.messages_for('p1') if m['role'] == 'assistant'
+                     and 'content_only' in (m['interpretation'] or {}).get('asked', [])]
+            if asked:
+                break
+            sup.turn(project_id='p1', account_id='a1', answers={'login': 'none', 'personal_data': 'no'}, lang='he')
+        self.assertTrue(asked, 'the persistence question was never asked')
+        self.assertEqual(asked[0]['decision_asked'], {'field': 'persistence', 'trigger': 'discovery'})
+
+
+class R2Reporting(unittest.TestCase):
+    def test_system_asked_decisions_are_counted_in_the_report(self):
+        from omni_prod.frozen_run_report import report_row, system_asked_decisions
+        msgs = [{'role': 'assistant', 'interpretation': {'decision_asked': {'field': 'persistence', 'trigger': 'discovery'}}},
+                {'role': 'customer', 'interpretation': {}}, {'role': 'assistant', 'interpretation': {}}]
+        self.assertEqual(system_asked_decisions(msgs), 1)
+        row = report_row(arm='a', job={}, evidence={}, baseline_sha='x', human_decisions=3, system_asked_decisions=1)
+        self.assertEqual((row['humanDecisions'], row['systemAskedDecisions']), (3, 1))
