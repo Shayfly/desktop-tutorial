@@ -51,6 +51,7 @@ const T = {
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
     liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
+    uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
     errCodes:{build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
       release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
@@ -167,6 +168,7 @@ const T = {
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
     liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
     checkingApproval:'Checking approval and budget — no build has started yet.',
+    uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
     errCodes:{build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
       release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
@@ -1078,6 +1080,13 @@ function friendlyError(b) {
   // not the providers being down (bld_e6b94762 showed 'providers unavailable' while every route was over budget).
   if (b.error_code === 'model_unavailable' && /does not fit the remaining budget/.test(String(b.error_message || '')))
     return (t('errCodes') || {}).model_budget_exhausted || known;
+  // 78: the app started and served an empty page -- never "the site did not start".
+  if (b.error_code === 'preview_not_ready' && /generated interface is empty/.test(String(b.error_message || ''))) {
+    const m = String(b.error_message || '').match(/missing: ([a-z,]+)/);
+    const names = t('uiMissing') || {};
+    const parts = (m ? m[1].split(',') : []).map(k => names[k]).filter(Boolean);
+    return t('uiEmpty') + (parts.length ? ': ' + t('uiMissingLead') + ' ' + parts.join(', ') : '') + ', ' + t('uiEmptyTail');
+  }
   return known || b.error_message || b.error_code || '';
 }
 
