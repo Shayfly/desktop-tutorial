@@ -9,6 +9,7 @@
   build              only then.
 
 Approval state lives in the durable conversation log (intake_messages.interpretation), so no migration is needed:
+  {'flow': 'two_gate'}                 the FIRST message of a conversation started after 2026-10-28 (explicit mark)
   {'gate': 'spec'}                     a turn that asked for gate 1 (marks the project as on the two-gate flow)
   {'spec_approved': <fingerprint>}     the customer's gate-1 approval
 A saved plan made on this flow carries plan['spec_gate'] with the verifier's verdict. Plans saved before this flow
@@ -28,8 +29,15 @@ _HEAVY = ('login', 'personal_data', 'access_scope')
 
 # ------------------------------------------------------------------ durable gate state
 
+FLOW = 'two_gate'
+
+
 def on_two_gate_flow(messages) -> bool:
-    return any((m.get('interpretation') or {}).get('gate') == 'spec' or (m.get('interpretation') or {}).get('spec_approved')
+    """True when the conversation was STARTED on the two-gate flow (its first message carries flow='two_gate',
+    founder 2026-10-28), or when it already asked for gate 1 / recorded a spec approval. A project with none of these
+    is an earlier project and keeps the earlier path."""
+    return any((m.get('interpretation') or {}).get('flow') == FLOW
+               or (m.get('interpretation') or {}).get('gate') == 'spec' or (m.get('interpretation') or {}).get('spec_approved')
                for m in messages)
 
 

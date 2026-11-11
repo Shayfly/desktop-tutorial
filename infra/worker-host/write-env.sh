@@ -31,20 +31,31 @@ if [ -n "${WORKER_ENV_OVERRIDES:-}" ]; then
 else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
-# Provider keys kept as their own GitHub secrets (OPENAI_API_KEY,
-# ANTHROPIC_API_KEY, VENICE_API_KEY1): added when set and not already given by WORKER_ENV(_OVERRIDES).
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1; do
+# Values kept as their own GitHub secrets (OPENAI_API_KEY, ANTHROPIC_API_KEY,
+# VENICE_API_KEY1, OMNI_DATABASE_URL, OMNI_REDIS_URL). When the secret is set it REPLACES any
+# value from WORKER_ENV(_OVERRIDES): the dedicated secret is the one to rotate.
+# When it is empty the WORKER_ENV(_OVERRIDES) value, if any, stays. Names only,
+# never values.
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do
   key_value="${!key_name:-}"
-  if [ -n "$key_value" ] && ! grep -q "^${key_name}=." .env; then
+  if [ -n "$key_value" ]; then
+    if grep -q "^${key_name}=." .env; then
+      outcome="replaced the WORKER_ENV(_OVERRIDES) value"
+    else
+      outcome="added"
+    fi
     sed -i "/^${key_name}=/d" .env
     printf '%s=%s\n' "$key_name" "$key_value" >> .env
-    echo "::notice title=provider keys::${key_name} added from its GitHub secret"
-  elif [ -n "$key_value" ] && grep -q "^${key_name}=." .env; then
-    echo "::notice title=provider keys::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used"
-  elif [ -z "$key_value" ] && grep -q "^${key_name}=." .env; then
-    echo "::notice title=provider keys::${key_name} already present in WORKER_ENV(_OVERRIDES); no GitHub secret is set"
-  elif [ -z "$key_value" ] && ! grep -q "^${key_name}=." .env; then
-    echo "::notice title=provider keys::${key_name} not set; its catalog models stay NOT_CONFIGURED"
+    dedicated_from_secret="${dedicated_from_secret:-} ${key_name}"
+    echo "::notice title=dedicated secrets::${key_name} from its GitHub secret (${outcome})"
+  elif grep -q "^${key_name}=." .env; then
+    echo "::notice title=dedicated secrets::${key_name} already present in WORKER_ENV(_OVERRIDES); its GitHub secret was not used (none is set)"
+  elif [ "$key_name" = OMNI_DATABASE_URL ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  elif [ "$key_name" = OMNI_REDIS_URL ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  else
+    echo "::notice title=dedicated secrets::${key_name} not set; its catalog models stay NOT_CONFIGURED"
   fi
 done
 unset key_value
@@ -96,7 +107,18 @@ if [ -n "$suffix" ] && ! grep -q '^PREVIEW_DOMAIN_TEMPLATE=.' .env; then
 fi
 # Non-secret build knobs, published with their values so a limit lower than a
 # real build needs is visible in the deploy (rehearsal 2026-10-08 used 17 calls).
-grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=40" >> .env
+# 150 since 2026-11-09: agentic repair spends up to 6 calls per round (bld_c85cca89 hit 40 at $1.27). The
+# build's dollar cap still bounds spend; this only stops a runaway loop.
+grep -q '^OMNI_EXTERNAL_CALLS_PER_BUILD=.' .env || echo "OMNI_EXTERNAL_CALLS_PER_BUILD=150" >> .env
+# CEO 2026-11-09: a lower value pasted earlier into WORKER_ENV (40) must not keep stopping builds; raise it to the
+# floor and say so. OMNI_EXTERNAL_CALLS_FLOOR=0 keeps whatever WORKER_ENV says.
+floor="${OMNI_EXTERNAL_CALLS_FLOOR:-150}"
+calls=$(sed -n 's/^OMNI_EXTERNAL_CALLS_PER_BUILD=//p' .env | tail -n 1)
+if [ "$floor" != "0" ] && [[ "$calls" =~ ^[0-9]+$ ]] && [ "$calls" -lt "$floor" ]; then
+  sed -i '/^OMNI_EXTERNAL_CALLS_PER_BUILD=/d' .env
+  echo "OMNI_EXTERNAL_CALLS_PER_BUILD=$floor" >> .env
+  echo "::notice title=build-knobs::OMNI_EXTERNAL_CALLS_PER_BUILD raised from $calls to $floor (dollar cap unchanged)"
+fi
 knobs=$(grep -E '^(OMNI_EXTERNAL_CALLS_PER_BUILD|OMNI_EXTERNAL_BUDGET_USD|OMNI_MAX_REPAIR_ROUNDS|OMNI_MODEL_ROUTING|OMNI_MODEL_MIN_QUALITY|OMNI_MODEL_TASK_MIN_QUALITY|OMNI_ZERO_COST_MODE|OMNI_ALLOW_EXTERNAL_FALLBACK)=' .env | tr '\n' ' ')
 echo "::notice title=build-knobs::${knobs:-none set}"
 echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | sort | tr '\n' ' '; echo
@@ -105,15 +127,18 @@ echo "Configured variable names:"; cut -d= -f1 .env | grep -v '^#' | grep . | so
 # Golden E2E #1 (2026-10-07): a build passed generation and sandbox
 # verification and then failed at the very end on R2 with "Credential access
 # key has length 34, should be 32" -- a pasted value had extra characters.
+# 2026-11-06: a value that came from its own GitHub secret must be fixed THERE, not in WORKER_ENV
+# (deploy 149 told the owner to edit WORKER_ENV for a quoted OMNI_REDIS_URL that came from secret OMNI_REDIS_URL).
+secret_for() { case " ${dedicated_from_secret:-} " in *" $1 "*) echo "secret $1";; *) echo "WORKER_ENV";; esac; }
 problems=0
 while IFS= read -r line; do
   case "$line" in ''|'#'*) continue;; esac
   name=${line%%=*}; value=${line#*=}
   if [[ "$value" =~ ^[[:space:]] || "$value" =~ [[:space:]]$ ]]; then
-    echo "::error title=WORKER_ENV::${name} has spaces before or after the value"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} has spaces before or after the value"; problems=1
   fi
   if [[ "$value" =~ ^[\"\'] || "$value" =~ [\"\']$ ]]; then
-    echo "::error title=WORKER_ENV::${name} is wrapped in quotes; paste the value without quotes"; problems=1
+    echo "::error title=$(secret_for "$name")::${name} is wrapped in quotes; paste the value without quotes"; problems=1
   fi
   if printf '%s' "$value" | LC_ALL=C grep -q '[^ -~]'; then
     echo "::error title=WORKER_ENV::${name} contains invisible or non-ASCII characters (often copied from a web page); type or re-copy the value"; problems=1
@@ -155,6 +180,6 @@ secret_key=$(sed -n 's/^OMNI_SECRET_KEY=//p' .env | head -n 1)
 echo "::notice title=secret-lengths::OMNI_SECRET_KEY=${#secret_key} characters (preflight.py:38 requires >= 48; not blocking yet)"
 unset ak sk sandbox_secret secret_key
 if [ "$problems" -ne 0 ]; then
-  echo "::error title=WORKER_ENV::fix the lines above in the GitHub secret WORKER_ENV, then run Deploy build worker again"
+  echo "::error title=WORKER_ENV::fix each line above in the GitHub secret named in its title (a dedicated secret such as OMNI_REDIS_URL, otherwise WORKER_ENV), then run Deploy build worker again"
   exit 1
 fi

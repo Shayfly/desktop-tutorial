@@ -108,6 +108,9 @@ class EndpointParityTests(unittest.TestCase):
     def setUpClass(cls):
         tree = ast.parse((ROOT / "omni_prod/investor_app.py").read_text())
         cls.funcs = {n.name: ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+        # 79: the plan view's admission lives in _plan_admission, shared with the chat; the view must call it.
+        assert "_plan_admission(account.id" in cls.funcs["v28_build_contract_preview"]
+        cls.funcs["v28_build_contract_preview"] += "\n" + cls.funcs["_plan_admission"].replace("account_id", "account.id")
 
     def test_both_endpoints_use_the_shared_decision(self):
         for name in ("v28_build_contract_preview", "v28_build_async"):

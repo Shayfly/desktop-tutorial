@@ -1,0 +1,50 @@
+name: neon preview branches
+# Michael 2026-11-11 (after 72): the Neon-Vercel integration creates a database branch `preview/<git branch>` in
+# 148ai-db-v2 for every preview deployment and never removes it (166 found, none used).
+#   * PR closed            -> delete that PR's preview database (the deletion policy)
+#   * daily                -> list what would be pruned; ALERT (red run) if more than 50 preview branches remain
+#   * workflow_dispatch    -> prune every preview branch without an open PR; dry run unless apply=true
+# Never touches main, backups, protected branches or the branch of an open PR. Needs the repository secret
+# NEON_API_KEY. Each result line is its own annotation.
+on:
+  pull_request_target:
+    types: [closed]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "true = delete. Anything else = dry run (list only)."
+        required: false
+        default: "false"
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: neon-preview-branches
+  cancel-in-progress: false
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NEON_PROJECT: aged-tree-68103298
+    steps:
+      # Base-branch code only (pull_request_target): the PR's own code is never checked out or run with the secret.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: PR closed -- delete its preview database
+        if: github.event_name == 'pull_request_target'
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" --only "$HEAD_REF" --apply --alert-over 100000
+      - name: prune (dispatch) / report and alert (daily)
+        if: github.event_name != 'pull_request_target'
+        env:
+          APPLY: ${{ inputs.apply }}
+        run: |
+          if [ "$APPLY" = "true" ]; then flag=--apply; else flag=; fi
+          python3 tools/neon_preview_branches.py --project "$NEON_PROJECT" --repo "$GITHUB_REPOSITORY" $flag

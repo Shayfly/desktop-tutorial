@@ -37,11 +37,39 @@ _NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 # or the approved brief make those behaviours mandatory; otherwise they are
 # NOT_REQUIRED (a booking app that only creates, lists and cancels is not
 # failed for having no "edit"). Sign-in approved as NONE removes auth/role.
-_UPDATE_WORDS = ('edit', 'update', 'change', 'rename', 'mark', 'complete', 'done', 'toggle', 'status',
-                 'עריכ', 'ערוך', 'לערוך', 'עדכון', 'לעדכן', 'שינוי', 'לשנות', 'סימון', 'לסמן', 'סמן', 'הושלם',
-                 'בוצע', 'השלמה', 'סטטוס', 'מצב')
-_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחק', 'הסר', 'להסיר', 'ביטול', 'לבטל',
-                 'בטל', 'ארכיון')
+# 2026-11-10: whole Hebrew words with prefixes, never substrings: the stems 'בטל', 'מחק', 'הסר' matched "בטלפון",
+# "מחקר", "הסרט" and 'מצב' matched "במצב רוח". This file runs alone inside the sandbox, so the matcher is a copy of
+# omni_prod.vocabulary (tests/test_vocabulary_20261110.py keeps both identical).
+_UPDATE_WORDS = (
+    'edit*', 'update*', 'change', 'changes', 'changing', 'rename*', 'mark', 'marks', 'marked', 'done', 'complete',
+    'completed', 'completion', 'toggle*', 'status', 'statuses', 'modify', 'reschedule*', 'עריכה', 'עריכת', 'לערוך',
+    'ערוך', 'ערכו', 'עורך', 'עורכת', 'נערך', 'עדכון', 'עדכונים', 'לעדכן', 'עדכן', 'עדכנו', 'מעדכן', 'מעדכנת',
+    'מתעדכן', 'שינוי', 'שינויים', 'לשנות', 'סימון', 'לסמן', 'סמן', 'סמנו', 'מסמן', 'הושלם', 'הושלמה', 'בוצע',
+    'בוצעה', 'השלמה', 'סטטוס', 'סטטוסים', 'מצב המשימה', 'מצב ההזמנה', 'מצב הטיפול', 'להזיז', 'הזזה', 'לדחות',
+    'דחייה', 'לתקן פרטים', 'תיקון פרטים',
+)
+_DELETE_WORDS = (
+    'delete*', 'remove*', 'cancel*', 'archive*', 'unsubscribe*', 'מחיקה', 'מחיקת', 'למחוק', 'מחק', 'מחקו', 'מוחק',
+    'מוחקת', 'נמחק', 'נמחקת', 'למחיקה', 'להסיר', 'הסר', 'הסירו', 'הסרה', 'הסרת', 'מסיר', 'ביטול', 'ביטולים', 'לבטל',
+    'בטל', 'בטלו', 'מבטל', 'מבטלת', 'בוטל', 'בוטלה', 'ארכיון', 'לארכב', 'ארכוב', 'להוריד מהרשימה', 'הסרה מהרשימה',
+    'הסרה מרשימת',
+)
+_HE = '\u0590-\u05FF'
+_PREFIX = r'(?:ו|ש|כש|מ|ב|ל|כ|ה|וה|וב|ול|ומ|וש|שה|שב|של|שמ|מה|בה|לה|כה|וכש)?'
+
+
+def _vocab_entry(word: str) -> str:
+    stem = word.endswith('*')
+    w = word[:-1] if stem else word
+    body = re.escape(w).replace(r'\ ', r'[\s\-]+').replace("'", '[\'\u05F3]').replace('"', '["\u05F4]')
+    if re.search(f'[{_HE}]', w):
+        return _PREFIX + body + (f'[{_HE}]*' if stem else '')
+    return body + (r'\w*' if stem else '')
+
+
+def _has_any(text: str, words) -> bool:
+    alts = '|'.join(_vocab_entry(w) for w in sorted(set(words), key=len, reverse=True))
+    return bool(re.search(f'(?<![\\w{_HE}])(?:{alts})(?![\\w{_HE}])', text or '', re.I))
 
 
 def _no_login(contract: Mapping[str, Any]) -> bool:
@@ -66,9 +94,9 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
         text = str(build_contract.get('prompt') or '').lower()
         if _no_login(build_contract):
             not_required += ['auth', 'role']
-        if not any(w in text for w in _UPDATE_WORDS):
+        if not _has_any(text, _UPDATE_WORDS):
             not_required.append('data_update')
-        if not any(w in text for w in _DELETE_WORDS):
+        if not _has_any(text, _DELETE_WORDS):
             not_required.append('data_delete')
     # A content-only website approved in the brief (no sign-in, no personal data, no external integration,
     # no storage/scheduled/outbound infrastructure) has no record to create. Only data_create is waived; data_read
@@ -77,7 +105,10 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
             and _no_login(build_contract) and 'integration' in not_required
             and not (kinds & {'object_storage', 'scheduled_http', 'outbound'})
             and 'prompt' in build_contract):
-        not_required.append('data_create')
+        # bld_2ded07f0 (2026-11-09, café landing page): a word in the approved text ("בטל", "remove"...) kept
+        # data_delete required for a site that stores nothing, and the build failed "missing data_delete" with
+        # every check passing. A content-only site has no records: nothing to create, change or delete.
+        not_required += ['data_create', 'data_update', 'data_delete']
     waived = tuple(dict.fromkeys(not_required))
     return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k not in waived), waived
 
@@ -515,8 +546,45 @@ def _capture(capture: Mapping[str, str], response: HttpResponse, variables: dict
     data = response.json()
     for variable, dotted_path in capture.items():
         current = data
-        for part in str(dotted_path).split('.'):
+        for part in _capture_parts(str(dotted_path)):
+            if isinstance(part, _DigitKey) and isinstance(current, list):
+                part = int(part)
+            if isinstance(part, int):
+                if not isinstance(current, list) or not -len(current) <= part < len(current):
+                    raise AssertionError(f'capture path {dotted_path!r} missing from response')
+                current = current[part]
+                continue
             if not isinstance(current, Mapping) or part not in current:
                 raise AssertionError(f'capture path {dotted_path!r} missing from response')
             current = current[part]
         variables[str(variable)] = current
+
+
+_CAPTURE_TOKEN = re.compile(r'\[(-?\d+)\]|([^.\[\]]+)')
+
+
+def _capture_parts(dotted_path: str) -> list:
+    """Split a capture path into keys and list indexes.
+
+    Founder build bld_ca727ba7 (2026-11-08): GET /api/classes returned a JSON
+    array whose first item had id 1, the plan captured '[0].id', and the old
+    resolver only walked object keys, so a correct app failed A2-A4. Accepted
+    forms: '[0].id', 'items[0].id', 'items.0.id', '$.items[0].id', 'id'.
+    A digit-only segment indexes a list only when the current value is a list
+    (an object key '0' still works, see _capture)."""
+    path = dotted_path.strip()
+    if path.startswith('$'):
+        path = path[1:].lstrip('.')
+    parts: list = []
+    for m in _CAPTURE_TOKEN.finditer(path):
+        if m.group(1) is not None:
+            parts.append(int(m.group(1)))
+        else:
+            seg = m.group(2).strip()
+            if seg:
+                parts.append(_DigitKey(seg) if seg.lstrip('-').isdigit() else seg)
+    return parts
+
+
+class _DigitKey(str):
+    """A dotted segment like '0': an index into a list, or the key '0' of an object."""

@@ -19,11 +19,18 @@ SUMMARY_FAILURE_ID = 'ALSO_FAILING'
 REPAIR_ROUNDS_HARD_MAX = 8
 
 
+# #95: a failed report with no failures still yields a taxonomy row (layer sandbox, check_failed_unspecified).
+UNSPECIFIED_ROUND_FAILURE_ID = 'ROUND_unspecified'
+
+
 @dataclass(frozen=True)
 class ExecutionReport:
     passed: bool
     failures: tuple[AcceptanceFailure, ...] = ()
     build_log: str = ''
+    # Audit 2026-11-02 findings 2+14: how many tests EXECUTED (passed/failed/error, not skipped) across the verify
+    # commands, read from the runner's own summary. None = no recognised runner reported a count.
+    tests_executed: int | None = None
 
 @dataclass(frozen=True)
 class AutonomousResult:
@@ -75,7 +82,19 @@ class AutonomousProductEngine:
         diagnostic = '\n'.join(str(f.get('message', '')) + '\n' + str(f.get('evidence', ''))
                                for f in failures if isinstance(f, dict))
         summary['candidate_files'] = attributed_files(repo, stderr=diagnostic)
+        # Agentic repair (2026-11-09): the working copy the repair agent reads and edits. Underscore key: never
+        # serialised into a prompt (RepairAgent's _filter_repo_summary keeps only named keys). Already redacted.
+        summary['_repository'] = dict(repo)
         return summary
+
+    @staticmethod
+    def failure_signature(report) -> frozenset:
+        """What a round failed on, as the repairer is told it: the set of (acceptance_id, message), and nothing else
+        (Brain 2 point 6, 2026-11-02). The repository is NOT part of it -- the point is to stop when different
+        repositories keep failing the same way (bld_96ab03c8: four snapshots, one message); a repository that does
+        not change is caught earlier by the fingerprint. Evidence is NOT part of it either: it carries timings and
+        log tails that differ on every run of the same failure, so including it would never match."""
+        return frozenset((f.acceptance_id, f.message) for f in report.failures)
 
     @staticmethod
     def _fingerprint(repo: dict[str, str]) -> str:
@@ -148,10 +167,14 @@ class AutonomousProductEngine:
             return []
         own = [f for f in report.failures if f.acceptance_id != SUMMARY_FAILURE_ID]
         if len(own) == len(report.failures):
-            return own
-        group = getattr(self.executor, 'group_failures', None) or ()
-        seen = {(f.acceptance_id, f.message) for f in own}
-        return own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+            observed = own
+        else:
+            group = getattr(self.executor, 'group_failures', None) or ()
+            seen = {(f.acceptance_id, f.message) for f in own}
+            observed = own + [f for f in group if (f.acceptance_id, f.message) not in seen]
+        # #95: a failed round that names no failure is still a failure in the taxonomy, never zero rows
+        return observed or [AcceptanceFailure(UNSPECIFIED_ROUND_FAILURE_ID, 'round failed without a diagnostic',
+                                              (report.build_log or '')[:500])]
 
     @staticmethod
     def progress(report) -> tuple[int, int]:
@@ -192,6 +215,31 @@ class AutonomousProductEngine:
         return (stage, -len(report.failures))
 
     def build(self, prompt: str) -> AutonomousResult:
+        """C24 (2026-10-20): the failure taxonomy and first_pass are written whatever happens. They used to be computed
+        only at the very end of a successful _build(), so a build that raised (a model or sandbox error) left the
+        previous build's values or nothing at all, and the rounds already verified were lost."""
+        self._taxonomy_rounds, self._preflight_events = [], []
+        self._round0_passed = None
+        self.failure_taxonomy, self.first_pass = [], None
+        result = None
+        try:
+            result = self._build(prompt)
+            return result
+        finally:
+            self._refresh_taxonomy(result)
+
+    def _refresh_taxonomy(self, result: 'AutonomousResult | None' = None) -> None:
+        from .failure_taxonomy import records
+        rounds = getattr(self, '_taxonomy_rounds', None) or []
+        self.failure_taxonomy = sorted(records(rounds) + list(getattr(self, '_preflight_events', None) or []),
+                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
+        # #95 FAILED_BUILD_REPORTED_FIRST_PASS: first pass = round 0 was verified AND its report passed AND the build
+        # returned ready. An empty failure list is not a pass (ExecutionReport(False, ()) is a failed round); a build
+        # that raised has no result and is never a first pass.
+        self.first_pass = (bool(rounds) and getattr(self, '_round0_passed', None) is True and not rounds[0][1]
+                           and result is not None and result.status == 'ready')
+
+    def _build(self, prompt: str) -> AutonomousResult:
         """Generate, verify, repair.
 
         Basic stop-loss (founder decision 2026-10-07): the sandbox is
@@ -206,10 +254,10 @@ class AutonomousProductEngine:
         repo = apply_patch({}, initial)
         if getattr(self,'repository_transform',None):
             repo = self.repository_transform(repo)
-        self._preflight_events = []
         repo = self._preflight(repo, spec, 0)
         report = self.executor.execute(repository=repo, spec=spec)
         self._taxonomy_rounds = [(0, self._observed_failures(report))]
+        self._round0_passed = bool(report.passed)
         self._snapshot(0, repo, report, 'passed' if report.passed else 'initial')
         rounds = 0
         seen = {self._fingerprint(repo)}
@@ -220,12 +268,40 @@ class AutonomousProductEngine:
         # that goes backwards is discarded; the next one starts from the best.
         best_repo, best_report = repo, report
         discarded_note = None
+        # The plan verified in round 0 is a floor for every repair round (plan_floor, founder 2026-11-02).
+        from . import plan_floor
+        floor, plan_note = plan_floor.plan_block(repo), None
+        # Founder build bld_ca727ba7 (2026-11-08): the loop stopped after 2 of 6 rounds on one unchanged patch. The
+        # stop-loss stays, but production gets `no_progress_retries` second chances: the next repair is told plainly
+        # that its last answer changed nothing, before the loop gives up. 0 (the default) is the old behaviour.
+        chances = int(getattr(self, 'no_progress_retries', 0) or 0)
+        progress_note = None
+
+        def second_chance(reason: str) -> bool:
+            nonlocal chances, progress_note
+            if chances <= 0 or rounds >= self.max_repair_rounds:
+                return False
+            chances -= 1
+            self.trace[-1:] and self.trace[-1].setdefault('second_chance', reason)
+            progress_note = {'acceptance_id': 'NO_PROGRESS',
+                             'message': ('Your previous repair did not change the outcome (' + reason + '). Read the '
+                                         'failing checks again, find the code they exercise, and change THAT code. '
+                                         'If a check sends a request, make the endpoint return exactly what it expects.'),
+                             'evidence': ''}
+            return True
+
         while not report.passed and rounds < self.max_repair_rounds:
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
             if discarded_note:
                 failures = failures + [discarded_note]
                 discarded_note = None
+            if plan_note:
+                failures = failures + [plan_note]
+                plan_note = None
+            if progress_note:
+                failures = failures + [progress_note]
+                progress_note = None
             transform = getattr(self, 'repository_transform', None)
             if transform is not None and hasattr(transform, 'redact_text'):
                 failures = [{k: transform.redact_text(v) if isinstance(v, str) else v
@@ -235,9 +311,18 @@ class AutonomousProductEngine:
                 repo_summary=self._repair_summary(repo, failures),
                 failures=failures,
             )
+            if not patch:
+                # Brain 2 point 4 (2026-11-02): an empty patch is its own label; no_progress_repository_unchanged is
+                # kept for a non-empty patch whose result is identical to the repository it was applied to.
+                stop_reason = 'no_progress_empty_patch'
+                if second_chance(stop_reason):
+                    continue
+                break
             candidate = apply_patch(repo, patch)
             if getattr(self,'repository_transform',None):
                 candidate = self.repository_transform(candidate)
+            # Before the fingerprint: a repair that only cut the plan is then "unchanged", not a new state to verify.
+            candidate, plan_lost = plan_floor.enforce(candidate, floor, repo)
             self.trace.append({
                 'round': rounds,
                 'failing': sorted({f['acceptance_id'] for f in failures}),
@@ -250,9 +335,16 @@ class AutonomousProductEngine:
                 # `repo` and `report` stay paired: the rejected candidate is not adopted.
                 stop_reason = ('no_progress_repository_unchanged' if candidate == repo
                                else 'no_progress_repository_cycle')
+                if second_chance(stop_reason):
+                    continue
                 break
             seen.add(fingerprint)
             candidate = self._preflight(candidate, spec, rounds)
+            candidate, lost_in_preflight = plan_floor.enforce(candidate, floor, repo)   # the pre-flight may edit the plan
+            plan_lost = plan_lost + [x for x in lost_in_preflight if x not in plan_lost]
+            if plan_lost:
+                self.trace[-1]['plan_restored'] = plan_lost
+                plan_note = plan_floor.note(plan_lost)
             new_report = self.executor.execute(repository=candidate, spec=spec)
             self._taxonomy_rounds.append((rounds, self._observed_failures(new_report)))
             worse = not new_report.passed and self.progress(new_report) < self.progress(best_report)
@@ -270,16 +362,25 @@ class AutonomousProductEngine:
                                   'evidence': '; '.join(failing)[:600]}
                 repo, report = best_repo, best_report
                 continue
+            same_failure = self.failure_signature(new_report) == self.failure_signature(report)
             repo, report = candidate, new_report
             if self.progress(report) >= self.progress(best_report):
                 best_repo, best_report = repo, report
+            if same_failure:
+                # bld_96ab03c8 (founder 2026-11-01 23:33): the repository changed every round, but the failure did
+                # not -- four paid rounds on one identical message. The same set of (acceptance_id, message) as the
+                # round before means the repair is not reaching the cause; stop instead of paying again.
+                stop_reason = 'no_progress_same_failure'
+                if second_chance(stop_reason):
+                    continue
+                break
+        else:
+            # The loop ran out of rounds (no break): a second chance used earlier must not leave its no_progress label.
+            if not report.passed:
+                stop_reason = 'max_repair_rounds'
         if not report.passed:
             repo, report = best_repo, best_report
-        from .failure_taxonomy import records
-        self.failure_taxonomy = sorted(records(self._taxonomy_rounds) + self._preflight_events,
-                                       key=lambda r: (r['round_index'], r['layer'] != 'preflight'))
-        self.first_pass = bool(self._taxonomy_rounds) and not self._taxonomy_rounds[0][1]
-        return AutonomousResult(
+        return AutonomousResult(                     # build()'s finally refreshes the taxonomy with this result
             'ready' if report.passed else 'failed',
             spec,
             repo,

@@ -130,11 +130,23 @@ def validate(c: RequirementsContract) -> list[str]:
 _INTEGRATION_WORDS = (
     ('payments', r'(תשלו[םמ]|סליקה|כרטיס אשראי|stripe|paypal|payment|checkout)'),
     ('email', r'(שליחת מייל|שליחת אימייל|newsletter|send email|email notification)'),
-    ('sms', r'(sms|הודעת טקסט|וואטסאפ|whatsapp)'),
-    ('maps', r'(מפה|google maps|mapbox|\bmap\b)'),
+    # 2026-11-09: "כפתור הזמנה ב-WhatsApp" is a link, not a messaging integration. Only SENDING messages counts.
+    ('sms', r'(\bsms\b|הודעות? טקסט|שליחת הודעות|לשלוח הודעות|תזכורות? (?:ב|ל)?(?:sms|וואטסאפ|whatsapp)|'
+            r'send (?:sms|whatsapp)|whatsapp (?:notifications|reminders|messages to))'),
+    ('maps', r'((?<![\w\u0590-\u05FF])(?:ו|ב|ה|על ה)?(?:מפה|מפת|מפות)(?![\u0590-\u05FF])|google maps|mapbox|\bmaps?\b)'),
     ('calendar', r'(google calendar|יומן גוגל|outlook calendar)'),
     ('ai_model', r'(צ\'?אטבוט|chatbot|בינה מלאכותית|\bai\b|gpt|llm)'),
 )
+
+
+_NEGATION = re.compile(r'(?:(?<![\w\u0590-\u05FF])ו?(?:בלי|ללא|אין|לא צריך|לא רוצה|לא יהיה|לא כולל|לא נדרש|לא נדרשת)|\b(?:without|no))'
+                       r'(?:\s+|\s*[-–]\s*)(?:(?!צריך|רוצה|חייב|need|want)[^.,;:\n]){0,60}', re.I)
+
+
+def strip_negated(text: str) -> str:
+    """2026-11-09 ("בלי הרשמה, בלי התחברות ובלי תשלום" became a payments integration that blocked the build):
+    what the customer explicitly excludes is not a requirement."""
+    return _NEGATION.sub(' ', text or '')
 
 
 def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
@@ -177,9 +189,14 @@ def from_brief(brief: d.Brief, *, cost_max_usd=None) -> RequirementsContract:
         nfr.append(Requirement('S1', 'Personal details are visible only to authorized people', 'security',
                                origin('personal_data'), confidence('personal_data')))
     from ..product_architect import strip_whatsapp_links  # a WhatsApp link is a hyperlink, not an SMS integration
-    integ_text = strip_whatsapp_links(text_all)
+    integ_text = strip_negated(strip_whatsapp_links(text_all))
+    from ..semantic_capabilities import overrides as _semantic
+    decided = _semantic(getattr(brief, 'semantic_decisions', None) or (), prompt=brief.prompt)
+    _cap = {'payments': 'integration.payment', 'sms': 'integration.messaging', 'email': 'integration.email',
+            'maps': 'integration.maps'}
     integrations = [{'kind': k, 'detected_from': 'request text', 'status': 'requires capability check'}
-                    for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)]
+                    for k, pat in _INTEGRATION_WORDS if re.search(pat, integ_text, re.I)
+                    and decided.get(_cap.get(k, '')) != 'not_required']
     reqs = fr + nfr
     content_only = d._content_only(v, login)
     ac = [{'id': 'AC1', 'covers': 'F1',
