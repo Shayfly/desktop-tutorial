@@ -97,6 +97,28 @@ class ProviderKeySecret(unittest.TestCase):
         self.assertNotIn('sk-old-yyy', out)
 
 
+class ReplicateTokenSecret(unittest.TestCase):
+    """#324 (Michael 2026-11-12): a real build makes its image on the worker, whose .env had no REPLICATE_API_TOKEN
+    (deploy 274ad82 listed no such name), so media.image stayed NOT_CONFIGURED in every build. The token arrives as
+    its own GitHub secret, like the other provider keys."""
+
+    def test_the_secret_is_written_once_and_never_printed(self):
+        token = 'r8_' + 'Q' * 37
+        code, out, dotenv = run({'REPLICATE_API_TOKEN': token}, REPLICATE_API_TOKEN='r8_' + 'o' * 37)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'REPLICATE_API_TOKEN'), [token])
+        self.assertIn('REPLICATE_API_TOKEN from its GitHub secret (replaced the WORKER_ENV(_OVERRIDES) value)', out)
+        self.assertNotIn('QQQQ', out)
+        self.assertNotIn('oooo', out)
+
+    def test_without_it_the_log_says_images_stay_not_configured(self):
+        code, out, dotenv = run()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(values(dotenv, 'REPLICATE_API_TOKEN'), [])
+        self.assertIn('REPLICATE_API_TOKEN not set; image generation in builds stays NOT_CONFIGURED', out)
+        self.assertNotIn('REPLICATE_API_TOKEN not set; its catalog models', out)
+
+
 class WorkflowPassesTheSecret(unittest.TestCase):
     def test_deploy_worker_passes_omni_database_url_to_write_env(self):
         text = WORKFLOW.read_text()
@@ -195,7 +217,7 @@ class EveryWorkflowPassesTheDedicatedSecrets(unittest.TestCase):
 
     def test_the_five_names_come_from_the_script(self):
         self.assertEqual(dedicated_names(), ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'VENICE_API_KEY1',
-                                             'OMNI_DATABASE_URL', 'OMNI_REDIS_URL'])
+                                             'REPLICATE_API_TOKEN', 'OMNI_DATABASE_URL', 'OMNI_REDIS_URL'])
 
     def test_every_workflow_that_runs_write_env_passes_all_of_them(self):
         runners = {name: [w for w, _ in steps_running_write_env(wf)] for name, wf in self.workflows().items()}

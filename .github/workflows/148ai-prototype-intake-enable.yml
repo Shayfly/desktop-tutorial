@@ -47,6 +47,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           VENICE_API_KEY1: ${{ secrets.VENICE_API_KEY1 }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           OMNI_DATABASE_URL: ${{ secrets.OMNI_DATABASE_URL }}
           OMNI_REDIS_URL: ${{ secrets.OMNI_REDIS_URL }}
         run: bash infra/worker-host/write-env.sh

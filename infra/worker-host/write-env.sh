@@ -32,11 +32,11 @@ else
   echo "::notice title=WORKER_ENV_OVERRIDES::not set (empty), using WORKER_ENV only"
 fi
 # Values kept as their own GitHub secrets (OPENAI_API_KEY, ANTHROPIC_API_KEY,
-# VENICE_API_KEY1, OMNI_DATABASE_URL, OMNI_REDIS_URL). When the secret is set it REPLACES any
+# VENICE_API_KEY1, REPLICATE_API_TOKEN, OMNI_DATABASE_URL, OMNI_REDIS_URL). When the secret is set it REPLACES any
 # value from WORKER_ENV(_OVERRIDES): the dedicated secret is the one to rotate.
 # When it is empty the WORKER_ENV(_OVERRIDES) value, if any, stays. Names only,
 # never values.
-for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_URL OMNI_REDIS_URL; do
+for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 REPLICATE_API_TOKEN OMNI_DATABASE_URL OMNI_REDIS_URL; do
   key_value="${!key_name:-}"
   if [ -n "$key_value" ]; then
     if grep -q "^${key_name}=." .env; then
@@ -54,6 +54,8 @@ for key_name in OPENAI_API_KEY ANTHROPIC_API_KEY VENICE_API_KEY1 OMNI_DATABASE_U
     echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
   elif [ "$key_name" = OMNI_REDIS_URL ]; then
     echo "::notice title=dedicated secrets::${key_name} not set in its GitHub secret nor in WORKER_ENV(_OVERRIDES)"
+  elif [ "$key_name" = REPLICATE_API_TOKEN ]; then
+    echo "::notice title=dedicated secrets::${key_name} not set; image generation in builds stays NOT_CONFIGURED"
   else
     echo "::notice title=dedicated secrets::${key_name} not set; its catalog models stay NOT_CONFIGURED"
   fi
