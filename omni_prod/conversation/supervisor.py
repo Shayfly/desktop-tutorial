@@ -788,10 +788,31 @@ class ConversationSupervisor:
                        and bool((interp.reply or '').strip()))
         if listening and model_reply:
             turn.reply, turn.questions = interp.reply.strip(), []
+            # #330 (Michael 2026-11-12): when the NEXT question is for a field only the customer may set
+            # (delegable=False: content_only, access_scope, unavailable), the customer sees BOTH the model's reply and
+            # that exact question with its buttons. Hiding it left a landing page unable to ever reach the summary:
+            # the model asked "anything else?" while the brief waited for an answer no typed text could give.
+            # When nothing is asked this turn, the next question is the open field the brief still waits for: a field
+            # "held open" after an unsettled repeat is otherwise never asked again, and a customer-only one can then
+            # never be set (production 2026-11-12: content_only held open, the summary unreachable).
+            nxt = res.asked or [d.BY_ID[f] for f in (row.brief.open_material or ()) if f in d.BY_ID]
+            held = self._customer_only_question(nxt)
+            if held is not None:
+                text = held.he if lang == 'he' else held.en
+                if text not in turn.reply:
+                    turn.reply = f'{turn.reply} {text}'
+                turn.questions = [held]
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         return turn
+
+    @staticmethod
+    def _customer_only_question(asked):
+        """The next question when it is for a field the customer alone may set (delegable=False), else None.
+        Decided by the next question itself, not by how many fields are still missing."""
+        q = (asked or [None])[0]
+        return q if q is not None and getattr(q, 'delegable', True) is False else None
 
     @staticmethod
     def _heard(message, answers, proposals, lang):
