@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>148AI · סדנה</title>
+  <style>@font-face {
+  font-family: "Frank Ruhl Libre";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("data:font/woff2;base64,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") format("woff2");
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+:root {
+  --p-ink-900: #14110F;
+  --p-ink-600: #3A342F;
+  --p-ink-400: #6B6560;
+  --p-paper-50: #FBFAF7;
+  --p-paper-0: #FFFFFF;
+  --p-line-200: #E3DFD8;
+  --p-line-300: #C9C3B9;
+  --p-clay-600: #B8431E;
+  --p-clay-700: #9A3718;
+  --p-green-700: #1B6B47;
+  --p-amber-700: #A2650A;
+  --p-red-700: #A32A1E;
+  --p-clay-400: #E06A3E;
+  --p-green-400: #79C7A0;
+  --p-amber-400: #E5B56B;
+  --p-red-400: #F18F83;
+  --p-line-dark: #625950;
+  --p-clay-800: #843015;
+  --p-clay-350: #E3764D;
+  --p-clay-300: #E47F59;
+  --p-paper-hover: #EBEBEB;
+  --p-paper-active: #DBDBDB;
+  --p-quiet-hover: #E7E6E3;
+  --p-quiet-active: #D8D7D4;
+  --p-surface-dark-hover: #24211E;
+  --p-surface-dark-active: #2A2724;
+  --p-bg-dark-hover: #1A1816;
+  --p-bg-dark-active: #211F1D;
+
+  --s-bg-dark: #100E0C;
+  --s-surface-dark: #1A1714;
+  --s-text-dark: #F3EFE9;
+  --s-text-muted-dark: #9E958C;
+  --s-line-dark: #2C2723;
+  --s-accent-dark: var(--p-clay-400);
+
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-72: 72px;
+  --space-104: 104px;
+  --r-1: 2px;
+  --r-2: 6px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(20,17,15,.06);
+  --font-body: Arial, sans-serif;
+  --font-mono: ui-monospace, "Courier New", monospace;
+  --text-small: 12px;
+}
+
+:root, [data-theme] {
+  --c-btn-primary-bg: var(--s-accent);
+  --c-btn-primary-hover: var(--s-accent-hover);
+  --c-btn-primary-active: var(--s-accent-active);
+  --c-btn-secondary-hover: var(--s-surface-hover);
+  --c-btn-secondary-active: var(--s-surface-active);
+  --c-btn-quiet-hover: var(--s-bg-hover);
+  --c-btn-quiet-active: var(--s-bg-active);
+  --c-disabled-opacity: .45;
+  --c-btn-primary-fg: var(--s-on-accent);
+  --c-btn-secondary-bg: var(--s-surface);
+  --c-btn-quiet-bg: var(--s-bg);
+  --c-btn-neutral-fg: var(--s-text);
+  --c-btn-error-bg: var(--s-danger);
+  --c-btn-error-fg: var(--s-on-accent);
+  --c-field-bg: var(--s-surface);
+  --c-field-fg: var(--s-text);
+  --c-field-hint: var(--s-text-muted);
+  --c-field-border: var(--s-control-line);
+  --c-tag-bg: var(--s-surface);
+  --c-tag-fg: var(--s-text-muted);
+  --c-rule: var(--s-line);
+}
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --s-bg: var(--p-paper-50);
+  --s-surface: var(--p-paper-0);
+  --s-text: var(--p-ink-900);
+  --s-text-muted: var(--p-ink-400);
+  --s-line: var(--p-line-200);
+  --s-accent: var(--p-clay-600);
+  --s-control-line: var(--p-line-300);
+  --s-danger: var(--p-red-700);
+  --s-success: var(--p-green-700);
+  --s-warning: var(--p-amber-700);
+  --s-on-accent: var(--p-paper-0);
+  --s-accent-hover: var(--p-clay-700);
+  --s-accent-active: var(--p-clay-800);
+  --s-surface-hover: var(--p-paper-hover);
+  --s-surface-active: var(--p-paper-active);
+  --s-bg-hover: var(--p-quiet-hover);
+  --s-bg-active: var(--p-quiet-active);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --s-bg: var(--s-bg-dark);
+  --s-surface: var(--s-surface-dark);
+  --s-text: var(--s-text-dark);
+  --s-text-muted: var(--s-text-muted-dark);
+  --s-line: var(--s-line-dark);
+  --s-accent: var(--s-accent-dark);
+  --s-control-line: var(--p-line-dark);
+  --s-danger: var(--p-red-400);
+  --s-success: var(--p-green-400);
+  --s-warning: var(--p-amber-400);
+  --s-on-accent: var(--p-ink-900);
+  --s-accent-hover: var(--p-clay-350);
+  --s-accent-active: var(--p-clay-300);
+  --s-surface-hover: var(--p-surface-dark-hover);
+  --s-surface-active: var(--p-surface-dark-active);
+  --s-bg-hover: var(--p-bg-dark-hover);
+  --s-bg-active: var(--p-bg-dark-active);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --s-bg: var(--s-bg-dark);
+    --s-surface: var(--s-surface-dark);
+    --s-text: var(--s-text-dark);
+    --s-text-muted: var(--s-text-muted-dark);
+    --s-line: var(--s-line-dark);
+    --s-accent: var(--s-accent-dark);
+    --s-control-line: var(--p-line-dark);
+    --s-danger: var(--p-red-400);
+    --s-success: var(--p-green-400);
+    --s-warning: var(--p-amber-400);
+    --s-on-accent: var(--p-ink-900);
+    --s-accent-hover: var(--p-clay-350);
+    --s-accent-active: var(--p-clay-300);
+    --s-surface-hover: var(--p-surface-dark-hover);
+    --s-surface-active: var(--p-surface-dark-active);
+    --s-bg-hover: var(--p-bg-dark-hover);
+    --s-bg-active: var(--p-bg-dark-active);
+  }
+}
+
+.ds-button, .ds-field input, .ds-tag, .ds-skip {
+  font: inherit;
+}
+
+.ds-button {
+  --button-bg: var(--c-btn-primary-bg);
+  --button-hover: var(--c-btn-primary-hover);
+  --button-active: var(--c-btn-primary-active);
+  --button-fg: var(--c-btn-primary-fg);
+  --button-border: transparent;
+  display: inline-grid;
+  place-items: center;
+  min-block-size: var(--space-48);
+  padding-inline: var(--space-24);
+  border: 1px solid var(--button-border);
+  border-radius: var(--r-2);
+  background: var(--button-bg);
+  color: var(--button-fg);
+  cursor: pointer;
+}
+
+.ds-button[data-variant="secondary"] {
+  --button-bg: var(--c-btn-secondary-bg);
+  --button-hover: var(--c-btn-secondary-hover);
+  --button-active: var(--c-btn-secondary-active);
+  --button-fg: var(--c-btn-neutral-fg);
+  --button-border: var(--c-field-border);
+}
+
+.ds-button[data-variant="quiet"] {
+  --button-bg: var(--c-btn-quiet-bg);
+  --button-hover: var(--c-btn-quiet-hover);
+  --button-active: var(--c-btn-quiet-active);
+  --button-fg: var(--c-btn-neutral-fg);
+}
+
+.ds-button:is(:hover, [data-example="hover"]) {
+  background: var(--button-hover);
+}
+
+.ds-button:is(:active, [aria-pressed="true"], [data-example="active"]) {
+  background: var(--button-active);
+}
+
+.ds-button[data-state="error"] {
+  background: var(--c-btn-error-bg);
+  border-color: var(--c-btn-error-bg);
+  color: var(--c-btn-error-fg);
+}
+
+.ds-button > * {
+  grid-area: 1 / 1;
+}
+
+.ds-spinner {
+  box-sizing: border-box;
+  inline-size: var(--space-16);
+  block-size: var(--space-16);
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: var(--r-pill);
+  animation: ds-spin 800ms linear infinite;
+}
+
+.ds-button .ds-spinner, .ds-field .ds-spinner {
+  display: none;
+}
+
+.ds-button[aria-busy="true"] .ds-button-label {
+  visibility: hidden;
+}
+
+.ds-button[aria-busy="true"] .ds-spinner,
+.ds-field[aria-busy="true"] .ds-spinner {
+  display: block;
+}
+
+.ds-button[aria-busy="true"] {
+  cursor: wait;
+}
+
+@keyframes ds-spin {
+  to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-spinner { animation: none; }
+}
+
+.ds-field {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ds-field-control {
+  position: relative;
+  display: grid;
+}
+
+.ds-field input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--space-48);
+  padding-inline: var(--space-12);
+  border: 2px solid var(--c-field-border);
+  border-radius: var(--r-1);
+  background: var(--c-field-bg);
+  color: var(--c-field-fg);
+}
+
+.ds-field input::placeholder {
+  color: var(--c-field-hint);
+  opacity: 1;
+}
+
+.ds-field input:is(:hover, :focus, [data-example="hover"], [data-example="focus"]):enabled {
+  border-color: var(--s-accent);
+}
+
+.ds-field input[aria-invalid="true"] {
+  border-color: var(--s-danger);
+}
+
+.ds-field[aria-busy="true"] input {
+  padding-inline-end: var(--space-48);
+}
+
+.ds-field .ds-spinner {
+  position: absolute;
+  inset-inline-end: var(--space-16);
+  align-self: center;
+  color: var(--c-field-fg);
+  pointer-events: none;
+}
+
+.ds-field-hint {
+  color: var(--s-danger);
+}
+
+.ds-tag {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--c-field-border);
+  border-radius: var(--r-pill);
+  background: var(--c-tag-bg);
+  color: var(--c-tag-fg);
+  font: var(--text-small) / 1.5 var(--font-mono);
+}
+
+button.ds-tag {
+  min-block-size: var(--space-48);
+  cursor: pointer;
+}
+
+button.ds-tag:hover:enabled {
+  border-color: var(--s-accent);
+}
+
+.ds-button:disabled, .ds-field input:disabled, .ds-tag:disabled {
+  opacity: var(--c-disabled-opacity);
+  background: var(--s-surface);
+  color: var(--s-text);
+  border-color: var(--c-field-border);
+  cursor: not-allowed;
+}
+
+.ds-rule {
+  margin: 0;
+  border: 0;
+  border-block-start: 1px solid var(--c-rule);
+}
+
+:is(.ds-button, .ds-field input, .ds-tag, .ds-skip):is(:focus-visible, [data-example="focus"]) {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
+
+.ds-card, .ds-preview {
+  display: block;
+  min-inline-size: 0;
+  overflow: hidden;
+  border: 1px solid var(--s-line);
+  border-radius: var(--r-2);
+  background: var(--s-surface);
+  color: var(--s-text);
+}
+
+.ds-card { text-decoration: none; }
+.ds-card:is(:hover, [data-example="hover"]):not([aria-disabled="true"]) {
+  border-color: var(--c-field-border);
+}
+.ds-card:is(:active, [data-example="active"]):not([aria-disabled="true"]) {
+  background: var(--s-surface-active);
+}
+.ds-card[aria-disabled="true"] { opacity: var(--c-disabled-opacity); cursor: not-allowed; }
+
+.ds-card-art {
+  display: grid;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  background: var(--s-bg);
+  color: var(--s-text);
+  border-block-end: 1px solid var(--s-line);
+}
+
+.ds-card-body { display: grid; gap: var(--space-4); padding: var(--space-16); }
+.ds-meta { color: var(--s-text-muted); font: var(--text-small) / 1.5 var(--font-mono); }
+
+.ds-preview { box-shadow: var(--shadow-1); }
+.ds-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-block-size: var(--space-32);
+  padding-inline: var(--space-12);
+  border-block-end: 1px solid var(--s-line);
+}
+.ds-preview-dot {
+  inline-size: var(--space-8);
+  block-size: var(--space-8);
+  border-radius: var(--r-pill);
+  background: var(--c-field-border);
+}
+.ds-preview-body {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-8);
+  min-block-size: calc(var(--space-104) + var(--space-48));
+  padding: var(--space-16);
+  background: var(--p-paper-0);
+  color: var(--p-ink-900);
+  overflow-wrap: anywhere;
+}
+.ds-preview-error { color: var(--p-red-700); }
+.ds-preview-body .ds-spinner { display: block; }
+
+.ds-accordion { border-block-end: 1px solid var(--s-line); }
+.ds-accordion summary, .ds-accordion-disabled {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-block-size: calc(var(--space-48) + var(--space-8));
+  padding: var(--space-8) var(--space-12);
+  color: var(--s-text);
+  cursor: pointer;
+}
+.ds-accordion summary::before, .ds-accordion-disabled::before {
+  content: "";
+  inline-size: var(--space-8);
+  block-size: var(--space-8);
+  border-inline-end: 2px solid currentColor;
+  border-block-end: 2px solid currentColor;
+  transform: rotate(135deg);
+}
+.ds-accordion[open] summary::before { transform: rotate(45deg); }
+.ds-accordion summary:is(:hover, [data-example="hover"]) { background: var(--s-bg-hover); }
+.ds-accordion p { margin: 0; padding: var(--space-12); }
+.ds-accordion-disabled { opacity: var(--c-disabled-opacity); cursor: not-allowed; }
+:is(.ds-card, .ds-accordion summary):is(:focus-visible, [data-example="focus"]) {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
+
+.ds-form-field { display: grid; gap: var(--space-4); min-inline-size: 0; }
+.ds-form-field label { overflow-wrap: anywhere; }
+.ds-form-field :is(input, textarea) {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--space-48);
+  padding: var(--space-12);
+  border: 2px solid var(--c-field-border);
+  border-radius: var(--r-1);
+  background: var(--c-field-bg);
+  color: var(--c-field-fg);
+  font: inherit;
+}
+.ds-form-field [dir="ltr"] { direction: ltr; text-align: start; }
+.ds-form-field textarea { min-block-size: var(--space-104); resize: vertical; }
+.ds-form-field :is(input, textarea):enabled:is(:hover, :focus, [data-example="hover"]) { border-color: var(--s-accent); }
+.ds-form-field :is(input, textarea)[aria-invalid="true"] { border-color: var(--s-danger); }
+.ds-form-field :is(input, textarea):disabled { opacity: var(--c-disabled-opacity); cursor: not-allowed; }
+.ds-form-field :is(input, textarea):focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+.ds-form-field[aria-busy="true"] .ds-field-control { position: relative; }
+.ds-form-field[aria-busy="true"] .ds-spinner {
+  position: absolute;
+  inset-inline-end: var(--space-16);
+  inset-block-start: var(--space-16);
+  pointer-events: none;
+}
+.ds-form-field[aria-busy="true"] :is(input, textarea):not([dir="ltr"]) { padding-inline-end: var(--space-48); }
+.ds-form-field[aria-busy="true"] [dir="ltr"] { padding-inline-start: var(--space-48); }
+.ds-form-error, .ds-form-announcement { color: var(--s-danger); }
+.ds-form-announcement:empty { margin: 0; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--s-bg); color: var(--s-text); font: 16px / 1.5 var(--font-body); }
+h1, h2, h3, p { margin: 0; }
+h1, h2 { font-family: "Frank Ruhl Libre", Georgia, serif; line-height: 1.1; }
+h1 { font-size: 72px; }
+h2 { font-size: 40px; }
+a { color: inherit; }
+:where(a, button, input, textarea, summary):focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+.wrap { inline-size: min(1240px, calc(100% - 128px)); margin-inline: auto; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-24); }
+.nav { position: sticky; inset-block-start: 0; z-index: 1; background: var(--s-bg); border-block-end: 1px solid var(--s-line); }
+.nav-inner { min-block-size: var(--space-72); display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); }
+.nav-links, .actions { display: flex; flex-wrap: wrap; gap: var(--space-8); align-items: center; }
+.nav a, .actions a { text-decoration: none; }
+.nav-links a { display: grid; place-items: center; min-block-size: var(--space-48); padding-inline: var(--space-8); }
+.brand { font: bold 24px / 1 var(--font-mono); }
+.mobile-nav { display: none; }
+main { padding-block: var(--space-48); }
+section[id] { scroll-margin-block-start: calc(var(--space-72) + var(--space-16)); }
+.block { padding-block: var(--space-32); border-block-end: 1px solid var(--s-line); display: grid; gap: var(--space-16); }
+.hero { align-items: center; }
+.hero > * { grid-column: span 6; }
+.stack { display: grid; gap: var(--space-16); align-content: start; min-inline-size: 0; }
+.brief { color: var(--s-text-muted); font: var(--text-small) / 1.5 var(--font-mono); }
+.brief summary { cursor: pointer; min-block-size: 44px; display: flex; align-items: center; }
+.brief-desktop { margin-inline-start: calc(-1 * var(--space-32)); padding-inline-start: var(--space-8); border-inline-start: 1px solid var(--s-line); }
+.brief-mobile { display: none; }
+.meta-strip { padding: var(--space-12) 0; }
+.gallery, .prices, .steps, .footer-grid { display: grid; gap: var(--space-16); }
+.gallery, .prices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.steps, .footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.panel { min-inline-size: 0; padding: var(--space-16); border: 1px solid var(--s-line); background: var(--s-surface); border-radius: var(--r-2); }
+.workflow > * { grid-column: span 6; }
+.workflow > .brief { grid-column: 1 / -1; }
+.workflow ol { margin: 0; padding-inline-start: var(--space-24); }
+.workflow li { padding-block: var(--space-4); }
+.done { color: var(--s-success); }
+footer { padding-block: var(--space-32); }
+.skip-link { position: absolute; z-index: 3; inset: var(--space-8) var(--space-8) auto auto; background: var(--s-surface); padding: var(--space-12); }
+.skip-link:not(:focus) { clip-path: inset(50%); }
+@media (max-width: 1023px) {
+  .wrap { inline-size: min(1240px, calc(100% - 64px)); }
+  .grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px; }
+  .hero > *, .workflow > * { grid-column: span 4; }
+}
+@media (max-width: 767px) {
+  .wrap { inline-size: calc(100% - 40px); }
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-16); }
+  h1 { font-size: 40px; }
+  h2 { font-size: 32px; }
+  main { padding-block: var(--space-16); }
+  body { padding-block-end: calc(var(--space-72) + env(safe-area-inset-bottom)); }
+  .nav { position: static; }
+  .nav-inner { min-block-size: var(--space-48); }
+  .nav-inner .nav-links, .nav-inner > .ds-button { display: none; }
+  .mobile-nav { display: flex; position: fixed; inset: auto 0 0; z-index: 2; padding: var(--space-4) var(--space-8) calc(var(--space-4) + env(safe-area-inset-bottom)); justify-content: space-between; flex-wrap: wrap; background: var(--s-bg); border-block-start: 1px solid var(--s-line); }
+  .mobile-nav a { padding-inline: var(--space-4); font-size: 12px; }
+  .mobile-nav .ds-button { padding-inline: var(--space-8); }
+  .hero > *, .workflow > * { grid-column: span 4; }
+  .gallery { grid-auto-flow: column; grid-auto-columns: 86%; grid-template-columns: none; overflow-x: auto; scroll-snap-type: inline mandatory; padding: var(--space-4); }
+  .gallery > * { scroll-snap-align: start; }
+  .prices { grid-template-columns: 1fr; }
+  .steps, .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .price-action { position: sticky; inset-block-end: calc(var(--space-72) + env(safe-area-inset-bottom)); align-self: start; }
+  .brief-desktop { display: none; }
+  .brief-mobile { display: block; }
+}
+
+@media (max-width: 240px) {
+  .wrap { inline-size: calc(100% - var(--space-16)); }
+  h1 { font-size: 28px; overflow-wrap: anywhere; }
+  h2 { font-size: 24px; overflow-wrap: anywhere; }
+  .steps, .footer-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { padding: var(--space-8); }
+  .ds-button { max-inline-size: 100%; min-inline-size: 0; padding-inline: var(--space-8); overflow-wrap: anywhere; }
+}
+@media (max-width: 240px) {
+  body { padding-block-end: calc(var(--space-104) + env(safe-area-inset-bottom)); }
+}
+
+
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#content">דילוג לתוכן</a>
+<header class="nav"><div class="wrap nav-inner"><a class="brand" href="#content">148AI</a><nav class="nav-links" aria-label="ניווט ראשי"><a href="#examples">דוגמאות</a><a href="#intake">בריף</a><a href="#build">בנייה</a></nav><a href="#intake" class="ds-button">התחילו</a></div></header>
+<nav class="mobile-nav nav-links" aria-label="ניווט בנייד"><a href="#examples">דוגמאות</a><a href="#intake">בריף</a><a href="#build">בנייה</a><a href="#intake" class="ds-button">התחילו</a></nav>
+<main id="content" class="wrap" tabindex="-1">
+  <section class="block" aria-labelledby="intro">
+    <p class="brief brief-desktop">״אני צריך אתר לעסק שאפשר להראות ללקוח.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״אני צריך אתר לעסק שאפשר להראות ללקוח.״</p></details>
+    <div class="hero grid">
+      <div class="stack"><h1 id="intro">מילים נכנסות.<br>אתר יוצא.</h1><p>אתרים ואפליקציות ווב לעסקים קטנים, משיחה בעברית.</p><div class="actions"><a href="#intake" class="ds-button">התחילו</a><a class="ds-button" data-variant="secondary" href="#examples">ראו דוגמאות</a></div></div>
+      <div class="ds-preview" data-state="default">
+  <div class="ds-preview-bar" aria-hidden="true"><span class="ds-preview-dot"></span><span class="ds-preview-dot"></span><span class="ds-preview-dot"></span></div>
+  <div class="ds-preview-body" data-slot="hero"><strong>סטודיו נור</strong><p>רואים את השירותים ושולחים בקשה להצעת מחיר.</p></div>
+</div>
+    </div>
+  </section>
+  <section class="meta-strip block" aria-label="היקף הדמו"><p class="brief brief-desktop">״מה מקבלים בסוף?״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״מה מקבלים בסוף?״</p></details><p class="ds-meta">ווב · מפרט לפני בנייה · תצוגה וקוד להורדה</p></section>
+  <section class="block" id="examples" aria-labelledby="examples-title"><p class="brief brief-desktop">״תראו לי אילו דברים אפשר לבנות.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תראו לי אילו דברים אפשר לבנות.״</p></details><h2 id="examples-title">תוצרים מהסדנה</h2><div class="gallery"><a class="ds-card" href="#build">
+  <div class="ds-card-art" data-slot="studio"><span>סטודיו נור</span></div>
+  <div class="ds-card-body"><strong>סטודיו נור</strong><p class="ds-meta">אתר שירות · דוגמה · מחיר לפי מפרט</p></div>
+</a>
+<a class="ds-card" href="#build">
+  <div class="ds-card-art" data-slot="clinic"><span>קליניקת גפן</span></div>
+  <div class="ds-card-body"><strong>קליניקת גפן</strong><p class="ds-meta">אתר תורים · דוגמה · מחיר לפי מפרט</p></div>
+</a>
+<a class="ds-card" href="#build">
+  <div class="ds-card-art" data-slot="stock"><span>מלאי זמין</span></div>
+  <div class="ds-card-body"><strong>מלאי זמין</strong><p class="ds-meta">אפליקציית ווב · דוגמה · מחיר לפי מפרט</p></div>
+</a></div></section>
+  <section class="block" id="how" aria-labelledby="how-title"><p class="brief brief-desktop">״תראו לי מה קורה בכל שלב.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תראו לי מה קורה בכל שלב.״</p></details><h2 id="how-title">ארבעה שלבים</h2><div class="steps"><article class="panel"><p class="ds-meta">01</p><h3>מתארים</h3><p>כותבים מה העסק צריך.</p></article><article class="panel"><p class="ds-meta">02</p><h3>מאשרים</h3><p>קוראים מפרט ותקרת עלות.</p></article><article class="panel"><p class="ds-meta">03</p><h3>בונים</h3><p>עוקבים אחר ההתקדמות.</p></article><article class="panel"><p class="ds-meta">04</p><h3>בודקים</h3><p>פותחים תצוגה ומורידים קוד.</p></article></div></section>
+  <section class="block workflow grid" id="intake" aria-label="מסך קליטת בריף">
+    <p class="brief brief-desktop">״יש לי סטודיו ואני רוצה לקבל פניות להצעת מחיר.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״יש לי סטודיו ואני רוצה לקבל פניות להצעת מחיר.״</p></details>
+    <div class="panel stack"><h2>הבריף שלכם</h2><form class="stack" action="#build" novalidate><p id="form-announcement" class="ds-form-announcement" role="alert" aria-atomic="true"></p><div class="ds-form-field"><label for="business">שם העסק</label><div class="ds-field-control"><input id="business" required data-required-error="יש להזין שם עסק." data-format-error="יש לבדוק את שם העסק." type="text" value="סטודיו נור"></div><p class="ds-form-error" id="business-error" hidden></p></div><div class="ds-form-field"><label for="request">מה האתר צריך לעשות?</label><div class="ds-field-control"><textarea id="request" required data-required-error="יש לתאר מה האתר צריך לעשות." data-format-error="יש לבדוק את תיאור האתר.">להציג שירותים ולקבל בקשות להצעת מחיר.</textarea></div><p class="ds-form-error" id="request-error" hidden></p></div><div class="ds-form-field"><label for="phone">טלפון</label><div class="ds-field-control"><input id="phone" dir="ltr" required data-required-error="יש להזין טלפון." data-format-error="יש להזין מספר טלפון תקין." type="tel" value="050-123-4567"></div><p class="ds-form-error" id="phone-error" hidden></p></div><div class="ds-form-field"><label for="email">מייל</label><div class="ds-field-control"><input id="email" dir="ltr" required data-required-error="יש להזין כתובת מייל." data-format-error="יש להזין כתובת מייל תקינה." type="email" value="studio@example.test"></div><p class="ds-form-error" id="email-error" hidden></p></div><div class="ds-form-field"><label for="pages">מספר עמודים</label><div class="ds-field-control"><input id="pages" dir="ltr" min="1" max="99" step="1" required data-required-error="יש להזין מספר עמודים." data-format-error="יש להזין מספר שלם בין 1 ל־99." type="number" value="3"></div><p class="ds-form-error" id="pages-error" hidden></p></div><button class="ds-button" type="submit">לסטטוס הבנייה</button></form></div>
+    <div class="panel stack"><h3>מה נכנס לבריף</h3><p>אתר שירות בעברית עם טופס פנייה והצגת עבודות.</p><span class="ds-tag">טיוטה</span><p class="ds-meta">דמו סטטי · מעבר למסך לדוגמה</p></div>
+  </section>
+  <section class="block workflow grid" id="build" tabindex="-1" aria-label="מסך סטטוס בנייה">
+    <p class="brief brief-desktop">״אני רוצה לדעת מה כבר מוכן ומה עוד נבדק.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״אני רוצה לדעת מה כבר מוכן ומה עוד נבדק.״</p></details>
+    <div class="panel stack"><h2>סטטוס הבנייה</h2><h3>אתר שירות · סטודיו נור</h3><ol><li class="done">המפרט אושר</li><li class="done">המסכים נבנו</li><li>בדיקת טופס הפנייה בתהליך</li><li>הורדת קוד לאחר בדיקה</li></ol><a class="ds-button" data-variant="secondary" href="#intake">חזרה לבריף</a></div>
+    <div class="ds-preview" data-state="default">
+  <div class="ds-preview-bar" aria-hidden="true"><span class="ds-preview-dot"></span><span class="ds-preview-dot"></span><span class="ds-preview-dot"></span></div>
+  <div class="ds-preview-body" data-slot="build"><strong>סטודיו נור</strong><p>רואים את השירותים ושולחים בקשה להצעת מחיר.</p></div>
+</div>
+  </section>
+  <section class="block" id="pricing" aria-labelledby="pricing-title"><p class="brief brief-desktop">״כמה יעלה לי ומה כלול?״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״כמה יעלה לי ומה כלול?״</p></details><h2 id="pricing-title">מחיר לפי היקף</h2><div class="prices"><article class="panel stack"><h3>אתר עסק</h3><p>עמוד שירות, פרטי קשר וטופס פנייה.</p><p class="ds-meta">מחיר מוצג לפני אישור</p></article><article class="panel stack"><h3>אתר מתקדם</h3><p>כמה עמודים ותהליך פנייה מותאם.</p><p class="ds-meta">מחיר מוצג לפני אישור</p></article><article class="panel stack"><h3>אפליקציית ווב</h3><p>מסכים, פעולות ונתונים לפי הבריף.</p><p class="ds-meta">מחיר מוצג לפני אישור</p></article></div><div class="price-action"><a href="#intake" class="ds-button">התחילו</a></div></section>
+  <section class="block" id="faq" aria-labelledby="faq-title"><p class="brief brief-desktop">״אפשר לראות את האתר לפני שמפרסמים?״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״אפשר לראות את האתר לפני שמפרסמים?״</p></details><h2 id="faq-title">שאלות נפוצות</h2><details class="ds-accordion"><summary aria-expanded="false">מה רואים לפני אישור?</summary><p>מפרט של המסכים, הפעולות ותקרת העלות.</p></details><details class="ds-accordion"><summary aria-expanded="false">אפשר לבדוק את האתר לפני פרסום?</summary><p>כן. פותחים תצוגה מקדימה ומנסים את הפעולות.</p></details></section>
+</main>
+<footer class="wrap"><div class="footer-grid"><div><strong>148AI</strong><p class="brief brief-desktop">״תנו לי דרך לחזור לעבודה שלי.״</p><details class="brief brief-mobile"><summary>הבריף המקורי</summary><p>״תנו לי דרך לחזור לעבודה שלי.״</p></details></div><div><a href="#examples">תוצרים</a></div><div><a href="#intake">בריף</a></div><div><a href="#faq">שאלות</a></div></div></footer>
+
+<script>
+  const form = document.querySelector('#intake form');
+  if (form) {
+    const inputs = [...form.querySelectorAll('[required]')];
+    const announcement = document.getElementById('form-announcement');
+    function renderError(input, message) {
+      const error = document.getElementById(input.id + '-error');
+      error.textContent = message;
+      error.hidden = !message;
+      if (message) {
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', error.id);
+      } else {
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
+      }
+    }
+    function errorFor(input) {
+      if (input.validity.badInput) return input.dataset.formatError;
+      if (!input.value.trim()) return input.dataset.requiredError;
+      if (input.type === 'tel' && !/^\+?[0-9 ()-]{7,20}$/.test(input.value.trim())) return input.dataset.formatError;
+      return input.validity.valid ? '' : input.dataset.formatError;
+    }
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const errors = [];
+      for (const input of inputs) {
+        const message = errorFor(input);
+        renderError(input, message);
+        if (message) errors.push([input, message]);
+      }
+      if (errors.length) {
+        announcement.textContent = errors.map(([, message]) => message).join(' ');
+        errors[0][0].focus();
+        return;
+      }
+      announcement.textContent = '';
+      location.hash = 'build';
+      document.getElementById('build').focus();
+    });
+    form.addEventListener('input', event => {
+      const input = event.target;
+      if (input.matches('[aria-invalid="true"]')) renderError(input, errorFor(input));
+      announcement.textContent = '';
+    });
+  }
+  for (const item of document.querySelectorAll('details.ds-accordion')) {
+    const summary = item.querySelector('summary');
+    item.addEventListener('toggle', () => summary.setAttribute('aria-expanded', String(item.open)));
+  }
+</script>
+</body>
+</html>

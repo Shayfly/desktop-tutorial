@@ -1,0 +1,177 @@
+.ds-button, .ds-field input, .ds-tag, .ds-skip {
+  font: inherit;
+}
+
+.ds-button {
+  --button-bg: var(--c-btn-primary-bg);
+  --button-hover: var(--c-btn-primary-hover);
+  --button-active: var(--c-btn-primary-active);
+  --button-fg: var(--c-btn-primary-fg);
+  --button-border: transparent;
+  display: inline-grid;
+  place-items: center;
+  min-block-size: var(--space-48);
+  padding-inline: var(--space-24);
+  border: 1px solid var(--button-border);
+  border-radius: var(--r-2);
+  background: var(--button-bg);
+  color: var(--button-fg);
+  cursor: pointer;
+}
+
+.ds-button[data-variant="secondary"] {
+  --button-bg: var(--c-btn-secondary-bg);
+  --button-hover: var(--c-btn-secondary-hover);
+  --button-active: var(--c-btn-secondary-active);
+  --button-fg: var(--c-btn-neutral-fg);
+  --button-border: var(--c-field-border);
+}
+
+.ds-button[data-variant="quiet"] {
+  --button-bg: var(--c-btn-quiet-bg);
+  --button-hover: var(--c-btn-quiet-hover);
+  --button-active: var(--c-btn-quiet-active);
+  --button-fg: var(--c-btn-neutral-fg);
+}
+
+.ds-button:is(:hover, [data-example="hover"]) {
+  background: var(--button-hover);
+}
+
+.ds-button:is(:active, [aria-pressed="true"], [data-example="active"]) {
+  background: var(--button-active);
+}
+
+.ds-button[data-state="error"] {
+  background: var(--c-btn-error-bg);
+  border-color: var(--c-btn-error-bg);
+  color: var(--c-btn-error-fg);
+}
+
+.ds-button > * {
+  grid-area: 1 / 1;
+}
+
+.ds-spinner {
+  box-sizing: border-box;
+  inline-size: var(--space-16);
+  block-size: var(--space-16);
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: var(--r-pill);
+  animation: ds-spin 800ms linear infinite;
+}
+
+.ds-button .ds-spinner, .ds-field .ds-spinner {
+  display: none;
+}
+
+.ds-button[aria-busy="true"] .ds-button-label {
+  visibility: hidden;
+}
+
+.ds-button[aria-busy="true"] .ds-spinner,
+.ds-field[aria-busy="true"] .ds-spinner {
+  display: block;
+}
+
+.ds-button[aria-busy="true"] {
+  cursor: wait;
+}
+
+@keyframes ds-spin {
+  to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-spinner { animation: none; }
+}
+
+.ds-field {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ds-field-control {
+  position: relative;
+  display: grid;
+}
+
+.ds-field input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--space-48);
+  padding-inline: var(--space-12);
+  border: 2px solid var(--c-field-border);
+  border-radius: var(--r-1);
+  background: var(--c-field-bg);
+  color: var(--c-field-fg);
+}
+
+.ds-field input::placeholder {
+  color: var(--c-field-hint);
+  opacity: 1;
+}
+
+.ds-field input:is(:hover, :focus, [data-example="hover"], [data-example="focus"]):enabled {
+  border-color: var(--s-accent);
+}
+
+.ds-field input[aria-invalid="true"] {
+  border-color: var(--s-danger);
+}
+
+.ds-field[aria-busy="true"] input {
+  padding-inline-end: var(--space-48);
+}
+
+.ds-field .ds-spinner {
+  position: absolute;
+  inset-inline-end: var(--space-16);
+  align-self: center;
+  color: var(--c-field-fg);
+  pointer-events: none;
+}
+
+.ds-field-hint {
+  color: var(--s-danger);
+}
+
+.ds-tag {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--c-field-border);
+  border-radius: var(--r-pill);
+  background: var(--c-tag-bg);
+  color: var(--c-tag-fg);
+  font: var(--text-small) / 1.5 var(--font-mono);
+}
+
+button.ds-tag {
+  min-block-size: var(--space-48);
+  cursor: pointer;
+}
+
+button.ds-tag:hover:enabled {
+  border-color: var(--s-accent);
+}
+
+.ds-button:disabled, .ds-field input:disabled, .ds-tag:disabled {
+  opacity: var(--c-disabled-opacity);
+  background: var(--s-surface);
+  color: var(--s-text);
+  border-color: var(--c-field-border);
+  cursor: not-allowed;
+}
+
+.ds-rule {
+  margin: 0;
+  border: 0;
+  border-block-start: 1px solid var(--c-rule);
+}
+
+:is(.ds-button, .ds-field input, .ds-tag, .ds-skip):is(:focus-visible, [data-example="focus"]) {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
