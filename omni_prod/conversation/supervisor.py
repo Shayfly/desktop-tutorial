@@ -703,6 +703,12 @@ class ConversationSupervisor:
             if gap_q is None and not res.conflicts else []
         res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
                      [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else fallback[:1])
+        if not res.asked and not res.conflicts and gap_q is None:
+            # #330 (Michael 20:11): nothing else is asked, but the brief still waits for a held field the customer must
+            # decide (class 2, or class 3 not confirmed): that is the next question, with its buttons -- otherwise
+            # the turn says "nothing new" and the brief can never complete (production 2026-11-12, personal_data).
+            waiting = [d.BY_ID[f] for f in new_brief.open_material if f in d.BY_ID]
+            res.asked = [q for q in waiting if d.needs_customer(q, new_brief)][:1]
         expected = row.revision if row else 0
         # C6: a revision when the requirements change (fingerprint), when completeness changes, or when the detector
         # moves to another open field -- so the stored brief never names a stale open field. While the brief is
@@ -800,7 +806,7 @@ class ConversationSupervisor:
             # "held open" after an unsettled repeat is otherwise never asked again, and a customer-only one can then
             # never be set (production 2026-11-12: content_only held open, the summary unreachable).
             nxt = res.asked or [d.BY_ID[f] for f in (row.brief.open_material or ()) if f in d.BY_ID]
-            held = self._customer_only_question(nxt)
+            held = self._customer_only_question(nxt, row.brief)
             if held is not None:
                 text = held.he if lang == 'he' else held.en
                 if text not in turn.reply and self._times_said(project_id, text) < CUSTOMER_ONLY_QUESTION_REPEATS:
@@ -820,11 +826,22 @@ class ConversationSupervisor:
         return sum(1 for m in prev if m.get('role') == 'assistant' and text in (m.get('content') or ''))
 
     @staticmethod
-    def _customer_only_question(asked):
-        """The next question when it is for a field the customer alone may set (delegable=False), else None.
-        Decided by the next question itself, not by how many fields are still missing."""
+    def _still_held(held, spec, brief) -> set:
+        """The detector's held-open fields that stay open: answered later (typed or edited) releases one, and
+        (#330, Michael 20:11) so does a CONFIRMED value in the brief -- the hold never blocks a confirmed field."""
+        return {h for h in held if spec.value(h) is None and not d.confirmed(brief, h)}
+
+    @staticmethod
+    def _customer_only_question(asked, brief=None):
+        """The next question when the customer must decide it -- a field only they may set (delegable=False) or a
+        sensitive one not yet confirmed (d.CONFIRM_REQUIRED) -- else None. Decided by the next question itself, not
+        by how many fields are still missing."""
         q = (asked or [None])[0]
-        return q if q is not None and getattr(q, 'delegable', True) is False else None
+        if q is None:
+            return None
+        if getattr(q, 'delegable', True) is False:
+            return q
+        return q if brief is not None and d.needs_customer(q, brief) else None
 
     @staticmethod
     def _heard(message, answers, proposals, lang):
@@ -871,7 +888,7 @@ class ConversationSupervisor:
         if hold or self._unsettled_sensitive(spec, previous, settle):
             held.add(previous)
         delegated = self._delegated_defaults(spec, previous, held, said, typed, brief=brief)
-        held = {h for h in held if spec.value(h) is None}   # answered later (typed or edited): no longer open
+        held = self._still_held(held, spec, brief)
         assumed_now = dict(delegated)
         for name, value in delegated.items():
             q0 = d.BY_ID[name]

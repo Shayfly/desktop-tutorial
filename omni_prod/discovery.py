@@ -326,6 +326,22 @@ def _ctx(brief: 'Brief') -> dict:
 CUSTOMER_EXCLUSIONS_PREFIX = 'Customer exclusions v1: '
 
 
+# #330 (Michael 2026-11-12 20:11): three classes of field. (1) delegable: 148AI may decide. (2) delegable=False:
+# only the customer sets it (content_only, access_scope, unavailable). (3) SENSITIVE, INFERABLE BUT CONFIRMED: the
+# value may be inferred from the request, but it counts only once the customer CONFIRMED it (a button answer).
+CONFIRM_REQUIRED = ('personal_data', 'login', 'access_scope')
+
+
+def confirmed(brief: 'Brief', field_: str) -> bool:
+    """The brief holds a value the customer confirmed (their own button answer), not one inferred or typed."""
+    return (brief.fields.get(field_) or {}).get('confidence') == 'confirmed'
+
+
+def needs_customer(q: 'Question', brief: 'Brief') -> bool:
+    """Class 2 or class 3, not yet confirmed by the customer: they must see this exact question and its buttons."""
+    return (not q.delegable or q.field in CONFIRM_REQUIRED) and not confirmed(brief, q.field)
+
+
 def unpriced_keys(brief: 'Brief') -> list[str]:
     """77: the capabilities the platform found unpriced for this brief (set by the supervisor before gate 1)."""
     raw = (brief.hints or {}).get('unpriced') or ''

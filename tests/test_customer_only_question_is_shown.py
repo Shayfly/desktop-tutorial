@@ -84,13 +84,19 @@ class CustomerOnlyQuestion(unittest.TestCase):
         self.brief().hints['unpriced'] = 'integration.maps'          # 77: an unpriced capability -> "unavailable"
         self.assertEqual([q.id for q in d.must_ask(self.brief())], ['content_only', 'unavailable'])   # both open
         answer = {'content_only': 'yes', 'unavailable': 'build_without'}
-        first = self.next_customer_only().questions[0].id                 # two missing: one of them is next ...
+        t = self.next_customer_only()                                      # two missing: one of them is next ...
+        first = t.questions[0].id
         self.assertIn(first, answer)
-        self.assert_both(self.turn(message='בסדר'), first)                 # ... shown with the reply (and stays)
+        self.assertEqual([q.id for q in t.questions], [first])             # ... with its buttons
         self.turn(answers={first: answer[first]})
         second = ({'content_only', 'unavailable'} - {first}).pop()
         self.assertEqual([q.id for q in d.must_ask(self.brief())], [second])
-        self.assert_both(self.next_customer_only(), second)                # then the other, also with the reply
+        t = self.next_customer_only()                                      # then the other one, with its buttons
+        self.assertEqual([q.id for q in t.questions], [second])
+        self.assertIn(MODEL_SAYS, t.reply)                                 # ... and the model's reply
+        for qid in answer:                                                 # each was written out (within the limit)
+            self.assertTrue(any(d.BY_ID[qid].he in (m.get('content') or '') for m in self.s.store.messages_for('p')
+                                if m['role'] == 'assistant'), qid)
 
     def test_a_field_held_open_after_a_typed_answer_is_still_asked(self):
         # production 2026-11-12: after an unsettled repeat content_only was "held open" and never asked again
@@ -126,6 +132,76 @@ class CustomerOnlyQuestion(unittest.TestCase):
             self.assertNotIn(q.he, t.reply)                          # not a 3rd time
         self.assertEqual(sum(q.he in (m.get('content') or '') for m in self.s.store.messages_for('p')
                              if m['role'] == 'assistant'), N)
+
+    # --- class 3 (Michael 2026-11-12 20:11): sensitive, inferable, but counts only once CONFIRMED -----------------
+    PLAIN = 'דף נחיתה לבית קפה קטן עם תמונה ראשית, שעות פתיחה וכפתור שמחייג לטלפון. ללקוחות.'
+
+    def test_the_three_classes(self):
+        self.assertEqual(d.CONFIRM_REQUIRED, ('personal_data', 'login', 'access_scope'))
+        b = d.Brief(prompt='x')
+        self.assertFalse(d.needs_customer(d.BY_ID['style'], b))                  # class 1
+        self.assertTrue(d.needs_customer(d.BY_ID['content_only'], b))            # class 2, unanswered
+        b.fields['content_only'] = {'value': 'yes', 'source': 'answer', 'confidence': 'confirmed'}
+        self.assertFalse(d.needs_customer(d.BY_ID['content_only'], b))           # class 2, answered by button
+        for f in d.CONFIRM_REQUIRED:                                             # class 3
+            q = d.BY_ID[f]
+            b.fields[f] = {'value': 'x', 'source': 'message', 'confidence': 'stated'}
+            self.assertTrue(d.needs_customer(q, b), f)                           # stated is not confirmed
+            b.fields[f] = {'value': 'x', 'source': 'default', 'confidence': 'inferred'}
+            self.assertTrue(d.needs_customer(q, b), f)                           # inferred is not confirmed
+            b.fields[f] = {'value': 'x', 'source': 'answer', 'confidence': 'confirmed'}
+            self.assertFalse(d.needs_customer(q, b), f)
+
+    def test_a_held_sensitive_field_is_asked_with_its_buttons(self):
+        # production 2026-11-12 after #331: personal_data held open by the detector, never asked, "nothing new"
+        self.turn(message=self.PLAIN)
+        self.turn(answers={'content_only': 'yes'})
+        self.turn(message='אולי')                                    # an unsettled reply: the detector holds it
+        self.assertIn('personal_data', self.brief().open_material)
+        t = self.turn(message='בסדר')
+        self.assertEqual([q.id for q in t.questions], ['personal_data'])       # asked, with its buttons
+        self.assertTrue(d.BY_ID['personal_data'].options)
+
+    def test_its_sentence_obeys_the_repeat_limit(self):
+        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
+        q = d.BY_ID['personal_data']
+        self.turn(message=self.PLAIN)
+        self.turn(answers={'content_only': 'yes'})
+        replies = [self.turn(message=w) for w in ('אולי', 'בסדר', 'נראה', 'לא יודע', 'מה?')]
+        self.assertLessEqual(sum(q.he in t.reply for t in replies), N)
+        self.assertTrue(all([x.id for x in t.questions] == ['personal_data'] for t in replies[1:]))  # buttons stay
+
+    def test_a_button_confirms_it_releases_the_hold_and_the_brief_completes(self):
+        self.turn(message=self.PLAIN)
+        self.turn(answers={'content_only': 'yes'})
+        self.turn(message='אולי')
+        self.assertIn('personal_data', self.brief().open_material)
+        t = self.turn(answers={'personal_data': 'no'})
+        self.assertTrue(d.confirmed(self.brief(), 'personal_data'))
+        self.assertNotIn('personal_data', self.brief().open_material)            # the hold no longer blocks it
+        self.assertTrue(self.s.briefs.latest('p').complete)                      # the summary is reachable
+        self.assertEqual(t.questions, [])
+
+    def test_the_hold_never_blocks_a_confirmed_value(self):
+        from types import SimpleNamespace
+        spec = SimpleNamespace(value=lambda name: None)              # the detector has no value of its own
+        b = d.Brief(prompt='x')
+        b.fields['personal_data'] = {'value': 'no', 'source': 'answer', 'confidence': 'confirmed'}
+        b.fields['login'] = {'value': 'none', 'source': 'message', 'confidence': 'stated'}
+        self.assertEqual(ConversationSupervisor._still_held({'personal_data', 'login'}, spec, b), {'login'})
+
+    def test_after_a_button_turn_the_held_field_is_asked_not_nothing_new(self):
+        # production 2026-11-12 20:06, reproduced exactly on main: the content_only button turn answered
+        # "לא זיהיתי פרטים חדשים" with no question while personal_data was held open
+        self.turn(message=self.PLAIN + ' עיצוב חם וכפרי.')
+        self.turn(message='אולי')
+        self.turn(message='בסדר')
+        t = self.turn(answers={'content_only': 'yes'})               # a button turn: no model reply
+        self.assertEqual(self.brief().open_material, ['personal_data'])
+        self.assertEqual([q.id for q in t.questions], ['personal_data'])       # asked, with its buttons
+        self.assertNotIn('לא זיהיתי פרטים חדשים', t.reply)
+        self.turn(answers={'personal_data': 'no'})
+        self.assertTrue(self.s.briefs.latest('p').complete)                      # and the summary is reachable
 
     def test_a_delegable_next_question_keeps_the_model_reply_only(self):
         self.turn(message=LANDING)
