@@ -35,7 +35,9 @@ LIVE = {'data': [item(GEMINI, 'anonymized', 0.9375, 4.6875),
                  item(QWEN, 'private', 0.1, 1),
                  item('e2ee-qwen-2-5-7b-p', 'private', 0.05, 0.15, tools=False, e2ee=True)]}
 MODELS = [V.VeniceModel.from_api(m) for m in LIVE['data']]
-KEY = {'VENICE_API_KEY1': 'test-key'}
+# The worker host opens external spend explicitly (infra/worker-host/.env.example); #93 makes the intake honour it.
+OPEN = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'}
+KEY = {'VENICE_API_KEY1': 'test-key', **OPEN}
 ONLY_GEMINI = {**KEY, V.ALLOWED_ENV: GEMINI}
 
 

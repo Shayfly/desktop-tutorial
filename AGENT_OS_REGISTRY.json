@@ -5066,9 +5066,10 @@
    ],
    "gap": "ceiling bound to the reservation",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/model_policy.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099"
    ],
    "last_verified_at": "2026-10-09T16:43Z",
@@ -7689,10 +7690,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 84,
+   "IMPLEMENTED": 85,
    "UNIT_TESTED": 30,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 34,
+   "REAL_SERVER_VERIFIED": 33,
    "LIVE": 0,
    "BLOCKED": 9
   }

@@ -7,9 +7,13 @@ import pytest
 from omni_prod.providers.image_provider import MemorySubmissionJournal
 
 
+# C32: a paid call needs the kill switches open (they block by default); these tests are about the paid path.
+SPEND_ON = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'}
+
+
 def service(transport, journal=None, store=None):
     from omni_prod.providers.replicate_image_test import ReplicateImageTest
-    return ReplicateImageTest(env={'REPLICATE_API_TOKEN': 'test-only'},
+    return ReplicateImageTest(env={'REPLICATE_API_TOKEN': 'test-only', **SPEND_ON},
         journal=journal or MemorySubmissionJournal(), store=store, urlopen=transport)
 
 
@@ -87,7 +91,7 @@ def test_verified_image_is_saved_and_retrievable_without_provider_after_restart(
     def transport(req, timeout):
         return io.BytesIO(b'{"id":"one","status":"succeeded","output":["https://replicate.delivery/test.png"]}')
     store, journal = Store(), MemorySubmissionJournal()
-    obj = ReplicateImageTest(env={'REPLICATE_API_TOKEN':'test-only'}, journal=journal,
+    obj = ReplicateImageTest(env={'REPLICATE_API_TOKEN':'test-only', **SPEND_ON}, journal=journal,
         store=store, urlopen=transport, fetcher=Fetcher())
     obj.provider.sleep = lambda _: None
     obj.start('account-one', confirmed=True)

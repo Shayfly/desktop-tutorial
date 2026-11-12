@@ -296,6 +296,7 @@ class PredictionImageProvider:
 
     def __init__(self, *, config: ImageProviderConfig, resolve_reference: Callable[[str], str], journal,
                  urlopen=None, sleep: Callable[[float], None] | None = None, poll_interval_seconds: float = 2.0,
+                 spend_env: Mapping[str, str] | None = None,
                  max_rate_limit_wait_seconds: float = 30.0, fetcher: SafeFetcher | None = None) -> None:
         status, reason = config.status()
         if status != "PARTIAL":
@@ -305,6 +306,9 @@ class PredictionImageProvider:
         self.resolve_reference = resolve_reference
         self.journal = journal
         self.urlopen = urlopen or request.urlopen
+        # C32 (#93): the kill switches are read here, at the last boundary before a paid request, from the env the
+        # provider was built with (build_image_provider passes it; a direct construction reads the process env).
+        self.spend_env = os.environ if spend_env is None else spend_env
         # Provider-returned output URLs are untrusted: SSRF-guarded fetch with an
         # optional host allowlist (configured output hosts + the API host).
         api_host = (parse.urlsplit(config.base_url).hostname or "").lower()
@@ -358,7 +362,15 @@ class PredictionImageProvider:
             headers[self.config.idempotency_header] = idempotency_key
         return headers
 
-    def _json(self, method: str, url: str, *, body: dict | None = None, idempotency_key: str | None = None) -> dict:
+    def _refuse_when_spend_is_off(self) -> None:
+        from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+        if not external_spend_enabled(self.spend_env):
+            raise ModelPolicyViolation(SPEND_DISABLED)
+
+    def _json(self, method: str, url: str, *, body: dict | None = None, idempotency_key: str | None = None,
+              stops_spend: bool = False) -> dict:
+        if method != "GET" and not stops_spend:  # C32: default-deny; only a cancel may be sent with the switches closed
+            self._refuse_when_spend_is_off()
         req = request.Request(url, method=method, headers=self._headers(idempotency_key=idempotency_key),
                               data=None if body is None else json.dumps(body).encode())
         with self.urlopen(req, timeout=self.config.timeout_seconds) as resp:
@@ -367,6 +379,7 @@ class PredictionImageProvider:
     def submit(self, requirement: CapabilityRequirement, *, idempotency_key: str) -> ProviderTaskHandle:
         if requirement.key != CAPABILITY_KEY:
             raise LookupError(f"capability {requirement.key} is not supported by {self.name}")
+        self._refuse_when_spend_is_off()         # C32 (#93): before any journal intent and before any request
         record = self.journal.begin(idempotency_key, provider=self.name)
         if record.provider_task_id:
             return ProviderTaskHandle(self.name, record.provider_task_id, requirement.id, idempotency_key)
@@ -485,7 +498,7 @@ class PredictionImageProvider:
         )
 
     def cancel(self, handle: ProviderTaskHandle) -> None:
-        self._json("POST", self._task_url(handle.provider_task_id) + "/cancel")
+        self._json("POST", self._task_url(handle.provider_task_id) + "/cancel", stops_spend=True)
         self._predictions.pop(handle.provider_task_id, None)
 
 
@@ -526,7 +539,7 @@ def build_image_provider(env: Mapping[str, str] | None = None, *, journal, urlop
         return VaultHttpSecretResolver(VaultHttpConfig(base_url=base)).resolve(reference)
 
     return PredictionImageProvider(config=config, resolve_reference=resolve, journal=journal, urlopen=urlopen,
-                                   fetcher=fetcher)
+                                   fetcher=fetcher, spend_env=env)
 
 
 def build_image_capability_stage(*, env: Mapping[str, str] | None, repository, artifact_store, journal,

@@ -38,6 +38,14 @@ def _reserved_task(payload: dict, quote: dict) -> str:
     return task
 
 def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | None = None):
+    # C32 (2026-10-20): the intake honours the same kill switches as builds, read exactly as
+    # model_runtime_config.py reads them. Refusing HERE means no gateway, so execute_reservation releases the
+    # reservation before mark_executing and before any provider contact. FIRST, before any provider branch: on
+    # 2026-11-12 the Venice branch (#162, added after #93 was written) returned before this check and slipped past
+    # the switches; tests/test_venice_in_conversation.py::test_the_kill_switch_also_stops_a_venice_reservation.
+    from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+    if not external_spend_enabled():
+        raise ModelPolicyViolation(SPEND_DISABLED)
     # C3: the provider is the one the reservation was QUOTED for, never chosen by the worker afterwards.
     if (quote or {}).get('provider') == 'venice':
         from ..providers import venice_gateway   # a missing key raises here -> "no model route", no charge
@@ -113,6 +121,10 @@ def execute_reservation(pool, reservation_id: str, *, worker_id: str | None = No
         gateway = gateway_factory(r.quoted_usd, models) if gateway_factory else \
             build_gateway(r.quoted_usd, models, quote=r.quote)
     except Exception as exc:
+        from ..model_policy import ModelPolicyViolation
+        if isinstance(exc, ModelPolicyViolation):     # a kill switch, not a missing route: say which
+            svc.release(r.id, reason=f'blocked by policy: {exc}'[:200])
+            return {'ok': False, 'error': 'external model spend disabled', 'state': B.RELEASED}
         svc.release(r.id, reason=f'no model route: {type(exc).__name__}')
         return {'ok': False, 'error': 'no model route', 'state': B.RELEASED}
     if not svc.mark_executing(r, lease_seconds=lease_seconds):

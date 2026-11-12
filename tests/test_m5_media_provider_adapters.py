@@ -49,6 +49,10 @@ ENV = {
     "OMNI_IMAGE_PROVIDER_PRICE_SOURCE": "https://images.example/pricing#2026-10-01",
     "OMNI_IMAGE_PROVIDER_COMMERCIAL_USE": "true",
     "OMNI_IMAGE_PROVIDER_LICENSE": "provider terms 2026-09: outputs owned by customer",
+    # C32 (#93): these tests exercise the provider WITH spend allowed; the provider refuses when the switches are closed
+    # (tests/test_image_provider_honours_kill_switch.py).
+    "OMNI_ZERO_COST_MODE": "0",
+    "OMNI_ALLOW_EXTERNAL_FALLBACK": "1",
 }
 
 
@@ -144,7 +148,7 @@ def _provider(api=None, env=None, journal=None, sleeps=None):
     return PredictionImageProvider(
         config=config, resolve_reference=lambda ref: env[ref.split(":", 1)[1]],
         journal=journal or MemorySubmissionJournal(), urlopen=api,
-        sleep=sleeps.append, poll_interval_seconds=0.5, fetcher=_fetcher(api),
+        sleep=sleeps.append, poll_interval_seconds=0.5, fetcher=_fetcher(api), spend_env=env,
     )
 
 
