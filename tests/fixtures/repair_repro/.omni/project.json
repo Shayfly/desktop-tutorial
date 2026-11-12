@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "runtime": "python:3.11-slim",
+  "start": ["python", "app.py"],
+  "port": 8000,
+  "health_path": "/",
+  "build": [["python", "-m", "compileall", "-q", "."]],
+  "verify": [
+    {"name": "fractional score", "argv": ["python", "-m", "pytest", "-q", "tests/test_matches.py::test_fractional_score_rejected"], "acceptance_ids": ["A1"]},
+    {"name": "boolean score", "argv": ["python", "-m", "pytest", "-q", "tests/test_matches.py::test_boolean_score_rejected"], "acceptance_ids": ["A2"]},
+    {"name": "integer score", "argv": ["python", "-m", "pytest", "-q", "tests/test_matches.py::test_integer_score_accepted"], "acceptance_ids": ["A3"]}
+  ]
+}

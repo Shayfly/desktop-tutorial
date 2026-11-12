@@ -26,6 +26,7 @@ This file is the canonical **name/scope registry** for environment variables. It
 | `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook verification | deployment secret manager |
 | `RESEND_API_KEY` | Yes | transactional email | deployment secret manager |
 | `RUNPOD_API_KEY` | Yes | GPU/media provider | deployment secret manager |
+| `VENICE_API_KEY1` | Yes | Venice model provider for agent.venice (`omni_prod/providers/venice.py`); missing/empty fails loudly, no fallback name | Vercel env / deployment secret manager |
 | `ANDROID_KEYSTORE_PASSWORD` | Yes | Android release signing | CI secret store only |
 | `ANDROID_KEY_PASSWORD` | Yes | Android release signing | CI secret store only |
 | `APP_STORE_CONNECT_PRIVATE_KEY` | Yes | iOS/App Store signing/release | CI secret store only |

@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "app.py": {
-      "maxDuration": 60,
-      "includeFiles": "infra/worker-host/model-catalog.json"
+      "maxDuration": 120,
+      "includeFiles": "infra/worker-host/model-catalog.json",
+      "excludeFiles": "{docs/**,tests/**,BRAND_PACK/**,smoke/**,*.zip}"
     }
   },
   "headers": [

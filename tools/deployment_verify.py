@@ -50,7 +50,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -156,6 +156,17 @@ class Outcome:
     data: Any
     error: str          # NONE, REDIRECT_BLOCKED, TIMEOUT, DNS_FAILURE, TLS_FAILURE, CONNECTION_FAILURE,
                         # RESPONSE_TOO_LARGE, INVALID_JSON, DEADLINE_EXCEEDED
+    elapsed_ms: int | None = field(default=None, compare=False)   # 2026-11-07: how long the request took
+
+
+# 2026-11-07: the one call that may legitimately take longer than the default 15 s. A conversation turn is the
+# heaviest request of the journey (supervisor, brief, feasibility, several DB writes) and may wait up to
+# OMNI_INTAKE_WAIT_SECONDS (8 s) for the worker's intake model, on top of a cold function and a suspended Neon
+# preview branch waking up. With 15 s the client gave up while the server finished the turn (run 42099576142:
+# conversation_turn TIMEOUT, then conversation_persists PASS on the same project; no intake reservation on that
+# preview branch, so not a model wait). 45 s stays under the function's maxDuration (60 s in vercel.json), so a
+# hung server is still reported as a timeout. elapsed_ms in the evidence shows the real duration from now on.
+CONVERSATION_TURN_TIMEOUT = 125.0   # 2026-11-08: the server may wait up to 110 s for the model (maxDuration 120)
 
 
 class Client:
@@ -171,11 +182,18 @@ class Client:
             urllib.request.HTTPSHandler(context=ssl.create_default_context()))
         self.opener.addheaders = [('User-Agent', '148AI-deployment-verify/3')]
 
-    def call(self, method: str, path: str, body=None) -> Outcome:
+    def call(self, method: str, path: str, body=None, *, timeout: float | None = None) -> Outcome:
+        started = time.monotonic()
+        out = self._call(method, path, body, self.timeout if timeout is None else timeout)
+        return replace(out, elapsed_ms=int((time.monotonic() - started) * 1000))
+
+    def _call(self, method: str, path: str, body, timeout: float) -> Outcome:
         if not path.startswith('/') or path.startswith('//') or any(c in path for c in '\\#\r\n '):
             raise ValueError('unsafe request path')
         if self.deadline is not None and time.monotonic() > self.deadline:
             return Outcome(None, None, 'DEADLINE_EXCEEDED')
+        if self.deadline is not None:                       # never wait past the overall deadline
+            timeout = max(1.0, min(timeout, self.deadline - time.monotonic()))
         headers = {'Accept': 'application/json', 'Origin': self.origin}
         if body is not None:
             headers['Content-Type'] = 'application/json'
@@ -187,7 +205,7 @@ class Client:
         req = urllib.request.Request(self.origin + path, method=method, headers=headers,
                                      data=None if body is None else json.dumps(body).encode())
         try:
-            with self.opener.open(req, timeout=self.timeout) as r:
+            with self.opener.open(req, timeout=timeout) as r:
                 return self._read(r, r.status)
         except urllib.error.HTTPError as e:
             with e:
@@ -246,6 +264,8 @@ def _error_code(data) -> dict:
 
 def _http_evidence(o: Outcome) -> dict:
     ev = {'status': o.status, 'error_class': o.error if o.error != 'NONE' else _status_class(o)}
+    if o.elapsed_ms is not None:
+        ev['elapsed_ms'] = o.elapsed_ms
     ev.update(_error_code(o.data))
     if ev.get('error') == 'conversation_not_ready':
         ev['error_class'] = 'MIGRATION_NOT_APPLIED'
@@ -394,7 +414,7 @@ def verify(base: str, *, expect_sha: str | None = None, bypass: str | None = Non
         return result()
     o = a.call('POST', f'/api/v28/projects/{pid}/conversation?lang=en',
                {'message': 'An internal tool for my team to track equipment loans, in English, no login',
-                'request_key': uuid.uuid4().hex})
+                'request_key': uuid.uuid4().hex}, timeout=CONVERSATION_TURN_TIMEOUT)
     reply = ((o.data or {}).get('turn') or {}).get('reply') if isinstance(o.data, dict) else None
     check('conversation_turn', o.status == 200 and isinstance(reply, str) and bool(reply), _http_evidence(o))
     o = a.call('GET', f'/api/v28/projects/{pid}/conversation?lang=en')

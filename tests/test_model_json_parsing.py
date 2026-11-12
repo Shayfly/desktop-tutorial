@@ -53,7 +53,7 @@ class JsonAnswerTests(unittest.TestCase):
                 self.assertEqual(diag['tail_class'], classification)
                 decoded = base64.b64decode(diag['tail_raw_utf8_b64'], validate=True).decode()
                 self.assertNotIn(token, decoded)
-                self.assertIn('[redacted-google-key]', decoded)
+                self.assertIn('[REDACTED]', decoded)
 
     def test_non_latin_tail_is_prose_and_keeps_utf8_evidence(self):
         import base64

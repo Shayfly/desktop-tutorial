@@ -66,6 +66,11 @@ jobs:
           publish "janitor log" docker logs --timestamps --tail "$n" omni-worker-janitor-1
           publish "preview-router log" docker logs --timestamps --tail "$n" omni-worker-preview-router-1
           publish "preview-worker log" docker logs --timestamps --tail "$n" omni-worker-preview-worker-1
+          # 2026-11-07: intake reservations reach the omni-intake queue but are never claimed; these two logs show why.
+          publish "intake-worker log" docker logs --timestamps --tail "$n" omni-worker-intake-worker-1
+          publish "intake-maintain log" docker logs --timestamps --tail "$n" omni-worker-intake-maintain-1
+          publish "intake-worker env (names and flags only)" docker exec omni-worker-intake-worker-1 sh -c \
+            'echo OMNI_WORKER_QUEUES=$OMNI_WORKER_QUEUES OMNI_INTAKE_MODEL=$OMNI_INTAKE_MODEL OMNI_ENV=$OMNI_ENV; env | cut -d= -f1 | grep -E "VENICE|INTAKE" | sort | tr "\n" " "'
           pv="${PREVIEW_INPUT:-}"
           if [ -n "$pv" ]; then
             case "$pv" in prv_[0-9a-f]*) ;; *) echo "::error::preview_id must look like prv_<hex>"; exit 1;; esac

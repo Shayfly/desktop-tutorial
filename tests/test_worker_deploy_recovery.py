@@ -28,6 +28,8 @@ if is_compose and 'ps' in a and '-q' in a:
     if cfg.get('ps_rc'): sys.exit(cfg['ps_rc'])
     if svc in cfg.get('services', []): print('cid-' + svc)
     sys.exit(0)
+if a[0] == 'inspect' and a[2] == '{{.Id}}':           # full id, matched against the fake kernel log
+    print('full-' + a[3][4:] + '-0123456789abcdef'); sys.exit(0)
 if a[0] == 'inspect':
     fmt, cid = a[2], a[3]; svc = cid[4:]
     if svc in cfg.get('inspect_fails', []) and fmt == '{{.Image}}': sys.exit(1)
@@ -35,6 +37,8 @@ if a[0] == 'inspect':
     elif fmt == '{{.State.Running}}':
         if upped: print('false' if svc in cfg.get('not_running_after_up', []) else 'true')
         else: print('false' if stopped else 'true')
+    elif fmt == '{{.State.OOMKilled}}':                 # the drain's second look after an exit 137
+        print('true' if cfg.get('oom', {}).get(svc) or svc in cfg.get('oom_flag_late', []) else 'false')
     else:
         e = cfg.get('exit', {}).get(svc, 0); o = cfg.get('oom', {}).get(svc, False)
         print(('true' if cfg.get('still_running') == svc else 'false'), e, 'true' if o else 'false')
@@ -53,6 +57,10 @@ if a[0] == 'exec':
 if a[0] == 'run':
     ref = next(x for x in a if x.startswith('omni-rollback/')); svc = ref.split('/')[1].split(':')[0]
     print(cfg.get('image_hash', {}).get(svc, '')); sys.exit(0)
+if a[0] == 'events':                                    # `docker events ... --filter container=<cid> --filter event=oom`
+    cid = next((x.split('=', 1)[1] for x in a if x.startswith('container=')), '')
+    if cid[4:] in cfg.get('oom_event', []): print('oom')
+    sys.exit(0)
 if a[:2] == ['compose', 'stop']:
     open(os.path.join(st, 'stopped'), 'w').close(); sys.exit(cfg.get('stop_rc', 0))
 if is_compose and 'up' in a:
@@ -73,10 +81,14 @@ def run(script, cfg, extra_env=None):
     docker = bindir / 'docker'
     docker.write_text(FAKE_DOCKER)
     docker.chmod(docker.stat().st_mode | stat.S_IEXEC)
+    if cfg.get('kernel_log'):                       # a fake `dmesg` on the same PATH as the fake docker
+        dmesg = bindir / 'dmesg'
+        dmesg.write_text('#!/bin/sh\ncat <<\'EOF\'\n' + cfg['kernel_log'] + '\nEOF\n')
+        dmesg.chmod(0o755)
     (state / 'cfg.json').write_text(json.dumps(cfg))
     deploy = Path(tmp) / 'deploy-state'
     env = {**os.environ, 'PATH': f'{bindir}:{os.environ["PATH"]}', 'FAKE_STATE': str(state),
-           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0', **(extra_env or {})}
+           'DEPLOY_STATE_DIR': str(deploy), 'DRAIN_DEADLINE_SECONDS': '5', 'DRAIN_OOM_SETTLE_SECONDS': '0', 'RECOVER_WAIT_TRIES': '1', 'RECOVER_WAIT_SLEEP': '0', **(extra_env or {})}
     return (subprocess.run(['bash', str(HOST / script)], env=env, capture_output=True, text=True, timeout=60),
             state / 'calls.log', deploy)
 
@@ -98,6 +110,31 @@ class DrainTests(unittest.TestCase):
             self.assertEqual(r.returncode, 1, (cfg, r.stdout))
             self.assertIn(text, (st / 'drain-failed').read_text())
             self.assertIn('::error title=drain', r.stdout)
+
+    def test_an_oom_kill_the_engine_reports_late_is_still_an_oom_kill(self):
+        # 2026-11-07: exit 137 with OOMKilled=false at first read; the engine's flag or its `oom` event arrives later.
+        for extra, src in (({'oom_flag_late': ['preview-worker']}, 'flag'), ({'oom_event': ['preview-worker']}, 'event')):
+            r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'preview-worker': 137}, **extra})
+            self.assertEqual(r.returncode, 1, r.stdout)
+            reasons = (st / 'drain-failed').read_text()
+            self.assertIn(f'preview-worker was OOM-killed (exit 137; engine {src})', reasons)
+            self.assertNotIn('deadline', reasons)                     # an OOM kill is not reported as a deadline kill
+            self.assertIn(f'drain: preview-worker exit=137 oom=true (from {src})', r.stdout)
+            self.assertIn('event=oom', log.read_text())            if src == 'event' else None
+
+    def test_an_oom_kill_only_the_kernel_log_records_is_still_an_oom_kill(self):
+        # 2026-11-08: engine flag false, no `oom` event; the kernel log names the container's cgroup
+        line = '[263.1] Memory cgroup stats for /system.slice/docker-full-preview-worker-0123456789abcdef.scope:'
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'preview-worker': 137}, 'kernel_log': line})
+        reasons = (st / 'drain-failed').read_text()
+        self.assertIn('preview-worker was OOM-killed (exit 137; engine kernel)', reasons)
+        self.assertNotIn('deadline', reasons)
+
+    def test_a_deadline_kill_without_any_oom_signal_stays_a_deadline_kill(self):
+        r, log, st = run('drain.sh', {'services': list(SERVICES), 'exit': {'worker': 137}})
+        reasons = (st / 'drain-failed').read_text()
+        self.assertIn('worker exit 137 (a job was killed at the 5s deadline)', reasons)
+        self.assertNotIn('OOM', reasons)
 
     def test_a_host_with_no_previous_consumers_still_drains(self):
         r, log, st = run('drain.sh', {'services': []})
@@ -541,6 +578,111 @@ class VerifiedExistingRollbackTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn('its image object is gone', r.stdout)
         self.assertNotIn('exec ', log.read_text())
+
+class TolerateUnverifiedTests(unittest.TestCase):
+    """Deploy build worker #127: a DB outage made the drain gate exit 2 and killed the deploy although nothing ran.
+    --tolerate-unverified (explicit, never the default) turns an unverified state into a warned quiet ONLY when every
+    error is a real connection failure, classified by exception type. Configuration (a missing URL), a failed or
+    missing query, and any other exception (RuntimeError, TypeError, KeyError ...) still refuse (2); running work
+    still refuses (3). Without the flag nothing changes. (Matt REJECT on #136: every Redis exception was "redis:".)"""
+
+    CONN = ['db: connection failed (OperationalError)', 'redis: ConnectionError']
+
+    def run_main(self, snap, *flags):
+        import contextlib, io
+        from unittest import mock
+        from omni_prod import active_jobs as A
+        full = {'blocking': [], 'busy': False, 'safe_to_drain': False, 'error_kinds': [], **snap}
+        full['unverified'] = bool(full.get('errors'))
+        out = io.StringIO()
+        with mock.patch.object(A, 'check_once', lambda ack: dict(full)), contextlib.redirect_stdout(out):
+            rc = A.main(['--wait-minutes', '0', *flags])
+        return rc, out.getvalue()
+
+    def test_the_flag_turns_connection_only_unverified_into_a_warned_quiet(self):
+        rc, out = self.run_main({'errors': list(self.CONN), 'error_kinds': ['connection', 'connection']},
+                                '--tolerate-unverified')
+        self.assertEqual(rc, 0, out)
+        self.assertIn('::warning title=active-jobs::draining WITHOUT verification', out)
+        self.assertIn('covers ONLY not being able to know', out)               # the relief is about knowing, only
+        self.assertIn('does NOT say nothing is running', out)
+        for e in self.CONN:
+            self.assertIn(e, out)
+        rc, out = self.run_main({'errors': [self.CONN[0]], 'error_kinds': ['connection'],
+                                 'blocking': ['rq_busy_workers:w1'], 'busy': True}, '--tolerate-unverified')
+        self.assertEqual(rc, 3, out)                                           # running work seen still refuses
+
+    def test_regression_a_redis_runtime_error_stays_unverified(self):
+        cases = ((['redis: RuntimeError'], ['logic']), (['redis: TypeError'], ['logic']),
+                 ([self.CONN[0], 'redis: KeyError'], ['connection', 'logic']),
+                 (['redis: OMNI_REDIS_URL is not set, RQ state cannot be read'], ['config']),
+                 (['db: OMNI_DATABASE_URL is not set'], ['config']),
+                 (['intake_reservations: UndefinedTable'], ['query']), (['gate: RuntimeError'], ['logic']),
+                 (['db: connection failed (OperationalError)'], []))                # unclassified is never tolerated
+        for errors, kinds in cases:
+            with self.subTest(errors=errors):
+                rc, out = self.run_main({'errors': errors, 'error_kinds': kinds}, '--tolerate-unverified')
+                self.assertEqual(rc, 2, out)
+                self.assertNotIn('::warning', out)
+
+    def test_classification_is_by_exception_type(self):
+        from omni_prod import active_jobs as A
+        for exc in (ConnectionError('x'), TimeoutError('x')):
+            self.assertEqual(A.classify(exc), A.CONNECTION, exc)
+        for exc in (RuntimeError('x'), TypeError('x'), KeyError('x'), ValueError('x')):
+            self.assertEqual(A.classify(exc), A.LOGIC, exc)
+        try:
+            import psycopg
+        except ImportError:
+            psycopg = None
+        if psycopg is not None:
+            self.assertEqual(A.classify(psycopg.OperationalError('down'), A.QUERY), A.CONNECTION)
+            self.assertEqual(A.classify(psycopg.errors.UndefinedTable('x'), A.QUERY), A.QUERY)
+            self.assertEqual(A.classify(psycopg.ProgrammingError('x'), A.QUERY), A.QUERY)
+
+        class Boom:
+            def __init__(self, exc):
+                self.exc = exc
+
+            def ping(self):
+                raise self.exc
+        for exc, kind in ((RuntimeError('queue scan'), A.LOGIC), (ConnectionError('refused'), A.CONNECTION)):
+            s = A.snapshot(None, Boom(exc), db_error=('db: connection failed (OperationalError)', A.CONNECTION))
+            self.assertEqual(s['error_kinds'], [A.CONNECTION, kind], exc)
+        s = A.snapshot(None, None, db_error=('db: OMNI_DATABASE_URL is not set', A.CONFIG))
+        self.assertEqual(s['error_kinds'], [A.CONFIG, A.CONFIG])               # no URL is configuration, not a failure
+
+    def test_without_the_flag_the_behaviour_is_exactly_todays(self):
+        rc, out = self.run_main({'errors': list(self.CONN), 'error_kinds': ['connection', 'connection']})
+        self.assertEqual(rc, 2, out)
+        self.assertIn('::error title=active-jobs::NOT draining: the state could not be verified', out)
+        self.assertNotIn('::warning', out)
+        rc, _ = self.run_main({'errors': [self.CONN[0]], 'error_kinds': ['connection'],
+                               'blocking': ['rq_busy_workers:w1'], 'busy': True})
+        self.assertEqual(rc, 2)                                                # unverified wins, as today
+        self.assertEqual(self.run_main({'errors': [], 'blocking': ['running_builds:b1'], 'busy': True})[0], 3)
+        self.assertEqual(self.run_main({'errors': [], 'safe_to_drain': True})[0], 0)
+
+    def test_the_real_command_with_an_unreachable_database_and_redis(self):
+        env = {k: v for k, v in os.environ.items() if k not in ('OMNI_DATABASE_URL', 'OMNI_REDIS_URL')}
+        py = [sys.executable, '-m', 'omni_prod.active_jobs', '--wait-minutes', '0']
+        unset = subprocess.run(py + ['--tolerate-unverified'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(unset.returncode, 2, unset.stdout + unset.stderr)       # missing URLs: configuration
+        env['OMNI_DATABASE_URL'] = 'postgresql://postgres@127.0.0.1:1/none'
+        env['OMNI_REDIS_URL'] = 'redis://127.0.0.1:1/0'
+        strict = subprocess.run(py, env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        tolerant = subprocess.run(py + ['--tolerate-unverified'], env=env, capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual(strict.returncode, 2, strict.stdout + strict.stderr)
+        self.assertEqual(tolerant.returncode, 0, tolerant.stdout + tolerant.stderr)
+        self.assertIn('db: connection failed (OperationalError)', tolerant.stdout)
+        self.assertIn('redis: ConnectionError', tolerant.stdout)
+
+    def test_the_workflow_passes_the_flag_only_to_the_pre_drain_gate(self):
+        wf = yaml.safe_load((ROOT / '.github/workflows/deploy-worker.yml').read_text())
+        steps = {s.get('id'): s for s in wf['jobs']['deploy']['steps']}
+        self.assertIn('--tolerate-unverified', steps['idle']['run'])
+        self.assertNotIn('--tolerate-unverified', (HOST / 'drain.sh').read_text())   # the gates inside the drain stay strict
+
 
 if __name__ == '__main__':
     unittest.main()

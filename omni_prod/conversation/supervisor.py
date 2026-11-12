@@ -24,6 +24,7 @@ builds and versions are.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -54,6 +55,8 @@ _FEAS_KEYS = (('payments', r'(תשלו[םמ]|סליקה|payment|stripe|checkout)
 _CAP_HE = {'payments': 'תשלומים', 'sign-in': 'התחברות משתמשים', 'email': 'שליחת מיילים', 'sms': 'הודעות SMS/וואטסאפ',
            'mobile app': 'אפליקציה לנייד', 'publishing': 'פרסום לכתובת קבועה', 'images': 'יצירת תמונות'}
 _REASON_HE = {F.BLOCKED: 'עוד לא מחובר בפלטפורמה', F.UNSUPPORTED: 'עוד לא נתמך', F.WITH_CONSTRAINTS: 'אפשרי עם מגבלות'}
+_INTEGRATION_HE = {'payments': 'תשלומים וסליקה', 'email': 'שליחת מיילים', 'sms': 'שליחת הודעות SMS/WhatsApp',
+                   'maps': 'מפות', 'calendar': 'יומן', 'ai_model': 'מודל בינה מלאכותית'}
 _ALT_HE = {'payments': 'לבנות עכשיו בלי תשלומים ולהוסיף אותם כשהחיבור יהיה זמין', 'sign-in': 'כלי פנימי בלי התחברות, בקישור פרטי',
            'email': 'לבנות עכשיו בלי שליחת מיילים', 'sms': 'לבנות עכשיו בלי הודעות', 'mobile app': 'גרסת ווב שעובדת גם בנייד',
            'publishing': 'תצוגה מקדימה פרטית והורדת קוד המקור', 'images': 'להעלות תמונות משלכם'}
@@ -107,6 +110,10 @@ class Turn:
     cost_state: str = 'CONFIRMED_ZERO'
     reservation_id: str | None = None
     explained: bool = False                        # this answer explained why the open question matters
+    gaps: dict | None = None                       # WP1: what the artifact still needs, and the one next question
+    gate: str | None = None                        # 'spec': this turn asked for gate 1 (approve the spec)
+    venice: dict | None = None                     # agent.venice: mode, the visible stage, the cost range
+    blocked: list = field(default_factory=list)    # feasibility blockers said in this turn (no plan before gate 1)
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -114,14 +121,14 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation}
+                'interpretation': self.interpretation, 'gaps': self.gaps, 'venice': self.venice}
 
 
 def _plan_view(plan: dict) -> dict:
     """What the workspace shows: no provider/model internals by default."""
     return {k: plan[k] for k in ('status', 'product_family', 'complexity', 'architecture', 'feasibility', 'layers',
                                  'critical_path', 'executable', 'budget', 'milestones', 'capability_gaps', 'graph_problems',
-                                 'brief_fingerprint') if k in plan} | {
+                                 'brief_fingerprint', 'spec_gate') if k in plan} | {
         'tasks': [{'task_id': t['task_id'], 'task_type': t['task_type'], 'department': t['department'],
                    'agent': t['responsible_agent'], 'dependencies': t['dependencies'], 'stage': t['stage'],
                    'conditional': t['conditional'], 'executable': t['executable']} for t in plan['execution_graph']['tasks']]}
@@ -133,12 +140,14 @@ _TXT = {
            'ready_again': 'התוכנית מעודכנת ומוכנה. כדי להתחיל לבנות לחצו על "אישור והתחלת בנייה" — שום חיוב לא מתחיל לפני האישור.',
            'ready': 'יש לי תמונה מלאה. הכנתי תוכנית עבודה — אפשר לעבור עליה ולאשר. שום בנייה ושום חיוב לא מתחילים לפני אישור.',
            'blocked': 'יש דרישה שאי אפשר לבנות כרגע', 'nothing': 'לא זיהיתי פרטים חדשים. ספרו לי עוד על מה שתרצו, או שאלו "מה חסר?".',
+           'model_unavailable': 'הסוכן לא הספיק לענות הפעם (העומס אצל ספק המודל). מה שכתבתם נשמר — שלחו שוב בעוד רגע, או כתבו עוד פרט על המוצר.',
            'missing_none': 'לא חסר כלום — אפשר לעבור לסיכום ולאשר.', 'missing': 'חסר לי:', 'contra': 'יש סתירה שצריך להחליט עליה:',
            'conflict': 'קודם נקבע: {current}. עכשיו הבנתי: {proposed}. לא שיניתי — מה נכון?',
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'corrected': 'עדכנתי',
            'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
-           'cost_unknown': 'אחשב עלות אחרי שהדרישות יהיו מלאות.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
+           'canon_ack': 'לפני האישור: סמנו את התיבה שמאשרת שהאתר ייבנה בלי טלפון וכתובת, או כתבו אותם בהודעה.',
+           'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
            'modify': 'הבנתי שתרצו לשנות את המוצר הקיים. אשרו ואשלח את השינוי לצנרת השינויים (תוצג עלות לפני ביצוע).',
@@ -159,13 +168,15 @@ _TXT = {
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
            'blocked': 'Something you asked for cannot be built right now', 'nothing': 'I did not spot new details. Tell me more, or ask "what is missing?".',
+           'model_unavailable': 'The assistant could not answer in time (the model provider is busy). What you wrote is saved; send it again in a moment, or add another detail about the product.',
            'missing_none': 'Nothing is missing: you can review the summary and approve.', 'missing': 'Still missing:',
            'contra': 'There is a contradiction to decide:',
            'conflict': 'Earlier: {current}. Now I understood: {proposed}. I did not change it — which is right?',
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'corrected': 'Updated',
            'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
-           'cost_unknown': 'I will calculate the cost once the requirements are complete.',
+           'canon_ack': 'Before approving: tick the box confirming the site is built without a phone and address, or send them in a message.',
+           'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
            'approve': 'To start, approve the summary and cost with "Approve and start building".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
            'status': 'Latest build: {status}{phase}. Tasks: {done} done, {running} running, {pending} waiting, {failed} failed.',
@@ -198,8 +209,26 @@ SHORT = {
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
+def _why_prefixes():
+    from ..intake.gaps import FALLBACK
+    return tuple(t['_why'] for t in FALLBACK.values())
+
+
+_WHY_PREFIXES = _why_prefixes()
+AF_FLOW = 'two_gate'      # intake.approval_flow.FLOW (kept in sync by test_the_flow_mark_names_match)
+
 _UNSURE_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא (יודע|יודעת|בטוח|בטוחה|הבנתי)|אין לי מושג|תסביר|תסבירי|הסבר|'
-              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain)\s*[.!?]*\s*$')
+              r'\?+|what\??|why\??|i don\'?t know|not sure|no idea|what do you mean|explain|'
+              r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لا أعرف|لست متأكد[ًا]*|اشرح)\s*[.!?؟]*\s*$')
+
+# Clarification replies to the question just asked (owner + Matt 2026-10-28), kept apart on purpose:
+#   NOT UNDERSTOOD ("what?", "why?", "לא הבנתי") -> the same field once more, explained; then the conversation moves on
+#   DON'T KNOW ("לא יודע", "not sure")           -> not asked again: the field's default, visible as an assumption
+_NOT_UNDERSTOOD_RX = (r'^\s*(מה\??|מה זה\??|למה\??|לא הבנתי(?: את השאלה)?|לא ברור(?: לי)?|תסביר|תסבירי|הסבר|\?+|'
+                      r'what\??|why\??|what do you mean\??|i don\'?t understand|explain|'
+                      r'لماذا\s*[?؟]?|ماذا\s*[?؟]?|لم أفهم|اشرح)\s*[.!?؟]*\s*$')
+_DONT_KNOW_RX = (r'^\s*(לא (יודע|יודעת|בטוח|בטוחה)|אין לי מושג|i don\'?t know|not sure|no idea|'
+                 r'لا أعرف|لست متأكد[ًا]*)\s*[.!?؟]*\s*$')
 
 
 def _short(field_: str, lang: str) -> str:
@@ -216,7 +245,7 @@ def _label(field_: str, value, lang: str) -> str:
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
-                 reservations=None, enqueue=None):
+                 reservations=None, enqueue=None, admission=None):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
@@ -227,8 +256,76 @@ class ConversationSupervisor:
         self.worker_interpreter = worker_interpreter           # injected in tests
         self.reservations = reservations                       # intake.budget.ReservationService (migration 037)
         self.enqueue = enqueue                                 # RQ enqueue of a reservation id
+        # 79: the build-admission check the banner shows (plan preview: quote, plan allowance, infrastructure, gate).
+        # The chat never says "ready, approve" while this says no; if they would disagree, admission wins.
+        self.admission = admission                             # (project_id, row, lang) -> preview dict | None
 
     # ------------------------------------------------------------------ helpers
+    def _unpriced_gate(self, project_id: str, account_id: str, row, lang: str, turn) -> list[str] | None:
+        """77 (Michael 2026-11-11): before gate 1, a capability with no price is never left to the generic banner.
+        Exactly three outcomes: it is priced (None: gate 1 as usual); the customer is asked ONE question -- build
+        without it? -- and "build without" binds an explicit exclusion into the spec; or, for what cannot be left out
+        (infrastructure), the reply says plainly what is missing and what to do, with no approve button."""
+        if self.admission is None:
+            return None
+        from .. import build_readiness as R
+        he = lang == 'he'
+        f = row.brief.fields.get('unavailable') or {}
+        known = d.unpriced_keys(row.brief)
+        if f.get('value') == 'wait' and known:
+            names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in known))
+            turn.questions = [d.BY_ID['unavailable']]
+            return [(f'בסדר. {names} עדיין לא זמין אצלנו, ולכן אי אפשר להתחיל לבנות את הבקשה כפי שהיא. '
+                     'כשתרצו — בחרו "כן, לבנות בלעדיו", או ערכו את הבקשה.') if he else
+                    (f'OK. {names} is not available yet, so this request cannot be built as it is. '
+                     'Whenever you like, choose "Yes, build without it", or edit the request.')]
+        try:
+            preview = self.admission(project_id, row, lang) or {}
+        except Exception:   # a bug here never silences the conversation; the gate-2 check still stands
+            import logging
+            logging.getLogger(__name__).warning('unpriced check failed for %s', project_id, exc_info=True)
+            return None
+        keys = list(dict.fromkeys(k for b in preview.get('blockers') or [] if b.get('code') == 'cost_quote_unknown'
+                                  for k in b.get('capability_keys') or []))
+        if not keys:
+            return None
+        ask = [k for k in keys if R.excludable(k)]
+        if ask:
+            new = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            new.hints['unpriced'] = ','.join(sorted(set(known) | set(ask)))
+            new.fields.pop('unavailable', None)          # a new unpriced item is asked again
+            saved = self.briefs.save(project_id=project_id, account_id=account_id, brief=new,
+                                     expected_revision=row.revision)
+            turn.brief_row = saved
+            turn.questions = [d.BY_ID['unavailable']]
+            names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in ask))
+            return [(f'{names} עדיין לא זמין אצלנו. לבנות בלעדיו? אם כן, זה ייכתב במפרט, והשאר ייבנה כרגיל.') if he else
+                    (f'{names} is not available yet. Build without it? If so, the spec says so and the rest is built as usual.')]
+        names = ', '.join(dict.fromkeys(R.display_name(k, lang) for k in keys))
+        login = 'auth_session' in keys
+        nxt = (('אפשר לבנות בלי התחברות — כתבו "בלי התחברות".' if login else 'ערכו את הבקשה בלעדיו.') if he else
+               ('It can be built without sign-in: write "no sign-in".' if login else 'Edit the request without it.'))
+        return [(f'{names} עדיין לא זמין אצלנו, ולכן אי אפשר לבנות את הבקשה כפי שהיא. {nxt}') if he else
+                (f'{names} is not available yet, so this request cannot be built as it is. {nxt}')]
+
+    def _admission_block(self, project_id: str, row, lang: str) -> str | None:
+        """79: the sentence the banner shows, when admission refuses -- or None (no admission check, or it allows).
+        A failure of the check itself never blocks the chat; it is logged and the old reply stands."""
+        if self.admission is None:
+            return None
+        try:
+            preview = self.admission(project_id, row, lang)
+        except Exception:   # an admission bug must not silence the conversation
+            import logging
+            logging.getLogger(__name__).warning('admission check failed for %s', project_id, exc_info=True)
+            return None
+        if not preview or preview.get('can_build'):
+            return None
+        from ..build_readiness import primary_blocker
+        reason = preview.get('blocked_reason') or primary_blocker(preview, lang)
+        head = 'לא ניתן להתחיל בבנייה כרגע' if lang == 'he' else 'The build cannot start yet'
+        return f"{head}: {reason['message']} {reason['next']}"
+
     def intake_mode(self, project_id, account_id=None):
         from ..intake import budget as B
         from ..intake import mode as intake_mode
@@ -262,6 +359,59 @@ class ConversationSupervisor:
                                          project_id=project_id, request_key=request_key, caps=B.caps_from_env(),
                                          task=task)
 
+    def _feasibility(self, row) -> dict:
+        """What can be built from the spec, WITHOUT a plan (gate 1 has not been passed yet)."""
+        try:
+            return F.assess(C.build(row.brief)).to_dict()
+        except C.ContractInvalid:
+            return {}
+
+    def _messages(self, project_id):
+        try:
+            return self.store.messages_for(project_id, limit=500)
+        except Exception:
+            return []
+
+    def _spec_ok(self, project_id, row) -> bool:
+        from ..intake import approval_flow as AF
+        return row is not None and AF.spec_approved(self._messages(project_id), row.fingerprint)
+
+    def _approved_plan(self, project_id, row):
+        """After gate 1 only: the verified plan saved for this exact spec (None before)."""
+        if not self._spec_ok(project_id, row):
+            return None, None, None
+        saved = self.store.plan_for(project_id, row.fingerprint)
+        if saved is None:
+            return None, None, None
+        try:
+            contract = C.build(row.brief).to_dict()
+        except C.ContractInvalid:
+            contract = None
+        return saved['plan'], saved['id'], contract
+
+    def _gate1(self, turn, row, lang):
+        """Step 1 of 2: the spec + the cost range, and the approve-spec control. No plan exists here."""
+        from ..intake import approval_flow as AF
+        t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
+        summary = '; '.join(_label(k, v['value'], lang) for k, v in list(row.brief.fields.items())[:8] if 'value' in v)
+        turn.gate = 'spec'
+        turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
+                       'cost_range_credits': [lo, hi]}
+        # Michael 2026-11-10 condition 2: the fact canon is shown here and approved WITH the brief; an empty canon on a
+        # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
+        from .. import discovery as d
+        from ..fact_canon import canon_view
+        canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
+                           family='website' if d.is_website(row.brief) else 'app', lang=lang)
+        turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
+                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
+        from .. import build_readiness as R
+        excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
+                     f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
+                    for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
+        return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
+                t['range'].format(lo=lo, hi=hi), t['gate1']]
+
     def _plan(self, project_id, row):
         try:
             contract = C.build(row.brief)
@@ -288,10 +438,21 @@ class ConversationSupervisor:
         if attachments and not shown:
             shown = T['attached_shown'].format(n=T['images'](len(attachments)))
         if shown:
+            # A quick-reply button is stored with its answers (not only its label), so the conversation can be
+            # replayed exactly from the store on any server (_replayed_spec); no schema change (jsonb column).
+            said_meta = {**({'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]} if attachments else {}),
+                         **({'answers': dict(answers)} if answers and not message else {})}
+            # Founder 2026-10-28 (option b): a conversation that STARTS now is on the two-gate flow from its first
+            # message -- an explicit, durable mark, not a creation date. A project that already has a brief or a
+            # conversation keeps whatever flow it was on (EarlierProjectsKeepWorking).
+            # The mark is repeated on every later customer message, so it stays inside any window a reader takes
+            # (_bind_execution_plan reads the last 500 messages).
+            recent = self.store.messages_for(project_id, limit=2)
+            if (row is None and not recent) or any((m.get('interpretation') or {}).get('flow') == AF_FLOW for m in recent):
+                said_meta['flow'] = AF_FLOW
             self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                    brief_revision=row.revision if row else None, request_key=request_key,
-                                   interpretation={'attachments': [{'id': a['id'], 'kind': a['kind']} for a in attachments]}
-                                   if attachments else None)
+                                   interpretation=said_meta or None)
         intent = 'answer' if answers else classify_intent(message, has_version=bool(ctx.get('latest_version_id')),
                                                           has_brief=row is not None)
         if intent == 'recommend' and self.intake_mode(project_id,account_id).paid:
@@ -301,11 +462,10 @@ class ConversationSupervisor:
         if row and not answers and re.fullmatch(r'(?:אז\s+)?(?:תוותר|וותר|תוריד)\s+(?:על\s+)?זה(?:\s+כרגע)?[.!? ]*|'
                                                r'(?:skip|remove|drop)\s+(?:that|it)(?:\s+for now)?[.!? ]*', message, re.I):
             previous = [m for m in self.store.messages_for(project_id, limit=6) if m.get('role') == 'assistant']
-            last_plan_id = (previous[-1].get('interpretation') or {}).get('plan_id') if previous else None
-            plan, _, _ = self._plan(project_id, row)
-            blockers = [f for f in (plan or {}).get('feasibility', {}).get('findings', [])
+            last_blocked = (previous[-1].get('interpretation') or {}).get('blocked') if previous else None
+            blockers = [f for f in self._feasibility(row).get('findings', [])
                         if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
-            if last_plan_id and len(blockers) == 1 and blockers[0]['item'].startswith('sign-in'):
+            if last_blocked and len(blockers) == 1 and blockers[0]['item'].startswith('sign-in'):
                 answers = {'login': 'none'}
                 intent = 'answer'
         if attachments and not message and not answers:
@@ -319,10 +479,20 @@ class ConversationSupervisor:
         else:
             turn.brief_row = row
             if row is not None:
-                turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
+                turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
             turn.reply = self._answer(intent, row, turn.plan, ctx, message, T, lang)
-            if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
-                turn.actions.append({'type': 'approve_build', 'brief_revision': row.revision})
+            blocked_now = (self._admission_block(project_id, row, lang)
+                           if intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete
+                           else None)
+            if blocked_now:                                # 79: "approve" never gets a button the banner refuses
+                turn.reply = blocked_now
+            elif intent == 'approve' and turn.plan and turn.plan.get('executable') and row and row.complete:
+                turn.actions.append({'type': 'approve_build', 'brief_revision': row.revision,
+                                     **({'cost': turn.plan['spec_gate']['cost']} if 'spec_gate' in turn.plan else {})})
+            elif intent == 'approve' and row is not None and row.complete and not self._spec_ok(project_id, row) \
+                    and self._feasibility(row).get('buildable'):
+                from ..intake import approval_flow as AF
+                turn.reply = ' '.join([AF.text(lang)['gate1_needed']] + self._gate1(turn, row, lang))
             if intent == 'modify':
                 turn.actions.append({'type': 'confirm_modification', 'version_id': ctx.get('latest_version_id'),
                                      'request': message,
@@ -332,7 +502,10 @@ class ConversationSupervisor:
                                                     infer_defaults=False).asked if intent == 'missing' else []
         if attachments and intent != 'attachment':
             turn.reply = (turn.reply + ' ' + T['attached_note'].format(n=T['images'](len(attachments)))).strip()
-        if turn.brief_row and not (turn.plan or {}).get('executable', True):
+        if turn.blocked and turn.plan is None:              # blocked before gate 1: edit the spec (there is no plan)
+            if not any(a['type'] == 'edit_requirements' for a in turn.actions):
+                turn.actions.append({'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision})
+        elif turn.brief_row and not (turn.plan or {}).get('executable', True):
             for action in ({'type': 'show_plan', 'brief_revision': turn.brief_row.revision},
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
@@ -342,16 +515,125 @@ class ConversationSupervisor:
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}),
                                                'asked': [q.id for q in turn.questions],
+                                               # R1/8.6: every time the system asks the persistence decision it is
+                                               # counted (the frozen-run report reads it as systemAskedDecisions)
+                                               **({'decision_asked': {'field': 'persistence', 'trigger':
+                                                   'stale' if (turn.brief_row and (turn.brief_row.brief.hints or {})
+                                                               .get('persistence_stale')) else 'discovery'}}
+                                                  if any(q.id == 'content_only' for q in turn.questions) else {}),
+                                               # the detector's own question, stored for the replay (_replayed_spec):
+                                               # `asked` holds catalog ids only and misses a detector-only field
+                                               'gap_field': ((turn.gaps or {}).get('question') or {}).get('field'),
                                                'explained': bool(getattr(turn, 'explained', False)),
-                                               'actions': turn.actions, 'plan_id': turn.plan_id},
+                                               'actions': turn.actions, 'plan_id': turn.plan_id,
+                                               **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
+                                               **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
+                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
                                cost_state=turn.cost_state if paid else None, reservation_id=turn.reservation_id)
         return turn
 
+    # ------------------------------------------------------------- gate 1 -> plan -> verifier -> gate 2
+    def approve_spec(self, *, project_id: str, account_id: str, brief_fingerprint: str, request_key: str | None = None,
+                     lang: str | None = None, canon_ack: bool = False) -> Turn:
+        """Gate 1: the customer approves THIS spec (by fingerprint). Only now is a plan made; the separate verifier
+        checks it before the customer sees it; then gate 2 shows the exact cost next to the range said earlier."""
+        from ..intake import approval_flow as AF
+        row = self.briefs.latest(project_id)
+        lang = lang or language_of(row.brief.prompt if row else 'שלום')
+        t, T = AF.text(lang), _TXT['he' if lang == 'he' else 'en']
+        turn = Turn('approve_spec', lang, '', row)
+        shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
+        current = row is not None and row.complete and brief_fingerprint == row.fingerprint
+        feasible = current and self._feasibility(row).get('buildable')
+        # Michael 2026-11-10 condition 3: a shown warning is read like noise. An incomplete fact canon (a business site
+        # with no phone and no address) is approved only when the customer ticked the box that says so.
+        if feasible and not canon_ack:
+            from ..fact_canon import canon_view
+            canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
+                               family='website' if d.is_website(row.brief) else 'app', lang=lang)
+            if canon['status'] == 'CANON_INCOMPLETE':
+                turn.reply = ' '.join([T['canon_ack']] + self._gate1(turn, row, lang))
+                return self._finish(project_id, account_id, turn, request_key)
+        flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
+                                        for m in self.store.messages_for(project_id, limit=2)) else {}
+        self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
+                               brief_revision=row.revision if row else None, request_key=request_key,
+                               interpretation={**({'spec_approved': row.fingerprint} if feasible else
+                                                  {'spec_approval_refused': brief_fingerprint}), **flow})
+        if not current or not feasible:        # never plan for a spec the customer did not see as it is now
+            if row is None:
+                turn.reply = T['nothing']
+            elif not row.complete:
+                pend = [(q.he if lang == 'he' else q.en) for q in d.pending(row.brief)]
+                turn.reply = T['approve_not_ready'] + ' ' + '; '.join(pend[:4] or ['—'])
+            elif not self._feasibility(row).get('buildable'):
+                blocked = [f for f in self._feasibility(row).get('findings', [])
+                           if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+                turn.reply = T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3])
+            else:
+                turn.reply = ' '.join([t['stale']] + self._gate1(turn, row, lang))
+            return self._finish(project_id, account_id, turn, request_key)
+
+        contract = C.build(row.brief)
+        cached = self.store.plan_for(project_id, row.fingerprint)
+
+        def make_plan(corrective=False):
+            if cached is not None and not corrective:
+                return cached['plan']
+            return self.architect.plan(C.build(row.brief), budget_usd=self.budget_usd, status='PROPOSED')
+        plan, record = AF.verified_plan(make_plan, row.brief, row.fingerprint)
+        lo_hi = AF.cost_range(row.brief)
+        parts = [t['stage2'] + ' —']
+        turn.venice = {'agent': 'agent.venice', 'mode': 'planning', 'stage': t['stage2'], 'cost_range_credits': list(lo_hi)}
+        turn.interpretation = {'verification': record}
+        if plan is None:                       # the customer never sees a plan the verifier refused
+            parts.append(t['refused'].format(what='; '.join(record.get('remaining') or record['problems'])[:400]))
+            turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
+            turn.reply = ' '.join(parts)
+            return self._finish(project_id, account_id, turn, request_key)
+        cmp = AF.compare(lo_hi, self.credits)
+        plan = {**plan, AF.GATE_KEY: {'approved_fingerprint': row.fingerprint, 'verification': record, 'cost': cmp}}
+        saved = self.store.save_plan(project_id=project_id, brief_revision=row.revision,
+                                     brief_fingerprint=row.fingerprint, plan=plan)
+        turn.plan, turn.plan_id, turn.contract = plan, saved.get('id'), contract.to_dict()
+        parts.append(t['planned'])
+        if record['corrected']:
+            parts.append(t['fixed'].format(what='; '.join(record['problems'])[:400]))
+        blocked_by_admission = self._admission_block(project_id, row, lang) if plan.get('executable') else None
+        if blocked_by_admission:
+            parts.append(blocked_by_admission)
+            turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
+                             {'type': 'edit_requirements', 'brief_revision': row.revision}]
+        elif plan.get('executable'):
+            parts.extend(AF.budget_lines(cmp, lang, plan.get('complexity')))
+            parts.append(t['gate2'])
+            turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
+                             {'type': 'approve_build', 'brief_revision': row.revision, 'cost': cmp}]
+        else:
+            blocked = [f for f in plan['feasibility'].get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+            parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
+            turn.actions += [{'type': 'show_plan', 'brief_revision': row.revision},
+                             {'type': 'edit_requirements', 'brief_revision': row.revision}]
+        turn.reply = ' '.join(parts)
+        return self._finish(project_id, account_id, turn, request_key)
+
+    def _finish(self, project_id, account_id, turn, request_key):
+        self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
+                               brief_revision=turn.brief_row.revision if turn.brief_row else None,
+                               interpretation={'intent': turn.intent, **(turn.interpretation or {}), 'asked': [],
+                                               'actions': turn.actions, 'plan_id': turn.plan_id,
+                                               **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
+                                               **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
+                                               **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
+                               interpreter='deterministic', cost_usd=Decimal('0'), request_key=request_key)
+        return turn
+
     def _classify(self, project_id, row, message):
         from ..intake import complexity, lanes
-        history = [m for m in self.store.messages_for(project_id, limit=9)]
+        history = [m for m in self.store.messages_for(project_id, limit=10)
+                   if not (m.get('interpretation') or {}).get('system')][-9:]
         if history and history[-1].get('role') == 'customer':
             history = history[:-1]                        # the current message was stored at turn start
         confirmed = {k: f['value'] for k, f in (row.brief.fields.items() if row else ())
@@ -368,7 +650,8 @@ class ConversationSupervisor:
         if message:
             source = (self._interpreter(project_id, account_id, request_key, task=lane['task'])
                       if lane['lane'] in lanes.MODEL_LANES else DeterministicInterpreter())
-            source.history = self.store.messages_for(project_id, limit=5)[:-1]
+            source.history = [m for m in self.store.messages_for(project_id, limit=6)[:-1]
+                              if not (m.get('interpretation') or {}).get('system')][-4:]   # never the flow mark
             interp = source.interpret(message, row.brief if row else None)
         brief = row.brief if row else d.start(message or '', d.GUIDED)
         for qid, value in answers.items():
@@ -386,15 +669,42 @@ class ConversationSupervisor:
                 new_brief.semantic_decisions, interp.semantic_decisions)
         recorded = False
         if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
-                and not answers and _CONTENT_RX.search(message)):
+                and not answers and _CONTENT_RX.search(message) and not intake_agent._off_topic('content', message)):
             new_brief, recorded = _record_content(new_brief, message), True
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
+        # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
+        # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
+        # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
+        gaps, gap_q = self._gaps(project_id, message, interp, answers, new_brief, lang,
+                                 contested={c['field'] for c in res.conflicts})
+        # C6 (CEO 2026-10-27): the detector decides completeness. Its open material field is recorded in the brief
+        # (so the approval gate sees it), a field it asks is never also shown as an assumption, and the catalog is
+        # only the fallback: when the detector has nothing material left, a catalog question that may not be assumed
+        # (security/privacy, not delegable, no honest default) is still asked in the catalog's words.
+        new_brief.detector = True
+        # a sensitive field the customer could not settle after one explained repeat stays OPEN (held), not re-asked
+        new_brief.open_material = list(dict.fromkeys(([gap_q.field] if gap_q is not None else [])
+                                                     + list((gaps or {}).get('held_open') or ())))
+        for name, value in ((gaps or {}).get('assumed_now') or {}).items():   # "don't know": the default, shown
+            if not any(a['field'] == name for a in res.assumed):
+                res.assumed.append({'field': name, 'value': value, 'why': 'not known by the customer'})
+        if gap_q is not None:                    # asked now, so not also announced as "chosen for you" (the stored
+            res.assumed = [a for a in res.assumed if a['field'] != gap_q.field]   # default stays until answered)
+        held_open = set((gaps or {}).get('held_open') or ())   # held open: the catalog does not re-ask it either
+        fallback = [q for q in d.must_ask(new_brief) if q.field not in held_open and q.id not in held_open] \
+            if gap_q is None and not res.conflicts else []
+        res.asked = (res.asked[:len(res.conflicts)] if res.conflicts else
+                     [d.BY_ID[gap_q.field]] if gap_q is not None and gap_q.field in d.BY_ID else fallback[:1])
         expected = row.revision if row else 0
-        if row is None or new_brief.fingerprint() != row.fingerprint:
+        # C6: a revision when the requirements change (fingerprint), when completeness changes, or when the detector
+        # moves to another open field -- so the stored brief never names a stale open field. While the brief is
+        # incomplete no approval exists, so a revision with the same fingerprint invalidates nothing.
+        if row is None or new_brief.fingerprint() != row.fingerprint or d.complete(new_brief) != row.complete \
+                or new_brief.open_material != row.brief.open_material:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=new_brief,
                                    expected_revision=expected, request_key=request_key)
         turn = Turn('answer' if answers and not message else 'requirements', lang, '', row, res.asked)
@@ -402,9 +712,12 @@ class ConversationSupervisor:
         if turn.interpretation is not None:
             turn.interpretation.update(complexity=cls.to_dict() if cls else None, lane=lane,
                                        conflicts=res.conflicts, corrected=res.corrected)
+            if res.dropped:      # refused by the brief (e.g. technical text as the goal): logged, the turn continues
+                turn.interpretation['dropped'] = list(turn.interpretation.get('dropped') or []) + res.dropped
         if interp is not None:
             turn.cost_usd = None if interp.cost_usd is None else Decimal(str(interp.cost_usd))
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
+        turn.gaps = gaps
         parts = []
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
@@ -428,34 +741,291 @@ class ConversationSupervisor:
             parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
                          + '.' + (T['more'].format(n=more) if more > 0 else ''))
         unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
-        if row.complete:
-            turn.plan, turn.plan_id, turn.contract = self._plan(project_id, row)
-            feas = (turn.plan or {}).get('feasibility', {})
+        if row.complete and gap_q is None:
+            feas = self._feasibility(row)
             if feas.get('buildable'):
                 if recorded:
                     parts.append(T['content_saved'])
-                again = not stated and not res.corrected and (recorded or self._prev_ready(project_id))
-                parts.append(T['ready_again'] if again else T['ready'])
-                turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
+                if self._spec_ok(project_id, row):         # nothing changed since gate 1: the verified plan stands
+                    turn.plan, turn.plan_id, turn.contract = self._approved_plan(project_id, row)
+                    parts.append(self._admission_block(project_id, row, lang) or T['ready_again'])
+                    turn.actions.append({'type': 'show_plan', 'brief_revision': row.revision})
+                else:                                      # gate 1: the spec and the range; no plan yet
+                    unpriced = self._unpriced_gate(project_id, account_id, row, lang, turn)   # 77
+                    parts.extend(unpriced if unpriced else self._gate1(turn, row, lang))
             else:
                 blocked = [f for f in feas.get('findings', []) if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+                turn.blocked = [f['item'] for f in blocked]
                 parts.append(T['blocked'] + ': ' + '; '.join(
                     self._finding_message(f, lang, T) for f in blocked[:3]))
-        elif res.asked:
-            self._last_reply_was_why = False
-            repeated = self._repeats(project_id, res.asked)
-            explain = unsure or repeated
-            parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
-            turn.explained = explain and not self._last_reply_was_why
+        elif res.asked or gap_q is not None:                # still listening: no plan while a material field is open
+            # C6: the detector may still ask while the catalog is already complete; a blocker is known (and said)
+            # now, not after the last question -- from the feasibility check, never from a plan (no plan before gate 1)
+            if row.complete or d.catalog_complete(row.brief):
+                blocked = [f for f in self._feasibility(row).get('findings', [])
+                           if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
+                turn.blocked = [f['item'] for f in blocked]
+                if blocked and not row.complete:
+                    parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
+            if gap_q is not None and not res.conflicts:
+                parts.append(gap_q.text)                    # the detector's question, exactly as it is in turn.gaps
+                turn.explained = gap_q.text.startswith(_WHY_PREFIXES)
+            else:                                           # only a conflict with a confirmed value is asked back here
+                self._last_reply_was_why = False
+                repeated = self._repeats(project_id, res.asked)
+                explain = unsure or repeated
+                parts.extend(self._ask_line(res, row, lang, T, unsure=explain))
+                turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
         turn.reply = ' '.join(parts)
+        # CEO 2026-11-08: no questionnaire. While the conversation is still listening (no gate 1, no blocker, no
+        # conflict), the customer sees the model's own reply and question, not the detector's question, the
+        # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
+        # completeness; the approval gates, cost and blockers above stay authoritative and unchanged.
+        listening = not (row.complete and gap_q is None) and not res.conflicts and not turn.blocked
+        model_reply = (interp is not None and str(getattr(interp, 'interpreter', '')).startswith('model')
+                       and bool((interp.reply or '').strip()))
+        if listening and model_reply:
+            turn.reply, turn.questions = interp.reply.strip(), []
+        elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
+            # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
+            turn.reply, turn.questions = T['model_unavailable'], []
         return turn
+
+    @staticmethod
+    def _heard(message, answers, proposals, lang):
+        """(the customer's words, the proposals they carry, typed?) for one customer turn. A quick-reply button's
+        label is the customer's words and its value is a stated answer -- but a label is never typed text."""
+        from ..intake.interpreter import Proposal
+        if message or not answers:
+            return message or '', list(proposals or ()), True
+        labels = [(q, v, next((o.he if lang == 'he' else o.en for o in d.BY_ID[q].options if o.value == v), str(v)))
+                  for q, v in answers.items() if q in d.BY_ID]
+        said = '; '.join(label for _, _, label in labels)
+        props = [Proposal(d.BY_ID[q].field, v, 'high', label) for q, v, label in labels if v != d.DELEGATE]
+        if any(v == d.DELEGATE for _, v, _ in labels):
+            said += ' ' + ('you decide' if lang == 'en' else 'תחליט אתה')
+        return said, props, False
+
+    @staticmethod
+    def _closed_in_brief(brief) -> set[str]:
+        """Fields the brief has CLOSED to a question; the detector asks only outside this set (its own fields with
+        no catalog question are never closed here). A field the customer already decided (answer / message), a skipped
+        one, or one that does not apply to this brief (ask_if false) is never asked -- this filters the detector's
+        list, it does not bring back the catalog's questionnaire."""
+        vals = d._ctx(brief)
+        closed = set()
+        for q in d.QUESTIONS:
+            f = brief.fields.get(q.field)
+            if (f and f.get('source') in intake_agent.CONFIRMED_SOURCES) or q.id in brief.skipped or not q.ask_if(vals):
+                closed.update((q.field, q.id))
+        return closed
+
+    def _gaps(self, project_id, message, interp, answers, brief, lang, contested=()):
+        """(gaps evidence, the one next Question or None).
+
+        The spec is rebuilt from the durable conversation on EVERY turn (_replayed_spec): the store is the only
+        source of truth, so another server, a restart or a new instance asks exactly what this one would."""
+        from ..intake.gaps import Questioner
+        said, proposals, typed = self._heard(message, answers, getattr(interp, 'proposals', ()), lang)
+        if not said:
+            return None, None
+        spec, previous, held = self._replayed_spec(project_id)
+        spec = self._family_for(spec, said, typed)
+        settle, unsure, hold, assume = self._clarify(spec, previous, said, typed)
+        spec.hear(said, proposals, settle=settle)      # "what?" keeps the question open (explained, not skipped)
+        if hold or self._unsettled_sensitive(spec, previous, settle):
+            held.add(previous)
+        delegated = self._delegated_defaults(spec, previous, held, said, typed, brief=brief)
+        held = {h for h in held if spec.value(h) is None}   # answered later (typed or edited): no longer open
+        assumed_now = dict(delegated)
+        for name, value in delegated.items():
+            q0 = d.BY_ID[name]
+            brief.fields[name] = {'value': value, 'source': 'delegated', 'question_id': q0.id,
+                                  'confidence': 'assumed'}
+        if assume and spec.value(previous) is not None:   # the default the field now holds, written and shown
+            assumed_now[previous] = spec.value(previous)
+            q0 = d.BY_ID.get(previous)
+            f0 = brief.fields.get(previous)
+            if q0 is not None and not (f0 and f0.get('source') in intake_agent.CONFIRMED_SOURCES) \
+                    and (q0.kind == 'text' or assumed_now[previous] in {o.value for o in q0.options}):
+                brief.fields[previous] = {'value': assumed_now[previous], 'source': 'default', 'question_id': q0.id,
+                                          'confidence': 'assumed'}
+        pending = [q.field for q in d.pending(brief)]
+        g = spec.detect(pending)
+        for name, imp in g['implied'].items():        # implied by the request: an assumption in the brief, not asked
+            q = d.BY_ID.get(name)
+            if q is not None and name not in brief.fields and (q.kind == 'text' or imp['value'] in {o.value for o in q.options}):
+                brief.fields[name] = {'value': imp['value'], 'source': 'default', 'question_id': q.id, 'confidence': 'inferred'}
+        for name, value in g['proposed'].items():     # sensitive: pre-selected, still confirmed by the customer
+            brief.hints.setdefault(name, value)
+        closed = self._closed_in_brief(brief)
+        allowed = self._askable([n for n in g['missing_material'] if n not in held], closed, previous,
+                                unsure=unsure, contested=contested)
+        model_turn = str(getattr(interp, 'interpreter', '')).startswith('model')
+        gateway = getattr(self.worker_interpreter, 'gateway', None) if model_turn else None   # one call, same budget
+        q = Questioner(getattr(gateway, 'complete_json', None)).next(spec, pending, explain=unsure, allowed=allowed)
+        return {**spec.detect(pending), 'allowed': allowed, 'previous': previous, 'held_open': sorted(held),
+                'assumed_now': assumed_now,
+                'question': None if q is None else q.__dict__, 'metrics': spec.metrics()}, q
+
+    @staticmethod
+    def _unsettled_sensitive(spec, previous, settle) -> bool:
+        """Audit 2026-11-02 finding 5: a reply that settled the question but filled nothing on a sensitive `confirm`
+        field leaves it EMPTY (Spec.hear takes no default); it is held OPEN for the approval gate, not re-asked."""
+        if not settle or not previous or spec is None or spec.value(previous) is not None:
+            return False
+        from ..intake.artifact_fields import CONDITIONAL
+        f = next((x for x in list(spec.fields) + list(CONDITIONAL.values()) if x.name == previous), None)
+        return bool(f is not None and f.confirm)
+
+    @staticmethod
+    def _askable(missing, closed, previous, *, unsure=False, contested=()):
+        """The detector's ordered list, minus what the brief closed, under the repeat rule (Matt 2026-10-28).
+
+        The repeat rule is state-dependent. The field asked in the previous turn is offered again ONLY when
+          (a) `unsure`: the reply asks for a clarification (see _clarify) -- the field comes back ONCE, explained,
+              and first; or
+          (b) the answer contradicts a value the customer confirmed (`contested`): it may be asked back.
+        Clarifications (_clarify, owner + Matt 2026-10-28):
+          * "לא הבנתי" / "what?" / "why?"  -> once more, explained; a second "not understood" moves on (the default,
+            shown as an assumption -- or, with no valid default, the field is held OPEN);
+          * "לא יודע" / "not sure"          -> never repeated: the field's default, written and shown as an assumption;
+          * no valid default (a sensitive `confirm` field: privacy, data, who may see it) -> one explained repeat;
+            if still unsettled the field is held OPEN (brief.open_material, so the approval gate sees it) and is not
+            asked again by itself -- an open field, never a loop.
+        Any other reply settles it -- a stated value, "you decide", or words that fill nothing (Spec.hear then
+        records the field's default as an assumption the customer can change) -- so the same question never comes
+        back by itself."""
+        repeat_ok = unsure or previous in set(contested or ())
+        allowed = [n for n in missing if n not in closed and (n != previous or repeat_ok)]
+        if unsure and previous in allowed:
+            allowed.remove(previous)
+            allowed.insert(0, previous)
+        return allowed
+
+    @staticmethod
+    def _clarify(spec, previous, said, typed):
+        """(settle, explain again, hold open, assume the default) for a reply to the field just asked. See _askable."""
+        from ..intake.artifact_fields import CONDITIONAL
+        text = (said or '').strip().lower()
+        kind = None
+        if typed and previous and spec is not None:
+            if re.search(_NOT_UNDERSTOOD_RX, text, re.I):
+                kind = 'not_understood'
+            elif re.search(_DONT_KNOW_RX, text, re.I):
+                kind = 'dont_know'
+        if kind is None:
+            return True, False, False, False
+        f = next((x for x in list(spec.fields) + list(CONDITIONAL.values()) if x.name == previous), None)
+        no_default = f is None or f.confirm                  # sensitive: never silently assumed
+        last = spec.log[-1] if spec.log else None
+        explained = last is not None and last.field == previous and last.mode in ('explain', 'short')
+        if kind == 'dont_know' and not no_default:
+            return True, False, False, True                  # the default, shown; never repeated
+        if not explained:
+            return False, True, False, False                 # once more, explained
+        if no_default:
+            return False, False, True, False                 # held open: not asked again by itself
+        return True, False, False, True                      # explained already: move on with the default, shown
+
+    @staticmethod
+    def _family_for(spec, said, typed):
+        """The product family comes from what the customer TYPED. A button label never changes it (the label of
+        content_only=yes, "...בלי שמירת נתונים", reads as another family and used to wipe the whole spec)."""
+        from ..intake.families import classify_family, named_family
+        from ..intake.gaps import Spec
+        kind = named_family(said) if typed else None
+        if spec is None:
+            return Spec(kind or (classify_family(said) if typed else 'website'), [])
+        if kind is not None and kind != spec.kind:      # the customer typed a different product: start over
+            return Spec(kind, [])
+        return spec
+
+    def _replayed_spec(self, project_id):
+        """(spec, the field asked in the last assistant turn, fields held open) rebuilt from the store: every customer turn before
+        this one is heard again (buttons with their stored answers, typed text with the deterministic interpreter)
+        and every question the assistant asked is logged again from its stored `asked`. (None, None) when there is
+        no history yet. Nothing is kept in this process."""
+        from ..intake.artifact_fields import CONDITIONAL
+        from ..intake.gaps import LogEntry, language_of
+        try:
+            history = list(self.store.messages_for(project_id, limit=200))
+        except Exception:
+            return None, None, set()
+        if history and history[-1].get('role') == 'customer':
+            history = history[:-1]                            # this turn was stored before routing
+        spec, previous, held = None, None, set()
+        for m in history:
+            meta = m.get('interpretation') or {}
+            if m.get('role') == 'customer':
+                text = m.get('content') or ''
+                lang = 'he' if language_of(text) == 'he' else 'en'
+                answers = meta.get('answers') if isinstance(meta.get('answers'), dict) else None
+                typed_text = '' if answers else text
+                props = DeterministicInterpreter().interpret(typed_text, None).proposals if typed_text else ()
+                said, props, typed = self._heard(typed_text, answers, props, lang)
+                said = said or text
+                spec = self._family_for(spec, said, typed)
+                settle, _, hold, _ = self._clarify(spec, previous, said, typed)   # the same rule as the live turn
+                spec.hear(said, props, settle=settle)
+                if hold or self._unsettled_sensitive(spec, previous, settle):
+                    held.add(previous)
+                self._delegated_defaults(spec, previous, held, said, typed)
+                held = {h for h in held if spec.value(h) is None}
+            elif m.get('role') == 'assistant':
+                asked = list(meta.get('asked') or [])
+                previous = meta.get('gap_field') or (asked[0] if asked else None)
+                if spec is not None and previous is not None:
+                    names = {f.name for f in spec.fields} | set(CONDITIONAL)
+                    if previous in names:
+                        spec.log.append(LogEntry(len(spec.ledger.messages), previous,
+                                                 language_of(' '.join(spec.ledger.messages[-2:])), 'replay',
+                                                 spec.fingerprint(), 'explain' if meta.get('explained') else 'ask'))
+        return spec, previous, held
+
+    @staticmethod
+    def _delegated_defaults(spec, previous, held, said, typed, brief=None):
+        """Explicit delegation settles only the asked/held fields, visibly and with provenance.
+        Uncertainty alone is not delegation; confirmed requirements are never replaced.
+        The same operation is replayed from the durable customer message."""
+        from ..intake.gaps import language_of
+        from ..intake.artifact_fields import CONDITIONAL
+        from ..intake.sources import Requirement, Span, ASSUMED, STATED
+        # A mention inside a refusal or a quoted question is not permission.
+        explicit = re.fullmatch(
+            r'\s*(?:בבקשה\s+|please\s+)?(?:תחליט(?: אתה|י)?|תבחר אתה|תבחרי את|לא משנה לי|'
+            r'you decide|your call|up to you|قرر|اختر أنت|اختر انت|لا يهمني)'
+            r'(?:\s+(?:בבקשה|please))?\s*[.!؟?]*\s*', said or '', re.I)
+        if spec is None or not typed or not explicit:
+            return {}
+        fields = {f.name: f for f in list(spec.fields) + list(CONDITIONAL.values())}
+        defaults = {}
+        for name in sorted(set(held) | ({previous} if previous else set())):
+            f, q = fields.get(name), d.BY_ID.get(name)
+            cur = spec.ledger.current(name)
+            confirmed = (brief.fields.get(name) or {}).get('source') in intake_agent.CONFIRMED_SOURCES if brief else False
+            if f is None or q is None or confirmed or (cur is not None and cur.status == STATED):
+                continue
+            value = language_of(' '.join(spec.ledger.messages)) if name == 'languages' else f.default
+            if q.kind != 'text' and value not in {o.value for o in q.options}:
+                continue
+            spec.ledger.add(Requirement(name, value, ASSUMED,
+                Span(len(spec.ledger.messages) - 1, 0, len(said), said), why='delegated'))
+            defaults[name] = value
+        return defaults
 
     @staticmethod
     def _finding_message(f, lang, T):
         if lang == 'he' and f['item'].startswith('sign-in'):
             return 'התחברות והרשאות באתר שייבנה עדיין אינן זמינות. אפשר לערוך את דרישת ההתחברות או להשאיר אותה להמשך'
+        if lang == 'he' and f['item'].startswith('integration: '):
+            # 2026-11-09: the customer saw "integration: payments חלופה: build without payments now ..." in English.
+            kind = f['item'].split(': ', 1)[1]
+            name = _INTEGRATION_HE.get(kind, kind)
+            alt = _ALT_HE.get(kind) or 'לבנות עכשיו בלי החיבור הזה ולהוסיף אותו כשיהיה זמין'
+            return f'חיבור ל{name} עדיין לא זמין' + T['alt'].format(x=alt)
         return f['item'] + (T['alt'].format(x=f['alternative']) if f.get('alternative') else '')
 
     _last_reply_was_why = False
@@ -513,17 +1083,23 @@ class ConversationSupervisor:
         if row is None:
             return T['nothing']
         if intent == 'missing':
-            pend = d.pending(row.brief)
-            if not pend and not d.contradictions(row.brief):
+            # C6: what is missing is what the detector still asks (then the catalog's fallback), not the catalog list
+            pend = (d.must_ask(row.brief) if row.brief.detector else d.pending(row.brief))
+            names = [(d.BY_ID[f].he if lang == 'he' else d.BY_ID[f].en) if f in d.BY_ID else f
+                     for f in (row.brief.open_material if row.brief.detector else ())]
+            names += [(q.he if lang == 'he' else q.en) for q in pend if q.field not in row.brief.open_material]
+            if not names and not d.contradictions(row.brief):
                 return T['missing_none']
-            return T['missing'] + ' ' + '; '.join((q.he if lang == 'he' else q.en) for q in pend[:4])
+            return T['missing'] + ' ' + '; '.join(names[:4])
         if intent == 'recommend':
             assumed = [(k, f['value']) for k, f in row.brief.fields.items() if f.get('source') in ('delegated', 'default')
                        and d.BY_ID.get(k) and d.BY_ID[k].kind == 'choice']
             return T['recommend'] + ' ' + '; '.join(_label(k, v, lang) for k, v in assumed[:8])
         if intent == 'cost':
-            if not plan or not row.complete:
-                return T['cost_unknown']
+            if not plan or not row.complete:               # before gate 1 the range is said, never hidden
+                from ..intake import approval_flow as AF
+                lo, hi = AF.cost_range(row.brief)
+                return AF.text(lang)['range'].format(lo=lo, hi=hi) + ' ' + T['cost_unknown']
             return T['cost'].format(credits=self.credits if self.credits is not None else '—',
                                     cap=plan['budget']['graph_authorized_usd'])
         if intent == 'feasibility':
@@ -531,7 +1107,7 @@ class ConversationSupervisor:
         if intent == 'approve':
             if plan and plan.get('executable') and row.complete:
                 return T['approve']
-            reasons = [f['item'] for f in (plan or {}).get('feasibility', {}).get('findings', [])
+            reasons = [f['item'] for f in ((plan or {}).get('feasibility') or self._feasibility(row)).get('findings', [])
                        if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
             pend = [(q.he if lang == 'he' else q.en) for q in d.pending(row.brief)]
             return T['approve_not_ready'] + ' ' + '; '.join((pend + reasons)[:4] or ['—'])

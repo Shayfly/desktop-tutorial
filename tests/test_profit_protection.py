@@ -26,8 +26,12 @@ def test_lost_worker_unknown_call_keeps_reservation():
  gateway=SimpleNamespace(prior_metered={'calls':1,'metered_usd':Decimal('0'),'unknown_calls':1})
  with patch.object(worker_tasks,'spend_snapshot',return_value=(Decimal('0'),0)):
   action,_,actual=worker_tasks.resolve_m5_billing(service,build_id='audit-b',ready=False,gateway=gateway,capability_evidence=None,economics_quote={})
- assert action=='settled'
+ # founder 2026-11-02: a FAILED build releases its credits (RELEASED via release_failed, never SETTLED); the plain
+ # release() -- which keeps funds held on provider exposure -- is still not used, and the unknown actual stays None
+ assert action=='released'
  service.release.assert_not_called()
+ service.settle.assert_not_called()
+ service.release_failed.assert_called_once_with(build_id='audit-b',actual_provider_cost_usd=None)
  assert actual is None
 
 def test_default_margin_target_is_sixty_percent():

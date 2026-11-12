@@ -77,7 +77,6 @@ class PostgresBriefRepository:
         """Write revision expected_revision + 1. StaleBrief if someone else wrote first."""
         import psycopg
         bid = f'brf_{uuid.uuid4().hex}'
-        payload = json.dumps(brief.to_dict(), ensure_ascii=False)
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -90,6 +89,15 @@ class PostgresBriefRepository:
                         current = self.latest(project_id, cur)
                         if (current.revision if current else 0) != expected_revision:
                             raise StaleBrief(f'brief changed (now revision {current.revision if current else 0})')
+                        # Shadow IntakeDecision (docs/design/persistence-migration.md, C1-C3): stored next to the
+                        # brief and logged; the fingerprint below is computed from the brief alone and is unchanged.
+                        from .intake.decision_shadow import stored_payload
+                        cur.execute("SELECT brief_json->'decision'->'artifacts'->0->>'id' FROM project_briefs"
+                                    " WHERE project_id = %s ORDER BY revision DESC LIMIT 1", (project_id,))
+                        prev = cur.fetchone()
+                        payload = json.dumps(stored_payload(brief, project_id=project_id,
+                                                            previous_artifact_id=prev[0] if prev else None),
+                                             ensure_ascii=False)
                         cur.execute(
                             "INSERT INTO project_briefs (id, project_id, revision, account_id, mode, complete, brief_json,"
                             " fingerprint, request_key) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)",

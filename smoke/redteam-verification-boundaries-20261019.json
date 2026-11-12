@@ -1,0 +1,204 @@
+{
+  "scope": "synthetic boundary probes; not live E2E",
+  "cases": 26,
+  "violations": 26,
+  "findings": [
+    {
+      "case": "BrowserFlowExecutor_timeout",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "BrowserFlowExecutor_missing_output",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "VisualQAExecutor_timeout",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "VisualQAExecutor_missing_output",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "BrowserFlowExecutor_json_list",
+      "boundary_violated": true,
+      "observed": {
+        "uncaught_exception": "AttributeError"
+      }
+    },
+    {
+      "case": "VisualQAExecutor_json_list",
+      "boundary_violated": true,
+      "observed": {
+        "uncaught_exception": "TypeError"
+      }
+    },
+    {
+      "case": "BehaviorAcceptanceExecutor_json_list",
+      "boundary_violated": true,
+      "observed": {
+        "uncaught_exception": "AttributeError"
+      }
+    },
+    {
+      "case": "browser_empty_object",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "browser_nonzero_exit_with_pass_payload",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "behavior_nonzero_exit_with_pass_payload",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "PreviewReadyExecutor_BuildCancelled",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "BuildCancelled"
+      }
+    },
+    {
+      "case": "PreviewReadyExecutor_AttemptLedgerUnavailable",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "AttemptLedgerUnavailable"
+      }
+    },
+    {
+      "case": "PreviewReadyExecutor_ModelPolicyViolation",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "ModelPolicyViolation"
+      }
+    },
+    {
+      "case": "BehaviorAcceptanceExecutor_BuildCancelled",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "BuildCancelled"
+      }
+    },
+    {
+      "case": "BehaviorAcceptanceExecutor_AttemptLedgerUnavailable",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "AttemptLedgerUnavailable"
+      }
+    },
+    {
+      "case": "BehaviorAcceptanceExecutor_ModelPolicyViolation",
+      "boundary_violated": true,
+      "observed": {
+        "passed": false,
+        "control_exception_swallowed": "ModelPolicyViolation"
+      }
+    },
+    {
+      "case": "BrowserFlowExecutor_BuildCancelled",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "BuildCancelled"
+      }
+    },
+    {
+      "case": "BrowserFlowExecutor_AttemptLedgerUnavailable",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "AttemptLedgerUnavailable"
+      }
+    },
+    {
+      "case": "BrowserFlowExecutor_ModelPolicyViolation",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "ModelPolicyViolation"
+      }
+    },
+    {
+      "case": "VisualQAExecutor_BuildCancelled",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "BuildCancelled"
+      }
+    },
+    {
+      "case": "VisualQAExecutor_AttemptLedgerUnavailable",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "AttemptLedgerUnavailable"
+      }
+    },
+    {
+      "case": "VisualQAExecutor_ModelPolicyViolation",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true,
+        "control_exception_swallowed": "ModelPolicyViolation"
+      }
+    },
+    {
+      "case": "group_exception_suppresses_later_checks",
+      "boundary_violated": true,
+      "observed": {
+        "exception": "TimeoutError",
+        "calls": [
+          "first"
+        ]
+      }
+    },
+    {
+      "case": "group_false_with_empty_failures",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "group_string_false",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    },
+    {
+      "case": "group_true_with_failures",
+      "boundary_violated": true,
+      "observed": {
+        "passed": true
+      }
+    }
+  ]
+}

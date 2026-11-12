@@ -1,0 +1,233 @@
+name: Inspect round artifacts (read-only)
+
+# Founder 2026-10-20 21:24: the repair rounds of a build are stored in object storage (R2) as
+# build-rounds/<build_id>/<NN>-<sha12>.zip (worker_tasks.install_round_snapshots), but nothing outside the worker
+# could read them, so questions about the real HTML/CSS/app of a round were answered by guessing.
+#
+# READ-ONLY, enforced (see the reader step): reads build_jobs.evidence_json->round_snapshots in a READ ONLY transaction,
+# GETs each zip from the artifact bucket through the RUNNING worker image with its own .env (a botocore hook refuses any
+# other S3 operation), verifies the bytes and the repository checksum, prints the files as annotations (job logs are not
+# readable from the review sessions) and uploads the zips as an artifact. A read or integrity failure fails the job.
+# It never stops, starts or execs into a container and never runs the product's code. Provider-key-shaped strings are
+# redacted in the annotations (the uploaded zips are the stored bytes, unchanged).
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "bld_<32 hex>"
+        required: true
+      rounds:
+        description: "round indexes to print, comma separated, or 'all'"
+        required: false
+        default: "all"
+      files:
+        description: "which files to print in full: 'front' (*.html *.htm *.css *.js + app.py) or 'all' text files"
+        required: false
+        default: "front"
+
+concurrency:
+  group: inspect-round-artifacts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    # GitHub keeps at most 10 annotations per level per step (and a bounded number per job): each matrix slice
+    # re-reads the same zips and prints its own 50 (5 steps x 10), so up to 200 annotations of 3500 characters.
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        slice: [0, 1, 2, 3]
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: Read the round zips (enforced read-only)
+        env:
+          BID: ${{ inputs.build_id }}
+          ROUNDS: ${{ inputs.rounds }}
+          FILES: ${{ inputs.files }}
+        run: |
+          set -euo pipefail
+          [[ "$BID" =~ ^bld_[0-9a-f]{32}$ ]] || { echo "::error title=input::build_id must be bld_<32 hex>"; exit 1; }
+          [[ "$ROUNDS" =~ ^(all|[0-9]{1,2}(,[0-9]{1,2})*)$ ]] || { echo "::error title=input::rounds must be 'all' or 0,1,2"; exit 1; }
+          [[ "$FILES" =~ ^(front|all)$ ]] || { echo "::error title=input::files must be front or all"; exit 1; }
+          IMG=$(docker inspect --format '{{.Image}}' "$(docker compose ps -q worker)")
+          OUT="$RUNNER_TEMP/rounds"; rm -rf "$OUT"; mkdir -p "$OUT/zips" && chmod -R 777 "$OUT"
+          # Read-only is ENFORCED, not declared (Matt HOLD on #88, finding b): the container's filesystem is read-only
+          # (only /out and a /tmp tmpfs are writable), it has no capabilities, the database session is a READ ONLY
+          # transaction, and a botocore hook refuses every S3 operation except GetObject before any request is sent.
+          # Any integrity or read failure makes this step (and the job) fail after the annotations are written
+          # (finding a); the zips themselves are uploaded as an artifact (finding c).
+          docker run --rm -i --network host --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            --env-file .env -e OMNI_CREATOR_PERSISTENCE=postgres \
+            -e BID="$BID" -e ROUNDS="$ROUNDS" -e FILES="$FILES" -v "$OUT:/out" "$IMG" python - <<'PY'
+          import hashlib, io, json, os, re, sys, zipfile
+          from omni_prod.investor_app import _v28_pool
+          from omni_prod.evidence_export import _default_store
+          from omni_prod.workspace import _checksum
+          bid, files_mode = os.environ["BID"], os.environ["FILES"]
+          want = None if os.environ["ROUNDS"] == "all" else {int(x) for x in os.environ["ROUNDS"].split(",")}
+          SECRET = re.compile(r"(AIza|sk-ant-|sk-|r8_|ghp_|github_pat_)[0-9A-Za-z_-]{16,}")
+          FRONT = (".html", ".htm", ".css", ".js")
+          notes, errors = [], []
+          def red(text):
+              return SECRET.sub("[redacted]", str(text))
+          def note(title, msg):          # title AND message (Matt on #88: a key-shaped FILENAME reached the title)
+              notes.append((red(title), red(msg)))
+          def fail(title, msg):
+              # Matt HOLD on #109: the error summary is an output too. Redacted BEFORE it enters any collection, so
+              # an object key or exception text with a key-shaped token can never reach the ::error annotation.
+              errors.append(red(f"{title}: {msg}"))
+              note("FAIL " + title, msg)
+          def only_get_object(model, **_):
+              if getattr(model, "name", None) != "GetObject":
+                  raise PermissionError(f"read-only inspection: S3 {getattr(model, 'name', '?')} refused")
+          with _v28_pool.connection() as c:
+              with c.transaction():
+                  c.execute("SET TRANSACTION READ ONLY")
+                  row = c.execute("SELECT status, evidence_json->'round_snapshots' FROM build_jobs WHERE id = %s", (bid,)).fetchone()
+          if row is None:
+              fail("rounds", f"no build {bid}")
+          snaps = (row[1] or []) if row else []
+          if row is not None and not snaps:
+              fail("rounds", "no round snapshots are recorded for this build; no ZIP can be verified")
+          note("rounds", json.dumps({"build": bid, "status": row[0] if row else None,
+                                     "snapshots": [{k: s.get(k) for k in ("round", "decision", "failing", "key", "sha256")} for s in snaps]}))
+          if want is not None:
+              for idx in sorted(want - {s.get("round") for s in snaps}):
+                  fail(f"round {idx}", "requested but not in the build's round_snapshots")
+          store = _default_store(os.environ)
+          if store is None:
+              fail("rounds", "no object store configured on the worker (.env has no OMNI_S3_*)")
+          else:
+              store.client.meta.events.register("before-call.s3", only_get_object)
+          for s in snaps:
+              idx, key = s.get("round"), s.get("key")
+              if want is not None and idx not in want:
+                  continue
+              if not key or store is None:
+                  fail(f"round {idx}", f"no key stored for this round: {s}")
+                  continue
+              try:
+                  resp = store.client.get_object(Bucket=store.bucket, Key=key)
+                  data = resp["Body"].read()
+                  meta = (resp.get("Metadata") or {}).get("sha256")
+                  with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                      repo = {n: zf.read(n).decode("utf-8", errors="replace") for n in zf.namelist()}
+              except Exception as exc:
+                  fail(f"round {idx}", f"GET {key} failed: {type(exc).__name__}: {str(exc)[:300]}")
+                  continue
+              with open(f"/out/zips/{idx:02d}-{key.rsplit('/', 1)[-1]}", "wb") as fh:
+                  fh.write(data)
+              digest, recomputed = hashlib.sha256(data).hexdigest(), _checksum(repo)
+              note(f"round {idx} manifest", json.dumps({
+                  "key": key, "decision": s.get("decision"), "failing": s.get("failing"),
+                  "zip_bytes": len(data), "zip_sha256": digest, "metadata_sha256": meta,
+                  "metadata_sha256_matches": meta == digest,
+                  "repository_sha256_recorded": s.get("sha256"), "repository_sha256_recomputed": recomputed,
+                  "files": {n: len(t) for n, t in sorted(repo.items())}}, ensure_ascii=False))
+              if meta != digest:
+                  fail(f"round {idx}", f"zip sha256 {digest} != object metadata sha256 {meta}")
+              if recomputed != s.get("sha256"):
+                  fail(f"round {idx}", f"repository checksum {recomputed} != recorded {s.get('sha256')}")
+              chosen = [n for n in sorted(repo) if files_mode == "all" or n.lower().endswith(FRONT) or n == "app.py"]
+              for n in chosen:
+                  text, size = repo[n], 3500
+                  chunks = [text[i:i + size] for i in range(0, len(text), size)] or [""]
+                  for i, chunk in enumerate(chunks, 1):
+                      note(f"round {idx} {n} [{i}/{len(chunks)}]", chunk)
+          # errors first, so they are printed even when the output is truncated
+          notes.sort(key=lambda n: not n[0].startswith("FAIL "))
+          # 10 annotations per level per step: write them in groups the next steps print
+          for g in range(0, len(notes), 10):
+              with open(f"/out/{g // 10:03d}.jsonl", "w", encoding="utf-8") as fh:
+                  for t, m in notes[g:g + 10]:
+                      fh.write(json.dumps([t, m], ensure_ascii=False) + "\n")
+          print(f"prepared {len(notes)} annotations in {(len(notes) + 9) // 10} groups")
+          if len(notes) > 200:
+              print(f"::warning title=truncated::{len(notes)} annotations prepared, only 200 are printed; the full zips are in the artifact")
+          if errors:
+              # and again at the output boundary (defence in depth: nothing unredacted is ever printed)
+              print(f"::error title=inspection failed::{len(errors)} integrity/read failure(s): " + red(" | ".join(errors))[:3000])
+              sys.exit(1)
+          PY
+          [ "${{ matrix.slice }}" = 0 ] && ls "$OUT" | grep -c jsonl | xargs -I{} echo "::notice title=groups::{} annotation groups prepared (slice k prints groups 5k..5k+4)" || true
+
+      - if: always()
+        name: Print part 0
+        env: {PART: "0"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - if: always()
+        name: Print part 1
+        env: {PART: "1"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - if: always()
+        name: Print part 2
+        env: {PART: "2"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - if: always()
+        name: Print part 3
+        env: {PART: "3"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - if: always()
+        name: Print part 4
+        env: {PART: "4"}
+        run: |
+          f=$(printf "%s/rounds/%03d.jsonl" "$RUNNER_TEMP" $(( ${{ matrix.slice }} * 5 + PART ))); [ -f "$f" ] || exit 0
+          python3 - "$f" <<'PY'
+          import json, sys
+          enc = lambda s: s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for line in open(sys.argv[1], encoding="utf-8"):
+              t, m = json.loads(line)
+              print(f"::notice title={enc(t).replace(':', '%3A').replace(',', '%2C')}::{enc(m)}")
+          PY
+      - name: Upload the round zips
+        if: always() && matrix.slice == 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: round-zips-${{ inputs.build_id }}
+          path: ${{ runner.temp }}/rounds/zips/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clean up
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/rounds"

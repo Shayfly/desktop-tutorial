@@ -1,0 +1,1819 @@
+148AI — Emergency closure evidence — 2026-10-26T13:05:22.425493+02:00
+
+MAIN HEAD: 64c42018f6458eecb7af72177c6eb068bcf72101
+v24-ci: SUCCESS https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186
+V11 (real isolated unittest command): SUCCESS https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466140
+All current HEAD checks completed successfully or intentionally skipped. No current failed checks.
+
+1. PR144 merged b87772472744ffcc9c81a23e71cc3a5e72af2833.
+2. main pytest: 2063 passed,187 skipped,428 subtests passed,0 failed. AcceptanceW passed.
+   Exact local netns result (environment restriction, not a test run):
+unshare: unshare failed: Operation not permitted
+
+   Same command succeeded in V11 run40309194120: 2134 tests OK skipped159; loopback-only netns.
+3. v24-ci main b877724 run40309194065 SUCCESS.
+4. Cron fix separate commit93136719c1f72d9a5d9568f08f45414c02cdbe50.
+   Regression observed failing before fix: returncode0 despite10 failed retarget actions.
+   Full suite after fix:2067 passed,187 skipped,434 subtests passed,0 failed.
+   Real isolated suite on9313671:2138 tests OK skipped159. v24-ci40310581731 SUCCESS.
+   Live cron40310837063 now correctly FAILS on10 failed retargets; exact log below.
+5. PR140 merged64c42018f6458eecb7af72177c6eb068bcf72101; report-only update.
+6. Exactly21 non-main PRs processed.5 retargeted.14 no unique commits.2 GitHub stack restrictions.
+   Of5 retargeted,3 rebase conflicts;2 rebased and pushed with guarded feature-branch updates.
+   None of21 merged:14 no changes;2 stack;3 conflict;2 draft. No force push to main.
+   tests/test_evidence_export.py:18 was not changed. No branches or PRs deleted/closed.
+
+PR | result
+11 | NO NEW COMMITS; GitHub422; already contained in main
+15 | Retargeted+rebased+pushed e2dabce3c9c9d715577cb32ebafa973851221cdc; DRAFT — not merged
+16 | NO NEW COMMITS; GitHub422; already contained in main
+17 | NO NEW COMMITS; GitHub422; already contained in main
+18 | NO NEW COMMITS; GitHub422; already contained in main
+19 | NO NEW COMMITS; GitHub422; already contained in main
+21 | NO NEW COMMITS; GitHub422; already contained in main
+25 | NO NEW COMMITS; GitHub422; already contained in main
+28 | NO NEW COMMITS; GitHub422; already contained in main
+30 | NO NEW COMMITS; GitHub422; already contained in main
+32 | Retargeted to main; REBASE CONFLICT: STATUS.md
+33 | NO NEW COMMITS; GitHub422; already contained in main
+34 | NO NEW COMMITS; GitHub422; already contained in main
+35 | NO NEW COMMITS; GitHub422; already contained in main
+36 | NO NEW COMMITS; GitHub422; already contained in main
+50 | Retargeted+rebased+pushed e741ba53579cf65db40fe7e7dc190f9f666afcbd; DRAFT — not merged
+52 | BLOCKED GitHub Stack; base retarget rejected422
+97 | Retargeted to main; REBASE CONFLICT: CONTROLS.json
+101 | BLOCKED GitHub Stack; base retarget rejected422
+114 | NO NEW COMMITS; GitHub422; already contained in main
+135 | Retargeted to main; REBASE CONFLICT: omni_prod/conversation/supervisor.py, omni_prod/intake/artifact_fields.py, omni_prod/intake/gaps.py, tests/test_wp1_gap_detector.py
+
+EXACT CURRENT HEAD CHECK RESULTS
+[
+  {
+    "id": 121535762740,
+    "name": "publish-report",
+    "node_id": "CR_kwDOO7yHM88AAAAcTBiRNA",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "5e6bb38e-d534-5994-88cf-0addd6d95056",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121535762740",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121535762740",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121535762740",
+    "status": "completed",
+    "conclusion": "skipped",
+    "started_at": "2026-10-26T11:03:28Z",
+    "completed_at": "2026-10-26T11:03:27Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 0,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121535762740/annotations"
+    },
+    "check_suite": {
+      "id": 109252341622
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533653817,
+    "name": "verify",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_hjOQ",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "f8beffd1-367f-5cd1-886b-acee6008d772",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533653817",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311516170/job/121533653817",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311516170/job/121533653817",
+    "status": "completed",
+    "conclusion": "skipped",
+    "started_at": "2026-10-26T10:58:32Z",
+    "completed_at": "2026-10-26T10:58:22Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 0,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533653817/annotations"
+    },
+    "check_suite": {
+      "id": 109252479502
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533419633,
+    "name": "verify",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TQcQ",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "58f35439-02d4-5b40-9086-aa7dcc6084e7",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533419633",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466476/job/121533419633",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466476/job/121533419633",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T10:58:15Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 2,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533419633/annotations"
+    },
+    "check_suite": {
+      "id": 109252342524
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533419576,
+    "name": "smoke",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TQOA",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "dd6f328f-b6ea-56fe-bc91-762fc4455df4",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533419576",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466367/job/121533419576",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466367/job/121533419576",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T10:58:16Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 2,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533419576/annotations"
+    },
+    "check_suite": {
+      "id": 109252342210
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533418902,
+    "name": "customer-ui",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TNlg",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "178a979b-4629-5c4e-a5d9-521eaf9c8329",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418902",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418902",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418902",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T10:58:35Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 2,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418902/annotations"
+    },
+    "check_suite": {
+      "id": 109252341622
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533418841,
+    "name": "test",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TNWQ",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "2998e7ce-a5bb-50f5-878a-8ce7a35ddc96",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418841",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418841",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418841",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T11:03:27Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 3,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418841/annotations"
+    },
+    "check_suite": {
+      "id": 109252341622
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533418753,
+    "name": "pg",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TNAQ",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "0cdab181-398a-5fe7-81b2-c36aac828360",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418753",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466155/job/121533418753",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466155/job/121533418753",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T11:01:15Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 2,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418753/annotations"
+    },
+    "check_suite": {
+      "id": 109252341541
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533418554,
+    "name": "compose-config",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TMOg",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "a2bcbb4a-e78a-5602-8a9f-8cd69a769b02",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418554",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418554",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466186/job/121533418554",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T10:58:06Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 2,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418554/annotations"
+    },
+    "check_suite": {
+      "id": 109252341622
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  },
+  {
+    "id": 121533418492,
+    "name": "validate",
+    "node_id": "CR_kwDOO7yHM88AAAAcS_TL_A",
+    "head_sha": "64c42018f6458eecb7af72177c6eb068bcf72101",
+    "external_id": "61a49391-905b-5293-948b-0b4816864c3a",
+    "url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418492",
+    "html_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466140/job/121533418492",
+    "details_url": "https://github.com/Shayfly/desktop-tutorial/actions/runs/40311466140/job/121533418492",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-26T10:58:01Z",
+    "completed_at": "2026-10-26T11:01:04Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 9,
+      "annotations_url": "https://api.github.com/repos/Shayfly/desktop-tutorial/check-runs/121533418492/annotations"
+    },
+    "check_suite": {
+      "id": 109252341501
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": []
+  }
+]
+
+EXACT RETARGET API RESULTS (all failures, unabridged)
+[
+  {
+    "pr": 135,
+    "oldBase": "feat/wp1-gap-detector",
+    "result": "OK",
+    "detail": {
+      "base": "main",
+      "head_sha": "7e661fd4ef096712ed7aa4eda43613291f06aeb7"
+    }
+  },
+  {
+    "pr": 114,
+    "oldBase": "fix/t5-codegen-floor-85-light-path",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'codex/t5-fixture-quality'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'codex/t5-fixture-quality'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 101,
+    "oldBase": "fix/consistency-http-reason-latin1",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"Cannot change the base branch because the pull request is part of a stack.\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "Cannot change the base branch because the pull request is part of a stack.",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 97,
+    "oldBase": "registry/controls-v3",
+    "result": "OK",
+    "detail": {
+      "base": "main",
+      "head_sha": "c23a2574b38a2568cc448b4c9eeaba516f96c6e7"
+    }
+  },
+  {
+    "pr": 52,
+    "oldBase": "tests/repo-summary-secrets-2026-10-19",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"Cannot change the base branch because the pull request is part of a stack.\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "Cannot change the base branch because the pull request is part of a stack.",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 50,
+    "oldBase": "fix/production-cookie-auth-middleware",
+    "result": "OK",
+    "detail": {
+      "base": "main",
+      "head_sha": "575bde68218a975ac59671afb8ea92cdce0b270f"
+    }
+  },
+  {
+    "pr": 36,
+    "oldBase": "audit/financial-fault-g3-20261014",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'fix/financial-journal-recovery-20261014'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'fix/financial-journal-recovery-20261014'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 35,
+    "oldBase": "shayfly-profit-protection-v2-follow-up",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'audit/financial-fault-g3-20261014'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'audit/financial-fault-g3-20261014'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 34,
+    "oldBase": "feature/profit-protection-credit-economy-v1-20261014",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'shayfly-profit-protection-v2-follow-up'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'shayfly-profit-protection-v2-follow-up'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 33,
+    "oldBase": "shayfly-148ai-engineering-recovery",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'feature/profit-protection-credit-economy-v1-20261014'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'feature/profit-protection-credit-economy-v1-20261014'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 32,
+    "oldBase": "shayfly-conversation-provider-vertical-slice",
+    "result": "OK",
+    "detail": {
+      "base": "main",
+      "head_sha": "960bfce11a5041b5c7f8e68f6848846295baabae"
+    }
+  },
+  {
+    "pr": 30,
+    "oldBase": "fix/docker-oom-rehearsal-20261013",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'shayfly-148ai-engineering-recovery'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'shayfly-148ai-engineering-recovery'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 28,
+    "oldBase": "milestone/pre-staging-2026-10-05",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'fix/docker-oom-rehearsal-20261013'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'fix/docker-oom-rehearsal-20261013'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 25,
+    "oldBase": "codex/148ai-verified-intake-2026-10-12",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'fix/148ai-t01-ci-recovery-2026-10-13'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'fix/148ai-t01-ci-recovery-2026-10-13'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 21,
+    "oldBase": "integration/148ai-release-audit-2026-10-12",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'codex/148ai-verified-intake-2026-10-12'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'codex/148ai-verified-intake-2026-10-12'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 19,
+    "oldBase": "integration/148ai-release-audit-2026-10-12",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'codex/customer-flow-fixes-2026-10-12'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'codex/customer-flow-fixes-2026-10-12'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 18,
+    "oldBase": "claude/fix-static-site-acceptance-2026-10-11",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'codex/customer-flow-fixes-2026-10-12'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'codex/customer-flow-fixes-2026-10-12'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 17,
+    "oldBase": "milestone/pre-staging-2026-10-05",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'claude/visual-edit-workspace-2026-10-11'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'claude/visual-edit-workspace-2026-10-11'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 16,
+    "oldBase": "milestone/pre-staging-2026-10-05",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'claude/plan-driven-execution-2026-10-11'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'claude/plan-driven-execution-2026-10-11'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  },
+  {
+    "pr": 15,
+    "oldBase": "milestone/pre-staging-2026-10-05",
+    "result": "OK",
+    "detail": {
+      "base": "main",
+      "head_sha": "5ed72e4abe90c6757cf4cc62fa328139ca4dc29a"
+    }
+  },
+  {
+    "pr": 11,
+    "oldBase": "milestone/pre-staging-2026-10-05",
+    "result": "FAIL",
+    "detail": {
+      "error": "GitHub API error 422: {\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"There are no new commits between base branch 'main' and head branch 'claude/wave-a-fix-conversation-schema-2026-10-11'\",\"resource\":\"PullRequest\",\"field\":\"base\",\"code\":\"invalid\"}],\"documentation_url\":\"https://docs.github.com/rest/pulls/pulls#update-a-pull-request\",\"status\":\"422\"}",
+      "error_code": "INVALID_ARGUMENT",
+      "error_data": {
+        "message": "Validation Failed",
+        "errors": [
+          {
+            "message": "There are no new commits between base branch 'main' and head branch 'claude/wave-a-fix-conversation-schema-2026-10-11'",
+            "resource": "PullRequest",
+            "field": "base",
+            "code": "invalid"
+          }
+        ],
+        "documentation_url": "https://docs.github.com/rest/pulls/pulls#update-a-pull-request",
+        "status": "422"
+      }
+    }
+  }
+]
+
+EXACT LIVE CRON FAILURE LOG
+﻿2026-10-26T10:53:02.9524426Z Current runner version: '2.338.0'
+2026-10-26T10:53:02.9542482Z ##[group]Runner Image Provisioner
+2026-10-26T10:53:02.9543094Z Hosted Compute Agent
+2026-10-26T10:53:02.9543447Z Version: 20261021.618
+2026-10-26T10:53:02.9543817Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-26T10:53:02.9544329Z Build Date: 2026-10-21T00:45:21Z
+2026-10-26T10:53:02.9544779Z Worker ID: {9e917026-2349-440a-9c39-5c15d5415e72}
+2026-10-26T10:53:02.9545234Z Region: southcentralus
+2026-10-26T10:53:02.9545584Z Cloud: Azure
+2026-10-26T10:53:02.9545951Z ##[endgroup]
+2026-10-26T10:53:02.9546802Z ##[group]Operating System
+2026-10-26T10:53:02.9547162Z Ubuntu
+2026-10-26T10:53:02.9547549Z 24.04.5
+2026-10-26T10:53:02.9547881Z LTS
+2026-10-26T10:53:02.9548215Z ##[endgroup]
+2026-10-26T10:53:02.9548596Z ##[group]Runner Image
+2026-10-26T10:53:02.9548950Z Image: ubuntu-24.04
+2026-10-26T10:53:02.9549324Z Version: 20261012.334.1
+2026-10-26T10:53:02.9550106Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-26T10:53:02.9551041Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-26T10:53:02.9551764Z ##[endgroup]
+2026-10-26T10:53:02.9552479Z ##[group]GITHUB_TOKEN Permissions
+2026-10-26T10:53:02.9553703Z Contents: read
+2026-10-26T10:53:02.9554115Z Metadata: read
+2026-10-26T10:53:02.9554453Z ##[endgroup]
+2026-10-26T10:53:02.9555769Z Secret source: Actions
+2026-10-26T10:53:02.9556406Z Cache mode: write
+2026-10-26T10:53:02.9557197Z Prepare workflow directory
+2026-10-26T10:53:02.9885673Z Prepare all required actions
+2026-10-26T10:53:02.9918079Z Getting action download info
+2026-10-26T10:53:03.2710511Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-26T10:53:03.4713815Z Complete job name: loop
+2026-10-26T10:53:03.5294939Z ##[group]Run actions/checkout@v4
+2026-10-26T10:53:03.5295362Z with:
+2026-10-26T10:53:03.5295631Z   repository: Shayfly/desktop-tutorial
+2026-10-26T10:53:03.5297716Z   token: ***
+2026-10-26T10:53:03.5298055Z   ssh-strict: true
+2026-10-26T10:53:03.5298308Z   ssh-user: git
+2026-10-26T10:53:03.5298561Z   persist-credentials: true
+2026-10-26T10:53:03.5298838Z   clean: true
+2026-10-26T10:53:03.5299094Z   sparse-checkout-cone-mode: true
+2026-10-26T10:53:03.5299393Z   fetch-depth: 1
+2026-10-26T10:53:03.5299639Z   fetch-tags: false
+2026-10-26T10:53:03.5299894Z   show-progress: true
+2026-10-26T10:53:03.5300147Z   lfs: false
+2026-10-26T10:53:03.5300382Z   submodules: false
+2026-10-26T10:53:03.5300639Z   set-safe-directory: true
+2026-10-26T10:53:03.5300928Z   allow-unsafe-pr-checkout: false
+2026-10-26T10:53:03.5301525Z env:
+2026-10-26T10:53:03.5301903Z   SERVICE_TOKEN: ***
+2026-10-26T10:53:03.5302151Z ##[endgroup]
+2026-10-26T10:53:03.5968036Z Syncing repository: Shayfly/desktop-tutorial
+2026-10-26T10:53:03.5969705Z ##[group]Getting Git version info
+2026-10-26T10:53:03.5970391Z Working directory is '/home/runner/work/desktop-tutorial/desktop-tutorial'
+2026-10-26T10:53:03.5971538Z [command]/usr/bin/git version
+2026-10-26T10:53:03.6043559Z git version 2.55.0
+2026-10-26T10:53:03.6045480Z ##[endgroup]
+2026-10-26T10:53:03.6053491Z Temporarily overriding HOME='/home/runner/work/_temp/a2bb918c-03cf-44a1-9f10-8d14fd566ed2' before making global git config changes
+2026-10-26T10:53:03.6054756Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-26T10:53:03.6055870Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/desktop-tutorial/desktop-tutorial
+2026-10-26T10:53:03.6104744Z Deleting the contents of '/home/runner/work/desktop-tutorial/desktop-tutorial'
+2026-10-26T10:53:03.6108574Z ##[group]Initializing the repository
+2026-10-26T10:53:03.6112638Z [command]/usr/bin/git init /home/runner/work/desktop-tutorial/desktop-tutorial
+2026-10-26T10:53:03.6212458Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-26T10:53:03.6213740Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-26T10:53:03.6217181Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-26T10:53:03.6217844Z hint: call:
+2026-10-26T10:53:03.6218199Z hint:
+2026-10-26T10:53:03.6218653Z hint: 	git config --global init.defaultBranch <name>
+2026-10-26T10:53:03.6219206Z hint:
+2026-10-26T10:53:03.6219700Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-26T10:53:03.6220464Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-26T10:53:03.6221074Z hint:
+2026-10-26T10:53:03.6221613Z hint: 	git branch -m <name>
+2026-10-26T10:53:03.6221989Z hint:
+2026-10-26T10:53:03.6222498Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-26T10:53:03.6223689Z Initialized empty Git repository in /home/runner/work/desktop-tutorial/desktop-tutorial/.git/
+2026-10-26T10:53:03.6227232Z [command]/usr/bin/git remote add origin https://github.com/Shayfly/desktop-tutorial
+2026-10-26T10:53:03.6275087Z ##[endgroup]
+2026-10-26T10:53:03.6275950Z ##[group]Disabling automatic garbage collection
+2026-10-26T10:53:03.6308446Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-26T10:53:03.6352520Z ##[endgroup]
+2026-10-26T10:53:03.6353603Z ##[group]Setting up auth
+2026-10-26T10:53:03.6354851Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-26T10:53:03.6361721Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-26T10:53:03.6649415Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-26T10:53:03.6680354Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-26T10:53:03.6858422Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-26T10:53:03.6888759Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-26T10:53:03.7075145Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-26T10:53:03.7119634Z ##[endgroup]
+2026-10-26T10:53:03.7120403Z ##[group]Fetching the repository
+2026-10-26T10:53:03.7127554Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +93136719c1f72d9a5d9568f08f45414c02cdbe50:refs/remotes/origin/main
+2026-10-26T10:53:04.7845671Z From https://github.com/Shayfly/desktop-tutorial
+2026-10-26T10:53:04.7847317Z  * [new ref]         93136719c1f72d9a5d9568f08f45414c02cdbe50 -> origin/main
+2026-10-26T10:53:04.7850771Z ##[endgroup]
+2026-10-26T10:53:04.7852274Z ##[group]Determining the checkout info
+2026-10-26T10:53:04.7853833Z ##[endgroup]
+2026-10-26T10:53:04.7856204Z [command]/usr/bin/git sparse-checkout disable
+2026-10-26T10:53:04.7900470Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-26T10:53:04.7929276Z ##[group]Checking out the ref
+2026-10-26T10:53:04.7933082Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-26T10:53:04.8685576Z Switched to a new branch 'main'
+2026-10-26T10:53:04.8686962Z branch 'main' set up to track 'origin/main'.
+2026-10-26T10:53:04.8696216Z ##[endgroup]
+2026-10-26T10:53:04.8737759Z [command]/usr/bin/git log -1 --format=%H
+2026-10-26T10:53:04.8762065Z 93136719c1f72d9a5d9568f08f45414c02cdbe50
+2026-10-26T10:53:04.8961007Z ##[group]Run set -euo pipefail
+2026-10-26T10:53:04.8962205Z [36;1mset -euo pipefail[0m
+2026-10-26T10:53:04.8963096Z [36;1mif [[ -z "$SERVICE_TOKEN" ]]; then[0m
+2026-10-26T10:53:04.8964401Z [36;1m  printf '### retarget: FAIL\nSERVICE_TOKEN is empty\n' >> "$GITHUB_STEP_SUMMARY"[0m
+2026-10-26T10:53:04.8965674Z [36;1m  exit 1[0m
+2026-10-26T10:53:04.8966518Z [36;1mfi[0m
+2026-10-26T10:53:04.8967167Z [36;1mresponse="$(mktemp)"[0m
+2026-10-26T10:53:04.8967961Z [36;1mtrap 'rm -f "$response"' EXIT[0m
+2026-10-26T10:53:04.8969796Z [36;1mif ! curl --fail-with-body -sS --max-time 150 "https://one48ai-repo-control.onrender.com/pr?op=retarget&token=$SERVICE_TOKEN" > "$response"; then[0m
+2026-10-26T10:53:04.8972183Z [36;1m  printf '### retarget: FAIL\nHTTP/transport failure\n' >> "$GITHUB_STEP_SUMMARY"[0m
+2026-10-26T10:53:04.8973407Z [36;1m  exit 1[0m
+2026-10-26T10:53:04.8974059Z [36;1mfi[0m
+2026-10-26T10:53:04.8975037Z [36;1mpython scripts/check_agent_loop_result.py retarget < "$response"[0m
+2026-10-26T10:53:04.9187585Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-26T10:53:04.9188668Z env:
+2026-10-26T10:53:04.9190131Z   SERVICE_TOKEN: ***
+2026-10-26T10:53:04.9190852Z ##[endgroup]
+2026-10-26T10:53:50.4067339Z ### retarget: FAIL
+2026-10-26T10:53:50.4067691Z 
+2026-10-26T10:53:50.4067812Z 10 failed of 10 actions
+2026-10-26T10:53:50.4068046Z 
+2026-10-26T10:53:50.4068251Z - 114 retarget fix/t5-codegen-floor-85-light-path -> fail
+2026-10-26T10:53:50.4068709Z - 36 retarget audit/financial-fault-g3-20261014 -> fail
+2026-10-26T10:53:50.4069106Z - 35 retarget shayfly-profit-protection-v2-follow-up -> fail
+2026-10-26T10:53:50.4069581Z - 34 retarget feature/profit-protection-credit-economy-v1-20261014 -> fail
+2026-10-26T10:53:50.4070036Z - 33 retarget shayfly-148ai-engineering-recovery -> fail
+2026-10-26T10:53:50.4070416Z - 30 retarget fix/docker-oom-rehearsal-20261013 -> fail
+2026-10-26T10:53:50.4070857Z - 25 retarget codex/148ai-verified-intake-2026-10-12 -> fail
+2026-10-26T10:53:50.4071526Z - 21 retarget integration/148ai-release-audit-2026-10-12 -> fail
+2026-10-26T10:53:50.4071961Z - 19 retarget integration/148ai-release-audit-2026-10-12 -> fail
+2026-10-26T10:53:50.4072395Z - 18 retarget claude/fix-static-site-acceptance-2026-10-11 -> fail
+2026-10-26T10:53:50.4117832Z ##[error]Process completed with exit code 1.
+2026-10-26T10:53:50.4246407Z Post job cleanup.
+2026-10-26T10:53:50.4762955Z [command]/usr/bin/git version
+2026-10-26T10:53:50.4794169Z git version 2.55.0
+2026-10-26T10:53:50.4817842Z Temporarily overriding HOME='/home/runner/work/_temp/afaf242c-f820-49b6-97ee-dd768c24f073' before making global git config changes
+2026-10-26T10:53:50.4818594Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-26T10:53:50.4890315Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/desktop-tutorial/desktop-tutorial
+2026-10-26T10:53:50.4900597Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-26T10:53:50.4912357Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-26T10:53:50.5110997Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-26T10:53:50.5150420Z http.https://github.com/.extraheader
+2026-10-26T10:53:50.5159526Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-26T10:53:50.5191060Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-26T10:53:50.5391396Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-26T10:53:50.5419209Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-26T10:53:50.5743648Z Cleaning up orphan processes
+2026-10-26T10:53:50.5996937Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+
+EXACT REBASE FAILURE LOG — PR135
+$ git fetch origin feat/wp1b-durable-spec-queued-questions
+From https://github.com/Shayfly/desktop-tutorial
+ * branch            feat/wp1b-durable-spec-queued-questions -> FETCH_HEAD
+
+$ git switch -C emergency-rebase-135 FETCH_HEAD
+Previous HEAD position was 64c4201 chore: v24-ci results (#140)
+Switched to a new branch 'emergency-rebase-135'
+
+$ git rebase origin/main
+Auto-merging omni_prod/conversation/supervisor.py
+CONFLICT (content): Merge conflict in omni_prod/conversation/supervisor.py
+Auto-merging omni_prod/intake/artifact_fields.py
+CONFLICT (add/add): Merge conflict in omni_prod/intake/artifact_fields.py
+Auto-merging omni_prod/intake/gaps.py
+CONFLICT (add/add): Merge conflict in omni_prod/intake/gaps.py
+Auto-merging tests/test_wp1_gap_detector.py
+CONFLICT (add/add): Merge conflict in tests/test_wp1_gap_detector.py
+Rebasing (1/3)
+dropping 98c960d11e9c00c673c0e5958f5883ad87736b6c decisions: DELIVERY-001 (staged delivery, price before each stage) and QUESTIONS-001 (free-language questions from a gap detector) -- patch contents already upstream
+Rebasing (2/3)
+error: could not apply 5258e5d... WP1 (QUESTIONS-001): gap detector and free-language questions
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 5258e5d... # WP1 (QUESTIONS-001): gap detector and free-language questions
+
+$ git diff --name-only --diff-filter=U
+omni_prod/conversation/supervisor.py
+omni_prod/intake/artifact_fields.py
+omni_prod/intake/gaps.py
+tests/test_wp1_gap_detector.py
+
+$ git rebase --abort
+
+
+EXACT REBASE FAILURE LOG — PR97
+$ git fetch origin registry/c31-lint
+From https://github.com/Shayfly/desktop-tutorial
+ * branch            registry/c31-lint -> FETCH_HEAD
+
+$ git switch -C emergency-rebase-97 FETCH_HEAD
+Switched to a new branch 'emergency-rebase-97'
+
+$ git rebase origin/main
+Auto-merging CONTROLS.json
+CONFLICT (add/add): Merge conflict in CONTROLS.json
+Rebasing (1/15)
+error: could not apply b0f9ec3... registry: CONTROLS.json from v3 + C31, with the C30 path verification
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply b0f9ec3... # registry: CONTROLS.json from v3 + C31, with the C30 path verification
+
+$ git diff --name-only --diff-filter=U
+CONTROLS.json
+
+$ git rebase --abort
+
+
+EXACT REBASE FAILURE LOG — PR32
+$ git fetch origin codex/github-actions-cost-optimization-2026-10-14
+From https://github.com/Shayfly/desktop-tutorial
+ * branch            codex/github-actions-cost-optimization-2026-10-14 -> FETCH_HEAD
+
+$ git switch -C emergency-rebase-32 FETCH_HEAD
+Switched to a new branch 'emergency-rebase-32'
+
+$ git rebase origin/main
+Auto-merging STATUS.md
+CONFLICT (content): Merge conflict in STATUS.md
+Auto-merging omni_prod/assets/app.js
+Auto-merging tests/test_conversation_os.py
+Rebasing (1/14)
+error: could not apply 00c01c5... feat(chat): disclose per-reply model usage
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
+Could not apply 00c01c5... # feat(chat): disclose per-reply model usage
+
+$ git diff --name-only --diff-filter=U
+STATUS.md
+
+$ git rebase --abort
+
+
+EXACT MAIN PYTEST LOG BEFORE CRON FIX
+ssssssssssssss.sssssssss.....sssssssssss.................ss............s [  3%]
+ssss.............................................................ssss... [  6%]
+.....sssss...sss....ssssss.......................................... [  9%]
+....................................ssss.....sssss...................... [ 12%]
+..............................................................................................................sssssss........................ssss.... [ 19%]
+.............................................ssssss..................... [ 22%]
+.......................sssssssssssssssssssssss............................... [ 25%]
+.............................................s................. [ 28%]
+.................s.................................................................................... [ 33%]
+............................................................. [ 35%]
+........................................................................ [ 39%]
+..ssssss..................................................s........sssss [ 42%]
+ssssssssssssssssssss.................................................................................................................. [ 48%]
+........................................................................ [ 51%]
+...........................................................s.ss..........sss....................................................................................... [ 58%]
+..............................ssssssssssssss............................ [ 61%]
+sssss................................................................... [ 65%]
+................................................................................. [ 68%]
+ssssssss....................................................s.... [ 71%]
+........................................................................ [ 74%]
+................................................................. [ 77%]
+............................................................................... [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 94%]
+........sssss...............ss..........................s.sss.. [ 96%]
+.......................................................... [ 99%]
+..............                                                           [100%]
+=============================== warnings summary ===============================
+../../../../root/.local/lib/python3.12/site-packages/starlette/testclient.py:45
+  /root/.local/lib/python3.12/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2063 passed, 187 skipped, 1 warning, 428 subtests passed in 160.61s (0:02:40)
+
+
+EXACT FULL PYTEST LOG AFTER CRON FIX
+ssssssssssssss.sssssssss.....sssssssssss.................ss....... [  2%]
+.........sssss.......................................................... [  6%]
+...ssss........sssss...sss....ssssss................................ [  9%]
+..............................................ssss.....sssss............ [ 12%]
+........................................................................................................................sssssss...................... [ 18%]
+..ssss.................................................ssssss........... [ 22%]
+.................................ssssssssssssssss [ 24%]
+sssssss............................................................................s....... [ 28%]
+...........................s....................... [ 30%]
+................................................... [ 32%]
+............................................................. [ 35%]
+........................................................................ [ 38%]
+............ssssss..................................................s... [ 41%]
+.....sssssssssssssssssssssssss................................... [ 44%]
+..................................................................... [ 47%]
+........................................................................ [ 51%]
+.....................................................................s.ss..........sss................. [ 55%]
+............................................................ [ 58%]
+........................................ssssssssssssss.................. [ 61%]
+..........sssss......................................................... [ 64%]
+...........................................................................................ssssssss....................................................s.................................................................. [ 74%]
+................................................................. [ 77%]
+............................................................................... [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+..................sssss...............ss....................... [ 96%]
+...s.sss.................................................. [ 98%]
+........................                                                 [100%]
+=============================== warnings summary ===============================
+../../../../root/.local/lib/python3.12/site-packages/starlette/testclient.py:45
+  /root/.local/lib/python3.12/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2067 passed, 187 skipped, 1 warning, 434 subtests passed in 159.22s (0:02:39)
+
+
+Historical failing commits/runs remain in GitHub history. A new green HEAD does not erase historical failures.
+The previous cron failure is a real disclosed remaining operational issue: no-new-commit PRs are still attempted by the control service. They were not silently closed or disguised as successful retargets.

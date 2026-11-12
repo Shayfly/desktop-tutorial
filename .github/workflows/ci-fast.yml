@@ -1,0 +1,40 @@
+name: CI fast checks
+
+on:
+  push:
+    branches-ignore: [main, milestone/pre-staging-2026-10-05]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install only the YAML validator dependency
+        run: python -m pip install PyYAML==6.0.3
+      - name: Python and workflow syntax
+        run: |
+          python -m compileall -q omni_prod tests scripts
+          python scripts/validate_workflows.py
+      - name: Browser script syntax (no Chromium download)
+        run: |
+          node --check omni_prod/assets/app.js
+          node --check omni_prod/assets/visual-edit.js
+          node --check tests/customer_flow_browser.cjs
+      - name: CI policy regressions
+        run: python -m unittest discover -s tests -p 'test_ci_*.py' -v

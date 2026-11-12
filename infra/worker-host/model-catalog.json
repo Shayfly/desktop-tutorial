@@ -86,9 +86,16 @@
     "quality": 92,
     "input_per_million": "2.00",
     "output_per_million": "10.00",
-    "max_output_tokens": 16384,
-    "timeout_seconds": 240,
+    "max_output_tokens": 64000,
+    "timeout_seconds": 300,
     "_price_source": "https://platform.claude.com/docs/en/models/sonnet-5-5/overview (checked 2026-10-08)",
-    "_quality_basis": "Anthropic's current mid tier; not benchmarked by 148AI. Native Messages API (the OpenAI layer is documented as not for production); non-default temperature returns 400, so none is sent"
+    "_quality_basis": "Anthropic's current mid tier; not benchmarked by 148AI. Native Messages API (the OpenAI layer is documented as not for production); non-default temperature returns 400, so none is sent",
+    "extra_body": {
+      "thinking": {
+        "type": "between_tools"
+      }
+    },
+    "_thinking_basis": "Sonnet 5.5 runs adaptive thinking at high effort by default; founder build bld_ca727ba7 (2026-11-08) spent all 16,384 output tokens on thinking and returned no text (codegen) and cut the architect JSON at 6,000. between_tools is the documented way to turn off up-front thinking on this model (\"disabled\" returns 400): https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5 (checked 2026-11-08)",
+    "_output_basis": "Sonnet 5.5 max output is 128K on the Messages API (platform.claude.com/docs/en/models/sonnet-5-5/overview, checked 2026-11-09). bld_624610bc: codegen was cut at the old 16,384 cap (finish_reason=max_tokens at 31,472 chars). 64K keeps a single call bounded."
   }
 ]

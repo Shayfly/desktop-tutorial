@@ -57,6 +57,7 @@ def build_plan_preview(
     durable_backend: bool,
     infrastructure_readiness: Mapping[str, Any],
     image_readiness: Mapping[str, Any],
+    authorize_quote: Callable[[Any], Any] | None = None,
 ) -> dict:
     latest = repository.latest(project_id)
     next_version = 1 if latest is None else latest.contract_version + 1
@@ -74,11 +75,19 @@ def build_plan_preview(
     # unit economics and never returned (decision 2026-10-07 #29): the customer
     # sees only whether the build can be priced/authorized and why not.
     quote, quote_error, quote_error_code = None, None, None
+    quote_error_detail = ''
     missing_quote_keys: list[str] = []
     try:
         # Contract-aware cost plan (LLM + capabilities + infrastructure) when the
         # callable accepts the contract; zero-argument callables are legacy.
         quote = economics(contract) if inspect.signature(economics).parameters else economics()
+        # Advisory only: admission rechecks under lock. A priced quote is not
+        # proof that the customer's remaining allowance can cover its reserve.
+        if authorize_quote is not None:
+            decision = authorize_quote(quote)
+            if not decision.allowed:
+                # 79: keep the subscription's own reason (credits / plan size / build budget) for the banner
+                raise PermissionError(str(getattr(decision, 'reason', '') or 'remaining allowance cannot cover the build reservation'))
     except CostQuoteUnknown as exc:
         names = unpriced_capabilities(exc.unknown)
         missing_quote_keys = list(dict.fromkeys(names))
@@ -90,8 +99,12 @@ def build_plan_preview(
         # per-build/total ceiling is NOT a subscription-plan restriction.
         # Preserve its actionable reason rather than a misleading upsell.
         quote_error, quote_error_code = str(exc), "qa_budget_denied"
-    except PermissionError:
+    except PermissionError as exc:
         quote_error, quote_error_code = "This build is not available on your current plan.", "plan_cannot_authorize_cost"
+        # 79: only a reason from the closed list travels on; anything else (e.g. internal margin text) is dropped,
+        # because unit economics are never returned (decision 2026-10-07 #29).
+        from .build_readiness import PLAN_REASONS
+        quote_error_detail = str(exc) if str(exc) in PLAN_REASONS else ""
 
     blockers: list[dict] = []
     if not durable_backend:
@@ -106,7 +119,7 @@ def build_plan_preview(
         blockers.append({"code": f"image_provider_{str((image_readiness or {}).get('status', 'NOT_CONFIGURED')).lower()}",
                          "message": f"Product icon generation: {(image_readiness or {}).get('reason', 'not configured')}"})
     if quote_error:
-        blockers.append({"code": quote_error_code, "message": quote_error,
+        blockers.append({"code": quote_error_code, "message": quote_error, "detail": quote_error_detail,
                          "capability_keys": missing_quote_keys if quote_error_code == "cost_quote_unknown" else []})
     elif quote is None:
         # An absent economics quote is UNKNOWN, never authorization to build.
