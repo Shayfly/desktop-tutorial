@@ -26,7 +26,10 @@ def image_environment(env):
         'OMNI_IMAGE_PROVIDER_API_KEY_REF': 'env:REPLICATE_API_TOKEN',
         'OMNI_IMAGE_PROVIDER_MODEL': model,
         'OMNI_IMAGE_PROVIDER_SUBMIT_PATH': '/models/' + model + '/predictions',
-        'OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS': 'replicate.delivery',
+        # #324 (2026-11-12 run: host=... hop=output): Replicate now returns its output directly from this Cloudflare
+        # R2 bucket. Shared storage -> EXACT host ('='), never r2.cloudflarestorage.com or a subdomain.
+        'OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS': 'replicate.delivery,'
+                                            '=ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com',
     }
     if model == DEFAULT_MODEL and not str(values.get('OMNI_IMAGE_PROVIDER_VERSION', '')).strip():
         defaults.update({
