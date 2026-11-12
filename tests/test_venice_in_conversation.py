@@ -24,7 +24,9 @@ from omni_prod.providers.venice import VeniceBudgetExceeded, VeniceKeyMissing
 from tests.test_conversation_os import MemoryBriefs
 
 # 2026-10-28: the intake conversation runs only on OMNI_VENICE_ALLOWED_MODELS (fail closed without it)
-KEY = {'VENICE_API_KEY1': 'test-key', 'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
+# The worker host opens external spend explicitly (infra/worker-host/.env.example); #93 makes the intake honour it.
+OPEN = {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'}
+KEY = {'VENICE_API_KEY1': 'test-key', 'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee', **OPEN}
 VENICE_ENV = {'OMNI_INTAKE_PROVIDER': 'venice', 'OMNI_VENICE_PRICE_CEILING_USD_PER_M': '1,4',
               'OMNI_VENICE_ALLOWED_MODELS': 'private-e2ee'}
 VQUOTE = {'provider': 'venice', 'venice_ceiling_usd_per_m': ['1', '4'], 'max_tokens': 500, 'task': 'conversation',
@@ -89,9 +91,18 @@ class GatewayTests(unittest.TestCase):
     def test_missing_key_fails_when_built_so_the_reservation_is_released(self):
         with self.assertRaises(VeniceKeyMissing):
             gateway(FakeVenice(), env={})
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, OPEN, clear=True):
             with self.assertRaises(VeniceKeyMissing):
                 W.build_gateway(Decimal('0.05'), (), quote=VQUOTE)
+
+    def test_the_kill_switch_also_stops_a_venice_reservation(self):
+        # #93: a Venice-quoted intake call is paid external spend too -- closed switches refuse it before any contact
+        from omni_prod.model_policy import ModelPolicyViolation
+        for closed in ({'OMNI_ZERO_COST_MODE': '1', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '1'},
+                       {'OMNI_ZERO_COST_MODE': '0', 'OMNI_ALLOW_EXTERNAL_FALLBACK': '0'}):
+            with mock.patch.dict(os.environ, {**KEY, **closed}):
+                with self.assertRaises(ModelPolicyViolation):
+                    W.build_gateway(Decimal('0.05'), (), quote=VQUOTE)
 
     def test_quote_is_priced_at_the_venice_ceiling_and_covers_the_call(self):
         from omni_prod.intake.interpreter import MAX_OUTPUT_TOKENS, SYSTEM

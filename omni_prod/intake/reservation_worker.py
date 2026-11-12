@@ -38,6 +38,14 @@ def _reserved_task(payload: dict, quote: dict) -> str:
     return task
 
 def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | None = None):
+    # C32 (2026-10-20): the intake honours the same kill switches as builds, read exactly as
+    # model_runtime_config.py reads them. Refusing HERE means no gateway, so execute_reservation releases the
+    # reservation before mark_executing and before any provider contact. FIRST, before any provider branch: on
+    # 2026-11-12 the Venice branch (#162, added after #93 was written) returned before this check and slipped past
+    # the switches; tests/test_venice_in_conversation.py::test_the_kill_switch_also_stops_a_venice_reservation.
+    from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
+    if not external_spend_enabled():
+        raise ModelPolicyViolation(SPEND_DISABLED)
     # C3: the provider is the one the reservation was QUOTED for, never chosen by the worker afterwards.
     if (quote or {}).get('provider') == 'venice':
         from ..providers import venice_gateway   # a missing key raises here -> "no model route", no charge
@@ -50,13 +58,6 @@ def build_gateway(quoted_usd: Decimal, models: tuple[str, ...], quote: dict | No
     from ..model_router import RoutingPolicy
     from ..model_runtime_config import ModelRuntimeConfig
     from ..routed_gateway import RoutedModelGateway
-    # C32 (2026-10-20): the intake honours the same kill switches as builds, read exactly as
-    # model_runtime_config.py:37-38 reads them. It used to hard-code zero_cost_mode=False / allow_external_fallback=True,
-    # so OMNI_ZERO_COST_MODE=1 stopped every build call and let every intake call through. Refusing HERE means no
-    # gateway, so execute_reservation releases the reservation before mark_executing and before any provider contact.
-    from ..model_policy import SPEND_DISABLED, ModelPolicyViolation, external_spend_enabled
-    if not external_spend_enabled():
-        raise ModelPolicyViolation(SPEND_DISABLED)
     cfg = ModelRuntimeConfig.from_env()
     ranked = tuple(m for m in cfg.catalog if m.option.model in models)
     policy = ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True, external_budget_usd=quoted_usd,
