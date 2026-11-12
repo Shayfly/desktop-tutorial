@@ -60,10 +60,21 @@ def is_public_address(value: str) -> bool:
 
 
 def _host_allowed(host: str, allowed_hosts: Iterable[str]) -> bool:
-    allowed = [h.strip().lower().lstrip(".") for h in allowed_hosts if h and h.strip()]
-    if not allowed:
+    """An entry is a SUFFIX (``replicate.delivery``: the host and its subdomains) or, prefixed with ``=``, EXACT
+    (``=bucket.account.r2.cloudflarestorage.com``: that host only, never a subdomain). #324, Michael 2026-11-12:
+    shared storage is allowed by exact host only, so a suffix can never swallow someone else's bucket."""
+    entries = [h.strip().lower() for h in allowed_hosts if h and h.strip()]
+    if not entries:
         return True
-    return any(host == a or host.endswith("." + a) for a in allowed)
+    for entry in entries:
+        if entry.startswith("="):
+            if host == entry[1:].strip():
+                return True
+        else:
+            suffix = entry.lstrip(".")
+            if host == suffix or host.endswith("." + suffix):
+                return True
+    return False
 
 
 def validate_public_url(url: str, *, allow_http: bool = False, allowed_hosts: Iterable[str] = (),
