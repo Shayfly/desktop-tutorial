@@ -37,6 +37,10 @@ from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env,
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
+# #330 (Michael 2026-11-12 19:45): the exact customer-only question is written out in at most this many replies of
+# the conversation; after that only its buttons stay (the customer can still answer, the sentence is not repeated).
+# A per-run ("in a row") count was not enough: one turn without it reset the run and the sentence came back forever.
+CUSTOMER_ONLY_QUESTION_REPEATS = 2
 INTENTS = ('requirements', 'answer', 'missing', 'recommend', 'cost', 'feasibility', 'approve', 'status', 'modify')
 _RX = {
     'status': r'(מה המצב|איפה (זה )?עומד|מה קורה עם הבנייה|סטטוס|how is it going|\bstatus\b|progress|is it done)',
@@ -788,10 +792,39 @@ class ConversationSupervisor:
                        and bool((interp.reply or '').strip()))
         if listening and model_reply:
             turn.reply, turn.questions = interp.reply.strip(), []
+            # #330 (Michael 2026-11-12): when the NEXT question is for a field only the customer may set
+            # (delegable=False: content_only, access_scope, unavailable), the customer sees BOTH the model's reply and
+            # that exact question with its buttons. Hiding it left a landing page unable to ever reach the summary:
+            # the model asked "anything else?" while the brief waited for an answer no typed text could give.
+            # When nothing is asked this turn, the next question is the open field the brief still waits for: a field
+            # "held open" after an unsettled repeat is otherwise never asked again, and a customer-only one can then
+            # never be set (production 2026-11-12: content_only held open, the summary unreachable).
+            nxt = res.asked or [d.BY_ID[f] for f in (row.brief.open_material or ()) if f in d.BY_ID]
+            held = self._customer_only_question(nxt)
+            if held is not None:
+                text = held.he if lang == 'he' else held.en
+                if text not in turn.reply and self._times_said(project_id, text) < CUSTOMER_ONLY_QUESTION_REPEATS:
+                    turn.reply = f'{turn.reply} {text}'
+                turn.questions = [held]            # the buttons stay even when the sentence is not repeated
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         return turn
+
+    def _times_said(self, project_id, text) -> int:
+        """How many assistant replies of this conversation (the latest 200 messages) already wrote out this text."""
+        try:
+            prev = self.store.messages_for(project_id, limit=200)
+        except Exception:
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant' and text in (m.get('content') or ''))
+
+    @staticmethod
+    def _customer_only_question(asked):
+        """The next question when it is for a field the customer alone may set (delegable=False), else None.
+        Decided by the next question itself, not by how many fields are still missing."""
+        q = (asked or [None])[0]
+        return q if q is not None and getattr(q, 'delegable', True) is False else None
 
     @staticmethod
     def _heard(message, answers, proposals, lang):
