@@ -5,9 +5,24 @@ network outcomes fail closed. Output is verified by the existing adapter and
 stored privately in the existing artifact store, never ephemeral function disk.
 """
 import hashlib
+import logging
 from .image_provider import build_image_provider, sniff_image
 from ..capabilities import CapabilityRequirement
 from ..provider_contracts import ProviderTaskHandle
+
+_LOG = logging.getLogger('omni_prod.providers.replicate_image_test')
+# #324: a fixed vocabulary for WHY, matched on our own messages -- the host, path and provider text never leave.
+_REASONS = (('not in the provider allowlist', 'url_host_not_allowed'), ('is internal', 'url_host_internal'),
+            ('does not resolve', 'url_host_unresolved'), ('non-public address', 'url_host_not_public'),
+            ('connected peer is not a public', 'url_peer_not_public'), ('scheme', 'url_scheme'),
+            ('credentials in URL', 'url_credentials'), ('larger than', 'download_too_large'),
+            ('not a PNG, JPEG or WebP', 'not_an_image'), ('Expected exactly one image', 'output_count'),
+            ('returned no output', 'no_output'), ('is not succeeded', 'not_succeeded'))
+
+
+def _reason(exc) -> str:
+    text = str(exc)
+    return next((code for needle, code in _REASONS if needle in text), 'other')
 
 PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise, no people, no text.'
 PREFIX = 'replicate-smoke-v1-'
@@ -100,6 +115,17 @@ class ReplicateImageTest:
                 'generation_verified': False}
 
     def status(self, account_id):
+        """#324: a failure names its STAGE and the exception TYPE in the log -- never a URL, provider text or secret
+        (Replicate keeps a result for one hour; a retry without this teaches nothing)."""
+        stage = ['journal']
+        try:
+            return self._status(account_id, stage)
+        except Exception as exc:
+            _LOG.warning('replicate_image_test_status_failed stage=%s type=%s reason=%s', stage[0],
+                         type(exc).__name__, _reason(exc))
+            raise
+
+    def _status(self, account_id, stage):
         record = self.journal.find(self.key(account_id))
         if record is None:
             return {'status': 'NOT_STARTED', 'generation_verified': False}
@@ -107,6 +133,7 @@ class ReplicateImageTest:
             return {'status': 'UNKNOWN_SUBMISSION', 'generation_verified': False,
                     'reason': 'Submission outcome unknown; automatic paid retry is disabled'}
         if self.store is not None:
+            stage[0] = 'read_stored_image'
             try:
                 data, _ = self.image(account_id)
                 return {'status': 'SUCCEEDED', 'generation_verified': True,
@@ -124,13 +151,16 @@ class ReplicateImageTest:
         if self.provider is None:
             raise ValueError('REPLICATE_API_TOKEN is missing')
         handle = ProviderTaskHandle(record.provider, record.provider_task_id, 'replicate-test', record.idempotency_key)
+        stage[0] = 'poll'
         state = self.provider.poll(handle)
         result = {'status': state.status, 'generation_verified': False, 'maximum_usd': '0.003'}
         if state.status == 'SUCCEEDED':
+            stage[0] = 'collect_and_download'
             output = self.provider.collect(handle)
             if len(output.payloads) != 1:
                 raise ValueError('Expected exactly one image')
             payload = output.payloads[0]
+            stage[0] = 'store_image'
             self.store.put_bytes(self.key(account_id) + '/image', payload.data)
             result.update(generation_verified=True, image_url='/api/v28/providers/replicate/image-test/image',
                           sha256=hashlib.sha256(payload.data).hexdigest(),
