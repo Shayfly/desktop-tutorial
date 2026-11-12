@@ -211,7 +211,8 @@ class PersistenceTests(unittest.TestCase):
                            reservation_id="bld_1", final_outcome="READY")
         row = dict(zip(_COLUMNS, rows[0]))
         self.assertEqual((row["task_id"], row["final_outcome"]), ("bld_1:codegen", "READY"))
-        self.assertEqual(json.loads(row["candidate_set"])[0]["name"], "cheap")
+        # T5: codegen's mandatory floor is 85, so the quality-85 model is the only candidate (the cheap one is below)
+        self.assertEqual([c["name"] for c in json.loads(row["candidate_set"])], ["strong"])
         self.assertNotIn("secret-", json.dumps(row, default=str))  # key values never reach the ledger
 
         executed = {}

@@ -113,11 +113,11 @@ class LiveRollbackTests(unittest.TestCase):
         # The expected lists below grow with every new migration after 039.
         r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate', '--check'], env=env, cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn('pending migrations: [40, 41]', r.stdout)
+        self.assertIn('pending migrations: [40, 41, 42]', r.stdout)
         self.assertNotIn(40, _load_applied(self.conn.cursor()))
         r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate'], env=env, cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual(r.stdout.splitlines()[-1], 'applied migrations: [40, 41]')
+        self.assertEqual(r.stdout.splitlines()[-1], 'applied migrations: [40, 41, 42]')
         self.assertIn(40, _load_applied(self.conn.cursor()))
         for extra in (['--accept-newer', '39'], ['--check']):
             r = subprocess.run([sys.executable, '-m', 'omni_prod.migrate', *extra], env=env, cwd=ROOT, capture_output=True, text=True)

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: 148ai-repo-control
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./services/repo-control/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: REPO_URL
+        value: https://github.com/Shayfly/desktop-tutorial.git
+      - key: GITHUB_REPO
+        value: Shayfly/desktop-tutorial
+      - key: REPO_BRANCH
+        value: main
+      - key: REPO_DIR
+        value: /app/repo
+      - key: SERVICE_TOKEN
+        generateValue: true
+      - key: GITHUB_PAT
+        sync: false
+      - key: GIT_AUTHOR_NAME
+        value: 148AI Repo Control
+      - key: GIT_AUTHOR_EMAIL
+        value: repo-control@example.invalid

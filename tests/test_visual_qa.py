@@ -74,7 +74,9 @@ class ExecutorTests(unittest.TestCase):
 
     def test_no_runner_is_not_run_not_pass(self):
         ex = VisualQAExecutor(SimpleNamespace(execute=lambda **k: ExecutionReport(True, (), '')))
-        self.assertTrue(ex.execute(repository={}, spec=None).passed)
+        r = ex.execute(repository={}, spec=None)              # T4: NOT_RUN is not PASS (and never was meant to be)
+        self.assertFalse(r.passed)
+        self.assertEqual([f.acceptance_id for f in r.failures], ['VISUAL_UNVERIFIED'])
         self.assertEqual(ex.last_visual['status'], 'NOT_RUN')
 
     def test_parse_survives_a_truncated_screenshot(self):

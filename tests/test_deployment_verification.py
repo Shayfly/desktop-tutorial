@@ -359,6 +359,9 @@ class _Stub:
                 if method == 'POST':
                     body = json.loads(self.rfile.read(int(self.headers.get('Content-Length') or 0)) or b'{}')
                 cookie = [('Set-Cookie', 'track=1; Path=/')] if stub.f['set_cookie'] else []
+                if path == '/api/v28/deployment' and stub.f.get('schema') is not None:
+                    return self._send(200, {'source_commit': stub.f['sha'], 'environment': stub.f['env'], 'branch': 'b',
+                                            'schema': stub.f['schema']}, extra=cookie)
                 if path == '/api/v28/deployment':
                     return self._send(200, {'source_commit': stub.f['sha'], 'environment': stub.f['env'], 'branch': 'b',
                                             'schema': {'required': 36, 'compatible': stub.f['compatible'],
@@ -455,7 +458,9 @@ class DeploymentVerifyTests(unittest.TestCase):
         self.assertEqual(r['verdict'], vc.FAILED)
         self.assertEqual(self.status(r, 'conversation_turn'), vc.FAIL)
         self.assertEqual(r['commit_sha'], SHA)
-        self.assertEqual(self.ev(r, 'conversation_turn'), {'status': 500, 'error_class': 'HTTP_500'})
+        ev = self.ev(r, 'conversation_turn')
+        self.assertIsInstance(ev.pop('elapsed_ms'), int)              # 2026-11-07: every HTTP check records its duration
+        self.assertEqual(ev, {'status': 500, 'error_class': 'HTTP_500'})
         self.assert_not_promotable(r)
 
     def test_scenario_e_schema_mismatch_blocks_promotion(self):
@@ -560,6 +565,15 @@ class DeploymentVerifyTests(unittest.TestCase):
         r = self.run_stub(sleep_on='memory', timeout=0.5)
         self.assertEqual(self.ev(r, 'project_memory')['error_class'], 'TIMEOUT')
         self.assertEqual(r['verdict'], vc.FAILED)
+
+    def test_a_conversation_turn_slower_than_the_default_timeout_still_passes(self):
+        # 2026-11-07 (run 42099576142): the turn may wait for the worker's intake model; the client must not give up
+        # at the default per-request timeout while the server is still answering. Other calls keep the default.
+        r = self.run_stub(sleep_on='conversation', timeout=0.5)
+        self.assertEqual(self.status(r, 'conversation_turn'), vc.PASS, self.ev(r, 'conversation_turn'))
+        self.assertGreaterEqual(self.ev(r, 'conversation_turn')['elapsed_ms'], 1400)
+        self.assertGreater(dv.CONVERSATION_TURN_TIMEOUT, 15.0)
+        self.assertLessEqual(dv.CONVERSATION_TURN_TIMEOUT, 130.0)        # just above vercel.json maxDuration (120 s)
 
     def test_oversized_and_non_json_responses_fail(self):
         r = self.run_stub(huge_on='deployment')
@@ -765,8 +779,48 @@ class SchemaCompatibilityEndpointTests(unittest.TestCase):
             body = self.app.v28_deployment()
         finally:
             os.environ.pop('VERCEL_GIT_COMMIT_SHA', None)
-        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema'})
+        self.assertEqual(set(body), {'source_commit', 'environment', 'branch', 'schema', 'database_candidates'})
         self.assertEqual(body['source_commit'], SHA)
+        # 72 step 0: host:port/db identities only -- never a user or a password.
+        for ident in body['database_candidates'].values():
+            self.assertNotIn('@', ident)
+            self.assertRegex(ident, r'^[a-z0-9.-]+:\d+/[^/:@]*$')
+
+
+
+class MainMigrationNotInBranchNegativeControl(unittest.TestCase):
+    """Michael 2026-11-11 (#322): a migration that EXISTS IN MAIN and is NOT APPLIED in the preview branch must fail
+    verify -- the real rule (schema_manifest.compatibility) feeding the real verifier, not a hand-made flag.
+    Real-world twin: run 43073498141 (#227's preview before the reset): {"required": 42, "applied_max": 41,
+    "status": "MIGRATIONS_PENDING", "missing": [42], "compatible": false} -> FAILED."""
+
+    def _verify(self, applied):
+        from omni_prod.schema_manifest import compatibility
+        stub = _Stub(schema=compatibility(applied))
+        try:
+            return dv.verify(stub.url, expect_sha=SHA)
+        finally:
+            stub.close()
+
+    @staticmethod
+    def _check(r, name):
+        return next(c for c in r['checks'] if c['check'] == name)
+
+    def test_main_latest_migration_missing_in_the_branch_fails_verify(self):
+        r = self._verify([v for v in EXPECTED_VERSIONS if v != REQUIRED_MIGRATION])
+        c = self._check(r, 'schema_compatible')
+        self.assertEqual(c['status'], 'FAIL')
+        self.assertEqual(c['evidence']['missing'], [REQUIRED_MIGRATION])
+        self.assertEqual(c['evidence']['status'], 'MIGRATIONS_PENDING')
+        self.assertNotEqual(r['verdict'], 'PASSED')
+
+    def test_an_older_main_migration_missing_also_fails(self):
+        r = self._verify([v for v in EXPECTED_VERSIONS if v != EXPECTED_VERSIONS[len(EXPECTED_VERSIONS) // 2]])
+        self.assertEqual(self._check(r, 'schema_compatible')['status'], 'FAIL')
+
+    def test_positive_control_all_main_migrations_applied_passes_the_schema_check(self):
+        r = self._verify(list(EXPECTED_VERSIONS))
+        self.assertEqual(self._check(r, 'schema_compatible')['status'], 'PASS')
 
 
 if __name__ == '__main__':

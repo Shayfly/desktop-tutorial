@@ -27,9 +27,9 @@ class RepairSeesMainFileTests(unittest.TestCase):
         self.assertNotIn('static/big.js', _contents(repo_summary(self.repo)))
 
     def test_total_budget_still_holds(self):
-        repo = {f'm{i}.py': 'y' * 15_000 for i in range(10)}
+        repo = {f'm{i}.py': 'y' * 15_000 for i in range(20)}   # 300K offered
         total = sum(len(f.get('content', '')) for f in repo_summary(repo)['files'])
-        self.assertLessEqual(total, 64_000)
+        self.assertLessEqual(total, 200_000)   # bld_624610bc (2026-11-09): budget raised from 64K
 
 
 if __name__ == '__main__':

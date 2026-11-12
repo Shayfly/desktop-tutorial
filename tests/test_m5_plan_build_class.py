@@ -13,7 +13,9 @@ Worst-case margin targets: Amateur 72%, Pro 63%, Studio 62%.
 """
 import json
 import pathlib
+import os
 import unittest
+from unittest import mock
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -27,7 +29,8 @@ from omni_prod.subscription_store import PostgresSubscriptionService
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CATALOG = (ROOT / 'infra' / 'worker-host' / 'model-catalog.json').read_text(encoding='utf-8')
 PAID = (PlanCode.AMATEUR, PlanCode.PRO, PlanCode.STUDIO)
-WORST_CASE_MARGIN_TARGET = {PlanCode.AMATEUR: Decimal('0.72'), PlanCode.PRO: Decimal('0.63'),
+# Amateur 0.72 -> 0.60 (CEO 2026-11-09: LIGHT codegen on Sonnet, cap $0.60; the 60% floor clips it).
+WORST_CASE_MARGIN_TARGET = {PlanCode.AMATEUR: Decimal('0.60'), PlanCode.PRO: Decimal('0.63'),
                             PlanCode.STUDIO: Decimal('0.62')}
 # One concrete task, identical for every tier (a codegen call of a mid-size build).
 TASK = {'system': 'You write production code.', 'user': 'x' * 6000, 'max_tokens': 8000}
@@ -62,7 +65,9 @@ def _gateway():
 
 def _cheapest_call_cost(gw, task='codegen'):
     routes = gw.ranked_routes(dict(TASK), task)
-    return routes[0][0].max_estimated_cost_usd if routes else None
+    if not routes:
+        raise AssertionError(f'No route for the measured task: {task}')
+    return routes[0][0].max_estimated_cost_usd
 
 
 class DecisionMappingTests(unittest.TestCase):
@@ -82,7 +87,7 @@ class DecisionMappingTests(unittest.TestCase):
 
     def test_class_caps(self):
         caps = {cc.value: m5_class_llm_cap(cc) for cc in CostClass}
-        self.assertEqual(caps, {'zero': Decimal('0.05'), 'light': Decimal('0.35'), 'standard': Decimal('1.60'),
+        self.assertEqual(caps, {'zero': Decimal('0.05'), 'light': Decimal('0.60'), 'standard': Decimal('1.60'),
                                 'advanced': Decimal('3.00'), 'heavy': Decimal('5.50'), 'extreme': Decimal('18.00')})
 
     def test_cap_env_override_per_class(self):
@@ -108,12 +113,19 @@ class SameTaskTierTests(unittest.TestCase):
         amateur, studio = _gateway(), _gateway()
         amateur.restrict_to_cost_class(a_cc)
         studio.restrict_to_cost_class(s_cc)
-        a_models = {m.endpoint.name for m in amateur.ranked}
-        s_models = {m.endpoint.name for m in studio.ranked}
+        a_codegen = amateur.ranked_routes(dict(TASK), 'codegen')
+        s_codegen = studio.ranked_routes(dict(TASK), 'codegen')
+        a_models = {route.endpoint.name for route, _, _ in a_codegen}
+        s_models = {route.endpoint.name for route, _, _ in s_codegen}
         self.assertTrue(a_models, 'Amateur must keep at least one routable model')
-        self.assertTrue(a_models < s_models, (a_models, s_models))
-        a_max = max(m.option.output_per_million for m in amateur.ranked)
-        s_max = max(m.option.output_per_million for m in studio.ranked)
+        self.assertTrue(s_models, 'Studio must keep a codegen route')
+        self.assertNotEqual(a_models, s_models)
+        # LIGHT's quality-70 lane and Studio's >=85 lane are intentionally not nested.
+        self.assertTrue(all(option.quality >= 85 for _, _, option in s_codegen))
+        # Task-only routes (CEO 2026-11-09: Sonnet writes LIGHT codegen) are bounded by the class cap, not the lane.
+        a_max = max(option.output_per_million for route, _, option in a_codegen
+                    if route.endpoint.name not in amateur.task_only)
+        s_max = max(option.output_per_million for _, _, option in s_codegen)
         self.assertLess(a_max, s_max)
         # cheapest admissible call for the same task never costs more on Amateur
         self.assertLessEqual(_cheapest_call_cost(amateur), _cheapest_call_cost(studio))
@@ -147,19 +159,19 @@ class OtherPlanTests(unittest.TestCase):
         cc, credits = m5_build_terms(PlanCode.FREE)
         self.assertEqual((cc, credits), (CostClass.LIGHT, 45))
         budget, basis = m5_llm_budget(PLAN_CATALOG[PlanCode.FREE], cc, credits)
-        self.assertEqual((budget, basis), (Decimal('0.35'), 'class_cap'))
+        self.assertEqual((budget, basis), (Decimal('0.60'), 'class_cap'))
         d = _reserve('free', cc.value, credits, budget)
         self.assertTrue(d.allowed, d.reason)
         self.assertEqual(d.credits, 45)
 
     def test_free_cannot_exceed_the_light_cap_or_three_builds(self):
-        self.assertFalse(_reserve('free', 'standard', 200, Decimal('0.35')).allowed)      # class lock
+        self.assertFalse(_reserve('free', 'standard', 200, Decimal('0.60')).allowed)      # class lock
         plan = PLAN_CATALOG[PlanCode.FREE]
-        self.assertEqual(plan.paid_provider_budget_usd, Decimal('1.05'))                  # 3 x $0.35 per month
+        self.assertEqual(plan.paid_provider_budget_usd, Decimal('1.80'))                  # 3 x $0.60 per month
         svc = PostgresSubscriptionService(pool=None)
-        cur = _Cursor([('free', svc._cycle_now(), 135, Decimal('1.05')), None])          # after 3 builds
+        cur = _Cursor([('free', svc._cycle_now(), 135, Decimal('1.80')), None])          # after 3 builds
         d = svc.reserve(cur, build_id='b4', user_id='u1', project_id='p1', cost_class='light', credits=45,
-                        estimated_provider_cost_usd=Decimal('0.35'))
+                        estimated_provider_cost_usd=Decimal('0.60'))
         self.assertFalse(d.allowed)
 
     def test_enterprise_is_extreme_and_margin_exempt(self):
@@ -170,7 +182,7 @@ class OtherPlanTests(unittest.TestCase):
 
     def test_internal_qa_gets_the_plain_cap(self):
         self.assertEqual(m5_llm_budget(PLAN_CATALOG[PlanCode.FREE], CostClass.LIGHT, 45, internal_qa=True)[0],
-                         Decimal('0.35'))
+                         Decimal('0.60'))
 
     def test_legacy_persisted_codes_reserve_as_their_new_plan(self):
         for legacy in ('basic', 'business'):
@@ -205,8 +217,44 @@ class AllowlistAndOverageTests(unittest.TestCase):
         s_models = {m.endpoint.name for m in studio.ranked}
         self.assertTrue(p_models, 'Pro must keep at least one routable model')
         self.assertTrue(p_models < s_models, (p_models, s_models))
-        self.assertTrue(all(m.option.output_per_million <= Decimal('5.00') for m in pro.ranked))
+        # CEO 2026-11-08 (b): above the ceiling only as a task-only model (repair, review)
+        self.assertTrue(all(m.option.output_per_million <= Decimal('5.00') or m.endpoint.name in pro.task_only
+                            for m in pro.ranked))
+        self.assertEqual(set(pro.task_only), {'anthropic-claude-sonnet-5-5'})
+        self.assertEqual(pro.task_only['anthropic-claude-sonnet-5-5'], frozenset({'codegen', 'repair', 'review'}))
         self.assertTrue(any(m.option.output_per_million > Decimal('5.00') for m in studio.ranked))
+
+    def test_task_only_model_serves_only_its_tasks_and_founder_gets_everything(self):
+        light = _gateway(); light.restrict_to_cost_class(CostClass.LIGHT)
+        def names(gw, task):
+            return {r.endpoint.name for r, _, _ in gw.ranked_routes({'system': 's', 'user': 'u', 'max_tokens': 1000}, task)}
+        # CEO 2026-11-09: Sonnet writes LIGHT codegen too; architecture stays on the class lane.
+        self.assertNotIn('anthropic-claude-sonnet-5-5', names(light, 'architecture'))
+        self.assertIn('anthropic-claude-sonnet-5-5', names(light, 'codegen'))
+        self.assertIn('anthropic-claude-sonnet-5-5', names(light, 'review'))
+        with mock.patch.dict(os.environ, {'OMNI_TASK_ONLY_MODELS_LIGHT': 'none'}):
+            off = _gateway(); off.restrict_to_cost_class(CostClass.LIGHT)
+            self.assertNotIn('anthropic-claude-sonnet-5-5', {m.endpoint.name for m in off.ranked})
+        founder = _gateway(); info = founder.restrict_to_cost_class(CostClass.LIGHT, unrestricted=True)
+        self.assertEqual(info['excluded_models'], [])
+        self.assertIn('anthropic-claude-sonnet-5-5', names(founder, 'codegen'))
+        with mock.patch.dict(os.environ, {'OMNI_FOUNDER_ACCOUNT_IDS': 'usr_a, usr_b'}):
+            from omni_prod.pricing import m5_founder_account
+            self.assertTrue(m5_founder_account('usr_b'))
+            self.assertFalse(m5_founder_account('usr_c'))
+            self.assertFalse(m5_founder_account(None))
+
+    def test_station_models_come_first_when_the_whole_catalog_is_allowed(self):
+        # CEO 2026-11-08: code -> Sonnet, QA -> GPT-6.1 Sol (and never the author), architect -> Sonnet
+        gw = _gateway(); gw.restrict_to_cost_class(CostClass.LIGHT, unrestricted=True)
+        def first(task):
+            return gw.ranked_routes({'system': 's', 'user': 'u', 'max_tokens': 1000}, task)[0][0].endpoint.name
+        self.assertEqual(first('codegen'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('repair'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('architecture'), 'anthropic-claude-sonnet-5-5')
+        self.assertEqual(first('review'), 'openai-gpt-6-1-sol')
+        gw.models_by_task = {'codegen': {'openai-gpt-6-1-sol'}}          # Sol wrote it: it does not review it
+        self.assertNotEqual(first('review'), 'openai-gpt-6-1-sol')
 
     def test_soft_cap_records_overage_and_alerts_above_2x(self):
         self.assertEqual(llm_overage('0.30', '0.35')['status'], 'WITHIN_CAP')

@@ -28,7 +28,10 @@ from omni_prod.visual_qa import VisualQAExecutor
 
 from tests.test_behavior_acceptance_in_build import NO_LOGIN_SCOPE, SPEC, repository
 
-CANNED = {'browser-probe': 'OMNI_BROWSER_PROBE ' + json.dumps({'findings': [], 'forms': []}),
+# T4: a canned clean browser report exercises at least one form (forms=[] is NO_CHECKS, not a pass)
+CANNED = {'browser-probe': 'OMNI_BROWSER_PROBE ' + json.dumps({'findings': [], 'forms': [{'form': 'f1', 'rounds': [
+              {'submitted': True, 'requests': ['POST /api/items 201'], 'ok_write': True, 'text_changed': True,
+               'revealed': ['saved']}] * 2}]}),
           'visual': 'OMNI_VISUAL_QA ' + json.dumps({'findings': [], 'controls': 1, 'text_elements': 1})}
 
 

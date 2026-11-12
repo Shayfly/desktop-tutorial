@@ -21,6 +21,11 @@ class BuildCancelled(Exception):
     """The owner asked to stop this build; raised at a step boundary."""
 
 
+class GateEscalation(BuildCancelled):
+    """A probe was quarantined again after an earlier build quarantined it (Michael 2026-11-10 condition 5): the
+    gate is broken, so the build stops for a human instead of counting three rounds again. Settles like a cancel."""
+
+
 TASK_LABELS = {
     'architecture': 'מתכנן את מבנה המוצר והבדיקות',
     'codegen': 'כותב את הקוד',

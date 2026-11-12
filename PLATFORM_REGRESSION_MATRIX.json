@@ -5,7 +5,7 @@
    "expected": "professional discovery, delegated answers, brief revisions",
    "files": {
     "tests/test_discovery_and_approval.py": {
-     "min_tests": 16
+     "min_tests": 17
     },
     "tests/test_brief_capability_detection.py": {
      "min_tests": 4
@@ -16,7 +16,7 @@
    "expected": "server-bound approval, one build per approved plan",
    "files": {
     "tests/test_discovery_and_approval.py": {
-     "min_tests": 16
+     "min_tests": 17
     }
    }
   },
@@ -73,7 +73,7 @@
    "expected": "price/quality routing, fallback, quota release",
    "files": {
     "tests/test_provider_quota_and_dialects.py": {
-     "min_tests": 23
+     "min_tests": 24
     }
    }
   },

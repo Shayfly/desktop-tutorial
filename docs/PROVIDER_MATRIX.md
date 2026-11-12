@@ -33,7 +33,7 @@ Summary: 14 entries · credential {'CREDENTIAL_PRESENT': 14} · connection {'CON
 | conversation_complex | 85 | 70 | — |
 | intake_extraction | 70 | 70 | — |
 | architecture | 85 | 70 | — |
-| codegen | 85 | 70 | — |
+| codegen | 85 | 85 | — |
 | repair | 85 | 70 | — |
 | modification | 85 | 70 | — |
 | review | 85 | 70 | codegen, repair, modification |

@@ -115,6 +115,44 @@ class RealPostgresReservationConcurrencyTests(unittest.TestCase):
         self.assertEqual(spend, Decimal('1.60'))
         self.assertEqual(reservations, 1)
 
+    def test_failed_build_without_provider_contact_restores_both_balances(self):
+        from tests.worker_no_contact import failed_worker_without_contact
+        from tests.evidence_notice import notice
+
+        service = PostgresSubscriptionService(pool=self.pool)
+        before = service.snapshot(self.user_id)
+        build_id = self.build_ids[0]
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    decision = service.reserve(
+                        cur, build_id=build_id, user_id=self.user_id, project_id='p1',
+                        cost_class='light', credits=60,
+                        estimated_provider_cost_usd=Decimal('0.35'))
+        self.assertTrue(decision.allowed)
+        reserved = service.snapshot(self.user_id)
+        self.assertEqual(reserved['credits_used'], before['credits_used'] + 60)
+        self.assertEqual(Decimal(reserved['provider_spend_usd']),
+                         Decimal(before['provider_spend_usd']) + Decimal('0.35'))
+        for _ in range(2):  # repeated failed execution/settlement cannot refund the same ID twice
+            gateway, http, terminal = failed_worker_without_contact(subscriptions=service, build_id=build_id)
+            self.assertEqual(gateway.state.external_calls, 0)  # actual ModelUseState, not a supplied fake count
+            http.assert_not_called()
+            self.assertEqual(terminal['evidence_json']['external_model_calls'], gateway.state.external_calls)
+            self.assertEqual(terminal['evidence_json']['billing'], 'released')
+            self.assertEqual(terminal['error_code'], 'model_policy_blocked')
+            self.assertEqual(service.snapshot(self.user_id), before)
+        with self.pool.connection() as conn:
+            status = conn.execute('SELECT status FROM credit_reservations WHERE build_id=%s',
+                                  (build_id,)).fetchone()[0]
+        self.assertEqual(status, 'RELEASED')
+        notice('item2 balances PASS',
+               f"before credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
+               f"reserved credits={reserved['credits_remaining']} reserve={reserved['provider_budget_remaining_usd']}; "
+               f"after credits={before['credits_remaining']} reserve={before['provider_budget_remaining_usd']}; "
+               f'external_calls={gateway.state.external_calls}; observed_http_calls={http.call_count}; '
+               'worker_failure=model_policy_blocked; replay leaves balances unchanged')
+
     def test_concurrent_build_request_replays_create_one_durable_build(self):
         repository=PostgresBuildRepository(self.pool)
         barrier=threading.Barrier(2)

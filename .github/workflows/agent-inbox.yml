@@ -1,0 +1,85 @@
+name: agent inbox
+
+# CEO order 2026-11-03: an issue labelled `agent-inbox` is copied, as text, to inbox/<NNN>.md on the `inbox` branch.
+# Nothing from the issue is executed: the body reaches the shell only through an environment variable and is written
+# with printf '%s'. Trigger is `issues` (never pull_request_target); the label gate is the only way in.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: agent-inbox
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    # An issues payload's `sender` has no author_association (a plain user object).
+    # The labeller's permission is the control: the Gate step below checks role_name.
+    # Do not bring back a sender/author_association clause here.
+    if: >-
+      github.event.label.name == 'agent-inbox'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate -- the labeller has write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SENDER: ${{ github.event.sender.login }}
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$SENDER/permission" --jq .role_name 2>&1); rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            case "$out" in
+              *404*) echo "::error title=inbox gate::$SENDER is not a collaborator -- not copied"; exit 1;;
+              *)     echo "::error title=inbox gate::permission lookup FAILED (not a denial) for $SENDER: $out"; exit 1;;
+            esac
+          fi
+          perm="$out"
+          echo "::notice title=inbox gate::raw role_name for $SENDER = '$perm'"
+          case "$perm" in
+            admin|maintain|write|triage) echo "::notice title=inbox gate::labeller $SENDER has $perm";;
+            *) echo "::error title=inbox gate::labeller $SENDER has '$perm' -- not copied"; exit 1;;
+          esac
+      - uses: actions/checkout@v4
+        with:
+          ref: inbox
+      - name: Write the issue body to inbox/<NNN>.md
+        id: write
+        env:
+          BODY: ${{ github.event.issue.body }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          if [ ${#BODY} -gt 20000 ]; then echo "::error::body too large: ${#BODY}"; exit 1; fi
+          path="inbox/$(printf '%03d' "$((10#$NUMBER))").md"
+          if [ -e "$path" ]; then n=1; while [ -e "${path%.md}.v$n.md" ]; do n=$((n+1)); done; mv "$path" "${path%.md}.v$n.md"; echo "::notice title=inbox::kept the earlier copy as ${path%.md}.v$n.md"; fi
+          printf '%s\n' "$BODY" > "$path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "::notice title=inbox::wrote $path ($(wc -c < "$path") bytes) from issue #$NUMBER"
+      - name: Commit and push to inbox
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+          FILE: ${{ steps.write.outputs.path }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- inbox/
+          if git diff --cached --quiet; then echo "::notice title=inbox::$FILE unchanged"; exit 0; fi
+          git commit -m "inbox: $FILE from issue #$NUMBER"
+          git push origin HEAD:inbox
+          echo "::notice title=inbox::pushed $(git rev-parse --short HEAD) to inbox"
+      - name: Comment the path on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          FILE: ${{ steps.write.outputs.path }}
+        run: |
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "inbox: \`$FILE\` on branch \`inbox\` ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/inbox/$FILE)"

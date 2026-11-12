@@ -79,7 +79,19 @@ const path=require('path');
    assert.equal(await page.locator('#progressPanel').evaluate(el=>el.hidden),true,'no fake build progress');
    assert.equal(await page.locator('#confirmBtn').isDisabled(),true,'fresh quote blocks approval');
    assert.match(await page.locator('#planMsg').textContent(),/הבנייה לא התחילה/);
+   assert.match(await page.locator('#planMsg').textContent(),/התחברות והרשאות/,'409 names the missing capability');
+   assert.match(await page.locator('#planMsg').textContent(),/ערכו|לערוך/,'409 tells the customer what to do');
    assert.match(await page.locator('#planPanel').textContent(),/התחברות והרשאות/);
+   const namedError=await page.evaluate(()=>{
+    const detail={error:'capability_not_feasible',findings:[{item:'calendar integration',reason:'not connected',alternative:'Connect the calendar or remove this requirement.'}]};
+    const he=explain(new ApiError(409,detail));S.lang='en';
+    const en=explain(new ApiError(409,detail));S.lang='he';return {he,en};
+   });
+   for(const text of [namedError.he,namedError.en]){
+    assert.match(text,/calendar integration/,'other item names are preserved');
+    assert.match(text,/Connect the calendar/,'specific remedy is preserved');
+    assert.doesNotMatch(text,/undefined/);
+   }
    if(width===390){
     await page.evaluate(()=>{S.projects=[{id:'p',title:'פרויקט בדיקה'},{id:'other',title:'פרויקט נוסף'}];renderProjects();});
     for(const pane of ['chat','preview','edit']){

@@ -66,7 +66,7 @@ class ProjectState:
 
 
 class ProjectLifecycleRepository(Protocol):
-    def create(self, project: ProjectRecord) -> None: ...
+    def create(self, project: ProjectRecord, *, in_transaction: Callable | None = None) -> None: ...
     def get(self, owner_id: str, project_id: str) -> ProjectState | None: ...
     def update_title(self, owner_id: str, project_id: str, title: str, updated_at: str) -> ProjectState | None: ...
     def set_archived(self, owner_id: str, project_id: str, archived_at: str | None, updated_at: str) -> ProjectState | None: ...
@@ -79,12 +79,18 @@ class MemoryProjectLifecycleRepository:
     def __init__(self) -> None:
         self._rows: dict[str, ProjectState] = {}
 
-    def create(self, project: ProjectRecord) -> None:
+    def create(self, project: ProjectRecord, *, in_transaction: Callable | None = None) -> None:
         if project.id in self._rows:
             raise ValueError("project id already exists")
         self._rows[project.id] = ProjectState(
             project.id, project.owner_id, project.title, project.created_at, project.updated_at
         )
+        if in_transaction is not None:
+            try:
+                in_transaction(None, project)
+            except BaseException:
+                del self._rows[project.id]            # all or nothing, as in the PostgreSQL transaction
+                raise
 
     def raw(self, project_id: str) -> ProjectState | None:
         return self._rows.get(project_id)
@@ -157,7 +163,9 @@ class PostgresProjectLifecycleRepository:
             tombstone_reason=str(row[8]) if row[8] is not None else None,
         )
 
-    def create(self, project: ProjectRecord) -> None:
+    def create(self, project: ProjectRecord, *, in_transaction: Callable | None = None) -> None:
+        """in_transaction(conn, project) runs in the SAME transaction as the insert: if it raises, the project row is
+        rolled back and the error propagates -- the project does not exist."""
         try:
             with self._pool.connection() as conn:
                 with conn.transaction():
@@ -166,6 +174,8 @@ class PostgresProjectLifecycleRepository:
                             "INSERT INTO creator_projects(id,owner_id,title,created_at,updated_at) VALUES(%s,%s,%s,%s,%s)",
                             (project.id, project.owner_id, project.title, project.created_at, project.updated_at),
                         )
+                    if in_transaction is not None:
+                        in_transaction(conn, project)
         except Exception as exc:
             if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
                 raise ValueError("project id already exists") from exc
@@ -249,10 +259,13 @@ class ProjectLifecycleService:
             raise ValueError("title required")
         return normalized[:120]
 
-    def create_project(self, *, owner_id: str, title: str) -> ProjectRecord:
+    def create_project(self, *, owner_id: str, title: str, in_transaction: Callable | None = None) -> ProjectRecord:
         now = self._now().isoformat()
         record = ProjectRecord("prj_" + secrets.token_urlsafe(10), owner_id, self._title(title), now, now)
-        self._repo.create(record)
+        if in_transaction is None:
+            self._repo.create(record)
+        else:
+            self._repo.create(record, in_transaction=in_transaction)
         return record
 
     def project_state(self, *, owner_id: str, project_id: str) -> ProjectState:

@@ -1,0 +1,21 @@
+name: Gate freeze
+
+# Michael 2026-11-10: 72h with no gate-file change after #291 so the frozen-run baseline settles.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gate files untouched while the freeze is active
+        run: |
+          set -euo pipefail
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed.txt"
+          python3 infra/gate_freeze_check.py "$RUNNER_TEMP/changed.txt"

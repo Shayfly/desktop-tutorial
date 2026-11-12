@@ -235,7 +235,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "codegen",
     "repair",
     "modification",
     "review"
@@ -333,7 +332,6 @@
     "conversation_complex",
     "intake_extraction",
     "architecture",
-    "codegen",
     "repair",
     "modification",
     "review"
@@ -1294,7 +1292,8 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": []
   },
   {
    "task": "classification",
@@ -1304,7 +1303,8 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": []
   },
   {
    "task": "conversation",
@@ -1314,7 +1314,8 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": []
   },
   {
    "task": "conversation_complex",
@@ -1324,7 +1325,8 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": []
   },
   {
    "task": "intake_extraction",
@@ -1334,7 +1336,8 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": true
+   "deterministic_first": true,
+   "prefer_models": []
   },
   {
    "task": "architecture",
@@ -1344,19 +1347,27 @@
    "allow_models": [],
    "deny_models": [],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5",
+    "openai-gpt-6-1-sol"
+   ]
   },
   {
    "task": "codegen",
    "description": "write the product code",
    "preferred_floor": 85,
-   "mandatory_floor": 70,
+   "mandatory_floor": 85,
    "allow_models": [],
    "deny_models": [
     "gpt-6-luna"
    ],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5",
+    "gemini-3-8-flash"
+   ]
   },
   {
    "task": "repair",
@@ -1368,7 +1379,11 @@
     "gpt-6-luna"
    ],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5",
+    "gemini-3-8-flash"
+   ]
   },
   {
    "task": "modification",
@@ -1380,7 +1395,11 @@
     "gpt-6-luna"
    ],
    "independent_of": [],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "anthropic-claude-sonnet-5-5",
+    "gemini-3-8-flash"
+   ]
   },
   {
    "task": "review",
@@ -1394,7 +1413,11 @@
     "repair",
     "modification"
    ],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "openai-gpt-6-1-sol",
+    "gemini-3-8-flash"
+   ]
   },
   {
    "task": "security_review",
@@ -1408,7 +1431,11 @@
     "repair",
     "modification"
    ],
-   "deterministic_first": false
+   "deterministic_first": false,
+   "prefer_models": [
+    "openai-gpt-6-1-sol",
+    "gemini-3-8-flash"
+   ]
   }
  ],
  "legacy_routes": [

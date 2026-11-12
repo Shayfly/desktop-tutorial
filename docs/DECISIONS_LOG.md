@@ -38,7 +38,7 @@
 | 21 | קרדיטים לתוכנית | Free 150 · Amateur 1000 · Pro 4500 · Studio 10000 | `PLAN_CATALOG` |
 | 22 | Free | ZERO + LIGHT, 150 קרדיטים (כ-3 בנייות בחודש) | `PLAN_CATALOG` |
 | 23 | Enterprise | EXTREME, פטור מרצפת המרווח (תמחור בחוזה) | `MARGIN_FLOOR_EXEMPT_PLANS` |
-| 24 | תקרת תקציב מודלים לבנייה, **soft cap** (לא דוחה בנייה, רק רושם חריגה) | ZERO $0.05 · LIGHT $0.35 · STANDARD $1.60 · ADVANCED $3.00 · HEAVY $5.50 · EXTREME $18.00. לכל class יש משתנה env נפרד: `OMNI_BUILD_LLM_CAP_<CLASS>_USD` | `m5_class_llm_cap`, ‏`m5_llm_budget` |
+| 24 | תקרת הוצאות מודלים **Hard Cap** ב־LIGHT ($0.35) וב־STANDARD ($1.60) | שאר תקרות ה־CostClass נותרו לפי המדיניות הקיימת. ב־`omni_prod/worker_tasks.py`, `bind_model_budget_to_reservation` חותכת את תקציב ה־gateway למינימום בין סכום ה־LLM המאושר לתקרת המחלקה לפני קריאת מודל. בקשה ללא `llm_maximum_usd` או gateway ללא `bind_budget` נחסמים (fail closed), ללא מנגנון חיוב נוסף. נתיב ה־async ב־`investor_app.py` מחייב `approval_id` גם כש־`OMNI_REQUIRE_APPROVAL=0`; המסלולים הישנים האחרים לא שונו. בדיקות רגרסיה: `tests/test_worker_budget_binding.py`; CI/E2E מחייבים אימות לפני מיזוג. |
 | 25 | חריגה של יותר מפי 2 מהתקרה | התרעה בלוג (`LLM_SPEND_ALERT`) | `pricing.llm_overage`, ‏`worker_tasks.llm_cap_overage` |
 | 26 | רצפת 60% לא יורדת. אם תקרה שוברת את הרצפה, התקציב נחתך לגובה הרצפה (אפשרות 1) | — | `m5_llm_budget` |
 | 27 | יעד מרווח במקרה הגרוע (כל התקרה מנוצלת) | Amateur 72% · Pro 63% · Studio 62% | מושג: 73.2% / 63.6% / 63.2% |
@@ -62,6 +62,10 @@
 | 30 | **תקציב ה-class הוא הקובע ב-worker.** ה-env הוא תקרה עולמית בלבד: כשהוא נמוך מתקציב ה-class נרשמת התרעה ב-log, ואין חסימה שקטה | `WORKER_BUDGET_BELOW_CLASS` (WARNING) | `routed_gateway.bind_budget`; טסט `test_pro_keeps_its_class_budget_when_worker_env_is_lower` (env ‏$0.50, ‏Pro מקבל $1.60) |
 | 31 | **ספי allowlist** (מחיר output מקסימלי ל-1M טוקנים) | LIGHT ≤ $1.50 · STANDARD ≤ $5 · ADVANCED ≤ $8 · HEAVY ו-EXTREME ללא תקרה · ZERO ‏$0 | `M5_CLASS_MAX_OUTPUT_PER_MILLION`; טסט `test_pro_and_studio_get_different_allowlists` |
 | 32 | הצ'אט של ה-intake מציג את הקרדיטים של ה-class (במקום 60 קבוע) | — | `investor_app._supervisor`; טסט `tests/test_intake_credits_by_plan.py` |
+| 33 | **אין שאלון.** Venice מנהלת את השיחה: מקבלת את מה שעוד פתוח במפרט כרשימת בדיקה ושואלת שאלה אחת בשפה טבעית. אם המודל לא ענה בזמן, הלקוח מקבל הודעה גלויה, לא שאלון (מנכ"ל 2026-11-08) | — | `supervisor.py`, `intake/interpreter.py` (#257) |
+| 34 | תקרות שיחת intake: ‎$0.015 להודעה, ‎$0.50 לפרויקט, ‎$1 ליום בכל המערכות (מנכ"ל 2026-11-08) | — | Vercel `OMNI_INTAKE_*_BUDGET_USD` |
+| 35 | **מודל חזק ל-LIGHT ול-STANDARD לתיקון ולבדיקת QA בלבד** (Claude Sonnet 5.5, `repair`+`review`); ה-Hard Cap של ה-class נשאר (מנכ"ל 2026-11-08, ב) | — | `pricing.m5_task_only_models`, `routed_gateway.restrict_to_cost_class` |
+| 36 | **חשבון המייסד בונה עם כל המודלים**, תחת אותה תקרת class (מנכ"ל 2026-11-08, א) | — | `OMNI_FOUNDER_ACCOUNT_IDS` (worker) |
 
 **ל-#31:** בהתחלה הוצע LIGHT ≤ $1. בסף כזה היה נשאר ל-Amateur ול-Free רק `gpt-6-luna`, שמסומן `INSUFFICIENT_CREDIT` ‏(אין קרדיט ב-OpenAI) ו-`UNVERIFIED`. התוצאה הייתה שכל בנייה שלהם נכשלת. לכן הוכרע LIGHT ≤ $1.50.
 
@@ -227,3 +231,75 @@
 - **‏#91 `99430c1`:** בדיקת `plan_code` ב-consistency gate. ה-fixture הוא ה-index.html וה-app.py האמיתיים של סבב 0. ‏CI ירוק. **לא מוזג**: תנאי א. הוא נוגע באותו קובץ כמו #90, ולכן לפי תנאי ד ממזגים אחד ומבססים מחדש את השני.
 - ‏#89: ה-head השתנה (`cb4a020` → `a0e567b`) אחרי שמאט התחיל לבדוק. ביקשתי אודיט מחדש ב-PR.
 - הענף הזמני `run/inspect-bld_4f3b` עוד קיים. מחיקה חסומה מכאן (git push --delete וגם refs API מחזירים 403). ה-trigger שלו הוסר.
+
+### 2026-10-20 23:29 — C10: תרגיל rollback (הריצה הראשונה אי-פעם)
+
+| # | צעד | run | ref → SHA | תוצאה | זמן |
+|---|---|---|---|---|---|
+| 1 | פריסה ל-SHA ידוע | 39492342815 | `drill/c10-known` → `4d488b4` | success: migrate בלי AHEAD, כל ה-probes עברו (PASS) | 2:07 |
+| 2 | פריסה לשני | 39492678328 | `main` → `4ad2eab` | success | 2:13 |
+| 3 | rollback | 39493057663 | `drill/c10-known` → `4d488b4` | success | 2:07 |
+| 4 | אימות חי | 39493396519 + inspect 39494999472 | הקוד שרץ: `4d488b4` | הבנייה רצה מקצה לקצה ($0.052636 settled). התוצאה failed על REVIEW בלבד (איכות). **הוכחת הגרסה:** ‏codegen הלך ל-gpt-6-luna, כלומר קוד מלפני #86 | 10:22 |
+| 5 | חזרה ל-main | 39495052838 | `main` → `4ad2eab` | success | 2:07 |
+
+- **מוקש 038:** לא ניתן להגיע אליו מה-repo. מיגרציות 038–041 נכנסו ב-graft root `ba2bb23`, כך שאין בהיסטוריה קוד מלפני 038. מסלול ה-DROP לא נבדק.
+- **מיגרציות:** ‏migrate הצליח בכל הפריסות, בלי warning על AHEAD. את הפלט `pending migrations` לא קראתי: לוגים של jobs חסומים מכאן, ונקראו רק annotations.
+- **luna שוב:** 4 מתוך 4 תשובות codegen/repair של gpt-6-luna היו JSON שבור, בהרצה נוספת מעבר ל-39377332673.
+- **פתוח:** הענף `drill/c10-known` נשאר, כי מחיקה חסומה מכאן (403).
+
+### 2026-10-22 — LIGHT codegen policy and bounded quality pilot (founder directive)
+
+- Decision: only LIGHT codegen may use the existing known-quality-70 lane. All other cost classes keep mandatory 85; unknown quality remains refused on primary/fallback/catalog paths. LIGHT's special $3.75/M output allowance is removed; its original $1.50/M ceiling remains. Luna remains excluded from code writing until its JSON behavior has measured evidence.
+- Mapping: `pricing.py:M5_BUILD_COST_CLASS` maps Free/Amateur -> LIGHT, Pro -> STANDARD, Studio -> HEAVY, Enterprise -> EXTREME. LIGHT costs 45 credits/build; Free includes150 credits and a default $1.05/month provider cap. Thus100 Free accounts allow up to300 builds/month by credits and up to$105 aggregate monthly provider authorization, not a spend forecast. Evidence from build-evidence run39731134720/job119666202485: run1 budget_binding.cost_class=light, reserved/effective LLM budget=$0.35, recorded spend=$0.02731510. This proves that run's class; it does not establish every current account's plan or compare its balance with provider billing.
+- Measurement is required reporting, not an admission gate: two fixed prompts, a simple persisted-item CRUD app and the T8 booking reference. Two builds consume90 of the reported105 remaining credits. Model-spend reservation is at most2 x the unchanged LIGHT $0.35 cap ($0.70); the dollar campaign remains conditional on I01 reconciliation and cap enforcement. No paid experiment is authorized to bypass that condition or existing credit/budget checks.
+- Pilot timebox:45 minutes after both funding conditions are met. Keep the existing build repair limit; do not add retries after two identical failures without a testable change. Pin prompts, policy, model and checker version before the first call. Run the same positive and deliberately broken checker controls, then verify create/read/reload/update/persistence for CRUD and all six T8 criteria including concurrent overlap rejection and a subsequent nonbreaking change.
+- Report first_pass_yield as x/2, final accepted products as y/2, repair/call counts, total authorized and settled spend including failures, and cost per accepted product (undefined if y=0). Capture effective max_tokens and provider finish/stop reason where the existing evidence supplies them; missing values stay UNKNOWN.
+- Pilot interpretation:2/2 accepted supports keeping the LIGHT lane provisionally;0/2 accepted after the existing repair limit, or any false success or data loss, is a poor outcome requiring a stronger LIGHT model before raising the floor.1/2 is inconclusive and requires diagnosis, not a routing gate or an automatic policy change. Two cases are a directional pilot, not evidence of population-level reliability or readiness for100 users.
+- Status: protocol defined; pilot NOT RUN. No model-quality claim is inferred from the catalog score70 or from unit tests.
+
+
+### 2026-10-25 — LANG-001: רב-לשוניות, תיקון סטייה ברשומה (הכרעת הבעלים)
+
+הניסוח "פלטפורמה בעברית" היה טעות ברשומה. הכוונה המחייבת היא פלטפורמה **בכל שפה**; זה תיקון לתוכנית המקורית ואינו הרחבת היקף.
+
+1. **השיחה והממשק:** המשתמש כותב בכל שפה והמערכת עונה באותה שפה.
+2. **התוצר:** האפליקציה נבנית בשפת הלקוח, כולל RTL/LTR, תוויות ותוכן הדוגמה.
+3. **המחיר:** דולר בכל השפות. טריגר לחזרה להכרעת המטבע: לקוח שמשלם במטבע שאינו דולר.
+
+סדר הביצוע המחייב:
+
+1. הפרסר וה-intake מקבלים כל שפה.
+2. האפליקציה שנבנית בשפת הלקוח והכיווניות המתאימה.
+3. i18n מלא של הממשק.
+
+**כעת: שלב 1, ובפרסר בלבד במסגרת #131.** אין שינוי בקוד intake, בתמחור או בממשק. החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+הכרעת הפרסר זהה בכל שפה: טקסט חופשי לאחר JSON מסווג prose לפי תחביר, ללא תלות באלפבית; leading prose נדחה באותה שגיאת פרסר. הנחיית התיקון דורשת אובייקט JSON לפי הסכמה ושמירה על שפת התוכן המבוקשת.
+
+### 2026-10-25 — DELIVERY-001: מסירה בשלבים עם שקיפות מחיר (הכרעת הבעלים)
+
+המוצר נמסר בשלבים. הלקוח רואה כל שלב על המסך ומאשר אותו לפני שהבא מתחיל.
+
+1. **מחזור השלב:** שאלות → הצעה → בנייה → תצוגה מקדימה → אישור או סימון שינויים → סגירה. שלב נסגר רק אחרי תצוגה מקדימה ואישור מפורש, ומוקפא לפני המעבר לשלב הבא.
+2. **המחיר:** העלות בקרדיטים נאמרת לפני תחילת השלב, לא אחריו. שלב שנכשל אינו מחויב. חזרה אחורה מותרת, עם מחיר מוצהר.
+3. **קצב:** לכל היותר שלוש שאלות לפני שיש משהו על המסך.
+4. **סימון שינויים:** הלקוח מסמן על התצוגה ("פה", "יותר גדול", "תוריד את זה"); הסוכן מתרגם לסימון מובנה ומאמת שהבין לפני שינוי.
+
+סדר הביצוע: WP2 פרוטוקול השלבים, שקיפות המחיר ואי-חיוב על כשל; WP3 תצוגה מקדימה ומשטח סימון. **אין שינוי במחיר עצמו, בממשק הגרפי, בספקי המדיה או במסד הנתונים.** החלטת מוצר אינה ראיה שהשלבים כבר מומשו או אומתו.
+
+### 2026-10-25 — QUESTIONS-001: שאלות בשפה חופשית מגלאי חוסרים (הכרעת הבעלים)
+
+ה-intake אינו שאלון. כל סוג ארטיפקט מצהיר אילו שדות הוא דורש; גלאי חוסרים אומר מה חסר, והסוכן מנסח את השאלה.
+
+1. **מהותי** = שינוי הערך היה משנה את הארטיפקט בצורה שהלקוח יבחין בה (סגנון, קהל, שפה, התחברות). חסר+מהותי → שואלים. חסר+לא מהותי → ערך ברירת מחדל **מפורש** ומסומן כהנחה; בלי ערך מפורש "מניחים" הוא ניחוש.
+2. **השאלה:** אחת בכל פעם, בשפת המשתמש, עם סיבה; "תחליט אתה" תמיד זמין ומסומן כהנחה. לא שואלים על מה שכבר ידוע, גם אם נאמר באגב. שאלה בשפה אחת לא מייצרת תווית בשפה אחרת במפרט.
+3. **מודל:** קריאה אחת לשאלה, בתוך תקציב השיחה הקיים, לא לולאה. הפרומפט מקבל מה חסר, לא רשימת שאלות. נוסח גיבוי קבוע נשאר קיים ונבדק, לעבודה בלי מודל וב-CI. כשהמשתמש כתב בעברית או בערבית, השאלה אינה ASCII בלבד.
+4. **מטריקה:** כל שאלה נרשמת עם השדה שמילאה ונמדד אם שינתה את הארטיפקט. שאלה שלא ממופה לשדה = כשל; שאלה שלא מילאה כלום = שיחה מיותרת; חוסר מהותי שלא נשאל = כשל.
+
+**כעת: WP1 בלבד** (גלאי החוסרים והשאלות החופשיות), ב-`omni_prod/intake/` וב-`omni_prod/conversation/`. החלטת מוצר אינה ראיה למימוש או לאימות.
+
+## 2026-11-04 — הפרויקט הישן `148ai` ב-Vercel
+
+| # | הכרעה | מקור | מימוש / תיעוד |
+|---|---|---|---|
+| 1 | `148ai.vercel.app` מפנה ב-307 לאותו נתיב ב-`148aiv28.vercel.app`. הפרויקט `148ai` **לא נמחק** ונשאר ב-Vercel כדי להחזיק את הדומיין | צ'אט 23:09 (עובדיה, בשם הבעלים) | `docs/LEGACY_148AI_REDIRECT_HE.md`. פריסה `dpl_5AvQpGEfrjuDaGNqGxKXkVQo7drB`. יעד rollback: `dpl_Hr5RzNmkFbrB1VoWkiqwTiAJZJZf` |

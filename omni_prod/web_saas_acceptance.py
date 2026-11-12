@@ -37,11 +37,39 @@ _NON_EXTERNAL_INTEGRATIONS = frozenset({'database', 'storage'})
 # or the approved brief make those behaviours mandatory; otherwise they are
 # NOT_REQUIRED (a booking app that only creates, lists and cancels is not
 # failed for having no "edit"). Sign-in approved as NONE removes auth/role.
-_UPDATE_WORDS = ('edit', 'update', 'change', 'rename', 'mark', 'complete', 'done', 'toggle', 'status',
-                 'עריכ', 'ערוך', 'לערוך', 'עדכון', 'לעדכן', 'שינוי', 'לשנות', 'סימון', 'לסמן', 'סמן', 'הושלם',
-                 'בוצע', 'השלמה', 'סטטוס', 'מצב')
-_DELETE_WORDS = ('delete', 'remove', 'cancel', 'archive', 'מחיק', 'למחוק', 'מחק', 'הסר', 'להסיר', 'ביטול', 'לבטל',
-                 'בטל', 'ארכיון')
+# 2026-11-10: whole Hebrew words with prefixes, never substrings: the stems 'בטל', 'מחק', 'הסר' matched "בטלפון",
+# "מחקר", "הסרט" and 'מצב' matched "במצב רוח". This file runs alone inside the sandbox, so the matcher is a copy of
+# omni_prod.vocabulary (tests/test_vocabulary_20261110.py keeps both identical).
+_UPDATE_WORDS = (
+    'edit*', 'update*', 'change', 'changes', 'changing', 'rename*', 'mark', 'marks', 'marked', 'done', 'complete',
+    'completed', 'completion', 'toggle*', 'status', 'statuses', 'modify', 'reschedule*', 'עריכה', 'עריכת', 'לערוך',
+    'ערוך', 'ערכו', 'עורך', 'עורכת', 'נערך', 'עדכון', 'עדכונים', 'לעדכן', 'עדכן', 'עדכנו', 'מעדכן', 'מעדכנת',
+    'מתעדכן', 'שינוי', 'שינויים', 'לשנות', 'סימון', 'לסמן', 'סמן', 'סמנו', 'מסמן', 'הושלם', 'הושלמה', 'בוצע',
+    'בוצעה', 'השלמה', 'סטטוס', 'סטטוסים', 'מצב המשימה', 'מצב ההזמנה', 'מצב הטיפול', 'להזיז', 'הזזה', 'לדחות',
+    'דחייה', 'לתקן פרטים', 'תיקון פרטים',
+)
+_DELETE_WORDS = (
+    'delete*', 'remove*', 'cancel*', 'archive*', 'unsubscribe*', 'מחיקה', 'מחיקת', 'למחוק', 'מחק', 'מחקו', 'מוחק',
+    'מוחקת', 'נמחק', 'נמחקת', 'למחיקה', 'להסיר', 'הסר', 'הסירו', 'הסרה', 'הסרת', 'מסיר', 'ביטול', 'ביטולים', 'לבטל',
+    'בטל', 'בטלו', 'מבטל', 'מבטלת', 'בוטל', 'בוטלה', 'ארכיון', 'לארכב', 'ארכוב', 'להוריד מהרשימה', 'הסרה מהרשימה',
+    'הסרה מרשימת',
+)
+_HE = '\u0590-\u05FF'
+_PREFIX = r'(?:ו|ש|כש|מ|ב|ל|כ|ה|וה|וב|ול|ומ|וש|שה|שב|של|שמ|מה|בה|לה|כה|וכש)?'
+
+
+def _vocab_entry(word: str) -> str:
+    stem = word.endswith('*')
+    w = word[:-1] if stem else word
+    body = re.escape(w).replace(r'\ ', r'[\s\-]+').replace("'", '[\'\u05F3]').replace('"', '["\u05F4]')
+    if re.search(f'[{_HE}]', w):
+        return _PREFIX + body + (f'[{_HE}]*' if stem else '')
+    return body + (r'\w*' if stem else '')
+
+
+def _has_any(text: str, words) -> bool:
+    alts = '|'.join(_vocab_entry(w) for w in sorted(set(words), key=len, reverse=True))
+    return bool(re.search(f'(?<![\\w{_HE}])(?:{alts})(?![\\w{_HE}])', text or '', re.I))
 
 
 def _no_login(contract: Mapping[str, Any]) -> bool:
@@ -66,9 +94,9 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
         text = str(build_contract.get('prompt') or '').lower()
         if _no_login(build_contract):
             not_required += ['auth', 'role']
-        if not any(w in text for w in _UPDATE_WORDS):
+        if not _has_any(text, _UPDATE_WORDS):
             not_required.append('data_update')
-        if not any(w in text for w in _DELETE_WORDS):
+        if not _has_any(text, _DELETE_WORDS):
             not_required.append('data_delete')
     # A content-only website approved in the brief (no sign-in, no personal data, no external integration,
     # no storage/scheduled/outbound infrastructure) has no record to create. Only data_create is waived; data_read
@@ -77,12 +105,22 @@ def acceptance_scope(build_contract: Mapping[str, Any] | None) -> tuple[tuple[st
             and _no_login(build_contract) and 'integration' in not_required
             and not (kinds & {'object_storage', 'scheduled_http', 'outbound'})
             and 'prompt' in build_contract):
-        not_required.append('data_create')
+        # bld_2ded07f0 (2026-11-09, café landing page): a word in the approved text ("בטל", "remove"...) kept
+        # data_delete required for a site that stores nothing, and the build failed "missing data_delete" with
+        # every check passing. A content-only site has no records: nothing to create, change or delete.
+        not_required += ['data_create', 'data_update', 'data_delete']
     waived = tuple(dict.fromkeys(not_required))
     return tuple(k for k in WEB_SAAS_REQUIRED_KINDS if k not in waived), waived
 
 
 _ALLOWED_METHODS = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'}
+_WRITE_KINDS = frozenset({'data_create', 'data_update'})
+_BODY_METHODS = frozenset({'POST', 'PUT', 'PATCH'})
+
+
+def _empty_body(body: Any) -> bool:
+    """No body at all, or an empty one: nothing for a create/update endpoint to validate and store."""
+    return body is None or (isinstance(body, (str, bytes, Mapping, list, tuple)) and len(body) == 0)
 _VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
@@ -242,11 +280,18 @@ class WebSaaSAcceptanceRunner:
                         raise ValueError('path must be a relative absolute-path beginning with one /')
                     headers = _resolve(step.get('headers') or {}, variables)
                     body = _resolve(step.get('json'), variables)
-                    resp = self.transport.request(
-                        method=method, url=base_url + path, headers=headers, json_body=body,
-                        timeout_seconds=float(step.get('timeout_seconds', self.timeout_seconds)),
-                    )
-                    detail = _assert_response(step, resp)
+                    timeout = float(step.get('timeout_seconds', self.timeout_seconds))
+                    if step.get('concurrent'):
+                        # T8: N identical requests at the same instant; the SERVER must accept exactly
+                        # expect_accepted of them and refuse the rest (a UI that blocks double clicks proves nothing).
+                        resp, detail = _concurrent(self.transport, step, method=method, url=base_url + path,
+                                                   headers=headers, body=body, timeout=timeout)
+                    else:
+                        resp = self.transport.request(
+                            method=method, url=base_url + path, headers=headers, json_body=body,
+                            timeout_seconds=timeout,
+                        )
+                        detail = _assert_response(step, resp)
                     _capture(step.get('capture') or {}, resp, variables)
                     passed = True
                     passed_ids.update(acceptance_ids)
@@ -343,6 +388,24 @@ def _validate_plan(personas: Sequence[Mapping[str, Any]], contract_ids: set[str]
                 return f'step {step_id} uses unsupported HTTP method {method}'
             if not ids:
                 return f'step {step_id} must reference contract acceptance_ids'
+            if 'concurrent' in step:
+                n = step.get('concurrent')
+                if not isinstance(n, int) or isinstance(n, bool) or not 2 <= n <= 5:
+                    return f'step {step_id}: concurrent must be an integer from 2 to 5'
+                if method not in {'POST', 'PUT', 'PATCH'}:
+                    return f'step {step_id}: concurrent applies to POST, PUT or PATCH'
+                accepted = step.get('expect_accepted', 1)
+                if not isinstance(accepted, int) or isinstance(accepted, bool) or not 0 <= accepted <= n:
+                    return f'step {step_id}: expect_accepted must be an integer from 0 to concurrent'
+                if accepted == 0 and ('expect_text_contains' in step or 'expect_json_contains' in step):
+                    return (f'step {step_id}: expect_text_contains / expect_json_contains apply to accepted responses, '
+                            'and expect_accepted is 0')
+            if kind in _WRITE_KINDS and method in _BODY_METHODS and _empty_body(step.get('json')):
+                # Live run 1 (bld_15f930f7, 2026-10-22): a data_create step POSTed with no body, the app rightly
+                # answered 400, and a correct app could never pass. Refused here, before any request is sent.
+                return (f'step {step_id} ({kind}) sends {method} {step.get("path", "/")} without a json body: a '
+                        f'{kind} step must send, in "json", the data the endpoint needs, valid under the approved '
+                        'rules (for dates use ${today} or ${date_plus_N})')
             unknown = sorted(set(ids) - contract_ids)
             if unknown:
                 return f'step {step_id} references unknown acceptance id(s): {",".join(unknown)}'
@@ -386,6 +449,49 @@ def _resolve(value: Any, variables: Mapping[str, Any]) -> Any:
     if isinstance(value, dict):
         return {str(k): _resolve(v, variables) for k, v in value.items()}
     return value
+
+
+def _concurrent(transport, step: Mapping[str, Any], *, method: str, url: str, headers, body, timeout: float):
+    """T8 (founder 2026-10-21): fire `concurrent` identical requests released by one barrier. Exactly
+    `expect_accepted` (default 1) must answer `expect_status` (default 200) and every other one
+    `expect_conflict_status` (default 409). Returns (an accepted response for capture, detail)."""
+    import threading
+    n = int(step['concurrent'])
+    accepted_status = int(step.get('expect_status', 200))
+    conflict_status = int(step.get('expect_conflict_status', 409))
+    want = int(step.get('expect_accepted', 1))
+    barrier = threading.Barrier(n)
+    results: list = [None] * n
+
+    def fire(i):
+        try:
+            barrier.wait(timeout=timeout)
+            results[i] = transport.request(method=method, url=url, headers=headers, json_body=body,
+                                           timeout_seconds=timeout)
+        except Exception as exc:                       # a crash or a dropped connection is an outcome too
+            results[i] = exc
+
+    threads = [threading.Thread(target=fire, args=(i,), daemon=True) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout * 2 + 5)
+    statuses = [getattr(r, 'status', type(r).__name__) for r in results]
+    ok = [r for r in results if getattr(r, 'status', None) == accepted_status]
+    refused = [r for r in results if getattr(r, 'status', None) == conflict_status]
+    if len(ok) != want or len(ok) + len(refused) != n:
+        raise AssertionError(f'{n} concurrent {method} requests: expected exactly {want} x HTTP {accepted_status} and '
+                             f'the rest HTTP {conflict_status}, got {statuses} (the server must lock and check the '
+                             'overlap inside one transaction; blocking in the page is not enough)')
+    # Matt on #106: the ordinary response contract holds for EVERY accepted response (status, expect_text_contains,
+    # expect_json_contains), not only the first one's JSON. With expect_accepted 0 the plan validator refuses those
+    # assertions (there is no accepted response to hold them), so nothing is ever silently skipped.
+    for i, r in enumerate(ok):
+        try:
+            _assert_response(step, r)
+        except AssertionError as exc:
+            raise AssertionError(f'accepted response {i + 1} of {len(ok)}: {exc}') from None
+    return (ok[0] if ok else refused[0]), f'{n} concurrent requests: {statuses} (exactly {want} accepted, each matched)'
 
 
 def _assert_response(step: Mapping[str, Any], response: HttpResponse) -> str:
@@ -440,8 +546,45 @@ def _capture(capture: Mapping[str, str], response: HttpResponse, variables: dict
     data = response.json()
     for variable, dotted_path in capture.items():
         current = data
-        for part in str(dotted_path).split('.'):
+        for part in _capture_parts(str(dotted_path)):
+            if isinstance(part, _DigitKey) and isinstance(current, list):
+                part = int(part)
+            if isinstance(part, int):
+                if not isinstance(current, list) or not -len(current) <= part < len(current):
+                    raise AssertionError(f'capture path {dotted_path!r} missing from response')
+                current = current[part]
+                continue
             if not isinstance(current, Mapping) or part not in current:
                 raise AssertionError(f'capture path {dotted_path!r} missing from response')
             current = current[part]
         variables[str(variable)] = current
+
+
+_CAPTURE_TOKEN = re.compile(r'\[(-?\d+)\]|([^.\[\]]+)')
+
+
+def _capture_parts(dotted_path: str) -> list:
+    """Split a capture path into keys and list indexes.
+
+    Founder build bld_ca727ba7 (2026-11-08): GET /api/classes returned a JSON
+    array whose first item had id 1, the plan captured '[0].id', and the old
+    resolver only walked object keys, so a correct app failed A2-A4. Accepted
+    forms: '[0].id', 'items[0].id', 'items.0.id', '$.items[0].id', 'id'.
+    A digit-only segment indexes a list only when the current value is a list
+    (an object key '0' still works, see _capture)."""
+    path = dotted_path.strip()
+    if path.startswith('$'):
+        path = path[1:].lstrip('.')
+    parts: list = []
+    for m in _CAPTURE_TOKEN.finditer(path):
+        if m.group(1) is not None:
+            parts.append(int(m.group(1)))
+        else:
+            seg = m.group(2).strip()
+            if seg:
+                parts.append(_DigitKey(seg) if seg.lstrip('-').isdigit() else seg)
+    return parts
+
+
+class _DigitKey(str):
+    """A dotted segment like '0': an index into a list, or the key '0' of an object."""

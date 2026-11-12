@@ -38,6 +38,15 @@ def schema_ready(pool) -> bool:
     return not missing
 
 
+def _gate_suffix(plan) -> str:
+    """A plan made after spec approval (owner 2026-10-26) is its own row: it carries the verifier's verdict, so an
+    older plan with the same graph (saved before the two gates) never stands in for it."""
+    gate = plan.get('spec_gate') or {}
+    if not gate:
+        return ''
+    return ':gate:' + str(gate.get('approved_fingerprint', ''))[:16] + (':c' if gate.get('verification', {}).get('corrected') else '')
+
+
 class MemoryConversationStore:
     def __init__(self):
         self.messages: list[dict] = []
@@ -45,7 +54,7 @@ class MemoryConversationStore:
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
                     interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
-                    reservation_id=None) -> dict:
+                    reservation_id=None, conn=None) -> dict:
         for m in self.messages:
             if request_key and m['project_id'] == project_id and m['request_key'] == request_key and m['role'] == role:
                 return m
@@ -75,7 +84,7 @@ class MemoryConversationStore:
                     and m['cost_usd'] is not None), Decimal('0'))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
-        key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'])
+        key = (project_id, plan['graph_fingerprint'] + plan['requirements_fingerprint'] + _gate_suffix(plan))
         if key not in self.plans:
             self.plans[key] = {'id': f'pln_{uuid.uuid4().hex[:20]}', 'project_id': project_id, 'brief_revision': brief_revision,
                                'brief_fingerprint': brief_fingerprint, 'plan': plan}
@@ -99,24 +108,34 @@ class PostgresConversationStore:
 
     def add_message(self, *, project_id, account_id, role, content, brief_revision=None, interpretation=None,
                     interpreter='deterministic', cost_usd=Decimal('0'), request_key=None, cost_state=None,
-                    reservation_id=None) -> dict:
+                    reservation_id=None, conn=None) -> dict:
         # The reservation columns (migration 037) are written only for paid turns, which
         # cannot happen without 037; deterministic turns stay compatible with a 036 schema.
+        # conn: write inside the caller's open transaction (project creation writes its flow mark that way).
         extra_cols, extra_vals = '', ()
         if cost_state is not None or reservation_id is not None:
             extra_cols, extra_vals = ', cost_state, reservation_id', (cost_state, reservation_id)
-        with self.pool.connection() as conn:
+        if conn is not None:
             with conn.transaction():
-                r = conn.execute(
-                    f'INSERT INTO intake_messages (project_id, account_id, role, content, brief_revision, interpretation, '
-                    f'interpreter, cost_usd, request_key{extra_cols}) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s'
-                    f'{", %s, %s" if extra_cols else ""}) '
-                    f'ON CONFLICT (project_id, request_key, role) WHERE request_key IS NOT NULL DO NOTHING RETURNING {self._MSG}',
-                    (project_id, account_id, role, content[:8000], brief_revision, json.dumps(interpretation or {}, default=str),
-                     interpreter, cost_usd, request_key) + extra_vals).fetchone()
-                if r is None:
-                    r = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND request_key = %s AND role = %s',
-                                     (project_id, request_key, role)).fetchone()
+                return self._insert_message(conn, project_id, account_id, role, content, brief_revision, interpretation,
+                                            interpreter, cost_usd, request_key, extra_cols, extra_vals)
+        with self.pool.connection() as own:
+            with own.transaction():
+                return self._insert_message(own, project_id, account_id, role, content, brief_revision, interpretation,
+                                            interpreter, cost_usd, request_key, extra_cols, extra_vals)
+
+    def _insert_message(self, conn, project_id, account_id, role, content, brief_revision, interpretation, interpreter,
+                        cost_usd, request_key, extra_cols, extra_vals) -> dict:
+        r = conn.execute(
+            f'INSERT INTO intake_messages (project_id, account_id, role, content, brief_revision, interpretation, '
+            f'interpreter, cost_usd, request_key{extra_cols}) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s'
+            f'{", %s, %s" if extra_cols else ""}) '
+            f'ON CONFLICT (project_id, request_key, role) WHERE request_key IS NOT NULL DO NOTHING RETURNING {self._MSG}',
+            (project_id, account_id, role, content[:8000], brief_revision, json.dumps(interpretation or {}, default=str),
+             interpreter, cost_usd, request_key) + extra_vals).fetchone()
+        if r is None:
+            r = conn.execute(f'SELECT {self._MSG} FROM intake_messages WHERE project_id = %s AND request_key = %s AND role = %s',
+                             (project_id, request_key, role)).fetchone()
         return self._row(r)
 
     def messages_for(self, project_id, limit=200) -> list[dict]:
@@ -146,7 +165,7 @@ class PostgresConversationStore:
         return Decimal(str(v))
 
     def save_plan(self, *, project_id, brief_revision, brief_fingerprint, plan) -> dict:
-        fp = plan['graph_fingerprint'][:32] + plan['requirements_fingerprint'][:32]
+        fp = plan['graph_fingerprint'][:32] + plan['requirements_fingerprint'][:32] + _gate_suffix(plan)
         pid = f'pln_{uuid.uuid4().hex[:20]}'
         with self.pool.connection() as conn:
             with conn.transaction():

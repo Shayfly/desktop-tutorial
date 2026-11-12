@@ -31,6 +31,8 @@ class FakeGateway:
 
 
 class RoutedGatewayTests(unittest.TestCase):
+    # Synthetic routes declare quality so these tests reach budget and fallback behavior.
+    # Unknown/below-floor refusal is covered by test_t5_configured_routes_quality_floor.py.
     def setUp(self):
         FakeGateway.calls = []
 
@@ -38,8 +40,8 @@ class RoutedGatewayTests(unittest.TestCase):
         local = ModelEndpoint('local', 'http://local/v1', 'qwen')
         remote = ModelEndpoint('remote', 'https://remote/v1', 'x', api_key='secret', external=True)
         gw = RoutedModelGateway(
-            primary=ProviderRoute(local),
-            fallback=(ProviderRoute(remote, Decimal('0.02')),),
+            primary=ProviderRoute(local, declared_quality=90),
+            fallback=(ProviderRoute(remote, Decimal('0.02'), declared_quality=90),),
             policy=ModelUsePolicy(False, True, Decimal('0.10'), 2),
             gateway_factory=FakeGateway,
         )
@@ -50,8 +52,8 @@ class RoutedGatewayTests(unittest.TestCase):
         local = ModelEndpoint('broken-local', 'http://local/v1', 'qwen')
         remote = ModelEndpoint('remote', 'https://remote/v1', 'x', api_key='secret', external=True)
         gw = RoutedModelGateway(
-            primary=ProviderRoute(local),
-            fallback=(ProviderRoute(remote, Decimal('0.02')),),
+            primary=ProviderRoute(local, declared_quality=90),
+            fallback=(ProviderRoute(remote, Decimal('0.02'), declared_quality=90),),
             policy=ModelUsePolicy(),
             gateway_factory=FakeGateway,
         )
@@ -64,8 +66,8 @@ class RoutedGatewayTests(unittest.TestCase):
         remote = ModelEndpoint('remote', 'https://remote/v1', 'x', api_key='secret', external=True)
         state = ModelUseState()
         gw = RoutedModelGateway(
-            primary=ProviderRoute(local),
-            fallback=(ProviderRoute(remote, Decimal('0.03')),),
+            primary=ProviderRoute(local, declared_quality=90),
+            fallback=(ProviderRoute(remote, Decimal('0.03'), declared_quality=90),),
             policy=ModelUsePolicy(False, True, Decimal('0.05'), 1),
             state=state,
             gateway_factory=FakeGateway,

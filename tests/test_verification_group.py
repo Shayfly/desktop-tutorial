@@ -25,10 +25,14 @@ SPEC = SimpleNamespace(acceptance=[SimpleNamespace(id="A1", text="the page opens
 
 BEHAVIOUR_FAIL = 'BEHAVIOR-ACCEPTANCE ' + json.dumps({"status": "FAIL", "summary": "1 failed check(s)", "checks": [
     {"id": "s1", "passed": False, "kind": "api_smoke", "detail": "GET / returned 500"}]})
-BEHAVIOUR_PASS = 'BEHAVIOR-ACCEPTANCE ' + json.dumps({"status": "PASS", "summary": "1 checks", "checks": []})
+# T4: a passing fixture holds at least one real check that passed (PASS with zero checks is NO_CHECKS, not a pass)
+BEHAVIOUR_PASS = 'BEHAVIOR-ACCEPTANCE ' + json.dumps({"status": "PASS", "summary": "1 checks", "checks": [
+    {"id": "s1", "passed": True, "kind": "api_smoke", "detail": "GET / returned 200"}]})
 BROWSER_DEAD_FORM = 'OMNI_BROWSER_PROBE ' + json.dumps({"forms": [], "findings": [
     {"kind": "dead_form", "message": "form 'addMatchForm': submitting it sent no request and changed nothing on the page"}]})
-BROWSER_OK = 'OMNI_BROWSER_PROBE ' + json.dumps({"forms": [], "findings": []})
+BROWSER_OK = 'OMNI_BROWSER_PROBE ' + json.dumps({"forms": [{"form": "addMatchForm", "rounds": [
+    {"submitted": True, "requests": ["POST /api/matches 201"], "ok_write": True, "text_changed": True,
+     "revealed": ["saved"]}] * 2}], "findings": []})
 VISUAL_OK = 'OMNI_VISUAL_QA ' + json.dumps({"findings": [], "controls": 1, "text_elements": 1})
 
 
