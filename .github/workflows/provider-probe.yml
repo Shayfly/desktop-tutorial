@@ -1,0 +1,26 @@
+name: Provider probe
+
+# 2026-10-28: which provider ANSWERS with the worker's keys right now (configured != working). Runs on the worker
+# host in the DEPLOYED checkout (no actions/checkout: it would delete the deployed .env); never builds, deploys or
+# restarts anything. One minimal real call per model route (< 0.01 USD in total); keys are never printed.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: provider-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: [self-hosted, omni-worker]
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: /home/omni/actions-runner/_work/desktop-tutorial/desktop-tutorial/infra/worker-host
+    steps:
+      - name: One call per provider route (::notice PASS|FAIL with the HTTP status)
+        run: |
+          set -uo pipefail
+          test -f .env || { echo "::error title=provider-probe::no deployed .env on this host"; exit 1; }
+          test -f provider_probe.py || { echo "::notice title=provider-probe::FAIL the deployed checkout has no provider_probe.py (deploy main after this merges)"; exit 1; }
+          python3 provider_probe.py
