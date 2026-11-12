@@ -5,6 +5,7 @@ network outcomes fail closed. Output is verified by the existing adapter and
 stored privately in the existing artifact store, never ephemeral function disk.
 """
 import hashlib
+import re
 import logging
 from .image_provider import build_image_provider, sniff_image
 from ..capabilities import CapabilityRequirement
@@ -23,6 +24,21 @@ _REASONS = (('not in the provider allowlist', 'url_host_not_allowed'), ('is inte
 def _reason(exc) -> str:
     text = str(exc)
     return next((code for needle, code in _REASONS if needle in text), 'other')
+
+
+_HOST = re.compile(r'[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?')
+
+
+def _where(exc, reason) -> str:
+    """#324 (Michael 2026-11-12 14:37): for an allowlist refusal only, the bare host name and which hop -- taken from
+    the exception's own fields, never parsed out of a message; anything that is not a plain host name is 'unknown'."""
+    if reason != 'url_host_not_allowed':
+        return ''
+    host = str(getattr(exc, 'url_host', None) or '')
+    hop = getattr(exc, 'url_hop', None)
+    host = host if _HOST.fullmatch(host) else 'unknown'
+    hop = hop if hop in ('output', 'redirect') else 'unknown'
+    return f' host={host} hop={hop}'
 
 PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise, no people, no text.'
 PREFIX = 'replicate-smoke-v1-'
@@ -121,8 +137,9 @@ class ReplicateImageTest:
         try:
             return self._status(account_id, stage)
         except Exception as exc:
-            _LOG.warning('replicate_image_test_status_failed stage=%s type=%s reason=%s', stage[0],
-                         type(exc).__name__, _reason(exc))
+            reason = _reason(exc)
+            _LOG.warning('replicate_image_test_status_failed stage=%s type=%s reason=%s%s', stage[0],
+                         type(exc).__name__, reason, _where(exc, reason))
             raise
 
     def _status(self, account_id, stage):

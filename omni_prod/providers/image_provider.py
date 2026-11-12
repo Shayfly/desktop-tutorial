@@ -451,7 +451,9 @@ class PredictionImageProvider:
         try:
             data, _ = self.fetcher.get(url, headers=headers)
         except UnsafeURL as exc:
-            raise ValueError(f"provider output URL rejected: {exc}") from None
+            err = ValueError(f"provider output URL rejected: {exc}")
+            err.url_host, err.url_hop = exc.host, exc.hop   # #324: bare host + which hop, for the status log only
+            raise err from None
         return data
 
     def collect(self, handle: ProviderTaskHandle) -> ProviderExecutionResult:

@@ -34,7 +34,14 @@ _BLOCKED_SUFFIXES = (".localhost", ".local", ".internal", ".localdomain", ".home
 
 
 class UnsafeURL(ValueError):
-    """The URL (or a redirect / resolved address) is not safe to fetch."""
+    """The URL (or a redirect / resolved address) is not safe to fetch.
+
+    #324: ``host`` is the bare host name a refusal was about (set only for the allowlist refusal) and ``hop`` says
+    whether it was the URL we were given (``output``) or a redirect target (``redirect``). Never a path or a query."""
+
+    def __init__(self, message: str, *, host: str | None = None, hop: str | None = None):
+        super().__init__(message)
+        self.host, self.hop = host, hop
 
 
 def is_public_address(value: str) -> bool:
@@ -73,7 +80,7 @@ def validate_public_url(url: str, *, allow_http: bool = False, allowed_hosts: It
     if host in _BLOCKED_NAMES or host.endswith(_BLOCKED_SUFFIXES):
         raise UnsafeURL(f"host {host} is internal")
     if not _host_allowed(host, allowed_hosts):
-        raise UnsafeURL(f"host {host} is not in the provider allowlist")
+        raise UnsafeURL(f"host {host} is not in the provider allowlist", host=host)
     try:
         literal = ipaddress.ip_address(host.strip("[]"))
     except ValueError:
@@ -133,7 +140,7 @@ class SafeFetcher:
             max_redirections = fetcher.max_redirects
 
             def redirect_request(self, req, fp, code, msg, headers, newurl):
-                fetcher.validate(newurl)  # every hop is re-validated
+                fetcher._validate_hop(newurl, "redirect")  # every hop is re-validated
                 new = super().redirect_request(req, fp, code, msg, headers, newurl)
                 if new is not None and parse.urlsplit(newurl).netloc != parse.urlsplit(req.full_url).netloc:
                     new.remove_header("Authorization")  # never forward credentials to another host
@@ -149,18 +156,25 @@ class SafeFetcher:
 
         return request.build_opener(_Redirects, _HTTPS, _HTTP)
 
+    def _validate_hop(self, url: str, hop: str) -> None:
+        try:
+            self.validate(url)
+        except UnsafeURL as exc:
+            exc.hop = exc.hop or hop
+            raise
+
     def redirect_handler(self):
         """Exposed for tests: the handler that validates redirect targets."""
         return [h for h in self._opener().handlers if isinstance(h, request.HTTPRedirectHandler)][0]
 
     def get(self, url: str, *, headers: dict | None = None) -> tuple[bytes, str]:
-        self.validate(url)
+        self._validate_hop(url, "output")
         req = request.Request(url, headers=dict(headers or {}), method="GET")
         opener = self.urlopen or self._opener().open
         with opener(req, timeout=self.timeout_seconds) as resp:
             final_url = getattr(resp, "url", None) or (resp.geturl() if hasattr(resp, "geturl") else url)
             if final_url and final_url != url:
-                self.validate(final_url)
+                self._validate_hop(final_url, "redirect")
             resp_headers = getattr(resp, "headers", {}) or {}
             get = getattr(resp_headers, "get", lambda *_: None)
             length = get("Content-Length")
