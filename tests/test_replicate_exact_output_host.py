@@ -81,3 +81,47 @@ class TheMechanism(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MalformedEntriesNeverWiden(unittest.TestCase):
+    """Michael 2026-11-12 16:49: '=' with no host, duplicates and blanks are dropped quietly -- and dropping never
+    turns into an empty list that allows everything (the classic silent failure)."""
+
+    def test_bare_equals_allows_nothing(self):
+        self.assertFalse(_host_allowed('anything.example', ['=']))
+        self.assertFalse(_host_allowed('', ['=']))
+
+    def test_blanks_and_spaces_allow_nothing(self):
+        for entries in ([''], ['   '], [' ', ''], ['= '], ['a b.example'], ['=a b.example'], ['*.example'],
+                        ['=*.example'], ['.'], ['=.'], ['=.a.example'], ['a..example'], ['https://a.example']):
+            with self.subTest(entries=entries):
+                self.assertFalse(_host_allowed('a.example', entries))
+                self.assertFalse(_host_allowed('evil.example', entries))
+
+    def test_bad_entries_are_dropped_and_good_ones_kept(self):
+        entries = ['=', '', '  =A.Example  ', '=a.example', 'replicate.delivery', 'replicate.delivery', '= ']
+        self.assertTrue(_host_allowed('a.example', entries))
+        self.assertFalse(_host_allowed('x.a.example', entries))
+        self.assertTrue(_host_allowed('pbxt.replicate.delivery', entries))
+        self.assertFalse(_host_allowed('evil.example', entries))
+
+    def test_duplicates_are_kept_once(self):
+        from omni_prod.safe_fetch import _allowlist
+        self.assertEqual(_allowlist(['=a.example', ' =A.example', 'b.example', '.b.example'])[1],
+                         (('exact', 'a.example'), ('suffix', 'b.example')))
+
+    def test_a_set_but_blank_variable_never_means_no_allowlist(self):
+        from omni_prod.providers.image_provider import ImageProviderConfig
+        for value in (',', ' , ', '=', '= , ='):
+            with self.subTest(value=value):
+                env = {**TOKEN, 'OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS': value}
+                f = build_image_provider(env, journal=Journal()).fetcher
+                f.resolver = public
+                with self.assertRaises(UnsafeURL):
+                    f.validate('https://evil.example/out.png')
+                with self.assertRaises(UnsafeURL):
+                    f.validate(f'https://{R2}/out.png')          # the configured value replaced the default
+                self.assertTrue(ImageProviderConfig.from_env(env).output_hosts)
+
+    def test_an_unset_variable_still_gets_the_default(self):
+        fetcher().validate(f'https://{R2}/out.png')

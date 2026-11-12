@@ -83,6 +83,12 @@ def _decimal(value: str) -> Decimal | None:
     return amount if amount.is_finite() and amount >= 0 else None
 
 
+def _output_hosts(value: str) -> tuple[str, ...]:
+    if not value.strip():
+        return ()
+    return tuple(h.strip().lower() for h in value.split(","))   # blanks kept: set = configured
+
+
 @dataclass(frozen=True)
 class ImageProviderConfig:
     name: str = "image-provider"
@@ -123,7 +129,9 @@ class ImageProviderConfig:
             maximum_usd_per_image=_decimal(_clean(env, "OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE")),
             price_source=_clean(env, "OMNI_IMAGE_PROVIDER_PRICE_SOURCE"),
             max_bytes=int(_clean(env, "OMNI_IMAGE_PROVIDER_MAX_BYTES") or 20 * 1024 * 1024),
-            output_hosts=tuple(h.strip().lower() for h in _clean(env, "OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS").split(",") if h.strip()),
+            # #324: entries are validated by safe_fetch._allowlist; a set-but-malformed value (" , ", "=") stays a
+            # configured list and allows nothing -- it never silently becomes "no allowlist".
+            output_hosts=_output_hosts(_clean(env, "OMNI_IMAGE_PROVIDER_OUTPUT_HOSTS")),
         )
 
     def status(self) -> tuple[str, str]:

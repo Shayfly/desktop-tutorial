@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import http.client
 import ipaddress
+import re
 import socket
 import ssl
 from typing import Callable, Iterable
@@ -52,22 +53,38 @@ def is_public_address(value: str) -> bool:
     return bool(ip.is_global)
 
 
+_ENTRY = re.compile(r"=?\.?[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?")
+
+
+def _allowlist(allowed_hosts: Iterable[str]) -> tuple[bool, tuple[tuple[str, str], ...]]:
+    """(configured, entries). Each entry is ('exact', host) for ``=host`` or ('suffix', host) for ``host``/``.host``.
+
+    #324 (Michael 2026-11-12): a malformed entry -- ``=`` with no host, blanks, spaces inside, wildcards, any
+    character that is not part of a host name -- is dropped quietly, and a duplicate is kept once. Dropping never
+    widens the list: a list that was configured but has no valid entry left allows NOTHING (it is not 'no list')."""
+    raw = [str(h) for h in (allowed_hosts or ())]
+    entries: list[tuple[str, str]] = []
+    for item in raw:
+        token = item.strip().lower()
+        if not _ENTRY.fullmatch(token) or ".." in token:
+            continue
+        entry = ("exact", token[1:]) if token.startswith("=") else ("suffix", token.lstrip("."))
+        if entry[1].startswith(".") or entry in entries:
+            continue
+        entries.append(entry)
+    return bool(raw), tuple(entries)
+
+
 def _host_allowed(host: str, allowed_hosts: Iterable[str]) -> bool:
     """An entry is a SUFFIX (``replicate.delivery``: the host and its subdomains) or, prefixed with ``=``, EXACT
     (``=bucket.account.r2.cloudflarestorage.com``: that host only, never a subdomain). #324, Michael 2026-11-12:
-    shared storage is allowed by exact host only, so a suffix can never swallow someone else's bucket."""
-    entries = [h.strip().lower() for h in allowed_hosts if h and h.strip()]
-    if not entries:
+    shared storage is allowed by exact host only, so a suffix can never swallow someone else's bucket.
+    No list at all = no host restriction; a configured list whose entries are all malformed = nothing allowed."""
+    configured, entries = _allowlist(allowed_hosts)
+    if not configured:
         return True
-    for entry in entries:
-        if entry.startswith("="):
-            if host == entry[1:].strip():
-                return True
-        else:
-            suffix = entry.lstrip(".")
-            if host == suffix or host.endswith("." + suffix):
-                return True
-    return False
+    return any(host == name if kind == "exact" else (host == name or host.endswith("." + name))
+               for kind, name in entries)
 
 
 def validate_public_url(url: str, *, allow_http: bool = False, allowed_hosts: Iterable[str] = (),
