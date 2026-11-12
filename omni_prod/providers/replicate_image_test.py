@@ -11,6 +11,19 @@ from ..capabilities import CapabilityRequirement
 from ..provider_contracts import ProviderTaskHandle
 
 _LOG = logging.getLogger('omni_prod.providers.replicate_image_test')
+# #324: a fixed vocabulary for WHY, matched on our own messages -- the host, path and provider text never leave.
+_REASONS = (('not in the provider allowlist', 'url_host_not_allowed'), ('is internal', 'url_host_internal'),
+            ('does not resolve', 'url_host_unresolved'), ('non-public address', 'url_host_not_public'),
+            ('connected peer is not a public', 'url_peer_not_public'), ('scheme', 'url_scheme'),
+            ('credentials in URL', 'url_credentials'), ('larger than', 'download_too_large'),
+            ('not a PNG, JPEG or WebP', 'not_an_image'), ('Expected exactly one image', 'output_count'),
+            ('returned no output', 'no_output'), ('is not succeeded', 'not_succeeded'))
+
+
+def _reason(exc) -> str:
+    text = str(exc)
+    return next((code for needle, code in _REASONS if needle in text), 'other')
+
 PROMPT = 'Original landscape photograph of mountains and a calm lake at sunrise, no people, no text.'
 PREFIX = 'replicate-smoke-v1-'
 
@@ -100,7 +113,8 @@ class ReplicateImageTest:
         try:
             return self._status(account_id, stage)
         except Exception as exc:
-            _LOG.warning('replicate_image_test_status_failed stage=%s type=%s', stage[0], type(exc).__name__)
+            _LOG.warning('replicate_image_test_status_failed stage=%s type=%s reason=%s', stage[0],
+                         type(exc).__name__, _reason(exc))
             raise
 
     def _status(self, account_id, stage):

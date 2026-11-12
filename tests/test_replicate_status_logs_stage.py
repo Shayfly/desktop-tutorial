@@ -66,6 +66,23 @@ class StageIsLogged(unittest.TestCase):
             raise UnsafeFetch(SECRET_URL)
         self.check(svc(Store(), collect=boom), 'collect_and_download', 'UnsafeFetch')
 
+    def test_the_reason_is_a_fixed_word_never_the_host(self):
+        # the exact messages image_provider/_download and sniff_image raise (2026-11-12 run: collect_and_download/ValueError)
+        cases = {'provider output URL rejected: host replicate.delivery is not in the provider allowlist': 'url_host_not_allowed',
+                 'provider output URL rejected: host x.example does not resolve': 'url_host_unresolved',
+                 'provider output is not a PNG, JPEG or WebP image': 'not_an_image',
+                 'something new ' + SECRET_URL: 'other'}
+        for message, reason in cases.items():
+            def boom(h, m=message):
+                raise ValueError(m)
+            with self.subTest(reason=reason), \
+                    self.assertLogs('omni_prod.providers.replicate_image_test', level='WARNING') as logs:
+                with self.assertRaises(ValueError):
+                    svc(Store(), collect=boom).status('acct')
+            self.assertIn(f'reason={reason}', logs.output[0])
+            self.assertNotIn('replicate.delivery', logs.output[0])
+            self.assertNotIn('example', logs.output[0])
+
     def test_store_write(self):
         self.check(svc(Store(put_exc=OSError(SECRET_URL))), 'store_image', 'OSError')
 
