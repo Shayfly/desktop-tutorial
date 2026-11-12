@@ -66,5 +66,24 @@ class ImageProviderHonoursTheSwitches(unittest.TestCase):
         self.assertEqual(t.calls, [('POST', 'https://api.replicate.com/v1/predictions/p1/cancel')])
 
 
+class StatusRetrievalIsNeverBlocked(unittest.TestCase):
+    """Michael 2026-11-12: the guard sits on the shared _json helper; prove polling and collecting (GET) go out under
+    EVERY switch setting, so #93 cannot be why a result is not retrieved."""
+
+    def test_poll_and_the_status_get_of_collect_reach_the_provider_open_or_closed(self):
+        class Succeeded(Transport):
+            def __call__(self, req, timeout=None):
+                self.calls.append((req.get_method(), req.full_url))
+                return io.BytesIO(b'{"id":"p1","status":"succeeded","output":[]}')
+        for switches in [OPEN, *CLOSED]:
+            with self.subTest(switches=switches):
+                t = Succeeded()
+                p = provider(switches, t)
+                p.sleep = lambda s: None
+                state = p.poll(ProviderTaskHandle('replicate', 'p1', 'audit', 'k'))
+                self.assertEqual(state.status, 'SUCCEEDED')
+                self.assertEqual(t.calls, [('GET', 'https://api.replicate.com/v1/predictions/p1')])
+
+
 if __name__ == '__main__':
     unittest.main()
