@@ -99,6 +99,34 @@ class CustomerOnlyQuestion(unittest.TestCase):
         self.assertIn('content_only', self.brief().open_material)
         self.assert_both(self.next_customer_only(), 'content_only')
 
+    def test_the_sentence_is_not_repeated_past_the_limit_but_the_buttons_stay(self):
+        # Michael 19:45: irrelevant answers in a row; the question is never written out more than the set number
+        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
+        self.assertEqual(N, 2)
+        q = d.BY_ID['content_only']
+        replies = [self.turn(message=LANDING)]
+        for words in ('מה שלומך?', 'איזה יום היום?', 'אני חושב על זה', 'נראה', 'אולי', 'לא יודע'):   # irrelevant
+            replies.append(self.turn(message=words))
+        shown = [i for i, t in enumerate(replies) if q.he in t.reply]
+        self.assertEqual(len(shown), N, shown)                      # written out exactly N times, never more
+        last = shown[-1]
+        for t in replies[last:]:                                     # once the limit is reached ...
+            self.assertEqual([x.id for x in t.questions], ['content_only'])   # ... the buttons stay
+            self.assertIn(MODEL_SAYS, t.reply)
+        self.turn(answers={'content_only': 'yes'})                   # and the button still settles it
+        self.assertEqual(self.brief().fields['content_only']['source'], 'answer')
+
+    def test_two_irrelevant_answers_in_a_row_reach_the_limit(self):
+        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
+        q = d.BY_ID['content_only']
+        self.turn(message=LANDING)                                   # 1st time
+        self.assert_both(self.next_customer_only(), 'content_only')  # 2nd time (after an irrelevant answer or two)
+        for words in ('מה שלומך?', 'איזה יום היום?'):               # two more irrelevant answers in a row
+            t = self.turn(message=words)
+            self.assertNotIn(q.he, t.reply)                          # not a 3rd time
+        self.assertEqual(sum(q.he in (m.get('content') or '') for m in self.s.store.messages_for('p')
+                             if m['role'] == 'assistant'), N)
+
     def test_a_delegable_next_question_keeps_the_model_reply_only(self):
         self.turn(message=LANDING)
         t = self.turn(answers={'content_only': 'yes'})              # next: style (delegable)

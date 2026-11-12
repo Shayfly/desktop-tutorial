@@ -257,9 +257,10 @@ class CustomerWordsEvidence(unittest.TestCase):
         self.assertTrue(t.reply.startswith(ANSWER['reply']))   # CEO 2026-11-08: Venice's reply IS the answer ...
         # ... and no quick-reply buttons while Venice leads -- except the next question for a field only the customer
         # may set (#330, Michael 2026-11-12): that question and its buttons are shown TOO, after Venice's reply.
-        customer_only = [q for q in t.questions if not q.delegable]
-        self.assertEqual(t.questions, customer_only)
-        self.assertEqual(t.reply, ANSWER['reply'] + ''.join(' ' + q.he for q in customer_only))
+        # Kept narrow (Michael 19:45): at most ONE question, only delegable=False, and only AFTER Venice's reply.
+        self.assertLessEqual(len(t.questions), 1)
+        self.assertTrue(all(q.delegable is False for q in t.questions))
+        self.assertEqual(t.reply, ANSWER['reply'] + ''.join(' ' + q.he for q in t.questions))
         for words in ('אילת', 'מזומן'):
             self.assertIn(words, t.reply)
         self.assertEqual(t.interpretation['requirements'], ANSWER['requirements'])

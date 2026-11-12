@@ -37,6 +37,10 @@ from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env,
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
+# #330 (Michael 2026-11-12 19:45): the exact customer-only question is written out in at most this many replies of
+# the conversation; after that only its buttons stay (the customer can still answer, the sentence is not repeated).
+# A per-run ("in a row") count was not enough: one turn without it reset the run and the sentence came back forever.
+CUSTOMER_ONLY_QUESTION_REPEATS = 2
 INTENTS = ('requirements', 'answer', 'missing', 'recommend', 'cost', 'feasibility', 'approve', 'status', 'modify')
 _RX = {
     'status': r'(מה המצב|איפה (זה )?עומד|מה קורה עם הבנייה|סטטוס|how is it going|\bstatus\b|progress|is it done)',
@@ -799,13 +803,21 @@ class ConversationSupervisor:
             held = self._customer_only_question(nxt)
             if held is not None:
                 text = held.he if lang == 'he' else held.en
-                if text not in turn.reply:
+                if text not in turn.reply and self._times_said(project_id, text) < CUSTOMER_ONLY_QUESTION_REPEATS:
                     turn.reply = f'{turn.reply} {text}'
-                turn.questions = [held]
+                turn.questions = [held]            # the buttons stay even when the sentence is not repeated
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         return turn
+
+    def _times_said(self, project_id, text) -> int:
+        """How many assistant replies of this conversation (the latest 200 messages) already wrote out this text."""
+        try:
+            prev = self.store.messages_for(project_id, limit=200)
+        except Exception:
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant' and text in (m.get('content') or ''))
 
     @staticmethod
     def _customer_only_question(asked):
