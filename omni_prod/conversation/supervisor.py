@@ -420,7 +420,21 @@ class ConversationSupervisor:
 
     def _spec_ok(self, project_id, row) -> bool:
         from ..intake import approval_flow as AF
-        return row is not None and AF.spec_approved(self._messages(project_id), row.fingerprint)
+        # Michael 2026-11-13: an older approval does not stand when the stored messages hold facts the spec lacks, or
+        # a needed fact is neither given nor waived (approval_flow.spec_invalid_reason)
+        return row is not None and AF.spec_invalid_reason(row.brief, self._messages(project_id), row.fingerprint) is None
+
+    def _collected(self, project_id, account_id, row):
+        """The brief with every fact the customer's STORED messages state (Michael 2026-11-13, the cafe: the phone
+        and hours were given on 2026-11-12 and lost). Idempotent -- once the brief holds them nothing is written.
+        A changed brief is a new revision with a new fingerprint: an older approval no longer matches it."""
+        if row is None:
+            return row
+        brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+        if not d.note_customer_texts(brief, d.customer_messages(self._messages(project_id))):
+            return row
+        return self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                expected_revision=row.revision, request_key=None)
 
     def _approved_plan(self, project_id, row):
         """After gate 1 only: the verified plan saved for this exact spec (None before)."""
@@ -449,9 +463,7 @@ class ConversationSupervisor:
         # Michael 2026-11-10 condition 2: the fact canon is shown here and approved WITH the brief; an empty canon on a
         # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
         from .. import discovery as d
-        from ..fact_canon import gate_view
-        canon = gate_view(row.brief.prompt + '\n' + d.requirements_text(row.brief), customer_text=d.customer_text(row.brief),
-                          family='website' if d.is_website(row.brief) else 'app', lang=lang)   # #335 (c)
+        canon = d.gate_canon(row.brief, lang)                                            # #335 (c)
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
                              'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
         from .. import build_readiness as R
@@ -479,7 +491,7 @@ class ConversationSupervisor:
         lang = lang or language_of(message or 'שלום')
         T = _TXT['he' if lang == 'he' else 'en']
         ctx = self.context(project_id) or {}
-        row = self.briefs.latest(project_id)
+        row = self._collected(project_id, account_id, self.briefs.latest(project_id))
         shown = message or '; '.join(_label(d.BY_ID[q].field if q in d.BY_ID else q,
                                             v if v != d.DELEGATE else ('בחרו עבורי' if lang == 'he' else 'choose for me'), lang)
                                      for q, v in (answers or {}).items())
@@ -589,7 +601,7 @@ class ConversationSupervisor:
         """Gate 1: the customer approves THIS spec (by fingerprint). Only now is a plan made; the separate verifier
         checks it before the customer sees it; then gate 2 shows the exact cost next to the range said earlier."""
         from ..intake import approval_flow as AF
-        row = self.briefs.latest(project_id)
+        row = self._collected(project_id, account_id, self.briefs.latest(project_id))
         lang = lang or language_of(row.brief.prompt if row else 'שלום')
         t, T = AF.text(lang), _TXT['he' if lang == 'he' else 'en']
         turn = Turn('approve_spec', lang, '', row)
@@ -599,19 +611,27 @@ class ConversationSupervisor:
         # Michael 2026-11-10 condition 3: a shown warning is read like noise. An incomplete fact canon (a business site
         # with no phone and no address) is approved only when the customer ticked the box that says so.
         if feasible and not canon_ack:
-            from ..fact_canon import gate_view
-            canon = gate_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
-                              customer_text=d.customer_text(row.brief),
-                              family='website' if d.is_website(row.brief) else 'app', lang=lang)   # #335 (c)
-            if canon['status'] == 'CANON_INCOMPLETE':
+            if d.gate_canon(row.brief, lang)['status'] == 'CANON_INCOMPLETE':                # #335 (c)
                 turn.reply = ' '.join([T['canon_ack']] + self._gate1(turn, row, lang))
                 return self._finish(project_id, account_id, turn, request_key)
+        if feasible and canon_ack and d.missing_facts(row.brief)[0]:
+            # Michael 2026-11-13: the tick is recorded -- exactly which facts the customer gave up. Only a recorded
+            # waiver puts the omit line in the spec. The waiver is part of the spec, so the approval binds to the
+            # fingerprint that includes it.
+            brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            turn.waived = d.waive_missing(brief)
+            row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                   expected_revision=row.revision, request_key=None)
+            turn.brief_row = row
         flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
                                         for m in self.store.messages_for(project_id, limit=2)) else {}
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
                                brief_revision=row.revision if row else None, request_key=request_key,
                                interpretation={**({'spec_approved': row.fingerprint} if feasible else
-                                                  {'spec_approval_refused': brief_fingerprint}), **flow})
+                                                  {'spec_approval_refused': brief_fingerprint}),
+                                               # the facts the customer gave up with this approval (the ticked box)
+                                               **({'waived': list(turn.waived)} if getattr(turn, 'waived', None) else {}),
+                                               **flow})
         if not current or not feasible:        # never plan for a spec the customer did not see as it is now
             if row is None:
                 turn.reply = T['nothing']
@@ -724,11 +744,7 @@ class ConversationSupervisor:
         if message:
             # #335 (Michael 2026-11-13): every fact the customer states (phone, e-mail, address, hours, a closed day) is
             # kept verbatim from EVERY message -- the "מה נכון?" loop lost the cafe's phone and hours from the fields.
-            from ..fact_canon import fact_spans
-            said = fact_spans(message)
-            if said:
-                kept = list((new_brief.assets.get('facts') or {}).get('spans') or ())
-                new_brief.assets['facts'] = {'spans': kept + [x for x in said if x not in kept]}
+            d.note_customer_texts(new_brief, [message])
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):

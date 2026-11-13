@@ -437,33 +437,47 @@ OMIT = {'phone': 'phone -- show no call or WhatsApp button and no phone number a
 _NEEDED_TEXT = {
     'he': {'needed': 'ביקשתם {what}, אבל לא כתבתם {fact}. מה {fact}? אפשר לכתוב בהודעה, או לאשר בנייה בלעדיו — '
                      'ואז {omit} (לא נמציא).',
+           'waived': 'אישרתם לבנות בלי {fact}: {omit}.',
            'what': {'phone': 'כפתור חיוג או וואטסאפ', 'hours': 'אזור שעות פתיחה'},
            'fact': {'phone': 'מספר הטלפון', 'hours': 'שעות הפתיחה'},
            'omit': {'phone': 'הכפתור והמספר לא יופיעו', 'hours': 'אזור השעות יושמט'}},
     'en': {'needed': 'You asked for {what}, but did not give {fact}. What is it? Send it in a message, or approve '
                      'building without it -- then {omit} (we never invent it).',
+           'waived': 'You approved building without {fact}: {omit}.',
            'what': {'phone': 'a call or WhatsApp button', 'hours': 'an opening-hours section'},
            'fact': {'phone': 'the phone number', 'hours': 'the opening hours'},
            'omit': {'phone': 'the button and the number are left out', 'hours': 'the hours section is left out'}},
 }
 
 
-def missing_needed(customer_text: str, canon: 'Canon') -> list[str]:
-    """The facts the customer's own request needs on the page but never gave (order: phone, hours)."""
+def needs_in(text: str) -> list[str]:
+    """Which facts a customer text makes the page need (a call button -> phone, an hours section -> hours)."""
+    return [k for k, rx in _NEEDS.items() if rx.search(text or '')]
+
+
+def missing_needed(customer_text: str, canon: 'Canon', needs=()) -> list[str]:
+    """The facts the customer's own words need on the page but never gave (order: phone, hours). `needs`: needs
+    read from EVERY customer message (brief.assets.facts.needs) -- production 2026-11-13, the cafe: the request said
+    'כפתור הזמנת שולחן' and only a later message said it dials a number."""
     return [k for k, rx in _NEEDS.items()
-            if rx.search(customer_text or '') and not any(canon.values(f) for f in _PROVIDES[k])]
+            if (k in needs or rx.search(customer_text or '')) and not any(canon.values(f) for f in _PROVIDES[k])]
 
 
-def gate_view(request_text: str, *, customer_text: str, family: str | None = None, lang: str = 'he') -> dict:
-    """canon_view plus one question per missing needed fact. A missing needed fact makes the canon CANON_INCOMPLETE:
-    approving needs the same explicit box, and the build omits that part."""
+def gate_view(request_text: str, *, customer_text: str, family: str | None = None, lang: str = 'he',
+              needs=(), waived=()) -> dict:
+    """canon_view plus one question per missing needed fact the customer has NOT waived. Such a fact makes the canon
+    CANON_INCOMPLETE: approving needs the explicit box, and ticking it records the waiver (brief.assets.facts.waived).
+    A waived fact is shown as what it is: approved without it, that part is left out."""
     view = canon_view(request_text, family=family, lang=lang)
-    missing = missing_needed(customer_text, build_canon(request_text))
+    missing = missing_needed(customer_text, build_canon(request_text), needs)
+    open_ = [k for k in missing if k not in waived]
     t = _NEEDED_TEXT['he' if lang == 'he' else 'en']
-    view['lines'] = list(view['lines']) + [t['needed'].format(what=t['what'][k], fact=t['fact'][k], omit=t['omit'][k])
-                                           for k in missing]
-    view['missing_needed'] = missing
-    if missing:
+    view['lines'] = (list(view['lines'])
+                     + [t['needed'].format(what=t['what'][k], fact=t['fact'][k], omit=t['omit'][k]) for k in open_]
+                     + [t['waived'].format(fact=t['fact'][k], omit=t['omit'][k]) for k in missing if k in waived])
+    view['missing_needed'] = open_
+    view['waived'] = [k for k in missing if k in waived]
+    if open_:
         view['status'] = 'CANON_INCOMPLETE'
     return view
 
@@ -474,14 +488,15 @@ def gate_view(request_text: str, *, customer_text: str, family: str | None = Non
 # QA blocks the page for inventing it. A repair can only invent again or drop what was asked: stop and ask.
 _INVENTED = {'phone': 'contact details not in the approved request (invented): +',
              'hours': 'opening hours the customer never gave (invented)'}
-_OMITTED = {'phone': 'phone -- show no call', 'hours': 'opening hours -- leave out'}
+MISSING_PREFIX = 'Missing from the customer (NOT approved without it; ask the customer, never invent it): '
 
 
 def needs_customer_input(messages, prompt: str) -> list[str]:
-    """The facts (phone, hours) a failing QA check needs from the customer: needed by the request, absent from the
-    canon, not approved as omitted, and the failure is the truth gate refusing an invented one."""
+    """The facts (phone, hours) a failing QA check needs from the customer. Read from the build prompt itself: the
+    approved spec lists them on its MISSING_PREFIX line (needed, not given, NOT waived -- discovery.requirements_text),
+    and the failure is the truth gate refusing an invented one. A waived fact is on the omit line instead and is
+    repaired (removed) as usual."""
     text = ' '.join(str(m) for m in messages or ())
-    canon = build_canon(prompt or '')
-    customer = (prompt or '').split('--- Approved project brief', 1)[0]
-    return [k for k in missing_needed(customer, canon)
-            if _INVENTED[k] in text and _OMITTED[k] not in (prompt or '')]
+    line = next((ln for ln in (prompt or '').splitlines() if ln.startswith(MISSING_PREFIX)), '')
+    listed = [k for k in _NEEDS if re.search(rf'(?<![a-z]){k}(?![a-z])', line[len(MISSING_PREFIX):])]
+    return [k for k in listed if _INVENTED[k] in text]

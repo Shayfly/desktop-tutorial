@@ -126,7 +126,9 @@ GOLDEN = {
     # #335 (c), Michael 2026-11-13: call and WhatsApp buttons with no phone -- the approved spec now says to omit
     # them ("Not given by the customer ..."), so this one contract changes (was 65d1b847...)
     'תבנה לי דף לחנות הפרחים שלי, "שושנת העמקים". שיהיה כפתור להתקשר וכפתור וואטסאפ.':
-        'sha256:8734a3373cfc6b84de828968155e53cd68eee18ff5638b49bffcf4c328de5ce8',
+        # 2026-11-13 (the cafe fix): no waiver was given, so the spec lists the phone as MISSING instead of
+        # saying "approved without it" (was 8734a337...)
+        'sha256:0c2919477294892d47c92ea8b2e0ce0fd6869175919fdb26729b422fd30dd301',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         'sha256:d2b5797832ca497631b873da796320b679b40f708661191d72d67ff69ee25439',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':

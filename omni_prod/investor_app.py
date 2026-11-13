@@ -2292,6 +2292,13 @@ def _bind_execution_plan(project_id: str, brief_fingerprint: str) -> dict | None
         if not AF.spec_approved(messages, brief_fingerprint):
             raise HTTPException(409, detail={'error': 'spec_not_approved',
                                              'message': 'Approve the spec in the conversation first; no plan is made before that.'})
+        # Michael 2026-11-13 (the cafe): an approval made before the customer's stored facts were in the spec, or with
+        # a needed fact neither given nor waived, does not admit a build. The conversation shows the spec again.
+        stale = AF.spec_invalid_reason(row.brief, messages, brief_fingerprint)
+        if stale:
+            logging.getLogger(__name__).warning('build refused: %s (project %s)', stale, project_id)
+            raise HTTPException(409, detail={'error': 'brief_stale', 'reason': stale,
+                                             'message': 'The request changed; approve the current spec.'})
         gate = (saved or {}).get('plan', {}).get(AF.GATE_KEY) if saved else None
         # Founder 2026-10-28: on the two-gate flow a plan WITHOUT the verifier's gate is not verified either.
         if saved is None or gate is None or not gate.get('verification', {}).get('accepted'):

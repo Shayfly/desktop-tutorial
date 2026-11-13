@@ -37,12 +37,18 @@ class WhatThePageNeeds(unittest.TestCase):
         self.assertIn('לא נמציא', asks[0])
         self.assertEqual(gate_view(WITH_FACTS, customer_text=WITH_FACTS, family='website')['status'], 'OK')
 
-    def test_build_without_omits_the_part_and_the_truth_gate_blocks_an_invention(self):
+    def test_only_a_recorded_waiver_makes_the_spec_omit_and_the_truth_gate_blocks_an_invention(self):
+        from omni_prod.fact_canon import MISSING_PREFIX
         brief = d.start(NO_FACTS)
+        text = d.requirements_text(brief)                    # no waiver: listed as MISSING, never "approved without"
+        self.assertIn(MISSING_PREFIX + 'phone; hours.', text)
+        self.assertNotIn('Not given by the customer', text)
+        self.assertEqual(d.waive_missing(brief), ['phone', 'hours'])            # the customer ticked the box
         text = d.requirements_text(brief)
         self.assertIn('Not given by the customer (approved without it; never invent it)', text)
         self.assertIn('show no call or WhatsApp button', text)
         self.assertIn('leave out the opening-hours section', text)
+        self.assertNotIn(MISSING_PREFIX, text)
         invented = '<html dir="rtl"><body><a href="tel:04-9999999">התקשרו</a><p>שבת 09:00-13:00</p></body></html>'
         found = [f for f in _invented_contact({'index.html': invented}, {'request': NO_FACTS})
                  if f.severity == 'blocking']
@@ -80,7 +86,19 @@ if __name__ == '__main__':
 class QAFailureOnlyTheCustomerCanFix(unittest.TestCase):              # (d)
     """A spec that never passed gate 1's question (an older spec, a change request): the page needs a phone the
     customer never gave, QA blocks the invented one -- the rounds stop and the customer is asked."""
-    PROMPT = 'דף נחיתה לבית קפה ברחוב הרצל 12 חיפה עם כפתור שמחייג לטלפון.\n\n--- Approved project brief (binding) ---'
+    REQUEST = 'דף נחיתה לבית קפה ברחוב הרצל 12 חיפה עם כפתור שמחייג לטלפון.'
+    INVENTED = 'QA review (skill.copy_quality): contact details not in the approved request (invented): +97249999999'
+
+    def prompt(self, request=None, waive=False):
+        """The prompt a build really gets: the request and the brief's own requirements_text (never hand-written)."""
+        brief = d.start(request or self.REQUEST)
+        if waive:
+            d.waive_missing(brief)
+        return brief.prompt + '\n' + d.requirements_text(brief)
+
+    @property
+    def PROMPT(self):
+        return self.prompt()
 
     def failure(self, message):
         from omni_prod.autonomous_core import AcceptanceFailure
@@ -88,13 +106,11 @@ class QAFailureOnlyTheCustomerCanFix(unittest.TestCase):              # (d)
 
     def test_which_failures_need_the_customer(self):
         from omni_prod.fact_canon import needs_customer_input
-        invented = 'QA review (skill.copy_quality): contact details not in the approved request (invented): +97249999999'
-        self.assertEqual(needs_customer_input([invented], self.PROMPT), ['phone'])
-        omitted = self.PROMPT + '\nNot given by the customer (approved without it; never invent it): phone -- show no call or WhatsApp button and no phone number anywhere.'
-        self.assertEqual(needs_customer_input([invented], omitted), [])          # approved without it: repair removes it
-        given = self.PROMPT.replace('לטלפון.', 'לטלפון 04-8123456.')
-        self.assertEqual(needs_customer_input([invented], given), [])            # given: the model's error, repaired
-        self.assertEqual(needs_customer_input(['QA review: the page is not RTL'], self.PROMPT), [])
+        self.assertEqual(needs_customer_input([self.INVENTED], self.prompt()), ['phone'])
+        self.assertEqual(needs_customer_input([self.INVENTED], self.prompt(waive=True)), [])   # waived: repair removes it
+        given = self.prompt(self.REQUEST.replace('לטלפון.', 'לטלפון 04-8123456.'))
+        self.assertEqual(needs_customer_input([self.INVENTED], given), [])       # given: the model's error, repaired
+        self.assertEqual(needs_customer_input(['QA review: the page is not RTL'], self.prompt()), [])
 
     def test_the_repair_rounds_stop_and_ask(self):
         from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport
