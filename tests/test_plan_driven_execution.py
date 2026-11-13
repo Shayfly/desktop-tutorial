@@ -338,8 +338,8 @@ class WiringTests(unittest.TestCase):
         self.assertIn("enforce=os.getenv('OMNI_PLAN_DRIVEN') == '1'", src)
         body = inspect.getsource(W._run_live_build_job)
         self.assertLess(body.index('agent_recorder.start('), body.index('agent_recorder.bind(engine, gateway)'))
-        self.assertLess(body.index('agent_recorder.bind(engine, gateway)'), body.index('engine.build(prompt)'))
-        self.assertLess(body.index('engine.build(prompt)'), body.index('agent_recorder.raise_if_violated()'))
+        self.assertLess(body.index('agent_recorder.bind(engine, gateway)'), body.index('engine.build(build_prompt)'))
+        self.assertLess(body.index('engine.build(build_prompt)'), body.index('agent_recorder.raise_if_violated()'))
 
 
 
@@ -431,7 +431,7 @@ class ApprovedCriteriaTests(unittest.TestCase):
         body = inspect.getsource(W._run_live_build_job)
         i = body.index("if getattr(agent_recorder, 'enforce', False):")
         self.assertLess(i, body.index('install_approved_criteria(engine'))
-        self.assertLess(body.index('install_approved_criteria(engine'), body.index('engine.build(prompt)'))
+        self.assertLess(body.index('install_approved_criteria(engine'), body.index('engine.build(build_prompt)'))
 
 
 class PlanContentsTests(unittest.TestCase):
