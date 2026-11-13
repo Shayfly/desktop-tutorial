@@ -55,6 +55,12 @@
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-13"
+  },
+  "docs/identity/allowed-identity-changes.json": {
+   "reason": "adding a declaration rewrites one line of the JSON list -- the first entry turns '\"changes\": []' into a list, every later one turns the previous entry's closing '}' into '},'. The entries themselves are guarded by scripts/identity_declared.py (exact match, signed, to_digest unique); removing an entry only takes an allowance away.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
   }
  }
 }
