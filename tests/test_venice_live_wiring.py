@@ -189,7 +189,11 @@ except ModuleNotFoundError:          # fastapi missing outside CI
 class ServerGate(unittest.TestCase):
     """Build admission refuses on the two-gate flow without the spec approval or the verified plan."""
     def setUp(self):
-        self.store, row = MemoryConversationStore(), SimpleNamespace(fingerprint='f' * 64, revision=1, brief=None)
+        # a real brief: admission reads it (2026-11-13, approval_flow.spec_invalid_reason); a row never has brief=None
+        from omni_prod import discovery
+        self.row = row = SimpleNamespace(fingerprint='f' * 64, revision=1,
+                                         brief=discovery.start('דף נחיתה לסטודיו ליוגה עם גלריה'))
+        self.store = MemoryConversationStore()
         self.patches = [patch('omni_prod.conversation.store.schema_ready', return_value=True),
                         patch.object(investor_app, '_conversation_store', return_value=self.store),
                         patch.object(investor_app, '_brief_repo', return_value=SimpleNamespace(latest=lambda p: row))]
@@ -204,6 +208,22 @@ class ServerGate(unittest.TestCase):
         with self.assertRaises(investor_app.HTTPException) as ctx:
             investor_app._bind_execution_plan('p', 'f' * 64)
         return ctx.exception
+
+    def test_an_approval_older_than_the_customers_stored_facts_does_not_admit_a_build(self):
+        # Michael 2026-11-13, the production cafe rows: approved on 2026-11-12 with the phone and hours lost
+        import json
+        from pathlib import Path
+        from omni_prod import discovery
+        fx = json.loads((Path(__file__).parent / 'fixtures' / 'cafe_prj_tEyyuyyWNZRpiw.json').read_text(encoding='utf-8'))
+        self.row.brief, self.row.fingerprint = discovery.Brief.from_dict(fx['brief']), fx['fingerprint']
+        for m in fx['messages']:
+            self.store.add_message(project_id='p', account_id='a', role=m['role'], content=m['content'],
+                                   interpretation=m['interpretation'])
+        with self.assertRaises(investor_app.HTTPException) as ctx:
+            investor_app._bind_execution_plan('p', fx['fingerprint'])
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertEqual((ctx.exception.detail['error'], ctx.exception.detail['reason']),
+                         ('brief_stale', 'facts_not_collected'))
 
     def test_no_spec_approval_no_build(self):
         self.note(gate='spec')
