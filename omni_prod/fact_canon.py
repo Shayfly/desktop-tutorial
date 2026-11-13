@@ -346,6 +346,14 @@ def page_phones(page_text: str) -> tuple[set[str], list[str]]:
     ok, odd = set(), []
     for m in _PHONE.finditer(page_text or ''):
         parsed = parse_phone(m.group(0))
+        if not parsed.ok:
+            # #335 (2026-11-13): a time just before a phone ("13:00    04-9999999") was read as one number that does
+            # not parse, and the phone escaped the truth gate. Try what follows each gap inside the span.
+            for gap in re.finditer(r'\s+', m.group(0)):
+                tail = parse_phone(m.group(0)[gap.end():])
+                if tail.ok:
+                    parsed = tail
+                    break
         if parsed.ok:
             ok.add(parsed.e164)
         elif parsed.reason in ('AMBIGUOUS', 'LONG', 'BAD_PREFIX'):
@@ -412,3 +420,68 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
         lines.append(_TEXT[lang]['incomplete'].format(missing=missing))
     return {'status': status, 'hash': canon.hash, 'facts': [f.to_dict() for f in shown], 'lines': lines,
             'issues': validate_canon(canon, request_text)}
+
+
+# ---- #335 part 2 (c), Michael 2026-11-13: a fact the PAGE NEEDS and the customer did not give ----------------------
+# The customer asked for something that shows a fact -- a call / WhatsApp button needs a phone, an opening-hours
+# section needs hours -- and the fact is missing. Gate 1 asks once (with the approval checkbox, as CANON_INCOMPLETE);
+# approving without it omits that part of the page (requirements_text says so), never invents it.
+_NEEDS = {
+    'phone': re.compile(r'התקשרו|להתקשר|לחייג|מחייג|חיוג|וואטסאפ|ווטסאפ|whats\s*app|call\s+(?:us|button|now)|'
+                        r'click[- ]to[- ]call', re.I),
+    'hours': re.compile(r'שעות\s+(?:ה)?(?:פתיחה|פעילות)|opening\s+hours|business\s+hours', re.I),
+}
+_PROVIDES = {'phone': ('phone',), 'hours': ('hours', 'hours_day')}
+OMIT = {'phone': 'phone -- show no call or WhatsApp button and no phone number anywhere',
+        'hours': 'opening hours -- leave out the opening-hours section and any day or time'}
+_NEEDED_TEXT = {
+    'he': {'needed': 'ביקשתם {what}, אבל לא כתבתם {fact}. מה {fact}? אפשר לכתוב בהודעה, או לאשר בנייה בלעדיו — '
+                     'ואז {omit} (לא נמציא).',
+           'what': {'phone': 'כפתור חיוג או וואטסאפ', 'hours': 'אזור שעות פתיחה'},
+           'fact': {'phone': 'מספר הטלפון', 'hours': 'שעות הפתיחה'},
+           'omit': {'phone': 'הכפתור והמספר לא יופיעו', 'hours': 'אזור השעות יושמט'}},
+    'en': {'needed': 'You asked for {what}, but did not give {fact}. What is it? Send it in a message, or approve '
+                     'building without it -- then {omit} (we never invent it).',
+           'what': {'phone': 'a call or WhatsApp button', 'hours': 'an opening-hours section'},
+           'fact': {'phone': 'the phone number', 'hours': 'the opening hours'},
+           'omit': {'phone': 'the button and the number are left out', 'hours': 'the hours section is left out'}},
+}
+
+
+def missing_needed(customer_text: str, canon: 'Canon') -> list[str]:
+    """The facts the customer's own request needs on the page but never gave (order: phone, hours)."""
+    return [k for k, rx in _NEEDS.items()
+            if rx.search(customer_text or '') and not any(canon.values(f) for f in _PROVIDES[k])]
+
+
+def gate_view(request_text: str, *, customer_text: str, family: str | None = None, lang: str = 'he') -> dict:
+    """canon_view plus one question per missing needed fact. A missing needed fact makes the canon CANON_INCOMPLETE:
+    approving needs the same explicit box, and the build omits that part."""
+    view = canon_view(request_text, family=family, lang=lang)
+    missing = missing_needed(customer_text, build_canon(request_text))
+    t = _NEEDED_TEXT['he' if lang == 'he' else 'en']
+    view['lines'] = list(view['lines']) + [t['needed'].format(what=t['what'][k], fact=t['fact'][k], omit=t['omit'][k])
+                                           for k in missing]
+    view['missing_needed'] = missing
+    if missing:
+        view['status'] = 'CANON_INCOMPLETE'
+    return view
+
+
+# ---- #335 part 2 (d), Michael 2026-11-13: a QA failure only the customer can fix stops the repair rounds ----------
+# The page needs a fact (the customer asked for a call button / an hours section), the customer never gave it and did
+# not approve building without it (a spec that did not pass gate 1's question: an older spec, a change request), and
+# QA blocks the page for inventing it. A repair can only invent again or drop what was asked: stop and ask.
+_INVENTED = {'phone': 'contact details not in the approved request (invented): +',
+             'hours': 'opening hours the customer never gave (invented)'}
+_OMITTED = {'phone': 'phone -- show no call', 'hours': 'opening hours -- leave out'}
+
+
+def needs_customer_input(messages, prompt: str) -> list[str]:
+    """The facts (phone, hours) a failing QA check needs from the customer: needed by the request, absent from the
+    canon, not approved as omitted, and the failure is the truth gate refusing an invented one."""
+    text = ' '.join(str(m) for m in messages or ())
+    canon = build_canon(prompt or '')
+    customer = (prompt or '').split('--- Approved project brief', 1)[0]
+    return [k for k in missing_needed(customer, canon)
+            if _INVENTED[k] in text and _OMITTED[k] not in (prompt or '')]

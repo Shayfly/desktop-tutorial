@@ -618,6 +618,11 @@ CUSTOMER_FACTS_PREFIX = ('Customer facts (the customer\'s own words from the con
                          'values and never other or additional ones): ')
 
 
+def customer_text(brief: Brief) -> str:
+    """The customer's own words: the request and the fact spans from every later message (#335)."""
+    return '\n'.join([brief.prompt or ''] + list((brief.assets.get('facts') or {}).get('spans') or ()))
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -627,6 +632,13 @@ def requirements_text(brief: Brief) -> str:
     facts = list((brief.assets.get('facts') or {}).get('spans') or ())
     if facts:   # #335: the customer's own words for phone / e-mail / address / hours, from every message
         lines.append(CUSTOMER_FACTS_PREFIX + ' | '.join(facts))
+    # #335 (c): a fact the page needs that the customer never gave -- the approved spec says to OMIT that part
+    from .fact_canon import OMIT, build_canon, missing_needed
+    customer = customer_text(brief)
+    missing = missing_needed(customer, build_canon(customer))
+    if missing:
+        lines.append('Not given by the customer (approved without it; never invent it): '
+                     + '; '.join(OMIT[k] for k in missing) + '.')
     login = v.get('login', 'none')
     scope = v.get('access_scope')
     if scope == 'add_login':

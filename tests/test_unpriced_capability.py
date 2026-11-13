@@ -123,8 +123,10 @@ class Binding(unittest.TestCase):
 # Michael 2026-11-11 (77 fence): a request WITH the capability decision reaches the contract (Binding above); a request
 # WITHOUT one does not change by a byte. Fingerprints pinned on origin/main before 77.
 GOLDEN = {
+    # #335 (c), Michael 2026-11-13: call and WhatsApp buttons with no phone -- the approved spec now says to omit
+    # them ("Not given by the customer ..."), so this one contract changes (was 65d1b847...)
     'תבנה לי דף לחנות הפרחים שלי, "שושנת העמקים". שיהיה כפתור להתקשר וכפתור וואטסאפ.':
-        'sha256:65d1b84790f5ff313886f670ded050836be86da2feac192127586561a756856d',
+        'sha256:8734a3373cfc6b84de828968155e53cd68eee18ff5638b49bffcf4c328de5ce8',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         'sha256:d2b5797832ca497631b873da796320b679b40f708661191d72d67ff69ee25439',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':

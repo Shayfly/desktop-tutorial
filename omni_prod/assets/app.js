@@ -53,6 +53,7 @@ const T = {
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
     uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
     errCodes:{preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.', build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
+      needs_customer_input:'הבנייה נעצרה בלי עוד סבבי תיקון: חסר פרט שרק אתם יכולים לתת. כתבו אותו בשיחה, או אשרו לבנות בלעדיו — לא נמציא אותו.',
       release_policy_failed:'המוצר לא סומן כמוכן: אחת הבדיקות המחייבות (הפעלה, בדיקת התנהגות, בדיקת דפדפן או סקירת איכות) לא עברה או לא רצה. הפירוט בפרטים הטכניים.',
       quality_gate_failed:'הקוד עבד, אבל לא עמד ברף האיכות הנדרש גם אחרי סבבי תיקון.',
       preview_not_ready:'הקוד עבר את הבדיקות, אבל האתר לא עלה בהפעלת ניסיון ולכן לא אושר.',
@@ -116,7 +117,7 @@ const T = {
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
-    canonAck:'אני מאשר/ת שהאתר ייבנה בלי טלפון וכתובת (הם לא יומצאו)', actConfirmMod:'שליחת השינוי לביצוע',
+    canonAck:'אני מאשר/ת בנייה בלי הפרטים החסרים שלמעלה (הם לא יומצאו, והחלק שתלוי בהם יושמט)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
     constraints:'מגבלות', ifNeeded:'אם צריך', tasksTitle:'פרטים טכניים: מי עושה מה (מהרישום בשרת)', buildRunning:'הבנייה רצה', interpreterNote:'הפירוש נעשה בכללים קבועים (ללא מודל AI)',
@@ -170,6 +171,7 @@ const T = {
     checkingApproval:'Checking approval and budget — no build has started yet.',
     uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
     errCodes:{preview_no_build_queue:'The build did not run in this version: it is a test version without a build queue. The credits were returned.', build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
+      needs_customer_input:'The build stopped without more repair rounds: a detail only you can give is missing. Send it in the chat, or approve building without it -- we will not invent it.',
       release_policy_failed:'The product was not marked ready: a mandatory check (start-up, behaviour, browser or quality review) did not pass or did not run. See the technical details.',
       quality_gate_failed:'The code works but did not meet the quality bar, even after repair rounds.',
       preview_not_ready:'The code passed its checks but the site did not start in a trial run, so it was not accepted.',
@@ -234,7 +236,7 @@ const T = {
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
-    canonAck:'I confirm the site is built without a phone and address (they will not be invented)', actConfirmMod:'Send this change',
+    canonAck:'I confirm building without the missing details above (they are not invented; the part that needs them is left out)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
     constraints:'Limitations', ifNeeded:'if needed', tasksTitle:'Technical details: who does what (from the server records)', buildRunning:'Build running', interpreterNote:'Interpreted with fixed rules (no AI model)',
@@ -1094,6 +1096,13 @@ function renderSharing(p) {
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
+  // #335 (d): which detail is missing, in the customer's words
+  if (b.error_code === 'needs_customer_input') {
+    const names = S.lang === 'en' ? { phone: 'the phone number', hours: 'the opening hours' } : { phone: 'מספר הטלפון', hours: 'שעות הפתיחה' };
+    const m = String(b.error_message || '').match(/missing from the customer: ([a-z, ]+)/);
+    const what = m ? m[1].split(',').map(x => names[x.trim()] || x.trim()).join(', ') : '';
+    return known + (what ? ' (' + what + ')' : '');
+  }
   if (b.error_code === 'provider_quota_exhausted') {
     // Show the named route only when the server reported a quota response.
     // This is NOT a provider billing balance; it can also be a rate/usage quota.

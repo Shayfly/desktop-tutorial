@@ -154,7 +154,7 @@ _TXT = {
            'confirm_sensitive': 'זה נושא רגיש ({field}), אז אני צריך אישור מפורש שלכם בכפתור.',
            'corrected': 'עדכנתי',
            'cost': 'עלות הבנייה: {credits} קרדיטים. תקרת ההוצאה על מודלים לבנייה הזו: עד ${cap} (מוחזק לפני תחילת העבודה; מחויבת העלות בפועל).',
-           'canon_ack': 'לפני האישור: סמנו את התיבה שמאשרת שהאתר ייבנה בלי טלפון וכתובת, או כתבו אותם בהודעה.',
+           'canon_ack': 'לפני האישור: כתבו בהודעה את הפרטים החסרים שלמטה, או סמנו את התיבה שמאשרת בנייה בלעדיהם.',
            'cost_unknown': 'את העלות המדויקת אחשב אחרי שהמפרט יאושר.', 'approve': 'כדי להתחיל, אשרו את הסיכום והעלות בכפתור "אישור והתחלת בנייה".',
            'approve_not_ready': 'עדיין אי אפשר לאשר:', 'status_none': 'עדיין לא התחילה בנייה בפרויקט הזה.',
            'status': 'הבנייה האחרונה: {status}{phase}. משימות: {done} הושלמו, {running} בתהליך, {pending} ממתינות, {failed} נכשלו.',
@@ -189,7 +189,7 @@ _TXT = {
            'confirm_sensitive': 'This is sensitive ({field}), so I need your explicit confirmation with the button.',
            'corrected': 'Updated',
            'cost': 'This build costs {credits} credits. Model spending for it is capped at ${cap} (reserved before work starts; you are charged actual usage).',
-           'canon_ack': 'Before approving: tick the box confirming the site is built without a phone and address, or send them in a message.',
+           'canon_ack': 'Before approving: send the missing details below in a message, or tick the box to build without them.',
            'cost_unknown': 'I will calculate the exact cost once the spec is approved.',
            'approve': 'To start, approve the summary and cost with "Approve and start building".',
            'approve_not_ready': 'It cannot be approved yet:', 'status_none': 'No build has started in this project yet.',
@@ -449,9 +449,9 @@ class ConversationSupervisor:
         # Michael 2026-11-10 condition 2: the fact canon is shown here and approved WITH the brief; an empty canon on a
         # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
         from .. import discovery as d
-        from ..fact_canon import canon_view
-        canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
-                           family='website' if d.is_website(row.brief) else 'app', lang=lang)
+        from ..fact_canon import gate_view
+        canon = gate_view(row.brief.prompt + '\n' + d.requirements_text(row.brief), customer_text=d.customer_text(row.brief),
+                          family='website' if d.is_website(row.brief) else 'app', lang=lang)   # #335 (c)
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
                              'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
         from .. import build_readiness as R
@@ -599,9 +599,10 @@ class ConversationSupervisor:
         # Michael 2026-11-10 condition 3: a shown warning is read like noise. An incomplete fact canon (a business site
         # with no phone and no address) is approved only when the customer ticked the box that says so.
         if feasible and not canon_ack:
-            from ..fact_canon import canon_view
-            canon = canon_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
-                               family='website' if d.is_website(row.brief) else 'app', lang=lang)
+            from ..fact_canon import gate_view
+            canon = gate_view(row.brief.prompt + '\n' + d.requirements_text(row.brief),
+                              customer_text=d.customer_text(row.brief),
+                              family='website' if d.is_website(row.brief) else 'app', lang=lang)   # #335 (c)
             if canon['status'] == 'CANON_INCOMPLETE':
                 turn.reply = ' '.join([T['canon_ack']] + self._gate1(turn, row, lang))
                 return self._finish(project_id, account_id, turn, request_key)

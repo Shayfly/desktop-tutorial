@@ -42,8 +42,10 @@ class DecisionReachesContract(unittest.TestCase):
 
 # Pinned on origin/main before the fix: a request with no decisions must not change by one byte.
 GOLDEN = {
+    # #335 (c), Michael 2026-11-13: this request asks for call and WhatsApp buttons with no phone, so its approved
+    # spec now carries "Not given by the customer ... phone -- show no call or WhatsApp button" (was 65d1b847...)
     'תבנה לי דף לחנות הפרחים שלי, "שושנת העמקים". שיהיה כפתור להתקשר וכפתור וואטסאפ.':
-        'sha256:65d1b84790f5ff313886f670ded050836be86da2feac192127586561a756856d',
+        'sha256:8734a3373cfc6b84de828968155e53cd68eee18ff5638b49bffcf4c328de5ce8',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
         'sha256:d2b5797832ca497631b873da796320b679b40f708661191d72d67ff69ee25439',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
