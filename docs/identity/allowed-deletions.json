@@ -25,6 +25,12 @@
    "author": "claude",
    "reviewer": "",
    "reviewed_at": ""
+  },
+  ".github/workflows/identity.yml": {
+   "reason": "the one line 'echo ::error title=behavioural identity::$head != anchor $base; exit 1' is replaced: the same error and exit now come after scripts/identity_declared.py refuses (no exact signed declaration). With no declaration the step fails exactly as before.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
   }
  }
 }

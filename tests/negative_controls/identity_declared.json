@@ -1,0 +1,93 @@
+{
+ "pr": "identity-declared",
+ "sha256": [
+  "tests/test_identity_declared.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "any declaration with the right digests passes, whatever paths it lists",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        diffs = [f'{k}: declared {sorted(entry[k])} != actual {change[k]}' for k in _SETS\n                 if sorted(entry[k]) != change[k]]",
+     "new": "        diffs = []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_one_path_more_or_less_is_refused"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an unsigned declaration passes",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    if reviewer.lower() in _NOT_A_REVIEWER or reviewer == entry.get('author'):",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_unsigned_or_self_signed_entry_is_refused"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "an undeclared digest passes",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        if (entry['from_digest'], entry['to_digest']) != (base_digest, head_digest):",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_an_undeclared_digest_is_refused"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a wildcard path is accepted",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "        elif any(_WILD & set(p) for p in value):",
+     "new": "        elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_wildcards_are_refused"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a to_digest declared twice still matches (a consumed entry is reused)",
+   "mutations": [
+    {
+     "file": "scripts/identity_declared.py",
+     "old": "    if dup:   # a file with a reused to_digest is refused whole",
+     "new": "    if False:   # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_identity_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_new_digest_is_declared_once"
+   ]
+  }
+ ]
+}
