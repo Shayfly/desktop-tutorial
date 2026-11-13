@@ -2,7 +2,11 @@
 (CEO 2026-11-08, no questionnaire). When the NEXT question is for a field only the customer may set
 (delegable=False), that exact question and its buttons are shown TOO -- both, not one of them. Before this a
 landing page could never reach the summary: content_only waited for a button the customer never saw, while the
-model kept asking "anything else?" (production, 2026-11-12, the "בית קפה" project, 12 revisions)."""
+model kept asking "anything else?" (production, 2026-11-12, the "בית קפה" project, 12 revisions).
+
+Michael 2026-11-13 (production, "מאפייה"): the model asked in its own words and the card asked again. Now the
+question comes from the card ONLY: the reply keeps the model's context and never asks (no question sentence), and
+a sentence of the question is never written out -- so there is no repeat count to keep any more."""
 import os
 import unittest
 from unittest import mock
@@ -13,7 +17,8 @@ from omni_prod.conversation.supervisor import ConversationSupervisor
 from omni_prod.intake.interpreter import DeterministicInterpreter, merge, validate_model_output
 from tests.test_conversation_os import MemoryBriefs
 
-MODEL_SAYS = 'יש עוד משהו שחשוב לך?'
+MODEL_CONTEXT = 'בית קפה קטן עם תמונה ראשית — נשמע מצוין.'
+MODEL_SAYS = MODEL_CONTEXT + ' יש עוד משהו שחשוב לך?'
 ENV = {'OMNI_INTAKE_MODEL': '1', 'OMNI_INTAKE_VIA_WORKER': '1', 'OMNI_INTAKE_MODEL_BUDGET_USD': '0.05',
        'OMNI_INTAKE_DAILY_BUDGET_USD': '0.50', 'OMNI_INTAKE_CALL_BUDGET_USD': '0.005'}
 LANDING = ('דף נחיתה לבית קפה קטן עם תמונה ראשית, שעות פתיחה וכפתור שמחייג לטלפון. '
@@ -44,17 +49,18 @@ class CustomerOnlyQuestion(unittest.TestCase):
     def brief(self):
         return self.s.briefs.latest('p').brief
 
-    def assert_both(self, t, qid):
+    def assert_card_only(self, t, qid):
         q = d.BY_ID[qid]
         self.assertFalse(q.delegable)
         self.assertEqual(t.interpretation['interpreter'], 'model:fake')        # the listening (model) path ran
-        self.assertIn(MODEL_SAYS, t.reply)                                       # the model's words stay ...
-        self.assertIn(q.he, t.reply)                                             # ... AND the exact question
-        self.assertEqual([x.id for x in t.questions], [qid])                     # with its buttons
+        self.assertIn(MODEL_CONTEXT, t.reply)                                    # the model's context stays ...
+        self.assertNotIn('?', t.reply)                                           # ... it asks nothing itself
+        self.assertNotIn(q.he, t.reply)                                          # ... not this question either
+        self.assertEqual([x.id for x in t.questions], [qid])                     # the card asks, with its buttons
         self.assertTrue(q.options)
 
     def test_the_landing_page_question_is_shown_with_the_model_reply(self):
-        self.assert_both(self.turn(message=LANDING), 'content_only')
+        self.assert_card_only(self.turn(message=LANDING), 'content_only')
 
     def test_the_button_settles_it_and_the_conversation_moves_on(self):
         self.turn(message=LANDING)
@@ -93,45 +99,31 @@ class CustomerOnlyQuestion(unittest.TestCase):
         self.assertEqual([q.id for q in d.must_ask(self.brief())], [second])
         t = self.next_customer_only()                                      # then the other one, with its buttons
         self.assertEqual([q.id for q in t.questions], [second])
-        self.assertIn(MODEL_SAYS, t.reply)                                 # ... and the model's reply
-        for qid in answer:                                                 # each was written out (within the limit)
-            self.assertTrue(any(d.BY_ID[qid].he in (m.get('content') or '') for m in self.s.store.messages_for('p')
-                                if m['role'] == 'assistant'), qid)
+        self.assertIn(MODEL_CONTEXT, t.reply)                              # ... and the model's context
+        for qid in answer:                                                 # the card asked each; the text never did
+            self.assertFalse(any(d.BY_ID[qid].he in (m.get('content') or '') for m in self.s.store.messages_for('p')
+                                 if m['role'] == 'assistant'), qid)
 
     def test_a_field_held_open_after_a_typed_answer_is_still_asked(self):
         # production 2026-11-12: after an unsettled repeat content_only was "held open" and never asked again
         self.turn(message=LANDING)
         self.turn(message='כן, אתר תוכן בלבד — בלי שמירת נתונים.')
         self.assertIn('content_only', self.brief().open_material)
-        self.assert_both(self.next_customer_only(), 'content_only')
+        self.assert_card_only(self.next_customer_only(), 'content_only')
 
-    def test_the_sentence_is_not_repeated_past_the_limit_but_the_buttons_stay(self):
-        # Michael 19:45: irrelevant answers in a row; the question is never written out more than the set number
-        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
-        self.assertEqual(N, 2)
+    def test_irrelevant_answers_the_card_stays_and_the_text_never_asks(self):
+        # Michael 19:45 (irrelevant answers in a row) + 2026-11-13 (the card asks, the text does not)
         q = d.BY_ID['content_only']
         replies = [self.turn(message=LANDING)]
         for words in ('מה שלומך?', 'איזה יום היום?', 'אני חושב על זה', 'נראה', 'אולי', 'לא יודע'):   # irrelevant
             replies.append(self.turn(message=words))
-        shown = [i for i, t in enumerate(replies) if q.he in t.reply]
-        self.assertEqual(len(shown), N, shown)                      # written out exactly N times, never more
-        last = shown[-1]
-        for t in replies[last:]:                                     # once the limit is reached ...
-            self.assertEqual([x.id for x in t.questions], ['content_only'])   # ... the buttons stay
-            self.assertIn(MODEL_SAYS, t.reply)
+        for t in replies:
+            if [x.id for x in t.questions] == ['content_only']:
+                self.assertNotIn(q.he, t.reply)
+                self.assertNotIn('?', t.reply)
+        self.assertEqual([x.id for x in replies[-1].questions], ['content_only'])   # the buttons stay
         self.turn(answers={'content_only': 'yes'})                   # and the button still settles it
         self.assertEqual(self.brief().fields['content_only']['source'], 'answer')
-
-    def test_two_irrelevant_answers_in_a_row_reach_the_limit(self):
-        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
-        q = d.BY_ID['content_only']
-        self.turn(message=LANDING)                                   # 1st time
-        self.assert_both(self.next_customer_only(), 'content_only')  # 2nd time (after an irrelevant answer or two)
-        for words in ('מה שלומך?', 'איזה יום היום?'):               # two more irrelevant answers in a row
-            t = self.turn(message=words)
-            self.assertNotIn(q.he, t.reply)                          # not a 3rd time
-        self.assertEqual(sum(q.he in (m.get('content') or '') for m in self.s.store.messages_for('p')
-                             if m['role'] == 'assistant'), N)
 
     # --- class 3 (Michael 2026-11-12 20:11): sensitive, inferable, but counts only once CONFIRMED -----------------
     PLAIN = 'דף נחיתה לבית קפה קטן עם תמונה ראשית, שעות פתיחה וכפתור שמחייג לטלפון. ללקוחות.'
@@ -162,13 +154,12 @@ class CustomerOnlyQuestion(unittest.TestCase):
         self.assertEqual([q.id for q in t.questions], ['personal_data'])       # asked, with its buttons
         self.assertTrue(d.BY_ID['personal_data'].options)
 
-    def test_its_sentence_obeys_the_repeat_limit(self):
-        from omni_prod.conversation.supervisor import CUSTOMER_ONLY_QUESTION_REPEATS as N
+    def test_its_sentence_is_never_written_out(self):
         q = d.BY_ID['personal_data']
         self.turn(message=self.PLAIN)
         self.turn(answers={'content_only': 'yes'})
         replies = [self.turn(message=w) for w in ('אולי', 'בסדר', 'נראה', 'לא יודע', 'מה?')]
-        self.assertLessEqual(sum(q.he in t.reply for t in replies), N)
+        self.assertFalse(any(q.he in t.reply for t in replies))
         self.assertTrue(all([x.id for x in t.questions] == ['personal_data'] for t in replies[1:]))  # buttons stay
 
     def test_a_button_confirms_it_releases_the_hold_and_the_brief_completes(self):

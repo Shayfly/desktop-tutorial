@@ -219,7 +219,7 @@ class CapabilityPlanner:
         the purpose reached the provider and FLUX drew a generic "hero/brand visual" whatever the request said."""
         if key != "media.image.generate":
             return {}
-        from .generated_images import aspect_ratio, describe
+        from .generated_images import aspect_ratio, describe, stated_style
         constraints = {"aspect_ratio": aspect_ratio(purpose)}
         subject = describe(prompt, purpose)
         if subject:
@@ -231,6 +231,12 @@ class CapabilityPlanner:
         colours = re.search(r"requested colour description '([^'\n]+)'", prompt or "")
         if colours:
             constraints["colours"] = colours.group(1).strip()
+        # without the plan's line, the customer's own style and colour words (production 2026-11-13)
+        said_style, said_colours = stated_style(prompt)
+        if said_style and "style" not in constraints:
+            constraints["style"] = said_style
+        if said_colours and "colours" not in constraints:
+            constraints["colours"] = said_colours
         return constraints
 
     @staticmethod

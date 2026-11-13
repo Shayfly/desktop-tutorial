@@ -331,6 +331,23 @@ CUSTOMER_EXCLUSIONS_PREFIX = 'Customer exclusions v1: '
 # value may be inferred from the request, but it counts only once the customer CONFIRMED it (a button answer).
 CONFIRM_REQUIRED = ('personal_data', 'login', 'access_scope')
 
+# Michael 2026-11-13 (production, bakery): one field, one question per turn. A question that also decides another
+# field COVERS it: access_scope's three options decide whether personal data is stored ("no_personal" = no; the
+# other two store it), so while access_scope is asked, the yes/no personal_data question is not asked beside it.
+COVERS = {'access_scope': ('personal_data',)}
+
+
+def one_question_per_field(questions) -> list:
+    """The questions of one turn, at most one per field, without a question another one in the turn covers."""
+    covered = {f for q in questions for f in COVERS.get(q.field, ())}
+    out, seen = [], set()
+    for q in questions:
+        if q.field in covered or q.field in seen:
+            continue
+        seen.add(q.field)
+        out.append(q)
+    return out
+
 
 def confirmed(brief: 'Brief', field_: str) -> bool:
     """The brief holds a value the customer confirmed (their own button answer), not one inferred or typed."""
@@ -441,6 +458,10 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
             if q.kind == 'choice' and value not in {o.value for o in q.options}:
                 raise ValueError(f'invalid option for {qid}')
             new.fields[q.field] = {'value': value[:2000], 'source': 'answer', 'question_id': qid, 'confidence': 'confirmed'}
+            for covered in COVERS.get(q.field, ()):     # the answer decides the covered field too (one question)
+                if covered == 'personal_data' and not confirmed(new, covered):
+                    new.fields[covered] = {'value': 'no' if value == 'no_personal' else 'yes', 'source': 'answer',
+                                           'question_id': qid, 'confidence': 'confirmed'}
         if qid in new.skipped:
             new.skipped.remove(qid)
     _drop_inapplicable(new)

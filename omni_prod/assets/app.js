@@ -49,7 +49,7 @@ const T = {
     openDraftPreview:'פתח את הטיוטה בתצוגה (לא עברה את כל הבדיקות)',
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
     stopping:'העצירה תתבצע בסיום הצעד הנוכחי (עד כמה דקות).', buildCancelled:'הבנייה נעצרה. נחויב רק על מה שכבר נוצל.',
-    liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…',
+    liveLog:'מה קורה עכשיו', logEmpty:'ממתין לשרת הבנייה…', logNoBuild:'אין בנייה עדיין בפרויקט הזה.',
     checkingApproval:'מאמתים אישור ותקציב — הבנייה עדיין לא התחילה.',
     uiEmpty:'הממשק שנוצר ריק', uiMissing:{form:'טופס', input:'שדות קלט', button:'כפתור', table:'טבלה', content:'תוכן'}, uiMissingLead:'חסרים בו', uiEmptyTail:'ולכן הגרסה לא אושרה.',
     errCodes:{preview_no_build_queue:'הבנייה לא רצה בגרסה הזאת — זו גרסת בדיקה בלי תור בנייה. הקרדיטים הוחזרו.', build_not_found:'הבנייה לא התחילה: שרת הבנייה לא מצא אותה. לא חויבתם. נסו שוב, ואם זה חוזר פנו אלינו.', verification_failed:'הקוד שנוצר לא עבר את הבדיקות האוטומטיות גם אחרי סבבי תיקון.',
@@ -166,7 +166,7 @@ const T = {
     openDraftPreview:'Open the draft in Preview (did not pass every check)',
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
     stopping:'The build stops when the current step ends (up to a few minutes).', buildCancelled:'The build was stopped. Only what was already used is charged.',
-    liveLog:'What is happening now', logEmpty:'Waiting for the build server…',
+    liveLog:'What is happening now', logEmpty:'Waiting for the build server…', logNoBuild:'No build in this project yet.',
     checkingApproval:'Checking approval and budget — no build has started yet.',
     uiEmpty:'The generated interface is empty', uiMissing:{form:'a form', input:'input fields', button:'a button', table:'a table', content:'content'}, uiMissingLead:'missing', uiEmptyTail:'so the version was not accepted.',
     errCodes:{preview_no_build_queue:'The build did not run in this version: it is a test version without a build queue. The credits were returned.', build_not_found:'The build did not start: the build server could not find it. You were not charged. Try again; if it repeats, contact us.', verification_failed:'The generated code did not pass its automated checks, even after repair rounds.',
@@ -476,6 +476,7 @@ async function selectProject(id) {
   if (S.projectId !== S.lastShownProject) { $('chatInput').value = ''; $('followup').value = ''; $('composerMsg').textContent = ''; }
   S.lastShownProject = S.projectId;
   $('planPanel').hidden = true; $('progressPanel').hidden = true;
+  resetBuildPanel();
   S.lastChange = null;
   if (window.VE) VE.reset();
   applyLang();
@@ -485,18 +486,30 @@ async function selectProject(id) {
   await restoreConversation();
   await restoreBuild();
 }
+/* Michael 2026-11-13 (production, a new project "מאפייה"): the build tab showed the live log of ANOTHER project's
+   run from the night before. The server reads every build by project; the stale lines were the previous project's
+   DOM, never cleared on a project switch, and a slow response for the previous project could still land after the
+   switch. Every panel is cleared on a switch, and a response for another project is dropped. */
+function resetBuildPanel() {
+  for (const id of ['track', 'taskBoard', 'liveLogList']) $(id).replaceChildren();
+  $('buildMsg').textContent = ''; $('buildMsg').className = 'msg';
+  $('buildControls').hidden = true; $('liveLog').hidden = true;
+}
+const stillOn = project => S.projectId === project;
 // A build that is still queued/running survives a reload: its track, live log
 // and stop button come back (directive 2026-10-09 §12).
 async function restoreBuild() {
+  const project = S.projectId;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/latest`);
+    if (!stillOn(project)) return;
     const b = d && d.build;
-    if (!b || S.build) return;
+    if (!b || S.build) { renderLog(); return; }
     if (isTerminal(b.status)) {
       // 2026-11-09: a finished build (its result, failure reason and the founder's draft) is shown again after a
       // reload instead of disappearing. Read once; no polling and no automatic preview start.
       const full = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.build_id)}`);
-      if (S.build) return;
+      if (S.build || !stillOn(project)) return;
       S.build = { id: b.build_id, ...full };
       await pollEvents();
       renderTrack(); renderEvidence(); renderPlan();
@@ -812,7 +825,7 @@ async function startBuild() {
   S.buildAdmissionError='';
   // Show approval progress immediately, without inventing a build ID or task.
   $('progressPanel').hidden = false;
-  $('track').replaceChildren();
+  resetBuildPanel(); renderLog();
   $('buildMsg').textContent = t('checkingApproval');
   openTab('build');
   try {
@@ -856,8 +869,10 @@ async function pollBuild() {
   // One poll loop at a time (2026-10-30): a second call used to arm a second timer, so the loops stacked.
   clearTimeout(S.timers.build);
   if (!S.build) return;
+  const project = S.projectId, buildId = S.build.id;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}`);
+    if (!stillOn(project) || !S.build || S.build.id !== buildId) return;
     S.build = { ...S.build, ...d };
     await pollEvents();
     await loadTasks();
@@ -880,14 +895,20 @@ async function pollBuild() {
 async function pollEvents() {
   const b = S.build; if (!b || !b.id) return;
   if (b.logFor !== b.id) { b.logFor = b.id; b.log = []; b.logAfter = 0; }
+  const project = S.projectId;
   try {
     const d = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(b.id)}/events?after=${b.logAfter || 0}`);
+    if (!stillOn(project) || S.build !== b) return;
     for (const e of d.events || []) { b.log.push(e); b.logAfter = Math.max(b.logAfter || 0, e.seq); }
   } catch (e) { /* the log is a convenience; status polling carries on */ }
 }
 function renderLog() {
   const b = S.build; const box = $('liveLog'); const list = $('liveLogList');
-  if (!b) { box.hidden = true; return; }
+  if (!b) {                    // an explicit empty state, never the lines of a build of another project
+    box.hidden = $('progressPanel').hidden;
+    list.replaceChildren(h('li', { class: 'ev muted' }, t('logNoBuild')));
+    return;
+  }
   box.hidden = false;
   const fmt = iso => { try { return new Date(iso).toLocaleTimeString(S.lang === 'he' ? 'he-IL' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { return ''; } };
   const rows = (b.log || []).slice(-60).map(e => h('li', { class: `ev ${e.kind}` }, h('time', {}, fmt(e.at)), ' ', e.message));
@@ -1096,8 +1117,10 @@ function friendlyError(b) {
 /* ---------- versions ---------- */
 function currentVersionId() { return S.versions.length ? S.versions[0].id : null; }
 async function loadVersions() {
+  const project = S.projectId;
   try {
     const d = await api(`/api/v28/projects/${pid()}/history`);
+    if (!stillOn(project)) return;
     S.versions = (d.versions || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   } catch { S.versions = []; }
   renderVersions(); renderMod(); renderBuilt(); renderPreview();
@@ -1318,8 +1341,10 @@ function conversationNotInstalled(e) {
   return e instanceof ApiError && e.status === 503 && !!e.detail && e.detail.error === 'conversation_not_ready';
 }
 async function restoreConversation() {
-  try { applyConversation(await api(`${convPath()}?lang=${S.lang}`)); }
+  const project = S.projectId;     // the requirements belong to the project they were read for (Michael 2026-11-13)
+  try { const view = await api(`${convPath()}?lang=${S.lang}`); if (stillOn(project)) applyConversation(view); }
   catch (e) {
+    if (!stillOn(project)) return;
     if (!conversationNotInstalled(e)) {
       S.chat = { messages: [], unavailable: explain(e), retry: true };
       renderChat(); renderTabs();
@@ -1328,7 +1353,8 @@ async function restoreConversation() {
     // Conversation storage missing (migration pending): say so and keep the guided
     // questionnaire (the /discovery flow) working underneath.
     S.chat = { messages: [], unavailable: explain(e), fallback: true };
-    try { S.disc = await api(`${discPath()}?lang=${S.lang}`); } catch { S.disc = null; }
+    try { const disc = await api(`${discPath()}?lang=${S.lang}`); if (!stillOn(project)) return; S.disc = disc; }
+    catch { S.disc = null; }
     renderChat(); renderDiscovery(); renderTabs();
   }
 }
@@ -1526,7 +1552,9 @@ const TT = {
 const ttLabel = k => (TT[S.lang] && TT[S.lang][k]) || String(k).replace(/_/g, ' ');
 async function loadTasks() {
   if (!S.build || !S.build.id) return;
-  try { S.tasks = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}/plan`); }
+  const project = S.projectId;
+  try { const tasks = await api(`/api/v28/projects/${pid()}/builds/${encodeURIComponent(S.build.id)}/plan`);
+    if (stillOn(project)) S.tasks = tasks; }
   catch { S.tasks = null; }
 }
 function renderTasks() {
