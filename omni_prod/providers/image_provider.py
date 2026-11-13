@@ -104,6 +104,9 @@ class ImageProviderConfig:
     estimated_usd_per_image: Decimal | None = None
     maximum_usd_per_image: Decimal | None = None
     price_source: str = ""
+    # Michael 2026-11-13: "output" when the model is billed per output image (FLUX schnell), anything else when not.
+    # Only an "output" model gets a computed_from_usage cost (measured outputs x the versioned price) -- never actual.
+    billing_unit: str = ""
     max_bytes: int = 20 * 1024 * 1024
     timeout_seconds: float = 60.0
     output_hosts: tuple[str, ...] = ()
@@ -128,6 +131,7 @@ class ImageProviderConfig:
             estimated_usd_per_image=_decimal(_clean(env, "OMNI_IMAGE_PROVIDER_ESTIMATED_USD_PER_IMAGE")),
             maximum_usd_per_image=_decimal(_clean(env, "OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE")),
             price_source=_clean(env, "OMNI_IMAGE_PROVIDER_PRICE_SOURCE"),
+            billing_unit=_clean(env, "OMNI_IMAGE_PROVIDER_BILLING_UNIT").lower(),
             max_bytes=int(_clean(env, "OMNI_IMAGE_PROVIDER_MAX_BYTES") or 20 * 1024 * 1024),
             # #324: entries are validated by safe_fetch._allowlist; a set-but-malformed value (" , ", "=") stays a
             # configured list and allows nothing -- it never silently becomes "no allowlist".
@@ -154,6 +158,18 @@ class ImageProviderConfig:
         if estimated > self.maximum_usd_per_image:
             return "BLOCKED", "estimated price exceeds maximum price"
         return "PARTIAL", "configured; LIVE only after a real generation produced a verified artifact"
+
+
+def computed_from_usage(config: "ImageProviderConfig", *, outputs: int, status) -> dict:
+    """Michael 2026-11-13 (COST_MODEL.md): a cost COMPUTED from measured usage -- the outputs the provider reported
+    times the versioned per-output price -- for a model billed per output only. It is not actual_cost_usd (the
+    provider reports no per-prediction cost), it is labelled computed_from_usage and carries its price version."""
+    unit = config.estimated_usd_per_image
+    if (config.billing_unit != "output" or unit is None or unit != config.maximum_usd_per_image
+            or status != "succeeded" or outputs <= 0):
+        return {}
+    return {"cost_basis": "computed_from_usage", "computed_cost_usd": str(unit * outputs),
+            "unit_price_usd": str(unit), "billing_unit": "output", "price_source": config.price_source}
 
 
 # --------------------------------------------------------------------------
@@ -510,7 +526,8 @@ class PredictionImageProvider:
         return ProviderExecutionResult(
             artifacts=(), actual_cost_usd=_cost(prediction.get("cost_usd")),
             usage={"predict_time_seconds": metrics.get("predict_time"), "outputs": len(payloads),
-                   "provider_status": prediction.get("status")},
+                   "provider_status": prediction.get("status"),
+                   **computed_from_usage(self.config, outputs=len(payloads), status=prediction.get("status"))},
             evidence={"adapter": "PredictionImageProvider", "provider_task_id": handle.provider_task_id,
                       "commercial_use": self.config.commercial_use},
             payloads=tuple(payloads),
