@@ -70,6 +70,11 @@ def _kind(purpose: str) -> str:
     return 'icon' if re.search(r'\bicon\b|logo', purpose or '', re.I) else 'hero'
 
 
+def aspect_ratio(purpose: str) -> str:
+    """The proportions the image is generated in (an icon is square; a main image is wide)."""
+    return '1:1' if _kind(purpose) == 'icon' else '16:9'
+
+
 def _request_text(prompt: str) -> str:
     """The customer's request: the text before the approved-brief block (the block repeats it in English)."""
     return (prompt or '').split(_BRIEF_SPLIT, 1)[0].strip()
@@ -91,11 +96,13 @@ def describe(prompt: str, purpose: str) -> str | None:
     return clause or None
 
 
-def alt_text(prompt: str, purpose: str, *, number: int = 1, of: int = 1) -> str:
-    """The alt for one image, from the brief only. Never empty (a request always has a product line)."""
+def alt_text(prompt: str, purpose: str, *, number: int = 1, of: int = 1, subject: str | None = None) -> str:
+    """The alt for one image, from the brief only. Never empty (a request always has a product line).
+    `subject` is the clause the image was GENERATED from (the plan's constraint): when present the alt is exactly it,
+    so what the image shows and what its alt says come from one source."""
     request = ' '.join(_request_text(prompt).split())
     hebrew = bool(re.search(r'[֐-׿]', request))
-    clause = describe(prompt, purpose)
+    clause = (subject or '').strip() or describe(prompt, purpose)
     if clause is None:
         product = re.split(r'[,.;:!?]', request, maxsplit=1)[0].strip(' "\'')
         if not product:      # nothing in the brief to take an alt from: refuse rather than invent one
@@ -116,10 +123,15 @@ def _purposes(plan) -> dict[str, str]:
     return {r.id: r.purpose for r in getattr(plan, 'requirements', ()) or () if r.key == IMAGE_CAPABILITY}
 
 
+def _subjects(plan) -> dict[str, str]:
+    return {r.id: str((r.constraints or {}).get('subject') or '') for r in getattr(plan, 'requirements', ()) or ()
+            if r.key == IMAGE_CAPABILITY}
+
+
 def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[GeneratedImage]:
     """The verified images of the plan's image requirements, in order, with their bytes checked again."""
     from .providers.image_provider import sniff_image
-    requested, purposes = _requested_ids(plan), _purposes(plan)
+    requested, purposes, subjects = _requested_ids(plan), _purposes(plan), _subjects(plan)
     if not requested or not evidence:
         return []
     found: list[tuple[str, str, dict]] = []
@@ -153,7 +165,8 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
         images.append(GeneratedImage(
             index=index, requirement_id=rid, purpose=purposes.get(rid, 'image'), mime=mime, width=width,
             height=height, sha256=digest, data=data,
-            alt=alt_text(prompt, purposes.get(rid, 'image'), number=seen[rid], of=per_requirement[rid])))
+            alt=alt_text(prompt, purposes.get(rid, 'image'), number=seen[rid], of=per_requirement[rid],
+                         subject=subjects.get(rid))))
     return images
 
 

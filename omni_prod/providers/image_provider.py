@@ -357,6 +357,12 @@ class PredictionImageProvider:
         explicit = str(requirement.constraints.get("prompt") or "").strip()
         if explicit:
             return explicit
+        # #324 (Michael 2026-11-13): the image is made from the brief -- the clause of the approved request
+        # that also becomes its alt (constraints["subject"], set by the capability planner).
+        subject = str(requirement.constraints.get("subject") or "").strip()
+        if subject:
+            return (f"{subject}. Original {requirement.purpose} for a web page; realistic, high quality; "
+                    "no text or letters, no third-party logos, trademarks or characters.")
         return (f"Original {requirement.purpose} for a modern web product. Clean, simple, distinctive; "
                 "no text, no third-party logos, trademarks or characters.")
 
@@ -398,6 +404,9 @@ class PredictionImageProvider:
         body: dict[str, Any] = {"input": {"prompt": self._prompt(requirement),
                                           "output_format": self.config.output_format,
                                           "num_outputs": int(requirement.quantity)}}
+        ratio = str(requirement.constraints.get("aspect_ratio") or "")
+        if ratio and self.config.base_url.rstrip("/") == "https://api.replicate.com/v1":
+            body["input"]["aspect_ratio"] = ratio      # #324: the proportions its page purpose needs
         if self.config.version:
             body["version"] = self.config.version
         else:
