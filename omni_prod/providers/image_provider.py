@@ -360,9 +360,9 @@ class PredictionImageProvider:
         # #324 (Michael 2026-11-13): the image is made from the brief -- the clause of the approved request
         # that also becomes its alt (constraints["subject"], set by the capability planner).
         subject = str(requirement.constraints.get("subject") or "").strip()
-        if subject:
-            return (f"{subject}. Original {requirement.purpose} for a web page; realistic, high quality; "
-                    "no text or letters, no third-party logos, trademarks or characters.")
+        if subject:   # the worker normally replaces this with the saved English prompt (image_prompt.py)
+            from ..image_prompt import NEGATIVE
+            return f"{subject}. Original {requirement.purpose} for a web page; realistic, high quality. {NEGATIVE}"
         return (f"Original {requirement.purpose} for a modern web product. Clean, simple, distinctive; "
                 "no text, no third-party logos, trademarks or characters.")
 

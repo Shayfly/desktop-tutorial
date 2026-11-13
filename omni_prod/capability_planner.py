@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from collections import OrderedDict
 
 from .capabilities import CapabilityPlan, CapabilityRequirement
@@ -222,6 +224,13 @@ class CapabilityPlanner:
         subject = describe(prompt, purpose)
         if subject:
             constraints["subject"] = subject
+        # the plan's style direction (the brief's "Design:" line): the image matches the page it is made for
+        design = re.search(r"Design: style ([^;\n]+)", prompt or "")
+        if design:
+            constraints["style"] = design.group(1).strip()
+        colours = re.search(r"requested colour description '([^'\n]+)'", prompt or "")
+        if colours:
+            constraints["colours"] = colours.group(1).strip()
         return constraints
 
     @staticmethod
