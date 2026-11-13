@@ -26,6 +26,12 @@
    "reviewer": "",
    "reviewed_at": ""
   },
+  ".github/workflows/identity.yml": {
+   "reason": "the one line 'echo ::error title=behavioural identity::$head != anchor $base; exit 1' is replaced: the same error and exit now come after scripts/identity_declared.py refuses (no exact signed declaration). With no declaration the step fails exactly as before.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  },
   "omni_prod/gate_regression.py": {
    "reason": "#335 part 1: the GOLDEN_FACTS line is replaced to add 'hours_day': 6 -- the golden brief's opening hours are now canon facts (one per day). Every other count is unchanged.",
    "author": "claude",

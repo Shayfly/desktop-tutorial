@@ -9,6 +9,7 @@
 import hashlib
 import hmac
 import json
+from pathlib import Path
 import os
 import secrets
 import subprocess
@@ -402,6 +403,16 @@ class SourceIdentity(unittest.TestCase):
         base = json.load(open(os.environ['BASELINE_SOURCE_MANIFEST'], encoding='utf-8'))
         got = source_manifest()
         self.assertEqual(got['leaked_flag_only'], [], 'a flag-only name is used outside a flag block')
+        # Michael 2026-11-13: an intended change passes only with one signed declaration matching it exactly
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
+        import identity_declared as D
+        change = D.diff(base, got)
+        if any(change.values()):
+            base_digest = Path(os.environ['BASELINE_DIGEST_FILE']).read_text().strip()
+            entry, why = D.match(D.load(), base_digest, _digest('0'), change)
+            self.assertIsNotNone(entry, f'gate code differs from the anchor and no signed declaration matches: {why}')
+            print(f"::notice title=source identity::declared change {entry['id']} (reviewer {entry['reviewer']})")
+            return
         self.assertEqual(set(got['files']), set(base['files']), 'the gate import closure changed')
         self.assertEqual(set(got['data']), set(base['data']), 'the set of non-Python gate inputs changed')
         changed = sorted(p for p in got['files'] if got['files'][p] != base['files'][p])

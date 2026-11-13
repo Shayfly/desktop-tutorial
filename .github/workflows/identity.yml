@@ -113,6 +113,7 @@ jobs:
           ANCHOR: ${{ steps.mode.outputs.anchor }}
           BLOCKING: ${{ steps.mode.outputs.blocking }}
           BASELINE_SOURCE_MANIFEST: ${{ runner.temp }}/base-source.json
+          BASELINE_DIGEST_FILE: ${{ runner.temp }}/base-digest.txt
           OMNI_SITE_AUTH_V2: '0'
         run: |
           set -euo pipefail
@@ -122,7 +123,11 @@ jobs:
           if [ "$head" = "$base" ]; then
             echo "::notice title=behavioural identity::equals the anchor"
           elif [ "$BLOCKING" = "true" ]; then
-            echo "::error title=behavioural identity::$head != anchor $base"; exit 1
+            # Michael 2026-11-13: an intended change passes only with ONE signed declaration that matches it exactly
+            # (scripts/identity_declared.py, docs/identity/allowed-identity-changes.json); anything else blocks.
+            python -m omni_prod.pipeline_identity --source > "$RUNNER_TEMP/head-source.json"
+            python scripts/identity_declared.py "$base" "$head" "$BASELINE_SOURCE_MANIFEST" "$RUNNER_TEMP/head-source.json" \
+              || { echo "::error title=behavioural identity::$head != anchor $base"; exit 1; }
           else
             echo "::notice title=behavioural identity::differs from the anchor -- an intended change, not blocking"
           fi

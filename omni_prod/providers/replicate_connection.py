@@ -36,6 +36,7 @@ def image_environment(env):
             'OMNI_IMAGE_PROVIDER_ESTIMATED_USD_PER_IMAGE': '0.003',
             'OMNI_IMAGE_PROVIDER_MAXIMUM_USD_PER_IMAGE': '0.003',
             'OMNI_IMAGE_PROVIDER_PRICE_SOURCE': 'https://replicate.com/pricing#2026-10-06',
+            'OMNI_IMAGE_PROVIDER_BILLING_UNIT': 'output',   # FLUX schnell is billed per output image
             'OMNI_IMAGE_PROVIDER_COMMERCIAL_USE': 'true',
             'OMNI_IMAGE_PROVIDER_LICENSE': 'Apache-2.0 (FLUX.1 schnell)',
         })

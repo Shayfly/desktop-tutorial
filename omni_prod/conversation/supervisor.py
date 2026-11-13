@@ -39,6 +39,12 @@ from ..planning.architect import ChiefArchitect
 
 # #330 (Michael 2026-11-12 19:45) set a limit on how often the customer-only question was written out; since
 # Michael 2026-11-13 it is never written out (the card asks), so there is no count to keep.
+# Michael 2026-11-13 (#339 condition): a limit on how often the SAME card (question + buttons) is shown unanswered.
+# After CARD_LIMIT shows: a privacy-safe default where one exists (nothing personal is stored), otherwise a block --
+# the card stops repeating, the turn says what is missing, with a direct link to the "Requirements" tab.
+CARD_LIMIT = 3
+SAFE_DEFAULT = {'personal_data': 'no', 'access_scope': 'no_personal'}
+SAFE_CONFIDENCE = d.SAFE_DEFAULT_CONFIDENCE
 INTENTS = ('requirements', 'answer', 'missing', 'recommend', 'cost', 'feasibility', 'approve', 'status', 'modify')
 _RX = {
     'status': r'(מה המצב|איפה (זה )?עומד|מה קורה עם הבנייה|סטטוס|how is it going|\bstatus\b|progress|is it done)',
@@ -158,6 +164,9 @@ _TXT = {
            'more': ' עוד {n} החלטות כאלה בלשונית "דרישות".',
            'ask_one': 'שאלה אחת לפני שממשיכים:', 'decide': 'יש החלטה אחת לפני שממשיכים:',
            'verify': 'רק לוודא — הבנתי מהבקשה: {label}. נכון?',
+           'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע בלשונית "דרישות".',
+           'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור בלשונית "דרישות".',
+           'safe_suffix': ' (ברירת מחדל בטוחה)',
            'why': 'למה אני שואל: {why}', 'unsure': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי" ואבחר {rec}. תמיד אפשר לשנות אחר כך.',
            'unsure_norec': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי". תמיד אפשר לשנות אחר כך.',
            'options': '{q} אפשרויות: {opts}.',
@@ -165,7 +174,10 @@ _TXT = {
            'attached_only': 'קיבלתי {n} ושמרתי בפרויקט. עדיין אין ניתוח תמונה אוטומטי (צריך מודל עם יכולת ראייה ואישור תקציב), אז כתבו במשפט מה חשוב בה או מה לשנות.',
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
-    'en': {'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
+    'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
+           'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
+           'safe_suffix': ' (safe default)',
+           'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
            'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
            'ready_again': 'The plan is up to date. To start, press "Approve and start build"; nothing is charged before you approve.',
            'ready': 'I have the full picture and prepared a work plan you can review and approve. Nothing is built or charged before you approve.',
@@ -203,11 +215,12 @@ _TXT = {
 SHORT = {
     'he': {'audience': 'קהל', 'goal': 'מטרה', 'login': 'התחברות', 'personal_data': 'פרטים אישיים', 'access_scope': 'גישה',
            'screens': 'מסכים', 'languages': 'שפה', 'content': 'תוכן התחלתי', 'dates': 'תאריכים', 'duplicates': 'כפילויות',
-           'style': 'סגנון', 'color': 'צבע', 'font': 'גופן', 'logo': 'לוגו', 'references': 'השראה'},
+           'style': 'סגנון', 'color': 'צבע', 'font': 'גופן', 'logo': 'לוגו', 'references': 'השראה',
+           'content_only': 'אתר תוכן בלבד', 'unavailable': 'יכולת שאינה זמינה כרגע'},
     'en': {'audience': 'audience', 'goal': 'goal', 'login': 'sign-in', 'personal_data': 'personal data', 'access_scope': 'access',
            'screens': 'screens', 'languages': 'language', 'content': 'starting content', 'dates': 'dates',
            'duplicates': 'duplicates', 'style': 'style', 'color': 'colour', 'font': 'font', 'logo': 'logo',
-           'references': 'references'},
+           'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability'},
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
@@ -426,7 +439,10 @@ class ConversationSupervisor:
         """Step 1 of 2: the spec + the cost range, and the approve-spec control. No plan exists here."""
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
-        summary = '; '.join(_label(k, v['value'], lang) for k, v in list(row.brief.fields.items())[:8] if 'value' in v)
+        items = sorted(row.brief.fields.items(), key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)
+        summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
+                                                            if v.get('confidence') == SAFE_CONFIDENCE else '')
+                            for k, v in items[:8] if 'value' in v)
         turn.gate = 'spec'
         turn.venice = {'agent': 'agent.venice', 'mode': 'understanding', 'stage': t['stage1'],
                        'cost_range_credits': [lo, hi]}
@@ -536,7 +552,7 @@ class ConversationSupervisor:
         if attachments and intent != 'attachment':
             turn.reply = (turn.reply + ' ' + T['attached_note'].format(n=T['images'](len(attachments)))).strip()
         if turn.blocked and turn.plan is None:              # blocked before gate 1: edit the spec (there is no plan)
-            if not any(a['type'] == 'edit_requirements' for a in turn.actions):
+            if not any(a['type'] in ('edit_requirements', 'open_requirements') for a in turn.actions):
                 turn.actions.append({'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision})
         elif turn.brief_row and not (turn.plan or {}).get('executable', True):
             for action in ({'type': 'show_plan', 'brief_revision': turn.brief_row.revision},
@@ -864,7 +880,48 @@ class ConversationSupervisor:
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
+        self._card_limit(project_id, account_id, turn, lang, T, request_key)
         return turn
+
+    def _cards_shown(self, project_id, qid) -> int:
+        """How many assistant turns of this conversation already showed this question's card (stored as `asked`)."""
+        try:
+            prev = self.store.messages_for(project_id, limit=200)
+        except Exception:
+            return 0
+        return sum(1 for m in prev if m.get('role') == 'assistant'
+                   and qid in ((m.get('interpretation') or {}).get('asked') or ()))
+
+    def _card_limit(self, project_id, account_id, turn, lang, T, request_key):
+        """Michael 2026-11-13 (#339): the same unanswered card is shown at most CARD_LIMIT times. Then a privacy-safe
+        default (said now, in this turn) or a block with a direct link to the Requirements tab."""
+        row = turn.brief_row
+        if not turn.questions or row is None:
+            return
+        q = turn.questions[0]
+        if not d.needs_customer(q, row.brief) or self._cards_shown(project_id, q.id) < CARD_LIMIT:
+            return
+        topic = _short(q.field, lang)
+        if q.field in SAFE_DEFAULT:
+            brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            value = SAFE_DEFAULT[q.field]
+            brief.fields[q.field] = {'value': value, 'source': 'default', 'question_id': q.id,
+                                     'confidence': SAFE_CONFIDENCE}
+            if q.field == 'access_scope' and not d.confirmed(brief, 'personal_data'):
+                brief.fields['personal_data'] = {'value': 'no', 'source': 'default', 'question_id': q.id,
+                                                 'confidence': SAFE_CONFIDENCE}
+            brief.open_material = [f for f in (brief.open_material or ()) if f not in (q.field, 'personal_data')]
+            turn.brief_row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                              expected_revision=row.revision, request_key=request_key)
+            turn.reply = T['safe_default'].format(topic=topic, label=_label(q.field, value, lang).split(': ', 1)[-1])
+            turn.questions = []
+        else:
+            turn.reply = T['card_blocked'].format(topic=topic)
+            turn.questions = []
+            turn.blocked = list(dict.fromkeys(list(turn.blocked or ()) + [q.field]))
+            turn.actions = [a for a in turn.actions if a['type'] != 'edit_requirements']
+            turn.actions.append({'type': 'open_requirements', 'field': q.field,    # the direct link to the tab
+                                 'brief_revision': row.revision})
 
     @staticmethod
     def _still_held(held, spec, brief) -> set:
