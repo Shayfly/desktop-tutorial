@@ -23,7 +23,7 @@ from pathlib import Path
 GOLDEN_REQUEST = ('שם העסק: קפה "בוקר טוב" – בית קפה שכונתי כתובת: רחוב הנביאים 12, חיפה טלפון ו-WhatsApp: 050-1234567 '
                   'שעות פתיחה: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00 ביקורות: • "הקפה הכי טוב בחיפה" – דנה '
                   '• "ארוחת בוקר מושלמת, נחזור" – יוסי ומיכל • "שירות חם ומחירים הוגנים" – אבי • מעל 50 ביקורות בגוגל')
-GOLDEN_FACTS = {'phone': 1, 'address': 1, 'hours': 2, 'name': 1, 'review': 3, 'reviewCount': 1}
+GOLDEN_FACTS = {'phone': 1, 'address': 1, 'hours': 2, 'hours_day': 6, 'name': 1, 'review': 3, 'reviewCount': 1}
 
 
 def self_check() -> dict:
