@@ -675,6 +675,14 @@ class ConversationSupervisor:
         if (message and row is not None and row.complete and not res.applied and not res.conflicts and not res.corrected
                 and not answers and _CONTENT_RX.search(message) and not intake_agent._off_topic('content', message)):
             new_brief, recorded = _record_content(new_brief, message), True
+        if message:
+            # #335 (Michael 2026-11-13): every fact the customer states (phone, e-mail, address, hours, a closed day) is
+            # kept verbatim from EVERY message -- the "מה נכון?" loop lost the cafe's phone and hours from the fields.
+            from ..fact_canon import fact_spans
+            said = fact_spans(message)
+            if said:
+                kept = list((new_brief.assets.get('facts') or {}).get('spans') or ())
+                new_brief.assets['facts'] = {'spans': kept + [x for x in said if x not in kept]}
         if len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I):
             a = attachments[0]
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):

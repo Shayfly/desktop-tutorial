@@ -79,7 +79,9 @@ FALSE_POSITIVES = {
     'phone in another format': lambda p: p.replace('050-1234567', '+972 50 123 4567'),
     'phone without dashes': lambda p: p.replace('tel:+972-50-123-4567', 'tel:0501234567'),
     "street with רחוב instead of רח'": lambda p: p.replace("רח' הנביאים 12", 'רחוב הנביאים 12'),
-    'prices and hours are not phones': lambda p: p.replace('₪ 10', '₪ 1,234,567').replace('07:00-14:00', '07:30-23:45'),
+    # #335: a DAY's hours that differ from the request are now a contradiction (blocking); the time range alone,
+    # with no day, is what this case checks -- it must not read as a phone
+    'prices and hours are not phones': lambda p: p.replace('₪ 10', '₪ 1,234,567').replace('</body>', '<p>07:30-23:45</p></body>'),
     'word with the delete stem inside': lambda p: p.replace('מגיעים גם בטלפון', 'מגיעים גם בטלפון ומבטלים בוואטסאפ'),
     'english page sets its own direction': lambda p: p.replace('lang="he" dir="rtl"', 'lang="en" dir="ltr"'),
 }

@@ -15,14 +15,15 @@ CAFE_PAGE = ('<!doctype html><html><head><title>קפה</title></head><body><h1>�
 
 class InventedContactTests(unittest.TestCase):
     def test_cafe_invented_phone_and_street_block(self):
-        found = _invented_contact({'index.html': CAFE_PAGE}, {'request': 'דף נחיתה לבית קפה שכונתי בחיפה'})
+        # #335: the page's hours (א-ה 07:00-14:00) are now facts too; the request gives them, so only contact blocks
+        found = _invented_contact({'index.html': CAFE_PAGE}, {'request': 'דף נחיתה לבית קפה שכונתי בחיפה, א-ה 07:00-14:00'})
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0].severity, 'blocking')
         self.assertIn('+972501234567', found[0].problem)
         self.assertIn('רחוב הנביאים 12', found[0].problem)
 
     def test_details_from_the_request_pass_in_any_format(self):
-        req = 'בית קפה. וואטסאפ +972-50-123-4567, כתובת רחוב הנביאים 12 חיפה'
+        req = 'בית קפה. וואטסאפ +972-50-123-4567, כתובת רחוב הנביאים 12 חיפה. שעות א׳–ה׳ 07:00–14:00'   # #335: hours too
         self.assertEqual(_invented_contact({'index.html': CAFE_PAGE}, {'request': req}), [])
 
     def test_prices_hours_and_scripts_are_not_phones(self):
