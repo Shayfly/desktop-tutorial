@@ -192,7 +192,9 @@ class TheSupervisorIsDrivenByTheDetector(unittest.TestCase):
         t = sup.turn(project_id='p', account_id='a', message='אני רוצה אתר לתיירים שמגיעים לעיר')
         self.assertEqual([q.field for q in t.questions], [t.gaps['question']['field']])
         self.assertEqual(t.gaps['question']['field'], 'languages')
-        self.assertIn(t.gaps['question']['text'], t.reply)
+        # Michael 2026-11-13: the detector decides WHICH question; its card asks it, the text does not repeat it
+        self.assertNotIn(t.gaps['question']['text'], t.reply)
+        self.assertNotIn('?', t.reply)
         shown = t.to_dict('he')                                                   # what the customer's app receives
         self.assertEqual(shown['gaps']['question']['field'], 'languages')
         self.assertEqual([q['field'] for q in shown['questions']], ['languages'])

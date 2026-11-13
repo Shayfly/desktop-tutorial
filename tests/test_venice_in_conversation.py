@@ -256,11 +256,11 @@ class CustomerWordsEvidence(unittest.TestCase):
         self.assertEqual((t.interpretation['cost_state'], t.interpretation['cost_usd']), (B.CONFIRMED, '0.0007'))
         self.assertTrue(t.reply.startswith(ANSWER['reply']))   # CEO 2026-11-08: Venice's reply IS the answer ...
         # ... and no quick-reply buttons while Venice leads -- except the next question for a field only the customer
-        # may set (#330, Michael 2026-11-12): that question and its buttons are shown TOO, after Venice's reply.
-        # Kept narrow (Michael 19:45): at most ONE question, only delegable=False, and only AFTER Venice's reply.
+        # may set (#330, Michael 2026-11-12), shown as its card. Kept narrow (Michael 19:45): at most ONE question,
+        # only delegable=False. Since Michael 2026-11-13 the card asks it and the text does not repeat it.
         self.assertLessEqual(len(t.questions), 1)
         self.assertTrue(all(q.delegable is False for q in t.questions))
-        self.assertEqual(t.reply, ANSWER['reply'] + ''.join(' ' + q.he for q in t.questions))
+        self.assertEqual(t.reply, ANSWER['reply'])
         for words in ('אילת', 'מזומן'):
             self.assertIn(words, t.reply)
         self.assertEqual(t.interpretation['requirements'], ANSWER['requirements'])
