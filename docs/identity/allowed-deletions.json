@@ -25,6 +25,30 @@
    "author": "claude",
    "reviewer": "",
    "reviewed_at": ""
+  },
+  "omni_prod/gate_regression.py": {
+   "reason": "#335 part 1: the GOLDEN_FACTS line is replaced to add 'hours_day': 6 -- the golden brief's opening hours are now canon facts (one per day). Every other count is unchanged.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
+  },
+  "tests/test_site_auth_v2.py": {
+   "reason": "#335 part 1: the BASELINE_DIGEST line is replaced (728eb139 -> 9eac2891). Component diff: the only change is in `arms` -- build_canon records the arm briefs' opening hours as hours_day facts. No prompt, instruction, probe or script changed.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
+  },
+  "tests/test_content_truth_rtl_20261109.py": {
+   "reason": "#335 part 1: two fixture request lines are replaced so the request includes the hours the page shows (א-ה 07:00-14:00). Without them the new hours gate correctly blocks the page as invented hours; what each test asserts is unchanged.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
+  },
+  "tests/test_gate_mutations_20261110.py": {
+   "reason": "#335 part 1: the 'prices and hours are not phones' mutation no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so the case still checks that a time range is not read as a phone.",
+   "author": "claude",
+   "reviewer": "",
+   "reviewed_at": ""
   }
  }
 }
