@@ -37,10 +37,8 @@ from ..intake.interpreter import DeterministicInterpreter, interpreter_from_env,
 from ..planning import feasibility as F
 from ..planning.architect import ChiefArchitect
 
-# #330 (Michael 2026-11-12 19:45): the exact customer-only question is written out in at most this many replies of
-# the conversation; after that only its buttons stay (the customer can still answer, the sentence is not repeated).
-# A per-run ("in a row") count was not enough: one turn without it reset the run and the sentence came back forever.
-CUSTOMER_ONLY_QUESTION_REPEATS = 2
+# #330 (Michael 2026-11-12 19:45) set a limit on how often the customer-only question was written out; since
+# Michael 2026-11-13 it is never written out (the card asks), so there is no count to keep.
 INTENTS = ('requirements', 'answer', 'missing', 'recommend', 'cost', 'feasibility', 'approve', 'status', 'modify')
 _RX = {
     'status': r'(מה המצב|איפה (זה )?עומד|מה קורה עם הבנייה|סטטוס|how is it going|\bstatus\b|progress|is it done)',
@@ -239,6 +237,37 @@ def _short(field_: str, lang: str) -> str:
     q = d.BY_ID.get(field_)
     name = SHORT['he' if lang == 'he' else 'en'].get(field_)
     return name or ((q.he if lang == 'he' else q.en) if q else field_)
+
+
+def _lines(items) -> str:
+    """Decisions one per line (Michael 2026-11-13): a wrapped "key: value; key: value" line in an RTL bubble read as
+    a swapped label and value, a duplicate key and a key without a value."""
+    return '\n' + '\n'.join(f'• {x}' for x in items) + '\n'
+
+
+_SENTENCE = re.compile(r'[^.!?\n]*(?:[.!?]+\)?|$)', re.S)
+
+
+def _no_question(text: str) -> str:
+    """The text without any sentence that asks something: used when the question itself is shown as a card, so
+    the turn asks it once (Michael 2026-11-13: the model's sentence and the card asked the same thing)."""
+    from ..intake.gaps import FALLBACK
+    delegate = {t.get('_delegate') for t in FALLBACK.values()}
+    out, after_question = [], False
+    for m in _SENTENCE.finditer(text or ''):
+        x = m.group(0).strip()
+        if not x:
+            continue
+        if '?' in x or '؟' in x:
+            after_question = True                   # the question goes ...
+        elif after_question and x.startswith('('):
+            continue                                # ... with its "(I understood: X.)" -- a guess, not a fact
+        elif x in delegate:
+            continue                                # "you can also say 'you decide'": the card has that button
+        else:
+            after_question = False
+            out.append(x)
+    return ' '.join(out).strip()
 
 
 def _label(field_: str, value, lang: str) -> str:
@@ -709,6 +738,13 @@ class ConversationSupervisor:
             # the turn says "nothing new" and the brief can never complete (production 2026-11-12, personal_data).
             waiting = [d.BY_ID[f] for f in new_brief.open_material if f in d.BY_ID]
             res.asked = [q for q in waiting if d.needs_customer(q, new_brief)][:1]
+        # Michael 2026-11-13 (production, bakery): one field, one question per turn -- personal_data was asked twice
+        # (a yes/no line and access_scope's three options). The covering question wins; the covered one waits.
+        res.asked = d.one_question_per_field(res.asked)
+        covered = {f for q in res.asked for f in d.COVERS.get(q.field, ())} | {
+            f for c in res.conflicts for f in d.COVERS.get(c['field'], ())}
+        res.conflicts = [c for i, c in enumerate(res.conflicts) if c['field'] not in covered
+                         and c['field'] not in {x['field'] for x in res.conflicts[:i]}]
         expected = row.revision if row else 0
         # C6: a revision when the requirements change (fingerprint), when completeness changes, or when the detector
         # moves to another open field -- so the stored brief never names a stale open field. While the brief is
@@ -740,16 +776,16 @@ class ConversationSupervisor:
             parts.append(f'{T["corrected"]}: ' + '; '.join(_label(c['field'], c['new'], lang) for c in res.corrected[:4]) + '.')
         for c in res.conflicts[:3]:
             name = (d.BY_ID[c['field']].he if lang == 'he' else d.BY_ID[c['field']].en) if c['field'] in d.BY_ID else c['field']
-            if c['current'] is None:
-                parts.append(T['confirm_sensitive'].format(field=name))
+            if c['current'] is None:     # the question itself is the card below: the text names the topic only
+                parts.append(T['confirm_sensitive'].format(field=_short(c['field'], lang)))
             else:
                 parts.append(T['conflict'].format(current=_label(c['field'], c['current'], lang),
                                                   proposed=_label(c['field'], c['proposed'], lang)))
         short = [x for x in res.assumed if d.BY_ID.get(x['field']) and d.BY_ID[x['field']].kind == 'choice']
         if short:
             more = len(res.assumed) - len(short[:3])
-            parts.append(f'{T["assumed"]}: ' + '; '.join(_label(x['field'], x['value'], lang) for x in short[:3])
-                         + '.' + (T['more'].format(n=more) if more > 0 else ''))
+            parts.append(f'{T["assumed"]}:' + _lines(_label(x['field'], x['value'], lang) for x in short[:3])
+                         + (T['more'].format(n=more).lstrip() + '\n' if more > 0 else ''))
         unsure = bool(message and re.search(_UNSURE_RX, message.strip().lower(), re.I))
         if row.complete and gap_q is None:
             feas = self._feasibility(row)
@@ -778,8 +814,13 @@ class ConversationSupervisor:
                 if blocked and not row.complete:
                     parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
             if gap_q is not None and not res.conflicts:
-                parts.append(gap_q.text)                    # the detector's question, exactly as it is in turn.gaps
-                turn.explained = gap_q.text.startswith(_WHY_PREFIXES)
+                carded = gap_q.field in {q.field for q in res.asked}
+                why = gap_q.text.startswith(_WHY_PREFIXES)
+                # Michael 2026-11-13: when the field's card is shown, the question comes from the card only; the
+                # text is short context (an explanation after "why?", without its question), never the question
+                parts.append(gap_q.text if not carded else (_no_question(gap_q.text) or T['ask_one']) if why
+                             else T['ask_one'])
+                turn.explained = why
             else:                                           # only a conflict with a confirmed value is asked back here
                 self._last_reply_was_why = False
                 repeated = self._repeats(project_id, res.asked)
@@ -788,7 +829,7 @@ class ConversationSupervisor:
                 turn.explained = explain and not self._last_reply_was_why
         if not parts:
             parts.append(T['nothing'])
-        turn.reply = ' '.join(parts)
+        turn.reply = re.sub(r'\n +', '\n', ' '.join(parts)).strip()
         # CEO 2026-11-08: no questionnaire. While the conversation is still listening (no gate 1, no blocker, no
         # conflict), the customer sees the model's own reply and question, not the detector's question, the
         # "chosen for you" list or quick-reply buttons. The detector still records the brief and decides
@@ -808,22 +849,14 @@ class ConversationSupervisor:
             nxt = res.asked or [d.BY_ID[f] for f in (row.brief.open_material or ()) if f in d.BY_ID]
             held = self._customer_only_question(nxt, row.brief)
             if held is not None:
-                text = held.he if lang == 'he' else held.en
-                if text not in turn.reply and self._times_said(project_id, text) < CUSTOMER_ONLY_QUESTION_REPEATS:
-                    turn.reply = f'{turn.reply} {text}'
-                turn.questions = [held]            # the buttons stay even when the sentence is not repeated
+                # Michael 2026-11-13: the question comes from the card only. The model's reply keeps its context
+                # and loses any sentence that asks (it asked the same field in its own words, then the card again)
+                turn.reply = _no_question(turn.reply) or T['ask_one']
+                turn.questions = [held]
         elif listening and os.getenv('OMNI_INTAKE_MODEL') == '1' and not answers:
             # the model is configured but did not answer in time: say so; never pass the questionnaire off as it
             turn.reply, turn.questions = T['model_unavailable'], []
         return turn
-
-    def _times_said(self, project_id, text) -> int:
-        """How many assistant replies of this conversation (the latest 200 messages) already wrote out this text."""
-        try:
-            prev = self.store.messages_for(project_id, limit=200)
-        except Exception:
-            return 0
-        return sum(1 for m in prev if m.get('role') == 'assistant' and text in (m.get('content') or ''))
 
     @staticmethod
     def _still_held(held, spec, brief) -> set:
@@ -1107,16 +1140,15 @@ class ConversationSupervisor:
         he = lang == 'he'
         if unsure and self._last_reply_was_why:
             opts = ' / '.join(o.he if he else o.en for o in q.options[:4])
-            return [T['options'].format(q=q.he if he else q.en, opts=opts) if opts else T['ask_one']]
+            return [T['options'].format(q=_short(q.field, lang) + ' —', opts=opts) if opts else T['ask_one']]
         if unsure:
             out = [T['why'].format(why=(q.why_he if he else q.why_en).rstrip('.') + '.')]
             rec = q.recommended if q.recommended and q.recommended != '__from_request__' else None
             out.append(T['unsure'].format(rec=d._label(q, rec, lang)) if rec and q.delegable else
                        (T['unsure_norec'] if q.delegable else ''))
             return [x for x in out if x]
-        hint = row.brief.hints.get(q.field) if row is not None else None
-        if hint and len(res.asked) == 1 and q.kind == 'choice':
-            return [T['verify'].format(label=_label(q.field, hint, lang))]
+        # Michael 2026-11-13: the card (pre-selected from the request) asks; the text does not repeat a guessed value
+        # as "I understood: X. right?" -- only confirmed facts are restated
         if res.contradictions or q.id == 'access_scope':
             return [T['decide']]
         return [T['ask_one'] if len(res.asked) == 1 else T['ask'] + ':']
