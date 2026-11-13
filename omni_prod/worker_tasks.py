@@ -1001,8 +1001,16 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         install_rejected_json_sink(gateway, workspace, build_id)
         set_acceptance_scope(engine, build_contract.to_dict() if build_contract is not None else None)
         control.checkpoint()
+        # #324 (Michael 2026-11-13): the plan's verified generated images go INTO the page -- with their purpose,
+        # dimensions and an alt from the brief -- and the build is not accepted until each is visible with that alt.
+        build_prompt = prompt
+        if capability_stage is not None and capability_evidence is not None:
+            from .generated_images import install as install_generated_images
+            build_prompt = install_generated_images(
+                engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
+                store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None))
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
-        result = engine.build(prompt)
+        result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
         _report_phase(jobs, build_id, 'VERIFYING', 'running quality, security and rights gates')

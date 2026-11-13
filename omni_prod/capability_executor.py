@@ -222,6 +222,8 @@ class CapabilityExecutor:
             "checks": list(verification.checks),
             "sha256": verification.sha256,
             "size_bytes": verification.size_bytes,
+            "artifact_key": key,                      # #324: each artifact names its own key
+            "mime_type": payload.mime_type,
         }
 
     def _execute_one(
@@ -342,6 +344,8 @@ class CapabilityExecutor:
                 verification_items.append({
                     "verified": verification.verified, "checks": list(verification.checks),
                     "sha256": verification.sha256, "size_bytes": verification.size_bytes,
+                    # #324: every artifact names its own key (a requirement can produce several images)
+                    "artifact_key": artifact.artifact_key, "mime_type": artifact.mime_type,
                 })
 
             for payload in result.payloads:
