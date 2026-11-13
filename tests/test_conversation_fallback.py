@@ -27,6 +27,7 @@ class RestoringTheConversation(unittest.TestCase):
         code = '\n'.join([
             grab(src, r'^class ApiError extends Error \{.*?^\}'),
             grab(src, r'^function conversationNotInstalled\(e\) \{.*?^\}'),
+            grab(src, r'^const stillOn = [^\n]*'),   # restoreConversation reads for the project shown (#341)
             grab(src, r'^async function restoreConversation\(\) \{.*?^\}'),
         ])
         harness = f"""
