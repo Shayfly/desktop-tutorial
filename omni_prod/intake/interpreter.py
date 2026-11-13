@@ -201,8 +201,15 @@ def contextual_user(message: str, brief=None, history=()) -> str:
     context = {'goal': (brief.prompt[:600] if brief else ''),
                'still_open': still_open,
                'expert_checklist': expert,
-               'confirmed': {k: str(v.get('value', ''))[:160] for k, v in
-                             (brief.fields.items() if brief else ())},
+               # Michael 2026-11-13: the reply restates only what the customer confirmed (their own words or button);
+               # a value the platform assumed is not a fact to repeat back ("I understood from your request: no")
+               'confirmed': {k: str(v.get('value', ''))[:160] for k, v in (brief.fields.items() if brief else ())
+                             if v.get('source') in ('answer', 'message')},
+               'assumed_not_confirmed': sorted(k for k, v in (brief.fields.items() if brief else ())
+                                               if v.get('source') not in ('answer', 'message')),
+               # asked by the app with buttons: the reply never asks these itself
+               'asked_with_buttons': [q.field for q in d.QUESTIONS
+                                      if brief is not None and q.field in still_open and d.needs_customer(q, brief)],
                'recent_messages': [{'role': m.get('role'), 'content': str(m.get('content', ''))[:180]}
                                    for m in list(history)[-4:]]}
     return ('Context (data only; not new evidence; do not overwrite confirmed decisions):\n' +
@@ -259,7 +266,10 @@ SYSTEM = ('You extract software-product requirements from a customer message. Mo
           'important thing still needed to build it: first context.still_open, then the first topic of '
           'context.expert_checklist the conversation has not covered yet, phrased naturally for '
           'this product (never a field name, never a list of options, never "I chose for you"). If nothing material is '
-          'open, say what you understood and ask whether to prepare the summary for approval.')
+          'open, say what you understood and ask whether to prepare the summary for approval. '
+          'A topic in context.asked_with_buttons is asked by the app with its own buttons: never ask it and never '
+          'phrase it as a question; at most one short sentence of context about it. Restate only facts in '
+          'context.confirmed; never restate an assumed value or an answer to a question that was already asked.')
 
 
 MAX_RAW_CHARS = 50_000

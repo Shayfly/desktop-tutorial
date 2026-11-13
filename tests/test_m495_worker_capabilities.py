@@ -84,7 +84,12 @@ class WorkerCapabilityGateTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, 'NOT_CONFIGURED'):
             worker_tasks._run_live_build_job(
                 'b1', jobs=jobs, platform=platform, workspace=MagicMock(),
-                components_factory=lambda:(engine, None),
+                # #324: images are made after the build gateway is bound (their prompt translation is metered),
+                # so the gateway is a real one here; the stage still blocks before engine.build and before any call
+                components_factory=lambda:(engine, SimpleNamespace(
+                    state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0), events=[],
+                    bind_budget=lambda ceiling: {'effective_budget_usd': str(ceiling)},
+                    complete=lambda **kw: self.fail('no model call before a NOT_CONFIGURED capability blocks'))),
                 quality_fn=lambda **kw: SimpleNamespace(passed=True, score=100, minimum_score=80, blockers=(), to_dict=lambda:{}),
                 security_fn=lambda repo: SimpleNamespace(passed=True, findings=(), to_dict=lambda:{}),
                 capability_stage=stage,
