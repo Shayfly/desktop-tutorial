@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from collections import OrderedDict
 
 from .capabilities import CapabilityPlan, CapabilityRequirement
@@ -191,6 +193,7 @@ class CapabilityPlanner:
                     key=key,
                     purpose=purpose,
                     required=required_by_key.get(key, explicit_required),
+                    constraints=self._image_constraints(key, purpose, prompt),
                     dependency_ids=tuple(id_by_key[dep] for dep in definition.dependency_keys),
                 )
             )
@@ -208,6 +211,27 @@ class CapabilityPlanner:
     def _has_any(text: str, *terms: str) -> bool:
         # Token-aware: "api" must not match "rapid", "db" must not match "feedback".
         return has_term(text, *terms)
+
+    @staticmethod
+    def _image_constraints(key: str, purpose: str, prompt: str) -> dict:
+        """#324 (Michael 2026-11-13): a generated image is made FROM THE BRIEF -- the same clause of the approved
+        request that becomes its alt (generated_images.describe), and an aspect ratio for its purpose. Before, only
+        the purpose reached the provider and FLUX drew a generic "hero/brand visual" whatever the request said."""
+        if key != "media.image.generate":
+            return {}
+        from .generated_images import aspect_ratio, describe
+        constraints = {"aspect_ratio": aspect_ratio(purpose)}
+        subject = describe(prompt, purpose)
+        if subject:
+            constraints["subject"] = subject
+        # the plan's style direction (the brief's "Design:" line): the image matches the page it is made for
+        design = re.search(r"Design: style ([^;\n]+)", prompt or "")
+        if design:
+            constraints["style"] = design.group(1).strip()
+        colours = re.search(r"requested colour description '([^'\n]+)'", prompt or "")
+        if colours:
+            constraints["colours"] = colours.group(1).strip()
+        return constraints
 
     @staticmethod
     def _requirement_id(key: str) -> str:

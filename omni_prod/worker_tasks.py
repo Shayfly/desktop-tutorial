@@ -943,15 +943,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             )
         brain = platform.brain.decide(prompt, target_markets=markets)
         capability_plan = build_contract.capability_plan if build_contract is not None else getattr(brain, 'capabilities', None)
-        if capability_stage is not None:
-            _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
-            if capability_plan is None:
-                raise RuntimeError('capability stage requires a bound or planned capability plan')
-            capability_evidence = capability_stage.prepare(
-                build_id=build_id, project_id=internal_project_id, plan=capability_plan,
-                authorized_maximum_usd=capability_authorization_ceiling(request),
-                now=time.time(),
-            )
+        if capability_stage is not None and capability_plan is None:
+            raise RuntimeError('capability stage requires a bound or planned capability plan')
         rights = platform.rights.assess(
             prompt, target_markets=markets,
             evidence=_rights_evidence_from_dicts(request.get('rights_evidence')),
@@ -979,6 +972,23 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 gateway.on_attempt_start = control.flush_attempts   # write-ahead ledger
             # A recovered build: calls a lost worker already made are still owed.
             gateway.prior_metered = prior_worker_metered_cost(attempt_pool, build_id)
+        if capability_stage is not None:
+            _report_phase(jobs, build_id, 'ASSETS', 'generating and verifying required assets')
+            # #324 (Michael 2026-11-13): an image is generated from an ENGLISH prompt translated once from the brief
+            # (saved, never translated again) with a fixed negative list. The translation is a call through THIS
+            # gateway -- after its budget and write-ahead ledger are bound -- so it is metered like any other call.
+            from .image_prompt import gateway_translator, prepare_image_prompts
+            artifact_store = getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None)
+            resolver = getattr(capability_stage, 'assignments_resolver', None)
+            capability_plan = prepare_image_prompts(
+                capability_plan, translate=gateway_translator(gateway), store=artifact_store,
+                build_id=build_id, project_id=internal_project_id,
+                only=set((resolver(capability_plan) if resolver else {}) or {}))
+            capability_evidence = capability_stage.prepare(
+                build_id=build_id, project_id=internal_project_id, plan=capability_plan,
+                authorized_maximum_usd=capability_authorization_ceiling(request),
+                now=time.time(),
+            )
         if agent_recorder is not None:  # Agent OS: the real build as a durable agent task graph
             control.recorder = agent_recorder
             agent_recorder.start(from_brief='Approved project brief' in (prompt or ''))
