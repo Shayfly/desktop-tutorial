@@ -31,6 +31,36 @@
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-13"
+  },
+  "omni_prod/gate_regression.py": {
+   "reason": "#335 part 1: the GOLDEN_FACTS line is replaced to add 'hours_day': 6 -- the golden brief's opening hours are now canon facts (one per day). Every other count is unchanged.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  },
+  "tests/test_site_auth_v2.py": {
+   "reason": "#335 part 1: the BASELINE_DIGEST line is replaced (728eb139 -> 9eac2891). Component diff: the only change is in `arms` -- build_canon records the arm briefs' opening hours as hours_day facts. No prompt, instruction, probe or script changed.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  },
+  "tests/test_content_truth_rtl_20261109.py": {
+   "reason": "#335 part 1: two fixture request lines are replaced so the request includes the hours the page shows (א-ה 07:00-14:00). Without them the new hours gate correctly blocks the page as invented hours; what each test asserts is unchanged.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  },
+  "tests/test_gate_mutations_20261110.py": {
+   "reason": "#335 part 1: the 'prices and hours are not phones' false-positive case no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so it still checks that a time range is not read as a phone. The removed change is kept as a new blocking mutation, 'opening hours fabricated', that must be caught. A time range with no day is declared OUTSIDE the hours gate, and the DaylessRangeIsOutOfScope test pins that scope.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  },
+  "docs/identity/allowed-identity-changes.json": {
+   "reason": "adding a declaration rewrites one line of the JSON list -- the first entry turns '\"changes\": []' into a list, every later one turns the previous entry's closing '}' into '},'. The entries themselves are guarded by scripts/identity_declared.py (exact match, signed, to_digest unique); removing an entry only takes an allowance away.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
   }
  }
 }

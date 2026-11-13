@@ -20,7 +20,9 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
-BASELINE_DIGEST = '728eb139efa6f3eab28ae603ede3b5b3fa9b78029642981dfdd169ba008b9a16'
+# #335 part 1 (2026-11-13): the only change vs 728eb139... is in `arms`: build_canon now records the opening hours
+# of the arm briefs as `hours_day` facts. No prompt, instruction, probe or script changed (component diff checked).
+BASELINE_DIGEST = '9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27'
 
 
 def _digest(flag: str) -> str:

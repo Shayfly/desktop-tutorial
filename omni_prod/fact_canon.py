@@ -229,6 +229,23 @@ class Canon:
         return c
 
 
+def fact_spans(text: str) -> list[str]:
+    """#335 (Michael 2026-11-13): the customer's own spans for facts a page may show -- phone, e-mail, address,
+    opening hours (a closed day included) -- verbatim, in order, without duplicates. Read from EVERY customer
+    message, so a fact the brief's fields lose in the conversation still reaches the approved request and the canon."""
+    from .opening_hours import spans as hour_spans
+    clean = decode_entities(text or '')
+    found = [m.group(0) for m in _PHONE.finditer(clean) if parse_phone(m.group(0)).ok]
+    found += [m.group(0) for m in _EMAIL.finditer(clean)]
+    found += [m.group(0) for m in _STREET.finditer(clean)]
+    found += hour_spans(clean)
+    out = []
+    for span in (' '.join(f.split()).strip() for f in found):
+        if span and span not in out:
+            out.append(span)
+    return out
+
+
 def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     """Every phone, address, e-mail, opening-hours span and declared name in the approved request."""
     # Entities are decoded on BOTH sides before any comparison (Michael 2026-11-10): the request may carry &amp; or
@@ -253,6 +270,12 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
         add('address', norm_address(m.group(0)), m.group(0))
     for m in _HOURS.finditer(text):
         add('hours', re.sub(r'\s+', ' ', m.group(0)).strip(), m.group(0))
+    # #335 (Michael 2026-11-13): hours per DAY, including a day the customer said is closed ("שבת סגור"), so the
+    # truth gate can compare a page's hours with the customer's -- the raw 'hours' spans above never could.
+    from .opening_hours import encode, parse, spans
+    for span in spans(text):
+        for value in sorted(encode(parse(span))):
+            add('hours_day', value, span)
     for m in _NAME.finditer(text):
         add('name', m.group(1).strip(), m.group(0))
     # Reviews the customer GAVE: a quote followed by a dash and a name ("הקפה הכי טוב בחיפה" – דנה). The value is
@@ -374,6 +397,14 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
     if shown:
         lines.append(_TEXT[lang]['facts'].format(
             facts='; '.join(f'{labels[f.key]}: {f.source_ref}' for f in shown)))
+    # #335 (Michael 2026-11-13): the hours shown are the customer's own hours statements -- every one, a closed day
+    # included. The 'hours' fact needs a time range, so "שבת סגור" was missing from the approval screen (production,
+    # "מאפייה") while the truth gate already held it as an hours_day fact. One entry per statement, in order.
+    stated = list(dict.fromkeys(f.source_ref for f in canon.facts if f.key == 'hours_day'))
+    if stated:
+        items = [f'{labels[f.key]}: {f.source_ref}' for f in shown if f.key != 'hours']
+        items.append(f"{labels['hours']}: " + ', '.join(stated))
+        lines[:1 if shown else 0] = [_TEXT[lang]['facts'].format(facts='; '.join(items))]
     status = 'OK'
     if family in (None, 'website', 'landing', 'content') and not (canon.values('phone') or canon.values('address')):
         status = 'CANON_INCOMPLETE'

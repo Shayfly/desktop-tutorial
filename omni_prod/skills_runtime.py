@@ -377,6 +377,21 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
                                      f'review/rating counts not in the approved request: {", ".join(claims[:3])}',
                                      'remove the count, use the one the request gives, or mark the section "(לדוגמה)"',
                                      anchor=_anchor(' '.join(claims))))
+        # #335 (Michael 2026-11-13): opening hours on the page are compared with the customer's, day by day. Hours the
+        # customer did not give are invented; hours that differ from theirs (or open on a day they said is closed)
+        # contradict an explicit request -- the more serious of the two. Both block.
+        from .opening_hours import compare, decode, parse
+        invented, contradicted = compare(parse(page), decode(canon.values('hours_day')))
+        if contradicted:
+            out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                     'opening hours contradict what the customer wrote: ' + '; '.join(contradicted),
+                                     'show exactly the hours the customer gave (a day they said is closed stays closed)',
+                                     anchor=_anchor(' '.join(contradicted))))
+        if invented:
+            out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                     'opening hours the customer never gave (invented): ' + ', '.join(invented),
+                                     'show only hours the customer gave; with none, leave the hours out or ask for them',
+                                     anchor=_anchor(' '.join(invented))))
         if bad_phones or bad_streets:
             what = ', '.join(bad_phones[:3] + bad_streets[:3])
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,

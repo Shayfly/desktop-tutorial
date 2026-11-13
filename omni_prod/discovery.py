@@ -613,12 +613,20 @@ def _content_only(v: dict, login: str) -> bool:
             and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
 
 
+# #335 (Michael 2026-11-13): facts the customer stated in ANY message, verbatim, bound into the approved request.
+CUSTOMER_FACTS_PREFIX = ('Customer facts (the customer\'s own words from the conversation; show exactly these '
+                         'values and never other or additional ones): ')
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
     hence the approval, is bound to this exact revision."""
     v = brief.values()
     lines = ['', BRIEF_MARKER + ' (binding; fingerprint ' + brief.fingerprint()[:16] + ') ---']
+    facts = list((brief.assets.get('facts') or {}).get('spans') or ())
+    if facts:   # #335: the customer's own words for phone / e-mail / address / hours, from every message
+        lines.append(CUSTOMER_FACTS_PREFIX + ' | '.join(facts))
     login = v.get('login', 'none')
     scope = v.get('access_scope')
     if scope == 'add_login':
