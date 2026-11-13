@@ -45,7 +45,7 @@
    "reviewed_at": ""
   },
   "tests/test_gate_mutations_20261110.py": {
-   "reason": "#335 part 1: the 'prices and hours are not phones' mutation no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so the case still checks that a time range is not read as a phone.",
+   "reason": "#335 part 1: the 'prices and hours are not phones' false-positive case no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so it still checks that a time range is not read as a phone. The removed change is kept as a new blocking mutation, 'opening hours fabricated', that must be caught. A time range with no day is declared OUTSIDE the hours gate, and the DaylessRangeIsOutOfScope test pins that scope.",
    "author": "claude",
    "reviewer": "",
    "reviewed_at": ""

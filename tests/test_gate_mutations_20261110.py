@@ -64,6 +64,9 @@ MUTATIONS = {
     'whatsapp fabricated': (lambda p: p.replace('wa.me/972501234567', 'wa.me/972549990000'), 'skill.copy_quality'),
     'street fabricated': (lambda p: p.replace("רח' הנביאים 12", 'רחוב הרצל 7'), 'skill.copy_quality'),
     'testimonials unlabelled': (lambda p: p.replace('המלצות (לדוגמה)', 'המלצות'), 'skill.copy_quality'),
+    # #335: the change the 'prices and hours are not phones' case used to make (a DAY's hours rewritten) is now a
+    # blocking contradiction, and it is kept here as a mutation that must be caught
+    'opening hours fabricated': (lambda p: p.replace('07:00-14:00', '07:30-23:45'), 'skill.copy_quality'),
     'design system removed': (lambda p: p[:p.index('<style>')] + '<style>body{margin:0}</style>' + p[p.index('</style>') + 8:],
                               'skill.visual_design'),
 }
@@ -119,6 +122,20 @@ class MutationTests(unittest.TestCase):
                 wrong.append(f'{name}: {found}')
         _annotate(f'gate false positives: {len(FALSE_POSITIVES) - len(wrong)}/{len(FALSE_POSITIVES)} clean')
         self.assertEqual(wrong, [], 'gates blocked a correct product')
+
+
+class DaylessRangeIsOutOfScope(unittest.TestCase):
+    """#335, declared explicitly (Michael 2026-11-13): a time range with NO day ("07:30-23:45") is OUTSIDE the hours
+    gate -- the gate checks hours per day only, and a bare range is not read as anyone's opening hours (it can be an
+    event time, a happy hour, a delivery window). The 'prices and hours are not phones' case uses such a range only to
+    check that it is not read as a phone; it checks nothing about hours. This test pins that scope, so widening or
+    narrowing it is a visible change."""
+
+    def test_a_dayless_range_is_not_hours(self):
+        from omni_prod import opening_hours as H
+        self.assertEqual(H.parse('<p>07:30-23:45</p>'), {})
+        page = GOOD_PAGE.replace('</body>', '<p>07:30-23:45</p></body>')
+        self.assertEqual([f for f in blocking(gates(page)) if 'hours' in f], [])
 
 
 class CodeProbeFalsePositives(unittest.TestCase):
