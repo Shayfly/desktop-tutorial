@@ -1,4 +1,27 @@
 {
  "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
- "changes": []
+ "changes": [
+  {
+   "id": "338-opening-hours-facts",
+   "from_digest": "728eb139efa6f3eab28ae603ede3b5b3fa9b78029642981dfdd169ba008b9a16",
+   "to_digest": "9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27",
+   "added": [
+    "omni_prod/opening_hours.py"
+   ],
+   "removed": [],
+   "changed": [
+    "omni_prod/conversation/supervisor.py",
+    "omni_prod/discovery.py",
+    "omni_prod/fact_canon.py",
+    "omni_prod/gate_regression.py",
+    "omni_prod/skills_runtime.py",
+    "tests/test_gate_mutations_20261110.py"
+   ],
+   "data_changed": [],
+   "reason": "#335 part 1 (PR #338): opening hours become canon facts (hours_day) and the truth gate compares them day by day; customer facts come from every message; the approval summary shows every hours statement. The digest moves only in `arms` (build_canon of the arm briefs gains hours_day facts); no prompt, instruction, probe or script changed. Added: opening_hours.py (the hours parser the gate imports).",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-13"
+  }
+ ]
 }
