@@ -32,6 +32,10 @@ Every paid provider action has a versioned price source and records `estimated_c
 
 **An estimate is never actual.** `actual_cost_usd=NULL` remains unknown; the ledger must not replace it with `estimated_cost_usd` or the reserved maximum. Contribution analysis may use a conservative cost basis, but it must label that basis `CONSERVATIVE`, not `ACTUAL`.
 
+**Computed is not actual** (Michael 2026-11-13). A provider that reports no per-request cost (Replicate) leaves `actual_cost_usd=NULL`. For a model billed **per output only** (declared `OMNI_IMAGE_PROVIDER_BILLING_UNIT=output`; FLUX schnell), the usage row also carries `cost_basis=computed_from_usage`. Its `computed_cost_usd` is the outputs the provider reported multiplied by the versioned per-output price. Each row keeps its `pricing_version` and `price_source`, so a later price change never rewrites history. Computed is a third basis, next to ACTUAL and CONSERVATIVE, and is never written into `actual_cost_usd`. A model billed by time or tokens gets no computed cost.
+
+**Monthly reconciliation** of computed against the provider's billing page: the procedure has a named owner and date, recorded in the repository issue. A gap above 10% means the price catalog is wrong. That gap is an item to fix, not a note.
+
 ## Authorization lifecycle
 
 `local versioned price catalog -> conservative maximum quote -> durable reserve -> optional live quote validation -> provider execution -> measured usage -> actual settlement/release`
