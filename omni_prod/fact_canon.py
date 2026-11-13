@@ -397,6 +397,14 @@ def canon_view(request_text: str, *, family: str | None = None, lang: str = 'he'
     if shown:
         lines.append(_TEXT[lang]['facts'].format(
             facts='; '.join(f'{labels[f.key]}: {f.source_ref}' for f in shown)))
+    # #335 (Michael 2026-11-13): the hours shown are the customer's own hours statements -- every one, a closed day
+    # included. The 'hours' fact needs a time range, so "שבת סגור" was missing from the approval screen (production,
+    # "מאפייה") while the truth gate already held it as an hours_day fact. One entry per statement, in order.
+    stated = list(dict.fromkeys(f.source_ref for f in canon.facts if f.key == 'hours_day'))
+    if stated:
+        items = [f'{labels[f.key]}: {f.source_ref}' for f in shown if f.key != 'hours']
+        items.append(f"{labels['hours']}: " + ', '.join(stated))
+        lines[:1 if shown else 0] = [_TEXT[lang]['facts'].format(facts='; '.join(items))]
     status = 'OK'
     if family in (None, 'website', 'landing', 'content') and not (canon.values('phone') or canon.values('address')):
         status = 'CANON_INCOMPLETE'

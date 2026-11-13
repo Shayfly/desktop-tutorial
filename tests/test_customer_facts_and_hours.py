@@ -91,5 +91,32 @@ class TheTruthGateChecksHours(unittest.TestCase):                               
         self.assertTrue(any('invented' in f.problem and 'שבת' in f.problem for f in found))
 
 
+
+class TheApprovalScreenShowsEveryHoursStatement(unittest.TestCase):
+    """Production 2026-11-13 ("מאפייה"): the gate-1 summary listed "שעות: א׳–ה׳ 07:00–19:00; שעות: ו׳ 07:00–14:00"
+    and dropped "שבת סגור" -- the summary read only time ranges. The customer approves what they see."""
+    BAKERY = ('דף נחיתה בעברית למאפייה "לחם הבית", רחוב הרצל 40, רחובות.\nטלפון להזמנות: 08-9461234.\n'
+              'שעות פתיחה: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור.\nדף תוכן בלבד: בלי התחברות, בלי טופס.')
+
+    def test_the_closed_day_is_on_the_summary(self):
+        from omni_prod.fact_canon import canon_view
+        [line] = canon_view(self.BAKERY)['lines']
+        self.assertIn('שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור', line)
+        self.assertEqual(line.count('שעות:'), 1)
+
+    def test_through_the_conversation_to_gate_1(self):
+        s = ConversationSupervisor(briefs=MemoryBriefs(), store=MemoryConversationStore())
+        with mock.patch.dict(os.environ, {'OMNI_INTAKE_MODEL': '0'}):
+            t = s.turn(project_id='p', account_id='a', lang='he', message=self.BAKERY)
+            for _ in range(6):
+                if not t.questions:
+                    break
+                q = t.questions[0]
+                value = {'content_only': 'yes', 'personal_data': 'no'}.get(q.id, q.recommended or q.options[0].value)
+                t = s.turn(project_id='p', account_id='a', lang='he', answers={q.id: value})
+        self.assertIn('פרטי העסק שיופיעו באתר', t.reply)
+        self.assertIn('שבת סגור', t.reply.split('פרטי העסק שיופיעו באתר', 1)[1])
+
+
 if __name__ == '__main__':
     unittest.main()
