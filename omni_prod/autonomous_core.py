@@ -290,7 +290,16 @@ class AutonomousProductEngine:
                              'evidence': ''}
             return True
 
+        # #335 (d), Michael 2026-11-13: a failure only the customer can fix (a fact the page needs and they never
+        # gave) stops the repair rounds -- repairing could only invent it again. `missing_input` is set by the worker.
+        self.needs_input = []
+        missing_input = getattr(self, 'missing_input', None)
         while not report.passed and rounds < self.max_repair_rounds:
+            if missing_input is not None:
+                self.needs_input = list(missing_input([getattr(f, 'message', '') for f in report.failures]) or ())
+                if self.needs_input:
+                    stop_reason = 'needs_customer_input'
+                    break
             rounds += 1
             failures = [f.__dict__ for f in report.failures]
             if discarded_note:

@@ -466,3 +466,22 @@ def gate_view(request_text: str, *, customer_text: str, family: str | None = Non
     if missing:
         view['status'] = 'CANON_INCOMPLETE'
     return view
+
+
+# ---- #335 part 2 (d), Michael 2026-11-13: a QA failure only the customer can fix stops the repair rounds ----------
+# The page needs a fact (the customer asked for a call button / an hours section), the customer never gave it and did
+# not approve building without it (a spec that did not pass gate 1's question: an older spec, a change request), and
+# QA blocks the page for inventing it. A repair can only invent again or drop what was asked: stop and ask.
+_INVENTED = {'phone': 'contact details not in the approved request (invented): +',
+             'hours': 'opening hours the customer never gave (invented)'}
+_OMITTED = {'phone': 'phone -- show no call', 'hours': 'opening hours -- leave out'}
+
+
+def needs_customer_input(messages, prompt: str) -> list[str]:
+    """The facts (phone, hours) a failing QA check needs from the customer: needed by the request, absent from the
+    canon, not approved as omitted, and the failure is the truth gate refusing an invented one."""
+    text = ' '.join(str(m) for m in messages or ())
+    canon = build_canon(prompt or '')
+    customer = (prompt or '').split('--- Approved project brief', 1)[0]
+    return [k for k in missing_needed(customer, canon)
+            if _INVENTED[k] in text and _OMITTED[k] not in (prompt or '')]

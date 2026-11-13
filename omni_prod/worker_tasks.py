@@ -1020,6 +1020,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None))
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
+        from .fact_canon import needs_customer_input
+        getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
+            lambda messages: needs_customer_input(messages, build_prompt))
         result = engine.build(build_prompt)
         if agent_recorder is not None and hasattr(agent_recorder, 'raise_if_violated'):
             agent_recorder.raise_if_violated()   # plan-governed: a swallowed violation still fails closed
@@ -1054,6 +1057,11 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         gate_waste = _gate_waste(engine, None, result.repair_rounds)
         if core_ready and not capability_ready:
             error_code, error_message = 'capability_gate_failed', 'required capability evidence is not VERIFIED'
+        if not core_ready and getattr(result, 'stop_reason', '') == 'needs_customer_input':
+            # #335 (d): the customer is asked (the chat shows this code), not more repair rounds
+            error_code = 'needs_customer_input'
+            error_message = 'missing from the customer: ' + ', '.join(
+                getattr(getattr(engine, 'core', engine), 'needs_input', None) or ())
 
         repo = dict(result.repository)
         repo.update(platform.brain.creative.repository_files(

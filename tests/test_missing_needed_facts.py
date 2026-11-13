@@ -75,3 +75,59 @@ class ThroughTheConversation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class QAFailureOnlyTheCustomerCanFix(unittest.TestCase):              # (d)
+    """A spec that never passed gate 1's question (an older spec, a change request): the page needs a phone the
+    customer never gave, QA blocks the invented one -- the rounds stop and the customer is asked."""
+    PROMPT = 'דף נחיתה לבית קפה ברחוב הרצל 12 חיפה עם כפתור שמחייג לטלפון.\n\n--- Approved project brief (binding) ---'
+
+    def failure(self, message):
+        from omni_prod.autonomous_core import AcceptanceFailure
+        return AcceptanceFailure('QA_REVIEW', message, '')
+
+    def test_which_failures_need_the_customer(self):
+        from omni_prod.fact_canon import needs_customer_input
+        invented = 'QA review (skill.copy_quality): contact details not in the approved request (invented): +97249999999'
+        self.assertEqual(needs_customer_input([invented], self.PROMPT), ['phone'])
+        omitted = self.PROMPT + '\nNot given by the customer (approved without it; never invent it): phone -- show no call or WhatsApp button and no phone number anywhere.'
+        self.assertEqual(needs_customer_input([invented], omitted), [])          # approved without it: repair removes it
+        given = self.PROMPT.replace('לטלפון.', 'לטלפון 04-8123456.')
+        self.assertEqual(needs_customer_input([invented], given), [])            # given: the model's error, repaired
+        self.assertEqual(needs_customer_input(['QA review: the page is not RTL'], self.PROMPT), [])
+
+    def test_the_repair_rounds_stop_and_ask(self):
+        from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport
+        from omni_prod.fact_canon import needs_customer_input
+        from tests.test_j3_three_repair_round_policy import Architect, Generator, Repairer
+        failing = ExecutionReport(False, (self.failure(
+            'QA review (skill.copy_quality): contact details not in the approved request (invented): +97249999999'),), '')
+
+        class Exec:
+            def execute(self, *, repository, spec):
+                return failing
+
+        rep = Repairer()
+        core = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=rep, executor=Exec(),
+                                       max_repair_rounds=6, repair_ceiling=6)
+        core._summary = lambda repo, failures=(): {'files': []}
+        core.missing_input = lambda messages: needs_customer_input(messages, self.PROMPT)
+        result = core.build(self.PROMPT)
+        self.assertEqual(result.stop_reason, 'needs_customer_input')
+        self.assertEqual(core.needs_input, ['phone'])
+        self.assertEqual(rep.calls, 0)                                   # no paid repair round for it
+        self.assertEqual(result.repair_rounds, 0)
+
+    def test_without_the_hook_the_rounds_run_as_before(self):
+        from omni_prod.autonomous_core import AutonomousProductEngine
+        from tests.test_j3_three_repair_round_policy import Architect, Generator, Repairer, Verifier
+        rep = Repairer()
+        core = AutonomousProductEngine(architect=Architect(), generator=Generator(), repairer=rep, executor=Verifier(),
+                                       max_repair_rounds=3)
+        core._summary = lambda repo, failures=(): {'files': []}
+        core.build('site')
+        self.assertEqual(rep.calls, 3)
+
+
+if __name__ == '__main__':
+    unittest.main()
