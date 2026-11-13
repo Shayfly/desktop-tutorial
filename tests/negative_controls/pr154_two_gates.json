@@ -37,6 +37,7 @@
         "tests/test_venice_live_wiring.py"
       ],
       "expect_failed": [
+        "test_an_approval_older_than_the_customers_stored_facts_does_not_admit_a_build",
         "test_approved_spec_without_a_verified_plan_is_refused",
         "test_http_409_plan_not_verified",
         "test_http_409_spec_not_approved",

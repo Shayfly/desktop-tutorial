@@ -623,6 +623,69 @@ def customer_text(brief: Brief) -> str:
     return '\n'.join([brief.prompt or ''] + list((brief.assets.get('facts') or {}).get('spans') or ()))
 
 
+def _facts(brief: Brief) -> dict:
+    f = brief.assets.get('facts') or {}
+    return {'spans': list(f.get('spans') or ()), 'needs': list(f.get('needs') or ()),
+            'waived': list(f.get('waived') or ())}
+
+
+def _store_facts(brief: Brief, facts: dict) -> None:
+    kept = {k: v for k, v in facts.items() if v}          # empty lists are not stored (no fingerprint change)
+    if kept:
+        brief.assets['facts'] = kept
+    else:
+        brief.assets.pop('facts', None)
+
+
+def note_customer_texts(brief: Brief, texts) -> bool:
+    """Merge what the customer's own messages state into the brief (Michael 2026-11-13): the fact spans (phone,
+    e-mail, address, hours) and what the page needs (a call button -> phone, an hours section -> hours), from EVERY
+    message given. Idempotent: the same messages never change the brief twice. Returns whether it changed."""
+    from .fact_canon import fact_spans, needs_in
+    facts = _facts(brief)
+    before = json.dumps(facts, sort_keys=True, ensure_ascii=False)
+    own = needs_in(brief.prompt)                           # read from the request itself: not stored again
+    for text in texts:
+        facts['spans'] += [x for x in fact_spans(text or '') if x not in facts['spans']]
+        facts['needs'] += [k for k in needs_in(text or '') if k not in facts['needs'] and k not in own]
+    if json.dumps(facts, sort_keys=True, ensure_ascii=False) == before:
+        return False
+    _store_facts(brief, facts)
+    return True
+
+
+def customer_messages(messages) -> list[str]:
+    """The stored customer messages' text, in the order the store returns them."""
+    return [str(m.get('content') or '') for m in messages or () if m.get('role') == 'customer']
+
+
+def missing_facts(brief: Brief) -> tuple[list[str], list[str]]:
+    """(needed facts the customer gave neither a value nor a waiver for, needed facts they waived)."""
+    from .fact_canon import build_canon, missing_needed
+    facts, customer = _facts(brief), customer_text(brief)
+    missing = missing_needed(customer, build_canon(customer), facts['needs'])
+    return [k for k in missing if k not in facts['waived']], [k for k in missing if k in facts['waived']]
+
+
+def waive_missing(brief: Brief) -> list[str]:
+    """The customer ticked "build without the missing details": record exactly which facts they gave up."""
+    open_, _ = missing_facts(brief)
+    if open_:
+        facts = _facts(brief)
+        facts['waived'] += [k for k in open_ if k not in facts['waived']]
+        _store_facts(brief, facts)
+    return open_
+
+
+def gate_canon(brief: Brief, lang: str = 'he') -> dict:
+    """The fact canon as gate 1 shows it for this brief (one place: gate 1, approve_spec, build admission)."""
+    from .fact_canon import gate_view
+    facts = _facts(brief)
+    return gate_view(brief.prompt + '\n' + requirements_text(brief), customer_text=customer_text(brief),
+                     family='website' if is_website(brief) else 'app', lang=lang,
+                     needs=facts['needs'], waived=facts['waived'])
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -633,9 +696,19 @@ def requirements_text(brief: Brief) -> str:
     if facts:   # #335: the customer's own words for phone / e-mail / address / hours, from every message
         lines.append(CUSTOMER_FACTS_PREFIX + ' | '.join(facts))
     # #335 (c): a fact the page needs that the customer never gave -- the approved spec says to OMIT that part
-    from .fact_canon import OMIT, build_canon, missing_needed
-    customer = customer_text(brief)
-    missing = missing_needed(customer, build_canon(customer))
+    # The spec says to OMIT a part ONLY for a fact the customer waived (ticked the box; assets.facts.waived). A
+    # needed fact with no waiver is listed as MISSING: a build must not start on it (approval_flow.spec_valid), and
+    # if one does, QA stops and asks (d) -- never a silent omission (production 2026-11-13, the cafe).
+    from .fact_canon import MISSING_PREFIX, OMIT, build_canon, needs_in
+    unwaived, missing = missing_facts(brief)
+    if 'phone' in set(_facts(brief)['needs']) | set(needs_in(brief.prompt)) and 'phone' not in unwaived + missing:
+        # production bld_cf406df6: the "הזמנת שולחן" button was dead. The customer said it dials their number.
+        phone = sorted(build_canon(customer_text(brief)).values('phone'))
+        if phone:
+            lines.append(f'Call button: the button the customer asked for dials their phone -- a tel: link to {phone[0]}; '
+                         'never a dead button or a "#" link.')
+    if unwaived:
+        lines.append(MISSING_PREFIX + '; '.join(unwaived) + '.')
     if missing:
         lines.append('Not given by the customer (approved without it; never invent it): '
                      + '; '.join(OMIT[k] for k in missing) + '.')

@@ -17,6 +17,8 @@ A saved plan made on this flow carries plan['spec_gate'] with the verifier's ver
 """
 from __future__ import annotations
 
+import json
+
 from ..pricing import M5_CLASS_BUILD_CREDITS, CostClass
 from . import contract as C
 from .plan_verifier import PlanVerifier, Verdict
@@ -43,6 +45,22 @@ def on_two_gate_flow(messages) -> bool:
 
 def spec_approved(messages, fingerprint: str) -> bool:
     return bool(fingerprint) and any((m.get('interpretation') or {}).get('spec_approved') == fingerprint for m in messages)
+
+
+def spec_invalid_reason(brief, messages, fingerprint: str) -> str | None:
+    """Why an approval of this spec does not stand (None = it stands). Michael 2026-11-13 (the cafe): an approval is
+    valid only for a spec that (1) was approved at this fingerprint, (2) already holds every fact the customer's
+    stored messages state, and (3) has no needed fact that is neither given nor waived. Used by the conversation
+    AND by build admission, so no path builds on an older approval."""
+    from .. import discovery as d
+    if not spec_approved(messages, fingerprint):
+        return 'spec_not_approved'
+    probe = d.Brief.from_dict(json.loads(json.dumps(brief.to_dict())))
+    if d.note_customer_texts(probe, d.customer_messages(messages)):
+        return 'facts_not_collected'
+    if d.missing_facts(brief)[0]:
+        return 'missing_facts_not_waived'
+    return None
 
 
 # ------------------------------------------------------------------ cost
