@@ -6,7 +6,8 @@ matches it EXACTLY:
   * from_digest / to_digest -- the anchor's and this commit's flag-off digest (python -m omni_prod.pipeline_identity);
   * added / removed / changed / data_changed -- the exact sets of gate-closure paths (no wildcards, no extra, none
     missing; file hashes are not stored because an AST dump differs between interpreters);
-  * reason, author, reviewer (not the author, not "claude"/"author"/"pending"), reviewed_at.
+  * reason, author, reviewer (not the author, not "claude"/"author"/"pending"), reviewed_at;
+  * to_digest is UNIQUE in the file: a consumed entry is never used twice (a duplicate refuses the whole file).
 Anything else -- an undeclared digest, an unsigned entry, one path more or less -- is refused, loudly.
 
 CLI (identity.yml): identity_declared.py BASE_DIGEST HEAD_DIGEST BASE_MANIFEST HEAD_MANIFEST
@@ -50,8 +51,23 @@ def problems(entry: dict) -> list[str]:
     return out
 
 
+def duplicates(entries: list) -> list[str]:
+    """to_digest values that appear more than once. Michael 2026-11-13: declarations accumulate in main forever; each
+    new digest is declared ONCE, so an entry that was consumed can never match a later change by accident."""
+    seen, dup = set(), []
+    for entry in entries:
+        to = str(entry.get('to_digest') or '')
+        if to in seen and to not in dup:
+            dup.append(to)
+        seen.add(to)
+    return dup
+
+
 def match(entries: list, base_digest: str, head_digest: str, change: dict) -> tuple[dict | None, list[str]]:
     """(the one signed entry that declares exactly this change, why the others did not)."""
+    dup = duplicates(entries)
+    if dup:   # a file with a reused to_digest is refused whole: which entry was meant is not decidable
+        return None, ['to_digest declared more than once: ' + ', '.join(d[:12] for d in dup)]
     why = []
     for entry in entries:
         name = entry.get('id', '?')

@@ -1,4 +1,4 @@
 {
- "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py.",
+ "rule": "Michael 2026-11-13: while identity.yml blocks, a flag-off change passes only with ONE signed entry that matches it exactly -- from_digest/to_digest and the exact added/removed/changed/data_changed gate-closure paths. No wildcards. reviewer must not be the author. Checked by scripts/identity_declared.py. to_digest is unique in this file: a consumed entry is never used twice.",
  "changes": []
 }

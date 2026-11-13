@@ -52,6 +52,16 @@ class ExactSignedDeclaration(unittest.TestCase):
         more = {**HEAD, 'files': {**HEAD['files'], 'omni_prod/x.py': 'c2'}}                   # an undeclared edit
         self.assertFalse(ok(ENTRY, head=more))
 
+    def test_a_new_digest_is_declared_once(self):
+        # Michael 2026-11-13: declarations accumulate in main; a consumed entry is never used twice
+        again = {**ENTRY, 'id': 'later-copy'}
+        self.assertEqual(D.duplicates([ENTRY, again]), [TO])
+        entry, why = D.match([ENTRY, again], FROM, TO, D.diff(BASE, HEAD))
+        self.assertIsNone(entry)
+        self.assertIn('to_digest declared more than once', why[0])
+        other = {**ENTRY, 'id': 'other', 'from_digest': TO, 'to_digest': 'a' * 64}
+        self.assertTrue(D.match([ENTRY, other], FROM, TO, D.diff(BASE, HEAD))[0])   # distinct digests: fine
+
     def test_wildcards_are_refused(self):
         # the exact match alone already refuses a wildcard path; the explicit rule names the reason
         self.assertIn('changed has a wildcard', D.problems({**ENTRY, 'changed': ['omni_prod/*.py']}))
@@ -73,7 +83,9 @@ class ExactSignedDeclaration(unittest.TestCase):
                 self.assertIn(f'title={title}', out.stdout)
 
     def test_the_repository_file_is_well_formed(self):
-        for entry in D.load():
+        entries = D.load()
+        self.assertEqual(D.duplicates(entries), [], 'a to_digest is declared twice in the repository file')
+        for entry in entries:
             self.assertEqual(D.problems(entry), [], entry.get('id'))
 
 
