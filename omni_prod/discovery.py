@@ -354,8 +354,15 @@ def confirmed(brief: 'Brief', field_: str) -> bool:
     return (brief.fields.get(field_) or {}).get('confidence') == 'confirmed'
 
 
+# Michael 2026-11-13 (#339): after the card limit a privacy-safe default settles a sensitive field. It is said in the
+# turn it is applied, marked on the gate-1 summary, and approving that summary is the customer's confirmation.
+SAFE_DEFAULT_CONFIDENCE = 'safe_default'
+
+
 def needs_customer(q: 'Question', brief: 'Brief') -> bool:
     """Class 2 or class 3, not yet confirmed by the customer: they must see this exact question and its buttons."""
+    if (brief.fields.get(q.field) or {}).get('confidence') == SAFE_DEFAULT_CONFIDENCE:
+        return False
     return (not q.delegable or q.field in CONFIRM_REQUIRED) and not confirmed(brief, q.field)
 
 

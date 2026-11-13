@@ -121,7 +121,12 @@ class CustomerOnlyQuestion(unittest.TestCase):
             if [x.id for x in t.questions] == ['content_only']:
                 self.assertNotIn(q.he, t.reply)
                 self.assertNotIn('?', t.reply)
-        self.assertEqual([x.id for x in replies[-1].questions], ['content_only'])   # the buttons stay
+        # #339 (Michael 2026-11-13): the card stays up to CARD_LIMIT shows, then the field is blocked with a direct
+        # link to the Requirements tab (tests/test_card_limit.py) -- never shown forever
+        from omni_prod.conversation.supervisor import CARD_LIMIT
+        shows = sum([x.id for x in t.questions] == ['content_only'] for t in replies)
+        self.assertEqual(shows, CARD_LIMIT)
+        self.assertIn('content_only', replies[-1].blocked)
         self.turn(answers={'content_only': 'yes'})                   # and the button still settles it
         self.assertEqual(self.brief().fields['content_only']['source'], 'answer')
 
@@ -160,7 +165,9 @@ class CustomerOnlyQuestion(unittest.TestCase):
         self.turn(answers={'content_only': 'yes'})
         replies = [self.turn(message=w) for w in ('אולי', 'בסדר', 'נראה', 'לא יודע', 'מה?')]
         self.assertFalse(any(q.he in t.reply for t in replies))
-        self.assertTrue(all([x.id for x in t.questions] == ['personal_data'] for t in replies[1:]))  # buttons stay
+        # the buttons stay up to the card limit (#339), then the privacy-safe default settles it
+        from omni_prod.conversation.supervisor import CARD_LIMIT
+        self.assertLessEqual(sum([x.id for x in t.questions] == ['personal_data'] for t in replies), CARD_LIMIT)
 
     def test_a_button_confirms_it_releases_the_hold_and_the_brief_completes(self):
         self.turn(message=self.PLAIN)
