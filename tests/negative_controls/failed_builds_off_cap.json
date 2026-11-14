@@ -1,0 +1,72 @@
+{
+ "pr": "failed-builds-off-cap",
+ "sha256": [
+  "tests/test_failed_builds_off_cap_pg.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "every failed build counts against the plan budget (before #356)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/subscription_store.py",
+     "old": "                    counted = earlier >= FREE_FAILED_BUILDS_PER_MONTH",
+     "new": "                    counted = True  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_failed_builds_off_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_three_failures_are_free_and_the_fourth_counts",
+    "test_last_months_failures_do_not_use_this_months_places",
+    "test_two_failures_at_once_cannot_both_take_the_last_place"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "no failed build ever counts (no bound)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/subscription_store.py",
+     "old": "                    counted = earlier >= FREE_FAILED_BUILDS_PER_MONTH",
+     "new": "                    counted = False  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_failed_builds_off_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_three_failures_are_free_and_the_fourth_counts",
+    "test_two_failures_at_once_cannot_both_take_the_last_place"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the count is not limited to this month",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/subscription_store.py",
+     "old": "                                \"AND resolved_at >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')\",",
+     "new": "                                \"AND TRUE\",  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_failed_builds_off_cap_pg.py"
+   ],
+   "expect_failed": [
+    "test_last_months_failures_do_not_use_this_months_places"
+   ]
+  }
+ ],
+ "not_controlled": "the subscription-row lock: a mutation that drops it is not reliably caught (the race needs both transactions to count before either commits); the concurrency test stays as a guard"
+}

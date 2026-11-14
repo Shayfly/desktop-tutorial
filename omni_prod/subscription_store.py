@@ -8,6 +8,9 @@ from .provider_pricing import contribution_evidence
 from .company_loss import BUDGET_CAPPED_SHORTFALL, record_overrun
 
 
+# Michael 2026-11-14 (#356): "כשל לא נספר בתקרה, עד 3 בחודש."
+FREE_FAILED_BUILDS_PER_MONTH = 3
+
 def _basis(estimated: Decimal, reported: Decimal | None, computed) -> tuple[Decimal, str]:
     """Settlement basis (Michael 2026-11-14 b1): the provider's actual; else computed_from_usage (never stored as
     actual); else -- only when nothing was measured -- the reservation, which the caller has already logged."""
@@ -483,9 +486,21 @@ class PostgresSubscriptionService:
                     if row[4] == 'internal_qa':          # internal QA never touched the customer plan counters
                         return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': 0,
                                 'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa'}
+                    # Michael 2026-11-14 (#356): a failed build's provider cost does not count against the plan's
+                    # monthly budget -- up to FREE_FAILED_BUILDS_PER_MONTH failures with a cost in the UTC calendar month
+                    # (the subscription's cycle). Counted under the subscription row lock, so two failures settling at
+                    # once cannot both take the last free place. The cost stays on the reservation either way.
+                    cur.execute("SELECT 1 FROM creator_subscriptions WHERE user_id=%s FOR UPDATE", (user_id,))
+                    cur.execute("SELECT COUNT(*) FROM credit_reservations WHERE account_id=%s AND build_id<>%s "
+                                "AND status='RELEASED' AND settled_provider_cost_usd IS NOT NULL "
+                                "AND funding_source IS DISTINCT FROM 'internal_qa' "
+                                "AND resolved_at >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')",
+                                (user_id, build_id))
+                    earlier = int(cur.fetchone()[0])
+                    counted = earlier >= FREE_FAILED_BUILDS_PER_MONTH
                     cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), "
                                 "provider_spend_usd = GREATEST(0, provider_spend_usd - %s + %s) WHERE user_id=%s",
-                                (credits_reserved, estimated, basis, user_id))
+                                (credits_reserved, estimated, basis if counted else Decimal('0'), user_id))
                     if credits_reserved:
                         cur.execute("INSERT INTO credit_ledger(account_id, project_id, delta, reason, idempotency_key) "
                                     "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (idempotency_key) DO NOTHING",
@@ -493,7 +508,9 @@ class PostgresSubscriptionService:
                                      f'failed-build-release:{build_id}'))
                     return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': credits_reserved,
                             'provider_cost_basis_usd': str(basis),
-                            'provider_cost_truth': truth}
+                            'provider_cost_truth': truth,
+                            'counted_against_plan_budget': counted,
+                            'failed_builds_with_cost_this_month': earlier + 1}
 
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:
