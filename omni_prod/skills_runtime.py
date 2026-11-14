@@ -193,6 +193,25 @@ def _rtl_for_hebrew(repository: dict, context: dict) -> list[StaticFinding]:
     return []
 
 
+def _time_ranges_isolated(repository: dict, context: dict) -> list[StaticFinding]:
+    """Michael 2026-11-15: a time range on a right-to-left page is isolated with <bdi dir="ltr">, or the browser shows
+    "07:00–19:00" as "19:00–07:00" (the butcher page, bld_83529c13). Judged on the served page (bidi_ranges)."""
+    from .bidi_ranges import unwrapped_ranges
+    out = []
+    for path, page in _pages(repository, context).items():
+        tag = re.search(r'<html\b[^>]*>', page, re.I)
+        if not tag or not re.search(r'\bdir\s*=\s*["\']?rtl', tag.group(0), re.I):
+            continue
+        found = unwrapped_ranges(page)
+        if found:
+            ranges = ', '.join(t for _, t in found[:4])
+            out.append(StaticFinding('skill.text_locale', 'blocking', path,
+                                     f'time range(s) {ranges} on a right-to-left page are shown reversed '
+                                     f'(e.g. "{found[0][1]}" reads as its end hour first)',
+                                     'wrap each time range in <bdi dir="ltr">…</bdi>', anchor=_anchor(found[0][1])))
+    return out
+
+
 _CSS_COMMENT = re.compile(r'/\*.*?\*/', re.S)
 _CSS_URL = re.compile(r'url\([^)]*\)', re.I)
 _CSS_BLOCK = re.compile(r'\{([^{}]*)\}')                 # innermost blocks: rules, also inside @media
@@ -528,12 +547,13 @@ TEXT_LOCALE = Skill(
         'Text and locale: store user text exactly as typed (parameterised SQL) and escape it only when rendering - set '
         'textContent / create elements, never html.escape before saving and never innerHTML with user data. For a Hebrew '
         'request use <html lang="he" dir="rtl"> and Hebrew labels; store dates as ISO (YYYY-MM-DD) and show them as '
-        'DD/MM/YYYY; times as HH:MM 24h. For another language use that locale\'s conventions (lang attribute, '
+        'DD/MM/YYYY; times as HH:MM 24h; on an RTL page wrap every time range in <bdi dir="ltr"> (07:00-19:00 '
+        'otherwise shows reversed). For another language use that locale\'s conventions (lang attribute, '
         'direction, date order, decimal separator, currency symbol placement); amounts are stored as integers of the '
         'smallest unit (agorot/cents) and formatted only for display.'),
     checklist=('A name with quotes or <b> is shown exactly as typed, not as &#x27; or bold.',
                'Hebrew pages are RTL; dates show as DD/MM/YYYY.'),
-    static_checks=(_escape_once, _rtl_for_hebrew, _innerhtml_interpolation),
+    static_checks=(_escape_once, _rtl_for_hebrew, _time_ranges_isolated, _innerhtml_interpolation),
 )
 
 DATA_INTEGRITY = Skill(

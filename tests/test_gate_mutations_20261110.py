@@ -40,7 +40,7 @@ a:focus,button:focus{outline:3px solid var(--green);outline-offset:2px}.muted{op
 <div class="menu"><div class="item">אספרסו כפול <span class="price">₪ 10</span></div>
 <div class="item">הפוך גדול <span class="price">₪ 14</span></div><div class="item">קרואסון חמאה <span class="price">₪ 12</span></div></div>
 <h2>איך מגיעים</h2>
-<p>כתובת: רח' הנביאים 12, חיפה. טלפון: <a href="tel:+972-50-123-4567">050-1234567</a>. פתוח א-ה 07:00-14:00.</p>
+<p>כתובת: רח' הנביאים 12, חיפה. טלפון: <a href="tel:+972-50-123-4567">050-1234567</a>. פתוח א-ה <bdi dir="ltr">07:00-14:00</bdi>.</p>
 <h2>המלצות (לדוגמה)</h2>
 <blockquote>“הקפה הכי טוב בעיר” — לקוחה</blockquote><blockquote>“המאפים טריים כל בוקר” — לקוח</blockquote>
 <form><label for="email">הרשמה לעדכונים</label><input id="email" type="email"></form>
@@ -67,6 +67,9 @@ MUTATIONS = {
     # #335: the change the 'prices and hours are not phones' case used to make (a DAY's hours rewritten) is now a
     # blocking contradiction, and it is kept here as a mutation that must be caught
     'opening hours fabricated': (lambda p: p.replace('07:00-14:00', '07:30-23:45'), 'skill.copy_quality'),
+    # 2026-11-15: hours not isolated on the RTL page are shown reversed (the butcher page, bld_83529c13)
+    'opening hours shown reversed (no bdi)': (lambda p: p.replace('<bdi dir="ltr">07:00-14:00</bdi>', '07:00-14:00'),
+                                              'skill.text_locale'),
     'design system removed': (lambda p: p[:p.index('<style>')] + '<style>body{margin:0}</style>' + p[p.index('</style>') + 8:],
                               'skill.visual_design'),
 }
@@ -84,7 +87,7 @@ FALSE_POSITIVES = {
     "street with רחוב instead of רח'": lambda p: p.replace("רח' הנביאים 12", 'רחוב הנביאים 12'),
     # #335: a DAY's hours that differ from the request are now a contradiction (blocking); the time range alone,
     # with no day, is what this case checks -- it must not read as a phone
-    'prices and hours are not phones': lambda p: p.replace('₪ 10', '₪ 1,234,567').replace('</body>', '<p>07:30-23:45</p></body>'),
+    'prices and hours are not phones': lambda p: p.replace('₪ 10', '₪ 1,234,567').replace('</body>', '<p><bdi dir="ltr">07:30-23:45</bdi></p></body>'),
     'word with the delete stem inside': lambda p: p.replace('מגיעים גם בטלפון', 'מגיעים גם בטלפון ומבטלים בוואטסאפ'),
     'english page sets its own direction': lambda p: p.replace('lang="he" dir="rtl"', 'lang="en" dir="ltr"'),
 }
@@ -134,7 +137,7 @@ class DaylessRangeIsOutOfScope(unittest.TestCase):
     def test_a_dayless_range_is_not_hours(self):
         from omni_prod import opening_hours as H
         self.assertEqual(H.parse('<p>07:30-23:45</p>'), {})
-        page = GOOD_PAGE.replace('</body>', '<p>07:30-23:45</p></body>')
+        page = GOOD_PAGE.replace('</body>', '<p><bdi dir="ltr">07:30-23:45</bdi></p></body>')
         self.assertEqual([f for f in blocking(gates(page)) if 'hours' in f], [])
 
 

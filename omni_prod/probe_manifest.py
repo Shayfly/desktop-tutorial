@@ -14,6 +14,8 @@ from __future__ import annotations
 PROBES: dict[str, dict] = {
     # ---- markup probes: judge the SERVED page (preview smoke) ----
     '_rtl_for_hebrew': {'skill': 'skill.text_locale', 'reads_source': None, 'critical': True},
+    # critical: a reversed range shows closing hours as opening hours -- wrong information on the served page
+    '_time_ranges_isolated': {'skill': 'skill.text_locale', 'reads_source': None, 'critical': True},
     '_invented_contact': {'skill': 'skill.copy_quality', 'reads_source': None, 'critical': True},   # tel, wa.me, street
     '_images_without_alt': {'skill': 'skill.accessibility', 'reads_source': None, 'critical': True},
     '_unlabelled_inputs': {'skill': 'skill.accessibility', 'reads_source': None, 'critical': False},
