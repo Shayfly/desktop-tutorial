@@ -1,5 +1,6 @@
-"""Michael 2026-11-14 (a), CEO 2026-11-08 (a), on real PostgreSQL: the founder account is not stopped by the plan's
-monthly paid-provider budget; every other account is, and the flag turns the exemption off.
+"""Michael 2026-11-14 (a), CEO 2026-11-08 (a), Shai 2026-11-15, on real PostgreSQL: the founder account is not stopped
+by the plan's monthly paid-provider budget nor by its monthly credits; every other account is, the flag turns both
+exemptions off, and the $2 per-build cap stays.
 
 The reproduction is the butcher block of 2026-11-14: Studio, cap $25, spend 24.916146, next build estimated 2.003.
 Runs in intake-budget-pg (skipped elsewhere without M4D2_DATABASE_URL)."""
@@ -50,6 +51,7 @@ class FounderCapExempt(unittest.TestCase):
         os.environ.pop('OMNI_FOUNDER_CAP_EXEMPT', None)
         os.environ.pop('OMNI_FOUNDER_ACCOUNT_IDS', None)
         os.environ.pop('OMNI_PROVIDER_CAP_STUDIO_USD', None)
+        os.environ.pop('OMNI_FOUNDER_BUILD_LLM_USD', None)
 
     def tearDown(self):
         self.env.stop()
@@ -108,12 +110,63 @@ class FounderCapExempt(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.subs.authorize(user_id=FOUNDER, cost_class='standard', credits=500, estimated_provider_cost_usd=ESTIMATE)
 
-    def test_credits_still_bind_the_founder(self):
-        """Only the money cap is lifted; the monthly credits are not (a separate decision)."""
+    def credits_used(self, user):
+        with self.pool.connection() as conn:
+            return int(conn.execute('SELECT credits_used FROM creator_subscriptions WHERE user_id=%s', (user,)).fetchone()[0])
+
+    def set_credits(self, user, used):
+        with self.pool.connection() as conn:
+            conn.execute('UPDATE creator_subscriptions SET credits_used=%s WHERE user_id=%s', (used, user))
+            conn.commit()
+
+    def test_credits_no_longer_bind_the_founder_and_are_still_counted(self):
+        """Shai 2026-11-15: the founder is exempt from monthly credits too. The founder row of 2026-11-15 01:12 had
+        4,045 of Studio's 10,000; a 7,000-credit build crosses the limit. Every path is exercised: authorize, reserve
+        (the build path) and consume."""
         self.account(FOUNDER)
+        self.set_credits(FOUNDER, 4045)
+        pre = self.subs.authorize(user_id=FOUNDER, cost_class='standard', credits=7000, estimated_provider_cost_usd=ESTIMATE)
+        self.assertTrue(pre.allowed, pre.reason)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    d = self.subs.reserve(cur, build_id=f'bld_{uuid.uuid4().hex}', user_id=FOUNDER, project_id='k',
+                                          cost_class='standard', credits=7000, estimated_provider_cost_usd=ESTIMATE)
+        self.assertTrue(d.allowed, d.reason)
+        self.assertEqual(self.credits_used(FOUNDER), 11045)                      # counted, not hidden
+        self.subs.consume(user_id=FOUNDER, decision=pre)
+        self.assertEqual(self.credits_used(FOUNDER), 18045)
+        from tests.evidence_notice import notice
+        notice('founder credits exempt', f'founder at 4045/10000 reserved 7000 credits; counter now {self.credits_used(FOUNDER)}')
+
+    def test_credits_still_bind_a_customer(self):
+        user = f'usr_{uuid.uuid4().hex[:10]}'
+        self.account(user)
+        self.set_credits(user, 4045)
+        d = self.subs.authorize(user_id=user, cost_class='standard', credits=7000, estimated_provider_cost_usd=ESTIMATE)
+        self.assertEqual((d.allowed, d.reason), (False, 'monthly credits exhausted'))
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    r = self.subs.reserve(cur, build_id=f'bld_{uuid.uuid4().hex}', user_id=user, project_id='k',
+                                          cost_class='standard', credits=7000, estimated_provider_cost_usd=ESTIMATE)
+        self.assertEqual((r.allowed, r.reason), (False, 'monthly credits exhausted'))
+        self.assertEqual(self.credits_used(user), 4045)
+        allowed = self.subs.authorize(user_id=user, cost_class='standard', credits=500, estimated_provider_cost_usd=Decimal('0'))
+        with self.assertRaises(PermissionError):
+            self.set_credits(user, 9800)
+            self.subs.consume(user_id=user, decision=allowed)
+
+    def test_the_flag_turns_the_credit_exemption_off_too(self):
+        os.environ['OMNI_FOUNDER_CAP_EXEMPT'] = '0'
+        self.account(FOUNDER)
+        self.set_credits(FOUNDER, 4045)
         d = self.subs.authorize(user_id=FOUNDER, cost_class='standard', credits=7000, estimated_provider_cost_usd=ESTIMATE)
         self.assertEqual((d.allowed, d.reason), (False, 'monthly credits exhausted'))
 
+    def test_the_per_build_cap_is_untouched(self):
+        from omni_prod.pricing import m5_founder_build_budget
+        self.assertEqual(m5_founder_build_budget(), Decimal('2.00'))
 
 if __name__ == '__main__':
     unittest.main()

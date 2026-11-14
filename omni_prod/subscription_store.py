@@ -29,6 +29,13 @@ def _capped(plan, user_id) -> bool:
     return plan.paid_provider_budget_usd is not None and not founder_cap_exempt(user_id)
 
 
+def _credit_limited(plan, user_id) -> bool:
+    """The plan's monthly credits stop this account. Shai 2026-11-15 (Michael's recommendation of 00:20): the founder
+    account is exempt from credits too, under the same flag (OMNI_FOUNDER_CAP_EXEMPT). Credits are still counted on the
+    subscription row; the per-build $2 cap (pricing.m5_founder_build_budget) is not touched."""
+    return bool(plan.included_credits) and not founder_cap_exempt(user_id)
+
+
 def provider_exposure(cur, build_id: str) -> bool:
     """True when durable attempts contain paid or uncertain provider liability."""
     cur.execute("SELECT EXISTS (SELECT 1 FROM task_attempts WHERE build_id=%s AND kind='provider_call' "
@@ -157,7 +164,7 @@ class PostgresSubscriptionService:
         charge = credits if user_billable else 0
         reason = 'authorized'; allowed = True
         if cc not in plan.allowed_cost_classes: allowed, reason = False, 'cost class not included in plan'
-        elif plan.included_credits and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
+        elif _credit_limited(plan, user_id) and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
         elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
         return UsageDecision(
             allowed, code.value, cc.value, str(estimate.quantize(Decimal('0.0001'))), charge,
@@ -177,7 +184,7 @@ class PostgresSubscriptionService:
                 if _capped(plan, user_id) and new_spend > plan.paid_provider_budget_usd:
                     raise PermissionError('actual provider cost exceeds plan budget')
                 new_credits = used + decision.credits
-                if plan.included_credits and new_credits > plan.included_credits:
+                if _credit_limited(plan, user_id) and new_credits > plan.included_credits:
                     raise PermissionError('monthly credits exhausted')
                 with conn.cursor() as cur:
                     cur.execute('UPDATE creator_subscriptions SET credits_used=%s,provider_spend_usd=%s WHERE user_id=%s',
@@ -291,7 +298,7 @@ class PostgresSubscriptionService:
         allowed, reason = True, 'authorized'
         if cc not in plan.allowed_cost_classes:
             allowed, reason = False, 'cost class not included in plan'
-        elif plan.included_credits and used + charge > plan.included_credits:
+        elif _credit_limited(plan, user_id) and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
         elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd:
             allowed, reason = False, 'paid-provider budget exhausted'
