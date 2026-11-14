@@ -1,0 +1,30 @@
+{
+ "pr": "settle-computed",
+ "sha256": ["tests/test_settle_computed_pg.py", "tests/fixtures/settlement_unknown_actual_2026_11.json"],
+ "controls": [
+  {"id": "NC1", "what": "settle() ignores the computed cost: an unknown actual settles the whole estimate again", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/subscription_store.py",
+                  "old": "                    settlement_basis, truth = _basis(estimated_cost, reported_actual, computed_provider_cost_usd)",
+                  "new": "                    settlement_basis, truth = _basis(estimated_cost, reported_actual, None)  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_settle_computed_pg.py"],
+   "expect_failed": ["test_an_unpriced_image_no_longer_settles_the_whole_estimate", "test_unreported_usage_settles_at_the_gateway_ledger"]},
+  {"id": "NC2", "what": "a failed build keeps the estimate on the plan meter", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/subscription_store.py",
+                  "old": "                    basis, truth = _basis(estimated, reported, computed_provider_cost_usd)",
+                  "new": "                    basis, truth = _basis(estimated, reported, None)  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_settle_computed_pg.py"],
+   "expect_failed": ["test_a_failed_build_keeps_the_computed_cost_not_the_estimate"]},
+  {"id": "NC3", "what": "an image without a reported price is treated as having no number (the 2026-11-13 behaviour)", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "        raw = next((event.get(k) for k in ('actual_cost_usd', 'estimated_cost_usd', 'maximum_cost_usd')",
+                  "new": "        raw = next((event.get(k) for k in ('actual_cost_usd',)  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_settle_computed_pg.py"],
+   "expect_failed": ["test_an_unpriced_image_no_longer_settles_the_whole_estimate", "test_a_failed_build_keeps_the_computed_cost_not_the_estimate"]},
+  {"id": "NC4", "what": "no measurement settles silently (the log line is dropped)", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "            logging.getLogger(__name__).error('SETTLEMENT_WITHOUT_MEASUREMENT build=%s missing=%s; settled at the '",
+                  "new": "            logging.getLogger(__name__).debug('SETTLEMENT_WITHOUT_MEASUREMENT build=%s missing=%s; settled at the '  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_settle_computed_pg.py"],
+   "expect_failed": ["test_no_number_at_all_settles_at_the_reservation_loudly"]}
+ ]
+}
