@@ -1,0 +1,61 @@
+{
+ "source": "GitHub REST compare main...<sha>, fetched 2026-11-15 ~01:10 IST (filenames/status only)",
+ "cases": {
+  "docs": {
+   "base": "main",
+   "files": [
+    {
+     "filename": "CLAUDE.md",
+     "previous_filename": null,
+     "status": "added"
+    }
+   ],
+   "head": "be31803",
+   "pr": 364
+  },
+  "code": {
+   "base": "main",
+   "files": [
+    {
+     "filename": ".github/workflows/repo-control-health-status.yml",
+     "previous_filename": null,
+     "status": "modified"
+    },
+    {
+     "filename": "scripts/ci_status_snapshot.py",
+     "previous_filename": null,
+     "status": "modified"
+    },
+    {
+     "filename": "tests/fixtures/main_runs_2026_11_15.json",
+     "previous_filename": null,
+     "status": "added"
+    },
+    {
+     "filename": "tests/negative_controls/ci_status_snapshot.json",
+     "previous_filename": null,
+     "status": "added"
+    },
+    {
+     "filename": "tests/test_ci_status_snapshot.py",
+     "previous_filename": null,
+     "status": "added"
+    }
+   ],
+   "head": "0cc9f34",
+   "pr": 363
+  },
+  "spec": {
+   "base": "main",
+   "files": [
+    {
+     "filename": "docs/spec/delivery-gate-v2.md",
+     "previous_filename": null,
+     "status": "added"
+    }
+   ],
+   "head": "acebc2e",
+   "pr": 351
+  }
+ }
+}
