@@ -1,0 +1,27 @@
+{
+ "pr": "founder-cap-exempt",
+ "sha256": ["tests/test_founder_cap_exempt_pg.py"],
+ "controls": [
+  {"id": "NC1", "what": "the founder is capped like any customer (the block of 2026-11-14 returns)", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/subscription_store.py",
+                  "old": "    return plan.paid_provider_budget_usd is not None and not founder_cap_exempt(user_id)",
+                  "new": "    return plan.paid_provider_budget_usd is not None  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_founder_cap_exempt_pg.py"],
+   "expect_failed": ["test_the_founder_builds_and_the_spend_is_still_metered", "test_an_unknown_flag_value_fails_loudly"]},
+  {"id": "NC2", "what": "the flag is ignored: the exemption cannot be turned off and a typo passes silently", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/pricing.py",
+                  "old": "    return raw == '1' and m5_founder_account(account_id)",
+                  "new": "    return m5_founder_account(account_id)  # NEGATIVE CONTROL"},
+                 {"file": "omni_prod/pricing.py",
+                  "old": "    if raw not in ('0', '1'):\n        raise ValueError(",
+                  "new": "    if False:  # NEGATIVE CONTROL\n        raise ValueError("}],
+   "targets": ["tests/test_founder_cap_exempt_pg.py"],
+   "expect_failed": ["test_the_flag_turns_the_exemption_off", "test_an_unknown_flag_value_fails_loudly"]},
+  {"id": "NC3", "what": "every account is exempt: the plan budget stops nobody", "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/subscription_store.py",
+                  "old": "    return plan.paid_provider_budget_usd is not None and not founder_cap_exempt(user_id)",
+                  "new": "    return False  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_founder_cap_exempt_pg.py"],
+   "expect_failed": ["test_the_butcher_block_is_reproduced_for_a_customer", "test_the_flag_turns_the_exemption_off", "test_an_unknown_flag_value_fails_loudly"]}
+ ]
+}
