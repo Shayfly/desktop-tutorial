@@ -34,8 +34,9 @@ def png(width, height, seed=0):
             + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
 
 
-def image_req(rid='cap-media-image-generate', purpose='hero/brand visual'):
-    return CapabilityRequirement(rid, G.IMAGE_CAPABILITY, purpose, True)
+def image_req(rid='cap-media-image-generate', purpose='hero/brand visual', subject=None):
+    return CapabilityRequirement(rid, G.IMAGE_CAPABILITY, purpose, True,
+                                 constraints={'subject': subject} if subject else {})
 
 
 def evidence_for(store, rows):
@@ -279,7 +280,9 @@ class TheWorkerWiresItIn(unittest.TestCase):
         workspace = MagicMock()
         workspace.commit.return_value = SimpleNamespace(id='v1', artifact_key='a.zip')
         gateway = SimpleNamespace(state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0),
-                                  events=[], bind_budget=lambda ceiling: {'effective_budget_usd': str(ceiling)})
+                                  events=[], bind_budget=lambda ceiling: {'effective_budget_usd': str(ceiling)},
+                                  # lens 11: the vision check before code generation (it sees a cup: matches)
+                                  complete_json=lambda **kw: {'matches': True, 'shows': 'כוס קפה', 'reason': 'ok'})
         worker_tasks._run_live_build_job(
             'b1', jobs=jobs, platform=platform_for(plan), workspace=workspace,
             components_factory=lambda: (engine, gateway),
@@ -291,7 +294,8 @@ class TheWorkerWiresItIn(unittest.TestCase):
 
     def test_a_requested_verified_image_reaches_code_generation(self):
         store = MemoryStore()
-        plan = CapabilityPlan((image_req(),), ())
+        # lens 11 (2026-11-14): a generated image carries the subject it was made from, as image_prompt sets it
+        plan = CapabilityPlan((image_req(subject=CUP),), ())
         ev = evidence_for(store, [('cap-media-image-generate', 'VERIFIED', [png(40, 30)])])
         engine, prompt = self.run_build(plan, ev, store)
         self.assertIn('src="148ai-asset://image/1"', prompt)

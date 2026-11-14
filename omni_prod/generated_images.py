@@ -319,12 +319,20 @@ class GeneratedImagesExecutor:
         return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)
 
 
-def install(engine, *, prompt: str, plan, evidence: dict | None, store) -> str:
+def install(engine, *, prompt: str, plan, evidence: dict | None, store, vision=None) -> str:
     """Bind the plan's verified images into the build. Returns the prompt the engine builds from (unchanged when
-    the plan asked for no image)."""
+    the plan asked for no image).
+
+    Lens 11 / I-01 (Michael 2026-11-14): with a `vision` gateway, every image is first checked against the subject
+    the customer asked for (image_match.verify) -- BEFORE any code is generated, so a wrong picture costs one vision
+    call, not a build. A mismatch, or a check that cannot run, raises image_match.ImageDoesNotMatch."""
     images = collect(plan=plan, evidence=evidence, store=store, prompt=prompt)
     if not images:
         return prompt
+    if vision is not None:
+        from .image_match import verify
+        core = getattr(engine, 'core', engine)
+        core.image_match = verify(vision, images, _subjects(plan))
     core = getattr(engine, 'core', engine)
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
     core.executor = GeneratedImagesExecutor(core.executor, images)

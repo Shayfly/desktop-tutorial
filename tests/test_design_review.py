@@ -78,11 +78,17 @@ class GatewayImageTests(unittest.TestCase):
         return sent
 
     def test_anthropic_and_openai_image_shapes(self):
-        a = self.body('anthropic', (b'img',))['messages'][0]['content']
+        # 2026-11-14 (lens 11): an image is sent under its real type, read from its bytes -- visual QA screenshots are
+        # JPEG; bytes that are no image are refused instead of being labelled image/jpeg
+        jpeg = b'\xff\xd8\xff\xe0' + b'0' * 16
+        a = self.body('anthropic', (jpeg,))['messages'][0]['content']
         self.assertEqual(a[0]['type'], 'image')
+        self.assertEqual(a[0]['source']['media_type'], 'image/jpeg')
         self.assertEqual(a[-1], {'type': 'text', 'text': 'u'})
-        o = self.body('openai', (b'img',))['messages'][1]['content']
+        o = self.body('openai', (jpeg,))['messages'][1]['content']
         self.assertTrue(o[1]['image_url']['url'].startswith('data:image/jpeg;base64,'))
+        with self.assertRaises(ValueError):
+            self.body('openai', (b'img',))
 
     def test_text_only_calls_are_unchanged(self):
         self.assertEqual(self.body('anthropic', ())['messages'][0]['content'], 'u')

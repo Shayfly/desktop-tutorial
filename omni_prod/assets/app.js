@@ -66,7 +66,8 @@ const T = {
       model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
       provider_quota_exhausted:'לפחות ספק AI אחד דיווח שנגמרה המכסה או יתרת הקרדיטים. אין כרגע ספק חלופי שהשלים את הבקשה. בדקו את הספק שמופיע בהמשך.',
       model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
-      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.'},
+      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.',
+      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן הבנייה נעצרה לפני כתיבת הקוד.'},
     techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
     previewFailed:'התצוגה המקדימה נכשלה: ', previewExpired:'התצוגה המקדימה פגה. אפשר להפעיל אותה מחדש.',
@@ -186,7 +187,8 @@ const T = {
       model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
       provider_quota_exhausted:'An AI provider reported exhausted quota/credits, and no fallback completed. Check the named provider below.',
       model_policy_blocked:'The model usage policy did not allow this build in this environment.',
-      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.'},
+      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.',
+      image_mismatch:'The generated image does not show what you asked for, so the build stopped before any code was written.'},
     techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
     previewFailed:'Preview failed: ', previewExpired:'The preview expired. You can start it again.',
@@ -957,7 +959,7 @@ function renderTrack() {
   // Step at which a failed build stopped. Steps after it never ran: they are
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
-  const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
+  const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
     worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
@@ -980,7 +982,7 @@ function renderTrack() {
   };
   const infraEv = ev.infrastructure; const capEv = ev.capabilities;
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
-  backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed'], null);
+  backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed', 'image_mismatch'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
   backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);
@@ -1110,6 +1112,13 @@ function friendlyError(b) {
     const m = String(b.error_message || '').match(/missing from the customer: ([a-z, ]+)/);
     const what = m ? m[1].split(',').map(x => names[x.trim()] || x.trim()).join(', ') : '';
     return known + (what ? ' (' + what + ')' : '');
+  }
+  if (b.error_code === 'image_mismatch') {
+    // Michael 2026-11-15: judged in seconds -- what was asked, and what the vision model saw
+    const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
+    if (m) return known + (S.lang === 'en' ? ` Asked: "${m[1]}". The image shows: "${m[2]}".`
+                                            : ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    return known;
   }
   if (b.error_code === 'provider_quota_exhausted') {
     // Show the named route only when the server reported a quota response.
