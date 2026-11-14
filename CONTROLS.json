@@ -170,6 +170,22 @@
     "restore from a Neon branch (the drill restores the R2 dump into a throwaway Postgres instead)",
     "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
    ]
+  },
+  {
+   "control": "C17",
+   "date": "2026-11-14",
+   "result": "PASS",
+   "runs": [
+    "43578100405"
+   ],
+   "workflow": ".github/workflows/backup-restore.yml (schedule on main 19f25d1, runner 148ai-worker-01)",
+   "times_utc": {"started": "2026-11-14T08:55:46Z", "stamp": "20261114T085548Z", "finished": "2026-11-14T08:56:32Z"},
+   "proof": "snapshot tables=14 versions=16 migrations=42 data_files=23; db.dump 1190240 bytes sha256 16841c54459bcc29 uploaded and fetched back; pg_restore of the stored copy, 0 error lines; verify tables checked=14 short={} migrations_equal=true projects versions 16 rebuilt 16 failures=[] preview_data 23/23 restored; verified=true",
+   "recorded_by": "Claude, 2026-11-14, from the run's annotations and job log. The drill ran and passed daily from 2026-11-09 to 2026-11-14 (runs 42595634863, 42793138404, 42994212706, 43194336720, 43401548587, 43578100405, all schedule/success); only this last run is recorded. R3 failed every PR's validate job since 2026-11-13 because the runs were not recorded, not because the drill did not run.",
+   "not_proven": [
+    "restore from a Neon branch (the drill restores the R2 dump into a throwaway Postgres instead)",
+    "a known row by value (the drill compares per-table row counts and migrations, not a named row)"
+   ]
   }
  ],
  "s01": {

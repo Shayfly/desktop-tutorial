@@ -1,0 +1,30 @@
+{
+ "pr": "plan-media-block",
+ "sha256": ["tests/test_plan_media_block.py", "tests/fixtures/butcher_prj_fV8kB7FwuNimGw.json"],
+ "controls": [
+  {"id": "NC1", "what": "the plan carries no media list (only the goal sentence, as on 2026-11-14)",
+   "mutations": [{"file": "omni_prod/creator_plan.py",
+                  "old": "                  for r in contract.capability_plan.requirements if r.key.startswith(\"media.\")],",
+                  "new": "                  for r in contract.capability_plan.requirements if False],  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_plan_media_block.py"],
+   "expect_failed": ["test_the_plan_carries_the_image_from_the_contract", "test_the_plan_tab_shows_the_image_in_its_own_block"]},
+  {"id": "NC2", "what": "the block names the kind but not what the customer asked to see",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "    const line = m.subject ? `${kind}: ${m.subject}` : kind;",
+                  "new": "    const line = kind;  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_plan_media_block.py"],
+   "expect_failed": ["test_the_plan_tab_shows_the_image_in_its_own_block"]},
+  {"id": "NC3", "what": "an optional asset is shown as if it were required",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "    return m.required ? line : `${line} (${t('mediaOptional')})`;",
+                  "new": "    return line;  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_plan_media_block.py"],
+   "expect_failed": ["test_optional_media_says_so_and_no_media_shows_nothing"]},
+  {"id": "NC4", "what": "renderPlan does not render the block",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "    ...(mediaLines(p).length ? [h('h3', {}, t('mediaTitle'))",
+                  "new": "    ...(false ? [h('h3', {}, t('mediaTitle'))"}],
+   "targets": ["tests/test_plan_media_block.py"],
+   "expect_failed": ["test_the_plan_tab_renders_the_block"]}
+ ]
+}

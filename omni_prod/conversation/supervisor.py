@@ -449,8 +449,51 @@ class ConversationSupervisor:
             contract = None
         return saved['plan'], saved['id'], contract
 
+    # Michael 2026-11-14 (b5): the build contract's open questions that the conversation can ask with a card. The
+    # architect's persistence backstop is the discovery question content_only (the same two choices).
+    _CONTRACT_CARD = {'persistence': 'content_only', 'persistence_stale': 'content_only'}
+
+    def _contract_open(self, row) -> list:
+        """The questions the build contract compiled from THIS brief still has -- the same compile the admission (gate
+        2) runs (investor_app._brief_prompt -> ProductArchitect). Butcher, 2026-11-13: discovery had nothing pending,
+        gate 1 was shown and approved three times, and gate 2 refused each time with "האם האתר שומר מידע? ענו על
+        השאלה בשיחה" and no card. A compile failure is logged at ERROR and gate 2 still refuses on its own."""
+        from ..product_architect import ProductArchitect
+        prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]
+        try:
+            contract = ProductArchitect().compile(prompt, project_id='gate1-check', contract_version=1)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).error('GATE1_CONTRACT_CHECK_FAILED revision=%s', row.revision, exc_info=True)
+            return []
+        return list(contract.unresolved_questions)
+
+    def _open_question_instead_of_gate1(self, turn, row, lang):
+        """When the contract still has an open question, gate 1 is not shown: the question is, with its card when the
+        conversation has one, else in words. Returns the reply lines, or None when nothing is open."""
+        open_qs = self._contract_open(row)
+        if not open_qs:
+            return None
+        T = _TXT['he' if lang == 'he' else 'en']
+        field = self._CONTRACT_CARD.get(open_qs[0].id)
+        turn.gate = None
+        turn.actions = [a for a in turn.actions if a.get('type') != 'approve_spec']
+        turn.interpretation = {**(turn.interpretation or {}), 'gate1_held': [q.id for q in open_qs]}
+        card = d.BY_ID.get(field)
+        if card is not None and card.ask_if(d._ctx(row.brief)):
+            # a card only when its answer can stick: an inapplicable field is dropped again on save, and the same card
+            # would come back every turn (an unbounded loop)
+            turn.questions = [card]
+            return [T['ask_one']]
+        turn.questions = []
+        turn.actions.append({'type': 'edit_requirements', 'brief_revision': row.revision})
+        return [T['ask_one'], open_qs[0].question]
+
     def _gate1(self, turn, row, lang):
         """Step 1 of 2: the spec + the cost range, and the approve-spec control. No plan exists here."""
+        held = self._open_question_instead_of_gate1(turn, row, lang)
+        if held is not None:
+            return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
         items = sorted(row.brief.fields.items(), key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)
@@ -608,6 +651,9 @@ class ConversationSupervisor:
         shown = {'he': 'אישרתי את המפרט', 'ar': 'وافقت على المواصفات'}.get(lang, 'I approve the spec')
         current = row is not None and row.complete and brief_fingerprint == row.fingerprint
         feasible = current and self._feasibility(row).get('buildable')
+        if feasible and self._contract_open(row):
+            # b5: an approve button from an earlier turn, for a spec whose contract still asks: the question, not a plan
+            feasible = False
         # Michael 2026-11-10 condition 3: a shown warning is read like noise. An incomplete fact canon (a business site
         # with no phone and no address) is approved only when the customer ticked the box that says so.
         if feasible and not canon_ack:
@@ -643,7 +689,8 @@ class ConversationSupervisor:
                            if f['outcome'] in (F.BLOCKED, F.UNSUPPORTED, F.UNKNOWN)]
                 turn.reply = T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3])
             else:
-                turn.reply = ' '.join([t['stale']] + self._gate1(turn, row, lang))
+                held = self._open_question_instead_of_gate1(turn, row, lang) if current else None
+                turn.reply = ' '.join(held if held is not None else [t['stale']] + self._gate1(turn, row, lang))
             return self._finish(project_id, account_id, turn, request_key)
 
         contract = C.build(row.brief)

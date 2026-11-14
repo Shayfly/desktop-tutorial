@@ -305,6 +305,17 @@ def m5_founder_account(account_id) -> bool:
     return bool(account_id) and str(account_id) in ids
 
 
+def founder_cap_exempt(account_id) -> bool:
+    """CEO 2026-11-08 (a), Michael 2026-11-14 (a): a founder account is not stopped by the plan's monthly
+    paid-provider budget. Its spend is still metered on the subscription row and every per-build cap still applies
+    (m5_founder_build_budget). OMNI_FOUNDER_CAP_EXEMPT is the flag: '1' (default) exempts, '0' turns the exemption
+    off; any other value fails loudly rather than guessing."""
+    raw = os.getenv('OMNI_FOUNDER_CAP_EXEMPT', '1').strip()
+    if raw not in ('0', '1'):
+        raise ValueError(f"OMNI_FOUNDER_CAP_EXEMPT must be '0' or '1', not {raw!r}")
+    return raw == '1' and m5_founder_account(account_id)
+
+
 def m5_founder_build_budget() -> Decimal:
     """CEO 2026-11-08 20:09: founder test builds may spend up to $2 on models (paid by us, not a customer
     price), to measure what a real build costs before pricing is set. OMNI_FOUNDER_BUILD_LLM_USD overrides."""
