@@ -117,3 +117,40 @@ class TheLintCanFail(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class R3ReadsTheDrillRecordFromMain(unittest.TestCase):
+    """Michael 2026-11-14: "R3 ייקרא את רישום התרגיל מ-main, לא מראש ה-PR" -- and the #322 lesson: data every branch
+    shares is read from where it is shared. Real rows: CONTROLS.json on main (with the C17 run of 2026-11-14) and the
+    same file as #352-#355 carried it, branched before that run was recorded (main minus that entry)."""
+    TODAY = date(2026, 11, 15)
+    RECORD = next(r for r in REAL['drills_run'] if r.get('control') == 'C17' and r.get('date') == '2026-11-14')
+
+    def stale_branch(self):
+        reg = copy.deepcopy(REAL)
+        reg['drills_run'] = [r for r in reg['drills_run'] if r != self.RECORD]
+        return reg
+
+    def r3(self, head, base):
+        return [e for e in RL.lint(head, root=ROOT, today=self.TODAY, base=base) if e.startswith('R3 C17')]
+
+    def test_a_branch_made_before_the_record_passes_because_main_has_it(self):       # #353 on 2026-11-14
+        self.assertEqual(self.r3(self.stale_branch(), base=REAL), [])
+
+    def test_a_pr_that_records_the_drill_passes_although_main_lacks_it(self):        # #357 on 2026-11-14
+        self.assertEqual(self.r3(REAL, base=self.stale_branch()), [])
+
+    def test_overdue_on_main_and_on_the_branch_still_fails(self):
+        self.assertEqual(self.r3(self.stale_branch(), base=self.stale_branch()),
+                         ['R3 C17: drill overdue since 2026-11-13 (weekly; last run 2026-11-06)'])
+
+    def test_a_branch_cannot_remove_a_record_main_has(self):
+        head = self.stale_branch()
+        head['drills_run'] = []                                       # even every record gone from the branch copy
+        self.assertEqual(self.r3(head, base=REAL), [])
+
+    def test_an_unreadable_main_registry_fails_loudly_and_never_falls_back(self):
+        p = run_cli(self.stale_branch(), '--base', str(ROOT / 'no-such-main.json'), '--today', '2026-11-15')
+        self.assertEqual(p.returncode, 2)
+        self.assertIn('cannot read the registry on main', p.stdout)
+        self.assertIn('R3 reads the drill record from main', p.stdout)
