@@ -96,7 +96,9 @@ const T = {
     lifecycle:'מחזור בנייה מלא: תכנון, קוד, התקנה, בנייה, בדיקות, תיקונים, תצוגה וייצוא', operatorDetails:'פרטים למפעיל השרת',
     b_durable_backend_not_configured:'הבנייה דורשת שרת עם PostgreSQL ואחסון S3.',
     b_infrastructure:k=>`התשתית של האפליקציה לא מוכנה: ${k}`, b_image_provider:'יצירת אייקון ותמונות לא מוגדרת.',
-    b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',
+    b_plan_cannot_authorize_cost:'המסלול שלך לא מכסה את הבנייה הזו.',
+    mediaTitle:'מדיה שתיווצר בבנייה', mediaKinds:{'hero/brand visual':'תמונה ראשית', 'product icon':'אייקון', 'media.image.generate':'תמונה', 'media.video.generate':'וידאו', 'media.audio.tts':'הקראה קולית', 'media.audio.music':'מוזיקה'}, mediaOptional:'אופציונלי',
+    planReasons:{'cost class not included in plan':'המסלול שלך לא כולל בנייה בגודל הזה.', 'monthly credits exhausted':'הקרדיטים החודשיים נגמרו.', 'paid-provider budget exhausted':'תקציב הבנייה של המסלול לחודש הזה נגמר.'},
     b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
     qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
@@ -214,7 +216,9 @@ const T = {
     lifecycle:'Full build lifecycle: plan, code, install, build, test, repair, preview and export', operatorDetails:'Details for the server operator',
     b_durable_backend_not_configured:'Building needs a server with PostgreSQL and S3 storage.',
     b_infrastructure:k=>`App infrastructure is not ready: ${k}`, b_image_provider:'Icon and image generation is not configured.',
-    b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
+    b_plan_cannot_authorize_cost:'Your plan does not cover this build.',
+    mediaTitle:'Media the build will make', mediaKinds:{'hero/brand visual':'Main image', 'product icon':'Icon', 'media.image.generate':'Image', 'media.video.generate':'Video', 'media.audio.tts':'Voice-over', 'media.audio.music':'Music'}, mediaOptional:'optional',
+    planReasons:{'cost class not included in plan':'Your plan does not include a build of this size.', 'monthly credits exhausted':'The monthly credits are used up.', 'paid-provider budget exhausted':"This month's build budget on your plan is used up."},
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
@@ -732,6 +736,7 @@ function renderPlan() {
       !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
       !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
+    ...(mediaLines(p).length ? [h('h3', {}, t('mediaTitle')), h('ul', { class: 'facts media' }, mediaLines(p).map(x => h('li', {}, x)))] : []),
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
     ...facts(t('roles'), p.product.user_roles), ...facts(t('data'), p.product.data_requirements),
@@ -769,16 +774,7 @@ function renderPlan() {
       const names = missingCapabilityNames[g.key];
       return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
-    const title = b => {
-      if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
-      if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
-      if (b.code.startsWith('infrastructure_')) {
-        const kind = (p.infrastructure.find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
-        return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
-      }
-      if (b.code.startsWith('image_provider_')) return t('b_image_provider');
-      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
-    };
+    const title = b => blockerTitle(b, p);
     const titles = [...new Set(p.blockers.map(title))];
     // Never imply that editing the request is the only remedy for a missing
     // provider quote. A configured-but-unpriced capability needs operator
@@ -1533,6 +1529,34 @@ function renderArch() {
           `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : ''))))) : null,
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
+}
+// 2026-11-14 (Michael b2): the plan refusal names the subscription's own reason (b.detail, the closed list of
+// build_readiness.PLAN_REASONS), never a generic line that contradicts it ('does not authorize variable cost').
+// Michael 2026-11-14 (b3): what media the build makes, one line each, from the contract (p.media) -- never from the
+// goal sentence, which is the intake model's free text and dropped the butcher's hero image.
+function mediaLines(p) {
+  const kinds = T[S.lang].mediaKinds || T.en.mediaKinds;
+  return ((p && p.media) || []).map(m => {
+    const kind = kinds[m.purpose] || kinds[m.key] || T.en.mediaKinds[m.key] || m.key;
+    const line = m.subject ? `${kind}: ${m.subject}` : kind;
+    return m.required ? line : `${line} (${t('mediaOptional')})`;
+  });
+}
+// One line per blocker in the plan tab (top level so the test runs this exact function).
+function blockerTitle(b, p) {
+  if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
+  if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
+  if (b.code.startsWith('infrastructure_')) {
+    const kind = ((p.infrastructure || []).find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
+    return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
+  }
+  if (b.code.startsWith('image_provider_')) return t('b_image_provider');
+  if (b.code === 'plan_cannot_authorize_cost') return planReason(b);
+  return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
+}
+function planReason(b) {
+  const reason = String((b && b.detail) || '');
+  return (T[S.lang].planReasons || {})[reason] || T.en.planReasons[reason] || t('b_plan_cannot_authorize_cost');
 }
 function capabilityBlockMessage(detail) {
   const action = S.lang==='he' ? 'ערכו את הדרישה או פנו לתמיכה להשלמת היכולת.' : 'Edit the requirement or contact support to enable this capability.';
