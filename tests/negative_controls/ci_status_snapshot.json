@@ -1,0 +1,60 @@
+{
+ "pr": "ci-status-no-push",
+ "sha256": [
+  "tests/test_ci_status_snapshot.py",
+  "tests/fixtures/main_runs_2026_11_15.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the workflow may write to the repository again (the push that failed on main since 2026-10-25)",
+   "mutations": [
+    {
+     "file": ".github/workflows/repo-control-health-status.yml",
+     "old": "permissions:\n  contents: read",
+     "new": "permissions:\n  contents: write"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_status_snapshot.py"
+   ],
+   "expect_failed": [
+    "test_the_workflow_cannot_write_to_the_repository"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "without a summary the snapshot falls back to writing CI_STATUS.md",
+   "mutations": [
+    {
+     "file": "scripts/ci_status_snapshot.py",
+     "old": "out = os.environ.get(\"CI_STATUS_OUT\") or os.environ.get(\"GITHUB_STEP_SUMMARY\")",
+     "new": "out = os.environ.get(\"CI_STATUS_OUT\") or os.environ.get(\"GITHUB_STEP_SUMMARY\") or \"CI_STATUS.md\"  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_status_snapshot.py"
+   ],
+   "expect_failed": [
+    "test_without_a_summary_it_fails_loudly_and_writes_no_file"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a failing workflow on main is reported as a plain notice",
+   "mutations": [
+    {
+     "file": "scripts/ci_status_snapshot.py",
+     "old": "    level = \"warning\" if (run.get(\"conclusion\") or \"\") in (\"failure\", \"timed_out\", \"startup_failure\") else \"notice\"",
+     "new": "    level = \"notice\"  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_status_snapshot.py"
+   ],
+   "expect_failed": [
+    "test_a_red_workflow_on_main_is_a_warning"
+   ]
+  }
+ ]
+}

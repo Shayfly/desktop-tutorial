@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Snapshot last main workflow runs using GitHub Actions API."""
+"""Snapshot last main workflow runs using GitHub Actions API.
+
+2026-11-15 (Michael: "a red check that stays red on main teaches people to ignore red"): the snapshot used to be
+committed to main as CI_STATUS.md every 10 minutes; main is protected, so every run since 2026-10-25 failed on the
+push (GH006) and main carried a permanently red 'refresh'. It now goes to the run's own summary
+($GITHUB_STEP_SUMMARY, or CI_STATUS_OUT) and one annotation per workflow -- nothing is pushed anywhere."""
 import datetime as dt
 import json
 import os
@@ -14,13 +19,17 @@ req = urllib.request.Request(
              "X-GitHub-Api-Version": "2022-11-28"},
 )
 try:
-    with urllib.request.urlopen(req, timeout=25) as response:
-        runs = json.load(response)["workflow_runs"]
+    if os.environ.get("CI_STATUS_RUNS_JSON"):              # a saved API response (tests); never in the workflow
+        with open(os.environ["CI_STATUS_RUNS_JSON"], encoding="utf-8") as f:
+            runs = json.load(f)["workflow_runs"]
+    else:
+        with urllib.request.urlopen(req, timeout=25) as response:
+            runs = json.load(response)["workflow_runs"]
     fetch_note = "OK"
 except Exception as exc:
     runs = []
     fetch_note = "ERROR: " + type(exc).__name__
-head = subprocess.check_output(["git", "rev-parse", "origin/main"], text=True).strip()
+head = os.environ.get("CI_STATUS_HEAD") or subprocess.check_output(["git", "rev-parse", "origin/main"], text=True).strip()
 now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 http_code = os.environ.get("HEALTH_HTTP_CODE", "000")
 health = "HEALTHY" if http_code == "200" else "CHECK FAILED"
@@ -34,7 +43,6 @@ lines = [
     "",
     "**Captured at:** " + now,
     "**main SHA at snapshot:** " + head,
-    "**Note:** The snapshot commit itself advances main; SHA above is pre-commit.",
     "**Repo Control health:** " + health + " (HTTP " + http_code + ")",
     "**GitHub Actions API:** " + fetch_note,
     "",
@@ -56,5 +64,15 @@ lines += [
     "Health checks HTTP 200 only, not clone or end-to-end functionality. No token is sent.",
     "",
 ]
-with open("CI_STATUS.md", "w", encoding="utf-8") as f:
-    f.write("\n".join(lines))
+out = os.environ.get("CI_STATUS_OUT") or os.environ.get("GITHUB_STEP_SUMMARY")
+if not out:
+    raise SystemExit("::error title=ci_status_snapshot::no output: set GITHUB_STEP_SUMMARY or CI_STATUS_OUT "
+                     "(the snapshot is never committed to main)")
+with open(out, "a", encoding="utf-8") as f:
+    f.write("\n".join(lines) + "\n")
+print(f"::notice title=Repo Control health::{health} (HTTP {http_code})")
+print(f"::notice title=GitHub Actions API::{fetch_note}")
+for name, run in sorted(latest.items()):
+    level = "warning" if (run.get("conclusion") or "") in ("failure", "timed_out", "startup_failure") else "notice"
+    print(f"::{level} title=main {name[:60]}::run {run['id']} {(run.get('head_sha') or '')[:12]} "
+          f"{run.get('status', 'unknown')} {run.get('conclusion') or 'pending'}")
