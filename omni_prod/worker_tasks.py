@@ -1077,7 +1077,6 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
             if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
                 # not run by rollout: said in the evidence and the log, never a silent pass
-                import logging
                 logging.getLogger(__name__).warning('IMAGE_MATCH_NOT_RUN build=%s %s', build_id, IMAGE_ROLLOUT_NOT_RUN)
                 image_match = [{'status': 'NOT_RUN', 'reason': IMAGE_ROLLOUT_NOT_RUN}]
                 setattr(getattr(engine, 'core', engine), 'image_match', image_match)
