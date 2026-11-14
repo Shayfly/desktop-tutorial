@@ -38,6 +38,27 @@ class ImageDoesNotMatch(CapabilityStageBlocked):
     error_code = 'image_mismatch'
 
 
+ROLLOUT_NOT_RUN = ('rollout: the image check runs on founder builds until the review route of customer builds is '
+                   'verified to accept images (OMNI_IMAGE_MATCH=founder)')
+
+
+def enabled_for(request: dict | None) -> bool:
+    """OMNI_IMAGE_MATCH: 'founder' (default) -- founder builds only, the route proven to see images (the design
+    review's screenshots are judged there, e.g. bld_83529c13 by gpt-6.1-sol); 'all' -- every build, once the customer
+    route is verified; '0' -- off. Any other value fails loudly (Michael 2026-11-15: before this touches a customer,
+    verify the route; otherwise a text-only reviewer would fail good builds)."""
+    import os
+    mode = os.getenv('OMNI_IMAGE_MATCH', 'founder').strip().lower()
+    if mode not in ('founder', 'all', '0'):
+        raise ValueError(f"OMNI_IMAGE_MATCH must be 'founder', 'all' or '0', not {mode!r}")
+    if mode == 'all':
+        return True
+    if mode == '0':
+        return False
+    from .pricing import m5_founder_account
+    return bool(m5_founder_account((request or {}).get('user_id')))
+
+
 def _ask(gateway, image, subject: str) -> dict:
     payload = json.dumps({'customer_asked_to_see': subject}, ensure_ascii=False)
     kwargs = dict(system=_SYSTEM, user=payload, max_tokens=300, images=(image.data,))
@@ -80,6 +101,7 @@ def verify(gateway, images, subjects: dict) -> list[dict]:
                    reason=str(data.get('reason') or '')[:300])
         verdicts.append(row)
         if not data['matches']:
-            raise ImageDoesNotMatch(f'the generated image does not show what was asked: asked "{subject}", '
-                                    f'the image shows "{row["shows"]}"', evidence={'image_match': verdicts})
+            # Michael 2026-11-15: a person must be able to judge the model in seconds -- what was asked, what it saw
+            raise ImageDoesNotMatch(f'image_mismatch: asked "{subject}"; the image shows "{row["shows"]}"; '
+                                    f'reason: {row["reason"]}', evidence={'image_match': verdicts})
     return verdicts

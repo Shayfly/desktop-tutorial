@@ -52,7 +52,10 @@ EGGS = {'matches': False, 'shows': 'ביצים בקערה', 'reason': 'the main 
 BEEF = {'matches': True, 'shows': 'נתחי בקר על נייר קצבים', 'reason': 'matches'}
 
 
-def run(answer):
+FOUNDER = 'usr_GCWlMxENgr9vpwph'      # the account the butcher was built from (pricing._FOUNDER_DEFAULT)
+
+
+def run(answer, user=FOUNDER):
     from omni_prod import worker_tasks
     from tests.test_m495_worker_capabilities import FakeJobs, passing_engine, platform_for
     plan, store = butcher_plan(), MemoryStore()
@@ -71,6 +74,7 @@ def run(answer):
                                                           'requirements': ev['requirements']})
     jobs = FakeJobs(plan)
     jobs.request['prompt'] = REQUEST
+    jobs.request['user_id'] = user
     workspace = MagicMock()
     workspace.commit.return_value = SimpleNamespace(id='v1', artifact_key='a.zip')
     error = None
@@ -136,6 +140,61 @@ class TheWrongPictureStopsTheBuild(unittest.TestCase):
         with self.assertRaisesRegex(M.ImageDoesNotMatch, 'bounded'):
             M.verify(vision, imgs, {'r': SUBJECT})
         self.assertEqual(vision.calls, [])
+
+
+class RolloutBeforeCustomers(unittest.TestCase):
+    """Michael 2026-11-15: verify the review route sees images before this touches a customer. The founder route is
+    proven (its design reviews judge screenshots); a customer build is not checked yet -- and says so."""
+    def setUp(self):
+        import os
+        self.env = {k: os.environ.pop(k) for k in ('OMNI_IMAGE_MATCH',) if k in os.environ}
+        self.addCleanup(lambda: os.environ.update(self.env))
+
+    def test_a_customer_build_is_not_checked_and_the_evidence_says_why(self):
+        r = run(EGGS, user='usr_customer')
+        self.assertIsNone(r.error)
+        self.assertEqual(r.vision.calls, [])
+        self.assertEqual(len(r.built), 1)
+        row = r.final['evidence_json']['capabilities']['image_match'][0]
+        self.assertEqual((row['status'], row['reason']), ('NOT_RUN', M.ROLLOUT_NOT_RUN))
+
+    def test_all_turns_it_on_for_everyone_and_0_off(self):
+        import os
+        os.environ['OMNI_IMAGE_MATCH'] = 'all'
+        try:
+            self.assertEqual(run(EGGS, user='usr_customer').final['error_code'], 'image_mismatch')
+            os.environ['OMNI_IMAGE_MATCH'] = '0'
+            self.assertEqual(run(EGGS).vision.calls, [])
+        finally:
+            os.environ.pop('OMNI_IMAGE_MATCH', None)
+
+    def test_an_unknown_value_fails_loudly(self):
+        import os
+        os.environ['OMNI_IMAGE_MATCH'] = 'yes'
+        try:
+            with self.assertRaises(ValueError):
+                M.enabled_for({'user_id': FOUNDER})
+        finally:
+            os.environ.pop('OMNI_IMAGE_MATCH', None)
+
+
+class TheVerdictIsReadableInSeconds(unittest.TestCase):
+    """Michael 2026-11-15: a mismatch says what was asked and what the model saw."""
+    def test_the_message_and_the_build_tab_line(self):
+        import json, re, shutil, subprocess
+        from pathlib import Path
+        r = run(EGGS)
+        msg = r.final['error_message']
+        self.assertIn(f'asked "{SUBJECT}"; the image shows "ביצים בקערה"', msg)
+        if not shutil.which('node'):
+            self.skipTest('node is required to execute app.js friendlyError()')
+        src = (Path(__file__).resolve().parents[1] / 'omni_prod' / 'assets' / 'app.js').read_text()
+        translations = src[src.index('const T ='):src.index('const S =')]
+        fn = re.search(r'function friendlyError\(b\) \{.*?\n\}', src, re.S).group()
+        js = (translations + '\nconst S={lang:"he"};\nfunction t(k){return T[S.lang][k];}\n' + fn +
+              f'\nconsole.log(friendlyError({json.dumps({"error_code": "image_mismatch", "error_message": msg})}));')
+        out = subprocess.run(['node', '-e', js], capture_output=True, text=True, check=True).stdout.strip()
+        self.assertIn(f'ביקשתם: "{SUBJECT}". בתמונה: "ביצים בקערה".', out)
 
 
 class TheImageIsSentUnderItsRealType(unittest.TestCase):

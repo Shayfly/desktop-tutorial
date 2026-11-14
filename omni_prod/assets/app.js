@@ -1113,6 +1113,13 @@ function friendlyError(b) {
     const what = m ? m[1].split(',').map(x => names[x.trim()] || x.trim()).join(', ') : '';
     return known + (what ? ' (' + what + ')' : '');
   }
+  if (b.error_code === 'image_mismatch') {
+    // Michael 2026-11-15: judged in seconds -- what was asked, and what the vision model saw
+    const m = String(b.error_message || '').match(/asked "([^"]*)"; the image shows "([^"]*)"/);
+    if (m) return known + (S.lang === 'en' ? ` Asked: "${m[1]}". The image shows: "${m[2]}".`
+                                            : ` ביקשתם: "${m[1]}". בתמונה: "${m[2]}".`);
+    return known;
+  }
   if (b.error_code === 'provider_quota_exhausted') {
     // Show the named route only when the server reported a quota response.
     // This is NOT a provider billing balance; it can also be a rate/usage quota.

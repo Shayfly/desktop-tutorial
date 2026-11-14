@@ -202,9 +202,7 @@ class TheWorkerTranslatesThroughTheBoundGateway(unittest.TestCase):
         gateway = SimpleNamespace(
             state=SimpleNamespace(external_spend_usd=Decimal('0'), external_calls=0), events=[],
             bind_budget=lambda ceiling: order.append('budget') or {'effective_budget_usd': str(ceiling)},
-            complete=lambda **kw: order.append('translate') or calls.append(kw) or ENGLISH,
-            # lens 11 (2026-11-14): after the images, before code -- the vision check (it sees what was asked)
-            complete_json=lambda **kw: order.append('image check') or {'matches': True, 'shows': 'x', 'reason': 'ok'})
+            complete=lambda **kw: order.append('translate') or calls.append(kw) or ENGLISH)
         ev = evidence_for(store, [(req.id, 'VERIFIED', [png(16, 9)])])
 
         def prepare(**kw):
@@ -226,7 +224,7 @@ class TheWorkerTranslatesThroughTheBoundGateway(unittest.TestCase):
                                                     to_dict=lambda: {}),
             security_fn=lambda repo: SimpleNamespace(passed=True, findings=(), to_dict=lambda: {}),
             capability_stage=stage)
-        self.assertEqual(order[:4], ['budget', 'translate', 'images', 'image check'])   # metered, image, then checked
+        self.assertEqual(order[:3], ['budget', 'translate', 'images'])      # metered, then the image
         self.assertEqual(len(calls), 1)
         sent = image_requirement(staged['plan']).constraints['prompt']
         self.assertTrue(sent.startswith(ENGLISH) and sent.endswith(P.NEGATIVE))

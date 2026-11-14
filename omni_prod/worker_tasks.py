@@ -51,6 +51,7 @@ from decimal import Decimal
 from .models import BuildStatus
 from .build_contract import BuildContract, BuildContractStatus
 from .capability_worker import CapabilityStageBlocked
+from .image_match import ROLLOUT_NOT_RUN as IMAGE_ROLLOUT_NOT_RUN, enabled_for as image_match_enabled
 from .infrastructure_provisioner import InfrastructureStageBlocked
 from .build_control import BuildCancelled, BuildControl, ControlledExecutor, install as install_build_control
 
@@ -1072,8 +1073,14 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
                 store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
-                vision=gateway)                     # lens 11 / I-01: the picture is checked before code is written
+                vision=gateway if image_match_enabled(request) else None)   # lens 11 / I-01, before code
             image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
+            if image_match is None and getattr(getattr(engine, 'core', engine), 'generated_images', None):
+                # not run by rollout: said in the evidence and the log, never a silent pass
+                import logging
+                logging.getLogger(__name__).warning('IMAGE_MATCH_NOT_RUN build=%s %s', build_id, IMAGE_ROLLOUT_NOT_RUN)
+                image_match = [{'status': 'NOT_RUN', 'reason': IMAGE_ROLLOUT_NOT_RUN}]
+                setattr(getattr(engine, 'core', engine), 'image_match', image_match)
             if image_match:
                 capability_evidence = {**capability_evidence, 'image_match': image_match}
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')

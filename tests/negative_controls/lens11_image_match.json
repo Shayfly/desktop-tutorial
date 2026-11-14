@@ -1,37 +1,171 @@
 {
  "pr": "lens11-image-match",
- "sha256": ["tests/test_lens11_image_match.py"],
+ "sha256": [
+  "tests/test_lens11_image_match.py"
+ ],
  "controls": [
-  {"id": "NC1", "what": "nobody looks at the picture (production until 2026-11-14)",
-   "mutations": [{"file": "omni_prod/generated_images.py", "old": "    if vision is not None:\n        from .image_match import verify",
-                  "new": "    if False:  # NEGATIVE CONTROL\n        from .image_match import verify"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_eggs_for_beef_fails_before_any_code_is_written", "test_the_vision_model_sees_the_stored_image_and_the_customers_words", "test_the_right_picture_goes_on_to_code_generation", "test_a_check_that_cannot_run_does_not_pass"]},
-  {"id": "NC2", "what": "a mismatch is recorded but does not stop the build",
-   "mutations": [{"file": "omni_prod/image_match.py", "old": "        if not data['matches']:\n",
-                  "new": "        if False:  # NEGATIVE CONTROL\n"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_eggs_for_beef_fails_before_any_code_is_written"]},
-  {"id": "NC3", "what": "a check that cannot run passes silently",
-   "mutations": [{"file": "omni_prod/image_match.py",
-                  "old": "            raise ImageDoesNotMatch(f'the generated image could not be checked against the request: {str(exc)[:300]}',\n                                    evidence={'image_match': verdicts}) from exc",
-                  "new": "            continue  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_a_check_that_cannot_run_does_not_pass"]},
-  {"id": "NC4", "what": "every image is sent as image/jpeg again",
-   "mutations": [{"file": "omni_prod/model_gateway.py", "old": "    head = bytes(data[:12])\n    if head.startswith(b'\\x89PNG\\r\\n\\x1a\\n'):\n        return 'image/png'\n",
-                  "new": "    head = bytes(data[:12])\n    if head.startswith(b'\\x89PNG\\r\\n\\x1a\\n'):\n        return 'image/jpeg'  # NEGATIVE CONTROL\n"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_types", "test_both_request_dialects_carry_it"]},
-  {"id": "NC5", "what": "the customer is told 'capability not configured' for a wrong picture",
-   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "            error_code=getattr(exc, 'error_code', 'capability_not_configured'), error_message=str(exc)[:2000],",
-                  "new": "            error_code='capability_not_configured', error_message=str(exc)[:2000],  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_eggs_for_beef_fails_before_any_code_is_written", "test_a_check_that_cannot_run_does_not_pass"]},
-  {"id": "NC6", "what": "the paid image's evidence is dropped when the check blocks",
-   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "        blocked_evidence = {**(capability_evidence or {}), **exc.evidence}",
-                  "new": "        blocked_evidence = dict(exc.evidence)  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_lens11_image_match.py"],
-   "expect_failed": ["test_eggs_for_beef_fails_before_any_code_is_written"]}
+  {
+   "id": "NC1",
+   "what": "nobody looks at the picture (production until 2026-11-14)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "    if vision is not None:\n        from .image_match import verify",
+     "new": "    if False:  # NEGATIVE CONTROL\n        from .image_match import verify"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_a_check_that_cannot_run_does_not_pass",
+    "test_all_turns_it_on_for_everyone_and_0_off",
+    "test_eggs_for_beef_fails_before_any_code_is_written",
+    "test_the_message_and_the_build_tab_line",
+    "test_the_right_picture_goes_on_to_code_generation",
+    "test_the_vision_model_sees_the_stored_image_and_the_customers_words"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a mismatch is recorded but does not stop the build",
+   "mutations": [
+    {
+     "file": "omni_prod/image_match.py",
+     "old": "        if not data['matches']:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_all_turns_it_on_for_everyone_and_0_off",
+    "test_eggs_for_beef_fails_before_any_code_is_written",
+    "test_the_message_and_the_build_tab_line"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a check that cannot run passes silently",
+   "mutations": [
+    {
+     "file": "omni_prod/image_match.py",
+     "old": "            raise ImageDoesNotMatch(f'the generated image could not be checked against the request: {str(exc)[:300]}',\n                                    evidence={'image_match': verdicts}) from exc",
+     "new": "            continue  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_a_check_that_cannot_run_does_not_pass"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "every image is sent as image/jpeg again",
+   "mutations": [
+    {
+     "file": "omni_prod/model_gateway.py",
+     "old": "    head = bytes(data[:12])\n    if head.startswith(b'\\x89PNG\\r\\n\\x1a\\n'):\n        return 'image/png'\n",
+     "new": "    head = bytes(data[:12])\n    if head.startswith(b'\\x89PNG\\r\\n\\x1a\\n'):\n        return 'image/jpeg'  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_types",
+    "test_both_request_dialects_carry_it"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the customer is told 'capability not configured' for a wrong picture",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "            error_code=getattr(exc, 'error_code', 'capability_not_configured'), error_message=str(exc)[:2000],",
+     "new": "            error_code='capability_not_configured', error_message=str(exc)[:2000],  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_a_check_that_cannot_run_does_not_pass",
+    "test_all_turns_it_on_for_everyone_and_0_off",
+    "test_eggs_for_beef_fails_before_any_code_is_written"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the paid image's evidence is dropped when the check blocks",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        blocked_evidence = {**(capability_evidence or {}), **exc.evidence}",
+     "new": "        blocked_evidence = dict(exc.evidence)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_eggs_for_beef_fails_before_any_code_is_written"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the check runs for every customer before their review route is verified",
+   "mutations": [
+    {
+     "file": "omni_prod/image_match.py",
+     "old": "    from .pricing import m5_founder_account\n    return bool(m5_founder_account((request or {}).get('user_id')))",
+     "new": "    return True  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_build_is_not_checked_and_the_evidence_says_why"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a build the check did not run on carries no word of it",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "                image_match = [{'status': 'NOT_RUN', 'reason': IMAGE_ROLLOUT_NOT_RUN}]",
+     "new": "                image_match = None  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_a_customer_build_is_not_checked_and_the_evidence_says_why"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the build tab hides what was asked and what the model saw",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "    if (m) return known + (S.lang === 'en'",
+     "new": "    if (false) return known + (S.lang === 'en'"
+    }
+   ],
+   "targets": [
+    "tests/test_lens11_image_match.py"
+   ],
+   "expect_failed": [
+    "test_the_message_and_the_build_tab_line"
+   ]
+  }
  ]
 }
