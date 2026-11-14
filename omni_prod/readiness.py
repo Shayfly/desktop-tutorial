@@ -14,7 +14,10 @@ def _any_env(*names): return next((os.getenv(n) for n in names if os.getenv(n)),
 
 def collect_readiness() -> list[ReadinessGate]:
     local_model=os.getenv('OMNI_LOCAL_MODEL_URL','http://127.0.0.1:8001/v1')
-    db=_any_env('OMNI_DATABASE_URL','DATABASE_URL')
+    # 2026-11-15: only the variable the app connects with (investor_app, migrate, entitlements, the worker all read
+    # OMNI_DATABASE_URL). DATABASE_URL is the old 148ai-db integration's: on preview it made this gate say
+    # 'configured' while the app had no database.
+    db=os.getenv('OMNI_DATABASE_URL')
     redis=_any_env('OMNI_REDIS_URL','REDIS_URL')
     s3=all(_any_env(a,b) for a,b in (
         ('OMNI_S3_ENDPOINT','S3_ENDPOINT_URL'),('OMNI_S3_BUCKET','S3_BUCKET'),
@@ -23,7 +26,7 @@ def collect_readiness() -> list[ReadinessGate]:
         ReadinessGate('python',bool(shutil.which('python')),True,'Python runtime available'),
         ReadinessGate('docker',bool(shutil.which('docker')),True,'Required for isolated generated-code execution'),
         ReadinessGate('local_model_config',bool(local_model),True,f'Configured endpoint: {local_model}'),
-        ReadinessGate('postgres_config',bool(db),True,'PostgreSQL configured' if db else 'PostgreSQL not configured'),
+        ReadinessGate('postgres_config',bool(db),True,'PostgreSQL configured (OMNI_DATABASE_URL)' if db else 'PostgreSQL not configured: OMNI_DATABASE_URL is not set'),
         ReadinessGate('redis_config',bool(redis),True,'Redis configured' if redis else 'Redis not configured'),
         ReadinessGate('s3_config',bool(s3),True,'S3-compatible object storage configured' if s3 else 'S3-compatible object storage not fully configured'),
         ReadinessGate('live_build_switch',os.getenv('OMNI_ENABLE_LIVE_BUILD')=='1',False,'Live AI build endpoint is opt-in'),
