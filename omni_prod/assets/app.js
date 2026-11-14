@@ -44,7 +44,7 @@ const T = {
     stepPlanning:'תכנון', stepContract:'חוזה בנייה', stepInfra:'תשתית', stepAssets:'נכסים (אייקון ותמונות)',
     stepGenerate:'יצירת קוד, בנייה, בדיקות ותיקונים', stepGates:'בדיקות איכות, אבטחה וזכויות', stepPreview:'תצוגה מקדימה',
     noteGenerate:'הבנייה, הבדיקות והתיקונים רצים בשלב אחד. מספר סבבי התיקון מדווח בסיום.',
-    repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
+    repairs:n=>`סבבי תיקון: ${n}`, queued:'ממתין בתור', queuedNext:'ממתין בתור: הבנייה שלך הבאה בתור', queuedAhead:n=>`ממתין בתור: ${n === 1 ? 'עבודה אחת' : n + ' עבודות'} לפני הבנייה שלך`, started:'הבנייה התחילה', buildReady:'הבנייה הסתיימה בהצלחה.',
     buildFailed:'הבנייה נכשלה',
     openDraftPreview:'פתח את הטיוטה בתצוגה (לא עברה את כל הבדיקות)',
     stopBuild:'עצירת הבנייה', stopChange:'עצירת השינוי', stopChangeConfirm:'לעצור את השינוי? נחויב רק על מה שכבר נוצל.', modCancelled:'השינוי נעצר.', stopConfirm:'לעצור את הבנייה? נחויב רק על מה שכבר נוצל, והגרסה לא תיווצר.',
@@ -165,7 +165,7 @@ const T = {
     stepPlanning:'Planning', stepContract:'Build contract', stepInfra:'Infrastructure', stepAssets:'Assets (icon and images)',
     stepGenerate:'Generating code, building, testing and repairing', stepGates:'Quality, security and rights gates', stepPreview:'Preview',
     noteGenerate:'Build, tests and repairs run as one step. The number of repair rounds is reported at the end.',
-    repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', started:'Build started', buildReady:'Build finished successfully.',
+    repairs:n=>`Repair rounds: ${n}`, queued:'Waiting in queue', queuedNext:'Waiting in queue: your build is next', queuedAhead:n=>`Waiting in queue: ${n === 1 ? '1 job' : n + ' jobs'} ahead of your build`, started:'Build started', buildReady:'Build finished successfully.',
     buildFailed:'Build failed',
     openDraftPreview:'Open the draft in Preview (did not pass every check)',
     stopBuild:'Stop the build', stopChange:'Stop the change', stopChangeConfirm:'Stop the change? Only what was already used is charged.', modCancelled:'The change was stopped.', stopConfirm:'Stop the build? Only what was already used is charged, and no version is created.',
@@ -976,7 +976,7 @@ function renderTrack() {
     if (failCodes.includes(failedCode)) return push(t(key), 'failed', friendlyError(b));
     if (status === 'ready') return push(t(key), 'done', note);
     if (status === 'failed') return push(t(key), (failedIdx >= 0 ? idx < failedIdx : reached > idx) ? 'done' : 'skipped', note);
-    if (status === 'queued') return push(t(key), 'pending', idx === 0 ? t('queued') : note);
+    if (status === 'queued') return push(t(key), 'pending', idx === 0 ? queuedNote(b) : note);
     if (status === 'cancelled') return push(t(key), 'skipped', null);
     return push(t(key), reached === idx ? 'active' : reached > idx ? 'done' : 'pending', note);
   };
@@ -1210,6 +1210,12 @@ async function sendModification(extra) {
 const MOD_DONE = ['READY_FOR_REVIEW', 'FAILED', 'ACCEPTED', 'REJECTED', 'SUPERSEDED', 'CLARIFICATION_REQUIRED', 'NEEDS_CLARIFICATION', 'CONFLICT', 'ERROR', 'CANCELLED'];
 // One change at a time: the send button stays locked while a change is being
 // built or waits for review (a double click once created two candidates).
+// 2026-11-15: a queued build says how many jobs are ahead of it (the server's count; no number -> the plain line)
+function queuedNote(b) {
+  const n = b && b.queue_ahead;
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0) return t('queued');
+  return n === 0 ? t('queuedNext') : t('queuedAhead')(n);
+}
 function modActive() { return !!(S.mod && S.mod.id && ['QUEUED', 'RUNNING', 'READY_FOR_REVIEW'].includes(S.mod.status)); }
 async function pollMod() {
   if (!S.mod || !S.mod.id) return;
