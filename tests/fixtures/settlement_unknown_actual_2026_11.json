@@ -1,0 +1,631 @@
+{
+ "source": "production Neon aged-tree-68103298, exported 2026-11-14 ~20:10 Asia/Jerusalem (read-only): credit_reservations, build_jobs.evidence_json (economics_settlement, provider_spend_usd, capabilities.usage), task_attempts kind=provider_call. Account usr_GCWlMxENgr9vpwph (Studio).",
+ "builds": [
+  {
+   "build_id": "bld_0909524012764f29a578174ec7df4e91",
+   "ready": true,
+   "estimate": "2.003000",
+   "settled_before": "2.003000",
+   "settled_after": "0.480802",
+   "external_calls": 18,
+   "provider_spend_usd": "0.47780160",
+   "attempts": [
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00005910",
+     "authorized_cost_usd": "0.00015500",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04493200",
+     "authorized_cost_usd": "0.08616800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.10930800",
+     "authorized_cost_usd": "0.46583800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00945000",
+     "authorized_cost_usd": "0.34065200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.02174400",
+     "authorized_cost_usd": "0.36519000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00557925",
+     "authorized_cost_usd": "0.13694625",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.07443800",
+     "authorized_cost_usd": "0.37505400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.00686925",
+     "authorized_cost_usd": "0.14064525",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04180400",
+     "authorized_cost_usd": "0.21889400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02645600",
+     "authorized_cost_usd": "0.37539800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01298200",
+     "authorized_cost_usd": "0.05475400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01180400",
+     "authorized_cost_usd": "0.07036200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00911600",
+     "authorized_cost_usd": "0.34023400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04337200",
+     "authorized_cost_usd": "0.35118400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01483000",
+     "authorized_cost_usd": "0.35146800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02136200",
+     "authorized_cost_usd": "0.36285400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01196200",
+     "authorized_cost_usd": "0.05475400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01173400",
+     "authorized_cost_usd": "0.07036200",
+     "price_catalog_version": "34c21df6ab3b"
+    }
+   ],
+   "capability_usage": [
+    {
+     "provider": "replicate",
+     "requirement_id": "cap-media-image-generate",
+     "actual_cost_usd": null,
+     "estimated_cost_usd": "0.00300000",
+     "maximum_cost_usd": "0.00300000",
+     "pricing_version": "operator-config:https://replicate.com/pricing#2026-10-06",
+     "build_id": "bld_0909524012764f29a578174ec7df4e91",
+     "evidence": {
+      "provider_task_id": "npc6carvkhrzw0d1tjc95pbgpc"
+     }
+    }
+   ]
+  },
+  {
+   "build_id": "bld_b90585c0ebf245d2953b82f30f0a8af8",
+   "ready": true,
+   "estimate": "2.000000",
+   "settled_before": "2.000000",
+   "settled_after": "1.549222",
+   "external_calls": 34,
+   "provider_spend_usd": "1.54922200",
+   "attempts": [
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04488400",
+     "authorized_cost_usd": "0.08684200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.13781800",
+     "authorized_cost_usd": "0.46623400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.05393775",
+     "authorized_cost_usd": "0.14771775",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03135200",
+     "authorized_cost_usd": "0.12983200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.01112400",
+     "authorized_cost_usd": "0.34473200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00289125",
+     "authorized_cost_usd": "0.12927450",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03734400",
+     "authorized_cost_usd": "0.40321200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03777400",
+     "authorized_cost_usd": "0.40455600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.16228200",
+     "authorized_cost_usd": "0.41886400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04525000",
+     "authorized_cost_usd": "0.41914200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03037200",
+     "authorized_cost_usd": "0.13019400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01096000",
+     "authorized_cost_usd": "0.34467600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03645600",
+     "authorized_cost_usd": "0.40166200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.05823400",
+     "authorized_cost_usd": "0.41597000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04851150",
+     "authorized_cost_usd": "0.15598875",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04365400",
+     "authorized_cost_usd": "0.41633600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02989600",
+     "authorized_cost_usd": "0.13165600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01089600",
+     "authorized_cost_usd": "0.34465200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01277200",
+     "authorized_cost_usd": "0.34851800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04713200",
+     "authorized_cost_usd": "0.40223200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03688800",
+     "authorized_cost_usd": "0.40258200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04430800",
+     "authorized_cost_usd": "0.41906600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04717000",
+     "authorized_cost_usd": "0.42359000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03019000",
+     "authorized_cost_usd": "0.13281400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00962200",
+     "authorized_cost_usd": "0.34177000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.03584200",
+     "authorized_cost_usd": "0.39548000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00938250",
+     "authorized_cost_usd": "0.14830500",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.04231000",
+     "authorized_cost_usd": "0.40978800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.13114575",
+     "authorized_cost_usd": "0.15367050",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.08600200",
+     "authorized_cost_usd": "0.25362800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04077800",
+     "authorized_cost_usd": "0.41006600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01324200",
+     "authorized_cost_usd": "0.05680800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": null,
+     "authorized_cost_usd": "0.11818800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01061325",
+     "authorized_cost_usd": "0.04432050",
+     "price_catalog_version": "34c21df6ab3b"
+    }
+   ],
+   "capability_usage": []
+  },
+  {
+   "build_id": "bld_cf406df69b4b453eafaeb3a1c11d8412",
+   "ready": false,
+   "estimate": "2.003000",
+   "settled_before": "2.003000",
+   "settled_after": "1.403646",
+   "external_calls": 42,
+   "provider_spend_usd": "1.40064600",
+   "attempts": [
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03498400",
+     "authorized_cost_usd": "0.08431600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.12870400",
+     "authorized_cost_usd": "0.46204600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00737600",
+     "authorized_cost_usd": "0.33641800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.02946000",
+     "authorized_cost_usd": "0.34934800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00341475",
+     "authorized_cost_usd": "0.13100550",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.03415800",
+     "authorized_cost_usd": "0.35940400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00891675",
+     "authorized_cost_usd": "0.13477650",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.01904600",
+     "authorized_cost_usd": "0.35968200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01188225",
+     "authorized_cost_usd": "0.13488075",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01802400",
+     "authorized_cost_usd": "0.35994400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02159200",
+     "authorized_cost_usd": "0.36697400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01147000",
+     "authorized_cost_usd": "0.05210400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02060400",
+     "authorized_cost_usd": "0.09553400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00775800",
+     "authorized_cost_usd": "0.33732800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02179000",
+     "authorized_cost_usd": "0.36536600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.08346800",
+     "authorized_cost_usd": "0.37239600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.01994400",
+     "authorized_cost_usd": "0.13964850",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01592200",
+     "authorized_cost_usd": "0.21623600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.09043600",
+     "authorized_cost_usd": "0.38110600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.00772500",
+     "authorized_cost_usd": "0.14291475",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01896200",
+     "authorized_cost_usd": "0.22494600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.12040600",
+     "authorized_cost_usd": "0.42391800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01195000",
+     "authorized_cost_usd": "0.05210400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02223200",
+     "authorized_cost_usd": "0.09946400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00830400",
+     "authorized_cost_usd": "0.33863200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02642600",
+     "authorized_cost_usd": "0.37589600",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.08682800",
+     "authorized_cost_usd": "0.38303200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00791700",
+     "authorized_cost_usd": "0.14363700",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.10977800",
+     "authorized_cost_usd": "0.38416000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03031600",
+     "authorized_cost_usd": "0.38458800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.04697600",
+     "authorized_cost_usd": "0.41675200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01184000",
+     "authorized_cost_usd": "0.05210400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02304200",
+     "authorized_cost_usd": "0.10119200",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.00773000",
+     "authorized_cost_usd": "0.33712800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.02797000",
+     "authorized_cost_usd": "0.37851400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.00744225",
+     "authorized_cost_usd": "0.14194275",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01823800",
+     "authorized_cost_usd": "0.22235400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "error",
+     "metered_cost_usd": "0.11970200",
+     "authorized_cost_usd": "0.38565000",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03087000",
+     "authorized_cost_usd": "0.14461875",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.03169000",
+     "authorized_cost_usd": "0.38607800",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.01254000",
+     "authorized_cost_usd": "0.05210400",
+     "price_catalog_version": "34c21df6ab3b"
+    },
+    {
+     "outcome": "ok",
+     "metered_cost_usd": "0.02281200",
+     "authorized_cost_usd": "0.10253800",
+     "price_catalog_version": "34c21df6ab3b"
+    }
+   ],
+   "capability_usage": [
+    {
+     "provider": "replicate",
+     "requirement_id": "cap-media-image-generate",
+     "actual_cost_usd": null,
+     "estimated_cost_usd": "0.00300000",
+     "maximum_cost_usd": "0.00300000",
+     "pricing_version": "operator-config:https://replicate.com/pricing#2026-10-06",
+     "build_id": "bld_cf406df69b4b453eafaeb3a1c11d8412",
+     "evidence": {
+      "provider_task_id": "8ykq1sb38drzw0d1t4fazn4gzr"
+     }
+    }
+   ]
+  }
+ ]
+}
