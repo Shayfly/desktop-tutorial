@@ -11,7 +11,8 @@ Rules
       never imported or run).
   R3  no overdue drill: a control of type `drill` (or a live control with its own `drill: "monthly: ..."`, C16) must have
       run within its frequency (weekly 7, monthly 31,
-      quarterly 92 days), counted from its last `drills_run` entry, or from `adopted` if it never ran.
+      quarterly 92 days), counted from its last `drills_run` entry, or from `adopted` if it never ran. With --base the
+      `drills_run` record is read from MAIN plus the entries this file adds (2026-11-14); an unreadable --base is exit 2.
   R4  with --base (the registry on main): a control that has a canary on main must still have one here; replacing it with
       `canary_pending` is a removal, not a change.
   R5  control ids are unique.
@@ -79,8 +80,18 @@ def lint(registry: dict, *, root: Path, base: dict | None = None, today: dt.date
         if has_pending and not (isinstance(c['canary_pending'], str) and c['canary_pending'].strip()):
             errors.append(f'R1 {cid}: canary_pending must give a reason')
     adopted = registry.get('adopted')
+    # R3 reads the drill record from MAIN (Michael 2026-11-14; the #322 lesson: data every branch shares is read from
+    # where it is shared, never from the checkout under test). A PR branched before a drill was recorded carries a stale
+    # copy of CONTROLS.json; reading it failed every open PR the day the drill fell due (#352-#355, 2026-11-14) although
+    # the drill had run and was recorded on main. The runs this PR itself ADDS count too: they are the PR's change to
+    # the shared record, and without them a PR that records an overdue drill could never pass (the #357 case).
+    if base is not None:
+        on_main = list(base.get('drills_run') or [])
+        drill_runs = on_main + [r for r in registry.get('drills_run') or [] if r not in on_main]
+    else:
+        drill_runs = list(registry.get('drills_run') or [])
     runs = {}
-    for r in registry.get('drills_run') or []:
+    for r in drill_runs:
         try:
             d = dt.date.fromisoformat(str(r.get('date')))
         except ValueError:
@@ -120,7 +131,7 @@ def lint(registry: dict, *, root: Path, base: dict | None = None, today: dt.date
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('registry')
-    ap.add_argument('--base', help='the registry on main (R4)')
+    ap.add_argument('--base', help='the registry on main (R3 drill record, R4)')
     ap.add_argument('--today', help='YYYY-MM-DD (tests); default: today')
     a = ap.parse_args(argv)
     path = Path(a.registry)
@@ -133,8 +144,14 @@ def main(argv: list[str] | None = None) -> int:
     if a.base:
         try:
             base = json.loads(Path(a.base).read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            print(f'::notice title=registry_lint::no base registry at {a.base}: R4 skipped')
+        except (OSError, ValueError) as exc:
+            # R3 reads the drill record from main: without main's registry it cannot run, and falling back to this
+            # checkout's copy is exactly the bug it replaces -- fail loudly (#322: a missing global value is an error)
+            print(f'::error title=registry_lint::cannot read the registry on main at {a.base} '
+                  f'(R3 reads the drill record from main; R4 compares with it): {exc}')
+            return 2
+    else:
+        print('::notice title=registry_lint::no --base: R3 reads the drill record from this file, not from main')
     today = dt.date.fromisoformat(a.today) if a.today else None
     errors = lint(registry, root=path.resolve().parent, base=base, today=today)
     for e in errors:

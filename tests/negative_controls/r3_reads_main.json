@@ -1,0 +1,24 @@
+{
+ "pr": "r3-reads-main",
+ "sha256": ["tests/test_registry_lint.py", "CONTROLS.json"],
+ "controls": [
+  {"id": "NC1", "what": "R3 reads the branch's own copy (the 2026-11-14 failure of #352-#355)",
+   "mutations": [{"file": "tools/registry_lint.py",
+                  "old": "    if base is not None:\n        on_main = list(base.get('drills_run') or [])",
+                  "new": "    if False:  # NEGATIVE CONTROL\n        on_main = list(base.get('drills_run') or [])"}],
+   "targets": ["tests/test_registry_lint.py"],
+   "expect_failed": ["test_a_branch_made_before_the_record_passes_because_main_has_it", "test_a_branch_cannot_remove_a_record_main_has"]},
+  {"id": "NC2", "what": "only main counts: a PR that records an overdue drill can never pass (deadlock)",
+   "mutations": [{"file": "tools/registry_lint.py",
+                  "old": "        drill_runs = on_main + [r for r in registry.get('drills_run') or [] if r not in on_main]",
+                  "new": "        drill_runs = on_main  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_registry_lint.py"],
+   "expect_failed": ["test_a_pr_that_records_the_drill_passes_although_main_lacks_it"]},
+  {"id": "NC3", "what": "an unreadable main registry is skipped and the lint falls back to the branch",
+   "mutations": [{"file": "tools/registry_lint.py",
+                  "old": "                  f'(R3 reads the drill record from main; R4 compares with it): {exc}')\n            return 2",
+                  "new": "                  f'(R3 reads the drill record from main; R4 compares with it): {exc}')\n            base = None  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_registry_lint.py"],
+   "expect_failed": ["test_an_unreadable_main_registry_fails_loudly_and_never_falls_back"]}
+ ]
+}
