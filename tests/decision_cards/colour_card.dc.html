@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>כרטיס בחירת צבע</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#075450}a:hover{color:#0E1A2B}
+.opt:focus-visible,.link:focus-visible,.send:focus-visible,.size:focus-visible,.field:focus-visible{outline:3px solid #075450;outline-offset:2px}
+@media (prefers-reduced-motion: no-preference){.card{animation:rise .18s ease-out}}
+@keyframes rise{from{transform:translateY(8px);opacity:.6}to{transform:none;opacity:1}}
+</style>
+</helmet>
+<div dir="rtl" style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.paper}}; color: {{c.ink}}; font-family: system-ui, &quot;Segoe UI&quot;, &quot;Noto Sans Hebrew&quot;, &quot;Arial Hebrew&quot;, Arial, sans-serif; font-size: {{fs.body}}px; line-height: 1.5">
+
+  <header style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: {{c.surface}}; border-bottom: 1px solid {{c.rule}}">
+    <div style="font-size: {{fs.title}}px; font-weight: 600">מאפייה</div>
+    <button class="size" type="button" onClick="{{ cycleSize }}" aria-label="גודל טקסט: {{sizeName}}. לחצו להגדלה" style="min-width: 48px; min-height: 48px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border-radius: 10px; border: 1px solid {{c.rule}}; background: {{c.surface}}; color: {{c.ink}}; font: inherit; font-size: 16px; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 9 6l5 12"></path><path d="M5.8 14h6.4"></path><path d="M15 18l3-7 3 7"></path></svg>
+      <span>גודל טקסט {{sizeName}}</span>
+    </button>
+  </header>
+
+  <main style="flex-grow: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+    <div style="align-self: flex-start; max-width: 85%; padding: 12px 16px; border-radius: 14px; background: {{c.mine}}; border: 1px solid {{c.rule}}">
+      <div style="font-size: 16px; color: {{c.muted}}">אתם</div>
+      <div>סגנון חמים וכפרי, צבעים: חום קרמל, שמנת ולבן.</div>
+    </div>
+
+    <sc-if value="{{ isReceipt }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px; color: {{c.muted}}; font-size: 16px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg>
+          <span>{{receipt}}</span>
+        </div>
+        <button class="link" type="button" ref="{{ receiptRef }}" onClick="{{ reopen }}" aria-label="שינוי הצבעים" style="min-height: 48px; min-width: 48px; padding: 0 12px; border: 0; background: transparent; color: {{c.ink}}; font: inherit; font-size: 16px; text-decoration: underline; cursor: pointer">שינוי</button>
+      </div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ isOpen }}" hint-placeholder-val="{{ true }}">
+    <section class="card" role="group" aria-labelledby="card-title" style="flex-shrink: 0; box-sizing: border-box; max-height: 568px; overflow-y: auto; margin: 0 12px 12px; padding: 20px; border-radius: 16px; background: {{c.surface}}; border: 1px solid {{c.rule}}; box-shadow: 0 6px 24px rgba(14,26,43,.10); display: flex; flex-direction: column; gap: 16px">
+      <div id="card-title" style="display: flex; align-items: center; gap: 10px; font-size: {{fs.title}}px; font-weight: 600">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.1-4-7.7-9-7.7Z"></path><circle cx="7.5" cy="10.5" r="1"></circle><circle cx="11" cy="7" r="1"></circle><circle cx="15.5" cy="8.5" r="1"></circle></svg>
+        <span>צבעי האתר</span>
+      </div>
+      <div id="card-q" style="font-size: {{fs.q}}px">אלה הצבעים לאתר?</div>
+
+      <div role="radiogroup" aria-labelledby="card-q" style="display: flex; flex-direction: column; gap: 12px">
+        <sc-for list="{{ options }}" as="o" hint-placeholder-count="2">
+          <button class="opt" type="button" role="radio" aria-checked="{{o.checked}}" aria-labelledby="{{o.labelId}}" aria-describedby="{{o.descId}}" tabIndex="{{o.tabIndex}}" ref="{{ o.ref }}" onClick="{{ o.pick }}" onKeyDown="{{ o.key }}" onFocus="{{ o.focus }}" style="{{o.style}}">
+            <span style="display: flex; align-items: center; gap: 12px">
+              <sc-if value="{{ o.hasSwatches }}" hint-placeholder-val="{{ true }}">
+                <span aria-hidden="true" style="display: flex; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid {{c.rule}}">
+                  <sc-for list="{{ o.swatches }}" as="s" hint-placeholder-count="3">
+                    <span style="{{s.style}}"></span>
+                  </sc-for>
+                </span>
+              </sc-if>
+              <sc-if value="{{ o.isAuto }}" hint-placeholder-val="{{ false }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="m15 4 1 2 2 1-2 1-1 2-1-2-2-1 2-1Z"></path><path d="M4 20 14 10"></path><path d="m19 13 .5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5Z"></path></svg>
+              </sc-if>
+              <span id="{{o.labelId}}" style="text-align: start">{{o.label}}</span>
+            </span>
+            <sc-if value="{{ o.hasSwatches }}" hint-placeholder-val="{{ true }}">
+              <span id="{{o.shareId}}" style="display: flex; flex-direction: column; gap: 6px; width: 100%; font-weight: 400">
+                <span style="font-size: 16px; color: {{c.muted}}; text-align: start">כך בערך יתחלקו הצבעים בדף:</span>
+                <span aria-hidden="true" style="display: flex; width: 100%; height: 20px; border-radius: 6px; overflow: hidden; border: 1px solid {{c.rule}}">
+                  <sc-for list="{{ o.shares }}" as="p" hint-placeholder-count="3">
+                    <span style="{{p.barStyle}}"></span>
+                  </sc-for>
+                </span>
+                <span style="display: flex; flex-direction: column; gap: 2px; font-size: 16px; color: {{c.muted}}; text-align: start">
+                  <sc-for list="{{ o.shares }}" as="p" hint-placeholder-count="3">
+                    <span>{{p.text}}</span>
+                  </sc-for>
+                </span>
+              </span>
+            </sc-if>
+            <span id="{{o.resId}}" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{o.outcome}}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <p style="margin: 0; font-size: 16px; color: {{c.muted}}">{{consequence}}</p>
+      <p style="margin: 0; font-size: 16px; color: {{c.muted}}">אפשר גם לכתוב בשורה למטה, במילים שלכם.</p>
+    </section>
+  </sc-if>
+
+  <div style="flex-shrink: 0; padding: 12px 16px 20px; display: flex; gap: 12px; align-items: center; background: {{c.surface}}; border-top: 1px solid {{c.rule}}">
+    <label for="msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">הודעה</label>
+    <input id="msg" class="field" type="text" value="{{typed}}" onChange="{{ onType }}" placeholder="{{placeholder}}" style="flex-grow: 1; min-width: 0; min-height: 48px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 1px solid {{c.rule}}; background: {{c.paper}}; color: {{c.ink}}; font: inherit; font-size: {{fs.body}}px">
+    <button class="send" type="button" onClick="{{ send }}" style="min-height: 48px; min-width: 48px; padding: 0 16px; border-radius: 12px; border: 0; background: {{c.primary}}; color: {{c.onPrimary}}; font: inherit; font-size: {{fs.body}}px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5"></path><path d="m11 6-6 6 6 6"></path></svg>
+      <span>שליחה</span>
+    </button>
+  </div>
+
+  <div aria-live="polite" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{announce}}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { phase: 'open', picked: null, at: '', size: 0, typed: '', written: '', announce: '', focusIdx: 0 };
+    this.opts = [];
+    this.receiptEl = null;
+    this.focusAfter = null;
+  }
+  componentDidUpdate() {
+    // focus moves with the decision: to the receipt's "change" after answering, back to the card when it reopens
+    var target = this.focusAfter === 'receipt' ? this.receiptEl : this.focusAfter === 'card' ? this.opts[this.state.focusIdx] : null;
+    this.focusAfter = null;
+    if (target && target.focus) target.focus();
+  }
+  renderVals() {
+    var dark = !!this.props.dark;
+    var c = dark
+      ? { paper: '#0C1522', surface: '#122031', ink: '#E4EBF2', muted: '#B9C6D3', rule: '#3A5068', mine: '#173A3A', primary: '#5CC8C0', onPrimary: '#06201F', chosenBg: '#173A3A' }
+      : { paper: '#EEF2F4', surface: '#FFFFFF', ink: '#0E1A2B', muted: '#36424F', rule: '#9AA9B8', mine: '#EAF3F2', primary: '#075450', onPrimary: '#FFFFFF', chosenBg: '#EAF3F2' };
+    var steps = [1, 1.15, 1.3];
+    var k = steps[this.state.size];
+    var fs = { body: Math.round(18 * k), q: Math.round(18 * k), title: Math.round(20 * k) };
+    var self = this;
+    // the share of the PAGE each colour covers -- the defect was area, not hue (Michael 2026-11-14)
+    var base = [
+      { id: 'stated', label: 'כן, כמו שכתבתם: חום קרמל, שמנת, לבן', lead: 'אם תבחרו בצבעים שכתבתם: ',
+        shares: [ { hex: '#FFFDD0', name: 'שמנת', role: 'רקע', pct: 70 },
+                  { hex: '#6B4226', name: 'חום קרמל', role: 'כפתורים ולכותרות', pct: 20 },
+                  { hex: '#FFFFFF', name: 'לבן', role: 'כרטיסים', pct: 10 } ],
+        result: 'החום ישמש לכפתורים ולכותרות, השמנת לרקע. הטקסט יישאר קריא, וכך תראו את זה בתצוגה.', receipt: 'צבעים: חום קרמל, שמנת, לבן' },
+      { id: 'auto', label: 'בחרו עבורי', lead: 'אם תבקשו שנבחר עבורכם: ', shares: null,
+        result: 'נבחר צבעים שמתאימים למאפייה כפרית, ותראו אותם בתצוגה לפני שמשהו נבנה.', receipt: 'צבעים: לבחירתכם' }
+    ];
+    var primaryId = 'stated';
+    var count = base.length;
+    var options = base.map(function (o, i) {
+      var isPrimary = o.id === primaryId;
+      var checked = self.state.picked === o.id;
+      var strong = isPrimary || checked;
+      var style = 'position: relative; min-height: 56px; width: 100%; box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; '
+        + 'border-radius: 12px; font: inherit; font-size: ' + fs.body + 'px; cursor: pointer; color: ' + c.ink + '; '
+        + 'border: ' + (strong ? '2px solid ' + c.primary : '1px solid ' + c.rule) + '; '
+        + 'background: ' + (checked ? c.chosenBg : c.surface) + '; font-weight: ' + (isPrimary ? '600' : '400');
+      var shares = (o.shares || []).map(function (p) {
+        return { barStyle: 'flex: ' + p.pct + ' 0 0; background: ' + p.hex + (p.hex === '#FFFFFF' ? '; box-shadow: inset 1px 0 0 ' + c.rule : ''),
+                 text: p.name + ' ל' + p.role + ': בערך ' + p.pct + '% מהדף.' };
+      });
+      return {
+        label: o.label, checked: checked ? 'true' : 'false', style: style,
+        descId: (o.shares ? 'desc-' + o.id + ' ' : '') + 'res-' + o.id, resId: 'res-' + o.id, shareId: 'desc-' + o.id, outcome: o.lead + o.result,
+        labelId: 'lbl-' + o.id, tabIndex: self.state.focusIdx === i ? 0 : -1,
+        hasSwatches: !!o.shares, isAuto: o.id === 'auto', shares: shares,
+        swatches: (o.shares || []).map(function (p) { return { style: 'width: 22px; height: 32px; background: ' + p.hex }; }),
+        ref: function (el) { self.opts[i] = el; },
+        pick: function () { self.choose(o.id, o.receipt, i); },
+        focus: function () { if (self.state.focusIdx !== i) self.setState({ focusIdx: i }); },
+        // arrows MOVE focus and never decide; Enter / Space decides (Michael 2026-11-14)
+        key: function (e) {
+          var next = { ArrowDown: i + 1, ArrowLeft: i + 1, ArrowUp: i - 1, ArrowRight: i - 1, Home: 0, End: count - 1 }[e.key];
+          if (next === undefined) return;
+          e.preventDefault();
+          next = (next + count) % count;
+          self.setState({ focusIdx: next });
+          if (self.opts[next] && self.opts[next].focus) self.opts[next].focus();
+        }
+      };
+    });
+    var onIdx = this.state.phase === 'open' ? this.state.focusIdx : base.map(function (o) { return o.id; }).indexOf(this.state.picked || primaryId);
+    var shown = base[onIdx < 0 ? 0 : onIdx];
+    var receipt = '✓ אושר · ' + (this.state.written ? 'צבעים: ' + this.state.written : (shown ? shown.receipt : '')) + ' · ' + this.state.at;
+    return {
+      c: c, fs: fs, options: options,
+      sizeName: ['רגיל', 'גדול', 'גדול מאוד'][this.state.size],
+      consequence: shown.lead + shown.result,
+      isOpen: this.state.phase === 'open', isReceipt: this.state.phase === 'receipt',
+      receipt: receipt, typed: this.state.typed, announce: this.state.announce,
+      placeholder: this.state.phase === 'open' ? 'או כתבו צבעים אחרים…' : 'כתבו הודעה…',
+      receiptRef: function (el) { self.receiptEl = el; },
+      cycleSize: function () { self.setState({ size: (self.state.size + 1) % 3 }); },
+      reopen: function () { self.focusAfter = 'card'; self.setState({ phase: 'open', announce: 'נפתח מחדש: צבעי האתר' }); },
+      onType: function (e) { self.setState({ typed: e.target.value }); },
+      send: function () {
+        var t = (self.state.typed || '').trim();
+        if (!t || self.state.phase !== 'open') return;
+        self.focusAfter = 'receipt';
+        self.setState({ phase: 'receipt', written: t, picked: null, typed: '', at: self.now(), announce: 'נקלט: צבעים ' + t });
+      }
+    };
+  }
+  choose(id, receipt, i) {
+    this.focusAfter = 'receipt';
+    this.setState({ phase: 'receipt', picked: id, written: '', focusIdx: i, at: this.now(), announce: 'נקלט: ' + receipt });
+  }
+  now() {
+    var d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+}
+</script>
+</body>
+</html>
