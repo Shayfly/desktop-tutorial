@@ -509,6 +509,45 @@ def _capability_actual_cost(capability_evidence) -> tuple[Decimal | None, bool]:
     return total, True
 
 
+def computed_provider_cost(*, llm_actual, gateway_spend: Decimal, prior, capability_evidence,
+                           infra_max: Decimal) -> tuple[Decimal | None, dict]:
+    """Michael 2026-11-14 (b1): the settlement basis when the provider did not report an actual.
+
+    Before this, a build whose actual was unknown (an image whose provider reports no price, or one model call
+    without reported usage) was settled at the whole reservation estimate (~$2), even when the model calls were
+    metered at $0.48: four such builds charged the plan $3.66 more than was measured and stopped the next build.
+    computed_from_usage = model spend (metered when every call reported usage, otherwise the gateway's spend
+    ledger, where a call without reported usage stays at its authorized worst case) + each capability event's
+    actual, else its catalog estimate, else its maximum + the infrastructure maximum (still a reserve). It is
+    never relabelled as actual (COST_MODEL.md: computed != actual). None when a component has no number at all;
+    the caller then settles at the reservation and says so loudly."""
+    missing = []
+    if llm_actual is not None:
+        llm = Decimal(str(llm_actual))
+        llm_basis = 'metered'
+    else:
+        llm = Decimal(str(gateway_spend))
+        llm_basis = 'gateway_spend_ledger'
+        if prior:
+            llm += Decimal(str(prior.get('metered_usd') or 0)) + Decimal(str(prior.get('unknown_exposure_usd') or 0))
+            if prior.get('unknown_calls') and not prior.get('unknown_exposure_usd'):
+                missing.append('earlier_worker_unknown_call_without_exposure')
+    cap = Decimal('0')
+    usage = [] if not capability_evidence else list(capability_evidence.get('usage') or [])
+    for event in usage:
+        raw = next((event.get(k) for k in ('actual_cost_usd', 'estimated_cost_usd', 'maximum_cost_usd')
+                    if event.get(k) is not None), None)
+        if raw is None:
+            missing.append(f"capability:{event.get('requirement_id') or event.get('provider') or '?'}")
+            continue
+        cap += Decimal(str(raw))
+    basis = {'basis': 'computed_from_usage', 'llm_usd': str(llm), 'llm_basis': llm_basis,
+             'capability_usd': str(cap), 'infrastructure_usd': str(infra_max)}
+    if missing:
+        return None, {**basis, 'missing': missing}
+    return llm + cap + infra_max, basis
+
+
 def asset_capability_status(plan) -> dict | None:
     """REQUIRED / OPTIONAL / NOT_REQUIRED per asset capability (decision #28)."""
     if plan is None:
@@ -710,6 +749,18 @@ def resolve_m5_billing(
     infra_actual = Decimal('0') if infra_max == 0 else None
     actual = (None if llm_actual is None or capability_actual is None or infra_actual is None
               else llm_actual + capability_actual + infra_actual)
+    computed = None
+    if actual is None:
+        gateway_spend, _ = spend_snapshot(gateway)
+        computed, computed_basis = computed_provider_cost(
+            llm_actual=llm_actual, gateway_spend=gateway_spend, prior=prior,
+            capability_evidence=capability_evidence, infra_max=infra_max)
+        cost_basis = {**cost_basis, 'settlement': computed_basis}
+        if computed is None:
+            # Fails loudly, never silently: the reservation is the only number left, and the log and the evidence
+            # name the component that had none.
+            logging.getLogger(__name__).error('SETTLEMENT_WITHOUT_MEASUREMENT build=%s missing=%s; settled at the '
+                                              'reservation', build_id, computed_basis.get('missing'))
     revenue_raw = quote.get('revenue_usd')
     # Gross contribution is only computed when all non-provider variable cost
     # inputs are known. A non-zero infrastructure maximum is still a reserve,
@@ -718,13 +769,15 @@ def resolve_m5_billing(
     if not ready:
         # Founder 2026-11-02 (DELIVERY-001): a failed build releases its credits; the provider cost it really incurred
         # stays on record (reservation + plan provider-spend meter), it is never SETTLED to the customer.
-        released = subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=actual)
+        released = subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=actual,
+                                                **({'computed_provider_cost_usd': computed} if computed is not None else {}))
         evidence = {'action': 'released_failed', 'cost_basis': cost_basis}
         if released:
             evidence.update(released)
         return 'released', evidence, actual
     settlement = subscriptions.settle(
         build_id=build_id, actual_provider_cost_usd=actual,
+        **({'computed_provider_cost_usd': computed} if computed is not None else {}),
         revenue_usd=revenue, infra_cost_usd=Decimal('0'),
     )
     evidence = {'action': 'settled', 'cost_basis': cost_basis}

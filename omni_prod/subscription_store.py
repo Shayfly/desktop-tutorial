@@ -3,9 +3,30 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 from .db import DatabasePool
-from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD
+from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD, founder_cap_exempt
 from .provider_pricing import contribution_evidence
 from .company_loss import BUDGET_CAPPED_SHORTFALL, record_overrun
+
+
+# Michael 2026-11-14 (#356): "כשל לא נספר בתקרה, עד 3 בחודש."
+FREE_FAILED_BUILDS_PER_MONTH = 3
+
+def _basis(estimated: Decimal, reported: Decimal | None, computed) -> tuple[Decimal, str]:
+    """Settlement basis (Michael 2026-11-14 b1): the provider's actual; else computed_from_usage (never stored as
+    actual); else -- only when nothing was measured -- the reservation, which the caller has already logged."""
+    if reported is not None:
+        return reported, 'ACTUAL'
+    if computed is not None:
+        value = Decimal(str(computed))
+        if value < 0:
+            raise ValueError('computed provider cost must be >= 0')
+        return value, 'COMPUTED_FROM_USAGE'
+    return estimated, 'CONSERVATIVE_RESERVATION'
+
+
+def _capped(plan, user_id) -> bool:
+    """The plan's monthly paid-provider budget applies to this account (founder exemption: pricing.founder_cap_exempt)."""
+    return plan.paid_provider_budget_usd is not None and not founder_cap_exempt(user_id)
 
 
 def provider_exposure(cur, build_id: str) -> bool:
@@ -137,7 +158,7 @@ class PostgresSubscriptionService:
         reason = 'authorized'; allowed = True
         if cc not in plan.allowed_cost_classes: allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
-        elif plan.paid_provider_budget_usd is not None and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
+        elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
         return UsageDecision(
             allowed, code.value, cc.value, str(estimate.quantize(Decimal('0.0001'))), charge,
             max(0, plan.included_credits - (used + charge)) if plan.included_credits else 0,
@@ -153,7 +174,7 @@ class PostgresSubscriptionService:
                 code, _, used, spend = self._load(user_id, conn, for_update=True)
                 plan = PLAN_CATALOG[code]
                 new_spend = spend + cost
-                if plan.paid_provider_budget_usd is not None and new_spend > plan.paid_provider_budget_usd:
+                if _capped(plan, user_id) and new_spend > plan.paid_provider_budget_usd:
                     raise PermissionError('actual provider cost exceeds plan budget')
                 new_credits = used + decision.credits
                 if plan.included_credits and new_credits > plan.included_credits:
@@ -272,7 +293,7 @@ class PostgresSubscriptionService:
             allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
-        elif plan.paid_provider_budget_usd is not None and spend + estimate > plan.paid_provider_budget_usd:
+        elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd:
             allowed, reason = False, 'paid-provider budget exhausted'
 
         decision = UsageDecision(
@@ -300,6 +321,7 @@ class PostgresSubscriptionService:
 
     def settle(
         self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None,
+        computed_provider_cost_usd: Decimal | None = None,
         revenue_usd: Decimal | None = None, infra_cost_usd: Decimal = Decimal('0'),
         payment_fee_usd: Decimal = Decimal('0'), support_allocation_usd: Decimal = Decimal('0'),
     ) -> dict | None:
@@ -331,7 +353,7 @@ class PostgresSubscriptionService:
                     if reported_actual is not None and reported_actual < 0:
                         raise ValueError('actual provider cost must be >= 0')
 
-                    settlement_basis = estimated_cost if reported_actual is None else reported_actual
+                    settlement_basis, truth = _basis(estimated_cost, reported_actual, computed_provider_cost_usd)
                     settled = settlement_basis
 
                     if not customer_plan:
@@ -356,7 +378,7 @@ class PostgresSubscriptionService:
                         plan = PLAN_CATALOG[PlanCode(sub_row[0])]
                         current_spend = Decimal(str(sub_row[1]))
 
-                        if plan.paid_provider_budget_usd is not None:
+                        if _capped(plan, user_id):
                             budget_remaining = max(Decimal('0'), plan.paid_provider_budget_usd - current_spend)
                             charge = min(shortfall, budget_remaining)
                             settled = estimated_cost + charge
@@ -381,7 +403,7 @@ class PostgresSubscriptionService:
                         'build_id': build_id,
                         'actual_provider_cost_usd': reported_actual,
                         'settled_provider_cost_usd': settled,
-                        'provider_cost_truth': 'ACTUAL' if reported_actual is not None else 'CONSERVATIVE_RESERVATION',
+                        'provider_cost_truth': truth,
                         'gross_contribution_usd': None,
                         'contribution_margin': None,
                     }
@@ -394,7 +416,7 @@ class PostgresSubscriptionService:
                             payment_fee_usd=Decimal(str(payment_fee_usd)),
                             support_allocation_usd=Decimal(str(support_allocation_usd)),
                         )
-                        result['provider_cost_truth'] = economics['provider_cost_truth'] if reported_actual is not None else 'CONSERVATIVE_RESERVATION'
+                        result['provider_cost_truth'] = economics['provider_cost_truth'] if reported_actual is not None else truth
                         result['gross_contribution_usd'] = economics['contribution_usd']
                         result['contribution_margin'] = economics['contribution_margin']
                     return result
@@ -439,7 +461,8 @@ class PostgresSubscriptionService:
                     'applied': released is not None}
         return {'build_id': build_id, 'action': action, 'metered_usd': str(total), 'reason': reason, 'applied': False}
 
-    def release_failed(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None) -> dict | None:
+    def release_failed(self, *, build_id: str, actual_provider_cost_usd: Decimal | None = None,
+                       computed_provider_cost_usd: Decimal | None = None) -> dict | None:
         """A FAILED build releases its credits in full (founder 2026-11-02 20:32; DECISIONS DELIVERY-001: "a stage that
         failed is not charged"). Before this, a failed build that had made any model call was settle()d and its credits
         stayed spent -- the owner's account lost 135 credits on three failed builds.
@@ -461,16 +484,28 @@ class PostgresSubscriptionService:
                     reported = None if actual_provider_cost_usd is None else Decimal(str(actual_provider_cost_usd))
                     if reported is not None and reported < 0:
                         raise ValueError('actual provider cost must be >= 0')
-                    basis = estimated if reported is None else reported
+                    basis, truth = _basis(estimated, reported, computed_provider_cost_usd)
                     cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now(), "
                                 "actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s",
                                 (reported, basis, build_id))
                     if row[4] == 'internal_qa':          # internal QA never touched the customer plan counters
                         return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': 0,
                                 'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa'}
+                    # Michael 2026-11-14 (#356): a failed build's provider cost does not count against the plan's
+                    # monthly budget -- up to FREE_FAILED_BUILDS_PER_MONTH failures with a cost in the UTC calendar month
+                    # (the subscription's cycle). Counted under the subscription row lock, so two failures settling at
+                    # once cannot both take the last free place. The cost stays on the reservation either way.
+                    cur.execute("SELECT 1 FROM creator_subscriptions WHERE user_id=%s FOR UPDATE", (user_id,))
+                    cur.execute("SELECT COUNT(*) FROM credit_reservations WHERE account_id=%s AND build_id<>%s "
+                                "AND status='RELEASED' AND settled_provider_cost_usd IS NOT NULL "
+                                "AND funding_source IS DISTINCT FROM 'internal_qa' "
+                                "AND resolved_at >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')",
+                                (user_id, build_id))
+                    earlier = int(cur.fetchone()[0])
+                    counted = earlier >= FREE_FAILED_BUILDS_PER_MONTH
                     cur.execute("UPDATE creator_subscriptions SET credits_used = GREATEST(0, credits_used - %s), "
                                 "provider_spend_usd = GREATEST(0, provider_spend_usd - %s + %s) WHERE user_id=%s",
-                                (credits_reserved, estimated, basis, user_id))
+                                (credits_reserved, estimated, basis if counted else Decimal('0'), user_id))
                     if credits_reserved:
                         cur.execute("INSERT INTO credit_ledger(account_id, project_id, delta, reason, idempotency_key) "
                                     "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (idempotency_key) DO NOTHING",
@@ -478,7 +513,9 @@ class PostgresSubscriptionService:
                                      f'failed-build-release:{build_id}'))
                     return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': credits_reserved,
                             'provider_cost_basis_usd': str(basis),
-                            'provider_cost_truth': 'ACTUAL' if reported is not None else 'CONSERVATIVE_RESERVATION'}
+                            'provider_cost_truth': truth,
+                            'counted_against_plan_budget': counted,
+                            'failed_builds_with_cost_this_month': earlier + 1}
 
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:

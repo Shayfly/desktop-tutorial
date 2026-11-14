@@ -75,6 +75,24 @@ class OneFieldOneQuestion(unittest.TestCase):
             self.assertEqual((b.fields['personal_data']['value'], b.fields['personal_data']['confidence']),
                              ('yes', 'confirmed'))
 
+    def test_the_latest_answer_wins_over_a_confirmed_yes(self):
+        """Michael 2026-11-14 (b4), production (bakery, then butcher): "פרטים אישיים: כן" confirmed by a button, then
+        access_scope "לא לשמור פרטים אישיים". The second answer is the customer's latest word: personal_data is no,
+        and access_scope is not asked again."""
+        self.turn(message=BAKERY)
+        self.turn(answers={'personal_data': 'yes'})
+        brief = self.s.briefs.latest('p').brief
+        self.assertEqual((brief.fields['personal_data']['value'], d.confirmed(brief, 'personal_data')), ('yes', True))
+        self.assertIn('access_scope', [q.id for q in d.pending(brief)])          # asked because personal data = yes
+        t = self.turn(answers={'access_scope': 'no_personal'})
+        brief = self.s.briefs.latest('p').brief
+        self.assertEqual((brief.fields['personal_data']['value'], brief.fields['personal_data']['question_id']),
+                         ('no', 'access_scope'))
+        self.assertNotIn('access_scope', fields(t))
+        self.assertNotIn('personal_data', fields(t))
+        self.assertNotIn('access_scope', [q.id for q in d.pending(brief)])
+        self.assertEqual(d.contradictions(brief), [])
+
     def test_a_turn_never_holds_two_questions_for_one_field(self):
         q = d.BY_ID
         self.assertEqual([x.field for x in d.one_question_per_field(

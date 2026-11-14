@@ -392,6 +392,22 @@ def _invented_contact(repository: dict, context: dict) -> list[StaticFinding]:
                                      'opening hours the customer never gave (invented): ' + ', '.join(invented),
                                      'show only hours the customer gave; with none, leave the hours out or ask for them',
                                      anchor=_anchor(' '.join(invented))))
+        # Michael 2026-11-14: a fact the customer GAVE and the page leaves out blocks too -- not only an invented one.
+        # Required: every phone, street address and day of opening hours in the canon (a day they said is closed
+        # included). Read from the visible page (tel:/wa.me targets count for a phone; JSON-LD or a <meta> does not).
+        missing = [f'phone {p}' for p in sorted(phones - shown)]
+        page_streets = [m.group(0) for m in _STREET.finditer(page)]
+        missing += [f'address {s}' for s in sorted(streets)
+                    if not any(addr_matches(ps, s) or _street_core(ps, s) for ps in page_streets)]
+        from .opening_hours import _NAMES, _show
+        given_days, page_days = decode(canon.values('hours_day')), parse(page)
+        missing += [f'hours {_NAMES[day]} {_show(given_days[day])}' for day in sorted(given_days) if day not in page_days]
+        if missing:
+            out.append(StaticFinding('skill.copy_quality', 'blocking', path,
+                                     'facts the customer gave are missing from the page: ' + '; '.join(missing[:6]),
+                                     'show every phone, address and opening-hours day the customer gave, exactly as '
+                                     f'given (canon {canon.hash}); a fact is left out only when the customer waived it',
+                                     anchor=_anchor(' '.join(missing[:3]))))
         if bad_phones or bad_streets:
             what = ', '.join(bad_phones[:3] + bad_streets[:3])
             out.append(StaticFinding('skill.copy_quality', 'blocking', path,

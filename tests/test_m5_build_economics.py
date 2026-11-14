@@ -328,7 +328,10 @@ class WorkerSettlementTruthTests(unittest.TestCase):
         self.assertEqual(action,'released')
         self.assertIsNone(actual)
         subs.settle.assert_not_called()
-        subs.release_failed.assert_called_once_with(build_id='b1', actual_provider_cost_usd=None)
+        # Michael 2026-11-14 (b1): the actual stays None (never promoted); the gateway's spend ledger is passed as the
+        # separate computed basis, so the plan is charged what was measured, not the whole reservation
+        subs.release_failed.assert_called_once_with(build_id='b1', actual_provider_cost_usd=None,
+                                                    computed_provider_cost_usd=Decimal('0.25'))
         self.assertEqual(evidence['action'],'released_failed')
 
     def test_failed_zero_spend_build_releases_reservation(self):

@@ -1,0 +1,30 @@
+{
+ "pr": "cafe-real-rows",
+ "sha256": ["tests/test_cafe_real_rows.py", "tests/fixtures/cafe_prj_tEyyuyyWNZRpiw.json"],
+ "controls": [
+  {"id": "NC1", "what": "the spec says 'approved without it' for a fact the customer never waived",
+   "mutations": [{"file": "omni_prod/discovery.py",
+                  "old": "    return [k for k in missing if k not in facts['waived']], [k for k in missing if k in facts['waived']]",
+                  "new": "    return [], missing  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_cafe_real_rows.py"],
+   "expect_failed": ["test_the_gate_asks_and_the_old_approval_does_not_stand", "test_the_tick_records_the_waiver_and_only_then_the_spec_omits", "test_without_a_waiver_the_spec_never_says_omit_and_the_old_approval_is_invalid"]},
+  {"id": "NC2", "what": "an old approval still stands whatever the spec lacks",
+   "mutations": [{"file": "omni_prod/intake/approval_flow.py",
+                  "old": "    if not spec_approved(messages, fingerprint):\n        return 'spec_not_approved'",
+                  "new": "    return None if spec_approved(messages, fingerprint) else 'spec_not_approved'  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_cafe_real_rows.py"],
+   "expect_failed": ["test_the_gate_asks_and_the_old_approval_does_not_stand", "test_the_old_approval_does_not_admit_a_build", "test_without_a_waiver_the_spec_never_says_omit_and_the_old_approval_is_invalid"]},
+  {"id": "NC3", "what": "the stored messages are not read: the facts stay lost",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py",
+                  "old": "        if not d.note_customer_texts(brief, d.customer_messages(self._messages(project_id))):\n            return row",
+                  "new": "        if True:  # NEGATIVE CONTROL\n            return row"}],
+   "targets": ["tests/test_cafe_real_rows.py"],
+   "expect_failed": ["test_after_approving_the_current_spec_it_builds_from_the_customers_facts", "test_collecting_is_done_once", "test_the_facts_come_from_the_stored_messages_and_nothing_is_asked_again", "test_zero_inventions_the_page_of_2026_11_12_is_blocked_and_the_right_page_passes"]},
+  {"id": "NC4", "what": "what the page needs is read from the first request only",
+   "mutations": [{"file": "omni_prod/discovery.py",
+                  "old": "        facts['needs'] += [k for k in needs_in(text or '') if k not in facts['needs'] and k not in own]",
+                  "new": "        pass  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_cafe_real_rows.py"],
+   "expect_failed": ["test_after_approving_the_current_spec_it_builds_from_the_customers_facts", "test_the_facts_come_from_the_stored_messages_and_nothing_is_asked_again"]}
+ ]
+}

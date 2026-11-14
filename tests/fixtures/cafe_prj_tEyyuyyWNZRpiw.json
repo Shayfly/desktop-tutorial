@@ -1,0 +1,457 @@
+{
+ "_source": "Production database 148ai-db-v2, project prj_tEyyuyyWNZRpiw (the cafe, 2026-11-12), read-only export 2026-11-13. brief = project_briefs revision 15 as Brief.to_dict keeps it (the shadow 'decision' block is not part of the brief). messages = every intake_messages row in order; customer content verbatim, assistant content omitted (their 'asked'/'intent' kept). The test checks the brief reproduces the stored fingerprint.",
+ "project_id": "prj_tEyyuyyWNZRpiw",
+ "revision": 15,
+ "fingerprint": "6fc5a369d80268fc30960161c43abfd0117e6c8345a87dfccaf61be9338f99d3",
+ "brief": {
+  "mode": "guided",
+  "hints": {
+   "dates": "future_year",
+   "login": "none",
+   "content_only": "yes"
+  },
+  "fields": {
+   "font": {
+    "value": "heebo",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "font"
+   },
+   "goal": {
+    "value": "הזמנת שולחן בבית הקפה",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "goal"
+   },
+   "logo": {
+    "value": "text",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "logo"
+   },
+   "color": {
+    "value": "חום, שמנת, ירוק",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "color"
+   },
+   "dates": {
+    "value": "future_year",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "dates"
+   },
+   "login": {
+    "value": "none",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "login"
+   },
+   "style": {
+    "value": "warm",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "style"
+   },
+   "content": {
+    "value": "תמונה ראשית של כוס קפה על שולחן עץ ליד חלון, כותרת, שעות פתיחה",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "content"
+   },
+   "screens": {
+    "value": "אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו",
+    "source": "delegated",
+    "confidence": "recommended",
+    "question_id": "screens"
+   },
+   "audience": {
+    "value": "public",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "audience"
+   },
+   "languages": {
+    "value": "he",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "languages"
+   },
+   "duplicates": {
+    "value": "allow",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "duplicates"
+   },
+   "references": {
+    "value": "אין",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "references"
+   },
+   "content_only": {
+    "value": "yes",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "content_only",
+    "cues_at_answer": []
+   },
+   "personal_data": {
+    "value": "no",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "personal_data"
+   }
+  },
+  "prompt": "דף נחיתה לבית קפה קטן, עם תמונה ראשית גדולה של כוס קפה על שולחן עץ ליד חלון, כותרת, שעות פתיחה וכפתור \"הזמנת שולחן\".",
+  "skipped": [],
+  "detector": true,
+  "open_material": [],
+  "semantic_decisions": [
+   {
+    "key": "integration.messaging",
+    "reason": "The button is a plain contact link (phone/WhatsApp link), not a sent-message integration; content-only site.",
+    "decision": "not_required",
+    "evidence": "בלי שמירת נתונים"
+   },
+   {
+    "key": "integration.payment",
+    "reason": "אין תשלום או מחיר באתר",
+    "decision": "not_required",
+    "evidence": "בלי תפריט ובלי מידע נוסף"
+   },
+   {
+    "key": "media.image.generate",
+    "reason": "הלקוח מבקש שייווצר ויזואל ראשי של כוס קפה",
+    "decision": "required",
+    "evidence": "שתיווצר תמונה של כוס קפה על שולחן עץ ליד חלון"
+   },
+   {
+    "key": "integration.maps",
+    "reason": "אין מפה או הפניית מיקום בדף",
+    "decision": "not_required",
+    "evidence": "רק כותרת \"בית קפה קטן\", התמונה הראשית, השעות והכפתור"
+   }
+  ]
+ },
+ "messages": [
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "flow": "two_gate",
+    "system": "project_created"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "דף נחיתה לבית קפה קטן, עם תמונה ראשית גדולה של כוס קפה על שולחן עץ ליד חלון, כותרת, שעות פתיחה וכפתור \"הזמנת שולחן\".",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "בטלפון. הכפתור \"הזמנת שולחן\" יפתח חיוג למספר 03-1234567. בלי מערכת הזמנות, בלי טופס ובלי התחברות. התמונה הראשית חשובה: שתיווצר תמונה של כוס קפה על שולחן עץ ליד חלון.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. בלי תפריט ובלי מידע נוסף. רק כותרת \"בית קפה קטן\", התמונה הראשית, השעות והכפתור. אפשר להתקדם לתוכנית.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "screens",
+     "content"
+    ],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "שתי ההודעות נכונות ואין ביניהן סתירה. מסך אחד בלבד: דף נחיתה, ובו מלמעלה למטה הכותרת \"בית קפה קטן\", התמונה הראשית שתיווצר (כוס קפה על שולחן עץ ליד חלון), השעות א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור, והכפתור \"הזמנת שולחן\" שמחייג ל-03-1234567. אין תוכן או נתונים נוספים. אפשר להציג את התוכנית לאישור.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "screens",
+     "content"
+    ],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "מסכים: בחרו עבורי",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "audience"
+    ],
+    "intent": "answer"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "קהל: לקוחות או קהל רחב מהאינטרנט",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "style"
+    ],
+    "intent": "answer"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "כפרי וחמים: גוונים של חום קפה, שמנת וירוק זית, גופן כתב-יד לכותרת, הרבה אוויר סביב התמונה.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "טלפון",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "מספיק, זהו.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "לא",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "תכין את הסיכום לאישור",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "כן, אתר תוכן בלבד — בלי שמירת נתונים. בלי שמירת פרטים אישיים.",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "כן, אתר תוכן בלבד — בלי שמירת נתונים",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "content_only"
+    ],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "האם זה אתר תוכן בלבד — מציג מידע, מחירים וקישורים, ולא שומר כלום מהמבקרים?: כן, אתר תוכן בלבד — בלי שמירת נתונים",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "answer"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "זהו הכול בסדר תרוץ",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "personal_data"
+    ],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "לא",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [
+     "personal_data"
+    ],
+    "intent": "requirements"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "פרטים אישיים: לא",
+   "interpretation": {
+    "flow": "two_gate"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "answer"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "אישרתי את המפרט",
+   "interpretation": {
+    "flow": "two_gate",
+    "spec_approved": "6fc5a369d80268fc30960161c43abfd0117e6c8345a87dfccaf61be9338f99d3"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "approve_spec"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "approve_spec"
+   }
+  },
+  {
+   "role": "customer",
+   "content": "אישרתי את המפרט",
+   "interpretation": {
+    "spec_approved": "6fc5a369d80268fc30960161c43abfd0117e6c8345a87dfccaf61be9338f99d3"
+   }
+  },
+  {
+   "role": "assistant",
+   "content": "",
+   "interpretation": {
+    "asked": [],
+    "intent": "approve_spec"
+   }
+  }
+ ]
+}

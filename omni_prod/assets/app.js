@@ -96,7 +96,9 @@ const T = {
     lifecycle:'מחזור בנייה מלא: תכנון, קוד, התקנה, בנייה, בדיקות, תיקונים, תצוגה וייצוא', operatorDetails:'פרטים למפעיל השרת',
     b_durable_backend_not_configured:'הבנייה דורשת שרת עם PostgreSQL ואחסון S3.',
     b_infrastructure:k=>`התשתית של האפליקציה לא מוכנה: ${k}`, b_image_provider:'יצירת אייקון ותמונות לא מוגדרת.',
-    b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',
+    b_plan_cannot_authorize_cost:'המסלול שלך לא מכסה את הבנייה הזו.',
+    mediaTitle:'מדיה שתיווצר בבנייה', mediaKinds:{'hero/brand visual':'תמונה ראשית', 'product icon':'אייקון', 'media.image.generate':'תמונה', 'media.video.generate':'וידאו', 'media.audio.tts':'הקראה קולית', 'media.audio.music':'מוזיקה'}, mediaOptional:'אופציונלי',
+    planReasons:{'cost class not included in plan':'המסלול שלך לא כולל בנייה בגודל הזה.', 'monthly credits exhausted':'הקרדיטים החודשיים נגמרו.', 'paid-provider budget exhausted':'תקציב הבנייה של המסלול לחודש הזה נגמר.'},
     b_qa_budget_denied:'תקציב אב־הטיפוס אינו מאפשר את הבנייה הזו. בדקו את יתרת בדיקות הפיתוח או נסו בקשה מצומצמת יותר.',
     qaBudgetTitle:'תקציב בדיקות אב־טיפוס — פרטי', qaBudgetRemaining:'יתרה פנימית מוערכת',
     qaBudgetLimit:'מגבלת הרשאה לבנייה אחת', qaBudgetActual:'אלה רישומי העלות של 148AI; לא יתרות אצל ספקי ה־AI.',
@@ -106,7 +108,7 @@ const T = {
     b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
     b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
     b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
-    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
+    readinessBuilt:'הבנייה האחרונה הסתיימה בהצלחה', readinessNextBlocked:'בנייה נוספת לא אפשרית כרגע',     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
@@ -214,7 +216,9 @@ const T = {
     lifecycle:'Full build lifecycle: plan, code, install, build, test, repair, preview and export', operatorDetails:'Details for the server operator',
     b_durable_backend_not_configured:'Building needs a server with PostgreSQL and S3 storage.',
     b_infrastructure:k=>`App infrastructure is not ready: ${k}`, b_image_provider:'Icon and image generation is not configured.',
-    b_plan_cannot_authorize_cost:'Your current plan does not authorize paid variable cost.',
+    b_plan_cannot_authorize_cost:'Your plan does not cover this build.',
+    mediaTitle:'Media the build will make', mediaKinds:{'hero/brand visual':'Main image', 'product icon':'Icon', 'media.image.generate':'Image', 'media.video.generate':'Video', 'media.audio.tts':'Voice-over', 'media.audio.music':'Music'}, mediaOptional:'optional',
+    planReasons:{'cost class not included in plan':'Your plan does not include a build of this size.', 'monthly credits exhausted':'The monthly credits are used up.', 'paid-provider budget exhausted':"This month's build budget on your plan is used up."},
     b_qa_budget_denied:'The prototype QA budget cannot authorize this build. Check the testing balance or reduce the request.',
     qaBudgetTitle:'Private prototype testing budget', qaBudgetRemaining:'Estimated internal allowance left',
     qaBudgetLimit:'Per-build testing limit', qaBudgetActual:'These are 148AI spend records, not your AI providers’ account balances.',
@@ -224,7 +228,7 @@ const T = {
     b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
     b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
     b_brief_stale:'The request changed since it was approved. Approve the current spec.',
-    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
+    readinessBuilt:'The last build finished successfully', readinessNextBlocked:'Another build is not possible right now',     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
@@ -686,15 +690,25 @@ function renderProjectReadiness() {
   strip.hidden = !S.projectId;
   if (!S.projectId) return;
   const p = S.plan;
-  const busy = S.build && !isTerminal(S.build.status);
-  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
-  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
-  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
-  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
-    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
+  const { mode, label } = readinessView(S.build, p);
   strip.className = 'projectReadiness ' + mode;
   strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
     h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
+}
+// Michael 2026-11-14 (butcher): after a successful build the strip said "לא ניתן להתחיל בבנייה כרגע: <reason>" in
+// red beside "הבנייה הסתיימה בהצלחה". The refusal is about ANOTHER build: it is said so, and never in the failure colour.
+function readinessView(build, p) {
+  const busy = build && !isTerminal(build.status);
+  const built = !busy && build && String(build.status).toLowerCase() === 'ready';
+  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
+  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
+  if (built) {
+    return { mode: 'built', label: why ? `${t('readinessBuilt')}. ${t('readinessNextBlocked')}: ${why}` : t('readinessBuilt') };
+  }
+  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
+    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
+  return { mode, label };
 }
 function renderPlan() {
   const panel = $('planPanel'); const p = S.plan;
@@ -727,11 +741,14 @@ function renderPlan() {
   ].flat() : [];
   const kids = [
     h('h2', {}, t('planTitle')),
-    h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
-      h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
+    h('section', { class: `readinessStatus ${readinessView(S.build, p).mode === 'built' ? 'built' : p.can_build ? 'ready' : 'blocked'}`,
+                   role: 'status', 'aria-live': 'polite' },
+      h('strong', {}, readinessView(S.build, p).mode === 'built' ? `${t('readinessBuilt')}. ${p.can_build ? t('readinessReady') : t('readinessNextBlocked')}`
+                       : p.can_build ? t('readinessReady') : t('readinessBlocked')),
       !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
       !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
+    ...(mediaLines(p).length ? [h('h3', {}, t('mediaTitle')), h('ul', { class: 'facts media' }, mediaLines(p).map(x => h('li', {}, x)))] : []),
     h('h3', {}, t('understood')),
     h('p', { class: 'summary' }, p.product.summary || p.product.title),
     ...facts(t('roles'), p.product.user_roles), ...facts(t('data'), p.product.data_requirements),
@@ -769,16 +786,7 @@ function renderPlan() {
       const names = missingCapabilityNames[g.key];
       return names ? names[S.lang === 'he' ? 0 : 1] : String(g.purpose || g.key || t('unknownBlocker'));
     };
-    const title = b => {
-      if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
-      if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
-      if (b.code.startsWith('infrastructure_')) {
-        const kind = (p.infrastructure.find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
-        return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
-      }
-      if (b.code.startsWith('image_provider_')) return t('b_image_provider');
-      return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
-    };
+    const title = b => blockerTitle(b, p);
     const titles = [...new Set(p.blockers.map(title))];
     // Never imply that editing the request is the only remedy for a missing
     // provider quote. A configured-but-unpriced capability needs operator
@@ -1533,6 +1541,34 @@ function renderArch() {
           `${x.item}: ${x.reason}`, x.alternative ? ` — ${x.alternative}` : ''))))) : null,
     h('div', { class: 'layers' }, layers),
     (S.chat && S.chat.interpreter === 'deterministic') ? h('p', { class: 'hint' }, t('interpreterNote')) : null);
+}
+// 2026-11-14 (Michael b2): the plan refusal names the subscription's own reason (b.detail, the closed list of
+// build_readiness.PLAN_REASONS), never a generic line that contradicts it ('does not authorize variable cost').
+// Michael 2026-11-14 (b3): what media the build makes, one line each, from the contract (p.media) -- never from the
+// goal sentence, which is the intake model's free text and dropped the butcher's hero image.
+function mediaLines(p) {
+  const kinds = T[S.lang].mediaKinds || T.en.mediaKinds;
+  return ((p && p.media) || []).map(m => {
+    const kind = kinds[m.purpose] || kinds[m.key] || T.en.mediaKinds[m.key] || m.key;
+    const line = m.subject ? `${kind}: ${m.subject}` : kind;
+    return m.required ? line : `${line} (${t('mediaOptional')})`;
+  });
+}
+// One line per blocker in the plan tab (top level so the test runs this exact function).
+function blockerTitle(b, p) {
+  if(b.code==='capability_not_feasible')return capabilityBlockMessage(b);
+  if(b.code==='requirements_invalid')return S.lang==='he'?'יש להשלים או לתקן פרטים בבקשה.':'Complete or correct the request.';
+  if (b.code.startsWith('infrastructure_')) {
+    const kind = ((p.infrastructure || []).find(i => b.code.startsWith(`infrastructure_${i.kind}_`)) || {}).kind;
+    return t('b_infrastructure')(kind ? t(`k_${kind}`) : b.code);
+  }
+  if (b.code.startsWith('image_provider_')) return t('b_image_provider');
+  if (b.code === 'plan_cannot_authorize_cost') return planReason(b);
+  return T[S.lang][`b_${b.code}`] || T.en[`b_${b.code}`] || t('unknownBlocker');
+}
+function planReason(b) {
+  const reason = String((b && b.detail) || '');
+  return (T[S.lang].planReasons || {})[reason] || T.en.planReasons[reason] || t('b_plan_cannot_authorize_cost');
 }
 function capabilityBlockMessage(detail) {
   const action = S.lang==='he' ? 'ערכו את הדרישה או פנו לתמיכה להשלמת היכולת.' : 'Edit the requirement or contact support to enable this capability.';
