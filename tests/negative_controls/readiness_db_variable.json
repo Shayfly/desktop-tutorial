@@ -1,0 +1,18 @@
+{
+ "pr": "readiness-reads-omni-db",
+ "sha256": ["tests/test_readiness_db_variable.py", "tests/fixtures/vercel_env_keys_148aiv28_2026_11_15.json"],
+ "controls": [
+  {"id": "NC1", "what": "the DATABASE_URL fallback is back (preview says configured with no app database)",
+   "mutations": [{"file": "omni_prod/readiness.py",
+                  "old": "    db=os.getenv('OMNI_DATABASE_URL')\n",
+                  "new": "    db=_any_env('OMNI_DATABASE_URL','DATABASE_URL')\n"}],
+   "targets": ["tests/test_readiness_db_variable.py"],
+   "expect_failed": ["test_preview_with_only_the_old_integration_variable_is_not_configured", "test_no_reader_of_database_url_is_left_in_the_app"]},
+  {"id": "NC2", "what": "the gate passes without any database",
+   "mutations": [{"file": "omni_prod/readiness.py",
+                  "old": "        ReadinessGate('postgres_config',bool(db),True,",
+                  "new": "        ReadinessGate('postgres_config',True,True,"}],
+   "targets": ["tests/test_readiness_db_variable.py"],
+   "expect_failed": ["test_preview_with_only_the_old_integration_variable_is_not_configured"]}
+ ]
+}
