@@ -3,9 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 from .db import DatabasePool
-from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD
+from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD, founder_cap_exempt
 from .provider_pricing import contribution_evidence
 from .company_loss import BUDGET_CAPPED_SHORTFALL, record_overrun
+
+
+def _capped(plan, user_id) -> bool:
+    """The plan's monthly paid-provider budget applies to this account (founder exemption: pricing.founder_cap_exempt)."""
+    return plan.paid_provider_budget_usd is not None and not founder_cap_exempt(user_id)
 
 
 def provider_exposure(cur, build_id: str) -> bool:
@@ -137,7 +142,7 @@ class PostgresSubscriptionService:
         reason = 'authorized'; allowed = True
         if cc not in plan.allowed_cost_classes: allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits: allowed, reason = False, 'monthly credits exhausted'
-        elif plan.paid_provider_budget_usd is not None and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
+        elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd: allowed, reason = False, 'paid-provider budget exhausted'
         return UsageDecision(
             allowed, code.value, cc.value, str(estimate.quantize(Decimal('0.0001'))), charge,
             max(0, plan.included_credits - (used + charge)) if plan.included_credits else 0,
@@ -153,7 +158,7 @@ class PostgresSubscriptionService:
                 code, _, used, spend = self._load(user_id, conn, for_update=True)
                 plan = PLAN_CATALOG[code]
                 new_spend = spend + cost
-                if plan.paid_provider_budget_usd is not None and new_spend > plan.paid_provider_budget_usd:
+                if _capped(plan, user_id) and new_spend > plan.paid_provider_budget_usd:
                     raise PermissionError('actual provider cost exceeds plan budget')
                 new_credits = used + decision.credits
                 if plan.included_credits and new_credits > plan.included_credits:
@@ -272,7 +277,7 @@ class PostgresSubscriptionService:
             allowed, reason = False, 'cost class not included in plan'
         elif plan.included_credits and used + charge > plan.included_credits:
             allowed, reason = False, 'monthly credits exhausted'
-        elif plan.paid_provider_budget_usd is not None and spend + estimate > plan.paid_provider_budget_usd:
+        elif _capped(plan, user_id) and spend + estimate > plan.paid_provider_budget_usd:
             allowed, reason = False, 'paid-provider budget exhausted'
 
         decision = UsageDecision(
@@ -356,7 +361,7 @@ class PostgresSubscriptionService:
                         plan = PLAN_CATALOG[PlanCode(sub_row[0])]
                         current_spend = Decimal(str(sub_row[1]))
 
-                        if plan.paid_provider_budget_usd is not None:
+                        if _capped(plan, user_id):
                             budget_remaining = max(Decimal('0'), plan.paid_provider_budget_usd - current_spend)
                             charge = min(shortfall, budget_remaining)
                             settled = estimated_cost + charge

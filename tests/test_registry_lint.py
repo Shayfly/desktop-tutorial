@@ -91,10 +91,15 @@ class TheLintCanFail(unittest.TestCase):
         self.assertIn('R3 C17: drill overdue since 2026-11-04 (weekly; last run 2026-10-28)',
                       self.errors(only_the_10_28_run, today=date(2026, 11, 5)))
 
-    def test_R3_the_latest_recorded_run_wins(self):                                  # 11-06 run 42194235767 recorded 11-07
-        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(lambda r: None, today=date(2026, 11, 13))))
+    def test_R3_the_latest_recorded_run_wins(self):                                  # 11-14 run 43578100405 recorded 11-14
+        self.assertFalse(any(e.startswith('R3 C17') for e in self.errors(lambda r: None, today=date(2026, 11, 21))))
+        self.assertIn('R3 C17: drill overdue since 2026-11-21 (weekly; last run 2026-11-14)',
+                      self.errors(lambda r: None, today=date(2026, 11, 22)))
+        # the older record alone (11-06) is overdue on 11-14: the newest entry is the one that counts
         self.assertIn('R3 C17: drill overdue since 2026-11-13 (weekly; last run 2026-11-06)',
-                      self.errors(lambda r: None, today=date(2026, 11, 14)))
+                      self.errors(lambda r: r.__setitem__('drills_run', [x for x in r['drills_run']
+                                                                         if x.get('date') != '2026-11-14']),
+                                  today=date(2026, 11, 14)))
 
     def test_R3_a_live_control_with_its_own_drill(self):
         errs = self.errors(lambda r: None, today=date(2026, 11, 21))
