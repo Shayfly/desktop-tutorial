@@ -139,6 +139,12 @@ def build_plan_preview(
             "required_integrations": list(contract.required_integrations),
         },
         "capabilities": capabilities,
+        # Michael 2026-11-14 (b3): the media the build will make, from the contract itself -- the plan's goal line is
+        # free text written by the intake model and dropped the butcher's hero image; this list cannot.
+        "media": [{"key": r.key, "purpose": r.purpose, "required": r.required,
+                   "subject": str((r.constraints or {}).get("subject") or ""),
+                   "aspect_ratio": str((r.constraints or {}).get("aspect_ratio") or "")}
+                  for r in contract.capability_plan.requirements if r.key.startswith("media.")],
         "infrastructure": infrastructure,
         "infrastructure_not_required": _not_required(contract),
         "clarification_questions": [q.to_dict() for q in contract.unresolved_questions],

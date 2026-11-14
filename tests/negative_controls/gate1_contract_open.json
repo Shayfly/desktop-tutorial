@@ -1,0 +1,30 @@
+{
+ "pr": "gate1-contract-open",
+ "sha256": ["tests/test_gate1_contract_open.py", "tests/fixtures/butcher_prj_fV8kB7FwuNimGw.json"],
+ "controls": [
+  {"id": "NC1", "what": "gate 1 is shown although the contract still asks (2026-11-13 13:35)",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py",
+                  "old": "        held = self._open_question_instead_of_gate1(turn, row, lang)\n        if held is not None:\n            return held\n",
+                  "new": "        # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_gate1_contract_open.py"],
+   "expect_failed": ["test_gate1_is_held_while_the_contract_asks"]},
+  {"id": "NC2", "what": "an old approve button still plans a spec whose contract asks",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py",
+                  "old": "        if feasible and self._contract_open(row):\n",
+                  "new": "        if False:  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_gate1_contract_open.py"],
+   "expect_failed": ["test_the_old_approve_button_plans_nothing"]},
+  {"id": "NC3", "what": "the contract is never consulted",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py",
+                  "old": "        return list(contract.unresolved_questions)\n",
+                  "new": "        return []  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_gate1_contract_open.py"],
+   "expect_failed": ["test_the_export_is_faithful_and_reproduces_the_gap", "test_gate1_is_held_while_the_contract_asks", "test_the_old_approve_button_plans_nothing"]},
+  {"id": "NC4", "what": "a card is shown that cannot stick (the answer is dropped on save: an endless loop)",
+   "mutations": [{"file": "omni_prod/conversation/supervisor.py",
+                  "old": "        if card is not None and card.ask_if(d._ctx(row.brief)):\n",
+                  "new": "        if card is not None:  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_gate1_contract_open.py"],
+   "expect_failed": ["test_gate1_is_held_while_the_contract_asks", "test_the_old_approve_button_plans_nothing"]}
+ ]
+}

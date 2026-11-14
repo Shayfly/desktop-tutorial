@@ -1,0 +1,30 @@
+{
+ "pr": "plan-reason-ui",
+ "sha256": ["tests/test_plan_reason_ui.py"],
+ "controls": [
+  {"id": "NC1", "what": "the list renders the plan refusal by code only (the butcher contradiction)",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "  if (b.code === 'plan_cannot_authorize_cost') return planReason(b);\n",
+                  "new": "  // NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_plan_reason_ui.py"],
+   "expect_failed": ["test_the_list_says_what_the_banner_says", "test_every_server_reason_has_the_same_words_in_the_ui"]},
+  {"id": "NC2", "what": "planReason ignores the subscription's reason",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "  const reason = String((b && b.detail) || '');",
+                  "new": "  const reason = '';  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_plan_reason_ui.py"],
+   "expect_failed": ["test_the_list_says_what_the_banner_says", "test_every_server_reason_has_the_same_words_in_the_ui"]},
+  {"id": "NC3", "what": "the generic line says the plan does not authorize variable cost again",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "    b_plan_cannot_authorize_cost:'המסלול שלך לא מכסה את הבנייה הזו.',",
+                  "new": "    b_plan_cannot_authorize_cost:'המסלול הנוכחי לא מאשר עלות משתנה בתשלום.',"}],
+   "targets": ["tests/test_plan_reason_ui.py"],
+   "expect_failed": ["test_an_unknown_reason_gets_the_servers_generic_line"]},
+  {"id": "NC4", "what": "renderPlan keeps its own copy of the title logic",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "    const title = b => blockerTitle(b, p);",
+                  "new": "    const title = b => T[S.lang][`b_${b.code}`] || t('unknownBlocker');  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_plan_reason_ui.py"],
+   "expect_failed": ["test_the_plan_tab_renders_its_list_through_blocker_title"]}
+ ]
+}

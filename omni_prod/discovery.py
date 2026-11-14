@@ -465,8 +465,12 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
             if q.kind == 'choice' and value not in {o.value for o in q.options}:
                 raise ValueError(f'invalid option for {qid}')
             new.fields[q.field] = {'value': value[:2000], 'source': 'answer', 'question_id': qid, 'confidence': 'confirmed'}
-            for covered in COVERS.get(q.field, ()):     # the answer decides the covered field too (one question)
-                if covered == 'personal_data' and not confirmed(new, covered):
+            # The answer decides the covered field too (one question). Michael 2026-11-14 (b4): the LATEST answer wins.
+            # Before, a personal_data already confirmed "yes" was kept, so "לא לשמור פרטים אישיים" changed nothing and
+            # the conversation asked again; access_scope is only asked BECAUSE personal_data is "yes", so it always
+            # met a confirmed value and its "no" was never applied.
+            for covered in COVERS.get(q.field, ()):
+                if covered == 'personal_data':
                     new.fields[covered] = {'value': 'no' if value == 'no_personal' else 'yes', 'source': 'answer',
                                            'question_id': qid, 'confidence': 'confirmed'}
         if qid in new.skipped:

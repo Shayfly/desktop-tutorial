@@ -1,0 +1,18 @@
+{
+ "pr": "latest-answer-wins",
+ "sha256": ["tests/test_one_question_per_field.py"],
+ "controls": [
+  {"id": "NC1", "what": "the code before 2026-11-14: a confirmed 'yes' is kept against the later 'no_personal'",
+   "mutations": [{"file": "omni_prod/discovery.py",
+                  "old": "                if covered == 'personal_data':\n",
+                  "new": "                if covered == 'personal_data' and not confirmed(new, covered):  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_one_question_per_field.py"],
+   "expect_failed": ["test_the_latest_answer_wins_over_a_confirmed_yes"]},
+  {"id": "NC2", "what": "the covering answer does not decide the covered field at all",
+   "mutations": [{"file": "omni_prod/discovery.py",
+                  "old": "                if covered == 'personal_data':\n",
+                  "new": "                if False:  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_one_question_per_field.py"],
+   "expect_failed": ["test_the_covering_answer_settles_the_covered_field", "test_the_latest_answer_wins_over_a_confirmed_yes"]}
+ ]
+}

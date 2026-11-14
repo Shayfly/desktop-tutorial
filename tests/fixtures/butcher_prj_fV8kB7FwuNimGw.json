@@ -1,0 +1,517 @@
+{
+ "_source": "Production database (Neon aged-tree-68103298), project prj_fV8kB7FwuNimGw (the butcher, 2026-11-14), project_briefs revisions 4 and 8, read-only export",
+ "project_id": "prj_fV8kB7FwuNimGw",
+ "revision": 8,
+ "fingerprint": "721da1b500072da512804a59614bad79dd7a45b1a360e727a90c5742a0d2c43a",
+ "brief": {
+  "mode": "guided",
+  "hints": {
+   "access_scope": "no_personal",
+   "content_only": "yes",
+   "personal_data": "no"
+  },
+  "assets": {
+   "facts": {
+    "spans": [
+     "0504000162",
+     "רחוב נתיב המזלות 22, ירושלים",
+     "א׳–ה׳ 07:00–19:00",
+     "ו׳ 07:00–14:00",
+     "שבת סגור"
+    ]
+   }
+  },
+  "fields": {
+   "font": {
+    "value": "heebo",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "font"
+   },
+   "goal": {
+    "value": "אתר תדמית לאטליז: פרטי קשר, שעות פתיחה, מוצרים וכפתור התקשרות",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "goal"
+   },
+   "logo": {
+    "value": "text",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "logo"
+   },
+   "color": {
+    "value": "blue",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "color"
+   },
+   "dates": {
+    "value": "future_year",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "dates"
+   },
+   "login": {
+    "value": "none",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "login"
+   },
+   "style": {
+    "value": "warm",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "style"
+   },
+   "content": {
+    "value": "שם העסק, כתובת רחוב נתיב המזלות 22 ירושלים, טלפון 0504000162, שעות פתיחה, רשימת מוצרים, הודעה על בשר טרי כל בוקר",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "content"
+   },
+   "screens": {
+    "value": "דף הבית עם תמונה ראשית גדולה, מוצרים, שעות פתיחה וכפתור התקשרות",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "screens"
+   },
+   "audience": {
+    "value": "public",
+    "source": "message",
+    "confidence": "stated",
+    "question_id": "audience"
+   },
+   "languages": {
+    "value": "he",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "languages"
+   },
+   "duplicates": {
+    "value": "block",
+    "source": "default",
+    "confidence": "inferred",
+    "question_id": "duplicates"
+   },
+   "references": {
+    "value": "תחפש אתר של אטליז ותלך על הקו שלו",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "references"
+   },
+   "content_only": {
+    "value": "yes",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "content_only",
+    "cues_at_answer": []
+   },
+   "personal_data": {
+    "value": "no",
+    "source": "answer",
+    "confidence": "confirmed",
+    "question_id": "personal_data"
+   }
+  },
+  "prompt": "אטליז בשר כשר, \"האטליז של סבא שמעון\", רחוב נתיב המזלות 22, ירושלים. טלפון 0504000162. כפתור להתקשרות. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה. \"אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש.\" תמונה ראשית גדולה: נתחי בקר טריים על נייר קצבים על דלפק שיש, אור קר של בוקר.",
+  "skipped": [],
+  "decision": {
+   "v": 1,
+   "gaps": [
+    {
+     "field": "art_01M7AHV9G1AVZAQEECC3VHMM4D.kind",
+     "blocks": "build",
+     "options": [
+      "site",
+      "landing",
+      "app",
+      "saas",
+      "game",
+      "song",
+      "video",
+      "agent",
+      "combo"
+     ],
+     "trigger": "missing",
+     "resolver": "customer",
+     "asked_count": 0
+    },
+    {
+     "field": "shared.tone",
+     "blocks": "nothing",
+     "options": [],
+     "trigger": "missing",
+     "resolver": "customer",
+     "asked_count": 0
+    },
+    {
+     "field": "shared.brand_name",
+     "blocks": "nothing",
+     "options": [],
+     "trigger": "missing",
+     "resolver": "customer",
+     "asked_count": 0
+    }
+   ],
+   "mode": "free",
+   "turns": 0,
+   "locale": "he-IL",
+   "shared": {
+    "tone": {
+     "v": null,
+     "src": null,
+     "via": null,
+     "conf": "missing"
+    },
+    "brand_name": {
+     "v": null,
+     "src": null,
+     "via": null,
+     "conf": "missing"
+    },
+    "business_facts": []
+   },
+   "artifacts": [
+    {
+     "id": "art_01M7AHV9G1AVZAQEECC3VHMM4D",
+     "game": null,
+     "kind": {
+      "v": "app",
+      "src": "rawBrief",
+      "via": "extract",
+      "conf": "inferred"
+     },
+     "saas": null,
+     "song": null,
+     "agent": null,
+     "purpose": {
+      "v": "אתר תדמית לאטליז: פרטי קשר, שעות פתיחה, מוצרים וכפתור התקשרות",
+      "src": "customer",
+      "via": "text",
+      "conf": "stated"
+     },
+     "audience": {
+      "v": "public",
+      "src": "customer",
+      "via": "text",
+      "conf": "stated"
+     },
+     "persistence": {
+      "v": "none",
+      "src": "customer",
+      "via": "button",
+      "conf": "stated"
+     },
+     "must_include": {
+      "v": [
+       "דף הבית עם תמונה ראשית גדולה, מוצרים, שעות פתיחה וכפתור התקשרות"
+      ],
+      "src": "rawBrief",
+      "via": "extract",
+      "conf": "inferred"
+     },
+     "personal_data": {
+      "v": "no",
+      "src": "customer",
+      "via": "button",
+      "conf": "stated"
+     },
+     "requires_auth": {
+      "v": false,
+      "src": "customer",
+      "via": "text",
+      "conf": "stated"
+     }
+    }
+   ],
+   "raw_brief": "אטליז בשר כשר, \"האטליז של סבא שמעון\", רחוב נתיב המזלות 22, ירושלים. טלפון 0504000162. כפתור להתקשרות. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה. \"אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש.\" תמונה ראשית גדולה: נתחי בקר טריים על נייר קצבים על דלפק שיש, אור קר של בוקר.",
+   "raw_brief_sha256": "4ac1f726f9d82722cb4b64d4a883abc388b62831e65f7943e7aaf9556c301ddb"
+  },
+  "detector": true,
+  "open_material": [],
+  "semantic_decisions": [
+   {
+    "key": "integration.messaging",
+    "reason": "האתר לא שולח הודעות; יש רק כפתור התקשרות טלפוני, שאינו שילוב הודעות",
+    "decision": "not_required",
+    "evidence": "לא שומר מידע"
+   },
+   {
+    "key": "integration.payment",
+    "reason": "מוצג מחיר או רשימה בלבד, אין תשלום באתר",
+    "decision": "not_required",
+    "evidence": "מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה."
+   },
+   {
+    "key": "target.agent",
+    "reason": "אתר תדמית סטטי ללא סוכן AI",
+    "decision": "not_required",
+    "evidence": "אטליז בשר כשר, \"האטליז של סבא שמעון\""
+   }
+  ]
+ },
+ "revision_4": {
+  "revision": 4,
+  "fingerprint": "58eeb06da2a0737f0ce94f26691727a4226b32e357d440d8956e43555c97ac83",
+  "brief": {
+   "mode": "guided",
+   "hints": {
+    "access_scope": "no_personal",
+    "content_only": "yes",
+    "personal_data": "no"
+   },
+   "assets": {
+    "facts": {
+     "spans": [
+      "0504000162",
+      "רחוב נתיב המזלות 22, ירושלים",
+      "א׳–ה׳ 07:00–19:00",
+      "ו׳ 07:00–14:00",
+      "שבת סגור"
+     ]
+    }
+   },
+   "fields": {
+    "font": {
+     "value": "heebo",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "font"
+    },
+    "goal": {
+     "value": "אתר תדמית לאטליז: פרטי קשר, שעות פתיחה, מוצרים וכפתור התקשרות",
+     "source": "message",
+     "confidence": "stated",
+     "question_id": "goal"
+    },
+    "logo": {
+     "value": "text",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "logo"
+    },
+    "color": {
+     "value": "blue",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "color"
+    },
+    "dates": {
+     "value": "future_year",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "dates"
+    },
+    "login": {
+     "value": "none",
+     "source": "message",
+     "confidence": "stated",
+     "question_id": "login"
+    },
+    "style": {
+     "value": "warm",
+     "source": "answer",
+     "confidence": "confirmed",
+     "question_id": "style"
+    },
+    "content": {
+     "value": "שם העסק, כתובת רחוב נתיב המזלות 22 ירושלים, טלפון 0504000162, שעות פתיחה, רשימת מוצרים, הודעה על בשר טרי כל בוקר",
+     "source": "message",
+     "confidence": "stated",
+     "question_id": "content"
+    },
+    "screens": {
+     "value": "דף הבית עם תמונה ראשית גדולה, מוצרים, שעות פתיחה וכפתור התקשרות",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "screens"
+    },
+    "audience": {
+     "value": "public",
+     "source": "message",
+     "confidence": "stated",
+     "question_id": "audience"
+    },
+    "languages": {
+     "value": "he",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "languages"
+    },
+    "duplicates": {
+     "value": "block",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "duplicates"
+    },
+    "references": {
+     "value": "אין",
+     "source": "default",
+     "confidence": "inferred",
+     "question_id": "references"
+    },
+    "access_scope": {
+     "value": "no_personal",
+     "source": "answer",
+     "confidence": "confirmed",
+     "question_id": "access_scope"
+    },
+    "personal_data": {
+     "value": "yes",
+     "source": "answer",
+     "confidence": "confirmed",
+     "question_id": "personal_data"
+    }
+   },
+   "prompt": "אטליז בשר כשר, \"האטליז של סבא שמעון\", רחוב נתיב המזלות 22, ירושלים. טלפון 0504000162. כפתור להתקשרות. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה. \"אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש.\" תמונה ראשית גדולה: נתחי בקר טריים על נייר קצבים על דלפק שיש, אור קר של בוקר.",
+   "skipped": [],
+   "decision": {
+    "v": 1,
+    "gaps": [
+     {
+      "field": "art_01M7AHV9G1AVZAQEECC3VHMM4D.kind",
+      "blocks": "build",
+      "options": [
+       "site",
+       "landing",
+       "app",
+       "saas",
+       "game",
+       "song",
+       "video",
+       "agent",
+       "combo"
+      ],
+      "trigger": "missing",
+      "resolver": "customer",
+      "asked_count": 0
+     },
+     {
+      "field": "art_01M7AHV9G1AVZAQEECC3VHMM4D.persistence",
+      "blocks": "build",
+      "options": [
+       "none",
+       "records"
+      ],
+      "trigger": "missing",
+      "resolver": "customer",
+      "asked_count": 0
+     },
+     {
+      "field": "shared.tone",
+      "blocks": "nothing",
+      "options": [],
+      "trigger": "missing",
+      "resolver": "customer",
+      "asked_count": 0
+     },
+     {
+      "field": "shared.brand_name",
+      "blocks": "nothing",
+      "options": [],
+      "trigger": "missing",
+      "resolver": "customer",
+      "asked_count": 0
+     }
+    ],
+    "mode": "free",
+    "turns": 0,
+    "locale": "he-IL",
+    "shared": {
+     "tone": {
+      "v": null,
+      "src": null,
+      "via": null,
+      "conf": "missing"
+     },
+     "brand_name": {
+      "v": null,
+      "src": null,
+      "via": null,
+      "conf": "missing"
+     },
+     "business_facts": []
+    },
+    "artifacts": [
+     {
+      "id": "art_01M7AHV9G1AVZAQEECC3VHMM4D",
+      "game": null,
+      "kind": {
+       "v": "app",
+       "src": "rawBrief",
+       "via": "extract",
+       "conf": "inferred"
+      },
+      "saas": null,
+      "song": null,
+      "agent": null,
+      "purpose": {
+       "v": "אתר תדמית לאטליז: פרטי קשר, שעות פתיחה, מוצרים וכפתור התקשרות",
+       "src": "customer",
+       "via": "text",
+       "conf": "stated"
+      },
+      "audience": {
+       "v": "public",
+       "src": "customer",
+       "via": "text",
+       "conf": "stated"
+      },
+      "persistence": {
+       "v": "none",
+       "src": "rawBrief",
+       "via": "model",
+       "conf": "inferred"
+      },
+      "must_include": {
+       "v": [
+        "דף הבית עם תמונה ראשית גדולה, מוצרים, שעות פתיחה וכפתור התקשרות"
+       ],
+       "src": "rawBrief",
+       "via": "extract",
+       "conf": "inferred"
+      },
+      "personal_data": {
+       "v": "yes",
+       "src": "customer",
+       "via": "button",
+       "conf": "stated"
+      },
+      "requires_auth": {
+       "v": false,
+       "src": "customer",
+       "via": "text",
+       "conf": "stated"
+      }
+     }
+    ],
+    "raw_brief": "אטליז בשר כשר, \"האטליז של סבא שמעון\", רחוב נתיב המזלות 22, ירושלים. טלפון 0504000162. כפתור להתקשרות. שעות: א׳–ה׳ 07:00–19:00, ו׳ 07:00–14:00, שבת סגור. מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה. \"אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש.\" תמונה ראשית גדולה: נתחי בקר טריים על נייר קצבים על דלפק שיש, אור קר של בוקר.",
+    "raw_brief_sha256": "4ac1f726f9d82722cb4b64d4a883abc388b62831e65f7943e7aaf9556c301ddb"
+   },
+   "detector": true,
+   "open_material": [],
+   "semantic_decisions": [
+    {
+     "key": "integration.messaging",
+     "reason": "כפתור טלפון הוא קישור חיוג, לא שליחת הודעות",
+     "decision": "not_required",
+     "evidence": "כפתור להתקשרות"
+    },
+    {
+     "key": "integration.payment",
+     "reason": "מוצג מחיר או רשימה בלבד, אין תשלום באתר",
+     "decision": "not_required",
+     "evidence": "מוצרים: בשר בקר טרי, עוף, הודו, קציצות מוכנות, שיפודים להזמנה."
+    },
+    {
+     "key": "target.agent",
+     "reason": "אתר תדמית סטטי ללא סוכן AI",
+     "decision": "not_required",
+     "evidence": "אטליז בשר כשר, \"האטליז של סבא שמעון\""
+    }
+   ]
+  },
+  "_note": "the brief gate 1 was shown for on 2026-11-13 13:35 (personal_data yes after access_scope no_personal; content_only never asked)"
+ }
+}
