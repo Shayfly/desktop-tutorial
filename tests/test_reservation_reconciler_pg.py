@@ -131,7 +131,9 @@ class TheReservationReconciler(unittest.TestCase):
         self.assertEqual(ledger, [(self.user, 90, 'failed_build_released')])         # exactly one row
         after = self.counters()
         self.assertEqual(after[0], before[0])                                         # the whole balance back
-        self.assertGreaterEqual(after[1], before[1] + Decimal('0.12'))                # spend keeps the metered cost
+        # #356 (Michael 2026-11-14): the account's first failed build of the month does not count against the plan
+        # budget; its cost stays on the reservation (above). The 4th one counts: tests/test_failed_builds_off_cap_pg.py
+        self.assertEqual(after[1], before[1])
         self.assertEqual(self.reconcile().get(bid), None)                             # a second pass: nothing
         from tests.evidence_notice import notice
         notice('B2 negative control PASS', f'failed build metered 0.12: RESERVED -> RELEASED, ledger rows={len(ledger)} '

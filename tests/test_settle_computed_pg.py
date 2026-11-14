@@ -98,7 +98,8 @@ class SettleAtComputedCost(unittest.TestCase):
         self.assertIsNone(actual)                       # computed is never relabelled as actual
         self.assertIsNone(stored_actual)
         self.assertEqual(settled, Decimal(b['settled_after']))
-        self.assertEqual(spend, Decimal(b['settled_after']))
+        # #356: a failed build (the first of the month here) is not counted against the plan budget
+        self.assertEqual(spend, Decimal(b['settled_after']) if status == 'SETTLED' else Decimal('0'))
         self.assertEqual(evidence['provider_cost_truth'], 'COMPUTED_FROM_USAGE')
         self.assertEqual(evidence['cost_basis']['settlement']['basis'], 'computed_from_usage')
         from tests.evidence_notice import notice
