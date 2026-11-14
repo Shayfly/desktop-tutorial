@@ -1,0 +1,100 @@
+{
+ "pr": "vercel-skip-docs-previews",
+ "sha256": [
+  "tests/test_vercel_ignore_build.py",
+  "tests/fixtures/vercel_compare_2026_11_15.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a code change is judged docs-only (its preview would be skipped)",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  if (code.length) return { build: true,",
+     "new": "  if (false) return { build: true,"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_a_code_change_builds_its_preview",
+    "test_a_rename_out_of_docs_is_code"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an unknown diff is skipped silently instead of building",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  if (!Array.isArray(files)) return { build: true,",
+     "new": "  if (!Array.isArray(files)) return { build: false,"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_anything_unknown_builds_and_says_why"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "production obeys the docs rule (production would lag main)",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  if (env === 'production') return { build: true, reason: 'production always builds' };\n  if (env !== 'preview') return",
+     "new": "  if (env !== 'preview' && env !== 'production') return"
+    },
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  if (env === 'preview' && !NO_PREVIEW.includes(ref)) {",
+     "new": "  if ((env === 'preview' || env === 'production') && !NO_PREVIEW.includes(ref)) {"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_production_always_builds_even_for_docs"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "ci/v24-report is not on the no-preview list",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "export const NO_PREVIEW = ['ci/v24-report'];",
+     "new": "export const NO_PREVIEW = [];"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_ci_v24_report_gets_no_preview_and_no_compare_call"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "only the last file decides (every -> some)",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  const code = paths.filter(p => !DOCS_ONLY.some(rx => rx.test(p)));",
+     "new": "  const code = paths.slice(-1).filter(p => !DOCS_ONLY.some(rx => rx.test(p)));"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_a_rename_out_of_docs_is_code"
+   ]
+  }
+ ]
+}
