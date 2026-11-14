@@ -201,7 +201,9 @@ class RegressionFindings20261110(unittest.TestCase):
     def test_cafe_with_its_given_reviews_passes(self):
         page = self.page([('הקפה הכי טוב בחיפה', 'דנה'), ('ארוחת בוקר מושלמת, נחזור!', 'יוסי ומיכל'),
                           ('שירות חם ומחירים הוגנים', 'אבי')],
-                         '<p>רחוב הנביאים 12</p><a href="tel:050-1234567">050-1234567</a><a href="https://wa.me/972501234567">x</a>')
+                         '<p>רחוב הנביאים 12</p><a href="tel:050-1234567">050-1234567</a><a href="https://wa.me/972501234567">x</a>'
+                         # Michael 2026-11-14: a given fact left out blocks too, so the page shows the cafe's hours
+                         '<p>א׳–ה׳ 07:00–19:00</p><p>ו׳ 07:00–14:00</p>')
         self.assertEqual(self.blocking(self.CAFE, page), [])
 
     def test_cafe_with_one_invented_review_blocks(self):
@@ -209,7 +211,8 @@ class RegressionFindings20261110(unittest.TestCase):
         self.assertTrue(any('testimonials' in p for _, p in self.blocking(self.CAFE, page)))
 
     def test_florist_reviews_need_the_sample_label(self):
-        contact = '<a href="tel:+972521234567">052-1234567</a><p>רח\' נתיב המזלות 22</p>'
+        contact = ('<a href="tel:+972521234567">052-1234567</a><p>רח\' נתיב המזלות 22</p>'
+                   '<p>א׳–ה׳ 08:00–19:00</p><p>ו׳ 08:00–13:00</p><p>שבת סגור</p>')   # 2026-11-14: given hours are shown
         invented = self.page([('הזרים הכי יפים בעיר', 'שירה'), ('שירות מהיר ואדיב', 'דני')], contact)
         self.assertTrue(any('testimonials' in p for _, p in self.blocking(self.FLORIST, invented)))
         labelled = invented.replace('מה אומרים עלינו', 'מה אומרים עלינו (לדוגמה)')

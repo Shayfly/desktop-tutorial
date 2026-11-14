@@ -96,6 +96,7 @@ form.inline .grow{flex:1;margin:0}
   padding:.75rem .9rem;margin:.5rem 0 1rem;overflow-wrap:anywhere}
 .readinessStatus.blocked{border-inline-start:4px solid var(--bad)}
 .readinessStatus.ready{border-inline-start:4px solid var(--ok)}
+.readinessStatus.built{border-inline-start:4px solid var(--ok)}
 .readinessStatus strong{display:block;font-weight:750}
 .readinessStatus p{font-size:.92rem;margin:.35rem 0 0;color:var(--slate)}
 .quoteMissing{list-style:none;margin:.4rem 0;padding:0;display:grid;gap:.3rem}
@@ -249,6 +250,7 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .projectReadiness.blocked{border-inline-start:4px solid var(--bad)}
 .projectReadiness.ready{border-inline-start:4px solid var(--ok)}
 .projectReadiness.running{border-inline-start:4px solid var(--signal)}
+.projectReadiness.built{border-inline-start:4px solid var(--ok)}
 .projectReadiness .readinessLabel{flex:1;overflow-wrap:anywhere;font-weight:650}
 .projectReadiness button{background:transparent;color:var(--signal);border:1px solid var(--rule);
   padding:.3rem .6rem;min-height:38px;font-size:.84rem;white-space:nowrap}
