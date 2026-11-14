@@ -107,7 +107,9 @@ class V7ReadinessTests(unittest.TestCase):
     def test_blocked_plan_is_not_presented_as_buildable(self):
         js = (ASSETS / "app.js").read_text(encoding="utf-8")
         self.assertIn("blockedByBuildGate ? t('readinessBlocked')", js)
-        self.assertIn("class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`", js)
+        # 2026-11-14: after a successful build the status is 'built' (tests/test_readiness_after_success.py); otherwise
+        # a blocked plan is still 'blocked'
+        self.assertIn("class: `readinessStatus ${readinessView(S.build, p).mode === 'built' ? 'built' : p.can_build ? 'ready' : 'blocked'}`", js)
         self.assertNotIn("f_FEASIBLE_WITH_CONSTRAINTS:'אפשר לבנות, עם מגבלות'", js)
         self.assertNotIn("': ', b.message", js)
 

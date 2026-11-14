@@ -71,7 +71,11 @@ class FailedBuildReleasesCredits(unittest.TestCase):
         out = self.subs.release_failed(build_id=bid, actual_provider_cost_usd=Decimal('0.0267'))
         self.assertEqual(out['credits_refunded'], 45)
         self.assertEqual(self.q('SELECT status FROM credit_reservations WHERE build_id=%s', bid)[0], 'RELEASED')
-        self.assertEqual(self.counters(), (before[0], before[1] + Decimal('0.0267')))   # credits back, real cost on record
+        # credits back; #356: the first failure of the month is not counted against the plan budget (its cost stays on
+        # the reservation: settled_provider_cost_usd), see tests/test_failed_builds_off_cap_pg.py for the 4th
+        self.assertEqual(self.counters(), (before[0], before[1]))
+        self.assertEqual(Decimal(str(self.q('SELECT settled_provider_cost_usd FROM credit_reservations WHERE build_id=%s', bid)[0])),
+                         Decimal('0.0267'))
         ledger = self.q('SELECT account_id, delta, reason FROM credit_ledger WHERE idempotency_key=%s',
                         f'failed-build-release:{bid}')
         self.assertEqual(ledger, (self.user, 45, 'failed_build_released'))
