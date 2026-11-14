@@ -103,8 +103,7 @@ class RecoveredBuildSettlementTests(unittest.TestCase):
         self.assertEqual(actual, Decimal('0.01'))       # the real cost is still measured and recorded
         subs.release.assert_not_called()
         subs.settle.assert_not_called()
-        subs.release_failed.assert_called_once_with(build_id='b', actual_provider_cost_usd=Decimal('0.01'),
-                                                     computed_provider_cost_usd=None)   # actual known: nothing computed
+        subs.release_failed.assert_called_once_with(build_id='b', actual_provider_cost_usd=Decimal('0.01'))
 
 
 class LedgerFlushTests(unittest.TestCase):

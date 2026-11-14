@@ -770,13 +770,14 @@ def resolve_m5_billing(
         # Founder 2026-11-02 (DELIVERY-001): a failed build releases its credits; the provider cost it really incurred
         # stays on record (reservation + plan provider-spend meter), it is never SETTLED to the customer.
         released = subscriptions.release_failed(build_id=build_id, actual_provider_cost_usd=actual,
-                                                computed_provider_cost_usd=computed)
+                                                **({'computed_provider_cost_usd': computed} if computed is not None else {}))
         evidence = {'action': 'released_failed', 'cost_basis': cost_basis}
         if released:
             evidence.update(released)
         return 'released', evidence, actual
     settlement = subscriptions.settle(
-        build_id=build_id, actual_provider_cost_usd=actual, computed_provider_cost_usd=computed,
+        build_id=build_id, actual_provider_cost_usd=actual,
+        **({'computed_provider_cost_usd': computed} if computed is not None else {}),
         revenue_usd=revenue, infra_cost_usd=Decimal('0'),
     )
     evidence = {'action': 'settled', 'cost_basis': cost_basis}
