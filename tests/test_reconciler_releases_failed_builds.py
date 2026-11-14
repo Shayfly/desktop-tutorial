@@ -35,10 +35,6 @@ class Cursor:
         if sql.startswith('SELECT account_id, status, credits_reserved'):
             r = self.w['reservation']
             self._last = ('one', None if r is None else (r[:5] if 'funding_source FROM' in sql and 'project_id' not in sql else r))
-        elif sql.startswith('SELECT COUNT(*) FROM credit_reservations'):
-            self._last = ('one', (3,))      # #356: 3 earlier failures with a cost: this one counts (free path: *_pg.py)
-        elif sql.startswith('SELECT 1 FROM creator_subscriptions'):
-            self._last = ('one', (1,))
         elif sql.startswith('SELECT EXISTS (SELECT 1 FROM build_jobs'):
             self._last = ('one', (self.w['build_status'] in rr.TERMINAL_BUILD,))
         elif sql.startswith('SELECT outcome, metered_cost_usd FROM task_attempts'):

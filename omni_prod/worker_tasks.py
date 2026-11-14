@@ -1071,7 +1071,11 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             from .generated_images import install as install_generated_images
             build_prompt = install_generated_images(
                 engine, prompt=prompt, plan=capability_plan, evidence=capability_evidence,
-                store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None))
+                store=getattr(getattr(capability_stage, 'executor', None), 'artifact_store', None),
+                vision=gateway)                     # lens 11 / I-01: the picture is checked before code is written
+            image_match = getattr(getattr(engine, 'core', engine), 'image_match', None)
+            if image_match:
+                capability_evidence = {**capability_evidence, 'image_match': image_match}
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
@@ -1105,6 +1109,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                           'quality': bool(quality.passed), 'security': bool(security.passed),
                           'rights': bool(rights.publish_allowed)},
             )
+            verdicts = getattr(getattr(engine, 'core', engine), 'image_match', None)
+            if verdicts:                                   # lens 11: the image check stays in the build's evidence
+                capability_evidence = {**capability_evidence, 'image_match': verdicts}
         capability_ready = True if capability_stage is None else bool(capability_evidence.get('required_ready'))
         ready = core_ready and capability_ready
         gate_waste = _gate_waste(engine, None, result.repair_rounds)
@@ -1265,20 +1272,23 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
     except CapabilityStageBlocked as exc:
         spent, calls = spend_snapshot(gateway)
         economics_quote = request.get('economics_quote') or {}
+        # Lens 11 (2026-11-14): a block raised AFTER the capability stage (the image check) keeps that stage's evidence
+        # -- the image was generated and paid for -- and adds its own; a block from the stage itself has only its own.
+        blocked_evidence = {**(capability_evidence or {}), **exc.evidence}
         if economics_quote:
             billing, settlement_evidence, actual_cost = resolve_m5_billing(
                 subscriptions, build_id=build_id, ready=False, gateway=gateway,
-                capability_evidence=exc.evidence, economics_quote=economics_quote,
+                capability_evidence=blocked_evidence, economics_quote=economics_quote,
             )
         else:
             billing = resolve_billing(subscriptions, build_id=build_id, ready=False, spent=spent, external_calls=calls)
             settlement_evidence, actual_cost = {'action': billing}, spent if billing == 'settled' else None
         jobs.transition(
             build_id=build_id, expected=BuildStatus.RUNNING, target=BuildStatus.FAILED,
-            error_code='capability_not_configured', error_message=str(exc)[:2000],
+            error_code=getattr(exc, 'error_code', 'capability_not_configured'), error_message=str(exc)[:2000],
             result_version_id=version_id, artifact_key=artifact_key,
             evidence_json={'billing': billing, 'economics_quote': economics_quote or None,
-                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': exc.evidence,
+                           'economics_settlement': settlement_evidence, 'build_contract': contract_evidence, 'capabilities': blocked_evidence,
                            'provider_usage': provider_usage_evidence(gateway), **taxonomy_evidence(engine),
                            'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),
                            'provider_spend_usd': str(spent), 'external_model_calls': calls,

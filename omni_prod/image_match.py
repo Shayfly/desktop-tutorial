@@ -1,0 +1,85 @@
+"""Lens 11, rule I-01 (delivery gate v2.2, signed by Michael 2026-11-14): a generated image shows what the customer
+asked to see, or the build stops before any code is generated.
+
+Two incidents: the bakery (bld_5a37dc27, 13.11) asked for sourdough loaves on a wooden shelf and got mountains; the
+butcher (bld_83529c13, 14.11) asked for "נתחי בקר טריים על נייר קצבים על דלפק שיש" and got eggs. In both, the prompt
+sent to the image model was right (the butcher's: "Fresh cuts of beef on butcher paper atop a marble counter..."),
+and the page carried exactly the image the provider returned (sha256 b2b81b8e... = the stored artifact). The
+provider check only proved the bytes are a PNG of a sane size. Nothing looked at WHAT is in the picture.
+
+Here a vision-capable model, routed through the build's own gateway (so the budget and the write-ahead ledger
+apply), is shown each generated image with the customer's subject and answers whether the picture shows it.
+
+Blocking, and fail-closed: a mismatch blocks; so does a check that could not run (no vision route, an error, an
+answer that is not the expected JSON) -- "a required check that cannot run cannot pass", said with the reason. One
+call per image, bounded by MAX_IMAGES. What this does NOT prove: that the model judges correctly. That is the
+lens's calibration (spec section 8), not a test.
+"""
+from __future__ import annotations
+
+import json
+import logging
+
+from .capability_worker import CapabilityStageBlocked
+
+MAX_IMAGES = 8          # bound: one vision call per image, never more than this many per build
+
+_SYSTEM = (
+    'You check a generated image against what a customer asked to see. You get ONE image and the customer\'s own '
+    'words describing it (often Hebrew). Decide only whether the main subject of the image is what the words '
+    'describe -- not quality, style or taste. A different main subject (mountains for bread, eggs for beef) does '
+    'not match. Answer ONE JSON object: {"matches": true|false, "shows": "<the main subject you see, a few words, '
+    'in the language of the request>", "reason": "<one short sentence>"}.'
+)
+
+
+class ImageDoesNotMatch(CapabilityStageBlocked):
+    """A generated image does not show what the customer asked for (or the check could not run)."""
+    error_code = 'image_mismatch'
+
+
+def _ask(gateway, image, subject: str) -> dict:
+    payload = json.dumps({'customer_asked_to_see': subject}, ensure_ascii=False)
+    kwargs = dict(system=_SYSTEM, user=payload, max_tokens=300, images=(image.data,))
+    try:
+        data = gateway.complete_json(task='review', **kwargs)
+    except TypeError:                    # a gateway without task routing
+        data = gateway.complete_json(**kwargs)
+    if not isinstance(data, dict) or not isinstance(data.get('matches'), bool):
+        raise ValueError(f'the vision answer is not {{"matches": true|false, ...}}: {str(data)[:200]}')
+    return data
+
+
+def verify(gateway, images, subjects: dict) -> list[dict]:
+    """One verdict per image. Raises ImageDoesNotMatch on a mismatch, or when the check cannot run (an image without
+    the subject it was made from, no vision answer, an answer of the wrong shape, more images than the bound)."""
+    unnamed = [img.requirement_id for img in images if not (subjects.get(img.requirement_id) or '').strip()]
+    if unnamed:
+        # every generated image is made FROM a subject (image_prompt sets it); one without a subject cannot be checked,
+        # and an unchecked image does not pass
+        raise ImageDoesNotMatch(f'generated image(s) without the subject they were made from: {", ".join(unnamed)}',
+                                evidence={'image_match': [{'requirement_id': r, 'status': 'NOT_RUN',
+                                                           'reason': 'no subject recorded'} for r in unnamed]})
+    checked = list(images)
+    if len(checked) > MAX_IMAGES:
+        raise ImageDoesNotMatch(f'{len(checked)} generated images; the image check is bounded at {MAX_IMAGES}',
+                                evidence={'image_match': {'status': 'NOT_RUN', 'reason': 'over the bound'}})
+    verdicts = []
+    for img in checked:
+        subject = subjects[img.requirement_id].strip()
+        row = {'requirement_id': img.requirement_id, 'sha256': img.sha256, 'subject': subject}
+        try:
+            data = _ask(gateway, img, subject)
+        except Exception as exc:          # fail closed, loudly: a check that could not run is not a pass
+            logging.getLogger(__name__).error('IMAGE_MATCH_NOT_RUN requirement=%s: %s', img.requirement_id, exc)
+            row.update(status='NOT_RUN', reason=str(exc)[:300])
+            verdicts.append(row)
+            raise ImageDoesNotMatch(f'the generated image could not be checked against the request: {str(exc)[:300]}',
+                                    evidence={'image_match': verdicts}) from exc
+        row.update(status='MATCH' if data['matches'] else 'MISMATCH', shows=str(data.get('shows') or '')[:200],
+                   reason=str(data.get('reason') or '')[:300])
+        verdicts.append(row)
+        if not data['matches']:
+            raise ImageDoesNotMatch(f'the generated image does not show what was asked: asked "{subject}", '
+                                    f'the image shows "{row["shows"]}"', evidence={'image_match': verdicts})
+    return verdicts

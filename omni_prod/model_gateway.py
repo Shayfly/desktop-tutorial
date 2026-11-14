@@ -72,6 +72,21 @@ def _b64(data: bytes) -> str:
     return base64.b64encode(bytes(data)).decode('ascii')
 
 
+def _image_mime(data: bytes) -> str:
+    """The real type of an image sent to a vision model (2026-11-14: every image was labelled image/jpeg; a generated
+    PNG sent as JPEG is refused or misread by a provider that checks the label)."""
+    head = bytes(data[:12])
+    if head.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if head.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg'
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+        return 'image/webp'
+    if head[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    raise ValueError('not a PNG, JPEG, WebP or GIF image; refusing to send it to a vision model under a wrong type')
+
+
 API_STYLES = frozenset({'openai', 'openai_reasoning', 'anthropic'})
 ANTHROPIC_VERSION = '2023-06-01'
 # Models whose default is adaptive thinking and whose documented "thinking off" is between_tools ("disabled" is a 400).
@@ -183,7 +198,7 @@ class OpenAICompatibleGateway:
             headers['Idempotency-Key'] = str(idempotency_key).strip()[:255]
         if style == 'anthropic':
             content = user if not images else [
-                *({'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg',
+                *({'type': 'image', 'source': {'type': 'base64', 'media_type': _image_mime(img),
                                                'data': _b64(img)}} for img in images),
                 {'type': 'text', 'text': user}]
             body = {'model': self.endpoint.model, 'system': system,
@@ -199,7 +214,7 @@ class OpenAICompatibleGateway:
                     {'role': 'system', 'content': system},
                     {'role': 'user', 'content': user if not images else [
                         {'type': 'text', 'text': user},
-                        *({'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,' + _b64(img)}}
+                        *({'type': 'image_url', 'image_url': {'url': f'data:{_image_mime(img)};base64,' + _b64(img)}}
                           for img in images)]},
                 ],
             }

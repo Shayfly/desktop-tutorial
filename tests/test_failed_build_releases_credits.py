@@ -19,13 +19,9 @@ class ScriptedCursor:
 
     def execute(self, sql, params=()):
         self.sql.append((' '.join(sql.split()), params))
-        self._count = ' '.join(sql.split()).startswith('SELECT COUNT(*) FROM credit_reservations')
 
-    # #356 (2026-11-14): this fake answers "3 failed builds with a cost already this month", so the cost of the one
-    # released here COUNTS against the plan budget (the path these tests pin); the free path is tested on real
-    # PostgreSQL in tests/test_failed_builds_off_cap_pg.py
     def fetchone(self):
-        return (3,) if getattr(self, '_count', False) else self.row
+        return self.row
 
     def __enter__(self):
         return self

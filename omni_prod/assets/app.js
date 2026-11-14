@@ -66,7 +66,8 @@ const T = {
       model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
       provider_quota_exhausted:'לפחות ספק AI אחד דיווח שנגמרה המכסה או יתרת הקרדיטים. אין כרגע ספק חלופי שהשלים את הבקשה. בדקו את הספק שמופיע בהמשך.',
       model_policy_blocked:'מדיניות השימוש במודלים לא אפשרה את הבנייה בסביבה הזו.',
-      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.'},
+      capability_gate_failed:'יכולת נדרשת (למשל יצירת תמונות) לא אומתה, ולכן הבנייה לא אושרה.',
+      image_mismatch:'התמונה שנוצרה לא מראה את מה שביקשתם, ולכן הבנייה נעצרה לפני כתיבת הקוד.'},
     techDetails:'פרטים טכניים', previewStarting:'מפעילים תצוגה מקדימה…', previewRunning:'התצוגה המקדימה פועלת.',
     previewNotPreviewable:'הגרסה הזאת לא ניתנת להצגה מקדימה: ', previewUnavailable:'תצוגה מקדימה לא זמינה בשרת הזה: ',
     previewFailed:'התצוגה המקדימה נכשלה: ', previewExpired:'התצוגה המקדימה פגה. אפשר להפעיל אותה מחדש.',
@@ -108,7 +109,7 @@ const T = {
     b_plan_not_verified:'התוכנית עוד לא נבדקה מול המפרט. אשרו את המפרט ונכין תוכנית בדוקה.',
     b_approval_state_unavailable:'אי אפשר לבדוק כרגע את אישור המפרט בשרת הזה, ולכן לא מתחילים לבנות. נסו שוב מאוחר יותר.',
     b_brief_stale:'הבקשה השתנתה מאז שאושרה. אשרו את המפרט הנוכחי.',
-    readinessBuilt:'הבנייה האחרונה הסתיימה בהצלחה', readinessNextBlocked:'בנייה נוספת לא אפשרית כרגע',     readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
+    readinessReady:'ניתן לבקש אישור בנייה', readinessBlocked:'לא ניתן להתחיל בבנייה כרגע', readinessUnknown:'מוכנות הפרויקט טרם נבדקה', readinessRunning:'בניית הפרויקט מתבצעת', readinessDetails:'לפרטים',
     readinessBlockedHelp:'האפיון יכול להיות ישים טכנית, אך אישור הבנייה חסום עד להשלמת הדרישות, הספקים, התמחור והתקציב.',
     quoteMissingTitle:'דרישות שחסרה להן הצעת מחיר:', quoteMissingHelp:'אם יכולת אינה חלק מהבקשה שלכם, ערכו את האפיון. אם היא נדרשת, יש לאמת ספק ותמחור לפני התחלת הבנייה.', unknownBlocker:'נדרש בירור נוסף לפני התחלת הבנייה.',
     k_database:'מסד נתונים', k_auth_session:'התחברות וסשנים', k_object_storage:'אחסון קבצים', k_scheduled_http:'משימות מתוזמנות', k_outbound:'מיילים ו-webhooks',
@@ -186,7 +187,8 @@ const T = {
       model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
       provider_quota_exhausted:'An AI provider reported exhausted quota/credits, and no fallback completed. Check the named provider below.',
       model_policy_blocked:'The model usage policy did not allow this build in this environment.',
-      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.'},
+      capability_gate_failed:'A required capability (such as image generation) was not verified, so the build was not accepted.',
+      image_mismatch:'The generated image does not show what you asked for, so the build stopped before any code was written.'},
     techDetails:'Technical details', previewStarting:'Starting preview…', previewRunning:'Preview is running.',
     previewNotPreviewable:'This version cannot be previewed: ', previewUnavailable:'Preview is not available on this server: ',
     previewFailed:'Preview failed: ', previewExpired:'The preview expired. You can start it again.',
@@ -228,7 +230,7 @@ const T = {
     b_plan_not_verified:'The plan has not been checked against the spec yet. Approve the spec and we will prepare a checked plan.',
     b_approval_state_unavailable:'The spec approval cannot be checked on this server right now, so no build starts. Try again later.',
     b_brief_stale:'The request changed since it was approved. Approve the current spec.',
-    readinessBuilt:'The last build finished successfully', readinessNextBlocked:'Another build is not possible right now',     readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
+    readinessReady:'Build approval can be requested', readinessBlocked:'Build cannot start yet', readinessUnknown:'Project readiness has not been checked', readinessRunning:'Project build in progress', readinessDetails:'Details',
     readinessBlockedHelp:'Technical feasibility alone is not build authorization. Requirements, providers, pricing and budget must be verified.',
     quoteMissingTitle:'Requirements without verified pricing:', quoteMissingHelp:'If a capability was not requested, edit the specification. Otherwise its provider and price must be verified before building.', unknownBlocker:'Further checks are needed before building.',
     k_database:'database', k_auth_session:'sign-in and sessions', k_object_storage:'file storage', k_scheduled_http:'scheduled jobs', k_outbound:'email and webhooks',
@@ -690,25 +692,15 @@ function renderProjectReadiness() {
   strip.hidden = !S.projectId;
   if (!S.projectId) return;
   const p = S.plan;
-  const { mode, label } = readinessView(S.build, p);
+  const busy = S.build && !isTerminal(S.build.status);
+  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
+  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
+  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
+  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
+    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
   strip.className = 'projectReadiness ' + mode;
   strip.replaceChildren(h('span', { class:'readinessLabel' }, label),
     h('button', { type:'button', onclick: () => openTab(p ? 'plan' : 'req') }, t('readinessDetails')));
-}
-// Michael 2026-11-14 (butcher): after a successful build the strip said "לא ניתן להתחיל בבנייה כרגע: <reason>" in
-// red beside "הבנייה הסתיימה בהצלחה". The refusal is about ANOTHER build: it is said so, and never in the failure colour.
-function readinessView(build, p) {
-  const busy = build && !isTerminal(build.status);
-  const built = !busy && build && String(build.status).toLowerCase() === 'ready';
-  // 79: a blocked build names its ONE reason (server-chosen from a closed list), never only the generic line.
-  const why = p && !p.can_build && p.blocked_reason ? p.blocked_reason.message : '';
-  if (built) {
-    return { mode: 'built', label: why ? `${t('readinessBuilt')}. ${t('readinessNextBlocked')}: ${why}` : t('readinessBuilt') };
-  }
-  const mode = busy ? 'running' : !p ? 'unknown' : p.can_build ? 'ready' : 'blocked';
-  const label = busy ? t('readinessRunning') : !p ? t('readinessUnknown') :
-    p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
-  return { mode, label };
 }
 function renderPlan() {
   const panel = $('planPanel'); const p = S.plan;
@@ -741,10 +733,8 @@ function renderPlan() {
   ].flat() : [];
   const kids = [
     h('h2', {}, t('planTitle')),
-    h('section', { class: `readinessStatus ${readinessView(S.build, p).mode === 'built' ? 'built' : p.can_build ? 'ready' : 'blocked'}`,
-                   role: 'status', 'aria-live': 'polite' },
-      h('strong', {}, readinessView(S.build, p).mode === 'built' ? `${t('readinessBuilt')}. ${p.can_build ? t('readinessReady') : t('readinessNextBlocked')}`
-                       : p.can_build ? t('readinessReady') : t('readinessBlocked')),
+    h('section', { class: `readinessStatus ${p.can_build ? 'ready' : 'blocked'}`, role: 'status', 'aria-live': 'polite' },
+      h('strong', {}, p.can_build ? t('readinessReady') : t('readinessBlocked')),
       !p.can_build && p.blocked_reason ? h('p', { class: 'blockedReason' }, p.blocked_reason.message) : null,
       !p.can_build ? h('p', {}, p.blocked_reason ? p.blocked_reason.next : t('readinessBlockedHelp')) : null),
     ...briefKids,
@@ -957,7 +947,7 @@ function renderTrack() {
   // Step at which a failed build stopped. Steps after it never ran: they are
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
-  const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2,
+  const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
     worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
@@ -980,7 +970,7 @@ function renderTrack() {
   };
   const infraEv = ev.infrastructure; const capEv = ev.capabilities;
   backendStep('stepInfra', 1, ['infrastructure_not_configured'], infraEv === null && status === 'ready' ? t('none') : null);
-  backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed'], null);
+  backendStep('stepAssets', 2, ['capability_not_configured', 'capability_gate_failed', 'image_mismatch'], null);
   const repairNote = b && b.repair_rounds !== undefined && b.repair_rounds !== null && isTerminal(b.status) ? t('repairs')(b.repair_rounds) : t('noteGenerate');
   backendStep('stepGenerate', 3, ['worker_exception', 'preview_not_ready', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'verification_failed'], repairNote);
   backendStep('stepGates', 4, ['quality_gate_failed', 'security_gate_failed', 'rights_gate_not_clear'], null);

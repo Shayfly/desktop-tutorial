@@ -139,17 +139,6 @@ jobs:
               chosen = [n for n in sorted(repo) if files_mode == "all" or n.lower().endswith(FRONT) or n == "app.py"]
               for n in chosen:
                   text, size = repo[n], 3500
-                  # 2026-11-14: an inline image (data: URI) is hundreds of chunks of base64 and pushed the page itself
-                  # past the 200 printed annotations; it is replaced by its length and sha256 (the zip keeps the bytes)
-                  import base64 as _b, hashlib as _h, re as _re
-                  def _elide(m):
-                      raw = _re.sub(r"\s", "", m.group(2))
-                      try:
-                          digest = _h.sha256(_b.b64decode(raw + "=" * (-len(raw) % 4))).hexdigest()
-                      except Exception:
-                          digest = "undecodable"
-                      return m.group(1) + "<%d base64 chars; decoded sha256 %s>" % (len(raw), digest)
-                  text = _re.sub(r"(data:[\w/+.-]+;base64,)([A-Za-z0-9+/=\s]{200,})", _elide, text)
                   chunks = [text[i:i + size] for i in range(0, len(text), size)] or [""]
                   for i, chunk in enumerate(chunks, 1):
                       note(f"round {idx} {n} [{i}/{len(chunks)}]", chunk)
