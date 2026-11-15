@@ -31,6 +31,12 @@ class TheFastSuite(unittest.TestCase):
         bad = [f for f in listed() if ENV.search((ROOT / f).read_text(encoding='utf-8'))]
         self.assertEqual(bad, [])
 
+    def test_the_list_is_re_measured_when_the_suite_grew_by_100_files(self):
+        head = (ROOT / 'tests' / 'fast_suite.txt').read_text(encoding='utf-8')
+        measured = int(re.search(r'since this date \((\d+) here\)', head).group(1))
+        now = len(list((ROOT / 'tests').glob('test_*.py'))) + len(list((ROOT / 'tests').glob('*/test_*.py')))
+        self.assertLess(now, measured + 100, f'{now} test files, measured at {measured}: re-measure tests/fast_suite.txt')
+
     def test_it_never_lists_itself_out_of_the_full_suite(self):
         self.assertNotIn('tests/test_fast_suite.py', listed())   # its own patterns spell the forbidden words
 

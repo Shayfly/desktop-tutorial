@@ -5,6 +5,8 @@
 #   dropped:  the file names fastapi|psycopg|boto3|botocore|TestClient (needs packages absent here)          -> 14
 # Result: 172 files; together 1411 passed, 0 skipped, 13.2 s (one pytest process).
 # A file is added or removed only by re-measuring, never by name.
+# Re-measured by Claude: whenever tests/ grows by 100 test files since this date (369 here), or when
+# scripts/test_fast.sh fails its 30 s budget -- whichever comes first.
 tests/integration/test_m495_provider_adapter.py
 tests/test_a2_extract.py
 tests/test_acceptance_coverage.py
