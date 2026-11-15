@@ -73,16 +73,17 @@ LINKS: tuple[tuple[str, str, bool], ...] = (
     ('photographers', 'design_branding', False),
     ('design_branding', 'digital_marketing', False),
     ('fashion', 'jewelry', False),
-    ('jewelry', 'furniture_interior', True),      # "עיצוב פנים", marked cross_vertical
+    ('fashion', 'furniture_interior', True),      # the owner, 2026-11-15 20:24: interior design -> fashion,
+    ('jewelry', 'furniture_interior', True),      # jewelry and realty (cross_vertical, as appendix B marks it)
     ('realty', 'renovation', False),
-    ('renovation', 'furniture_interior', True),   # "תיווך ↔ שיפוצים ↔ עיצוב פנים", the last link cross_vertical
+    ('realty', 'furniture_interior', True),       # the owner, 2026-11-15 20:24 (replaces renovation -> interior design)
 )
 
 # Lines of appendix B this module does NOT turn into links, each with the reason. Never guessed into existence.
 UNRESOLVED: tuple[tuple[str, str], ...] = (
     ('קליניקות ↔ פיזיותרפיה',
-     'appendix A has one category "קליניקות ופיזיותרפיה"; a category cannot be adjacent to itself. The owner, '
-     '2026-11-15 20:12: the line is removed, not a category added to justify it'),
+     'שתי הקטגוריות הן אחת בנספח א׳ ("קליניקות ופיזיותרפיה"). The owner, 2026-11-15: the line is removed, '
+     'not a category added to justify it'),
 )
 
 
