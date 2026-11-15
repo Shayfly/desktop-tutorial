@@ -73,6 +73,15 @@ class ByConstruction(unittest.TestCase):
         page2 = '<p><span dir="ltr">x</span> 08:00-12:00</p>'              # the ltr element closed before the range
         self.assertEqual([t for _, t in unwrapped_ranges(page2)], ['08:00-12:00'])
 
+    def test_dates_phones_prices_and_timestamps_are_not_ranges(self):
+        """Michael 2026-11-15: the probe must not catch dates, phones or prices."""
+        for text in ('15/11/2026', '2026-11-15', '15.11-20.11', '050-1234567', '03-1234567', '+972-50-123-4567',
+                     '₪ 49.90-59.90', '49.90–59.90 ₪', '12:30', 'א׳ 12:30, ב׳ 13:00', '10-12', '08:00 עד 19:00',
+                     '2026-11-15T10:00-02:00', '<time datetime="2026-11-15T10:00-02:00">היום</time>'):
+            self.assertEqual(unwrapped_ranges(f'<p>{text}</p>'), [], text)
+        self.assertEqual([t for _, t in unwrapped_ranges('<p>15/11 10:00-12:00, 7:30–8:15</p>')],
+                         ['10:00-12:00', '7:30–8:15'])                          # a range next to a date still counts
+
     def test_the_probe_is_declared_critical(self):
         self.assertEqual(PROBES['_time_ranges_isolated'], {'skill': 'skill.text_locale', 'reads_source': None,
                                                            'critical': True})

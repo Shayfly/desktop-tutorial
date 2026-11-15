@@ -16,7 +16,8 @@ from __future__ import annotations
 import re
 
 # 07:00–19:00, 7:00-14:00, 07:00 — 19:00 (hyphen, en dash, em dash, minus sign)
-TIME_RANGE = re.compile(r'(?<![\d:])\d{1,2}:\d{2}\s*[-–—−]\s*\d{1,2}:\d{2}(?![\d:])')
+# not preceded by a digit, ':' or the 'T' of an ISO timestamp (2026-11-15T10:00-02:00 is a time and its UTC offset)
+TIME_RANGE = re.compile(r'(?<![\d:T])\d{1,2}:\d{2}\s*[-–—−]\s*\d{1,2}:\d{2}(?![\d:])')
 _HIDDEN = re.compile(r'<(script|style|template)\b[^>]*>.*?</\1\s*>|<!--.*?-->', re.S | re.I)
 _OPEN_TAG = re.compile(r'<([a-zA-Z][\w-]*)\b([^>]*)>')
 
