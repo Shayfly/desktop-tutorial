@@ -127,9 +127,9 @@ class TheCustomerReadsTheList(unittest.TestCase):
     def test_the_failed_build_names_the_five_checks_in_the_customers_words(self):
         qr = died_in_tests().to_dict()
         self.assertEqual(js_not_run_line(self.build('failed', qr), 'he'),
-                         'בדיקות שלא רצו: הפעלה ניסיונית, בדיקת התנהגות, בדיקת דפדפן, פריסה במחשב ובטלפון, סקירת איכות.')
+                         'בדיקות שלא רצו: הפעלת ניסיון, בדיקת התנהגות, בדיקת דפדפן, מראה הדף במחשב ובטלפון, סקירת איכות.')
         self.assertEqual(js_not_run_line(self.build('failed', qr), 'en'),
-                         'Checks that did not run: trial start-up, behaviour check, browser check, layout on desktop and phone, quality review.')
+                         'Checks that did not run: trial start-up, behaviour check, browser check, how the page looks on desktop and phone, quality review.')
 
     def test_every_check_the_report_can_name_has_customer_words(self):
         source = APP.read_text(encoding='utf-8')
@@ -141,9 +141,22 @@ class TheCustomerReadsTheList(unittest.TestCase):
             for name in names:
                 self.assertIn(f'{name}:', block, name)
 
-    def test_no_report_on_a_failed_build_means_no_check_ran(self):
-        self.assertEqual(js_not_run_line({'status': 'failed', 'error_code': 'worker_exception', 'evidence': {}}, 'he'),
-                         'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.')
+    def test_no_report_on_a_failed_build_means_no_check_ran_only_when_the_engine_died(self):
+        # review 2026-11-15: the sentence is for the failure codes the worker emits before any check ran
+        for code in ('worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted',
+                     'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'):
+            with self.subTest(code):
+                self.assertEqual(js_not_run_line({'status': 'failed', 'error_code': code, 'evidence': {}}, 'he'),
+                                 'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.')
+        # a report that could not be generated, or a failure after the checks, is not "no check ran"
+        for code in ('release_policy_unavailable', 'verification_failed', 'quality_gate_failed', 'preview_not_ready'):
+            with self.subTest(code):
+                self.assertEqual(js_not_run_line({'status': 'failed', 'error_code': code, 'evidence': {}}, 'he'), '')
+
+    def test_a_report_stored_before_the_list_existed_says_nothing(self):
+        old_report = {k: v for k, v in died_in_tests().to_dict().items() if k != 'not_run'}
+        self.assertNotIn('not_run', old_report)
+        self.assertEqual(js_not_run_line(self.build('failed', old_report), 'he'), '')
 
     def test_a_ready_build_with_everything_run_says_nothing(self):
         self.assertEqual(js_not_run_line(self.build('ready', report(everything_ran()).to_dict()), 'he'), '')

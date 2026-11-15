@@ -80,7 +80,7 @@ const T = {
     modFailed:'השינוי נכשל: ', classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
-    checkNames:{preview_starts:'הפעלה ניסיונית', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'פריסה במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר עצמאי', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
+    checkNames:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -204,7 +204,7 @@ const T = {
     modFailed:'Change failed: ', classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
-    checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'layout on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'independent reviewer', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
+    checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1194,13 +1194,18 @@ function renderSharing(p) {
 // warehouse 104 (owner, 2026-11-15): the checks that did not run are named, never hidden in a count or in "did not pass
 // or did not run". The list is the quality report's own (release_policy.QualityReport.not_run); a failed build with no
 // report stopped before any check.
+// Review 2026-11-15: "no check ran" is said only for the failure codes the worker emits before any check (the engine
+// died); a failed build whose report could not be generated, or a report stored before the list existed, says nothing
+// rather than guessing.
 function notRunLine(b) {
+  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
   const status = b ? String(b.status || '').toLowerCase() : '';
   if (status !== 'failed' && status !== 'ready') return '';
   const qr = b.evidence && b.evidence.quality_report;
-  if (!qr) return status === 'failed' ? t('checksNoneRan') : '';
+  if (!qr) return status === 'failed' && NO_REPORT_BEFORE_CHECKS.includes(b.error_code) ? t('checksNoneRan') : '';
+  if (!Array.isArray(qr.not_run)) return '';
   const names = t('checkNames') || {};
-  const list = (qr.not_run || []).map(c => names[c.check] || c.check);
+  const list = qr.not_run.map(c => names[c.check] || c.check);
   return list.length ? `${t('checksNotRun')}: ${list.join(', ')}.` : '';
 }
 function friendlyError(b) {
