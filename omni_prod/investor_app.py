@@ -2228,6 +2228,58 @@ def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -
     return _conversation_view(project_id, turn.language, turn)
 
 
+class V28ProposalEdit(BaseModel):
+    """First agent (docs/spec/first-agent.md): one row edit on the structure card; writes only the brief's structure."""
+    revision: int = Field(ge=1)
+    op: str = Field(pattern=r'^(move_up|move_down|remove|set_detail)$')
+    key: str = Field(min_length=1, max_length=40)
+    value: str | None = Field(default=None, max_length=400)
+
+
+class V28ProposalUndo(BaseModel):
+    undo: dict
+
+
+@app.get('/api/v28/projects/{project_id}/proposal')
+def v28_proposal_get(project_id: str, request: Request) -> dict:
+    """The proposal card: structure and price in one card, reviewed by the editor first (first-agent spec 4, 7)."""
+    from .first_agent import proposal
+    _discovery_account(request, project_id)
+    row = _brief_repo().latest(project_id)
+    if row is None:
+        raise HTTPException(404, detail={'error': 'no_discovery'})
+    return proposal.view(row)
+
+
+@app.post('/api/v28/projects/{project_id}/proposal/edit')
+def v28_proposal_edit(project_id: str, req: V28ProposalEdit, request: Request) -> dict:
+    from .brief_repository import StaleBrief
+    from .first_agent import brief_slice, proposal
+    account = _discovery_account(request, project_id)
+    try:
+        return proposal.edit(_brief_repo(), project_id=project_id, account_id=account.id, revision=req.revision,
+                             op=req.op, key=req.key, value=req.value)
+    except (proposal.StaleProposal, StaleBrief) as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
+    except (KeyError, ValueError, brief_slice.SliceViolation) as exc:
+        raise HTTPException(422, detail={'error': 'invalid_edit', 'message': str(exc)}) from exc
+    except LookupError as exc:
+        raise HTTPException(404, detail={'error': 'no_discovery'}) from exc
+
+
+@app.post('/api/v28/projects/{project_id}/proposal/undo')
+def v28_proposal_undo(project_id: str, req: V28ProposalUndo, request: Request) -> dict:
+    from .brief_repository import StaleBrief
+    from .first_agent import brief_slice, proposal
+    account = _discovery_account(request, project_id)
+    try:
+        return proposal.undo(_brief_repo(), project_id=project_id, account_id=account.id, undo=req.undo)
+    except StaleBrief as exc:
+        raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
+    except (KeyError, TypeError, brief_slice.SliceViolation) as exc:
+        raise HTTPException(422, detail={'error': 'invalid_undo', 'message': str(exc)}) from exc
+
+
 @app.get('/api/v28/projects/{project_id}/conversation')
 def v28_conversation_get(project_id: str, request: Request) -> dict:
     _discovery_account(request, project_id)
