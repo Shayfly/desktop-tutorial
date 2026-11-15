@@ -13,11 +13,16 @@ A model is added only with evidence: a production answer to an image call, or th
 from __future__ import annotations
 
 # provider model id (ModelEndpoint.model) -> evidence
+_PROBE = 'live probe run 43657047045 (2026-11-15, main f02404a): red circle and blue triangle both named correctly'
 VISION_MODELS: dict[str, str] = {
     'gpt-6.1-sol': 'production: 20 design reviews scored from screenshots (build_jobs.evidence_json design_review, '
-                   'last bld_83529c13 2026-11-14 18:25Z); read 2026-11-15',
+                   'last bld_83529c13 2026-11-14 18:25Z); ' + _PROBE,
     'gemini-3.8-flash': 'production: 4 design reviews scored from screenshots (last bld_5a37dc27 2026-11-13 06:09Z); '
-                        'read 2026-11-15',
+                        + _PROBE,
+    'gemini-3.1-flash-lite': _PROBE,
+    'gemini-3.5-flash-lite': _PROBE,
+    'gpt-6-luna': _PROBE,
+    'claude-sonnet-5-5': _PROBE,
 }
 
 

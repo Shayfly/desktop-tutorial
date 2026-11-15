@@ -83,5 +83,6 @@
    "reviewed_at": "2026-11-15",
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
   }
- }
+ },
+ "rule_2026_11_15": "Michael 2026-11-15: a declaration covers ONE change. It carries deleted_sha256, the sha256 of the lines that change deletes from the file (scripts/deletions_declared.py ANCHOR --digest PATH); a path may hold a list of declarations, one per change. A declaration without the digest, or with another one, covers nothing: the path-only entries below were kept for history and no longer cover any new deletion."
 }
