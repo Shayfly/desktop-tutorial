@@ -1,0 +1,136 @@
+{
+ "pr": "a2-extract",
+ "sha256": [
+  "tests/test_a2_extract.py",
+  "tests/a2_offline_sites.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "muted is allowed to be the text colour again",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "        twin = {'muted': 'text', 'surface': 'bg'}.get(role)",
+     "new": "        twin = {}.get(role)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_muted_is_never_the_text_colour_and_a_translucent_colour_is_not_observed"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an in-page window's colours enter the page palette",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "    if (!visible(el) || inWindow(el)) continue;",
+     "new": "    if (!visible(el)) continue;"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_windows_are_found_and_kept_out_of_the_palette"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a section kind is listed twice",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "        if k in SECTION_ENUM and k not in seen:",
+     "new": "        if k in SECTION_ENUM:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_the_mapping_is_deterministic_and_inside_the_schema"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a translucent colour is claimed as observed",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "    if not m or (m.group(4) is not None and float(m.group(4)) < 0.99):",
+     "new": "    if not m:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_muted_is_never_the_text_colour_and_a_translucent_colour_is_not_observed"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the nav bar is counted in the rhythm between sections",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "    if (s.kind === 'nav' || s.kind === 'footer') return 0;",
+     "new": "    if (false) return 0;"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_hero_and_rhythm"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "words of the site leave the page (the title kept in the extraction)",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "    extraction = {'extraction_version': EXTRACTION_VERSION, 'palette': palette,",
+     "new": "    extraction = {'extraction_version': EXTRACTION_VERSION, 'palette': palette, 'title': str(m.get('sections')),"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_dark_and_light_hero",
+    "test_hero_and_rhythm",
+    "test_no_text_of_the_site_is_kept",
+    "test_nothing_left_the_machine",
+    "test_palette_by_role_is_observed",
+    "test_sections_in_page_order",
+    "test_the_mapping_is_deterministic_and_inside_the_schema",
+    "test_windows_are_found_and_kept_out_of_the_palette"
+   ]
+  }
+ ]
+}

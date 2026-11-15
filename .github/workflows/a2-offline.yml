@@ -67,3 +67,30 @@ jobs:
         env:
           NC_ENV: a2
         run: python scripts/run_negative_controls.py a2_collect
+      # step 5 (extraction): its own run and its own no-skip check, so the lines above stay as they were
+      - name: A2 extraction tests
+        if: always()
+        timeout-minutes: 5
+        run: python -m pytest -q -rs --junitxml=a2x.xml tests/test_a2_extract.py
+      - name: No extraction test may be skipped
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = list(ET.parse('a2x.xml').getroot().iter('testcase'))
+          skipped = [f"{c.get('classname')}.{c.get('name')}" for c in cases if c.find('skipped') is not None]
+          failed = [f"{c.get('classname')}.{c.get('name')}" for c in cases
+                    if c.find('failure') is not None or c.find('error') is not None]
+          print(f'::notice title=a2-extract::{len(cases)} test cases, {len(failed)} failed, {len(skipped)} skipped')
+          for s in skipped:
+              print(f'::error title=skipped::{s}')
+          for f in failed:
+              print(f'::notice title=failed test::{f}')
+          sys.exit(1 if skipped or failed or not cases else 0)
+          PY
+      - name: Negative controls (A2 extraction)
+        if: always()
+        timeout-minutes: 5
+        env:
+          NC_ENV: a2
+        run: python scripts/run_negative_controls.py a2_extract

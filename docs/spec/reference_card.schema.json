@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "card_id", "vertical", "source", "verify", "skeleton", "judge", "decision"],
   "properties": {
+    "extraction": {"$ref": "#/$defs/extraction"},
     "schema_version": {"const": "0.1"},
     "card_id": {"type": "string", "pattern": "^ref_[0-9A-HJKMNP-TV-Z]{26}$"},
     "vertical": {"enum": ["butcher"], "description": "Verticals are added one at a time, by decision; the first is the butcher."},
@@ -152,6 +153,37 @@
   ],
 
   "$defs": {
+    "extraction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["extraction_version", "palette", "components", "image_treatment", "cta", "forms"],
+      "description": "Task document step 5 (2026-11-15): what deterministic extraction measured (omni_prod/a2/extract.py). Colours by role from computed styles; numbers and closed lists only -- no text, logo, image or code of the site.",
+      "properties": {
+        "extraction_version": {"type": "string", "pattern": "^x[0-9]+(\\.[0-9]+)*$"},
+        "palette": {
+          "type": "object",
+          "propertyNames": {"enum": ["bg", "surface", "line", "text", "muted", "accent", "accent_text"]},
+          "additionalProperties": {
+            "type": "object", "additionalProperties": false, "required": ["hex", "provenance", "confidence"],
+            "properties": {"hex": {"type": "string", "pattern": "^#[0-9a-f]{6}$"},
+                           "provenance": {"enum": ["observed", "estimated"]},
+                           "confidence": {"type": "number", "minimum": 0, "maximum": 1}}
+          }
+        },
+        "components": {"type": "array", "uniqueItems": true, "maxItems": 16,
+                       "items": {"enum": ["mega_menu", "age_gate", "cookie_banner", "entry_popup", "cart_drawer", "promo_bar",
+                                          "chips", "question_widget", "floating_call_button", "map_embed", "form", "table"]}},
+        "image_treatment": {"enum": ["none", "photo_full_bleed", "photo_framed", "illustration"]},
+        "cta": {"type": "object", "additionalProperties": false, "required": ["count", "shape"],
+                "properties": {"count": {"type": "integer", "minimum": 0, "maximum": 200},
+                               "shape": {"enum": [null, "pill", "rounded", "square"]}}},
+        "forms": {"type": "array", "maxItems": 5,
+                  "items": {"type": "object", "additionalProperties": false, "required": ["fields", "types"],
+                            "properties": {"fields": {"type": "integer", "minimum": 0, "maximum": 30},
+                                           "types": {"type": "array", "uniqueItems": true, "maxItems": 8,
+                                                     "items": {"enum": ["text", "tel", "email", "number", "date", "checkbox", "radio", "search"]}}}}},
+        "tone": {"enum": ["formal", "friendly"], "description": "The one field a model chooses (closed list); absent until it is chosen."}
+      }
+    },
     "score": {"enum": [0, 1, 2]},
     "scores": {
       "type": "object", "additionalProperties": false,
