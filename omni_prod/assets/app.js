@@ -79,6 +79,8 @@ const T = {
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
+    repairStopped:'התיקון האוטומטי נעצר',
+    repairStops:{no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -201,6 +203,8 @@ const T = {
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
+    repairStopped:'Automatic repair stopped',
+    repairStops:{no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1085,6 +1089,7 @@ function renderTrack() {
   else if (status === 'failed') {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
+    const why = stopReasonLine(b); if (why) msg.append(h('div', { class: 'stop' }, why));   // warehouse 102
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
     // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
     if (b.result_version_id) {
@@ -1185,6 +1190,16 @@ function renderSharing(p) {
   const kids = [h('span', {}, t('shareLabel') + ': '), sel];
   if (mode === 'SHARED' && S.shareUrl) kids.push(h('input', { readonly: true, value: S.shareUrl, dir: 'ltr', 'aria-label': t('shareLink'), onfocus: (e) => e.target.select() }));
   box.replaceChildren(...kids);
+}
+// warehouse 102 (owner, 2026-11-15, narrow scope): why the automatic repair stopped, in the customer's words. The reason
+// is the engine's own (autonomous_core stop_reason, stored by the worker as evidence.repair_stop_reason); a reason the
+// table does not know is shown as it is, never hidden.
+function stopReasonLine(b) {
+  if (!b || String(b.status || '').toLowerCase() !== 'failed') return '';
+  const reason = b.evidence && b.evidence.repair_stop_reason;
+  if (!reason || reason === 'passed' || reason === 'no_repair_adopted') return '';
+  const words = t('repairStops') || {};
+  return words[reason] || `${t('repairStopped')}: ${reason}`;
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
