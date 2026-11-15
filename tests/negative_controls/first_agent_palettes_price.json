@@ -1,0 +1,110 @@
+{
+ "pr": "first-agent-palettes-price",
+ "sha256": [
+  "tests/test_design_palettes_price_v0.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a failing body tone is kept (no replacement)",
+   "mutations": [
+    {
+     "file": "omni_prod/design_palettes.py",
+     "old": "    fixed_text = _fix(text, background, BODY_CONTRAST)",
+     "new": "    fixed_text = text.upper()  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_a_failing_tone_is_replaced_and_said"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a replacement is made silently (not listed in adjusted)",
+   "mutations": [
+    {
+     "file": "omni_prod/design_palettes.py",
+     "old": "    if fixed_text != text.upper():\n        adjusted.append(",
+     "new": "    if False:  # NEGATIVE CONTROL\n        adjusted.append("
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_a_failing_tone_is_replaced_and_said"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "body contrast 4.5 instead of 7",
+   "mutations": [
+    {
+     "file": "omni_prod/design_palettes.py",
+     "old": "BODY_CONTRAST = 7.0",
+     "new": "BODY_CONTRAST = 2.5  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_a_failing_tone_is_replaced_and_said"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the category palette wins over the customer's colours",
+   "mutations": [
+    {
+     "file": "omni_prod/design_palettes.py",
+     "old": "    if customer_colours:\n        return {'tier': 1,",
+     "new": "    if customer_colours and False:  # NEGATIVE CONTROL\n        return {'tier': 1,"
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_tiers_customer_then_library_then_category"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the price blocks (the rule Michael removed)",
+   "mutations": [
+    {
+     "file": "omni_prod/price_v0.py",
+     "old": "'version': VERSION, 'blocks': False}",
+     "new": "'version': VERSION, 'blocks': clamp is not None}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_floor_and_ceiling_are_said"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "no ceiling",
+   "mutations": [
+    {
+     "file": "omni_prod/price_v0.py",
+     "old": "    amount = min(max(raw, FLOOR_ILS), CEILING_ILS)",
+     "new": "    amount = max(raw, FLOOR_ILS)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_design_palettes_price_v0.py"
+   ],
+   "expect_failed": [
+    "test_floor_and_ceiling_are_said"
+   ]
+  }
+ ]
+}
