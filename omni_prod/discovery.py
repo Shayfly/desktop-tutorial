@@ -74,6 +74,47 @@ GROUP_TITLES = {
     'design': ('עיצוב ומיתוג', 'Design and brand'),
 }
 
+IMAGE_KINDS = ('person', 'product', 'place', 'logo', 'other')
+_IMAGE_WHO = {   # the identity question, by kind (Michael 2026-11-15)
+    'person': ('מי בתמונה, ומה התפקיד שלו או שלה בעסק?', 'Who is in the photo, and what is their role in the business?',
+               'למשל: "סבא שמעון, הבעלים". זה ייכתב בתיאור התמונה בדף.'),
+    'product': ('איזה מוצר בתמונה, ומה מיוחד בו?', 'Which product is it, and what is special about it?',
+                'למשל: "שיפודי פרגית, מתובלים אצלנו". זה ייכתב בתיאור התמונה בדף.'),
+    'place': ('איזה מקום בתמונה, ומה קורה בו?', 'Which place is it, and what happens there?',
+              'למשל: "הדלפק בחנות, כאן חותכים מול הלקוח". זה ייכתב בתיאור התמונה בדף.'),
+    'other': ('מה יש בתמונה, ואיפה היא צריכה להופיע?', 'What is in the image, and where should it appear?',
+              'כך נדע מה לעשות איתה.'),
+}
+_IMAGE_USE_OPTIONS = (_o('as_is', 'להשתמש בה כמו שהיא', 'Use it as is'),
+                      _o('change', 'לשנות אותה (עוד לא זמין)', 'Change it (not available yet)'),
+                      _o('inspiration', 'רק השראה — לא להציג בדף', 'Inspiration only, not shown'))
+_IMAGE_USE_WHY = ('כמו שהיא: התמונה תופיע בדף בדיוק כפי שהעלית, בלי ליצור תמונה אחרת. שינוי של התמונה עצמה '
+                  '(למשל להכניס אותה לסצנה אחרת) עוד לא זמין.')
+_IMAGE_USE_WHY_EN = ('As is: the image appears exactly as uploaded and no other image is generated. Changing the image '
+                     'itself (e.g. placing it in another scene) is not available yet.')
+IMAGE_QUESTIONS = (
+    Question('image_kind', 'image_kind', 'design', 'קיבלתי את התמונה. מה יש בה?', 'I got the image. What is in it?',
+             'כל תמונה שמעלים מקבלת תפקיד, כדי שנדע איך להשתמש בה.',
+             'Every uploaded image gets a role, so we know how to use it.',
+             options=(_o('person', 'אדם', 'A person'), _o('product', 'מוצר', 'A product'), _o('place', 'מקום', 'A place'),
+                      _o('logo', 'הלוגו שלי', 'My logo'), _o('other', 'משהו אחר', 'Something else')),
+             delegable=False, ask_if=lambda v: bool(v.get('_image'))),
+    *(Question(f'image_who_{kind}', 'image_identity', 'design', he, en, why, why, kind='text', delegable=False,
+               ask_if=lambda v, k=kind: bool(v.get('_image')) and v.get('image_kind') == k)
+      for kind, (he, en, why) in _IMAGE_WHO.items()),
+    # then, always, what to do with it -- with a suggested choice by kind (an "other" image: inspiration)
+    Question('image_use', 'image_use', 'design', 'ומה לעשות עם התמונה? ההמלצה שלי: להשתמש בה כמו שהיא.',
+             'And what should I do with it? I suggest using it as is.', _IMAGE_USE_WHY, _IMAGE_USE_WHY_EN,
+             options=_IMAGE_USE_OPTIONS, recommended='as_is', delegable=False,
+             ask_if=lambda v: bool(v.get('_image')) and v.get('image_kind') in ('person', 'product', 'place')
+             and bool(v.get('image_identity'))),
+    Question('image_use_other', 'image_use', 'design', 'ומה לעשות עם התמונה? ההמלצה שלי: רק השראה.',
+             'And what should I do with it? I suggest inspiration only.', _IMAGE_USE_WHY, _IMAGE_USE_WHY_EN,
+             options=_IMAGE_USE_OPTIONS, recommended='inspiration', delegable=False,
+             ask_if=lambda v: bool(v.get('_image')) and v.get('image_kind') == 'other' and bool(v.get('image_identity'))),
+)
+
+
 QUESTIONS: tuple[Question, ...] = (
     Question('audience', 'audience', 'purpose', 'מי ישתמש במערכת?', 'Who will use it?',
              'קובע אם צריך הגנה על מידע, שפה פשוטה ללקוחות או כלים מתקדמים לצוות.',
@@ -183,17 +224,9 @@ QUESTIONS: tuple[Question, ...] = (
              'Used as inspiration only, never copied.', kind='text', recommended='אין'),
     # Production 2026-11-15 (bld_09482b26, "סבא שמעון"): the customer uploaded his grandfather's photo; only "one image
     # + the word logo" was ever bound, so the photo was dropped silently and a different man was generated from the
-    # text. Every uploaded image now gets a role from the CUSTOMER (never delegated, never a silent default).
-    # Tier 2 (changing the photo with it as a reference) is not available yet and is said so, not offered.
-    Question('image_use', 'image_use', 'design', 'קיבלתי את התמונה שהעלית. מה לעשות איתה?',
-             'I got the image you uploaded. What should I do with it?',
-             'כמו שהיא: היא תופיע בדף כתמונה הראשית בדיוק כפי שהעלית, בלי ליצור תמונה אחרת. '
-             'שינוי של התמונה עצמה (למשל להכניס אותה לסצנה אחרת) עוד לא זמין.',
-             'As is: it appears on the page as the main image exactly as uploaded, and no other image is generated. '
-             'Changing the image itself (e.g. placing it in another scene) is not available yet.',
-             options=(_o('as_is', 'תמונה ראשית — כמו שהיא', 'Main image, as is'),
-                      _o('inspiration', 'רק השראה — לא להציג אותה בדף', 'Inspiration only, not shown on the page')),
-             delegable=False, ask_if=lambda v: bool(v.get('_image'))),
+    # text. Michael 2026-11-15 16:15: EVERY uploaded image gets an explicit role -- first WHAT it is (by its kind),
+    # only then what to do with it. Never delegated, never assumed; the role goes into the alt and the canon.
+    *IMAGE_QUESTIONS,
 )
 BY_ID = {q.id: q for q in QUESTIONS}
 
@@ -336,7 +369,7 @@ def _ctx(brief: 'Brief') -> dict:
     v['_strong'] = bool(strong_cues(brief.prompt))           # R1/8.1, read by the persistence question
     v['_stale'] = brief.hints.get('persistence_stale') == 'yes'
     v['_unpriced'] = unpriced_keys(brief)                     # 77, read by the "unavailable" question
-    v['_image'] = bool(brief.assets.get('image'))             # an uploaded image waits for its role (image_use)
+    v['_image'] = bool(brief.assets.get('image'))             # an uploaded image waits for its role
     return v
 
 
@@ -400,6 +433,7 @@ def customer_exclusions(brief: 'Brief') -> list[str]:
 
 MAIN_IMAGE_MARKER = '148ai-asset://upload/1'
 MAIN_IMAGE_PREFIX = 'Uploaded main image attachment: '
+MAIN_IMAGE_ALT_PREFIX = 'Uploaded main image role (its alt is these exact words): '
 
 
 def main_image(brief: 'Brief') -> dict | None:
@@ -409,6 +443,28 @@ def main_image(brief: 'Brief') -> dict | None:
     if img and f.get('value') == 'as_is' and f.get('source') == 'answer':
         return img
     return None
+
+
+_KIND_HE = {'person': 'אדם', 'product': 'מוצר', 'place': 'מקום', 'other': 'אחר'}
+
+
+def image_role(brief: 'Brief') -> dict | None:
+    """kind + the customer's own words for it (the alt) + what to do with it; None while not fully answered."""
+    v = brief.values()
+    if not brief.assets.get('image') or v.get('image_kind') not in _KIND_HE or not v.get('image_identity'):
+        return None
+    alt = ' '.join(str(v['image_identity']).replace('"', '״').split())[:160]
+    return {'kind': v['image_kind'], 'alt': alt, 'use': v.get('image_use')}
+
+
+def image_canon_line(brief: 'Brief', lang: str = 'he') -> str | None:
+    role = image_role(brief)
+    if role is None or not role.get('use'):
+        return None
+    use = {'as_is': 'תופיע בדף כמו שהיא', 'inspiration': 'השראה בלבד, לא מוצגת בדף'}[role['use']] if lang == 'he' else \
+        {'as_is': 'shown on the page as is', 'inspiration': 'inspiration only, not shown'}[role['use']]
+    return (f'תמונה שהעלית ({_KIND_HE[role["kind"]]}): {role["alt"]} — {use}.' if lang == 'he'
+            else f'Your image ({role["kind"]}): {role["alt"]} -- {use}.')
 
 
 def image_exclusions(brief: 'Brief') -> list[str]:
@@ -470,9 +526,11 @@ def _drop_inapplicable(brief: Brief) -> None:
     while changed:
         changed = False
         vals = _ctx(brief)
-        for q in QUESTIONS:
-            if q.field in brief.fields and not q.ask_if(vals):
-                del brief.fields[q.field]
+        # a field several questions share (the image's identity and use, one question per kind) goes only when NONE
+        # of its questions applies; every other field has exactly one question, as before
+        for fld in dict.fromkeys(q.field for q in QUESTIONS):
+            if fld in brief.fields and not any(q.ask_if(vals) for q in QUESTIONS if q.field == fld):
+                del brief.fields[fld]
                 changed = True
 
 
@@ -513,6 +571,34 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
     _drop_inapplicable(new)
     if 'logo' in answers and new.values().get('logo') != 'later':
         new.assets.pop('logo', None)
+    return _settle_image(brief, new, answers)
+
+
+IMAGE_FIELDS = ('image_kind', 'image_identity', 'image_use')
+
+
+def next_image_question(brief: 'Brief') -> 'Question | None':
+    """The next question of the image's role, in order: what is in it -> who/what exactly -> what to do with it."""
+    ids = {q.id for q in IMAGE_QUESTIONS}
+    return next((q for q in pending(brief) if q.id in ids), None)
+
+
+def _settle_image(before: 'Brief', new: 'Brief', answers: Mapping[str, str]) -> 'Brief':
+    """The role of an uploaded image, in order (Michael 2026-11-15): a new kind asks who/what again and what to do
+    again; "my logo" takes the existing logo path; "change it" is not available yet -- it is NOT recorded (the
+    question stays open and the reply says so), never turned into a silent "as is"."""
+    if 'image_kind' in answers and before.values().get('image_kind') != new.values().get('image_kind'):
+        for f in ('image_identity', 'image_use'):
+            new.fields.pop(f, None)
+    if new.values().get('image_kind') == 'logo' and new.assets.get('image'):
+        img = new.assets.pop('image')
+        for f in IMAGE_FIELDS:
+            new.fields.pop(f, None)
+        new.assets['logo'] = {k: img[k] for k in ('id', 'sha256', 'mime', 'size_bytes') if k in img}
+        new.fields['logo'] = {'value': 'later', 'source': 'answer', 'question_id': 'image_kind', 'confidence': 'confirmed'}
+    if new.values().get('image_use') == 'change':
+        new.fields.pop('image_use', None)
+        new.hints['image_change'] = 'asked'
     return new
 
 
@@ -720,9 +806,13 @@ def gate_canon(brief: Brief, lang: str = 'he') -> dict:
     """The fact canon as gate 1 shows it for this brief (one place: gate 1, approve_spec, build admission)."""
     from .fact_canon import gate_view
     facts = _facts(brief)
-    return gate_view(brief.prompt + '\n' + requirements_text(brief), customer_text=customer_text(brief),
+    view = gate_view(brief.prompt + '\n' + requirements_text(brief), customer_text=customer_text(brief),
                      family='website' if is_website(brief) else 'app', lang=lang,
                      needs=facts['needs'], waived=facts['waived'])
+    image = image_canon_line(brief, lang)
+    if image:   # Michael 2026-11-15: the image's role is part of what the customer approves
+        view['lines'] = list(view['lines']) + [image]
+    return view
 
 
 def requirements_text(brief: Brief) -> str:
@@ -805,6 +895,9 @@ def requirements_text(brief: Brief) -> str:
                      "This is the customer's own photo: use it AS IS as the main (hero) image, in a visible img element "
                      f'with src="{MAIN_IMAGE_MARKER}" and a non-empty alt. Do not generate, draw, edit or replace it; '
                      'the worker replaces this marker with the verified image bytes before tests.')
+        role = image_role(brief)
+        if role:   # Michael 2026-11-15: the role goes into the alt (the customer's own words)
+            lines.append(f'{MAIN_IMAGE_ALT_PREFIX}{role["kind"]}: "{role["alt"]}"')
     elif brief.assets.get('image') and v.get('image_use') == 'inspiration':
         lines.append(f'Uploaded image {brief.assets["image"]["id"]}: the customer chose inspiration only. '
                      'Do not show it on the page.')
