@@ -45,7 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           read -r active pin < <(python3 -c 'import json; f=json.load(open("docs/gate-freeze.json")); print(str(bool(f.get("active"))).lower(), f.get("baseline") or "-")')
-          rolling="${PR_BASE:-$(git rev-parse origin/main)}"
+          # 2026-11-15: the merge commit's base parent, not the event's possibly stale base.sha (#371 was charged #374's lines)
+          rolling="$(python3 scripts/deletions_declared.py --anchor "${PR_BASE:-}")"
           touched=""
           for f in $SITE_AUTH_FILES; do
             if git diff --name-only "$rolling" HEAD | grep -qx "$f"; then touched="$touched $f"; fi

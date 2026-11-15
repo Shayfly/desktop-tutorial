@@ -12,6 +12,7 @@ reason and a reviewer who is not the author (Michael fix 4).
 
     python scripts/deletions_declared.py ANCHOR                 # check HEAD against ANCHOR (identity.yml)
     python scripts/deletions_declared.py ANCHOR --digest PATH   # the digest to declare for PATH
+    python scripts/deletions_declared.py --anchor PR_BASE        # the anchor identity.yml measures from
 """
 from __future__ import annotations
 
@@ -78,7 +79,21 @@ def judge(allowed: dict, deleted: dict[str, str]) -> tuple[list[str], list[str],
     return notices, undeclared, stale, unreviewed
 
 
+def rolling_anchor(pr_base: str, cwd: str | None = None) -> str:
+    """The commit a PR's changes are measured from. On pull_request, actions/checkout checks out GitHub's merge commit
+    (refs/pull/N/merge): its FIRST parent is the base branch exactly as merged. The event's base.sha is not that commit
+    once main moves after the PR was opened (#371, 2026-11-15: anchor f02404a while main was be831c6, so #374's own
+    deletions were charged to #371). Not a merge commit (push, schedule): the given base, else origin/main."""
+    parents = _git('rev-list', '--parents', '-n', '1', 'HEAD', cwd=cwd).split()
+    if len(parents) == 3:
+        return parents[1]
+    return pr_base or _git('rev-parse', 'origin/main', cwd=cwd).strip()
+
+
 def main(argv: list[str], cwd: str | None = None, declarations: Path | None = None) -> int:
+    if argv and argv[0] == '--anchor':
+        print(rolling_anchor(argv[1] if len(argv) > 1 else '', cwd))
+        return 0
     anchor = argv[0]
     if len(argv) == 3 and argv[1] == '--digest':
         print(digest(deleted_lines(anchor, argv[2], cwd)))

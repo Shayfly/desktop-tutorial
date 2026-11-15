@@ -75,6 +75,23 @@
    "expect_failed": [
     "test_one_of_several_declarations_for_the_path_may_match"
    ]
+  },
+  {
+   "id": "NC5",
+   "what": "the event's base.sha is the anchor even when HEAD is GitHub's merge commit (the #371 stale anchor)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "    if len(parents) == 3:\n        return parents[1]",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return parents[1]"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_base_charges_mains_changes_to_the_pr_and_the_merge_parent_does_not"
+   ]
   }
  ]
 }

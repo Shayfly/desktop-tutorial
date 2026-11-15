@@ -106,6 +106,34 @@ class BoundToTheChange(unittest.TestCase):
         self.assertEqual(out.getvalue().strip(), DD.digest(['b = 2']))
 
 
+class TheAnchorIsTheMergeBaseParent(unittest.TestCase):
+    """#371, 2026-11-15: the event's base.sha was f02404a while main had moved to be831c6 (#374 merged), so #374's own
+    deletions were charged to #371. Reproduced: main moves after the branch, GitHub-style merge commit checked out."""
+    def test_a_stale_base_charges_mains_changes_to_the_pr_and_the_merge_parent_does_not(self):
+        repo = Repo()
+        stale = repo.commit({'mine.py': 'a\n', 'theirs.py': 'x = 1\ny = 2\n'})
+        git(repo.dir, 'checkout', '-q', '-b', 'pr')
+        repo.commit({'mine.py': 'a\nb\n'})                              # the PR only adds
+        git(repo.dir, 'checkout', '-q', 'main')
+        main_tip = repo.commit({'theirs.py': 'x = 1\n'})                 # another PR, merged later, deletes y = 2
+        git(repo.dir, 'checkout', '-q', '--detach', main_tip)
+        git(repo.dir, 'merge', '-q', '--no-ff', '--no-edit', 'pr')       # what refs/pull/N/merge is
+        self.assertEqual(DD.files_with_deletions(stale, cwd=repo.dir), ['theirs.py'])     # the bug
+        anchor = DD.rolling_anchor(stale, cwd=repo.dir)
+        self.assertEqual(anchor, main_tip)
+        self.assertEqual(DD.files_with_deletions(anchor, cwd=repo.dir), [])               # only the PR's change
+
+    def test_without_a_merge_commit_the_given_base_is_used(self):
+        repo = Repo()
+        base = repo.commit({'a.py': 'a\n'})
+        repo.commit({'a.py': 'b\n'})
+        self.assertEqual(DD.rolling_anchor(base, cwd=repo.dir), base)
+
+    def test_the_workflow_takes_its_anchor_from_the_script(self):
+        wf = (ROOT / '.github' / 'workflows' / 'identity.yml').read_text()
+        self.assertIn('rolling="$(python3 scripts/deletions_declared.py --anchor "${PR_BASE:-}")"', wf)
+
+
 class TheRealFile(unittest.TestCase):
     def test_the_path_only_entries_of_the_real_file_cover_nothing_new(self):
         allowed = json.loads((ROOT / 'docs' / 'identity' / 'allowed-deletions.json').read_text())['allowed']
