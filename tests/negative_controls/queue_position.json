@@ -1,0 +1,106 @@
+{
+ "pr": "queue-position",
+ "sha256": [
+  "tests/test_queue_position_pg.py",
+  "tests/test_queue_position_ui.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "modifications ahead are not counted (they run on the same worker)",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "\"AND created_at < %s AND id <> %s) + (SELECT count(*) FROM modification_requests \"",
+     "new": "\"AND created_at < %s AND id <> %s) + 0 * (SELECT count(*) FROM modification_requests \""
+    }
+   ],
+   "targets": [
+    "tests/test_queue_position_pg.py"
+   ],
+   "expect_failed": [
+    "test_modifications_ahead_count_and_finished_jobs_do_not"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "finished builds count as ahead",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "cur.execute(\"SELECT (SELECT count(*) FROM build_jobs WHERE status IN ('QUEUED', 'RUNNING') \"",
+     "new": "cur.execute(\"SELECT (SELECT count(*) FROM build_jobs WHERE TRUE OR status IN ('QUEUED', 'RUNNING') \""
+    }
+   ],
+   "targets": [
+    "tests/test_queue_position_pg.py"
+   ],
+   "expect_failed": [
+    "test_modifications_ahead_count_and_finished_jobs_do_not"
+   ]
+  },
+  {
+   "id": "NC2b",
+   "what": "jobs created after this build count as ahead",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "\"AND created_at < %s AND id <> %s) + (SELECT count(*) FROM modification_requests \"",
+     "new": "\"AND created_at < %s + interval '1 day' AND id <> %s) + (SELECT count(*) FROM modification_requests \""
+    }
+   ],
+   "targets": [
+    "tests/test_queue_position_pg.py"
+   ],
+   "expect_failed": [
+    "test_next_in_line_is_zero_and_a_later_job_does_not_count"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the position is read without the project scope",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/job_repository.py",
+     "old": "cur.execute(\"SELECT status, created_at FROM build_jobs WHERE id = %s AND project_id = %s\",\n                            (build_id, internal_project_id))",
+     "new": "cur.execute(\"SELECT status, created_at FROM build_jobs WHERE id = %s\",  # NEGATIVE CONTROL\n                            (build_id,))"
+    }
+   ],
+   "targets": [
+    "tests/test_queue_position_pg.py"
+   ],
+   "expect_failed": [
+    "test_another_projects_build_is_not_readable"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a bad number from the server is shown as is",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0) return t('queued');",
+     "new": "  if (n === undefined || n === null) return t('queued');  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_queue_position_ui.py"
+   ],
+   "expect_failed": [
+    "test_no_count_is_the_plain_line_never_a_guess"
+   ]
+  }
+ ]
+}

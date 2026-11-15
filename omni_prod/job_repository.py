@@ -424,6 +424,25 @@ class PostgresBuildRepository:
                 row = cur.fetchone()
                 return bool(row and row[0])
 
+    def queue_ahead(self, build_id: str, internal_project_id: str) -> int | None:
+        """Michael 2026-11-15 ("מקביליות -- חיווי תור"): one worker runs one job at a time from omni-builds, builds and
+        modifications alike, first in first out. For a QUEUED build: how many builds and modifications that are QUEUED
+        or RUNNING were created before it (a count only -- nothing of another account is shown). None when the build
+        is not queued. Scoped by project like get_details: a build of another project raises KeyError."""
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT status, created_at FROM build_jobs WHERE id = %s AND project_id = %s",
+                            (build_id, internal_project_id))
+                row = cur.fetchone()
+                if not row:
+                    raise KeyError("Job not found or access denied")
+                if row[0] != 'QUEUED':
+                    return None
+                cur.execute("SELECT (SELECT count(*) FROM build_jobs WHERE status IN ('QUEUED', 'RUNNING') "
+                            "AND created_at < %s AND id <> %s) + (SELECT count(*) FROM modification_requests "
+                            "WHERE status IN ('QUEUED', 'RUNNING') AND created_at < %s)", (row[1], build_id, row[1]))
+                return int(cur.fetchone()[0])
+
     def get_details(self, build_id: str, internal_project_id: str) -> BuildJobDetails:
         with self.pool.connection() as conn:
             with conn.cursor() as cur:

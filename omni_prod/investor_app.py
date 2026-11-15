@@ -2864,6 +2864,8 @@ def v28_build_status(project_id: str, build_id: str, request: Request) -> dict:
             "artifact_key": details.artifact_key,
             "error_code": details.error_code,
             "evidence": strip_internal_economics(details.evidence),
+            # 2026-11-15: jobs ahead of a queued build on the single worker (a count only); None once it runs
+            "queue_ahead": jobs.queue_ahead(build_id, internal_project_id=key) if details.status == 'QUEUED' else None,
         }
     except KeyError:
         raise HTTPException(404, "Build not found or access denied")
