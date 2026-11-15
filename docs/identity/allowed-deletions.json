@@ -38,50 +38,89 @@
    "reviewer": "michael",
    "reviewed_at": "2026-11-13"
   },
-  "tests/test_site_auth_v2.py": {
-   "reason": "#335 part 1: the BASELINE_DIGEST line is replaced (728eb139 -> 9eac2891). Component diff: the only change is in `arms` -- build_canon records the arm briefs' opening hours as hours_day facts. No prompt, instruction, probe or script changed.",
-   "author": "claude",
-   "reviewer": "michael",
-   "reviewed_at": "2026-11-13"
-  },
+  "tests/test_site_auth_v2.py": [
+   {
+    "reason": "#335 part 1: the BASELINE_DIGEST line is replaced (728eb139 -> 9eac2891). Component diff: the only change is in `arms` -- build_canon records the arm briefs' opening hours as hours_day facts. No prompt, instruction, probe or script changed.",
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-13"
+   },
+   {
+    "reason": "rtl-time-ranges-bdi (#371): the BASELINE_DIGEST line is replaced (9eac2891 -> 35d613d8), declared in allowed-identity-changes.json (rtl-time-ranges-bdi): the text_locale probe and its guidance sentence.",
+    "deleted_sha256": "5ff3f699d2a61a2eaf2f8421a379b2205103b623ec22db132288cfbcacbbc838",
+    "pr": 371,
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-15",
+    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
+   }
+  ],
   "tests/test_content_truth_rtl_20261109.py": {
    "reason": "#335 part 1: two fixture request lines are replaced so the request includes the hours the page shows (א-ה 07:00-14:00). Without them the new hours gate correctly blocks the page as invented hours; what each test asserts is unchanged.",
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-13"
   },
-  "tests/test_gate_mutations_20261110.py": {
-   "reason": "#335 part 1: the 'prices and hours are not phones' false-positive case no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so it still checks that a time range is not read as a phone. The removed change is kept as a new blocking mutation, 'opening hours fabricated', that must be caught. A time range with no day is declared OUTSIDE the hours gate, and the DaylessRangeIsOutOfScope test pins that scope.",
-   "author": "claude",
-   "reviewer": "michael",
-   "reviewed_at": "2026-11-13"
-  },
-  "docs/identity/allowed-identity-changes.json": {
-   "reason": "adding a declaration rewrites one line of the JSON list -- the first entry turns '\"changes\": []' into a list, every later one turns the previous entry's closing '}' into '},'. The entries themselves are guarded by scripts/identity_declared.py (exact match, signed, to_digest unique); removing an entry only takes an allowance away.",
-   "author": "claude",
-   "reviewer": "michael",
-   "reviewed_at": "2026-11-13"
-  },
+  "tests/test_gate_mutations_20261110.py": [
+   {
+    "reason": "#335 part 1: the 'prices and hours are not phones' false-positive case no longer rewrites the day's hours (07:00-14:00 -> 07:30-23:45), which is now a blocking hours contradiction; it adds a time range with no day instead, so it still checks that a time range is not read as a phone. The removed change is kept as a new blocking mutation, 'opening hours fabricated', that must be caught. A time range with no day is declared OUTSIDE the hours gate, and the DaylessRangeIsOutOfScope test pins that scope.",
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-13"
+   },
+   {
+    "reason": "rtl-time-ranges-bdi (#371): the GOOD_PAGE hours line and two appended-range fixtures are replaced so a correct page shows its hours isolated with <bdi dir=\"ltr\">; the reversed hours are a new mutation that must be caught. What each test asserts is unchanged.",
+    "deleted_sha256": "9015c31e086f8e348e9933a990ce002f9bdf5807ee0548b030488fd2eaae0a69",
+    "pr": 371,
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-15",
+    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
+   }
+  ],
+  "docs/identity/allowed-identity-changes.json": [
+   {
+    "reason": "adding a declaration rewrites one line of the JSON list -- the first entry turns '\"changes\": []' into a list, every later one turns the previous entry's closing '}' into '},'. The entries themselves are guarded by scripts/identity_declared.py (exact match, signed, to_digest unique); removing an entry only takes an allowance away.",
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-13"
+   },
+   {
+    "reason": "rtl-time-ranges-bdi (#371): appending the declaration turns the previous last entry's closing '}' into '},', and the #338 entry gains a signature_note line after its reviewed_at line.",
+    "deleted_sha256": "3914f0d2ed226fd056f52bc6e45de961ef945d3d7f63507e7936fa1d1880f8d5",
+    "pr": 371,
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-15",
+    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
+   }
+  ],
   "omni_prod/page_locale.py": {
    "reason": "rtl-time-ranges-bdi (#371): the one line that stored the page after adding dir/lang is replaced: the page is now kept in `text`, its time ranges wrapped with <bdi dir=\"ltr\"> when the page is RTL, and then stored. A page that sets dir itself is still left as written.",
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-15",
-   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
+   "deleted_sha256": "8669c010fa675e9638d119cb2539751cc0f2c976dca23b10094a8c78a77660dd",
+   "pr": 371
   },
   "omni_prod/skills_runtime.py": {
    "reason": "rtl-time-ranges-bdi (#371): two lines are replaced, nothing removed in meaning -- the text_locale static_checks tuple gains _time_ranges_isolated, and the guidance sentence on times gains 'on an RTL page wrap every time range in <bdi dir=\"ltr\">'.",
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-15",
-   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
+   "deleted_sha256": "d610d4c0a4259860f9485fa30e769b77c92c32f86f04bf0e08a5d43f6fcd7c82",
+   "pr": 371
   },
   "tests/test_frozen_run_conditions_20261110.py": {
    "reason": "rtl-time-ranges-bdi (#371): two fixture lines of correct pages are replaced so their given hours are isolated with <bdi dir=\"ltr\">; without it the new probe correctly blocks them as reversed hours. What each test asserts is unchanged.",
    "author": "claude",
    "reviewer": "michael",
    "reviewed_at": "2026-11-15",
-   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
+   "deleted_sha256": "ed84054b01a02152aa94b02e0417ed5653fc7d94f92c2e852cf708b040344138",
+   "pr": 371
   }
  },
  "rule_2026_11_15": "Michael 2026-11-15: a declaration covers ONE change. It carries deleted_sha256, the sha256 of the lines that change deletes from the file (scripts/deletions_declared.py ANCHOR --digest PATH); a path may hold a list of declarations, one per change. A declaration without the digest, or with another one, covers nothing: the path-only entries below were kept for history and no longer cover any new deletion."
