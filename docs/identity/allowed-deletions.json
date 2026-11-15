@@ -2,6 +2,9 @@
  "baseline_sha": "2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49",
  "rule": "Michael 2026-11-10 fix 3: a change to the frozen system is ADDITIVE. Every line deleted from the baseline must be listed here with its reason; anything else fails the identity workflow. Each entry: {reason, author, reviewer, reviewed_at}; the reviewer must not be the author (Michael fix 4).",
  "allowed": {
+  "omni_prod/bidi_ranges.py": [{"reason": "bdi-in-the-prompt: docstring only. 'Two places use this' (the transform wraps, the probe blocks) is replaced by: the model writes the <bdi>, the probe blocks; wrap_ranges stays as the reference of a correct page.", "deleted_sha256": "f5fbc72693c99d6c321813278ee1ce37214bced5b5ea3a00df7ece711bc622f1", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""}],
+  "tests/test_rtl_time_ranges.py": [{"reason": "bdi-in-the-prompt: the test that the engine transform wraps the ranges is replaced by its opposite (the transform leaves them as the model wrote them); its script/attribute assertions move to test_a_correct_page_isolates_the_text_ranges_only (on wrap_ranges).", "deleted_sha256": "51d743e6fbae951fc0d246ba10ef1365ee8d57aa86e934e67a75a060d0792cdb", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""}],
+  "tests/negative_controls/rtl_time_ranges.json": [{"reason": "bdi-in-the-prompt: NC2's mutation targeted the removed wrap line and is replaced by 'the hidden wrap is back'; NC1/NC3/NC5 get the new test names; NC7 and NC8 are added. git shows the replaced expect lists as deleted.", "deleted_sha256": "a375332a708bea5df0e7c87d6aa2f9be4ef045b178b1a2e703201f01568e6c20", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""}],
   "omni_prod/discovery.py": [{"reason": "image-role (Michael 2026-11-15 16:15): #385's blind image_use question (asked before anyone knew what the image shows) is replaced by kind -> identity -> use; _drop_inapplicable drops a field shared by several questions only when none applies (every other field has one question, unchanged); gate_canon returns its view with the image's role line; one comment line reworded.", "deleted_sha256": "18ee0d336d725cb704614b11c40a3c0c62b1363f89f30f814cc743f0f9c5665e", "pr": "image-role", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-15", "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."}],
   "omni_prod/conversation/supervisor.py": [{"reason": "image-role: a new image clears every role field (kind, identity, use), not only image_use as in #385.", "deleted_sha256": "016d73936ab27deca59520d6a88da7008202693a50ed58e9c5afa3b3e8009554", "pr": "image-role", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-15", "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."}],
   "tests/test_uploaded_main_image.py": [{"reason": "image-role: #385's conversation tests are rewritten for the role-first flow (kind, who, then what to do); what they assert for 'as is' (bound by digest, no generation, the photo on the page) is unchanged.", "deleted_sha256": "fbcbed001322c6f9bfe49ce1e2fd21df82d04fc236d7ce5c5bacfb2becab9810", "pr": "image-role", "author": "claude", "reviewer": "shai", "reviewed_at": "2026-11-15", "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."}],
@@ -46,6 +49,7 @@
    "reviewed_at": "2026-11-13"
   },
   "tests/test_site_auth_v2.py": [
+   {"reason": "bdi-in-the-prompt: the BASELINE_DIGEST line is replaced (35d613d8 -> 80008d63), declared in allowed-identity-changes.json as bdi-in-the-prompt.", "deleted_sha256": "7abaa8dea884af8ebb81cdc52aa858233248a564d481cfc44032a58b65c8a852", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""},
    {
     "reason": "#335 part 1: the BASELINE_DIGEST line is replaced (728eb139 -> 9eac2891). Component diff: the only change is in `arms` -- build_canon records the arm briefs' opening hours as hours_day facts. No prompt, instruction, probe or script changed.",
     "author": "claude",
@@ -102,7 +106,7 @@
     "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
    }
   ],
-  "omni_prod/page_locale.py": {
+  "omni_prod/page_locale.py": [{"reason": "bdi-in-the-prompt (the owner, 2026-11-15 21:07, bld_7fb5e1b2): the four lines #371 added -- the comment, the import, the RTL test and `text = wrap_ranges(text)` -- are removed. The transform no longer rewrites time ranges behind the model; dir/lang are unchanged.", "deleted_sha256": "e68a44b8a942305890405ebc16c2e123a2808a65206fa9aa231ae3a6813e4236", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""}, {
    "reason": "rtl-time-ranges-bdi (#371): the one line that stored the page after adding dir/lang is replaced: the page is now kept in `text`, its time ranges wrapped with <bdi dir=\"ltr\"> when the page is RTL, and then stored. A page that sets dir itself is still left as written.",
    "author": "claude",
    "reviewer": "michael",
@@ -110,8 +114,8 @@
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
    "deleted_sha256": "8669c010fa675e9638d119cb2539751cc0f2c976dca23b10094a8c78a77660dd",
    "pr": 371
-  },
-  "omni_prod/skills_runtime.py": {
+  }],
+  "omni_prod/skills_runtime.py": [{"reason": "bdi-in-the-prompt: one guidance line is split to add 'write it in the page yourself, nothing adds it for you, and a test of that text compares visible_text(body)'; nothing removed in meaning.", "deleted_sha256": "9dbb006b309970cd817ca63f3e9429c27468af660d0fa402c711b6c86c34c91c", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""}, {
    "reason": "rtl-time-ranges-bdi (#371): two lines are replaced, nothing removed in meaning -- the text_locale static_checks tuple gains _time_ranges_isolated, and the guidance sentence on times gains 'on an RTL page wrap every time range in <bdi dir=\"ltr\">'.",
    "author": "claude",
    "reviewer": "michael",
@@ -119,7 +123,7 @@
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
    "deleted_sha256": "d610d4c0a4259860f9485fa30e769b77c92c32f86f04bf0e08a5d43f6fcd7c82",
    "pr": 371
-  },
+  }],
   "tests/test_frozen_run_conditions_20261110.py": {
    "reason": "rtl-time-ranges-bdi (#371): two fixture lines of correct pages are replaced so their given hours are isolated with <bdi dir=\"ltr\">; without it the new probe correctly blocks them as reversed hours. What each test asserts is unchanged.",
    "author": "claude",
@@ -130,6 +134,7 @@
    "pr": 371
   },
   "docs/identity/allowed-deletions.json": [
+   {"reason": "bdi-in-the-prompt: page_locale.py and skills_runtime.py held one path-only declaration each (#371); each becomes a list that keeps it and adds this change's declaration, so git shows their opening and closing lines as deleted.", "deleted_sha256": "fecec29ace26894ccc72e14f27a10b8476eeca16063e51adfa1dda63f9ba1bd9", "pr": "bdi-in-the-prompt", "author": "claude", "reviewer": "pending", "reviewed_at": ""},
    {
     "reason": "rtl-time-ranges-bdi (#371): three path-only entries this PR's files used (#335) become lists that keep them as history and add the digest-bound declaration (#376); git shows the moved lines of those entries as deleted.",
     "deleted_sha256": "55800a3d778ea58943c40bc98b6e6c068b4cbeaf2e5775b7e911791aef52d911",
