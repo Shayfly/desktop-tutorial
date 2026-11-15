@@ -126,6 +126,12 @@ class MainImageExecutor:
 
 
 def main_image_alt(prompt: str) -> str:
+    """The customer's own words for the photo (its role, Michael 2026-11-15); before roles existed, the request's
+    clause that describes the main image."""
+    from .discovery import MAIN_IMAGE_ALT_PREFIX
+    role = re.search('^' + re.escape(MAIN_IMAGE_ALT_PREFIX) + r'[a-z]+: "([^"\n]{1,160})"$', prompt or '', re.M)
+    if role:
+        return role.group(1)
     from .generated_images import describe
     return describe(prompt, 'hero') or 'התמונה הראשית של העסק'
 
