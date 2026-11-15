@@ -37,8 +37,11 @@ def capture(session, candidate: dict, store, *, at: str | None = None, shoot=Non
                     raise ValueError(f'page height {tall}px is above {MAX_HEIGHT}px')
                 data = shoot(page, width)
         except Exception as exc:
+            # the owner, 2026-11-15 23:33 (step 1 of 3): the rejection carries the exception's own first line, not
+            # only its class -- CI showed '390px: Error' twice and nothing more (job 132984165790)
+            why = f'{width}px: {type(exc).__name__}: {(str(exc).splitlines() or [""])[0]}'
             return checked({**base, 'screenshots': shots, 'outcome': 'reject',
-                            'rejection': rejection('capture_missing', 'capture', f'{width}px: {type(exc).__name__}'[:80],
+                            'rejection': rejection('capture_missing', 'capture', why[:80],
                                                    'both 390 and 1440', at)})
         w, h = png_size(data)
         digest = hashlib.sha256(data).hexdigest()

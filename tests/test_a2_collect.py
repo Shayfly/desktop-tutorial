@@ -149,6 +149,7 @@ class Offline(unittest.TestCase):
     def test_two_full_page_screenshots_stored_by_their_digest(self):
         store = MemoryArtifactStore()
         c = capture(self.session, self._cand('good-1'), store)
+        self.assertEqual(c['outcome'], 'pass', f"{c['url']}: {c.get('rejection')}")   # a flake names its cause
         self.assertEqual(c['outcome'], 'pass')
         self.assertEqual([s['viewport_px'] for s in c['screenshots']], [w for w, _ in VIEWPORTS])
         for shot in c['screenshots']:
@@ -165,6 +166,8 @@ class Offline(unittest.TestCase):
         c = capture(self.session, self._cand('good-2'), MemoryArtifactStore(), shoot=fails_at_1440)
         self.assertEqual((c['outcome'], c['rejection']['reason_code']), ('reject', 'capture_missing'))
         self.assertEqual(len(c['screenshots']), 1)
+        # step 1 of 3 (the owner, 2026-11-15 23:33): the rejection names the viewport, the type and the message
+        self.assertEqual(c['rejection']['measured'], '1440px: RuntimeError: browser crashed')
 
     def test_a_page_above_twenty_thousand_pixels_is_not_captured(self):
         c = capture(self.session, self._cand('tall'), MemoryArtifactStore())
