@@ -27,6 +27,10 @@ class TheClosedCatalogue(unittest.TestCase):
         self.assertEqual(len(C.CATEGORIES), 32)                  # appendix A's 30 + butcher + interior design
         self.assertTrue(C.collectable('butcher') and C.collectable('furniture_interior'))
         self.assertEqual(C.neighbours('butcher'), [('delis', False), ('catering', False)])
+        self.assertEqual(C.neighbours('furniture_interior'),
+                         [('fashion', True), ('jewelry', True), ('realty', True)])
+        self.assertNotIn('furniture_interior', C.RESERVE)
+        self.assertIn('jewelry', C.CATEGORIES)
         self.assertEqual(C.CATEGORIES['delis'], 'מעדניות וגורמה')
 
     def test_a_category_outside_the_appendices_is_refused(self):
@@ -78,7 +82,7 @@ class TheGradedFallback(unittest.TestCase):
         crossed = F.offer_for(store_with((1, 'pet_shops')), 'vets', now=NOW)
         self.assertEqual((crossed['category'], crossed['cross_vertical'], crossed['status']),
                          ('pet_shops', True, 'ok'))
-        self.assertEqual([n for n, _ in C.neighbours('fashion')], ['jewelry'])
+        self.assertEqual([n for n, _ in C.neighbours('fashion')], ['jewelry', 'furniture_interior'])
         self.assertNotIn('fashion', [n for n, _ in C.neighbours('vets')])            # no fish -> clothes
 
     def test_an_empty_category_asks_for_a_collection_and_never_waits(self):
