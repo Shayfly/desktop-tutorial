@@ -36,9 +36,9 @@ def _statements(sql: str) -> list[str]:
 
 class MigrationFileTests(unittest.TestCase):
     def test_042_is_discovered_and_is_the_newest(self):
-        found = discover_migrations(MIGRATIONS)
-        self.assertEqual(found[-1].version, 42)
-        self.assertEqual(found[-1].name, "live_core_tables")
+        # 043 (the reference store) came after it; 042 is still discovered under its own name
+        found = {m.version: m.name for m in discover_migrations(MIGRATIONS)}
+        self.assertEqual(found[42], "live_core_tables")
 
     def test_042_is_exactly_the_fallback_ddl(self):
         # One source of truth in two places: they must never drift.
