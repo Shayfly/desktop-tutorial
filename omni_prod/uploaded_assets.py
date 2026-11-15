@@ -87,26 +87,32 @@ def install(engine, *, prompt, pool, store, project_id, account_id):
 # check: the build is not accepted until the photo is in a visible <img> with a non-empty alt. No generation, no vision.
 
 MAIN_ACCEPTANCE_ID = 'uploaded-main-image'
-_MAIN_BINDING = re.compile(r'^Uploaded main image attachment: (att_[a-f0-9]{32}); sha256=([a-f0-9]{64})\.', re.M)
+# one line per placed image (discovery.requirements_text): its attachment, digest, marker, place and the role words
+_IMAGE_BINDING = re.compile(r'^Uploaded image (\d{1,2}) attachment: (att_[a-f0-9]{32}); sha256=([a-f0-9]{64}); '
+                            r'src="(148ai-asset://upload/\1)"; placement: (hero|story|products|gallery); '
+                            r'role (person|product|place|other): "([^"\n]{1,160})"\.', re.M)
 
 
 class _MainImage:
-    """Duck-types generated_images.GeneratedImage for its transform and placement check."""
-    index = 1
-    purpose = 'main image (the customer\'s own photo, as is)'
+    """One of the customer's own photos. Duck-types generated_images.GeneratedImage for its transform and check."""
 
-    def __init__(self, data: bytes, mime: str, digest: str, alt: str, width=None, height=None):
+    def __init__(self, data: bytes, mime: str, digest: str, alt: str, width=None, height=None, *, index: int = 1,
+                 place: str = 'hero'):
         if mime not in EXT or hashlib.sha256(data).hexdigest() != digest:
-            raise ValueError('uploaded main image integrity mismatch')
-        from .discovery import MAIN_IMAGE_MARKER
-        self.data, self.mime, self.sha256, self.alt = data, mime, digest, alt
-        self.width, self.height, self.marker = width, height, MAIN_IMAGE_MARKER
+            raise ValueError('uploaded image integrity mismatch')
+        from .discovery import UPLOAD_MARKER
+        self.data, self.mime, self.sha256, self.alt, self.index, self.place = data, mime, digest, alt, index, place
+        self.width, self.height, self.marker = width, height, f'{UPLOAD_MARKER}{index}'
+        self.purpose = f"the customer's own photo, as is ({place})"
         self.uri = f'data:{mime};base64,' + base64.b64encode(data).decode('ascii')
 
 
 class MainImageExecutor:
-    def __init__(self, inner, image: _MainImage):
-        self._inner, self.image = inner, image
+    """The build is not accepted until EVERY placed photo is in a visible <img> with its alt."""
+
+    def __init__(self, inner, images):
+        self._inner = inner
+        self.images = list(images) if isinstance(images, (list, tuple)) else [images]
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
@@ -114,47 +120,47 @@ class MainImageExecutor:
     def execute(self, *, repository, spec):
         from .generated_images import placement
         report = self._inner.execute(repository=repository, spec=spec)
-        state = placement(repository, self.image)
-        if state == 'ok':
+        problems = []
+        for img in self.images:
+            state = placement(repository, img)
+            if state == 'missing':
+                problems.append(AcceptanceFailure(MAIN_ACCEPTANCE_ID, (
+                    f"The customer's uploaded image {img.index} ({img.place}) is not on the page. Add a visible "
+                    f'<img src="{img.marker}" alt="{img.alt}"> there; do not generate, draw or replace it.')))
+            elif state == 'no_alt':
+                problems.append(AcceptanceFailure(MAIN_ACCEPTANCE_ID, (
+                    f"The customer's uploaded image {img.index} has an empty or missing alt. Use alt=\"{img.alt}\".")))
+        if not problems:
             return report
-        img = self.image
-        why = ('is not on the page. Add a visible <img src="%s" alt="%s">; do not generate, draw or replace it.'
-               if state == 'missing' else 'has an empty or missing alt. Use alt="%s".')
-        msg = "The customer's uploaded main image " + (why % (img.marker, img.alt) if state == 'missing' else why % img.alt)
-        return ExecutionReport(False, tuple(report.failures) + (AcceptanceFailure(MAIN_ACCEPTANCE_ID, msg),),
-                               report.build_log)
-
-
-def main_image_alt(prompt: str) -> str:
-    """The customer's own words for the photo (its role, Michael 2026-11-15); before roles existed, the request's
-    clause that describes the main image."""
-    from .discovery import MAIN_IMAGE_ALT_PREFIX
-    role = re.search('^' + re.escape(MAIN_IMAGE_ALT_PREFIX) + r'[a-z]+: "([^"\n]{1,160})"$', prompt or '', re.M)
-    if role:
-        return role.group(1)
-    from .generated_images import describe
-    return describe(prompt, 'hero') or 'התמונה הראשית של העסק'
+        return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)
 
 
 def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
-    """Bind the photo the customer chose to show as is. Returns the prompt the engine builds from (with the photo's
-    real size); unchanged when the brief has no such photo. Any integrity problem fails the build loudly."""
-    match = _MAIN_BINDING.search(prompt or '')
-    if not match:
+    """Bind every photo the customer placed as is. Returns the prompt the engine builds from (with each photo's real
+    size and place); unchanged when the brief places none. Any integrity problem fails the build loudly."""
+    found = list(_IMAGE_BINDING.finditer(prompt or ''))
+    if not found:
         return prompt
+    if [int(m[1]) for m in found] != list(range(1, len(found) + 1)):
+        raise ValueError('uploaded image lines are not numbered 1..n')
     if pool is None or store is None:
-        raise ValueError('the uploaded main image requires durable attachment storage')
+        raise ValueError('uploaded images require durable attachment storage')
     repo = AttachmentRepository(pool, store)
-    row = repo.get(project_id=project_id, account_id=account_id, attachment_id=match[1])
-    if row['sha256'] != match[2]:
-        raise ValueError('uploaded main image digest changed')
-    image = _MainImage(repo.read(row), row['mime'], match[2], main_image_alt(prompt), row.get('width'), row.get('height'))
+    images = []
+    for m in found:
+        row = repo.get(project_id=project_id, account_id=account_id, attachment_id=m[2])
+        if row['sha256'] != m[3]:
+            raise ValueError(f'uploaded image {m[1]}: digest changed')
+        images.append(_MainImage(repo.read(row), row['mime'], m[3], m[7], row.get('width'), row.get('height'),
+                                 index=int(m[1]), place=m[5]))
     from .generated_images import _Transform
     core = getattr(engine, 'core', engine)
-    core.repository_transform = _Transform(getattr(core, 'repository_transform', None), [image])
-    core.executor = MainImageExecutor(core.executor, image)
-    core.uploaded_main_image = image
-    size = f'{image.width}x{image.height} px' if image.width and image.height else 'size unknown'
-    return (f'{prompt}\n\nUploaded main image (verified by 148AI): src="{image.marker}"; {size}; {image.mime}; '
-            f'alt="{image.alt}". Size the element to these proportions; it must stay responsive '
-            '(max-width: 100%; height: auto).')
+    core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
+    core.executor = MainImageExecutor(core.executor, images)
+    core.uploaded_images = images
+    lines = ["Uploaded images (verified by 148AI): use each one, in its place, with its exact src and alt. Size each "
+             'element to its proportions; it must stay responsive (max-width: 100%; height: auto).']
+    for img in images:
+        size = f'{img.width}x{img.height} px' if img.width and img.height else 'size unknown'
+        lines.append(f'- image {img.index}: src="{img.marker}"; place: {img.place}; {size}; {img.mime}; alt="{img.alt}"')
+    return prompt + '\n\n' + '\n'.join(lines)
