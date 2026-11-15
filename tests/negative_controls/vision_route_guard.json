@@ -1,0 +1,30 @@
+{
+ "pr": "vision-route-guard",
+ "sha256": ["tests/test_vision_route_guard.py"],
+ "controls": [
+  {"id": "NC1", "what": "no vision filter (the router before 2026-11-15)",
+   "mutations": [{"file": "omni_prod/routed_gateway.py",
+                  "old": "        if kwargs.get('images'):\n            # 2026-11-15",
+                  "new": "        if False:  # NEGATIVE CONTROL\n            # 2026-11-15"}],
+   "targets": ["tests/test_vision_route_guard.py"],
+   "expect_failed": ["test_an_image_call_goes_only_to_a_vision_model", "test_when_every_vision_model_fails_no_blind_model_is_tried", "test_no_vision_route_at_all_fails_loudly"]},
+  {"id": "NC2", "what": "every model is taken to read images",
+   "mutations": [{"file": "omni_prod/vision_models.py",
+                  "old": "    return bool(model) and model in VISION_MODELS",
+                  "new": "    return bool(model)  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_vision_route_guard.py"],
+   "expect_failed": ["test_an_image_call_goes_only_to_a_vision_model", "test_when_every_vision_model_fails_no_blind_model_is_tried", "test_no_vision_route_at_all_fails_loudly"]},
+  {"id": "NC3", "what": "blind routes are dropped silently (no route event)",
+   "mutations": [{"file": "omni_prod/routed_gateway.py",
+                  "old": "            for route, *_ in blind:\n                self._record(",
+                  "new": "            for route, *_ in ():  # NEGATIVE CONTROL\n                self._record("}],
+   "targets": ["tests/test_vision_route_guard.py"],
+   "expect_failed": ["test_an_image_call_goes_only_to_a_vision_model"]},
+  {"id": "NC4", "what": "the filter also drops text-only calls to blind models",
+   "mutations": [{"file": "omni_prod/routed_gateway.py",
+                  "old": "        if kwargs.get('images'):\n            # 2026-11-15",
+                  "new": "        if True:  # NEGATIVE CONTROL\n            # 2026-11-15"}],
+   "targets": ["tests/test_vision_route_guard.py"],
+   "expect_failed": ["test_a_call_without_images_is_routed_as_before"]}
+ ]
+}

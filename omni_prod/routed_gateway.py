@@ -514,6 +514,18 @@ class RoutedModelGateway:
             self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
                                     f'not contacted: {why_not}'[:300],
                                     **self._decision(route, method, 'below the task quality floor')))
+        if kwargs.get('images'):
+            # 2026-11-15: a call with images goes only to a model with evidence that it reads them (vision_models).
+            from .vision_models import accepts_images
+            blind = [r for r in routes if not accepts_images(r[0].endpoint.model)]
+            routes = [r for r in routes if accepts_images(r[0].endpoint.model)]
+            for route, *_ in blind:
+                self._record(RouteEvent(route.endpoint.name, route.endpoint.external, False, 0,
+                                        'not contacted: no evidence this model reads images (vision_models)',
+                                        **self._decision(route, method, 'images need a vision model')))
+            if not routes:
+                raise ModelGatewayError('no vision-capable model route for a call with images (eligible: '
+                                        + ', '.join(r[0].endpoint.model for r in blind) + '; none in vision_models)')
         if not routes:
             detail = '; '.join(f'{r.endpoint.model}: {w}' for r, w in refused)
             raise ModelGatewayError('no eligible model route for this request' + (f' ({detail})' if detail else ''))
