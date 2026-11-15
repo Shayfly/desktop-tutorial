@@ -10,7 +10,7 @@
     "extraction": {"$ref": "#/$defs/extraction"},
     "schema_version": {"const": "0.1"},
     "card_id": {"type": "string", "pattern": "^ref_[0-9A-HJKMNP-TV-Z]{26}$"},
-    "vertical": {"enum": ["butcher"], "description": "Verticals are added one at a time, by decision; the first is the butcher."},
+    "vertical": {"enum": ["butcher", "restaurants", "cafes", "bakeries", "delis", "alcohol", "catering", "cabins", "hair_salons", "nails", "cosmetics", "aesthetics", "dental", "clinics_physio", "vets", "lawyers", "accountants", "renovation", "electrical", "plumbing", "hvac", "locksmiths", "moving", "gyms", "personal_training", "photographers", "design_branding", "digital_marketing", "fashion", "jewelry", "realty", "furniture_interior", "pet_shops"], "description": "The closed catalogue: the legacy butcher, appendix A's 30 categories, and the reserve categories appendix B reaches as cross_vertical links (omni_prod/reference_catalog.py)."},
 
     "source": {
       "type": "object",
