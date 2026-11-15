@@ -121,7 +121,18 @@
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction.",
    "deleted_sha256": "ed84054b01a02152aa94b02e0417ed5653fc7d94f92c2e852cf708b040344138",
    "pr": 371
-  }
+  },
+  "docs/identity/allowed-deletions.json": [
+   {
+    "reason": "rtl-time-ranges-bdi (#371): three path-only entries this PR's files used (#335) become lists that keep them as history and add the digest-bound declaration (#376); git shows the moved lines of those entries as deleted.",
+    "deleted_sha256": "55800a3d778ea58943c40bc98b6e6c068b4cbeaf2e5775b7e911791aef52d911",
+    "pr": 371,
+    "author": "claude",
+    "reviewer": "michael",
+    "reviewed_at": "2026-11-15",
+    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
+   }
+  ]
  },
  "rule_2026_11_15": "Michael 2026-11-15: a declaration covers ONE change. It carries deleted_sha256, the sha256 of the lines that change deletes from the file (scripts/deletions_declared.py ANCHOR --digest PATH); a path may hold a list of declarations, one per change. A declaration without the digest, or with another one, covers nothing: the path-only entries below were kept for history and no longer cover any new deletion."
 }
