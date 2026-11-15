@@ -38,7 +38,8 @@ jobs:
           grep '^::' out.txt || true
           grep -v '^::' out.txt | grep -v '^VISION_PROBE_JSON ' || true
           grep '^VISION_PROBE_JSON ' out.txt | cut -d' ' -f2- > probe.json || true
-          tr -d '\r' < err.txt | grep -v '^[[:space:]]*$' | tail -n 5 | while IFS= read -r l; do echo "::warning title=vision probe stderr::$l"; done
+          # an empty err.txt makes grep -v exit 1; under pipefail that ended the step red with every model PASS (run 43657047045)
+          { tr -d '\r' < err.txt | grep -v '^[[:space:]]*$' | tail -n 5 | while IFS= read -r l; do echo "::warning title=vision probe stderr::$l"; done; } || true
           echo "::notice title=vision probe exit::$rc"
           exit $rc
       - name: Keep the answers

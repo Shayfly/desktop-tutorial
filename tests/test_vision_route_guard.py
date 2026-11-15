@@ -16,9 +16,15 @@ from omni_prod.model_catalog import parse_model_catalog
 from omni_prod.model_gateway import ModelGatewayError
 from omni_prod.model_policy import ModelUsePolicy, ModelUseState
 from omni_prod.routed_gateway import RoutedModelGateway
+from unittest import mock
+
+from omni_prod import vision_models
 from omni_prod.vision_models import VISION_MODELS
 
 RAW = (Path(__file__).resolve().parents[1] / 'infra' / 'worker-host' / 'model-catalog.json').read_text()
+# Since the live probe (run 43657047045) every real catalog model reads images. A model without evidence -- a new one
+# before its probe -- is simulated by taking the cheapest real model OFF the list for these tests (mock.patch.dict).
+BLIND = min(json.loads(RAW), key=lambda m: (float(m['output_per_million']), m['model']))['model']
 ENV = {item['api_key_env']: 'fixture-only' for item in json.loads(RAW)}
 IMAGE = (b'\xff\xd8\xff\xe0' + b'0' * 64,)
 
@@ -51,11 +57,24 @@ def gateway(failing=()):
     return gw, contacted
 
 
+class EveryRealModelHasEvidence(unittest.TestCase):
+    def test_the_six_catalog_models_are_on_the_list_with_the_probe_run(self):
+        models = {m['model'] for m in json.loads(RAW)}
+        self.assertEqual(models - set(VISION_MODELS), set())
+        self.assertTrue(all('43657047045' in VISION_MODELS[m] for m in models))
+
+
 class VisionRouteGuard(unittest.TestCase):
+    def setUp(self):
+        self.patch = mock.patch.dict(vision_models.VISION_MODELS)
+        self.patch.start()
+        del vision_models.VISION_MODELS[BLIND]                 # this model has no evidence in these tests
+        self.addCleanup(self.patch.stop)
+
     def test_the_catalog_has_blind_and_vision_models(self):
         models = {m.endpoint.model for m in parse_model_catalog(RAW, ENV)}
         self.assertTrue(models & set(VISION_MODELS))
-        self.assertTrue(models - set(VISION_MODELS))       # e.g. gpt-6-luna: no evidence it reads images
+        self.assertIn(BLIND, models - set(VISION_MODELS))
 
     def test_an_image_call_goes_only_to_a_vision_model(self):
         gw, contacted = gateway()
@@ -74,7 +93,7 @@ class VisionRouteGuard(unittest.TestCase):
         self.assertTrue(all(model in VISION_MODELS for model, _ in contacted), contacted)
 
     def test_no_vision_route_at_all_fails_loudly(self):
-        blind_only = json.dumps([m for m in json.loads(RAW) if m['model'] not in VISION_MODELS])
+        blind_only = json.dumps([m for m in json.loads(RAW) if m['model'] not in vision_models.VISION_MODELS])
         contacted = []
         gw = RoutedModelGateway(ranked=parse_model_catalog(blind_only, ENV), primary=None, fallback=(),
                                 policy=ModelUsePolicy(zero_cost_mode=False, allow_external_fallback=True,
