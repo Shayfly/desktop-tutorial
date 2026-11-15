@@ -157,7 +157,7 @@ class RealPostgresMigrationTests(unittest.TestCase):
         import psycopg
         from omni_prod.migration_runner import apply_migrations
 
-        everything = discover_migrations(MIGRATIONS)
+        everything = [m for m in discover_migrations(MIGRATIONS) if m.version <= 42]   # 042's own story (043+ after it)
         before_042 = [m for m in everything if m.version < 42]
         with psycopg.connect(self.url) as conn:
             apply_migrations(conn, before_042)                      # the existing schema (001-041)
@@ -192,7 +192,7 @@ class RealPostgresMigrationTests(unittest.TestCase):
         self.admin.execute(f"CREATE DATABASE {dbname}")
         try:
             url = DATABASE_URL.rsplit("/", 1)[0] + "/" + dbname
-            everything = discover_migrations(MIGRATIONS)
+            everything = [m for m in discover_migrations(MIGRATIONS) if m.version <= 42]   # 042's own story (043+ after it)
             with psycopg.connect(url) as conn:
                 apply_migrations(conn, [m for m in everything if m.version < 42])
                 conn.execute(PS.SCHEMA)                               # what an earlier first request did
