@@ -548,7 +548,8 @@ TEXT_LOCALE = Skill(
         'textContent / create elements, never html.escape before saving and never innerHTML with user data. For a Hebrew '
         'request use <html lang="he" dir="rtl"> and Hebrew labels; store dates as ISO (YYYY-MM-DD) and show them as '
         'DD/MM/YYYY; times as HH:MM 24h; on an RTL page wrap every time range in <bdi dir="ltr"> (07:00-19:00 '
-        'otherwise shows reversed). For another language use that locale\'s conventions (lang attribute, '
+        'otherwise shows reversed) -- write it in the page yourself, nothing adds it for you, and a test of that text '
+        'compares visible_text(body), not the raw HTML. For another language use that locale\'s conventions (lang attribute, '
         'direction, date order, decimal separator, currency symbol placement); amounts are stored as integers of the '
         'smallest unit (agorot/cents) and formatted only for display.'),
     checklist=('A name with quotes or <b> is shown exactly as typed, not as &#x27; or bold.',
