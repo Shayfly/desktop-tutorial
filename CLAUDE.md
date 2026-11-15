@@ -59,6 +59,7 @@
 
 ## 8. זהות וחתימות
 - **הצהרות זהות** (`docs/identity/allowed-identity-changes.json`, ‏`allowed-deletions.json`): Claude **לא חותם בשם אדם**. Claude מכין את הרשומה (digests ונתיבים מדויקים, בלי wildcards, `to_digest` ייחודי) ומגיש אותה ב-PR; מיכאל חותם `"reviewer"` בעצמו. (2026-11-15: ניסיון של Claude לחתום `reviewer: michael` נחסם, ובצדק — חתימה של המחבר בשם הבודק מבטלת את הבקרה.)
+- **commit אחרי פתרון קונפליקט** רק דרך `scripts/commit_resolved.sh <worktree>`: אימות (אין סימני קונפליקט, json תקין, אין נתיב לא ממוזג) ואז commit. קודי היציאה ב-`docs/ops/conflict-commit.md`.
 - **סודות:** לא מדפיסים, לא מבקשים ולא מתעדים. מפתח נכנס ל-secret, אף פעם לא לשיחה.
 - **סיומי שורה:** לא משכתבים קובץ CRLF.
 
