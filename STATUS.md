@@ -12,6 +12,20 @@
 - **Not run here (blocked, named):** `tests/test_company_loss_failed_build_pg.py` (4 tests) and NC1 need real PostgreSQL
   (`M4D2_DATABASE_URL`, the intake-budget-pg job). The real path -- the row inside the refund -- is verified only there.
 - **Blocked by a decision:** migration 044 runs only with the owner's explicit approval (CLAUDE.md §5).
+# 2026-11-15 — P0-a, warehouse 69: output profile + A0 router (Claude Code)
+
+- **Implemented and independently verifiable offline:** `omni_prod/output_profile` (profiles for `website`/`web_app`, an
+  `unsupported` entry with the customer's sentence for every other family, truth check at import), A0 in
+  `conversation/supervisor._route_output` before the interpreter and the model, `families.requested_family` and the
+  opening-product rule, `question_skills.checklist` raises on an unknown family, UI action `describe_web_instead`.
+- **Evidence:** `tests/test_output_profile_router.py` 16 passed. Negative controls `tests/negative_controls/output_profile_router.json`
+  5/5 PASS (NC2 first FAILED against a weaker test; the test now isolates the first truth check). Full suite in one
+  container, `--continue-on-collection-errors`: main `93916ae` collected 3131 / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `3db9457` collected 3147 / 34 / 2808 / 30 / 302 / 36. Failure lists identical (66 lines).
+  The first branch run showed one extra failure (`test_discovery_and_approval`), fixed in `3db9457` before push.
+- **Not checked:** no real model build; the refusal was exercised with the deterministic interpreter only. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Awaiting:** Michael's SHA approval; PR merges after #397 (the warehouse docs).
 
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
