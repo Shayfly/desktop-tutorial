@@ -122,6 +122,12 @@ def run_control(spec: dict, cid: str = 'NC', nc_env: str | None = None) -> tuple
         if not_run:
             return False, f'DID NOT RUN: expected tests were skipped {not_run} (ran={len(cases)})'
         ok, note = verdict(failed, expected, env)
+        if not ok:   # 2026-11-15 (#393): an unexpected failure is shown with its own assertion, not only its name
+            for c in cases:
+                f = c.find('failure') if c.find('failure') is not None else c.find('error')
+                if f is not None and c.get('name') not in expected:
+                    detail = ' '.join(((f.get('message') or '') + ' ' + (f.text or '')[-600:]).split())[:900]
+                    print(f"NC-EVIDENCE UNEXPECTED {cid} {c.get('name')}: {detail}", flush=True)
         return ok, (f"mutation {'; '.join(applied)} | failed={failed} expected[{env or 'default'}]={expected} "
                     f"ran={len(cases)}" + note)
     finally:
