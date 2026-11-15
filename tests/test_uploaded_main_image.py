@@ -5,8 +5,9 @@ ever bound into the brief, so the photo went nowhere, the sentence "תמונה �
 "Visual references (inspiration only)", and a different man was generated. The assistant also said the image "goes
 with the change as context" -- it went nowhere.
 
-Tier 1 (Michael 2026-11-15): an uploaded image chosen as the main image is used as is, with no generation; the customer
-is asked what an uploaded image is for (never delegated). Tier 2 (generation with a reference) is not offered yet.
+Tier 1 (Michael 2026-11-15): an uploaded image chosen as the main image is used as is, with no generation. Every image
+gets an explicit role from the customer, never delegated (16:15): what it is (person / product / place / logo / other),
+who or what exactly, and only then what to do with it. Changing it (tier 2) is said as not available yet.
 """
 import hashlib
 import unittest
@@ -35,44 +36,98 @@ def _asked(turn):
     return [q.id for q in turn.questions]
 
 
+WHO = 'סבא שמעון, הבעלים'
+
+
 class TheUploadIsBoundAndAsked(unittest.TestCase):
-    def test_the_production_upload_is_bound_and_the_customer_is_asked(self):
+    """Michael 2026-11-15 16:15: every image gets an explicit role -- WHAT it is first, then what to do with it."""
+
+    def test_the_production_upload_is_bound_and_asked_what_it_is_first(self):
         s, briefs = _conversation()
         t = s.turn(project_id='p', account_id='a', message='לא ישמרו פרטים', attachments=[PHOTO], lang='he')
         brief = briefs.latest('p').brief
         self.assertEqual(brief.assets['image']['sha256'], PHOTO['sha256'])
-        self.assertIn('image_use', [q.id for q in d.must_ask(brief)])
-        self.assertFalse(d.complete(brief))                      # no build before the customer says what it is for
+        self.assertEqual(_asked(t), ['image_kind'])               # in context: right after the upload, and kind first
+        self.assertNotIn('image_use', [q.id for q in d.pending(brief)])   # no blind "what to do" before the role
+        self.assertFalse(d.complete(brief))
         self.assertNotIn('מועברת כהקשר', t.reply)                 # the untrue sentence of 2026-11-15
         self.assertIn('שמרתי תמונה אחת בבקשה של הפרויקט', t.reply)
 
-    def test_the_question_is_asked_before_the_spec_and_the_answer_reaches_the_build_text(self):
+    def test_kind_then_who_then_what_to_do_and_the_role_reaches_alt_and_canon(self):
         s, briefs = _conversation()
         t = s.turn(project_id='p', account_id='a', message='לא ישמרו פרטים', attachments=[PHOTO], lang='he')
+        t = s.turn(project_id='p', account_id='a', answers={'image_kind': 'person'}, lang='he')
+        self.assertEqual(_asked(t), ['image_who_person'])
+        t = s.turn(project_id='p', account_id='a', message=WHO, lang='he')       # typed: the answer, not a request
+        self.assertEqual(briefs.latest('p').brief.values()['image_identity'], WHO)
+        self.assertEqual(_asked(t), ['image_use'])
+        self.assertEqual(d.BY_ID['image_use'].recommended, 'as_is')          # suggested by kind
+        t = s.turn(project_id='p', account_id='a', answers={'image_use': 'as_is'}, lang='he')
+        brief = briefs.latest('p').brief
+        self.assertIn(f'{d.MAIN_IMAGE_ALT_PREFIX}person: "{WHO}"', d.requirements_text(brief))
+        self.assertIn(f'תמונה שהעלית (אדם): {WHO} — תופיע בדף כמו שהיא.', d.gate_canon(brief)['lines'])
+        from omni_prod.uploaded_assets import main_image_alt
+        self.assertEqual(main_image_alt(brief.prompt + '\n' + d.requirements_text(brief)), WHO)
+
+    def test_the_whole_conversation_reaches_the_spec_with_the_photo(self):
+        s, briefs = _conversation()
+        t = s.turn(project_id='p', account_id='a', message='לא ישמרו פרטים', attachments=[PHOTO], lang='he')
+        answer = {'image_kind': 'person', 'image_who_person': WHO, 'image_use': 'as_is'}
         asked = []
-        for _ in range(12):                                     # bounded: the production flow has 6 questions
+        for _ in range(14):                                     # bounded: the production flow has 8 questions
             if not t.questions:
                 break
             q = t.questions[0]
             asked.append(q.id)
-            if q.id != 'image_use':
-                self.assertFalse(briefs.latest('p').complete)
+            self.assertFalse(briefs.latest('p').complete)
             t = s.turn(project_id='p', account_id='a', lang='he',
-                       answers={q.id: 'as_is' if q.id == 'image_use' else (q.options[0].value if q.options else 'x')})
-        self.assertIn('image_use', asked)
+                       answers={q.id: answer.get(q.id) or (q.options[0].value if q.options else 'x')})
+        self.assertEqual(asked[:3], ['image_kind', 'image_who_person', 'image_use'])
         row = briefs.latest('p')
         self.assertTrue(row.complete)
         self.assertIn(d.MAIN_IMAGE_MARKER, d.requirements_text(row.brief))
 
+    def test_each_kind_asks_its_own_question(self):
+        b = d.start(SHIMON)
+        b.assets['image'] = dict(PHOTO)
+        for kind, qid in (('person', 'image_who_person'), ('product', 'image_who_product'),
+                          ('place', 'image_who_place'), ('other', 'image_who_other')):
+            self.assertEqual(d.next_image_question(d.answer(b, {'image_kind': kind})).id, qid)
+        other = d.answer(d.answer(b, {'image_kind': 'other'}), {'image_who_other': 'תעודת כשרות, בתחתית הדף'})
+        self.assertEqual(d.next_image_question(other).id, 'image_use_other')
+        self.assertEqual(d.BY_ID['image_use_other'].recommended, 'inspiration')
+
+    def test_my_logo_takes_the_existing_logo_path(self):
+        b = d.start(SHIMON)
+        b.assets['image'] = dict(PHOTO)
+        b = d.answer(b, {'image_kind': 'logo'})
+        self.assertEqual(b.assets['logo']['id'], PHOTO['id'])
+        self.assertNotIn('image', b.assets)
+        self.assertIsNone(d.next_image_question(b))
+        self.assertIn('148ai-asset://logo', d.requirements_text(b))
+
+    def test_change_is_said_unavailable_and_never_becomes_as_is(self):
+        s, briefs = _conversation()
+        s.turn(project_id='p', account_id='a', message='התמונה', attachments=[PHOTO], lang='he')
+        s.turn(project_id='p', account_id='a', answers={'image_kind': 'person'}, lang='he')
+        s.turn(project_id='p', account_id='a', answers={'image_who_person': WHO}, lang='he')
+        t = s.turn(project_id='p', account_id='a', answers={'image_use': 'change'}, lang='he')
+        brief = briefs.latest('p').brief
+        self.assertNotIn('image_use', brief.fields)
+        self.assertIsNone(d.main_image(brief))
+        self.assertIn('עוד לא זמין', t.reply)
+        self.assertEqual(_asked(t), ['image_use'])
+
     def test_the_role_is_never_delegated_or_assumed(self):
-        q = d.BY_ID['image_use']
-        self.assertFalse(q.delegable)
-        self.assertEqual({o.value for o in q.options}, {'as_is', 'inspiration'})   # tier 2 not offered yet
+        for q in d.IMAGE_QUESTIONS:
+            self.assertFalse(q.delegable, q.id)
+        self.assertEqual({o.value for o in d.BY_ID['image_use'].options}, {'as_is', 'change', 'inspiration'})
 
     def test_an_image_alone_before_any_build_is_bound_too(self):
         s, briefs = _conversation()
-        s.turn(project_id='p', account_id='a', attachments=[PHOTO], lang='he')
+        t = s.turn(project_id='p', account_id='a', attachments=[PHOTO], lang='he')
         self.assertEqual(briefs.latest('p').brief.assets['image']['id'], PHOTO['id'])
+        self.assertEqual(_asked(t), ['image_kind'])
 
     def test_the_same_bytes_twice_are_one_image(self):
         s, briefs = _conversation()
@@ -80,14 +135,17 @@ class TheUploadIsBoundAndAsked(unittest.TestCase):
         s.turn(project_id='p', account_id='a', message='התמונה', attachments=[PHOTO, twin], lang='he')
         self.assertEqual(briefs.latest('p').brief.assets['image']['sha256'], PHOTO['sha256'])
 
-    def test_a_new_image_asks_again(self):
+    def test_a_new_image_asks_its_role_again(self):
         s, briefs = _conversation()
         s.turn(project_id='p', account_id='a', message='התמונה', attachments=[PHOTO], lang='he')
-        s.turn(project_id='p', account_id='a', answers={'image_use': 'as_is'}, lang='he')
+        for a in ({'image_kind': 'person'}, {'image_who_person': WHO}, {'image_use': 'as_is'}):
+            s.turn(project_id='p', account_id='a', answers=a, lang='he')
         self.assertEqual(briefs.latest('p').brief.values()['image_use'], 'as_is')
         other = {**PHOTO, 'id': 'att_' + 'e' * 32, 'sha256': 'f' * 64}
-        s.turn(project_id='p', account_id='a', message='תמונה אחרת', attachments=[other], lang='he')
-        self.assertNotIn('image_use', briefs.latest('p').brief.fields)
+        t = s.turn(project_id='p', account_id='a', message='תמונה אחרת', attachments=[other], lang='he')
+        for f in d.IMAGE_FIELDS:
+            self.assertNotIn(f, briefs.latest('p').brief.fields)
+        self.assertEqual(_asked(t), ['image_kind'])
 
     def test_the_logo_path_is_unchanged(self):
         s, briefs = _conversation()
@@ -98,10 +156,12 @@ class TheUploadIsBoundAndAsked(unittest.TestCase):
 
 
 class AsIsMeansAsIs(unittest.TestCase):
-    def _brief(self, use):
+    def _brief(self, use, kind='person', who=WHO):
         b = d.start(SHIMON)
         b.assets['image'] = {k: PHOTO[k] for k in ('id', 'sha256', 'mime', 'size_bytes', 'width', 'height')}
-        return d.answer(b, {'image_use': use})
+        b = d.answer(b, {'image_kind': kind})
+        b = d.answer(b, {f'image_who_{kind}': who})
+        return d.answer(b, {'image_use' if kind != 'other' else 'image_use_other': use})
 
     def test_as_is_binds_the_photo_and_generates_nothing(self):
         from omni_prod.product_architect import ProductArchitect
@@ -126,6 +186,10 @@ class AsIsMeansAsIs(unittest.TestCase):
         self.assertNotIn(d.MAIN_IMAGE_MARKER, text)
         self.assertIn('inspiration only', text)
         self.assertEqual(d.image_exclusions(b), [])
+
+    def test_a_quote_in_the_role_cannot_break_the_alt(self):
+        b = self._brief('as_is', who='המוצר "הכי טוב" שלנו')
+        self.assertEqual(d.image_role(b)['alt'], 'המוצר ״הכי טוב״ שלנו')
 
     def test_a_typed_as_is_is_not_the_customers_button(self):
         b = d.start(SHIMON)
