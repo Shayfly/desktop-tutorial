@@ -39,7 +39,7 @@ class BriefSliceOnPostgres(unittest.TestCase):
         cls.admin.close()
 
     def test_write_and_revert_are_revisions_and_the_revert_is_byte_for_byte(self):
-        from omni_prod.brief_repository import BriefRepository
+        from omni_prod.brief_repository import PostgresBriefRepository
         from omni_prod.discovery import Brief
         from omni_prod.fact_canon import build_canon
         from omni_prod.first_agent import brief_slice as BS
@@ -51,7 +51,7 @@ class BriefSliceOnPostgres(unittest.TestCase):
                          (user, f'{user}@example.com', 'x', 'x'))
             conn.execute("INSERT INTO creator_projects (id, owner_id, title) VALUES (%s, %s, 't')", (project, user))
             conn.commit()
-        repo = BriefRepository(self.pool)
+        repo = PostgresBriefRepository(self.pool)
         brief = Brief.from_dict(fx['brief'])
         first = repo.save(project_id=project, account_id=user, brief=brief, expected_revision=0)
         self.assertEqual(first.fingerprint, fx['fingerprint'])                      # stored as in production
