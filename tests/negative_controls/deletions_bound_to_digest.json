@@ -1,0 +1,97 @@
+{
+ "pr": "deletions-bound-to-digest",
+ "sha256": [
+  "tests/test_deletions_declared.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the digest is ignored: an old allowance on the same file covers a new change (the #371 hole)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "        match = next((e for e in entries if e.get('deleted_sha256') == actual and e.get('reason')), None)",
+     "new": "        match = next((e for e in entries if e.get('reason')), None)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_path_only_declaration_covers_nothing",
+    "test_an_old_allowance_on_the_same_file_does_not_cover_a_new_change",
+    "test_one_of_several_declarations_for_the_path_may_match",
+    "test_the_path_only_entries_of_the_real_file_cover_nothing_new"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a declaration without a digest covers any change (path-only, forever)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "e.get('deleted_sha256') == actual and e.get('reason')",
+     "new": "e.get('deleted_sha256') in (actual, None) and e.get('reason')"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_path_only_declaration_covers_nothing",
+    "test_the_path_only_entries_of_the_real_file_cover_nothing_new"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the matching declaration needs no reviewer",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "        if who.lower() in _NOT_A_REVIEWER or who == match.get('author'):\n            unreviewed.append(path)",
+     "new": "        if False:  # NEGATIVE CONTROL\n            unreviewed.append(path)"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_the_matching_declaration_still_needs_a_reviewer"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "only the first declaration of a path is considered",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "        return [v for v in value if isinstance(v, dict)]",
+     "new": "        return [v for v in value if isinstance(v, dict)][:1]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_one_of_several_declarations_for_the_path_may_match"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the event's base.sha is the anchor even when HEAD is GitHub's merge commit (the #371 stale anchor)",
+   "mutations": [
+    {
+     "file": "scripts/deletions_declared.py",
+     "old": "    if len(parents) == 3:\n        return parents[1]",
+     "new": "    if False:  # NEGATIVE CONTROL\n        return parents[1]"
+    }
+   ],
+   "targets": [
+    "tests/test_deletions_declared.py"
+   ],
+   "expect_failed": [
+    "test_a_stale_base_charges_mains_changes_to_the_pr_and_the_merge_parent_does_not"
+   ]
+  }
+ ]
+}

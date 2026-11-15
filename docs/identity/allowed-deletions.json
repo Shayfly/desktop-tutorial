@@ -62,5 +62,6 @@
    "reviewer": "michael",
    "reviewed_at": "2026-11-13"
   }
- }
+ },
+ "rule_2026_11_15": "Michael 2026-11-15: a declaration covers ONE change. It carries deleted_sha256, the sha256 of the lines that change deletes from the file (scripts/deletions_declared.py ANCHOR --digest PATH); a path may hold a list of declarations, one per change. A declaration without the digest, or with another one, covers nothing: the path-only entries below were kept for history and no longer cover any new deletion."
 }
