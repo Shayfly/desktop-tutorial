@@ -1082,6 +1082,11 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 setattr(getattr(engine, 'core', engine), 'image_match', image_match)
             if image_match:
                 capability_evidence = {**capability_evidence, 'image_match': image_match}
+        # 2026-11-15 ("סבא שמעון"): the customer's own photo, chosen as the main image as is, goes in unchanged
+        from .uploaded_assets import install_main_image
+        build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
+                                          store=getattr(workspace, 'storage', None),
+                                          project_id=request.get('public_project_id'), account_id=str(request['user_id']))
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
