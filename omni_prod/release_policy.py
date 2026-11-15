@@ -62,6 +62,15 @@ class QualityReport:
         return [c for c in self.checks if c.blocks]
 
     @property
+    def not_run(self) -> list[dict]:
+        """Warehouse 104 (owner, 2026-11-15): every check that did not judge this repository -- NOT_RUN, UNKNOWN,
+        NO_CHECKS -- as an explicit list, required and advisory alike. A build that died in its tests names the
+        preview, the behaviour, the browser, the layout and the review it never reached, instead of hiding them in a
+        count or behind "did not pass or did not run"."""
+        return [{'stage': c.stage, 'check': c.check, 'status': c.status, 'required': c.required, 'reason': c.detail}
+                for c in self.checks if c.status in (NOT_RUN, UNKNOWN, NO_CHECKS)]
+
+    @property
     def decision(self) -> str:
         return 'READY' if not self.blocking else 'FAILED'
 
@@ -76,6 +85,7 @@ class QualityReport:
                 'artifact_sha256': self.artifact_sha256, 'product_family': self.product_family,
                 'decision': self.decision, 'coverage': self.coverage(),
                 'blocking': [f'{c.stage}/{c.check}: {c.status}' for c in self.blocking],
+                'not_run': self.not_run,
                 'checks': [asdict(c) for c in self.checks]}
 
 
