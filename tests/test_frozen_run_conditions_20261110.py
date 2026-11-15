@@ -112,6 +112,9 @@ class CanonNeedsAnExplicitTick(unittest.TestCase):
         self.assertIn('canon_ack', inspect.signature(ChiefSupervisor.approve_spec).parameters)
 
 
+from tests.test_gate_regression_free_port import free_port  # noqa: E402  (#378)
+
+
 class GateRegressionTool(unittest.TestCase):
     """Condition 4: the tool the workflow runs on the approved builds."""
 
@@ -123,8 +126,8 @@ class GateRegressionTool(unittest.TestCase):
         self.assertFalse(bad['passed'])
         self.assertEqual(bad['blocking'][0]['probe'], '_invented_contact')
 
-    def test_starts_a_real_product_like_the_preview_smoke(self):
-        from omni_prod.gate_regression import run
+    @staticmethod
+    def product(port):
         app = ('import os\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\n'
                'PAGE = open("page.html", encoding="utf-8").read().encode("utf-8")\n'
                'class H(BaseHTTPRequestHandler):\n'
@@ -135,10 +138,15 @@ class GateRegressionTool(unittest.TestCase):
                'HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever()\n')
         repo = {'app.py': app, 'page.html': GOOD_PAGE,
                 '.omni/project.json': json.dumps({'schema_version': 2, 'runtime': 'python:3.11-slim',
-                                                  'start': ['python', 'app.py'], 'port': 8765, 'health_path': '/'})}
-        r = run(repo, REQUEST)
+                                                  'start': ['python', 'app.py'], 'port': port, 'health_path': '/'})}
+        return repo
+
+    def test_starts_a_real_product_like_the_preview_smoke(self):
+        from omni_prod.gate_regression import run
+        r = run(self.product(free_port()), REQUEST)
         self.assertTrue(r['served'], r['smoke'])
         self.assertTrue(r['passed'], r['blocking'])
+
 
 
 if __name__ == '__main__':

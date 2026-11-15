@@ -1,0 +1,25 @@
+{
+ "pr": "test-free-port",
+ "sha256": [
+  "tests/test_gate_regression_free_port.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the fixed port is back (8765): two runs at once collide (#378)",
+   "mutations": [
+    {
+     "file": "tests/test_gate_regression_free_port.py",
+     "old": "        s.bind(('127.0.0.1', 0))\n        return s.getsockname()[1]",
+     "new": "        return 8765  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_gate_regression_free_port.py"
+   ],
+   "expect_failed": [
+    "test_two_runs_at_once_do_not_collide"
+   ]
+  }
+ ]
+}
