@@ -1,0 +1,42 @@
+{
+ "pr": "fast-suite",
+ "sha256": [
+  "tests/test_fast_suite.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a file that needs fastapi is put in the fast suite",
+   "mutations": [
+    {
+     "file": "tests/fast_suite.txt",
+     "old": "# Result: 172 files",
+     "new": "tests/test_discovery_endpoints.py\n# Result: 172 files"
+    }
+   ],
+   "targets": [
+    "tests/test_fast_suite.py"
+   ],
+   "expect_failed": [
+    "test_no_file_needs_fastapi_psycopg_or_boto"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a file that touches the environment is put in the fast suite",
+   "mutations": [
+    {
+     "file": "tests/fast_suite.txt",
+     "old": "# Result: 172 files",
+     "new": "tests/integration/test_live_model.py\n# Result: 172 files"
+    }
+   ],
+   "targets": [
+    "tests/test_fast_suite.py"
+   ],
+   "expect_failed": [
+    "test_no_file_touches_the_environment"
+   ]
+  }
+ ]
+}
