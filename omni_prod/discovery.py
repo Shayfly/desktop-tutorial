@@ -444,8 +444,11 @@ def customer_exclusions(brief: 'Brief') -> list[str]:
 UPLOAD_MARKER = '148ai-asset://upload/'
 UPLOADED_IMAGE_PREFIX = 'Uploaded image '
 MAIN_IMAGE_MARKER = UPLOAD_MARKER + '1'      # the first placed image (kept for readers of #385/#388)
-_SECTION = {'hero': 'the main (hero) image at the top of the page', 'story': 'the story/about section',
-            'products': 'the products section', 'gallery': 'a gallery section'}
+# 2026-11-16: the place is checked (uploaded_assets.place_state): the photo must be INSIDE a <section> of that kind
+_SECTION = {'hero': 'the main (hero) image at the top of the page',
+            'story': 'part of the story/about section -- inside a <section> whose heading is "הסיפור שלנו"',
+            'products': 'part of the products section -- inside a <section> whose heading is "המוצרים שלנו"',
+            'gallery': 'part of a gallery section -- inside a <section> whose heading is "גלריה"'}
 
 
 def placed_images(brief: 'Brief') -> list[dict]:
