@@ -5,10 +5,11 @@ The butcher page (bld_83529c13, v_8d8ed793) wrote "07:00–19:00" in a dir="rtl"
 customer reads the closing hour first -- opening hours that look like night hours. The text was right; the order the
 eye sees was not. <bdi dir="ltr"> isolates the range and shows it as written.
 
-Two places use this:
-  * page_locale.ensure_rtl wraps the ranges in every .html page of an RTL request (by construction);
-  * skills_runtime._time_ranges_isolated judges the SERVED page and blocks an unwrapped range, so a page built inside
-    Python or JS (the butcher's was a string in app.py) is repaired by the loop.
+The model writes the <bdi> itself (the rule is in the text_locale guidance), and skills_runtime._time_ranges_isolated
+judges the SERVED page and blocks an unwrapped range, so the repair fixes the page it wrote -- also a page built inside
+Python or JS (the butcher's was a string in app.py). Nothing wraps the ranges behind the model's back any more (the
+owner, 2026-11-15 21:07: bld_7fb5e1b2 died because the model's own test could not see the hidden wrap); wrap_ranges
+stays as the reference of what a correct page looks like.
 Only visible text counts: <script>/<style> content (JSON-LD opening hours) and attribute values are never touched.
 """
 from __future__ import annotations
