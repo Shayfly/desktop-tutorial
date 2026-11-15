@@ -1,0 +1,30 @@
+{
+ "pr": "vision-probe",
+ "sha256": ["tests/test_vision_probe.py"],
+ "controls": [
+  {"id": "NC1", "what": "a model passes on one right picture (a fixed guess would pass)",
+   "mutations": [{"file": "omni_prod/vision_probe.py",
+                  "old": "        passed = passed and row['ok']",
+                  "new": "        passed = passed or row['ok']  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_vision_probe.py"],
+   "expect_failed": ["test_a_model_that_sees_passes_and_a_fixed_guess_cannot", "test_a_routed_model_that_fails_ends_the_run_non_zero_and_says_so"]},
+  {"id": "NC2", "what": "a routed model that fails does not end the run red",
+   "mutations": [{"file": "omni_prod/vision_probe.py",
+                  "old": "    return 1 if broken else 0",
+                  "new": "    return 0  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_vision_probe.py"],
+   "expect_failed": ["test_a_routed_model_that_fails_ends_the_run_non_zero_and_says_so"]},
+  {"id": "NC3", "what": "both pictures are the same (a fixed guess passes)",
+   "mutations": [{"file": "omni_prod/vision_probe.py",
+                  "old": "PICTURES = {'red circle': ('circle', 'red'), 'blue triangle': ('triangle', 'blue')}",
+                  "new": "PICTURES = {'red circle': ('circle', 'red'), 'blue triangle': ('circle', 'red')}  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_vision_probe.py"],
+   "expect_failed": ["test_the_pictures_are_real_pngs_of_what_they_claim", "test_a_model_that_sees_passes_and_a_fixed_guess_cannot", "test_a_routed_model_that_fails_ends_the_run_non_zero_and_says_so"]},
+  {"id": "NC4", "what": "an empty catalog is a silent pass",
+   "mutations": [{"file": "omni_prod/vision_probe.py",
+                  "old": "    if not models:\n        raise SystemExit(",
+                  "new": "    if False:  # NEGATIVE CONTROL\n        raise SystemExit("}],
+   "targets": ["tests/test_vision_probe.py"],
+   "expect_failed": ["test_the_run_is_bounded_and_never_empty"]}
+ ]
+}

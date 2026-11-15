@@ -13,6 +13,8 @@ Rules
       run within its frequency (weekly 7, monthly 31,
       quarterly 92 days), counted from its last `drills_run` entry, or from `adopted` if it never ran. With --base the
       `drills_run` record is read from MAIN plus the entries this file adds (2026-11-14); an unreadable --base is exit 2.
+      With --drill-runs (2026-11-15) a control with `drill_workflow` also counts its green runs on main read from GitHub
+      (tools/drill_runs_from_github.py); an unreadable --drill-runs is exit 2.
   R4  with --base (the registry on main): a control that has a canary on main must still have one here; replacing it with
       `canary_pending` is a removal, not a change.
   R5  control ids are unique.
@@ -54,7 +56,8 @@ def _test_exists(root: Path, test_id: str) -> str | None:
     return None if found else f'{parts[0]}::{parts[1]} has no test {parts[2]}'
 
 
-def lint(registry: dict, *, root: Path, base: dict | None = None, today: dt.date | None = None) -> list[str]:
+def lint(registry: dict, *, root: Path, base: dict | None = None, today: dt.date | None = None,
+         github_runs: list | None = None) -> list[str]:
     today = today or dt.date.today()
     errors: list[str] = []
     controls = registry.get('controls') or []
@@ -90,6 +93,9 @@ def lint(registry: dict, *, root: Path, base: dict | None = None, today: dt.date
         drill_runs = on_main + [r for r in registry.get('drills_run') or [] if r not in on_main]
     else:
         drill_runs = list(registry.get('drills_run') or [])
+    # 2026-11-15 (Michael: "C17 -- read from GitHub"): a drill that runs as a workflow counts from its green runs on main,
+    # read from GitHub by tools/drill_runs_from_github.py -- the global record -- without a hand-copied entry.
+    drill_runs += list(github_runs or [])
     runs = {}
     for r in drill_runs:
         try:
@@ -133,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument('registry')
     ap.add_argument('--base', help='the registry on main (R3 drill record, R4)')
     ap.add_argument('--today', help='YYYY-MM-DD (tests); default: today')
+    ap.add_argument('--drill-runs', help='drills_run entries read from GitHub (tools/drill_runs_from_github.py)')
     a = ap.parse_args(argv)
     path = Path(a.registry)
     try:
@@ -152,8 +159,19 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     else:
         print('::notice title=registry_lint::no --base: R3 reads the drill record from this file, not from main')
+    github_runs = None
+    if a.drill_runs:
+        try:
+            github_runs = json.loads(Path(a.drill_runs).read_text(encoding='utf-8'))
+            if not isinstance(github_runs, list):
+                raise ValueError('not a list')
+        except (OSError, ValueError) as exc:
+            print(f'::error title=registry_lint::cannot read the drill runs from GitHub at {a.drill_runs}: {exc}')
+            return 2
+    elif any(c.get('drill_workflow') for c in registry.get('controls') or []):
+        print('::notice title=registry_lint::no --drill-runs: drills with a drill_workflow count only their hand records')
     today = dt.date.fromisoformat(a.today) if a.today else None
-    errors = lint(registry, root=path.resolve().parent, base=base, today=today)
+    errors = lint(registry, root=path.resolve().parent, base=base, today=today, github_runs=github_runs)
     for e in errors:
         print(f'::error title=registry_lint::{e}')
     n = len(registry.get('controls') or [])

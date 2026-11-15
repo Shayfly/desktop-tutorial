@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read          # registry_lint R3 reads C17's drill runs from GitHub (tools/drill_runs_from_github.py)
 
 jobs:
   validate:
@@ -42,8 +43,14 @@ jobs:
           persist-credentials: false
           sparse-checkout: CONTROLS.json
           sparse-checkout-cone-mode: false
+      # C17 (Michael 2026-11-15): the drill record is read from GitHub -- backup-restore.yml's green runs on main --
+      # with main's CONTROLS.json choosing which controls opt in (the global source, not this branch's copy).
+      - name: Drill runs from GitHub (registry_lint R3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/drill_runs_from_github.py .base-main/CONTROLS.json --repo "$GITHUB_REPOSITORY" --out .drill-runs.json
       - name: Registry lint (C31)
-        run: python tools/registry_lint.py CONTROLS.json --base .base-main/CONTROLS.json
+        run: python tools/registry_lint.py CONTROLS.json --base .base-main/CONTROLS.json --drill-runs .drill-runs.json
       - name: Compile
         run: python -m compileall -q omni_prod tests
       # C34 (owner + Matt 2026-10-21): the unit tests run with NO network at the operating-system level (a network

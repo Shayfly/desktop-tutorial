@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://148ai/spec/reference_card.schema.json",
+  "title": "ReferenceCard v0.1 (draft for Michael, 2026-11-15)",
+  "description": "One reference the scout found, with its skeleton, its verification, its scores and its decision. The skeleton is content-free by construction: every field is a number, an enum or a bounded integer; additionalProperties is false at every level; there is no free-text field in it. Rules a schema cannot express (strictly decreasing type scale, total == sum of scores, gap ranges ordered) are listed in docs/spec/reference-scout.md section 4.3 and enforced by the validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "card_id", "vertical", "source", "verify", "skeleton", "judge", "decision"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "card_id": {"type": "string", "pattern": "^ref_[0-9A-HJKMNP-TV-Z]{26}$"},
+    "vertical": {"enum": ["butcher"], "description": "Verticals are added one at a time, by decision; the first is the butcher."},
+
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "captured_at", "author", "captures"],
+      "properties": {
+        "url": {"type": "string", "format": "uri", "pattern": "^https://", "maxLength": 300},
+        "captured_at": {"type": "string", "format": "date-time"},
+        "author": {"type": ["string", "null"], "maxLength": 80, "description": "Studio or designer as credited on the site; null when unknown. Never inferred."},
+        "captures": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["viewport_width", "full_page", "sha256", "path"],
+            "properties": {
+              "viewport_width": {"enum": [390, 1440]},
+              "full_page": {"const": true},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "path": {"type": "string", "pattern": "^references/[a-z_]+/ref_[0-9A-HJKMNP-TV-Z]{26}/(390|1440)\\.png$"}
+            }
+          }
+        }
+      }
+    },
+
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["http_status", "load_ms_390", "direction", "site_builder", "carousel", "first_screen_popup", "placeholder_text", "nav_depth"],
+      "properties": {
+        "http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+        "load_ms_390": {"type": "integer", "minimum": 0},
+        "direction": {"enum": ["rtl", "neutral", "ltr_text_bound"], "description": "rtl: dir=rtl or lang he/ar on <html>. neutral: the skeleton does not depend on reading direction (decided by the skeleton step, not here). ltr_text_bound: layout depends on LTR -> rejected."},
+        "site_builder": {"enum": [null, "wix", "squarespace", "webflow_template", "shopify_theme", "wordpress_theme_market", "other_known"]},
+        "carousel": {"type": "boolean"},
+        "first_screen_popup": {"type": "boolean"},
+        "placeholder_text": {"type": "boolean"},
+        "nav_depth": {"type": "integer", "minimum": 0, "maximum": 9}
+      }
+    },
+
+    "skeleton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_order", "hero", "rhythm", "type_scale_px", "columns", "traits"],
+      "properties": {
+        "section_order": {
+          "type": "array", "minItems": 3, "maxItems": 12,
+          "items": {"enum": ["nav", "hero", "trust", "products", "services", "story", "gallery", "hours", "location", "contact", "cta", "testimonials", "faq", "pricing_table", "team", "footer"]}
+        },
+        "hero": {
+          "type": "object", "additionalProperties": false,
+          "required": ["type", "image_ratio", "headline_lines", "cta_count"],
+          "properties": {
+            "type": {"enum": ["split", "full_bleed", "centered", "stacked", "none"]},
+            "image_ratio": {"enum": ["16:9", "4:3", "3:2", "1:1", "21:9", "4:5", "none"]},
+            "headline_lines": {"type": "integer", "minimum": 1, "maximum": 4},
+            "cta_count": {"type": "integer", "minimum": 0, "maximum": 2}
+          }
+        },
+        "rhythm": {
+          "type": "object", "additionalProperties": false,
+          "required": ["section_gap_px", "inner_gap_px"],
+          "properties": {
+            "section_gap_px": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 16, "maximum": 240}, {"type": "integer", "minimum": 16, "maximum": 240}], "items": false, "minItems": 2},
+            "inner_gap_px": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 4, "maximum": 64}, {"type": "integer", "minimum": 4, "maximum": 64}], "items": false, "minItems": 2}
+          }
+        },
+        "type_scale_px": {"type": "array", "minItems": 3, "maxItems": 6, "items": {"type": "integer", "minimum": 12, "maximum": 96}},
+        "columns": {"enum": [4, 6, 8, 12, 16]},
+        "traits": {
+          "type": "array", "maxItems": 8, "uniqueItems": true,
+          "description": "Replaces the free-text `notes` of the draft: a closed vocabulary, so nothing from the site can leak in.",
+          "items": {"enum": ["single_cta", "sticky_call_button", "products_as_list", "products_as_cards", "products_as_table", "hours_as_table", "hours_in_footer", "map_embed", "trust_badges", "large_photography", "illustration", "icon_row", "split_story", "full_width_band", "dark_hero", "light_hero"]}
+        }
+      }
+    },
+
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["panel", "scores", "total", "reasons"],
+      "properties": {
+        "panel": {
+          "type": "array", "minItems": 2, "maxItems": 2,
+          "description": "Two judges from different providers, each blind to the other.",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["model", "scores"],
+            "properties": {
+              "model": {"type": "string", "maxLength": 60},
+              "scores": {"$ref": "#/$defs/scores"}
+            }
+          }
+        },
+        "scores": {"$ref": "#/$defs/scores", "description": "The card's scores: the lower of the two judges per dimension."},
+        "total": {"type": "integer", "minimum": 0, "maximum": 10},
+        "reasons": {
+          "type": "object", "additionalProperties": false,
+          "required": ["hierarchy", "air", "typography", "mobile_390", "originality"],
+          "properties": {
+            "hierarchy": {"$ref": "#/$defs/reason"}, "air": {"$ref": "#/$defs/reason"},
+            "typography": {"$ref": "#/$defs/reason"}, "mobile_390": {"$ref": "#/$defs/reason"},
+            "originality": {"$ref": "#/$defs/reason"}
+          }
+        }
+      }
+    },
+
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason_code", "decided_by", "decided_at"],
+      "properties": {
+        "status": {"enum": ["approved", "rejected", "needs_human"]},
+        "reason_code": {"enum": [null, "off_vertical", "not_live", "too_slow", "ltr_text_bound", "unreadable_390", "generic_template", "site_builder", "carousel", "first_screen_popup", "placeholder_text", "nav_too_deep", "duplicate_skeleton", "built_from_reference", "content_in_skeleton", "below_threshold", "zero_dimension", "judges_disagree"]},
+        "duplicate_of": {"type": ["string", "null"], "pattern": "^ref_[0-9A-HJKMNP-TV-Z]{26}$"},
+        "decided_by": {"enum": ["scout", "michael", "shai"]},
+        "decided_at": {"type": "string", "format": "date-time"}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "approved"}}},
+         "then": {"properties": {"reason_code": {"const": null}, "decided_by": {"enum": ["michael", "shai"]}}}},
+        {"if": {"properties": {"status": {"const": "rejected"}}},
+         "then": {"properties": {"reason_code": {"type": "string"}}}},
+        {"if": {"properties": {"reason_code": {"const": "duplicate_skeleton"}}},
+         "then": {"required": ["duplicate_of"], "properties": {"duplicate_of": {"type": "string"}}}}
+      ]
+    }
+  },
+
+  "allOf": [
+    {"if": {"properties": {"decision": {"properties": {"status": {"const": "approved"}}}}},
+     "then": {"properties": {
+       "judge": {"properties": {"total": {"minimum": 8}, "scores": {"$ref": "#/$defs/scores_no_zero"}}},
+       "verify": {"properties": {"http_status": {"const": 200}, "site_builder": {"const": null}, "carousel": {"const": false},
+                                 "first_screen_popup": {"const": false}, "placeholder_text": {"const": false},
+                                 "nav_depth": {"maximum": 3}, "direction": {"enum": ["rtl", "neutral"]}}}
+     }}}
+  ],
+
+  "$defs": {
+    "score": {"enum": [0, 1, 2]},
+    "scores": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hierarchy", "air", "typography", "mobile_390", "originality"],
+      "properties": {
+        "hierarchy": {"$ref": "#/$defs/score"}, "air": {"$ref": "#/$defs/score"}, "typography": {"$ref": "#/$defs/score"},
+        "mobile_390": {"$ref": "#/$defs/score"}, "originality": {"$ref": "#/$defs/score"}
+      }
+    },
+    "scores_no_zero": {
+      "type": "object",
+      "properties": {
+        "hierarchy": {"enum": [1, 2]}, "air": {"enum": [1, 2]}, "typography": {"enum": [1, 2]},
+        "mobile_390": {"enum": [1, 2]}, "originality": {"enum": [1, 2]}
+      }
+    },
+    "reason": {
+      "type": "object", "additionalProperties": false,
+      "required": ["anchor_id", "observation"],
+      "properties": {
+        "anchor_id": {"type": "string", "pattern": "^anc_(hierarchy|air|typography|mobile_390|originality)_[012]_[a-z0-9]{4}$", "description": "The photographed anchor this score was matched to (section 5.2)."},
+        "observation": {"type": "string", "maxLength": 200, "description": "What the judge saw, in its words. Lives in judge, never in skeleton."}
+      }
+    }
+  }
+}

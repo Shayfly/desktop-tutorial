@@ -224,7 +224,7 @@ class EveryWorkflowPassesTheDedicatedSecrets(unittest.TestCase):
         runners = {k: v for k, v in runners.items() if v}
         print('\n[write-env.sh callers] ' + json.dumps(runners))
         self.assertEqual(sorted(runners), ['148ai-prototype-intake-enable.yml', 'deploy-worker.yml',
-                                           'internal-entitlement.yml'])           # a new caller must be added here
+                                           'internal-entitlement.yml', 'vision-probe.yml'])   # a new caller must be added here
         problems = {name: missing_dedicated_secrets(wf) for name, wf in self.workflows().items()}
         self.assertEqual({k: v for k, v in problems.items() if v}, {})
 
