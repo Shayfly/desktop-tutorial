@@ -1,0 +1,151 @@
+{
+ "pr": "reference-offers-step7",
+ "sha256": [
+  "tests/test_reference_offers.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the alert does not fire at 10 of 30",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "ALERT_REJECTIONS, ALERT_WINDOW_OFFERS, ALERT_REPEAT = 10, 30, 5",
+     "new": "ALERT_REJECTIONS, ALERT_WINDOW_OFFERS, ALERT_REPEAT = 11, 30, 5"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_it_fires_at_ten_of_thirty_and_again_every_five",
+    "test_the_count_resets_only_when_the_owner_changes_something"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the count resets by itself after an alert (no owner change)",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "    changes = [a['changed_at'] for a in store.alerts_for(category) if a['changed_at'] is not None]",
+     "new": "    changes = [a['changed_at'] or a['fired_at'] for a in store.alerts_for(category)]"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_it_fires_at_ten_of_thirty_and_again_every_five",
+    "test_the_count_resets_only_when_the_owner_changes_something"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "someone other than the owner resets the count",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "    if by != OWNER:\n        raise ReferenceStoreError('only the owner resets",
+     "new": "    if False:\n        raise ReferenceStoreError('only the owner resets"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_the_count_resets_only_when_the_owner_changes_something"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a rejected card is offered to the same customer again",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "    return ({k[5:] for k in keys if k.startswith('card:')}, {k[4:] for k in keys if k.startswith('all:')})",
+     "new": "    return (set(), {k[4:] for k in keys if k.startswith('all:')})"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_rejection_moves_to_the_next_card_and_queues_a_collection"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a domain rejection disappears quietly (no collect request)",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "    if level == 'domain':\n        store.request_collect",
+     "new": "    if False:\n        store.request_collect"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_a_domain_rejection_moves_to_the_next_card_and_queues_a_collection",
+    "test_the_status_report_shows_the_collect_queue"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "'asked for another' is not counted as a rejection",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "        _check_rejection(signal, scope)\n        self.rejections.append(",
+     "new": "        _check_rejection(signal, scope)\n        if signal == 'asked_another':\n            return\n        self.rejections.append("
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_a_used_up_pool_returns_nothing_and_never_loops_back",
+    "test_it_fires_at_ten_of_thirty_and_again_every_five",
+    "test_the_count_resets_only_when_the_owner_changes_something"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a rejected layer is offered again from the same card",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "        if layer_key(layer, c.card_id) not in keys:",
+     "new": "        if True:"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_a_layer_rejection_reselects_from_the_same_pool",
+    "test_a_used_up_pool_returns_nothing_and_never_loops_back"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the alert repeats on every rejection instead of every five",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_offers.py",
+     "old": "        due = total >= max(a['rejections'] for a in fired) + ALERT_REPEAT",
+     "new": "        due = total >= max(a['rejections'] for a in fired) + 1"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_offers.py"
+   ],
+   "expect_failed": [
+    "test_it_fires_at_ten_of_thirty_and_again_every_five",
+    "test_the_count_resets_only_when_the_owner_changes_something"
+   ]
+  }
+ ]
+}
