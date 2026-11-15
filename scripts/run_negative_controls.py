@@ -163,6 +163,8 @@ def main(argv: list[str]) -> int:
                 print(f"::error title={spec['pr']} {control['id']} FAIL::{clean}"[:4000], flush=True)
         n = len(here)
         verdict = 'PASS' if not failed and here else 'FAIL'
+        if not here and elsewhere:            # every control runs in another job: said, never shown as a failure
+            verdict = 'NOT RUN HERE'
         notice(f"SPEC {spec['pr']}", f"{len(passed)}/{n} {verdict} (" + ' '.join(c['id'] for c in here)
                + ')' + (f' failed={failed}' if failed else '') + (f" | INFO {'; '.join(infos)}" if infos else '')
                + (f" | not run here: {', '.join(elsewhere)}" if elsewhere else '')

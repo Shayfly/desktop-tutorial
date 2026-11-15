@@ -1,0 +1,12 @@
+{
+ "pr": "nc-not-run-here",
+ "sha256": ["tests/test_negative_controls_runner.py"],
+ "controls": [
+  {"id": "NC1", "what": "a spec whose controls all run in another job is shown as 0/0 FAIL again",
+   "mutations": [{"file": "scripts/run_negative_controls.py", "old": "        if not here and elsewhere:", "new": "        if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_negative_controls_runner.py"], "expect_failed": ["test_a_spec_whose_controls_all_run_elsewhere_is_not_a_failure"]},
+  {"id": "NC2", "what": "a spec with no controls at all is no longer a failure",
+   "mutations": [{"file": "scripts/run_negative_controls.py", "old": "        if not here and elsewhere:", "new": "        if not here:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_negative_controls_runner.py"], "expect_failed": ["test_a_spec_with_no_controls_at_all_still_fails"]}
+ ]
+}
