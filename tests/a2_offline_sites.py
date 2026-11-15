@@ -151,9 +151,21 @@ class Sites:
             return 200, 'image/png', PNG
         pages = {'ltr': _LTR, 'external': _EXTERNAL, 'tall': _TALL, 'blocked': '<h1>never</h1>'}
         pages.update({'rich-butcher': _RICH_BUTCHER, 'wine-bar': _WINE_BAR})
+        pages.update({'bare': _BARE, 'broken-css': _BROKEN_CSS, 'margin-only': _MARGIN_ONLY})   # 109 / 110
         if name in pages and path == '/':
             return 200, html, pages[name].encode('utf-8')
         return 404, html, b'<h1>404</h1>'
+
+
+# 109 / 110 (the owner, 2026-11-15 23:26): Tavily's markdown of a real restaurant, rendered bare, gave a schema-valid
+# card made of browser defaults. These three pages are that case and its two neighbours.
+_BARE = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head><body><h1>מסעדה</h1>'
+         '<h2>תפריטים</h2><p>צהריים</p><h2>צור קשר</h2><a href="tel:03-6249249">03-6249249</a></body></html>')
+_BROKEN_CSS = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
+               '<link rel="stylesheet" href="/missing.css"></head><body><h1>מסעדה</h1></body></html>')
+_MARGIN_ONLY = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><style>body{margin:0}</style>'
+                '</head><body><header><h1>מסעדה</h1></header><section><h2>תפריטים</h2><p>צהריים</p></section>'
+                '<footer><p>צור קשר</p></footer></body></html>')
 
 
 def url(name: str) -> str:

@@ -95,6 +95,25 @@ class OnRenderedPages(unittest.TestCase):
     def test_nothing_left_the_machine(self):
         self.assertEqual(sorted(set(self.session.blocked)), ['maps.example.com'])
 
+    # ---- 109 / 110 (the owner, 2026-11-15 23:26) ------------------------------------------------------------------
+    def test_a_page_with_no_style_of_its_own_is_rejected_no_styles(self):
+        with self.assertRaises(X.ExtractRejected) as caught:
+            X.extract(self.session, url('bare'))
+        self.assertEqual(caught.exception.reason_code, 'no_styles')
+
+    def test_a_linked_stylesheet_that_did_not_load_is_rejected_not_measured(self):
+        with self.assertRaises(X.ExtractRejected) as caught:
+            X.extract(self.session, url('broken-css'))
+        self.assertEqual(caught.exception.reason_code, 'stylesheet_missing')
+
+    def test_every_field_says_who_set_it(self):
+        rich = self.out['rich-butcher']['extraction']['field_source']
+        self.assertEqual({k: rich[k] for k in ('bg', 'text', 'accent', 'type_scale_px', 'rhythm', 'hero')},
+                         {'bg': 'authored', 'text': 'authored', 'accent': 'authored', 'type_scale_px': 'authored',
+                          'rhythm': 'authored', 'hero': 'authored'})
+        thin = X.extract(self.session, url('margin-only'))['extraction']['field_source']
+        self.assertEqual((thin.get('text'), thin['type_scale_px']), ('ua-default', 'ua-default'))
+
 
 if __name__ == '__main__':
     unittest.main()
