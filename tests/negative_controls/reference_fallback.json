@@ -1,0 +1,120 @@
+{
+ "pr": "reference-fallback-step6",
+ "sha256": [
+  "tests/test_reference_fallback.py",
+  "omni_prod/reference_catalog.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "fish falls to clothes: a category outside the appendices is accepted",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_catalog.py",
+     "old": "    if not _known(slug):\n        raise CatalogError",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise CatalogError"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "test_a_category_outside_the_appendices_is_refused"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a fallback of three links",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_fallback.py",
+     "old": "    for distance in (1, 2):",
+     "new": "    for distance in (1, 2, 3):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "test_one_link_then_two_links_and_never_three",
+    "test_the_chain_is_bounded_and_each_category_once"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a foreign vertical is taken without the cross_vertical mark",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_catalog.py",
+     "old": "            if slug in RESERVE and not cross:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    },
+    {
+     "file": "omni_prod/reference_catalog.py",
+     "old": "    ('vets', 'pet_shops', True),",
+     "new": "    ('vets', 'pet_shops', False),"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "test_a_foreign_vertical_only_where_the_appendix_marks_it",
+    "test_a_reserve_category_is_reachable_only_as_a_marked_cross_vertical_link",
+    "test_the_store_rows_match_the_appendix"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a weak category claims attribution it does not have",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_fallback.py",
+     "old": "            'attribution': False, 'collect_requested'",
+     "new": "            'attribution': True, 'collect_requested'"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "test_one_link_then_two_links_and_never_three",
+    "test_weak_says_so_asks_for_a_collection_and_offers_nothing_it_does_not_have"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "an empty category is not put in the collect queue (it disappears quietly)",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_fallback.py",
+     "old": "            if distance and C.collectable(category) and not store_has_open(store, category):",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "test_an_empty_category_asks_for_a_collection_and_never_waits"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a line appendix B could not resolve is invented into a link",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_catalog.py",
+     "old": "    ('dental', 'clinics_physio', False),",
+     "new": "    ('dental', 'clinics_physio', False),\n    ('clinics_physio', 'clinics_physio', False),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_fallback.py"
+   ],
+   "expect_failed": [
+    "tests.test_reference_fallback"
+   ]
+  }
+ ]
+}
