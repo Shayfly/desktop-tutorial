@@ -61,9 +61,9 @@
    "data_changed": [],
    "reason": "The owner 2026-11-15 21:07 (bld_7fb5e1b2): the hidden <bdi> wrap is removed from page_locale (the model never saw it, so its own test could not pass and every repair was undone). The rule is in the prompt: text_locale guidance says the model writes the <bdi> itself, and the generation constraints say a test of page text compares visible_text(body) (helper given verbatim, VISIBLE_TEXT_HELPER). _time_ranges_isolated stays blocking and now judges the page the model wrote. bidi_ranges: docstring only.",
    "author": "claude",
-   "reviewer": "pending",
-   "reviewed_at": "",
-   "signature_note": ""
+   "reviewer": "shai",
+   "reviewed_at": "2026-11-15",
+   "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 21:29 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }
