@@ -175,6 +175,7 @@ _TXT = {
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
            'image_change': 'שינוי של התמונה עצמה עוד לא זמין אצלנו. אפשר להשתמש בה כמו שהיא, או רק כהשראה.',
+           'image_hero_taken': 'כבר יש בדף תמונה ראשית אחת. בחרו לתמונה הזו מקום אחר.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
@@ -211,6 +212,7 @@ _TXT = {
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
            'attached_bound': '(I saved {n} in the project request.)',
            'image_change': 'Changing the image itself is not available yet. It can be used as is, or as inspiration only.',
+           'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
@@ -827,6 +829,8 @@ class ConversationSupervisor:
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
         images = _bindable_images(attachments)
+        decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
+        images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked
         if images and not (len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I)):
             # Production 2026-11-15 ("סבא שמעון"): any other image was dropped silently. Now it is bound to the brief
             # and the customer is asked what it is for (image_use, never delegated). A NEW image asks again.
@@ -897,6 +901,8 @@ class ConversationSupervisor:
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
         parts = []
+        if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
+            parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
         if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):
             parts.append(T['image_change'])          # not recorded: the question stays open (discovery._settle_image)
         # The model's conversational advice is not an action: the authoritative
