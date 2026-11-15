@@ -77,7 +77,8 @@ class FailedBuildsAreLossRows(unittest.TestCase):
         self.assertEqual((source, key, account, project, cause), ('release_failed', f'failed-build:{bid}', self.user, 'prj_k', 'failed_build_refunded'))
         self.assertEqual((Decimal(str(quoted)), Decimal(str(actual)), Decimal(str(overrun))), (Decimal('0'), COST, COST))
         ev = evidence if isinstance(evidence, dict) else json.loads(evidence)
-        self.assertEqual(ev['provider_cost_truth'], 'computed')
+        self.assertEqual(ev['provider_cost_truth'], 'COMPUTED_FROM_USAGE')     # subscription_store._basis's own name
+        self.assertTrue(out['loss_recorded'])
         # a retry changes nothing twice: the reservation is already RELEASED and the row is idempotent
         self.assertIsNone(self.subs.release_failed(build_id=bid, computed_provider_cost_usd=COST))
         self.assertEqual(len(self.rows(bid)), 1)
@@ -97,13 +98,25 @@ class FailedBuildsAreLossRows(unittest.TestCase):
         with self.pool.connection() as conn:
             with conn.cursor() as cur:
                 grouped = rollup(cur)['by_cause']['failed_build_refunded']
-        self.assertEqual((grouped['events'], Decimal(grouped['loss_usd'])), (3, COST * 3))
+        # the roll-up is for the whole database (other tests of this class wrote rows too): at least this account's
+        self.assertGreaterEqual(grouped['events'], 3)
+        self.assertGreaterEqual(Decimal(grouped['loss_usd']), COST * 3)
         from tests.evidence_notice import notice
         notice('failed builds are loss rows', f'3 failed builds at {COST}: company_loss_events sum {losses} = settled {settled}')
 
     def test_a_failed_build_without_a_cost_writes_no_loss(self):
         bid = self.reserve()
-        self.subs.release_failed(build_id=bid, actual_provider_cost_usd=Decimal('0'), computed_provider_cost_usd=Decimal('0'))
+        out = self.subs.release_failed(build_id=bid, actual_provider_cost_usd=Decimal('0'), computed_provider_cost_usd=Decimal('0'))
+        self.assertEqual(self.rows(bid), [])
+        self.assertFalse(out['loss_recorded'])
+
+    def test_nothing_measured_writes_no_loss_the_ledger_never_records_an_estimate(self):
+        # no actual, no computed usage: the basis is the reservation's estimate (CONSERVATIVE_RESERVATION)
+        bid = self.reserve()
+        out = self.subs.release_failed(build_id=bid, actual_provider_cost_usd=None, computed_provider_cost_usd=None)
+        self.assertEqual(out['provider_cost_truth'], 'CONSERVATIVE_RESERVATION')
+        self.assertEqual(out['provider_cost_basis_usd'], '2.003')            # kept on the reservation, as before
+        self.assertFalse(out['loss_recorded'])
         self.assertEqual(self.rows(bid), [])
 
     def test_an_internal_qa_build_is_recorded_with_its_funding_source(self):

@@ -1,3 +1,17 @@
+# 2026-11-15 — P0-c correction (Claude bug): the Postgres tests of #401 never ran in CI (Claude Code)
+
+- **What was wrong:** `intake-budget-pg` enumerates its test files; `tests/test_company_loss_failed_build_pg.py` was not listed, so
+  the claim in #401 and in the P0-c STATUS entry below ("passed in CI's pg-tests job, 315 passed") was false -- those 315 were other
+  tests. Found by the independent review of 2026-11-15. Two assertions in the pg test would have failed had it run
+  (`provider_cost_truth` is `COMPUTED_FROM_USAGE`, not `computed`; the roll-up is database-wide), and the ledger could have recorded
+  a reservation estimate as a loss when nothing was measured (`CONSERVATIVE_RESERVATION`).
+- **Fix:** the file is in the pg job list; `record_failed_build` writes nothing on `CONSERVATIVE_RESERVATION` (the ledger never records
+  an estimate) and `release_failed` returns `loss_recorded`; the pg test asserts the real values and account-scoped sums, plus the
+  unmeasured case. Negative controls NC4 (file dropped from the job list) and NC5 (estimate guard removed).
+- **Evidence:** offline 13 passed, 5 skipped (pg). Controls NC2–NC5 PASS here (NC1 pg only). The real path on Postgres is verified only
+  when this PR's `pg-tests` job runs the file -- read that job, not this line.
+- **Structural finding for CI (Codex):** an explicit file list means every new `*_pg.py` test is silently not run; discover them.
+
 # 2026-11-15 — P0-c, warehouse 103: the provider cost of a failed build is a loss row (Claude Code)
 
 - **Implemented; awaiting the owner's approval of migration 044 and the pg job:** `company_loss.record_failed_build` (cause
