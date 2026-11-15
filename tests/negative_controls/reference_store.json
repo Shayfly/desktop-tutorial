@@ -1,0 +1,132 @@
+{
+ "pr": "reference-store-043",
+ "sha256": [
+  "tests/test_reference_store.py",
+  "tests/test_reference_store_pg.py",
+  "tests/reference_cards_fixture.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a card outside the #369 schema (free-text notes, approval without a human) is stored",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "    checked_card(card)\n    return StoredCard(",
+     "new": "    pass  # NEGATIVE CONTROL\n    return StoredCard("
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_a_card_outside_the_369_schema_is_never_stored"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a stale card is removed instead of ranked lower and marked",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "    live = [r for r in rows if not r.retired and r.card['decision']['status'] == 'approved']",
+     "new": "    live = [r for r in rows if not r.retired and r.card['decision']['status'] == 'approved' and r.effective_status(now) != 'stale']  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_stale_is_ranked_lower_and_marked_never_removed"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "someone other than the owner retires a card",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "    def retire(self, card_id: str, *, by: str):\n        if by != OWNER:\n            raise ReferenceStoreError('only the owner retires a reference card')\n        r = self.rows[card_id]",
+     "new": "    def retire(self, card_id: str, *, by: str):\n        if False:  # NEGATIVE CONTROL\n            raise ReferenceStoreError('only the owner retires a reference card')\n        r = self.rows[card_id]"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_only_the_owner_retires_a_card"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a card three links away is stored",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "    if adjacency_rank not in (0, 1, 2):",
+     "new": "    if adjacency_rank not in (0, 1, 2, 3):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_a_card_is_never_more_than_two_links_away"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a card changed in place in the database is served",
+   "envs": [
+    "pg"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "            if card_sha256(card) != digest:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store_pg.py"
+   ],
+   "expect_failed": [
+    "test_a_card_changed_in_place_is_never_served"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the migration is no longer additive (an ALTER of an existing table)",
+   "mutations": [
+    {
+     "file": "infra/postgres/043_reference_store.sql",
+     "old": "CREATE INDEX IF NOT EXISTS idx_collect_queue_open",
+     "new": "ALTER TABLE project_briefs ADD COLUMN IF NOT EXISTS x INT;\nCREATE INDEX IF NOT EXISTS idx_collect_queue_open"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_additive_only_and_touches_nothing_that_exists"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a category may be its own neighbour",
+   "mutations": [
+    {
+     "file": "omni_prod/reference_store.py",
+     "old": "    if category in names or len(set(names)) != len(names) or len(names) > 20:",
+     "new": "    if len(set(names)) != len(names) or len(names) > 20:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_reference_store.py"
+   ],
+   "expect_failed": [
+    "test_neighbours_in_rank_order_with_cross_vertical_marked"
+   ]
+  }
+ ]
+}

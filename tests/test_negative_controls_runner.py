@@ -185,5 +185,29 @@ class AControlForOneEnvironment(unittest.TestCase):
             self.assertEqual([l for l in out.getvalue().splitlines() if l.startswith('::notice')], [want], env)
 
 
+    def test_a_spec_whose_controls_all_run_elsewhere_is_not_a_failure(self):
+        # 2026-11-15: a2_collect (all controls `a2` only) showed "SPEC a2-collect-offline::0/0 FAIL" in v24-ci
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': [
+            {'id': 'NC1', 'what': 'w', 'envs': ['a2'], 'mutations': [], 'targets': [], 'expect_failed': ['a']}]}))
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'ENV', ''), redirect_stdout(out):
+            self.assertEqual(nc.main([]), 0)
+        self.assertEqual([l for l in out.getvalue().splitlines() if l.startswith('::notice')],
+                         ['::notice title=SPEC x::0/0 NOT RUN HERE () | not run here: NC1 (a2 only)'])
+
+    def test_a_spec_with_no_controls_at_all_still_fails(self):
+        import json
+        from unittest import mock
+        d = pathlib.Path(tempfile.mkdtemp())
+        (d / 'x.json').write_text(json.dumps({'pr': 'x', 'controls': []}))
+        out = io.StringIO()
+        with mock.patch.object(nc, 'SPECS', d), mock.patch.object(nc, 'ENV', ''), redirect_stdout(out):
+            nc.main([])
+        self.assertIn('::notice title=SPEC x::0/0 FAIL ()', out.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()
