@@ -138,6 +138,15 @@
     "reviewer": "michael",
     "reviewed_at": "2026-11-15",
     "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 10:40 Asia/Jerusalem, relayed by Or: '#371 עם הצהרות מקושרות digest, חתומות michael'. The reviewer field was typed by the author (claude) on that instruction."
+   },
+   {
+    "reason": "owner-signs-seven (#394): the owner's signature replaces `reviewer: pending` on seven declarations (image-role x4, reference-store-043 x3); git shows those seven lines, and the closing line of this list, as deleted. Reasons and digests of the seven are untouched.",
+    "deleted_sha256": "0f6e55a39a2f9f64121927576b9202661930dd445ad9b8fed48bebfe6fc1a27f",
+    "pr": 394,
+    "author": "claude",
+    "reviewer": "shai",
+    "reviewed_at": "2026-11-15",
+    "signature_note": "Signed by the owner's instruction in the chat, 2026-11-15 Asia/Jerusalem, relayed by Shay. The reviewer field was typed by the author (claude) on that instruction."
    }
   ]
  },
