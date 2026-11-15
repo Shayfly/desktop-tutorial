@@ -181,6 +181,19 @@ QUESTIONS: tuple[Question, ...] = (
     Question('references', 'references', 'design', 'יש אתר שאהבתם את המראה שלו? (קישור או תיאור)',
              'A site whose look you like? (link or description)', 'נשתמש בו כהשראה בלבד, לא נעתיק.',
              'Used as inspiration only, never copied.', kind='text', recommended='אין'),
+    # Production 2026-11-15 (bld_09482b26, "סבא שמעון"): the customer uploaded his grandfather's photo; only "one image
+    # + the word logo" was ever bound, so the photo was dropped silently and a different man was generated from the
+    # text. Every uploaded image now gets a role from the CUSTOMER (never delegated, never a silent default).
+    # Tier 2 (changing the photo with it as a reference) is not available yet and is said so, not offered.
+    Question('image_use', 'image_use', 'design', 'קיבלתי את התמונה שהעלית. מה לעשות איתה?',
+             'I got the image you uploaded. What should I do with it?',
+             'כמו שהיא: היא תופיע בדף כתמונה הראשית בדיוק כפי שהעלית, בלי ליצור תמונה אחרת. '
+             'שינוי של התמונה עצמה (למשל להכניס אותה לסצנה אחרת) עוד לא זמין.',
+             'As is: it appears on the page as the main image exactly as uploaded, and no other image is generated. '
+             'Changing the image itself (e.g. placing it in another scene) is not available yet.',
+             options=(_o('as_is', 'תמונה ראשית — כמו שהיא', 'Main image, as is'),
+                      _o('inspiration', 'רק השראה — לא להציג אותה בדף', 'Inspiration only, not shown on the page')),
+             delegable=False, ask_if=lambda v: bool(v.get('_image'))),
 )
 BY_ID = {q.id: q for q in QUESTIONS}
 
@@ -323,6 +336,7 @@ def _ctx(brief: 'Brief') -> dict:
     v['_strong'] = bool(strong_cues(brief.prompt))           # R1/8.1, read by the persistence question
     v['_stale'] = brief.hints.get('persistence_stale') == 'yes'
     v['_unpriced'] = unpriced_keys(brief)                     # 77, read by the "unavailable" question
+    v['_image'] = bool(brief.assets.get('image'))             # an uploaded image waits for its role (image_use)
     return v
 
 
@@ -382,6 +396,24 @@ def customer_exclusions(brief: 'Brief') -> list[str]:
         return []
     from .build_readiness import excludable
     return [k for k in unpriced_keys(brief) if excludable(k)]
+
+
+MAIN_IMAGE_MARKER = '148ai-asset://upload/1'
+MAIN_IMAGE_PREFIX = 'Uploaded main image attachment: '
+
+
+def main_image(brief: 'Brief') -> dict | None:
+    """The uploaded image the customer chose to show as is, or None."""
+    img = brief.assets.get('image')
+    f = brief.fields.get('image_use') or {}
+    if img and f.get('value') == 'as_is' and f.get('source') == 'answer':
+        return img
+    return None
+
+
+def image_exclusions(brief: 'Brief') -> list[str]:
+    """The customer's own photo, shown as is, replaces generation: no image is generated for this brief."""
+    return ['media.image.generate'] if main_image(brief) else []
 
 
 def _website_screens(prompt: str) -> str:
@@ -767,6 +799,15 @@ def requirements_text(brief: Brief) -> str:
         lines.append(f'Uploaded logo attachment: {logo["id"]}; sha256={logo["sha256"]}. '
                      'Use the original uploaded logo in a visible img element with src="148ai-asset://logo". '
                      'The worker replaces this marker with the verified image bytes before tests; do not recreate the logo.')
+    shown = main_image(brief)
+    if shown:
+        lines.append(f'{MAIN_IMAGE_PREFIX}{shown["id"]}; sha256={shown["sha256"]}. '
+                     "This is the customer's own photo: use it AS IS as the main (hero) image, in a visible img element "
+                     f'with src="{MAIN_IMAGE_MARKER}" and a non-empty alt. Do not generate, draw, edit or replace it; '
+                     'the worker replaces this marker with the verified image bytes before tests.')
+    elif brief.assets.get('image') and v.get('image_use') == 'inspiration':
+        lines.append(f'Uploaded image {brief.assets["image"]["id"]}: the customer chose inspiration only. '
+                     'Do not show it on the page.')
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')
@@ -774,6 +815,7 @@ def requirements_text(brief: Brief) -> str:
         from .semantic_capabilities import encode_approved
         lines.append(encode_approved(brief.semantic_decisions))
     excluded = customer_exclusions(brief)
+    excluded = excluded + image_exclusions(brief)    # the customer's photo shown as is: nothing is generated
     if excluded:   # 77: bound into the fingerprinted contract; product_architect reads only this generated line
         lines.append(CUSTOMER_EXCLUSIONS_PREFIX + json.dumps(sorted(excluded)))
     return '\n'.join(lines)

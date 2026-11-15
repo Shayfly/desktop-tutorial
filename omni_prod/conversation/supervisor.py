@@ -173,6 +173,8 @@ _TXT = {
            'attached_shown': '📎 {n}',
            'attached_only': 'קיבלתי {n} ושמרתי בפרויקט. עדיין אין ניתוח תמונה אוטומטי (צריך מודל עם יכולת ראייה ואישור תקציב), אז כתבו במשפט מה חשוב בה או מה לשנות.',
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
+           'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
+           'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
@@ -206,6 +208,8 @@ _TXT = {
            'attached_shown': '📎 {n}',
            'attached_only': 'I saved {n} in the project. Automatic image analysis is not enabled yet (it needs a vision-capable model and an approved budget), so tell me in a sentence what matters in it or what to change.',
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
+           'attached_bound': '(I saved {n} in the project request.)',
+           'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
 
@@ -286,6 +290,17 @@ def _no_question(text: str) -> str:
 def _label(field_: str, value, lang: str) -> str:
     q = d.BY_ID.get(field_)
     return f'{_short(field_, lang)}: {d._label(q, value, lang) if q else value}'
+
+
+def _bindable_images(attachments) -> list[dict]:
+    """Owner-checked image attachments (id + digest), one per distinct image (the same bytes twice count once)."""
+    out, seen = [], set()
+    for a in attachments or ():
+        if (a.get('kind', 'image') == 'image' and re.fullmatch(r'att_[a-f0-9]{32}', a.get('id', ''))
+                and re.fullmatch(r'[a-f0-9]{64}', a.get('sha256', '')) and a['sha256'] not in seen):
+            seen.add(a['sha256'])
+            out.append(a)
+    return out
 
 
 class ConversationSupervisor:
@@ -574,6 +589,8 @@ class ConversationSupervisor:
                 intent = 'answer'
         if attachments and not message and not answers:
             intent = 'attachment'
+        if intent == 'attachment' and row is not None and not ctx.get('latest_version_id') and _bindable_images(attachments):
+            intent = 'requirements'   # an image alone, before anything was built, is part of the request: never dropped
         turn = Turn(intent, lang, '')
         if intent == 'attachment':
             turn.brief_row = row
@@ -604,6 +621,11 @@ class ConversationSupervisor:
             if row is not None and intent != 'attachment':
                 turn.questions = intake_agent.apply(row.brief, DeterministicInterpreter().interpret('', row.brief),
                                                     infer_defaults=False).asked if intent == 'missing' else []
+        if attachments and intent != 'modify':
+            # say only what really happened to the image (2026-11-15: "it goes with the change as context" was said
+            # while the image went nowhere). The context note stays for a change to a built version only.
+            T = {**T, 'attached_note': T['attached_bound' if intent in ('answer', 'requirements')
+                                         and _bindable_images(attachments) else 'attached_kept']}
         if attachments and intent != 'attachment':
             turn.reply = (turn.reply + ' ' + T['attached_note'].format(n=T['images'](len(attachments)))).strip()
         if turn.blocked and turn.plan is None:              # blocked before gate 1: edit the spec (there is no plan)
@@ -797,6 +819,14 @@ class ConversationSupervisor:
             if re.fullmatch(r'att_[a-f0-9]{32}', a.get('id','')) and re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
+        images = _bindable_images(attachments)
+        if images and not (len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I)):
+            # Production 2026-11-15 ("סבא שמעון"): any other image was dropped silently. Now it is bound to the brief
+            # and the customer is asked what it is for (image_use, never delegated). A NEW image asks again.
+            a = images[-1]
+            if (new_brief.assets.get('image') or {}).get('sha256') != a['sha256']:
+                new_brief.fields.pop('image_use', None)
+            new_brief.assets['image'] = {k: a.get(k) for k in ('id', 'sha256', 'mime', 'size_bytes', 'width', 'height')}
         # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
         # replaces the questionnaire's list. Only a conflict with a confirmed value is still asked back first.
