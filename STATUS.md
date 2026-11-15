@@ -1,3 +1,15 @@
+# 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
+
+- **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
+  (`no_progress_repository_unchanged`, 2026-10-07) and the worker stored the reason; now `app.js stopReasonLine()` says it in
+  the customer's words (he/en table `repairStops`, one entry per reason the engines can emit; an unknown reason is shown, not hidden).
+- **Evidence:** `tests/test_repair_stop_reason_ui.py` 7 tests (real `AutonomousProductEngine` loop, real worker job, customer-view filter,
+  app.js in node). Negative controls `tests/negative_controls/repair_stop_reason_ui.json` 3/3 PASS (NC3 proves the engine stop itself).
+  Full suite, one container, `--continue-on-collection-errors`: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `538e86f` 3138 / 34 / 2799 / 30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the UI function ran in node, not in a browser. The bdi root cause is #396, not this.
+- **Awaiting:** Michael's SHA approval.
+
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
 - GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
