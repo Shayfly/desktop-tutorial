@@ -175,6 +175,15 @@ class Offline(unittest.TestCase):
         from omni_prod.a2 import collect
         extra = [(url(n), 2) for n in ('dead', 'slow', 'heavy', 'blocked', 'tall')]
         out = collect.run(self.session, _search(30, extra), MemoryArtifactStore())
+        # #393 a2-offline NC6 failed twice in CI on this test and never locally: one assertion first that names every
+        # rejection with what it measured, so a recurrence shows the site and the number, not only the test name
+        why = [(d.get('url') or d.get('candidate_id'), d['rejection']['reason_code'], d['rejection'].get('measured'))
+               for d in out['verified'] + out['captured'] if d['outcome'] != 'pass']
+        self.assertEqual((out['funnel']['candidates'], out['funnel']['verified'], out['funnel']['captured'],
+                          out['funnel']['rejected']),
+                         (35, 31, 30, {'not_live': 1, 'too_slow': 1, 'too_heavy': 1, 'robots_disallowed': 1,
+                                       'capture_missing': 1}),
+                         f"rejected={why} blocked={out['blocked_hosts']}")
         self.assertEqual(out['funnel']['candidates'], 35)
         self.assertEqual(out['funnel']['verified'], 31)       # 30 good + tall (tall fails only at capture)
         self.assertEqual(out['funnel']['captured'], 30)

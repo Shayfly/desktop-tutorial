@@ -88,6 +88,13 @@ def _row(card: dict, *, adjacency_rank: int, extraction_version: str, status: st
                       _parse(card['source']['captured_at']), extraction_version, status, False)
 
 
+def _check_rejection(signal: str, scope: str | None) -> None:
+    if signal not in ('disliked', 'asked_another'):
+        raise ReferenceStoreError("signal is 'disliked' or 'asked_another'")
+    if scope not in (None, 'layer', 'domain', 'all'):
+        raise ReferenceStoreError("scope is 'layer', 'domain' or 'all'")
+
+
 def _check_neighbours(category: str, neighbours) -> None:
     names = [n for n, _ in neighbours]
     if category in names or len(set(names)) != len(names) or len(names) > 20:
@@ -106,6 +113,9 @@ class MemoryReferenceStore:
         self.rows: dict[str, StoredCard] = {}
         self.adjacency: dict[str, list[tuple[str, int]]] = {}
         self.collect: list[dict] = []
+        self.offers: list[dict] = []
+        self.rejections: list[dict] = []
+        self.alerts: list[dict] = []
 
     def add_card(self, card: dict, *, extraction_version: str, adjacency_rank: int = 0, status: str = 'fresh'):
         row = _row(card, adjacency_rank=adjacency_rank, extraction_version=extraction_version, status=status)
@@ -141,6 +151,33 @@ class MemoryReferenceStore:
 
     def open_collect_requests(self) -> list[dict]:
         return list(self.collect)
+
+    # ---- offers, rejections and alerts (step 7) ----
+    def record_offer(self, *, brief_id: str, category: str, card_id: str | None = None,
+                     component_key: str | None = None, at: datetime | None = None):
+        self.offers.append({'brief_id': brief_id, 'category': category, 'card_id': card_id,
+                            'component_key': component_key, 'at': at or datetime.now(timezone.utc)})
+
+    def record_rejection(self, *, brief_id: str, category: str, component_key: str | None, signal: str,
+                         scope: str | None = None, at: datetime | None = None):
+        _check_rejection(signal, scope)
+        self.rejections.append({'brief_id': brief_id, 'category': category, 'component_key': component_key,
+                                'signal': signal, 'scope': scope, 'at': at or datetime.now(timezone.utc)})
+
+    def rejected_keys(self, brief_id: str) -> set[str]:
+        return {r['component_key'] for r in self.rejections if r['brief_id'] == brief_id and r['component_key']}
+
+    def counts_since(self, category: str, since: datetime | None) -> tuple[list[datetime], list[datetime]]:
+        ok = lambda r: r['category'] == category and (since is None or r['at'] > since)
+        return (sorted(o['at'] for o in self.offers if ok(o)), sorted(r['at'] for r in self.rejections if ok(r)))
+
+    def alerts_for(self, category: str) -> list[dict]:
+        return [dict(a) for a in self.alerts if a['category'] == category]
+
+    def record_alert(self, *, category: str, window_start: datetime, rejections: int, offers: int,
+                     at: datetime | None = None, changed_at: datetime | None = None):
+        self.alerts.append({'category': category, 'window_start': window_start, 'rejections': rejections,
+                            'offers': offers, 'fired_at': at or datetime.now(timezone.utc), 'changed_at': changed_at})
 
 
 class PostgresReferenceStore:
@@ -216,3 +253,48 @@ class PostgresReferenceStore:
             rows = conn.execute('SELECT category, reason, brief_id FROM collect_queue WHERE resolved_at IS NULL '
                                 'ORDER BY requested_at').fetchall()
         return [{'category': c, 'reason': r, 'brief_id': b} for c, r, b in rows]
+
+    # ---- offers, rejections and alerts (step 7) ----
+    def record_offer(self, *, brief_id: str, category: str, card_id: str | None = None,
+                     component_key: str | None = None, at: datetime | None = None):
+        with self.pool.connection() as conn:
+            conn.execute('INSERT INTO reference_offers (brief_id, category, card_id, component_key, created_at) '
+                         'VALUES (%s, %s, %s, %s, COALESCE(%s, now()))', (brief_id, category, card_id, component_key, at))
+
+    def record_rejection(self, *, brief_id: str, category: str, component_key: str | None, signal: str,
+                         scope: str | None = None, at: datetime | None = None):
+        _check_rejection(signal, scope)
+        with self.pool.connection() as conn:
+            conn.execute('INSERT INTO offer_rejections (brief_id, category, component_key, signal, scope, created_at) '
+                         'VALUES (%s, %s, %s, %s, %s, COALESCE(%s, now()))',
+                         (brief_id, category, component_key, signal, scope, at))
+
+    def rejected_keys(self, brief_id: str) -> set[str]:
+        with self.pool.connection() as conn:
+            rows = conn.execute('SELECT DISTINCT component_key FROM offer_rejections WHERE brief_id = %s '
+                                'AND component_key IS NOT NULL', (brief_id,)).fetchall()
+        return {r[0] for r in rows}
+
+    def counts_since(self, category: str, since: datetime | None) -> tuple[list[datetime], list[datetime]]:
+        with self.pool.connection() as conn:
+            offers = conn.execute('SELECT created_at FROM reference_offers WHERE category = %s AND '
+                                  '(%s::timestamptz IS NULL OR created_at > %s) ORDER BY created_at',
+                                  (category, since, since)).fetchall()
+            rejections = conn.execute('SELECT created_at FROM offer_rejections WHERE category = %s AND '
+                                      '(%s::timestamptz IS NULL OR created_at > %s) ORDER BY created_at',
+                                      (category, since, since)).fetchall()
+        return [r[0] for r in offers], [r[0] for r in rejections]
+
+    def alerts_for(self, category: str) -> list[dict]:
+        with self.pool.connection() as conn:
+            rows = conn.execute('SELECT window_start, rejections, offers, fired_at, changed_at FROM offer_alerts '
+                                'WHERE category = %s ORDER BY fired_at, id', (category,)).fetchall()
+        return [{'category': category, 'window_start': w, 'rejections': r, 'offers': o, 'fired_at': f, 'changed_at': c}
+                for w, r, o, f, c in rows]
+
+    def record_alert(self, *, category: str, window_start: datetime, rejections: int, offers: int,
+                     at: datetime | None = None, changed_at: datetime | None = None):
+        with self.pool.connection() as conn:
+            conn.execute('INSERT INTO offer_alerts (category, window_start, rejections, offers, fired_at, changed_at) '
+                         'VALUES (%s, %s, %s, %s, COALESCE(%s, now()), %s)',
+                         (category, window_start, rejections, offers, at, changed_at))
