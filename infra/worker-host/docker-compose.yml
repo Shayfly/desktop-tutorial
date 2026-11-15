@@ -67,6 +67,10 @@ services:
       # CEO 2026-11-08 (a): the founder's account builds with every catalog model (class hard cap unchanged).
       # An account id, not a secret. WORKER_ENV may override it.
       OMNI_FOUNDER_ACCOUNT_IDS: ${OMNI_FOUNDER_ACCOUNT_IDS:-usr_GCWlMxENgr9vpwph}
+      # Michael 2026-11-15: lens 11 (the generated image is checked against the request) on every build, not only the
+      # founder's -- after the router's vision guard (#368) and the live probe (6/6 models, run 43689691749).
+      # Back to founder-only without a code change: OMNI_IMAGE_MATCH=founder in WORKER_ENV_OVERRIDES, then redeploy.
+      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-all}
     depends_on:
       sandbox-runner:
         condition: service_healthy
