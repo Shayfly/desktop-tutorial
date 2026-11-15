@@ -53,9 +53,17 @@ def _norm(text: str) -> str:
     return t.replace('אפלקציה', 'אפליקציה').replace('אפליקציא', 'אפליקציה').replace('משחר', 'משחק')
 
 
-def classify_family(text: str) -> str:
-    t = _norm(text)
-    # Explicit requested product wins over incidental feature keywords.
+# Greetings and articles a request may open with, before the product it names.
+_LEAD = re.compile(r'^\W*(?:(?:שלום|היי|הי|אהלן|בוקר טוב|ערב טוב|hi|hello|hey)\W+)*(?:(?:me|a|an|the|new|simple|לי)\s+)*', re.I)
+# The products a request may OPEN with. Media without "image"/"texture": a photo's caption ("תמונה של החנות") is not
+# a request for a media product.
+_LEADING = tuple((f, p) for f, p in _PRODUCTS if f != 'media') + (
+    ('media', r'video\b|podcast\b|music\b|audio\b|voice ?over\b|סרטון|וידאו|וידיאו|פודקאסט|מוזיקה|שיר\b|קריינות'),)
+
+
+def _explicit(t: str) -> list[tuple[int, str]]:
+    """(position, family) for every product the customer explicitly asked for with a request verb ("תבנה לי משחק",
+    "I want a website"). Feature words later in the sentence never count."""
     explicit = []
     for family, product in _PRODUCTS:
         for match in re.finditer(_REQUEST + '(?:' + product + ')', t, re.I):
@@ -63,12 +71,46 @@ def classify_family(text: str) -> str:
             if re.search(r"\b(?:not|never|don't|dont)\b|(?:^|\s)(?:לא|אל)(?:\s|$)", clause):
                 continue
             explicit.append((match.start(), family))
+    return explicit
+
+
+def _opening(t: str) -> str | None:
+    """The product a request OPENS with, after a greeting ("שלום, אתר לעסק שלי" -> website), or None.
+
+    Warehouse 69 (2026-11-15): "אתר לחנות משחקים" is a website and "אתר לאולפן מוזיקה" is a website, so the router
+    never refuses a shop that sells games or a studio that records music. Hebrew requests often have no verb: the
+    first word is the deliverable."""
+    start = _LEAD.match(t).end()
+    for family, product in _LEADING:
+        if re.match('(?:' + product + ')', t[start:], re.I):
+            return family
+    return None
+
+
+def classify_family(text: str) -> str:
+    t = _norm(text)
+    explicit = _explicit(t)         # the explicitly requested product wins over incidental feature keywords
     if explicit:
         return min(explicit, key=lambda match: match[0])[1]
     for family, pattern in _RULES:
         if re.search(pattern, t, re.I):
-            return family
+            # the product the request opens with resolves a conflict between keyword cues ("אתר לחנות משחקים" is
+            # not a game). A request with no cue keeps the web_app default as before: "אתר לניהול ספרייה עם מנויים"
+            # stays web_app (tests/test_discovery_and_approval.py relies on it), and both families are built.
+            return _opening(t) or family
     return 'web_app'
+
+
+def requested_family(text: str) -> str | None:
+    """The family the customer explicitly asked to have built: a request verb + product, or the product the message
+    opens with. None when products are only mentioned in passing ("המטרה: למכור משחקים לילדים") or the message is a
+    photo's caption ("תמונה של החנות"). The router uses it on a project that already has a brief, so a passing word
+    never restarts or refuses the project."""
+    t = _norm(text)
+    explicit = _explicit(t)
+    if explicit:
+        return min(explicit, key=lambda match: match[0])[1]
+    return _opening(t)
 
 
 def named_family(text: str) -> str | None:
