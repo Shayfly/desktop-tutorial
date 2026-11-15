@@ -35,7 +35,12 @@ class WorkflowConcurrencyTests(unittest.TestCase):
         def read(name):
             return yaml.safe_load((ROOT / '.github/workflows' / name).read_text(encoding='utf-8'))
         jobs = read('v24-ci.yml')['jobs']
-        self.assertNotIn('if', jobs['test'])
+        # the owner, 2026-11-16 00:30: `test` may be skipped on a DRAFT pull request only -- exactly this condition,
+        # nothing scope-based -- and ready_for_review re-runs it; `light` runs on every push, drafts too
+        self.assertEqual(jobs['test'].get('if'),
+                         "github.event_name != 'pull_request' || github.event.pull_request.draft == false")
+        self.assertIn('ready_for_review', read('v24-ci.yml')[True]['pull_request']['types'])
+        self.assertNotIn('if', jobs['light'])
         self.assertIn("needs.changes.outputs.heavy == 'true'", jobs['browser-tests']['if'])
         pg_jobs = read('intake-budget-pg.yml')['jobs']
         pg = pg_jobs['pg-tests']
