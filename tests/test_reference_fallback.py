@@ -23,8 +23,10 @@ def store_with(*pairs):
 
 
 class TheClosedCatalogue(unittest.TestCase):
-    def test_appendix_a_is_exactly_thirty_categories(self):
-        self.assertEqual(len(C.CATEGORIES), 30)
+    def test_the_catalogue_is_exactly_thirty_two_categories(self):
+        self.assertEqual(len(C.CATEGORIES), 32)                  # appendix A's 30 + butcher + interior design
+        self.assertTrue(C.collectable('butcher') and C.collectable('furniture_interior'))
+        self.assertEqual(C.neighbours('butcher'), [('delis', False), ('catering', False)])
         self.assertEqual(C.CATEGORIES['delis'], 'מעדניות וגורמה')
 
     def test_a_category_outside_the_appendices_is_refused(self):
@@ -51,6 +53,10 @@ class TheClosedCatalogue(unittest.TestCase):
     def test_neighbours_are_in_the_appendix_order(self):
         self.assertEqual(C.neighbours('restaurants'), [('cafes', False), ('alcohol', False), ('cabins', False)])
         self.assertEqual(C.neighbours('lawyers'), [])          # appendix B gives it none: no fallback
+
+    def test_butcher_falls_back_to_delis_then_catering(self):
+        out = F.offer_for(store_with((1, 'catering')), 'butcher', now=NOW)
+        self.assertEqual((out['category'], out['distance'], out['status']), ('catering', 1, 'ok'))
 
 
 class TheGradedFallback(unittest.TestCase):
