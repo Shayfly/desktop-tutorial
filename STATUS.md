@@ -1,3 +1,20 @@
+# 2026-11-15 — P0-b, warehouse 104 + 106: the checks that did not run are an explicit list (Claude Code)
+
+- **Implemented and independently verifiable offline:** `release_policy.QualityReport.not_run` (NOT_RUN / UNKNOWN / NO_CHECKS, required
+  and advisory, with stage and reason) carried by `to_dict()` into the build's stored evidence; `app.js notRunLine()` names the checks
+  in the customer's words on failed and ready builds, and says "no check ran" when a failed build has no report.
+  Warehouse 106: `tests/test_attribution_per_criterion.py` proves on the real `RemoteSandboxRepositoryExecutor` (real `_run`, stub runner
+  that really runs pytest) that a failed verify command fails exactly the criteria it carries; the generator-side cure is PR #210.
+- **Evidence:** `tests/test_not_run_list.py` 15 tests, `tests/test_attribution_per_criterion.py` 3 tests. Negative controls
+  `tests/negative_controls/not_run_list.json` 4/4 PASS. Full suite, one container, `--continue-on-collection-errors`: main `93916ae`
+  collected 3131 / 34 collection errors / 2792 passed / 30 failed / 302 skipped / 36 errors; branch `e07a790` collected 3146 / 34 / 2807 /
+  30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the browser UI was executed in node on the production report, not in a browser. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Open for Michael (spec):** a criterion no verify command covers is a FAILED criterion today (Golden E2E #1, so the repair loop adds
+  the test); item 106's acceptance text says `not_run`. Not changed here.
+- **Awaiting:** Michael's SHA approval; #210 (per-criterion verify) is clean against main and is the fix of 106's root.
+
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
 - GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
