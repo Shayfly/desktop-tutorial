@@ -1,0 +1,161 @@
+{
+ "pr": "a2-collect-offline",
+ "sha256": [
+  "tests/test_a2_collect.py",
+  "tests/a2_offline_sites.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a dead site passes verify (the spec's 1.2 mutation)",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/verify.py",
+     "old": "    if status != 200:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_a_dead_site_is_rejected",
+    "test_one_run_counts_every_rejection_by_its_reason"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a slow site passes verify",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/verify.py",
+     "old": "MAX_LOAD_MS = 4000",
+     "new": "MAX_LOAD_MS = 60000  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_a_slow_site_is_rejected",
+    "test_one_run_counts_every_rejection_by_its_reason"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a heavy site passes verify",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/verify.py",
+     "old": "MAX_BYTES = 6_000_000",
+     "new": "MAX_BYTES = 10**12  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_a_heavy_site_is_rejected",
+    "test_one_run_counts_every_rejection_by_its_reason"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "robots.txt is ignored",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/verify.py",
+     "old": "    if not allowed:\n",
+     "new": "    if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_robots_disallow_is_respected_and_the_page_is_never_requested",
+    "test_one_run_counts_every_rejection_by_its_reason"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a missing screenshot is marked as a pass (the spec's 1.3 mutation)",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/capture.py",
+     "old": "            return checked({**base, 'screenshots': shots, 'outcome': 'reject',",
+     "new": "            return checked({**base, 'screenshots': shots, 'outcome': 'pass',  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_a_missing_screenshot_is_never_a_pass",
+    "test_a_page_above_twenty_thousand_pixels_is_not_captured",
+    "test_one_run_counts_every_rejection_by_its_reason"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the offline guard lets requests to other hosts through",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/browser.py",
+     "old": "            if not self.allowed(url):\n                self.blocked.append",
+     "new": "            if False:  # NEGATIVE CONTROL\n                self.blocked.append"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_nothing_leaves_this_machine"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the customer's words are stored in the library",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/search.py",
+     "old": "        inputs['description_sha256'] = hashlib.sha256(description.encode('utf-8')).hexdigest()",
+     "new": "        inputs['description'] = description  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_collect.py"
+   ],
+   "expect_failed": [
+    "test_a_document_outside_the_schema_stops_the_run",
+    "test_an_insufficient_search_opens_no_page",
+    "test_enough_candidates_in_all_three_tiers_is_ok",
+    "test_fewer_than_thirty_is_insufficient",
+    "test_more_than_sixty_is_cut_and_counted",
+    "test_one_run_counts_every_rejection_by_its_reason",
+    "test_the_customers_words_never_reach_the_library"
+   ]
+  }
+ ]
+}
