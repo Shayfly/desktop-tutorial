@@ -24,7 +24,9 @@ BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # of the arm briefs as `hours_day` facts. No prompt, instruction, probe or script changed (component diff checked).
 # 2026-11-15 (rtl-time-ranges-bdi, declared in docs/identity/allowed-identity-changes.json, signed by Michael's
 # instruction): the text_locale probe _time_ranges_isolated and its guidance sentence.
-BASELINE_DIGEST = '35d613d8ab9a497e28e317f30b2929a5af5208ada8ec75a26365e2d075c10a47'
+# 2026-11-15 21:07 (bdi-in-the-prompt, declared in docs/identity/allowed-identity-changes.json): the hidden wrap is
+# removed from page_locale; the bdi rule and the visible-text test helper are in the prompt.
+BASELINE_DIGEST = '80008d63a02475929b7db9449691d7673bdc1c27cc950e9b98a593baff0044a7'
 
 
 def _digest(flag: str) -> str:

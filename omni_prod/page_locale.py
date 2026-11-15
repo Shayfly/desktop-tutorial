@@ -5,6 +5,11 @@ A rule the model may forget is enforced here instead: after generation and after
 Hebrew or Arabic request gets dir="rtl" (and lang) on its <html> tag when the tag does not set them. A page that
 sets dir itself (e.g. dir="ltr" for an English version) is left exactly as written. Only .html/.htm files are
 touched; templates inside Python or JS strings keep the review check, which the repair still answers.
+
+Time ranges are NOT rewritten here (the owner, 2026-11-15 21:07). Until then this transform wrapped them in
+<bdi dir="ltr"> after every generation and repair; the model never saw it, so its own test, which compared the raw
+string "07:00–19:00", could not pass, and every repair was undone (bld_7fb5e1b2: no_progress_repository_unchanged).
+The rule is now in the prompt (skills_runtime.TEXT_LOCALE), and _time_ranges_isolated blocks the page the model wrote.
 """
 from __future__ import annotations
 
@@ -38,10 +43,6 @@ def ensure_rtl(repo: dict, lang: str) -> dict:
             add += f' lang="{lang}"'
         if add:
             text = text[:m.start()] + f'<html{attrs.rstrip()}{add}>' + text[m.end():]
-        # 2026-11-15: a time range in an RTL page is shown reversed ("19:00–07:00") unless isolated (bidi_ranges)
-        from .bidi_ranges import wrap_ranges
-        if re.search(r'\bdir\s*=\s*["\']?rtl', text[:text.lower().find('>', m.start()) + 1], re.I):
-            text = wrap_ranges(text)
         out[path] = text
     return out
 
