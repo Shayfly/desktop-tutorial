@@ -82,5 +82,8 @@ PLAYBOOKS: dict[str, tuple[str, ...]] = {
 
 
 def checklist(family: str | None) -> list[str]:
-    """The playbook for a family; an unknown or missing family gets the web-app playbook."""
-    return list(PLAYBOOKS.get(family or '', PLAYBOOKS['web_app']))
+    """The playbook for a family. An unknown or missing family is an error, never the web-app playbook: that silent
+    default let a game be interviewed as a web app (warehouse 69, 2026-11-15). The router decides the family first."""
+    if family not in PLAYBOOKS:
+        raise LookupError(f'no question playbook for product family {family!r}')
+    return list(PLAYBOOKS[family])
