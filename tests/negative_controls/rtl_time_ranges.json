@@ -21,24 +21,27 @@
    ],
    "expect_failed": [
     "test_the_served_page_has_its_hours_unisolated_and_is_blocked",
-    "test_every_mutation_is_caught"
+    "test_every_mutation_is_caught",
+    "test_with_bdi_it_passes_and_without_it_is_blocked"
    ]
   },
   {
    "id": "NC2",
-   "what": "the engine transform does not wrap (RTL by construction only)",
+   "what": "the hidden wrap is back (the engine transform rewrites the model's page after it)",
    "mutations": [
     {
      "file": "omni_prod/page_locale.py",
-     "old": "            text = wrap_ranges(text)",
-     "new": "            pass  # NEGATIVE CONTROL"
+     "old": "        out[path] = text",
+     "new": "        from .bidi_ranges import wrap_ranges  # NEGATIVE CONTROL\n        out[path] = wrap_ranges(text)"
     }
    ],
    "targets": [
     "tests/test_rtl_time_ranges.py"
    ],
    "expect_failed": [
-    "test_an_rtl_request_gets_isolated_ranges_through_the_engine_transform"
+    "test_the_engine_transform_sets_rtl_and_leaves_the_ranges_as_the_model_wrote_them",
+    "test_with_bdi_it_passes_and_without_it_is_blocked",
+    "test_a_page_that_chose_ltr_is_left_as_written"
    ]
   },
   {
@@ -57,7 +60,7 @@
    "expect_failed": [
     "test_the_served_page_has_its_hours_unisolated_and_is_blocked",
     "test_wrapped_it_passes_and_nothing_else_changed",
-    "test_an_rtl_request_gets_isolated_ranges_through_the_engine_transform"
+    "test_a_correct_page_isolates_the_text_ranges_only"
    ]
   },
   {
@@ -91,7 +94,7 @@
     "tests/test_rtl_time_ranges.py"
    ],
    "expect_failed": [
-    "test_an_rtl_request_gets_isolated_ranges_through_the_engine_transform"
+    "test_a_correct_page_isolates_the_text_ranges_only"
    ]
   },
   {
@@ -109,6 +112,42 @@
    ],
    "expect_failed": [
     "test_dates_phones_prices_and_timestamps_are_not_ranges"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the probe ignores isolation (a page with the <bdi> the model wrote is blocked)",
+   "mutations": [
+    {
+     "file": "omni_prod/bidi_ranges.py",
+     "old": "            if not _in_tag(masked, m.start()) and not _isolated(masked, m.start())]",
+     "new": "            if not _in_tag(masked, m.start())]  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_rtl_time_ranges.py"
+   ],
+   "expect_failed": [
+    "test_with_bdi_it_passes_and_without_it_is_blocked",
+    "test_wrapped_it_passes_and_nothing_else_changed",
+    "test_already_isolated_ranges_are_not_wrapped_twice"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the prompt loses the visible-text rule for tests",
+   "mutations": [
+    {
+     "file": "omni_prod/dependency_policy.py",
+     "old": "    f'Put this helper in the test file (import html, re): {VISIBLE_TEXT_HELPER} -- and assert, for example, '",
+     "new": "    'Put this helper in the test file -- and assert, for example, '  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_rtl_time_ranges.py"
+   ],
+   "expect_failed": [
+    "test_the_generated_test_compares_visible_text_and_the_prompt_says_so"
    ]
   }
  ]

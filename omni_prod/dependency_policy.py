@@ -48,6 +48,11 @@ POLICY_VERSION = content_version('dependency-policy', TEST_ONLY_PACKAGES, RUNTIM
 ALLOWED_SUMMARY = ('application code: Python standard library only; tests: '
                    + ', '.join(f'{k}=={v}' for k, v in sorted(TEST_ONLY_PACKAGES.items())))
 
+# The owner, 2026-11-15 21:07 (bld_7fb5e1b2): the generated test compared the raw string "א׳–ה׳ 07:00–19:00" with
+# the HTML, so a page that isolates the range in <bdi dir="ltr"> (as the text_locale rule requires) can never pass it,
+# and the repair may not touch tests. Tests compare the text a person sees; this is the exact helper the prompt gives.
+VISIBLE_TEXT_HELPER = 'def visible_text(body): return " ".join(html.unescape(re.sub(r"<[^>]+>", "", body)).split())'
+
 GENERATION_CONSTRAINTS = (
     'Dependency policy (enforced before verification): the repository is verified in an offline Python sandbox with '
     'no network and no package installation. Write the product in Python; application code may import only the '
@@ -74,6 +79,11 @@ GENERATION_CONSTRAINTS = (
     ' Stopping is mandatory: use a pytest fixture with yield that calls server.shutdown() and server.server_close() '
     '(daemon thread), give every urllib request a timeout of a few seconds, and never call serve_forever() in the '
     'test process itself; the whole test run is killed after 180 seconds.'
+    ' A test that checks text shown on a page compares the VISIBLE text, never the raw HTML: markup can sit between '
+    'the words (on a right-to-left page every time range is inside <bdi dir="ltr">, a word may be in <strong>). '
+    f'Put this helper in the test file (import html, re): {VISIBLE_TEXT_HELPER} -- and assert, for example, '
+    '"07:00–19:00" in visible_text(body). Check markup itself (an href, the dir attribute, a meta tag) against the '
+    'raw HTML.'
 )
 
 _STDLIB = frozenset(sys.stdlib_module_names) | {'__future__'}

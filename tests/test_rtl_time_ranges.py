@@ -52,16 +52,25 @@ class ByConstruction(unittest.TestCase):
     HTML = ('<!doctype html><html><head><script type="application/ld+json">{"openingHours":"Mo 07:00-19:00"}'
             '</script></head><body><p title="07:00-19:00">שעות: א׳–ה׳ 07:00–19:00, ו׳ 7:00 - 14:00</p></body></html>')
 
-    def test_an_rtl_request_gets_isolated_ranges_through_the_engine_transform(self):
+    def test_the_engine_transform_sets_rtl_and_leaves_the_ranges_as_the_model_wrote_them(self):
+        """The owner, 2026-11-15 21:07: no hidden wrap. bld_7fb5e1b2 died because the transform rewrote the page
+        after the model, so the model's own test could never match it and every repair was undone."""
         core = SimpleNamespace(repository_transform=None)
         self.assertEqual(install(SimpleNamespace(core=core), 'אטליז בירושלים'), 'he')
         out = core.repository_transform({'index.html': self.HTML, 'app.py': 'X = "07:00-19:00"'})
         self.assertIn('<html dir="rtl" lang="he">', out['index.html'])
-        self.assertIn('<bdi dir="ltr">07:00–19:00</bdi>', out['index.html'])
-        self.assertIn('<bdi dir="ltr">7:00 - 14:00</bdi>', out['index.html'])
-        self.assertIn('"Mo 07:00-19:00"', out['index.html'])             # script content untouched
-        self.assertIn('title="07:00-19:00"', out['index.html'])           # attribute untouched
-        self.assertEqual(out['app.py'], 'X = "07:00-19:00"')              # code is the served-page gate's job
+        self.assertNotIn('<bdi', out['index.html'])
+        self.assertEqual(out['index.html'], self.HTML.replace('<html>', '<html dir="rtl" lang="he">'))
+        self.assertEqual(out['app.py'], 'X = "07:00-19:00"')
+
+    def test_a_correct_page_isolates_the_text_ranges_only(self):
+        """wrap_ranges is the reference of a correct page: text ranges isolated, script and attributes untouched."""
+        out = wrap_ranges(self.HTML)
+        self.assertIn('<bdi dir="ltr">07:00–19:00</bdi>', out)
+        self.assertIn('<bdi dir="ltr">7:00 - 14:00</bdi>', out)
+        self.assertIn('"Mo 07:00-19:00"', out)                           # script content untouched
+        self.assertIn('title="07:00-19:00"', out)                         # attribute untouched
+
 
     def test_a_page_that_chose_ltr_is_left_as_written(self):
         page = self.HTML.replace('<html>', '<html dir="ltr" lang="en">')
@@ -85,6 +94,40 @@ class ByConstruction(unittest.TestCase):
     def test_the_probe_is_declared_critical(self):
         self.assertEqual(PROBES['_time_ranges_isolated'], {'skill': 'skill.text_locale', 'reads_source': None,
                                                            'critical': True})
+
+
+class ThePageTheModelWrote(unittest.TestCase):
+    """The owner's negative control (2026-11-15 21:07): a page with bdi passes, a page without bdi fails -- judged on
+    the .html the model wrote, after the engine's own transform, exactly as the gate reads it without a preview."""
+
+    def judged_repo(self, page):
+        core = SimpleNamespace(repository_transform=None)
+        install(SimpleNamespace(core=core), REQUEST)
+        repo = core.repository_transform({'static/index.html': page})
+        return _time_ranges_isolated(repo, {'request': REQUEST})
+
+    def test_with_bdi_it_passes_and_without_it_is_blocked(self):
+        self.assertEqual(self.judged_repo(wrap_ranges(PAGE)), [])
+        found = self.judged_repo(PAGE)
+        self.assertEqual([(f.severity, f.file) for f in found], [('blocking', 'static/index.html')])
+        self.assertIn('wrap each time range in <bdi dir="ltr">', found[0].fix)
+
+    def test_the_generated_test_compares_visible_text_and_the_prompt_says_so(self):
+        """The butcher's generated test asserted "א׳–ה׳ 07:00–19:00" in the raw HTML (tests/test_app.py:42 of
+        bld_7fb5e1b2). On a correct page that is false; with the helper the prompt gives, it is true."""
+        import html
+        import re
+        from omni_prod.autonomous_agents import _GENERATOR_SYSTEM, _REPAIR_SYSTEM
+        from omni_prod.dependency_policy import VISIBLE_TEXT_HELPER
+        for system in (_GENERATOR_SYSTEM, _REPAIR_SYSTEM):
+            self.assertIn(VISIBLE_TEXT_HELPER, system)
+            self.assertIn('compares the VISIBLE text, never the raw HTML', system)
+        ns = {'html': html, 're': re}
+        exec(VISIBLE_TEXT_HELPER, ns)
+        page = '<p>שעות: א׳–ה׳ <bdi dir="ltr">07:00–19:00</bdi>, ו׳ <bdi dir="ltr">07:00–14:00</bdi> &amp; שבת סגור</p>'
+        self.assertNotIn('א׳–ה׳ 07:00–19:00', page)                        # the raw comparison of bld_7fb5e1b2
+        self.assertIn('א׳–ה׳ 07:00–19:00', ns['visible_text'](page))
+        self.assertIn('ו׳ 07:00–14:00 & שבת סגור', ns['visible_text'](page))
 
 
 if __name__ == '__main__':

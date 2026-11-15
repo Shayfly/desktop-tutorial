@@ -45,6 +45,25 @@
    "reviewer": "michael",
    "reviewed_at": "2026-11-15",
    "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 02:11 Asia/Jerusalem, relayed by Or: \"#371 -- חתום michael ואשר את ה-SHA\". The reviewer field was typed by the author (claude) on that instruction."
+  },
+  {
+   "id": "bdi-in-the-prompt",
+   "from_digest": "35d613d8ab9a497e28e317f30b2929a5af5208ada8ec75a26365e2d075c10a47",
+   "to_digest": "80008d63a02475929b7db9449691d7673bdc1c27cc950e9b98a593baff0044a7",
+   "added": [],
+   "removed": [],
+   "changed": [
+    "omni_prod/bidi_ranges.py",
+    "omni_prod/dependency_policy.py",
+    "omni_prod/page_locale.py",
+    "omni_prod/skills_runtime.py"
+   ],
+   "data_changed": [],
+   "reason": "The owner 2026-11-15 21:07 (bld_7fb5e1b2): the hidden <bdi> wrap is removed from page_locale (the model never saw it, so its own test could not pass and every repair was undone). The rule is in the prompt: text_locale guidance says the model writes the <bdi> itself, and the generation constraints say a test of page text compares visible_text(body) (helper given verbatim, VISIBLE_TEXT_HELPER). _time_ranges_isolated stays blocking and now judges the page the model wrote. bidi_ranges: docstring only.",
+   "author": "claude",
+   "reviewer": "pending",
+   "reviewed_at": "",
+   "signature_note": ""
   }
  ]
 }
