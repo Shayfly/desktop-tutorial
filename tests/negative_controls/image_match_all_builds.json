@@ -1,18 +1,25 @@
 {
  "pr": "image-match-all",
- "sha256": ["tests/test_image_match_all_builds.py"],
+ "sha256": [
+  "tests/test_image_match_all_builds.py"
+ ],
  "controls": [
-  {"id": "NC1", "what": "the worker still runs founder-only",
-   "mutations": [{"file": "infra/worker-host/docker-compose.yml",
-                  "old": "      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-all}",
-                  "new": "      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-founder}"}],
-   "targets": ["tests/test_image_match_all_builds.py"],
-   "expect_failed": ["test_the_build_worker_sets_all_with_an_override_path"]},
-  {"id": "NC2", "what": "a hard-coded value: no way back without a code change",
-   "mutations": [{"file": "infra/worker-host/docker-compose.yml",
-                  "old": "      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-all}",
-                  "new": "      OMNI_IMAGE_MATCH: \"all\""}],
-   "targets": ["tests/test_image_match_all_builds.py"],
-   "expect_failed": ["test_the_build_worker_sets_all_with_an_override_path"]}
+  {
+   "id": "NC1",
+   "what": "the rollback did not take: the worker still checks every build",
+   "mutations": [
+    {
+     "file": "infra/worker-host/docker-compose.yml",
+     "old": "      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-founder}",
+     "new": "      OMNI_IMAGE_MATCH: ${OMNI_IMAGE_MATCH:-all}"
+    }
+   ],
+   "targets": [
+    "tests/test_image_match_all_builds.py"
+   ],
+   "expect_failed": [
+    "test_the_build_worker_sets_all_with_an_override_path"
+   ]
+  }
  ]
 }

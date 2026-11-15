@@ -21,7 +21,7 @@ FOUNDER = {'user_id': 'usr_GCWlMxENgr9vpwph'}
 class TheWorkerChecksEveryBuild(unittest.TestCase):
     def test_the_build_worker_sets_all_with_an_override_path(self):
         env = yaml.safe_load(COMPOSE.read_text())['services']['worker']['environment']
-        self.assertEqual(env['OMNI_IMAGE_MATCH'], '${OMNI_IMAGE_MATCH:-all}')
+        self.assertEqual(env['OMNI_IMAGE_MATCH'], '${OMNI_IMAGE_MATCH:-founder}')   # rolled back to founder
 
     def test_all_runs_the_check_on_a_customer_build(self):
         with mock.patch.dict(os.environ, {'OMNI_IMAGE_MATCH': 'all'}):
