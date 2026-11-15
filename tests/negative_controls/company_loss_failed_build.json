@@ -16,8 +16,8 @@
    "mutations": [
     {
      "file": "omni_prod/subscription_store.py",
-     "old": "                    record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,\n                                        funding_source=row[4], truth=truth)\n",
-     "new": "                    pass  # NEGATIVE CONTROL\n"
+     "old": "                    loss = record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,\n                                               funding_source=row[4], truth=truth)\n",
+     "new": "                    loss = None  # NEGATIVE CONTROL\n"
     }
    ],
    "targets": [
@@ -28,10 +28,10 @@
     "test_release_failed_writes_the_row_inside_the_refund_transaction"
    ],
    "expect_failed_pg": [
-    "test_release_failed_writes_the_row_inside_the_refund_transaction",
     "test_a_failed_build_with_a_cost_is_one_loss_row_for_the_whole_cost",
-    "test_the_loss_ledger_equals_the_failed_builds_provider_cost",
-    "test_an_internal_qa_build_is_recorded_with_its_funding_source"
+    "test_an_internal_qa_build_is_recorded_with_its_funding_source",
+    "test_release_failed_writes_the_row_inside_the_refund_transaction",
+    "test_the_loss_ledger_equals_the_failed_builds_provider_cost"
    ]
   },
   {

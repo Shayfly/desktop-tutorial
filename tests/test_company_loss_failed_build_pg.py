@@ -115,7 +115,7 @@ class FailedBuildsAreLossRows(unittest.TestCase):
         bid = self.reserve()
         out = self.subs.release_failed(build_id=bid, actual_provider_cost_usd=None, computed_provider_cost_usd=None)
         self.assertEqual(out['provider_cost_truth'], 'CONSERVATIVE_RESERVATION')
-        self.assertEqual(out['provider_cost_basis_usd'], '2.003')            # kept on the reservation, as before
+        self.assertEqual(Decimal(out['provider_cost_basis_usd']), Decimal('2.003'))   # kept on the reservation (numeric scale varies)
         self.assertFalse(out['loss_recorded'])
         self.assertEqual(self.rows(bid), [])
 
