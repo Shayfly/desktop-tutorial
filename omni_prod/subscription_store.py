@@ -5,7 +5,7 @@ from decimal import Decimal
 from .db import DatabasePool
 from .pricing import PLAN_CATALOG, PlanCode, CostClass, UsageDecision, _COST_CLASS_ESTIMATE_USD, founder_cap_exempt
 from .provider_pricing import contribution_evidence
-from .company_loss import BUDGET_CAPPED_SHORTFALL, record_overrun
+from .company_loss import BUDGET_CAPPED_SHORTFALL, record_failed_build, record_overrun
 
 
 # Michael 2026-11-14 (#356): "כשל לא נספר בתקרה, עד 3 בחודש."
@@ -495,6 +495,11 @@ class PostgresSubscriptionService:
                     cur.execute("UPDATE credit_reservations SET status='RELEASED', resolved_at=now(), "
                                 "actual_provider_cost_usd=%s, settled_provider_cost_usd=%s WHERE build_id=%s",
                                 (reported, basis, build_id))
+                    # Warehouse 103 (owner 2026-11-15): the provider cost of a failed build is a company loss -- the
+                    # customer is refunded, the provider was paid -- and it is a row in company_loss_events, not only a
+                    # number on the reservation. Same transaction as the refund; nothing when the cost is zero.
+                    record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,
+                                        funding_source=row[4], truth=truth)
                     if row[4] == 'internal_qa':          # internal QA never touched the customer plan counters
                         return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': 0,
                                 'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa'}

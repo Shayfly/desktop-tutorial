@@ -1,3 +1,17 @@
+# 2026-11-15 — P0-c, warehouse 103: the provider cost of a failed build is a loss row (Claude Code)
+
+- **Implemented; awaiting the owner's approval of migration 044 and the pg job:** `company_loss.record_failed_build` (cause
+  `failed_build_refunded`, quoted 0, actual = the cost basis, one idempotent row per build, nothing at zero cost) called inside
+  `subscription_store.release_failed`'s own transaction; `infra/postgres/044_company_loss_failed_build.sql` widens the CHECK constraint
+  by the fourth cause (precedent 015, 033), rollback file, staging bootstrap regenerated, `schema_manifest` requires 044.
+- **Evidence (offline):** `tests/test_company_loss_failed_build.py` 5 tests (the exact INSERT and parameters, the cause set, the
+  migration text, bootstrap `--check`, the call site). Negative controls `company_loss_failed_build.json`: NC2, NC3 PASS here; NC1 is
+  pg-only. Full suite, one container: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed / 302 skipped /
+  36 errors; branch `97fd833` 3140 / 34 / 2797 / 30 / 306 / 36 (the four new skips are the pg tests). Failure lists identical (66 lines).
+  The first branch run (`ebbc9e1`) failed two manifest tests; fixed in `97fd833` and re-run.
+- **Not run here (blocked, named):** `tests/test_company_loss_failed_build_pg.py` (4 tests) and NC1 need real PostgreSQL
+  (`M4D2_DATABASE_URL`, the intake-budget-pg job). The real path -- the row inside the refund -- is verified only there.
+- **Blocked by a decision:** migration 044 runs only with the owner's explicit approval (CLAUDE.md §5).
 # 2026-11-15 — P0-a, warehouse 69: output profile + A0 router (Claude Code)
 
 - **Implemented and independently verifiable offline:** `omni_prod/output_profile` (profiles for `website`/`web_app`, an
