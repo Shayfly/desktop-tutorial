@@ -122,6 +122,7 @@ class Turn:
     gate: str | None = None                        # 'spec': this turn asked for gate 1 (approve the spec)
     venice: dict | None = None                     # agent.venice: mode, the visible stage, the cost range
     blocked: list = field(default_factory=list)    # feasibility blockers said in this turn (no plan before gate 1)
+    unsupported: str | None = None                 # A0 (warehouse 69): the family refused in this turn (no output profile)
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -129,7 +130,8 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation, 'gaps': self.gaps, 'venice': self.venice}
+                'interpretation': self.interpretation, 'gaps': self.gaps, 'venice': self.venice,
+                'unsupported': self.unsupported}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -175,6 +177,7 @@ _TXT = {
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
            'image_change': 'שינוי של התמונה עצמה עוד לא זמין אצלנו. אפשר להשתמש בה כמו שהיא, או רק כהשראה.',
+           'image_hero_taken': 'כבר יש בדף תמונה ראשית אחת. בחרו לתמונה הזו מקום אחר.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
@@ -211,6 +214,7 @@ _TXT = {
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
            'attached_bound': '(I saved {n} in the project request.)',
            'image_change': 'Changing the image itself is not available yet. It can be used as is, or as inspiration only.',
+           'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
@@ -656,6 +660,7 @@ class ConversationSupervisor:
                                                'actions': turn.actions, 'plan_id': turn.plan_id,
                                                **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
                                                **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
+                                               **({'unsupported': turn.unsupported} if turn.unsupported else {}),
                                                **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
@@ -784,6 +789,28 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
+    def _route_output(self, row, message, lang) -> Turn | None:
+        """A0 (warehouse 69, released 2026-11-15): the output type is decided before the interpreter, the model and
+        the brief. A type without an output profile is refused in the customer's words -- "not yet; this, yes" --
+        with no default chosen, no question asked, no brief saved and no model called. The exit is the keyboard:
+        the customer describes the site or app instead and the conversation continues as usual.
+        A new project reads the whole message (the classifier's rules). A project that already has a brief refuses
+        only an EXPLICIT request for another product, so an answer that mentions games in passing never restarts it."""
+        if not message:
+            return None
+        from ..intake.families import classify_family, requested_family
+        from ..output_profile import route
+        family = classify_family(message) if row is None else requested_family(message)
+        if family is None:
+            return None
+        routing = route(family)                  # a family the registry does not know raises here, never defaults
+        if routing.supported:
+            return None
+        turn = Turn('requirements', lang, routing.not_yet(lang), row, [])
+        turn.unsupported = family
+        turn.actions.append({'type': 'describe_web_instead', 'family': family})
+        return turn
+
     def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
         if row is not None and message and not answers and not attachments:
@@ -791,6 +818,9 @@ class ConversationSupervisor:
             asked = d.next_image_question(row.brief)
             if asked is not None and asked.kind == 'text' and self._last_asked(project_id) == asked.id:
                 answers, message = {asked.id: message[:300]}, ''
+        refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model
+        if refused is not None:
+            return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
@@ -827,6 +857,8 @@ class ConversationSupervisor:
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
         images = _bindable_images(attachments)
+        decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
+        images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked
         if images and not (len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I)):
             # Production 2026-11-15 ("סבא שמעון"): any other image was dropped silently. Now it is bound to the brief
             # and the customer is asked what it is for (image_use, never delegated). A NEW image asks again.
@@ -897,6 +929,8 @@ class ConversationSupervisor:
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
         parts = []
+        if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
+            parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
         if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):
             parts.append(T['image_change'])          # not recorded: the question stays open (discovery._settle_image)
         # The model's conversational advice is not an action: the authoritative

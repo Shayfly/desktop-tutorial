@@ -44,7 +44,7 @@ def chain(category: str) -> list[tuple[str, int, bool]]:
 
 
 def offer_for(store, category: str, *, now: datetime | None = None, brief_id: str | None = None,
-              want: int = 3) -> dict:
+              want: int = 3, exclude_cards=frozenset(), skip_categories=frozenset()) -> dict:
     """What A1 may offer for this category.
 
     {'cards': [...], 'category': <where they came from>, 'distance': 0|1|2, 'cross_vertical': bool,
@@ -55,7 +55,9 @@ def offer_for(store, category: str, *, now: datetime | None = None, brief_id: st
     but never claims a reference it does not have.
     """
     for node, distance, crossed in chain(category):
-        cards = store.approved_for(node, now=now)
+        if node in skip_categories:            # this customer rejected everything from here (step 7, level 3)
+            continue
+        cards = [c for c in store.approved_for(node, now=now) if c.card_id not in exclude_cards]
         if cards:
             if distance and C.collectable(category) and not store_has_open(store, category):
                 store.request_collect(category, 'empty_category', brief_id)
