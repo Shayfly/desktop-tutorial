@@ -1,4 +1,5 @@
-"""The closed catalogue: the 30 categories (appendix A) and the adjacency between them (appendix B).
+"""The closed catalogue: 32 categories (appendix A's 30 + butcher + interior design, by the owner's decision of
+2026-11-15 20:12) and the adjacency between them (appendix B).
 
 Michael 2026-11-15: "הנספחים הם הרשימה הסגורה, ואסור להמציא קטגוריה או סמיכות מחוץ להם". So this module is data, not
 judgement: a category or a link outside the appendices raises. Where appendix B names something appendix A does not,
@@ -13,6 +14,7 @@ from __future__ import annotations
 CATEGORIES: dict[str, str] = {
     # אירוח ומזון
     'restaurants': 'מסעדות', 'cafes': 'בתי קפה', 'bakeries': 'מאפיות', 'delis': 'מעדניות וגורמה',
+    'butcher': 'אטליז',                       # the owner, 2026-11-15 20:12: added (sections 8 and B name it)
     'alcohol': 'אלכוהול ויין', 'catering': 'קייטרינג ואירועים',
     # נופש
     'cabins': 'צימרים',
@@ -33,17 +35,18 @@ CATEGORIES: dict[str, str] = {
     'fashion': 'אופנה', 'jewelry': 'תכשיטים',
     # נדל"ן
     'realty': 'תיווך',
+    # promoted from the reserve by the owner, 2026-11-15 20:12 (three verticals already link to it)
+    'furniture_interior': 'ריהוט ועיצוב פנים',
 }
 
 # ---- appendix C: the reserve. Not collected for; only these two are reachable, as marked cross-vertical links --
 RESERVE: dict[str, str] = {
-    'garages': 'מוסכים', 'furniture_interior': 'ריהוט ועיצוב פנים', 'cleaning': 'ניקיון', 'gardening': 'גינון',
+    'garages': 'מוסכים', 'cleaning': 'ניקיון', 'gardening': 'גינון',
     'appliances': 'מוצרי חשמל', 'hotels': 'מלונות', 'online_courses': 'קורסים דיגיטליים',
     'medical_devices': 'מכשור רפואי', 'insurance': 'ביטוח', 'pet_shops': 'חנויות חיות',
 }
 
-# One vertical of the first spec (#369) that appendix A does not list; kept so existing cards stay valid.
-LEGACY = {'butcher': 'אטליז'}
+LEGACY: dict[str, str] = {}   # was {'butcher'}: the owner made it a category (2026-11-15 20:12)
 
 # ---- appendix B: the links, as consecutive pairs of each chain the document writes --------------------------
 # (a, b, cross_vertical). Undirected: the fallback reads them both ways.
@@ -51,6 +54,8 @@ LINKS: tuple[tuple[str, str, bool], ...] = (
     ('restaurants', 'cafes', False),
     ('cafes', 'catering', False),
     ('bakeries', 'delis', False),
+    ('butcher', 'delis', False),                  # the owner, 2026-11-15 20:12
+    ('butcher', 'catering', False),               # the owner, 2026-11-15 20:12
     ('alcohol', 'restaurants', False),
     ('cabins', 'restaurants', False),             # "צימרים ↔ מסעדות מקומיות"
     ('hair_salons', 'cosmetics', False),
@@ -76,7 +81,8 @@ LINKS: tuple[tuple[str, str, bool], ...] = (
 # Lines of appendix B this module does NOT turn into links, each with the reason. Never guessed into existence.
 UNRESOLVED: tuple[tuple[str, str], ...] = (
     ('קליניקות ↔ פיזיותרפיה',
-     'appendix A has one category "קליניקות ופיזיותרפיה"; a category cannot be adjacent to itself'),
+     'appendix A has one category "קליניקות ופיזיותרפיה"; a category cannot be adjacent to itself. The owner, '
+     '2026-11-15 20:12: the line is removed, not a category added to justify it'),
 )
 
 
@@ -122,8 +128,8 @@ def _validate() -> None:
         for slug in (a, b):
             if slug in RESERVE and not cross:
                 raise CatalogError(f'{slug!r} is a reserve category: it is reachable only as a cross_vertical link')
-    if len(CATEGORIES) != 30:
-        raise CatalogError(f'appendix A has 30 categories, not {len(CATEGORIES)}')
+    if len(CATEGORIES) != 32:   # appendix A's 30 + butcher + interior design (the owner, 2026-11-15 20:12)
+        raise CatalogError(f'the catalogue has 32 categories, not {len(CATEGORIES)}')
 
 
 _validate()
