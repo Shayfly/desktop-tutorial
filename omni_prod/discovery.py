@@ -244,6 +244,7 @@ class Brief:
     # missing). Briefs without the flag keep the catalog rule, so their fingerprints and approvals are unchanged.
     detector: bool = False
     open_material: list[str] = field(default_factory=list)
+    structure: list[dict] = field(default_factory=list)  # first agent (2026-11-15): the approved structure cards
 
     def values(self) -> dict[str, str]:
         return {k: v['value'] for k, v in self.fields.items()}
@@ -258,6 +259,8 @@ class Brief:
         if self.detector:
             out['detector'] = True
             out['open_material'] = list(self.open_material)
+        if self.structure:
+            out['structure'] = list(self.structure)
         return out
 
     @classmethod
@@ -265,7 +268,7 @@ class Brief:
         return cls(str(d.get('prompt', '')), str(d.get('mode', GUIDED)), dict(d.get('fields') or {}), list(d.get('skipped') or []),
                    dict(d.get('hints') or {}), dict(d.get('assets') or {}),
                    list(d.get('semantic_decisions') or []), bool(d.get('detector')),
-                   list(d.get('open_material') or []))
+                   list(d.get('open_material') or []), list(d.get('structure') or []))
 
     def fingerprint(self) -> str:
         # C6: which field the detector asks next is conversation state, not a requirement; it never changes the
