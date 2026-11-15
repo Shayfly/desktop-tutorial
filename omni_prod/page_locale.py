@@ -37,7 +37,12 @@ def ensure_rtl(repo: dict, lang: str) -> dict:
         if not re.search(r'\blang\s*=', attrs, re.I):
             add += f' lang="{lang}"'
         if add:
-            out[path] = text[:m.start()] + f'<html{attrs.rstrip()}{add}>' + text[m.end():]
+            text = text[:m.start()] + f'<html{attrs.rstrip()}{add}>' + text[m.end():]
+        # 2026-11-15: a time range in an RTL page is shown reversed ("19:00–07:00") unless isolated (bidi_ranges)
+        from .bidi_ranges import wrap_ranges
+        if re.search(r'\bdir\s*=\s*["\']?rtl', text[:text.lower().find('>', m.start()) + 1], re.I):
+            text = wrap_ranges(text)
+        out[path] = text
     return out
 
 

@@ -21,7 +21,30 @@
    "reason": "#335 part 1 (PR #338): opening hours become canon facts (hours_day) and the truth gate compares them day by day; customer facts come from every message; the approval summary shows every hours statement. The digest moves only in `arms` (build_canon of the arm briefs gains hours_day facts); no prompt, instruction, probe or script changed. Added: opening_hours.py (the hours parser the gate imports).",
    "author": "claude",
    "reviewer": "michael",
-   "reviewed_at": "2026-11-13"
+   "reviewed_at": "2026-11-13",
+   "signature_note": "Recorded 2026-11-15 at Michael's instruction: the reviewer field of this entry was typed by the author (claude) under the CLAUDE.md standing permission of that time, not by Michael. The permission was withdrawn by #373 (2026-11-15): Claude prepares, Michael signs."
+  },
+  {
+   "id": "rtl-time-ranges-bdi",
+   "from_digest": "9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27",
+   "to_digest": "35d613d8ab9a497e28e317f30b2929a5af5208ada8ec75a26365e2d075c10a47",
+   "added": [
+    "omni_prod/bidi_ranges.py"
+   ],
+   "removed": [],
+   "changed": [
+    "omni_prod/page_locale.py",
+    "omni_prod/probe_manifest.py",
+    "omni_prod/skills_runtime.py",
+    "tests/test_frozen_run_conditions_20261110.py",
+    "tests/test_gate_mutations_20261110.py"
+   ],
+   "data_changed": [],
+   "reason": "Michael 2026-11-15 (\"שעות -- תיקון עם bdi\"): a time range on a right-to-left page is isolated with <bdi dir=\"ltr\">. Added: bidi_ranges.py. page_locale wraps ranges in .html pages of an RTL request; skills_runtime gains the served-page probe _time_ranges_isolated (blocking) and one sentence of text_locale guidance; probe_manifest declares the probe (critical). The gate fixtures (two test files) show the given hours isolated, and reversed hours are a new gate mutation.",
+   "author": "claude",
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-15",
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 02:11 Asia/Jerusalem, relayed by Or: \"#371 -- חתום michael ואשר את ה-SHA\". The reviewer field was typed by the author (claude) on that instruction."
   }
  ]
 }
