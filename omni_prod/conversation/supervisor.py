@@ -174,6 +174,7 @@ _TXT = {
            'attached_only': 'קיבלתי {n} ושמרתי בפרויקט. עדיין אין ניתוח תמונה אוטומטי (צריך מודל עם יכולת ראייה ואישור תקציב), אז כתבו במשפט מה חשוב בה או מה לשנות.',
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
+           'image_change': 'שינוי של התמונה עצמה עוד לא זמין אצלנו. אפשר להשתמש בה כמו שהיא, או רק כהשראה.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
@@ -209,6 +210,7 @@ _TXT = {
            'attached_only': 'I saved {n} in the project. Automatic image analysis is not enabled yet (it needs a vision-capable model and an approved budget), so tell me in a sentence what matters in it or what to change.',
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
            'attached_bound': '(I saved {n} in the project request.)',
+           'image_change': 'Changing the image itself is not available yet. It can be used as is, or as inspiration only.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
@@ -784,6 +786,11 @@ class ConversationSupervisor:
 
     def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
+        if row is not None and message and not answers and not attachments:
+            # the customer answers "who is in the photo?" by typing: the message IS that answer, not a new request
+            asked = d.next_image_question(row.brief)
+            if asked is not None and asked.kind == 'text' and self._last_asked(project_id) == asked.id:
+                answers, message = {asked.id: message[:300]}, ''
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
@@ -825,7 +832,9 @@ class ConversationSupervisor:
             # and the customer is asked what it is for (image_use, never delegated). A NEW image asks again.
             a = images[-1]
             if (new_brief.assets.get('image') or {}).get('sha256') != a['sha256']:
-                new_brief.fields.pop('image_use', None)
+                for f in d.IMAGE_FIELDS:                 # a new image: its role is asked from the start
+                    new_brief.fields.pop(f, None)
+                new_brief.hints.pop('image_change', None)
             new_brief.assets['image'] = {k: a.get(k) for k in ('id', 'sha256', 'mime', 'size_bytes', 'width', 'height')}
         # QUESTIONS-001: the gap detector decides what is asked. It reads the open discovery questions as candidates,
         # writes the values the request implies into the brief (shown as assumptions), and its ONE ordered question
@@ -858,6 +867,11 @@ class ConversationSupervisor:
             res.asked = [q for q in waiting if d.needs_customer(q, new_brief)][:1]
         # Michael 2026-11-13 (production, bakery): one field, one question per turn -- personal_data was asked twice
         # (a yes/no line and access_scope's three options). The covering question wins; the covered one waits.
+        # Michael 2026-11-15 16:15: the image's role is asked by the conversation, in context, right when it is open --
+        # one question per turn, in order (what is in it, who/what, then what to do). A2/A3 never ask the customer.
+        image_q = d.next_image_question(new_brief) if not res.conflicts else None
+        if image_q is not None:
+            res.asked = [image_q]
         res.asked = d.one_question_per_field(res.asked)
         covered = {f for q in res.asked for f in d.COVERS.get(q.field, ())} | {
             f for c in res.conflicts for f in d.COVERS.get(c['field'], ())}
@@ -883,6 +897,8 @@ class ConversationSupervisor:
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
         parts = []
+        if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):
+            parts.append(T['image_change'])          # not recorded: the question stays open (discovery._settle_image)
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
         if interp is not None and interp.reply and not res.conflicts:
@@ -931,7 +947,7 @@ class ConversationSupervisor:
                 turn.blocked = [f['item'] for f in blocked]
                 if blocked and not row.complete:
                     parts.append(T['blocked'] + ': ' + '; '.join(self._finding_message(f, lang, T) for f in blocked[:3]))
-            if gap_q is not None and not res.conflicts:
+            if gap_q is not None and not res.conflicts and image_q is None:
                 carded = gap_q.field in {q.field for q in res.asked}
                 why = gap_q.text.startswith(_WHY_PREFIXES)
                 # Michael 2026-11-13: when the field's card is shown, the question comes from the card only; the
@@ -976,6 +992,16 @@ class ConversationSupervisor:
             turn.reply, turn.questions = T['model_unavailable'], []
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         return turn
+
+    def _last_asked(self, project_id) -> str | None:
+        """The question id the last assistant turn showed (stored as `asked`), or None."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return None
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        asked = ((last or {}).get('interpretation') or {}).get('asked') or ()
+        return asked[0] if asked else None
 
     def _cards_shown(self, project_id, qid) -> int:
         """How many assistant turns of this conversation already showed this question's card (stored as `asked`)."""
