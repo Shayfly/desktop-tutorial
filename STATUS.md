@@ -1,3 +1,18 @@
+# 2026-11-15 — P0-a, warehouse 69: output profile + A0 router (Claude Code)
+
+- **Implemented and independently verifiable offline:** `omni_prod/output_profile` (profiles for `website`/`web_app`, an
+  `unsupported` entry with the customer's sentence for every other family, truth check at import), A0 in
+  `conversation/supervisor._route_output` before the interpreter and the model, `families.requested_family` and the
+  opening-product rule, `question_skills.checklist` raises on an unknown family, UI action `describe_web_instead`.
+- **Evidence:** `tests/test_output_profile_router.py` 16 passed. Negative controls `tests/negative_controls/output_profile_router.json`
+  5/5 PASS (NC2 first FAILED against a weaker test; the test now isolates the first truth check). Full suite in one
+  container, `--continue-on-collection-errors`: main `93916ae` collected 3131 / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `3db9457` collected 3147 / 34 / 2808 / 30 / 302 / 36. Failure lists identical (66 lines).
+  The first branch run showed one extra failure (`test_discovery_and_approval`), fixed in `3db9457` before push.
+- **Not checked:** no real model build; the refusal was exercised with the deterministic interpreter only. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Awaiting:** Michael's SHA approval; PR merges after #397 (the warehouse docs).
+
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
 - GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
