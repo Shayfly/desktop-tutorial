@@ -22,7 +22,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 BASELINE_SHA = '2c1d6cb4cb0565df8f6fc0634218c1f98ea7fb49'
 # #335 part 1 (2026-11-13): the only change vs 728eb139... is in `arms`: build_canon now records the opening hours
 # of the arm briefs as `hours_day` facts. No prompt, instruction, probe or script changed (component diff checked).
-BASELINE_DIGEST = '9eac2891aa6db03f34053cb81776fe8fc289cd3885eefd57856754011ef42d27'
+# 2026-11-15 (rtl-time-ranges-bdi, declared in docs/identity/allowed-identity-changes.json, signed by Michael's
+# instruction): the text_locale probe _time_ranges_isolated and its guidance sentence.
+BASELINE_DIGEST = '35d613d8ab9a497e28e317f30b2929a5af5208ada8ec75a26365e2d075c10a47'
 
 
 def _digest(flag: str) -> str:
