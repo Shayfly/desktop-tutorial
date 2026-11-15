@@ -65,20 +65,23 @@
   "omni_prod/page_locale.py": {
    "reason": "rtl-time-ranges-bdi (#371): the one line that stored the page after adding dir/lang is replaced: the page is now kept in `text`, its time ranges wrapped with <bdi dir=\"ltr\"> when the page is RTL, and then stored. A page that sets dir itself is still left as written.",
    "author": "claude",
-   "reviewer": "",
-   "reviewed_at": ""
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-15",
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
   },
   "omni_prod/skills_runtime.py": {
    "reason": "rtl-time-ranges-bdi (#371): two lines are replaced, nothing removed in meaning -- the text_locale static_checks tuple gains _time_ranges_isolated, and the guidance sentence on times gains 'on an RTL page wrap every time range in <bdi dir=\"ltr\">'.",
    "author": "claude",
-   "reviewer": "",
-   "reviewed_at": ""
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-15",
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
   },
   "tests/test_frozen_run_conditions_20261110.py": {
    "reason": "rtl-time-ranges-bdi (#371): two fixture lines of correct pages are replaced so their given hours are isolated with <bdi dir=\"ltr\">; without it the new probe correctly blocks them as reversed hours. What each test asserts is unchanged.",
    "author": "claude",
-   "reviewer": "",
-   "reviewed_at": ""
+   "reviewer": "michael",
+   "reviewed_at": "2026-11-15",
+   "signature_note": "Signed by Michael's instruction in the chat, 2026-11-15 09:21 Asia/Jerusalem, relayed by Or: 'eae0d55 -- חתום michael על שלוש ההצהרות'. The reviewer field was typed by the author (claude) on that instruction."
   }
  }
 }
