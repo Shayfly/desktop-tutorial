@@ -79,6 +79,8 @@ const T = {
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
+    checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
+    checkNames:{preview_starts:'הפעלה ניסיונית', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'פריסה במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר עצמאי', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -201,6 +203,8 @@ const T = {
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
+    checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
+    checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'layout on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'independent reviewer', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1080,11 +1084,12 @@ function renderTrack() {
   $('track').replaceChildren(...steps);
   renderControls(); renderLog();
   const msg = $('buildMsg'); msg.className = 'msg';
-  if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); }
+  if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr)); }
   else if (status === 'cancelled') { msg.textContent = t('buildCancelled'); }
   else if (status === 'failed') {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
+    const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr));   // warehouse 104
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
     // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
     if (b.result_version_id) {
@@ -1185,6 +1190,18 @@ function renderSharing(p) {
   const kids = [h('span', {}, t('shareLabel') + ': '), sel];
   if (mode === 'SHARED' && S.shareUrl) kids.push(h('input', { readonly: true, value: S.shareUrl, dir: 'ltr', 'aria-label': t('shareLink'), onfocus: (e) => e.target.select() }));
   box.replaceChildren(...kids);
+}
+// warehouse 104 (owner, 2026-11-15): the checks that did not run are named, never hidden in a count or in "did not pass
+// or did not run". The list is the quality report's own (release_policy.QualityReport.not_run); a failed build with no
+// report stopped before any check.
+function notRunLine(b) {
+  const status = b ? String(b.status || '').toLowerCase() : '';
+  if (status !== 'failed' && status !== 'ready') return '';
+  const qr = b.evidence && b.evidence.quality_report;
+  if (!qr) return status === 'failed' ? t('checksNoneRan') : '';
+  const names = t('checkNames') || {};
+  const list = (qr.not_run || []).map(c => names[c.check] || c.check);
+  return list.length ? `${t('checksNotRun')}: ${list.join(', ')}.` : '';
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
