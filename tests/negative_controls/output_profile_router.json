@@ -30,8 +30,8 @@
    "expect_failed": ["test_an_unknown_family_raises_instead_of_a_quiet_default"]},
   {"id": "NC5", "what": "the opening-product rule is gone: a website for a game shop is refused as a game",
    "mutations": [{"file": "omni_prod/intake/families.py",
-                  "old": "    _leading(t, explicit)\n    return explicit",
-                  "new": "    return explicit  # NEGATIVE CONTROL"}],
+                  "old": "    start = _LEAD.match(t).end()\n    for family, product in _LEADING:",
+                  "new": "    return None  # NEGATIVE CONTROL\n    for family, product in _LEADING:"}],
    "targets": ["tests/test_output_profile_router.py"],
    "expect_failed": ["test_a_website_for_a_game_shop_is_a_website", "test_a_photo_caption_is_not_a_media_request"]}
  ]
