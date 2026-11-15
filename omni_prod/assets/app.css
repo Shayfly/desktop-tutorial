@@ -419,3 +419,17 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
   .workspace>.sidebar{flex-shrink:0}
 }
 .font-heebo{font-family:Heebo,system-ui}.font-assistant{font-family:Assistant,system-ui}.font-rubik{font-family:Rubik,system-ui}.font-system{font-family:system-ui}
+/* first agent: the proposal card (docs/spec/first-agent.md 1, 7) */
+.proposal{border:1px solid var(--rule);border-radius:14px;padding:1rem;margin-bottom:1.25rem;display:flex;flex-direction:column;gap:.75rem}
+.proposal.pending{opacity:.85}
+.structureCard h3{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.propRows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.4rem}
+.propRowBtn{width:100%;min-height:48px;display:flex;align-items:center;gap:.6rem;text-align:start;background:transparent;border:1px solid var(--rule);border-radius:10px;padding:.5rem .7rem;color:inherit;font:inherit;cursor:pointer}
+.propRow.open .propRowBtn{border-color:currentColor}
+.propRowBtn .n{opacity:.6;width:1.2rem}.propRowBtn .title{font-weight:700;flex:none}
+.propRowBtn .detail{flex:1 1 auto;min-width:0;opacity:.8;font-size:.9rem;overflow-wrap:anywhere}
+.propRowBtn .edit{font-size:.85rem;text-decoration:underline}
+.rowEdit{display:flex;flex-direction:column;gap:.4rem;padding:.5rem .2rem}.rowEdit input{min-height:44px}
+.propPrice{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}.propPrice b{font-size:1.6rem}
+.propLists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+@media (max-width:520px){.propLists{grid-template-columns:1fr}}

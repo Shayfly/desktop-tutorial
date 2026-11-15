@@ -33,6 +33,7 @@ const T = {
     manageProject:'ניהול פרויקט', rename:'שינוי שם', saveName:'שמירת השם', archive:'העברה לארכיון',
     newProject:'פרויקט חדש', close:'סגירה',
     promptPlaceholder:'לדוגמה: מערכת לניהול תורים למספרה, עם יומן לספרים, הזמנה עצמית ללקוחות ותזכורות במייל.',
+    propTitle:'ההצעה שלכם', propLooks:'ככה זה ייראה', propGeneric:'הצעה כללית', propEstimate:'הערכה', propPrice:'מחיר לבנייה', propIncluded:'כלול', propExcluded:'לא כלול', propFacts:'הפרטים שלכם, כמו שכתבתם', propApprove:'אשר ובנה', propChange:'שנה משהו', propEdit:'שנה', propUp:'הזז למעלה', propDown:'הזז למטה', propRemove:'הסר', propSave:'שמור', propUndo:'בטל את השינוי האחרון', propApproving:'מאשרים ומתחילים לבנות…', propNotYet:'ההצעה עוד לא מוכנה: נשלים את הפרטים בשיחה.',
     planTitle:'התוכנית', understood:'מה הבנו', roles:'משתמשים', data:'נתונים', integrations:'חיבורים',
     capabilities:'יכולות שהבנייה צריכה', infrastructure:'תשתית לאפליקציה', cost:'עלות',
     estimated:'הערכה', maximum:'מקסימום מאושר', questions:'שאלות לפני שמתחילים', blockersTitle:'מה חוסם כרגע',
@@ -154,6 +155,7 @@ const T = {
     manageProject:'Manage project', rename:'Rename', saveName:'Save name', archive:'Archive',
     newProject:'New project', close:'Close',
     promptPlaceholder:'For example: an appointment system for a barbershop, with a calendar for barbers, self-booking for customers and email reminders.',
+    propTitle:'Your proposal', propLooks:'This is how it will look', propGeneric:'General suggestion', propEstimate:'estimate', propPrice:'Build price', propIncluded:'Included', propExcluded:'Not included', propFacts:'Your details, as you wrote them', propApprove:'Approve and build', propChange:'Change something', propEdit:'Change', propUp:'Move up', propDown:'Move down', propRemove:'Remove', propSave:'Save', propUndo:'Undo the last change', propApproving:'Approving and starting the build…', propNotYet:'The proposal is not ready yet: we will complete the details in the conversation.',
     planTitle:'The plan', understood:'What we understood', roles:'Users', data:'Data', integrations:'Integrations',
     capabilities:'Capabilities the build needs', infrastructure:'App infrastructure', cost:'Cost',
     estimated:'Estimate', maximum:'Approved maximum', questions:'Questions before we start', blockersTitle:'What is blocking right now',
@@ -577,6 +579,7 @@ async function requestBriefPlan(open = true) {
     // and wiped the queued/running build from the screen. Only a plan the user asked for replaces a finished build;
     // a queued or running build always stays.
     if (open === true && (!S.build || isTerminal(S.build.status))) S.build = null;
+    await loadProposal();
     renderDiscovery(); renderPlan(); renderTrack(); if (open === true) openTab('plan');
   } catch (e) { const m = $('discMsg'); if (m) m.textContent = explain(e); }
 }
@@ -712,6 +715,84 @@ function readinessView(build, p) {
     p.can_build ? t('readinessReady') : (why ? `${t('readinessBlocked')}: ${why}` : t('readinessBlocked'));
   return { mode, label };
 }
+/* ---------- first agent: the proposal card (docs/spec/first-agent.md 1, 7) ---------- */
+const proposalPath = () => `/api/v28/projects/${pid()}/proposal`;
+async function loadProposal() {
+  try { S.proposal = await api(proposalPath()); } catch (e) { S.proposal = null; }
+}
+// The price line: always shown, always an estimate (Michael 2026-11-15: the price never blocks).
+function proposalPrice(price) {
+  if (!price || typeof price.amount_ils !== 'number') return null;
+  return { amount: `${price.amount_ils} ₪`, label: t('propEstimate'), basis: price.basis || '' };
+}
+async function proposalEdit(op, key, value) {
+  const pr = S.proposal; if (!pr) return;
+  try {
+    const out = await api(`${proposalPath()}/edit`, { method: 'POST', body: { revision: pr.revision, op, key, value } });
+    S.proposal = out.proposal; S.proposalUndo = out.undo; S.proposalOpen = null;
+    S.plan = null; await requestBriefPlan(true);            // a new structure is a new fingerprint: a new plan
+  } catch (e) { const m = $('propMsg'); if (m) m.textContent = explain(e); }
+}
+async function proposalUndo() {
+  if (!S.proposalUndo) return;
+  try {
+    const out = await api(`${proposalPath()}/undo`, { method: 'POST', body: { undo: S.proposalUndo } });
+    S.proposal = out.proposal; S.proposalUndo = null;
+    S.plan = null; await requestBriefPlan(true);
+  } catch (e) { const m = $('propMsg'); if (m) m.textContent = explain(e); }
+}
+// One button: approve THIS spec (its fingerprint) and start the build -- not two approvals on the same thing.
+async function approveAndBuild() {
+  const pr = S.proposal; if (!pr || !pr.ok) return;
+  const m = $('propMsg'); if (m) m.textContent = t('propApproving');
+  try {
+    applyConversation(await api(specApprovalPath(), { method: 'POST',
+      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey() } }));
+    await requestBriefPlan(false);
+    if (S.plan && S.plan.can_build) await startBuild();
+    else if (m) m.textContent = (S.plan && S.plan.blocked_reason) ? S.plan.blocked_reason.message : t('readinessBlocked');
+  } catch (e) { if (m) m.textContent = explain(e); }
+}
+function proposalCard() {
+  const pr = S.proposal;
+  if (!pr) return [];
+  if (!pr.ok || !pr.cards) return [h('section', { class: 'proposal pending' }, h('p', {}, t('propNotYet')))];
+  const price = proposalPrice(pr.price);
+  const rowsOf = card => card.rows.map((r, i) => {
+    const open = S.proposalOpen === r.key;
+    const editor = open ? h('div', { class: 'rowEdit' },
+      h('input', { type: 'text', id: 'propRowText', value: r.detail === '—' ? '' : r.detail, 'aria-label': r.title }),
+      h('div', { class: 'row' },
+        h('button', { type: 'button', onclick: () => proposalEdit('set_detail', r.key, $('propRowText').value) }, t('propSave')),
+        h('button', { type: 'button', class: 'ghost', disabled: i === 0, onclick: () => proposalEdit('move_up', r.key) }, t('propUp')),
+        h('button', { type: 'button', class: 'ghost', disabled: i === card.rows.length - 1, onclick: () => proposalEdit('move_down', r.key) }, t('propDown')),
+        h('button', { type: 'button', class: 'ghost', onclick: () => proposalEdit('remove', r.key) }, t('propRemove')))) : null;
+    return h('li', { class: `propRow${open ? ' open' : ''}`, 'data-key': r.key },
+      h('button', { type: 'button', class: 'propRowBtn', 'aria-expanded': open ? 'true' : 'false',
+                    onclick: () => { S.proposalOpen = open ? null : r.key; renderPlan(); } },
+        h('span', { class: 'n' }, String(i + 1)), h('span', { class: 'title' }, r.title),
+        h('span', { class: 'detail' }, r.detail), h('span', { class: 'edit' }, t('propEdit'))),
+      editor);
+  });
+  return [h('section', { class: 'proposal', 'aria-labelledby': 'propTitle' },
+    h('h2', { id: 'propTitle' }, t('propTitle')),
+    ...pr.cards.map(card => h('div', { class: 'structureCard' },
+      h('h3', {}, t('propLooks'), card.generic ? h('span', { class: 'pill warn' }, card.generic_reason || t('propGeneric')) : null),
+      h('ol', { class: 'propRows' }, rowsOf(card)))),
+    price ? h('div', { class: 'propPrice' }, h('span', {}, t('propPrice')), h('b', {}, price.amount),
+      h('span', { class: 'pill warn' }, price.label), h('small', {}, price.basis)) : null,
+    pr.facts && pr.facts.length ? h('div', {}, h('h3', {}, t('propFacts')),
+      h('ul', { class: 'facts' }, pr.facts.map(f => h('li', {}, h('bdi', { dir: 'auto' }, f.source_ref))))) : null,
+    h('div', { class: 'propLists' },
+      h('div', {}, h('h3', {}, t('propIncluded')), h('ul', {}, pr.included.map(x => h('li', {}, x)))),
+      h('div', {}, h('h3', {}, t('propExcluded')), h('ul', {}, pr.excluded.map(x => h('li', {}, x))))),
+    h('div', { class: 'row propActions' },
+      h('button', { type: 'button', class: 'primary', id: 'approveAndBuildBtn',
+                    disabled: Boolean(S.build && !isTerminal(S.build.status)), onclick: approveAndBuild }, t('propApprove')),
+      h('button', { type: 'button', class: 'secondary', onclick: beginBriefEdit }, t('propChange')),
+      S.proposalUndo ? h('button', { type: 'button', class: 'ghost', onclick: proposalUndo }, t('propUndo')) : null),
+    h('p', { class: 'msg', id: 'propMsg', role: 'alert' }))];
+}
 function renderPlan() {
   const panel = $('planPanel'); const p = S.plan;
   renderProjectReadiness();
@@ -742,6 +823,7 @@ function renderPlan() {
         h('span', { class: 'meta' }, x.evidence))))] : []),
   ].flat() : [];
   const kids = [
+    ...proposalCard(),
     h('h2', {}, t('planTitle')),
     h('section', { class: `readinessStatus ${readinessView(S.build, p).mode === 'built' ? 'built' : p.can_build ? 'ready' : 'blocked'}`,
                    role: 'status', 'aria-live': 'polite' },
