@@ -1,0 +1,112 @@
+{
+ "pr": "first-agent-structure-editor",
+ "sha256": [
+  "tests/test_first_agent_structure_editor.py",
+  "tests/fixtures/butcher_served_page_2026_11_14.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the editor is bypassed: an incomplete proposal reaches the customer (spec acceptance 5)",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/editor.py",
+     "old": "            if missing:\n                blocks.append(",
+     "new": "            if False:  # NEGATIVE CONTROL\n                blocks.append("
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_a_fact_asked_for_and_not_given_blocks_and_a_waiver_releases_it"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the price blocks again (Michael removed it 2026-11-15)",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/editor.py",
+     "old": "    return {'ok': not blocks,",
+     "new": "    if price['clamped']:\n        blocks.append({'rule': 'price', 'why': 'out of range'})  # NEGATIVE CONTROL\n    return {'ok': not blocks,"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_a_section_the_product_cannot_hold_is_infeasible",
+    "test_price_never_blocks_even_at_the_ceiling"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a general suggestion is not marked (the customer thinks it is ours for his trade)",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/structure.py",
+     "old": "        generic = True\n",
+     "new": "        generic = False  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_marked_general_because_the_library_is_empty"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a row shows invented content when the customer gave none",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/structure.py",
+     "old": "        return (' · '.join(items) or '—'), bool(items)",
+     "new": "        return (' · '.join(items) or 'מבחר מוצרים איכותיים'), True  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_a_row_without_content_is_removed_and_said"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "excess rows are kept",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/editor.py",
+     "old": "            if not row['has_content'] and not row['needs']:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_a_row_without_content_is_removed_and_said"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a customer edit is not marked",
+   "mutations": [
+    {
+     "file": "omni_prod/first_agent/structure.py",
+     "old": "rows[idx]['has_content'], rows[idx]['edited'] = value.strip(), True, True",
+     "new": "rows[idx]['has_content'] = value.strip(), True  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_first_agent_structure_editor.py"
+   ],
+   "expect_failed": [
+    "test_move_remove_and_rewrite_a_row"
+   ]
+  }
+ ]
+}
