@@ -1458,40 +1458,56 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
         InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
     from .providers.managed_web_saas import build_managed_web_saas_provisioner
     from .spec_repository import PostgresSpecRepository
-    _run_live_build_job(
-        build_id,
-        jobs=jobs,
-        platform=_v28,
-        workspace=workspace,
-        components_factory=components_factory,
-        quality_fn=assess_repository,
-        security_fn=hostile_repository_scan,
-        min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
-        # M5 Task 9: when an image provider is configured, media.image.generate
-        # (product icon / brand visual) is routed, executed, stored and verified;
-        # otherwise the requirement stays explicitly NOT_CONFIGURED.
-        capability_stage=build_image_capability_stage(
-            env=os.environ, repository=PostgresCapabilityRepository(_v28_pool),
-            artifact_store=getattr(workspace, 'storage', None),
-            journal=PostgresSubmissionJournal(_v28_pool),
-            worker_id=f'{socket.gethostname()}:{os.getpid()}',
-        ),
-        # M5 Task 6/7: contract-bound builds need their generated-app
-        # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an
-        # explicit NOT_CONFIGURED provisioner and the build fails closed.
-        infrastructure_stage=InfrastructureProvisioningService(
-            provisioner=build_managed_web_saas_provisioner(),
-            repository=PostgresInfrastructureBindingRepository(_v28_pool),
-        ),
-        infrastructure_environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview'),
-        # Checked after the job is claimed, so a misconfigured worker fails
-        # the build (and releases its credits) instead of leaving it QUEUED
-        # with credits reserved forever.
-        preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
-        spec_repo=PostgresSpecRepository(_v28_pool),
-        agent_recorder=agent_recorder,
-        attempt_pool=_v28_pool,
-    )
+    from .build_announcement import FailureWitness, announce_if_failed
+    from .conversation.store import PostgresConversationStore, schema_ready
+    # warehouse 77c (owner 2026-11-16): a failed build is said in the conversation, with one action
+    witness = FailureWitness(jobs)
+    try:
+        _run_live_build_job(
+            build_id,
+            jobs=witness,
+            platform=_v28,
+            workspace=workspace,
+            components_factory=components_factory,
+            quality_fn=assess_repository,
+            security_fn=hostile_repository_scan,
+            min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
+            # M5 Task 9: when an image provider is configured, media.image.generate
+            # (product icon / brand visual) is routed, executed, stored and verified;
+            # otherwise the requirement stays explicitly NOT_CONFIGURED.
+            capability_stage=build_image_capability_stage(
+                env=os.environ, repository=PostgresCapabilityRepository(_v28_pool),
+                artifact_store=getattr(workspace, 'storage', None),
+                journal=PostgresSubmissionJournal(_v28_pool),
+                worker_id=f'{socket.gethostname()}:{os.getpid()}',
+            ),
+            # M5 Task 6/7: contract-bound builds need their generated-app
+            # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an
+            # explicit NOT_CONFIGURED provisioner and the build fails closed.
+            infrastructure_stage=InfrastructureProvisioningService(
+                provisioner=build_managed_web_saas_provisioner(),
+                repository=PostgresInfrastructureBindingRepository(_v28_pool),
+            ),
+            infrastructure_environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview'),
+            # Checked after the job is claimed, so a misconfigured worker fails
+            # the build (and releases its credits) instead of leaving it QUEUED
+            # with credits reserved forever.
+            preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
+            spec_repo=PostgresSpecRepository(_v28_pool),
+            agent_recorder=agent_recorder,
+            attempt_pool=_v28_pool,
+        )
+    finally:
+        conversation = PostgresConversationStore(_v28_pool) if _v28_pool is not None and schema_ready(_v28_pool) else None
+        announce_if_failed(witness, conversation=conversation, request=_safe_request(jobs, build_id), build_id=build_id)
+
+
+def _safe_request(jobs, build_id):
+    try:
+        return jobs.get_request(build_id)
+    except Exception:
+        logging.getLogger(__name__).exception('BUILD_FAILED_NOT_ANNOUNCED build=%s: the job request is unreadable', build_id)
+        return None
 
 
 # --------------------------------------------------------------------------
