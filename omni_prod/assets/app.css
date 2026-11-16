@@ -41,6 +41,7 @@ label>span{display:block;font-size:.88rem;color:var(--slate);margin-block-end:.2
 .msg{margin:.6rem 0 0;font-size:.92rem;color:var(--bad);min-height:0}
 .msg:empty{display:none}
 .msg.ok{color:var(--ok)}
+.msg .notrun,.msg .stop{margin-top:.35rem;font-size:.88rem;color:var(--slate)}
 hr{border:0;border-top:1px solid var(--rule);margin:1rem 0}
 
 /* top bar */

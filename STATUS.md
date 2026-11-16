@@ -108,7 +108,7 @@
   in the customer's words on failed and ready builds, and says "no check ran" when a failed build has no report.
   Warehouse 106: `tests/test_attribution_per_criterion.py` proves on the real `RemoteSandboxRepositoryExecutor` (real `_run`, stub runner
   that really runs pytest) that a failed verify command fails exactly the criteria it carries; the generator-side cure is PR #210.
-- **Evidence:** `tests/test_not_run_list.py` 15 tests, `tests/test_attribution_per_criterion.py` 3 tests. Negative controls
+- **Evidence:** `tests/test_not_run_list.py` 12 tests (corrected 2026-11-15 by review: the entry said 15), `tests/test_attribution_per_criterion.py` 3 tests. Negative controls
   `tests/negative_controls/not_run_list.json` 4/4 PASS. Full suite, one container, `--continue-on-collection-errors`: main `93916ae`
   collected 3131 / 34 collection errors / 2792 passed / 30 failed / 302 skipped / 36 errors; branch `e07a790` collected 3146 / 34 / 2807 /
   30 / 302 / 36. Failure lists identical (66 lines).
