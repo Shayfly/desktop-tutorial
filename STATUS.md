@@ -17,8 +17,8 @@
 - **Correction (a counting bug of Claude's):** the declaration counts reported today as "72 -> 81" (#423) and
   "81 -> 88/89" here were wrong in absolute terms: the script counted the four keys of each old path-only entry as
   four records. The differences were right. The real counts: 40 on `912924d`, 45 after #405, 54 after #423, 68 here
-  (14 added in this PR: 8 for the code, 5 for the regenerated status files and the T4 lock, 1 for the file itself...
-  see `git log` for each). No declaration was lost at any step (checked record by record).
+  (14 added in this PR: 6 for the code, 1 for the TASKS row, 5 for the regenerated status files and the T4 lock,
+  2 for the declarations file itself). No declaration was lost at any step (checked record by record).
 - **CI lesson:** `validate` failed on `861312d`: the agent registry, the department matrix and the T4 evidence lock
   were stale after `queueing.py` and `verification_verdict.py` changed. The fast suite does not cover them; they
   are regenerated here, and Claude now runs those derived-status tests before every push that touches `omni_prod`.
