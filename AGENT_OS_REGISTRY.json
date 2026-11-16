@@ -5238,14 +5238,15 @@
    ],
    "gap": "",
    "missing_contract_fields": [],
-   "status": "REAL_SERVER_VERIFIED",
-   "why": "verified for: discovery conversation; server-bound approval; model-built product READY; browser check in the build; QA model review rounds; build journal; preview of the built version; acceptance stored, page responsive; agent task graph with independent verification; settlement at metered usage; migrations applied; builder health; existing versions load + checksum; demo/publish refused; legacy paths refused (p",
-   "evidence": [
+   "status": "IMPLEMENTED",
+   "why": "real-server evidence is stale; code changed since: omni_prod/queueing.py",
+   "evidence": [],
+   "stale_evidence": [
     "postdeploy-checks run 37961193099",
     "postdeploy-checks run 38083312245"
    ],
-   "last_verified_at": "2026-10-09T16:43Z",
-   "last_verified_commit": "039574f"
+   "last_verified_at": "2026-10-10T20:20Z",
+   "last_verified_commit": "67a0765"
   },
   {
    "skill_key": "job_resume",
@@ -7690,10 +7691,10 @@
   "skills_total": 427,
   "skills": {
    "NOT_IMPLEMENTED": 264,
-   "IMPLEMENTED": 85,
+   "IMPLEMENTED": 86,
    "UNIT_TESTED": 30,
    "INTEGRATION_TESTED": 6,
-   "REAL_SERVER_VERIFIED": 33,
+   "REAL_SERVER_VERIFIED": 32,
    "LIVE": 0,
    "BLOCKED": 9
   }

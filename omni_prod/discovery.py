@@ -790,6 +790,21 @@ def _content_only(v: dict, login: str) -> bool:
             and v.get('personal_data') == 'no' and v.get('access_scope') != 'add_login')
 
 
+def stores_by_own_answer(brief) -> str | None:
+    """The customer's OWN answer that already says the product stores records, or None. Each of these also makes the
+    content_only question inapplicable, so without this the brief carried no persistence decision at all: the build
+    contract then asked "does the site store data?" with no card, and nothing the customer typed could answer it
+    (2026-11-16). A delegated or defaulted value is not the customer's answer and decides nothing."""
+    own = {k: f.get('value') for k, f in brief.fields.items() if f.get('source') in ('answer', 'message')}
+    if own.get('access_scope') == 'add_login':
+        return 'access_scope=add_login'
+    if own.get('login') in ('simple', 'roles'):
+        return f"login={own['login']}"
+    if own.get('personal_data') == 'yes' and brief.values().get('access_scope') != 'no_personal':
+        return 'personal_data=yes'
+    return None
+
+
 # #335 (Michael 2026-11-13): facts the customer stated in ANY message, verbatim, bound into the approved request.
 CUSTOMER_FACTS_PREFIX = ('Customer facts (the customer\'s own words from the conversation; show exactly these '
                          'values and never other or additional ones): ')
@@ -962,7 +977,7 @@ def requirements_text(brief: Brief) -> str:
     from .persistence import NONE as _P_NONE, RECORDS as _P_RECORDS, decision_line as _decision_line
     if _content_only(v, login):
         lines.append(_decision_line(_P_NONE))
-    elif v.get('content_only') == 'no':
+    elif v.get('content_only') == 'no' or stores_by_own_answer(brief):
         lines.append(_decision_line(_P_RECORDS))
     for fld, label in (('audience', 'Audience'), ('goal', 'Main action'), ('screens', 'Screens'), ('content', 'Initial content'),
                        ('references', 'Visual references (inspiration only)')):

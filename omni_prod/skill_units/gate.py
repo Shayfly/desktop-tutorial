@@ -58,8 +58,8 @@ MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # -- and only then blocks. CALIBRATING names the gates that have not finished that; each one warns by default, and its
 # findings are in the log and in the build evidence of every build. Moving a gate to block = removing it from here,
 # with the three builds as evidence. (HE Hebrew, G10 copy, G11 links, G1 empty blocks, BRAND brand name, SHARE preview,
-# G5 rights: the source of every font, image and media file.)
-CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5')
+# G5 rights: the source of every font, image and media file; A4: the asset plan's placement check, omni_prod/a4.)
+CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'A4')
 DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'warn' for g in CALIBRATING}}
 # Gates that read the page AS WRITTEN: the platform's own assets as their 148ai-asset:// placeholders, not as the
 # bytes the engine's transform put in before the sandbox. G5 judges where an asset comes from, and the placeholder is

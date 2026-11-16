@@ -13,12 +13,19 @@ secrets). Writing it is best effort: a log failure never changes a build.
 from __future__ import annotations
 
 import logging
+import time
 
 _log = logging.getLogger(__name__)
 
 
 class BuildCancelled(Exception):
     """The owner asked to stop this build; raised at a step boundary."""
+
+
+class BuildDeadline(Exception):
+    """The build ran past its own time limit; raised at a step boundary, before the queue would kill the worker with
+    nothing written. It is not a cancel: the build FAILS (build_timeout), is settled, and the customer is told."""
+    error_code = 'build_timeout'
 
 
 class GateEscalation(BuildCancelled):
@@ -37,9 +44,20 @@ TASK_LABELS = {
 
 
 class BuildControl:
-    def __init__(self, jobs, build_id: str):
+    def __init__(self, jobs, build_id: str, *, repair_until_seconds: int | None = None,
+                 stop_at_seconds: int | None = None, clock=time.monotonic):
+        from .queueing import BUILD_REPAIR_UNTIL_SECONDS, BUILD_STOP_AT_SECONDS
         self._jobs = jobs
         self.build_id = build_id
+        self.repair_until_seconds = BUILD_REPAIR_UNTIL_SECONDS if repair_until_seconds is None else repair_until_seconds
+        self.stop_at_seconds = BUILD_STOP_AT_SECONDS if stop_at_seconds is None else stop_at_seconds
+        for name in ('repair_until_seconds', 'stop_at_seconds'):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+                raise ValueError(f'{name} must be a positive number of seconds, got {value!r}')
+        if self.repair_until_seconds >= self.stop_at_seconds:
+            raise ValueError('repair_until_seconds must be below stop_at_seconds')
+        self._clock, self._started = clock, clock()
         self.checks = 0
         self.model_calls = 0
         self.recorder = None  # agent_os BuildAgentRecorder (durable agent task graph), optional
@@ -65,7 +83,19 @@ class BuildControl:
         except Exception:  # pragma: no cover - logging must never fail a build
             _log.warning('build event write failed for %s', self.build_id, exc_info=True)
 
+    def elapsed(self) -> float:
+        return self._clock() - self._started
+
+    def out_of_repair_time(self) -> bool:
+        """True once no new repair round may start (the engine asks before each round)."""
+        return self.elapsed() >= self.repair_until_seconds
+
     def checkpoint(self) -> None:
+        if self.elapsed() >= self.stop_at_seconds:
+            minutes = int(self.stop_at_seconds // 60)
+            self.log('info', f'הבנייה נמשכה יותר מ-{minutes} דקות ונעצרה. נחויב רק מה שכבר נוצל. אפשר לנסות שוב.')
+            raise BuildDeadline(f'build {self.build_id} stopped after {int(self.elapsed())} s '
+                                f'(limit {int(self.stop_at_seconds)} s)')
         asked = getattr(self._jobs, 'checkpoint', None) or getattr(self._jobs, 'cancel_requested', None)
         if asked is None:
             return
@@ -125,6 +155,9 @@ def install(engine, gateway, control: BuildControl):
         gateway.before_call = control.before_model_call
     if getattr(engine, 'executor', None) is not None:
         engine.executor = ControlledExecutor(engine.executor, control)
+    # the repair loop asks before each round (autonomous_core): a build that is out of time stops repairing and is
+    # judged on its best version, instead of starting a round the queue would kill
+    getattr(engine, 'core', engine).out_of_time = control.out_of_repair_time
     return engine
 
 

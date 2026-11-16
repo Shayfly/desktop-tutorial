@@ -24,7 +24,11 @@
 | OPS-403 | Claude Code | In review | #403 (orphaned) `scripts/commit_resolved.sh`: the CLAUDE.md conflict with main resolved and committed with the script itself (exit 0) |
 | PRELIVE-405 | Claude Code | Waiting for the owner's signature on 5 declarations | #405 (orphaned) checked against main: needs_env, the `light` CI job (blocks an undeclared deleted line; the owner 2026-11-16), a2 109/110, the capture message, photo places; the draft skip of `test` is not carried |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
-| STAGE-A-456 | Claude Code | In review | chat-truth: one price, the question in words, one approval state; NC 6/6 + 6/6; browser test fails on main app.js |
 | REL-1116 | Claude Code | Done | #422 `349d729` -> `4e16eeb` (worker: run 43973795367); #405 `795bbae` -> `1dc1fbd` |
 | GATE-G5 | Claude Code | In review | the rights gate: 3 units (image, font, media and frames), registry `rights_sources.json` with a basis per source; an unknown source blocks; reads every served file as written; rewritten after an independent review found holes; NC 20/20 |
 | AGENT-A7 | Claude Code | Next | the rights agent, after its gate G5 |
+| STAGE-A-456 | Claude Code | Done | #423 `0ebb903` -> `dfe6817` |
+| STAGE-A-3 | Claude Code | In review | worker death: build ends itself; NC 9/9; warehouse 115 |
+| DEAD-END | Claude Code | In review | 80 of 252 walks stuck -> 0; NC 5/5 |
+| GATES-WARN | Claude Code | In review | six uncalibrated gates warn; rehearsal runs the worker gates; NC 6/6 |
+| W114-A | Claude Code | In review | web-sized rendition of uploaded and generated images; NC 8/8 |

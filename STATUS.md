@@ -1,3 +1,53 @@
+# 2026-11-17 — uncalibrated gates warn; the page carries a light rendition of every photo (Claude Code)
+
+- **Merged:** #424 `5556c28` -> `a5ab25d` (the worker's time budget; the dead ends). Not released yet.
+- **Gates (the owner's rule 4):** HE, G10, G11, G1, BRAND and SHARE were installed on the worker at `block` without
+  the three calibration builds. They now warn by default (`gate.CALIBRATING`); G3 and G6 still block, G4 still warns.
+  A calibrating gate's findings (bounded, 3 per failure) are kept in `evidence.skill_gates`, and the golden rehearsal
+  installs the same gates as the worker (`gate.WORKER_GATES`), so a gate can be calibrated on real generated pages.
+- **Photos (warehouse 114, first half):** the butcher's hero (bld_83529c13, a GENERATED image) went into the page as
+  1,735,408 base64 characters. Every uploaded or generated image over 360 KB is now carried as a web-sized WebP
+  rendition (at most 1600 px, upright, same proportions, transparency kept); a light image is carried byte for byte;
+  the original and its digest are untouched. Pillow joins `requirements-production.txt` (the worker image).
+- **Evidence:** `tests/test_web_rendition.py` (14: phone-sized photos made with a real encoder; the G4 unit that
+  measured the butcher page fails on the original and passes on the rendition), `tests/test_skill_gates.py` (+5);
+  negative controls `photo_weight` 8/8, `gates_calibrating` 6/6; declarations 68 -> 75, none lost.
+- **Not verified:** the worker image has not been built with Pillow yet (the deploy builds images before it drains);
+  no gate has been calibrated on a real build yet.
+- **Still open in 114:** the photo is still inside the HTML (no browser cache). Serving it as a file needs the
+  sandbox request, the stored version and the preview to carry binary files; the map is in warehouse 114.
+- **Checked and found already built (stage B 9-12):** image relevance for generated images (`image_match`, lens 11),
+  the mobile 390 px render check (`visual_qa`), the links units (`links_tel`, `links_address`, `links_anchor`) and
+  the empty-block unit (`blocks_empty`).
+
+# 2026-11-16 — the worker dies mid-build; conversations that end on an unanswerable question (Claude Code)
+
+- **Merged:** #423 `0ebb903` -> `dfe6817` (chat truth; not released yet).
+- **Worker death, root cause (production, read-only):** `bld_426addd3` and `bld_0e142230` were killed 15 minutes after
+  they started: the queue's 900-second job timeout, with no terminal state written. `bld_0e142230`'s event 810 reads
+  "visual check could not verify the product: desktop: JobTimeoutException: Task exceeded maximum timeout value (900
+  seconds)": the timeout was caught as a failed check and the build went on repairing.
+- **Fix:** the build ends itself (no new repair round after 13 min; stop with `build_timeout` at 17 min; queue limit
+  20 min); `BuildDeadline` and the queue's `JobTimeoutException` are control exceptions, never a check failure; the
+  customer has words for `build_timeout`, `provider_liability_unknown` and the `time_budget` repair stop.
+- **Dead ends, found by walking every way through the cards of four requests:** 80 of 252 walks ended on a question
+  with no card and no answer the chat could take ("האם האתר שומר מידע?" after "personal details are stored"; the
+  English workflow question for a short request). After the fix: 0 of 252 (220 summaries, 32 stated blockers).
+- **Evidence:** `tests/test_build_deadline.py` (16, with rq installed; 2 are NOT_RUN without it),
+  `tests/test_no_dead_end_conversation.py` (4); negative controls `build_deadline` 9/9, `no_dead_end` 5/5;
+  `scripts/test_fast.sh` exit 0; declarations 81 -> 88, none lost.
+- **Correction (a counting bug of Claude's):** the declaration counts reported today as "72 -> 81" (#423) and
+  "81 -> 88/89" here were wrong in absolute terms: the script counted the four keys of each old path-only entry as
+  four records. The differences were right. The real counts: 40 on `912924d`, 45 after #405, 54 after #423, 68 here
+  (14 added in this PR: 6 for the code, 1 for the TASKS row, 5 for the regenerated status files and the T4 lock,
+  2 for the declarations file itself). No declaration was lost at any step (checked record by record).
+- **CI lesson:** `validate` failed on `861312d`: the agent registry, the department matrix and the T4 evidence lock
+  were stale after `queueing.py` and `verification_verdict.py` changed. The fast suite does not cover them; they
+  are regenerated here, and Claude now runs those derived-status tests before every push that touches `omni_prod`.
+- **Not verified:** no production build has run on the new limits; the limits 13/17/20 are a decision (DECISIONS.md).
+- **Open:** warehouse 115 (verify on a real build), 116 (the A2 live job does not exist in code), 117 (a build with a
+  photo end to end on production was not tested).
+
 # 2026-11-16 — releases, and the three chat contradictions of stage A (Claude Code)
 
 - **Released (the owner's order):** #422 `349d729` -> `4e16eeb` (docs only; the worker was deployed by a manual run of
