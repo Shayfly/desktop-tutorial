@@ -1,0 +1,6 @@
+{
+ "butcher_tel_digit.html": {
+  "code": "TEL_BROKEN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, changed in one place: both call buttons dial 050400016, a digit short of the number shown"
+ }
+}
