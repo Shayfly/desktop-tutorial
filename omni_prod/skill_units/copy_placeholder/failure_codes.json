@@ -1,0 +1,6 @@
+{
+ "COPY_PLACEHOLDER": {
+  "meaning": "text meant to be replaced was left in the page",
+  "fix": "replace it with the customer's real detail, or remove it"
+ }
+}

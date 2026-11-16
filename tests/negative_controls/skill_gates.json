@@ -179,8 +179,8 @@
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block'}",
-     "new": "DEFAULT_MODE = {'G3': 'block', 'G4': 'block', 'G6': 'block'}"
+     "old": "DEFAULT_MODE = {'G3': 'block', 'G4': 'warn',",
+     "new": "DEFAULT_MODE = {'G3': 'block', 'G4': 'block',"
     }
    ],
    "targets": [

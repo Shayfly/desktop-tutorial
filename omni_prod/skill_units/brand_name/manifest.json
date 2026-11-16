@@ -1,0 +1,11 @@
+{
+ "name": "skill.brand.name",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "BRAND",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "The business name the page gives itself in <title> is shown on the page, not only in the tab."
+}

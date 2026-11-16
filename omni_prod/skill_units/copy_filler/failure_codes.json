@@ -1,0 +1,6 @@
+{
+ "COPY_FILLER": {
+  "meaning": "a generic filler sentence that says nothing about this business",
+  "fix": "replace it with a fact the customer gave"
+ }
+}

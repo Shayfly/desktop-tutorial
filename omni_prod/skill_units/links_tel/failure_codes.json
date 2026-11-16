@@ -1,0 +1,6 @@
+{
+ "TEL_BROKEN": {
+  "meaning": "a phone link does not dial the shown number, or a shown phone cannot be tapped",
+  "fix": "dial the number the page shows, and link every phone with tel:"
+ }
+}

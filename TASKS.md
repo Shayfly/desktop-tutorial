@@ -12,3 +12,11 @@
 | ITEM-4 | Codex | Draft; independent review required | structured allowance error, real JS explain tests and item4 NC |
 | ITEM-2 | Codex | Draft; PostgreSQL evidence pending CI | zero-contact refund test and item2 NC; independent review required |
 | WH-01 | Claude Code | In review | `WAREHOUSE.md` created from the owner's list (2026-11-15); label `warehouse` on #323 |
+| WH-111 | Claude Code | Merged | #413 (`00ccc19` -> `c38fbb4`) worker deploys only on a release; #414 (`c824c13` -> `ba2a934`) the mark counts only at the end of the merge title; live: Vercel CANCELED on `ba2a934`, worker `deploy` skipped on `d3c5e6b`, `b5b36a2` |
+| GATES-1 | Claude Code | Merged | #415 (`b257030` -> `d3c5e6b`) G3 (falls on the real butcher page), G4 warn until WH-114, G6; every gate states its mode on every build |
+| WH-112 | Claude Code | Merged | #416 (`9c3869a` -> `aee07af`) every test file is run by a CI job; 13 pg files run alone; 3 named in `tests/pg_not_yet_run.txt` |
+| WH-107 | Claude Code | Merged; blocked on the owner's secret | #417 (`48d616c` -> `27d19b1`); the secret `CUSTOMER_STORAGE_STATE` is the owner's to create |
+| WIN-APPROVE | Claude Code | Merged | #418 (`5a552a9` -> `b5b36a2`) window approval; v24-ci reads its own pytest report (test job 20+ -> 13 min) |
+| WH-105 | Claude Code | Merged | #419 (`62e164f` -> `4498ec6`) colours by business category from a data file |
+| GATES-2 | Claude Code | In review | #420 HE, G10, G11, G1, BRAND, SHARE; each falls on the real page |
+| WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |

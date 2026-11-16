@@ -67,3 +67,19 @@ def attrs(raw: str) -> dict[str, str]:
 def tags(html: str):
     for m in TAG.finditer(html or ''):
         yield m.start(), m.group(1).lower(), attrs(m.group(2))
+
+
+_DROP = re.compile(r'<(script|style|template)\b[^>]*>.*?</\1\s*>', re.S | re.I)
+
+
+def text_nodes(html: str) -> list[str]:
+    """The visible text of a page, one string per text node (never joined across elements: a table's "שבת" cell and
+    its "שבת סגור" cell are two nodes, not a repeated word)."""
+    import html as _html
+    body = _DROP.sub(' ', html or '')
+    out = []
+    for chunk in re.split(r'<[^>]+>', body):
+        t = re.sub(r'\s+', ' ', _html.unescape(chunk)).strip()
+        if t:
+            out.append(t)
+    return out

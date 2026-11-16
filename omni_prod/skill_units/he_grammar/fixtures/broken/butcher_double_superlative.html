@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>האטליז של סבא שמעון | בשר כשר וטרי בירושלים</title>
+  <meta name="description" content="האטליז של סבא שמעון - בשר בקר טרי, עוף, הודו, קציצות מוכנות ושיפודים להזמנה ברחוב נתיב המזלות 22, ירושלים. להזמנות חייגו 0504000162.">
+  <meta property="og:title" content="האטליז של סבא שמעון | בשר כשר וטרי בירושלים">
+  <meta property="og:description" content="אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש. רחוב נתיב המזלות 22, ירושלים.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #1d4ed8;
+      --primary-hover: #1e40af;
+      --text-dark: #1f2937;
+      --text-muted: #4b5563;
+      --bg-neutral: #f8fafc;
+      --surface-white: #ffffff;
+      --border-color: #e2e8f0;
+      --accent-badge: #dbeafe;
+      --accent-badge-text: #1e40af;
+      --font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-neutral);
+      color: var(--text-dark);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header.site-header {
+      background: var(--surface-white);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .text-logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-dark);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(29, 78, 216, 0.25);
+    }
+
+    .btn-primary:hover, .btn-primary:focus-visible {
+      background-color: var(--primary-hover);
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      flex: 1;
+    }
+
+    .hero-section {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .promise-text {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      margin: 0 auto 2rem auto;
+      font-weight: 500;
+    }
+
+    .hero-image-wrapper {
+      max-width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 3rem;
+      background: #e2e8f0;
+    }
+
+    .hero-img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      width: 100%;
+      object-fit: cover;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .card {
+      background: var(--surface-white);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .card h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      border-bottom: 2px solid var(--accent-badge);
+      padding-bottom: 0.5rem;
+      color: var(--primary-color);
+    }
+
+    .products-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .products-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--bg-neutral);
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .badge {
+      font-size: 0.85rem;
+      background-color: var(--accent-badge);
+      color: var(--accent-badge-text);
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+
+    .hours-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+
+    .hours-table th, .hours-table td {
+      padding: 0.75rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .hours-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .hours-table td {
+      font-weight: 700;
+    }
+
+    .hours-table tr:last-child td, .hours-table tr:last-child th {
+      border-bottom: none;
+    }
+
+    .location-card p {
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    .cta-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+      border: 2px solid var(--accent-badge);
+      border-radius: 16px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .cta-card h2 {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .cta-card p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    footer {
+      background: var(--surface-white);
+      border-top: 1px solid var(--border-color);
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 1.75rem;
+      }
+      .promise-text {
+        font-size: 1.1rem;
+      }
+      .header-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+      }
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "האטליז של סבא שמעון",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "רחוב נתיב המזלות 22",
+      "addressLocality": "ירושלים",
+      "addressCountry": "IL"
+    },
+    "telephone": "+972504000162",
+    "openingHours": [
+      "Su-Th 07:00-19:00",
+      "Fr 07:00-14:00"
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <span class="text-logo">האטליז של סבא שמעון</span>
+      <a href="tel:+972504000162" class="btn btn-primary" aria-label="התקשרו עכשיו ל-0504000162">
+        התקשרו אלינו: 0504000162
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-section">
+      <h1>האטליז של סבא שמעון</h1>
+      <p class="promise-text">אנחנו מוציאים בשר טרי כל בוקר, ותמיד יש מה לבקש.</p>
+      <div class="hero-image-wrapper">
+        <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="נתחי בקר טריים על נייר קצבים על דלפק שיש, אור קר של בוקר" class="hero-img" loading="eager">
+      </div>
+    </section>
+
+    <div class="grid-container">
+      <section class="card" aria-labelledby="products-heading">
+        <h2 id="products-heading">מגוון הבשרים הטריים שלנו</h2>
+        <ul class="products-list">
+          <li><span>בשר בקר טרי</span><span class="badge">כשר וטרי</span></li>
+          <li><span>עוף</span><span class="badge">נקי ומוכן</span></li>
+          <li><span>הודו</span><span class="badge">מובחר</span></li>
+          <li><span>קציצות מוכנות</span><span class="badge">תיבול ביתי</span></li>
+          <li><span>שיפודים להזמנה</span><span class="badge">מיוחד לעל האש</span></li>
+        </ul>
+      </section>
+
+      <section class="card" aria-labelledby="hours-heading">
+        <h2 id="hours-heading">שעות פתיחה</h2>
+        <table class="hours-table">
+          <tbody>
+            <tr>
+              <th scope="row">א׳–ה׳</th>
+              <td>07:00–19:00</td>
+            </tr>
+            <tr>
+              <th scope="row">ו׳</th>
+              <td>07:00–14:00</td>
+            </tr>
+            <tr>
+              <th scope="row">שבת</th>
+              <td>שבת סגור</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card location-card" aria-labelledby="contact-heading">
+        <h2 id="contact-heading">כתובת והתקשרות</h2>
+        <p><strong>כתובת:</strong> רחוב נתיב המזלות 22, ירושלים</p>
+        <p><strong>טלפון להזמנות ובירורים:</strong> 0504000162</p>
+        <p>נשמח לעמוד לשירותכם בכל שאלה ולחתוך לכם את הנתחים בדיוק כמו שאתם אוהבים.</p>
+      </section>
+    </div>
+
+    <section class="cta-card" aria-labelledby="final-cta-heading">
+      <h2 id="final-cta-heading">רוצים להזמין מראש?</h2>
+      <p>אנחנו כאן כדי לדאוג לשולחן השבת או לארוחה המשפחתית שלכם עם הבשר הכי איכותי ביותר.</p>
+      <a href="tel:+972504000162" class="btn btn-primary" aria-label="התקשרו כעת ל-0504000162">
+        חייגו עכשיו: 0504000162
+      </a>
+    </section>
+  </main>
+
+  <footer>
+    <p>האטליז של סבא שמעון &bull; רחוב נתיב המזלות 22, ירושלים &bull; טלפון: 0504000162</p>
+  </footer>
+</body>
+</html>
