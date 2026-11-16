@@ -188,6 +188,14 @@ class TheSwitch(unittest.TestCase):
         self.assertEqual(G.report(e), {'G3': {'mode': 'block'}, 'G4': {'mode': 'warn'}, 'G6': {'mode': 'off'}})
         self.assertIn('GATE_OFF gate=G6', ' '.join(logs.output))
 
+    def test_the_report_walk_is_bounded(self):
+        # 2026-11-16, a bug of mine caught before push: report() followed `_inner` without a bound; on a MagicMock
+        # engine (the worker harness) every attribute is a new mock and the walk ran out of memory.
+        engine = mock.MagicMock()
+        self.assertEqual(G.report(engine), {})
+        G.install(engine, 'G3')
+        self.assertEqual(G.report(engine), {'G3': {'mode': 'block'}})
+
     def test_the_build_evidence_carries_the_gates(self):
         from omni_prod import worker_tasks
         src = inspect.getsource(worker_tasks._run_live_build_job)

@@ -13,6 +13,12 @@
   probe read only literal hex. It judged no colour pair on the real page and passed it blind; the old probe passes the
   low-contrast variant. The probe now resolves custom properties (with a var() fallback), and `judged()` counts the
   pairs it read (4 on the real page). A pair it cannot read (rgb(), a gradient) is not judged and not claimed.
+- **Another bug of mine, caught before push:** `report()` walked the executor chain through `_inner` without a bound. On
+  the worker harness's MagicMock engine every attribute is a new mock, so the walk ran out of memory: a MemoryError in
+  `test_build_failed_announced`, and the kernel killed processes. The fix: the walk stops at MAX_CHAIN (20), follows
+  only real SkillGateExecutor objects (`vars()`, never an invented attribute), and accepts `gate_modes` only as a
+  dict. `test_the_report_walk_is_bounded` is the regression test; the unbounded version is its proof, since it failed
+  that way.
 - **Implemented:**
   - `omni_prod/skill_units/gate.py`: a gate is every unit whose manifest names it. It wraps the engine's executor;
     after the sandbox run, each unit's probe runs on every page, and a failing unit is an acceptance failure
@@ -44,7 +50,7 @@
     - A key in server.py fails G6 even with a clean page.
     - No page means NOT_RUN, said.
   - `tests/test_skill_units_a11y.py` checks the parts of all 16 units.
-  - Negative controls: `skill_gates.json` 10/10, `skill_units_perf_secrets.json` 11/11, `skill_units_a11y.json` 6/6.
+  - Negative controls: `skill_gates.json` 10/10, `skill_units_perf_secrets.json` 11/11, `skill_units_a11y.json` 6/6. Every spec that touches the changed files: build-failed-announced 4/4, repair-stop-reason-ui 3/3, lens11-image-match 9/9, window-catalog 7/7, worker-build-not-found 3/3; item2 needs psycopg and fails identically on main `c38fbb4`; settle-computed is pg-only.
     - NC6 puts back the literal-hex-only probe, and the real-page test catches it.
     - NC8 makes OFF silent, and it is caught.
     - NC10 makes G4 block by default, and it is caught.

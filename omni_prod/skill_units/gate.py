@@ -51,6 +51,7 @@ def sources_of(repository: dict[str, str]) -> list[tuple[str, str]]:
 
 
 MODES = ('block', 'warn', 'off')
+MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # owner 2026-11-16: G4 warns (a unit that warns makes it a gate; without the unit it is a heading) until warehouse 114
 # (the hero image inlined as base64) is fixed; G3 and G6 block.
 DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block'}
@@ -141,11 +142,14 @@ def install(engine, gate: str) -> list[str]:
 def report(engine) -> dict:
     """What the build evidence carries: per gate its mode and its last result (codes only), OFF included."""
     core = getattr(engine, 'core', engine)
-    out = {g: {'mode': m} for g, m in (getattr(core, 'gate_modes', None) or {}).items()}
+    modes = getattr(core, 'gate_modes', None)
+    out = {g: {'mode': m} for g, m in modes.items()} if isinstance(modes, dict) else {}
     ex = getattr(core, 'executor', None)
-    while ex is not None:
-        if isinstance(ex, SkillGateExecutor) and ex.gate in out and ex.last_gate is not None:
+    for _ in range(MAX_CHAIN):     # bounded: a wrapper chain is short; never follow an object that invents attributes
+        if not isinstance(ex, SkillGateExecutor):
+            break
+        if ex.gate in out and ex.last_gate is not None:
             out[ex.gate].update(status=ex.last_gate['status'],
                                 failures=[{k: f[k] for k in ('unit', 'page', 'code')} for f in ex.last_gate['failures']])
-        ex = getattr(ex, '_inner', None)
+        ex = vars(ex).get('_inner')
     return out
