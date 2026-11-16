@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "FOCUS_LOST",
+  "what_is_broken": "the outline is removed and nothing replaces it"
+ },
+ "broken2.html": {
+  "code": "FOCUS_LOST",
+  "what_is_broken": "tabindex 3 jumps the keyboard order"
+ }
+}

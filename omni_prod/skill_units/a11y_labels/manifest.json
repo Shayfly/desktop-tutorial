@@ -1,0 +1,11 @@
+{
+ "name": "skill.a11y.labels",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G3",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Every form field has a name a screen reader can read: a <label for>, a wrapping <label>, aria-label or aria-labelledby."
+}

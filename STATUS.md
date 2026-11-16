@@ -1,3 +1,52 @@
+# 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
+
+- **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
+  (`no_progress_repository_unchanged`, 2026-10-07) and the worker stored the reason; now `app.js stopReasonLine()` says it in
+  the customer's words (he/en table `repairStops`, one entry per reason the engines can emit; an unknown reason is shown, not hidden).
+- **Evidence:** `tests/test_repair_stop_reason_ui.py` 7 tests (real `AutonomousProductEngine` loop, real worker job, customer-view filter,
+  app.js in node). Negative controls `tests/negative_controls/repair_stop_reason_ui.json` 3/3 PASS (NC3 proves the engine stop itself).
+  Full suite, one container, `--continue-on-collection-errors`: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `538e86f` 3138 / 34 / 2799 / 30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the UI function ran in node, not in a browser. The bdi root cause is #396, not this.
+- **Awaiting:** Michael's SHA approval.
+# 2026-11-16 — the first five skills as units: accessibility (Claude Code)
+
+- **Implemented:** `omni_prod/skill_units/` (runner + five units): `skill.a11y.contrast` (CONTRAST_LOW, 4.5:1 on pairs set in one rule),
+  `skill.a11y.focus` (FOCUS_LOST), `skill.a11y.labels` (LABEL_MISSING), `skill.a11y.heading_order` (HEADING_ORDER),
+  `skill.a11y.alt_text` (ALT_MISSING). Each: manifest.json, probe.py (static, no model), fixtures/ok, fixtures/broken with
+  expected.json (code + what is broken), failure_codes.json. An undeclared code raises.
+- **Evidence:** `tests/test_skill_units_a11y.py` 6 tests over every unit and fixture; controls `skill_units_a11y.json` 6/6.
+- **Not done:** the units are not yet a gate (G3, stage D) -- nothing calls them in a build. 98 of the 103 catalogue skills remain.
+  Static only: contrast is judged only where a rule sets both colours; a browser measurement is not claimed.
+# 2026-11-16 — a2-offline NC6 explained and fixed: the fixtures pointed at real hosts (Claude Code)
+
+- **What broke:** NC6 of `a2_collect` (the offline guard disabled) failed now and then with one extra failing test,
+  `test_one_run_counts_every_rejection_by_its_reason` (runs 43746694174 attempts 1-2, 43749460570, and #410's run of 2026-11-16).
+- **Root cause, measured:** the assertion added in `6065cc8` printed it on #410's run: `(35, 31, 29, {'capture_missing': 2, ...})` instead
+  of `(35, 31, 30, {'capture_missing': 1, ...})` -- one more site lost its screenshot. With the guard disabled, the browser really
+  fetched the fixtures' external references (`cdn.example.com`, `images.example.org`, `maps.example.com`, `example.com`: real,
+  resolvable hosts) over the runner's network, so a page's load time, and whether its capture fit in time, varied between runs.
+- **Fix:** the fixtures and tests use reserved `.invalid` hosts (RFC 6761: never resolve, fail at once), so a disabled guard fails the
+  same way every time. No production code changes; the guard and the tests' meaning are unchanged.
+- **Evidence:** `tests/test_a2_collect.py` + `tests/test_a2_extract.py` 30 passed with the real browser here; controls a2_collect 7/7
+  three runs in a row, a2_extract 6/6. **Not proven here:** whether this container could reach the real hosts at all; the proof is the
+  next CI runs of a2-offline.
+
+# 2026-11-16 — A2 steps 8 and 9: the window catalogue and the gate (Claude Code)
+
+- **Implemented:** `omni_prod/window_catalog.py`: the eight windows A2 recognises (mega menu, age gate, cookie banner, entry popup,
+  cart drawer, promo bar, chips, question widget), each with its spec (RTL, focus trap, Escape -- except the age gate, which needs an
+  answer --, 44px buttons, not covering content on a phone, never two at once, age gate before cookies). The spec is written into the
+  build prompt (`discovery.requirements_text`), an approved window is a fact of the canon (`fact_canon.build_canon`, key `window`),
+  and `WindowGateExecutor` (installed by the worker) fails a build whose page lacks an approved window or breaks a rule the static
+  probe can check: WINDOW_MISSING, WINDOW_RULE, WINDOW_ORDER, WINDOW_TWO_OPEN.
+- **Evidence:** `tests/test_window_catalog.py` 17 tests, including the real AutonomousProductEngine failing a build without the approved
+  age gate and passing after a repair adds it; controls `window_catalog.json` 7/7.
+- **Not done (four of five, so NOT "done"):** the customer has no screen yet to approve windows -- `fields.windows` is read only when
+  the customer set it (answer or message). The approval card belongs to the first agent's proposal (P1). Rules that need a browser
+  (focus really trapped, nothing covered on a phone, 44px measured) are in the spec and the prompt, not in the static probe; the probe
+  lists what it checked.
+
 # 2026-11-16 — warehouse 111: production no longer deploys on every push to main (Claude Code)
 
 - **What broke:** there is no test environment; Vercel built production on every push to main, so every merge went straight to

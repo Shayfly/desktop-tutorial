@@ -285,6 +285,10 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     # Typed counts the customer gave ("מעל 50 ביקורות" -> reviewCount 50, "4.9 כוכבים" -> rating 4.9).
     for kind, value, ref in count_facts(text):
         add(kind, value, ref)
+    # A2 step 9 (owner 2026-11-16): a window the customer approved is a fact the page must show
+    from .window_catalog import approved_in_prompt, known
+    for wid in approved_in_prompt(text):
+        add('window', wid, known(wid).he)
     return canon
 
 

@@ -1,0 +1,24 @@
+{
+ "pr": "skill-units-a11y",
+ "sha256": ["tests/test_skill_units_a11y.py", "omni_prod/skill_units/__init__.py"],
+ "controls": [
+  {"id": "NC1", "what": "the contrast probe never fails (an empty probe)",
+   "mutations": [{"file": "omni_prod/skill_units/a11y_contrast/probe.py", "old": "            if ratio < MIN:", "new": "            if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code", "test_the_measured_ratio_is_reported"]},
+  {"id": "NC2", "what": "the focus probe accepts a removed outline",
+   "mutations": [{"file": "omni_prod/skill_units/a11y_focus/probe.py", "old": "and not has_visible:", "new": "and False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code"]},
+  {"id": "NC3", "what": "the labels probe takes a placeholder for a label",
+   "mutations": [{"file": "omni_prod/skill_units/a11y_labels/probe.py", "old": "        findings.append({'where': f'<{tag} name={a.get(\"name\", \"?\")}>', 'why': 'no accessible name'})", "new": "        pass  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code"]},
+  {"id": "NC4", "what": "the heading probe allows skipped levels",
+   "mutations": [{"file": "omni_prod/skill_units/a11y_heading_order/probe.py", "old": "        if b > a + 1:", "new": "        if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code"]},
+  {"id": "NC5", "what": "the alt probe accepts an empty alt on a content image",
+   "mutations": [{"file": "omni_prod/skill_units/a11y_alt_text/probe.py", "old": "        elif not a['alt'].strip() and not decorative:", "new": "        elif False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code"]},
+  {"id": "NC6", "what": "an undeclared failure code passes through the runner",
+   "mutations": [{"file": "omni_prod/skill_units/__init__.py", "old": "    if result['status'] == 'fail' and result.get('code') not in failure_codes(unit):", "new": "    if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_an_undeclared_code_raises"]}
+ ]
+}

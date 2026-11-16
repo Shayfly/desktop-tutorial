@@ -1,0 +1,11 @@
+{
+ "name": "skill.a11y.alt_text",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G3",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Every image has an alt attribute; an empty alt is allowed only for an image marked decorative (role=\"presentation\" or aria-hidden=\"true\")."
+}

@@ -11,3 +11,4 @@
 | ITEM-5 | Codex | Draft; independent review required | visible delegated default, history replay and item5 NC |
 | ITEM-4 | Codex | Draft; independent review required | structured allowance error, real JS explain tests and item4 NC |
 | ITEM-2 | Codex | Draft; PostgreSQL evidence pending CI | zero-contact refund test and item2 NC; independent review required |
+| WH-01 | Claude Code | In review | `WAREHOUSE.md` created from the owner's list (2026-11-15); label `warehouse` on #323 |
