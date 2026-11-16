@@ -1,0 +1,84 @@
+{
+ "pr": "window-approval",
+ "sha256": [
+  "tests/test_window_approval.py",
+  "omni_prod/window_catalog.py",
+  "omni_prod/discovery.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a rejected window on the page passes the gate (it would be built)",
+   "mutations": [
+    {
+     "file": "omni_prod/window_catalog.py",
+     "old": "        if wid in by_id:\n            fail('WINDOW_REJECTED'",
+     "new": "        if False:  # NEGATIVE CONTROL\n            fail('WINDOW_REJECTED'"
+    }
+   ],
+   "targets": [
+    "tests/test_window_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_rejected_window_is_not_built"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the customer's decisions on the approval screen are not recorded (an approved window never enters the canon)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if feasible and windows:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_window_approval.py"
+   ],
+   "expect_failed": [
+    "test_a_rejected_window_is_not_built",
+    "test_an_approved_window_enters_the_fact_canon_and_a_rejected_one_does_not",
+    "test_changing_a_decision_moves_the_window",
+    "test_the_approval_binds_to_the_spec_with_the_windows",
+    "test_the_gate_fails_a_build_missing_an_approved_window",
+    "test_the_next_offer_shows_the_decisions"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a build missing an approved window is not gated",
+   "mutations": [
+    {
+     "file": "omni_prod/window_catalog.py",
+     "old": "    if approved or rejected:\n        core = getattr(engine, 'core', engine)",
+     "new": "    if False:  # NEGATIVE CONTROL\n        core = getattr(engine, 'core', engine)"
+    }
+   ],
+   "targets": [
+    "tests/test_window_approval.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_fails_a_build_missing_an_approved_window",
+    "test_a_rejected_window_is_not_built"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the screen sends only the ticked windows, so a rejection is never recorded (caught in node, which CI runs everywhere)",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  return { node, read: () => Object.fromEntries(offer.map((w, i) => [w.id, Boolean(boxes[i].checked)])) };",
+     "new": "  return { node, read: () => Object.fromEntries(offer.filter((w, i) => boxes[i].checked).map(w => [w.id, true])) };"
+    }
+   ],
+   "targets": [
+    "tests/test_window_approval.py"
+   ],
+   "expect_failed": [
+    "test_read_sends_every_window_ticked_or_not_in_node"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+{
+ "SHARE_META_MISSING": {
+  "meaning": "a shared link shows no title or description",
+  "fix": "add og:title and og:description"
+ }
+}

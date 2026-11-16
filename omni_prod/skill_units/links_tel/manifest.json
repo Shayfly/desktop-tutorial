@@ -1,0 +1,11 @@
+{
+ "name": "skill.links.tel",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G11",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Every tel: link dials a valid Israeli number the page shows, and every phone the page shows has a tel: link."
+}

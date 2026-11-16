@@ -1,3 +1,444 @@
+# 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
+
+- **What broke:** build `bld_426addd34be0457bb1955cd4e9bf372f` (prj_-K3B8ZLIJawPEA) served
+  `<img id="hero-image" src="148ai-asset://upload/1">`. The browser does not know the scheme, so the hero was a broken
+  image.
+- **Root cause, from the production rows (read-only):**
+  - The worker builds from the build contract's prompt (`bc_8ffe607037d3c6c01da5a989`).
+  - `ProductArchitect.compile` stores that prompt with its whitespace collapsed (`" ".join(prompt.split())`):
+    2,414 characters, no line break. `build_requests.prompt` has the same words.
+  - `uploaded_assets._IMAGE_BINDING` was anchored to a line start (`^`, re.M), so on the contract it matched nothing.
+    `install_main_image` returned without a word, no transform replaced the marker, and the raw address reached the
+    browser.
+  - A bug of Claude's (845051a, 2026-11-15).
+- **Both discarded repair rounds had the same cause:** the platform never gave the page the bytes. Round 1 swapped in
+  an http URL ("Unexpected identifier 'http'"); round 2 still had no visible image.
+- **The same class of bug, on the same worker path:**
+  - `window_catalog.approved_in_prompt` (a bug of Claude's, 3db7d57): on a contract build the window gate checked
+    nothing, and the fact canon lost the windows.
+  - `fact_canon.needs_customer_input` (the MISSING line): a QA failure only the customer can fix did not stop the
+    repairs.
+- **The fix:**
+  - The three readers read their text wherever it stands after whitespace, on both the approved text and the
+    one-line contract.
+  - A photo the request places with no binding read for it stops the build before generation, loudly
+    (`UPLOAD_MARKER_UNBOUND`).
+  - A new gate, `asset_markers` (`ASSET_MARKER_UNRESOLVED`), fails a round while any `148ai-asset://` address is left
+    in a file the browser loads. A page with a real URL or a data URI passes.
+  - The gate report now walks through the photo check and the marker gate. Before, the evidence lost every gate's
+    result once a photo was placed; that was a bug of mine from #415.
+- **Evidence:**
+  - `tests/test_contract_prompt_readers.py` has 17 tests on the real path. It uses the production contract row as
+    stored (`tests/fixtures/doors_contract_bc_8ffe6070.json`):
+    - the row reproduces its stored fingerprint `sha256:b20d2a60…` and the prompt digest computed in the database,
+      `7379047b…`;
+    - the photo is read from it, and the sandbox receives the bytes, never the address.
+  - Negative controls: `contract_prompt_readers.json` 9/9. NC9 restores the production state (the anchor plus the
+    silent skip), and the sandbox then receives `src="148ai-asset://upload/1"`, as production did.
+- **Not fixed here (said):**
+  - Two readers lose information on a one-line prompt: a customer review at the end of a line (`fact_canon._QUOTE`)
+    and an image description that ran to the end of its line (`generated_images.describe`).
+  - The real fix for both is that the contract keeps the approved text with its line breaks. That changes every new
+    contract's fingerprint, so it is proposed to the owner, not done.
+  - This fix reaches production only on a release (the owner's call). Until then a new "148 דלתות" build still shows
+    the broken image.
+
+# 2026-11-16 — empty blocks (G1), brand (BRAND) and share (SHARE) gates, one unit each (Claude Code)
+
+- **Owner's order (build track, item 7).**
+- **Implemented:**
+  - `blocks_empty` (EMPTY_BLOCK): a `<section>` or `<article>` whose only visible text is its heading. A block with
+    media (img, iframe, form, video) is not empty.
+  - `brand_name` (BRAND_MISSING): the business name in `<title>`, before its separator, is shown on the page, not
+    only in the tab. A page with no title fails.
+  - `share_meta` (SHARE_META_MISSING): og:title and og:description are present and not empty. og:image is not
+    required yet: the hero is inlined as base64 (warehouse 114), so there is no image URL to give.
+  - All three gates block by default, and the worker installs them after G11.
+- **They fall on a page:** each broken fixture is the real butcher page changed in one place: an empty "גלריה"
+  section; a title naming "הקצבייה של משה", which the page never shows; og:description removed. The unchanged page
+  passes all three.
+- **Evidence:** `tests/test_skill_gate_blocks_brand_share.py` 6 tests. Negative controls
+  `skill_gate_blocks_brand_share.json` 4/4.
+- **Build track not done:** item 4, image relevance. The vision check (lens 11) exists but runs on founder builds
+  only (rollout), and making it a customer gate costs a model call per image. Item 5, mobile rendering at 390 with a
+  real screenshot, needs the browser sandbox in the build path. Both are said, not faked.
+
+# 2026-11-16 — the copy gate (G10, 2 skills) and the links gate (G11, 3 skills) (Claude Code)
+
+- **Owner's order (build track, items 3 and 6):** a generic-copy gate (filler sentences) and a links gate (`tel:`, a
+  whole address, navigation). Both fall on a page before they go in.
+- **G10:**
+  - `copy_filler` (COPY_FILLER): generic sentences that say nothing about the business, a closed list in Hebrew and
+    English ("ברוכים הבאים לאתר שלנו", "Welcome to our website").
+  - `copy_placeholder` (COPY_PLACEHOLDER): text left to be replaced ("lorem ipsum", "[שם העסק]", "{{business_name}}",
+    "טקסט לדוגמה", example.com, 123-456-7890), in the text and in links.
+- **G11:**
+  - `links_tel` (TEL_BROKEN): every `tel:` link dials a valid Israeli number the page shows, and every phone the page
+    shows has a `tel:` link.
+  - `links_anchor` (ANCHOR_BROKEN): every `href="#x"` has an element with id x.
+  - `links_address` (ADDRESS_INCOMPLETE): an address the page labels ("כתובת:") has a house number and a city (a closed
+    list of cities). A heading such as "כתובת והתקשרות" is not a label.
+- **They fall on a page:** each unit's broken fixture is the real butcher production page changed in one place, and
+  each gate (block by default) fails the build on it. The changes:
+  - "ברוכים הבאים לאתר שלנו!" added;
+  - the address replaced by "[כתובת העסק]";
+  - both call buttons dialling 050400016, a digit short;
+  - a "מחירים" link to a missing #prices;
+  - the address without its number and city.
+  The unchanged page passes all five units.
+- **Evidence:** `tests/test_skill_gate_copy.py` 6 and `tests/test_skill_gate_links.py` 6. Negative controls
+  `skill_gate_copy.json` 5/5 and `skill_gate_links.json` 5/5. The other gate specs on this branch still pass:
+  `skill_gate_he` 6/6, `skill_gates` 10/10, `skill_units_a11y` 6/6.
+- **Not checked:** pages other than the butcher page.
+
+# 2026-11-16 — the Hebrew gate (HE): grammar, gender agreement, translationese (Claude Code)
+
+- **Owner's order (build track, item 2):** a Hebrew gate with 3 skills. "A gate that has not been shown to fail does not
+  go in."
+- **Implemented:**
+  - Three units in `omni_prod/skill_units/`, each a closed rule list and no model:
+    - `he_grammar` (HE_GRAMMAR): a repeated word, except Hebrew's own reduplications ("לאט לאט"); a double
+      superlative ("הכי ... ביותר"); the article on the first noun of a construct ("הבית קפה").
+    - `he_gender` (HE_GENDER): a noun and the adjective right after it, and שני/שתי with their noun, from closed noun
+      and adjective lists. A word outside the lists is not judged.
+    - `he_translationese` (HE_TRANSLATIONESE): 18 calques ("בסוף היום", "אל תהססו") with the natural Hebrew.
+  - The text is read one text node at a time (`skill_units.text_nodes`). The real page's hours table has a "שבת" cell
+    next to a "שבת סגור" cell; joined, they would read as a repeated word.
+  - Gate `HE`, mode `block` by default (`OMNI_GATE_HE`). The worker installs it after G6, and it reports like the other
+    gates.
+- **It falls on a page:** each unit's broken fixture is the real butcher production page (`bld_83529c13...`) changed in
+  one place: "הבשר הכי איכותי ביותר", "השעות פתיחה", "בשר טרייה", "אל תהססו לפנות". The gate fails the build on each,
+  in its default mode, and the repair to the unchanged page passes. The unchanged page passes all three.
+- **Evidence:** `tests/test_skill_gate_he.py`, 7 tests. Negative controls `tests/negative_controls/skill_gate_he.json`
+  6/6, among them: text joined across elements (then the unchanged page fails too), the gate set to warn, and the
+  worker not installing it.
+- **Not checked:** pages other than the butcher page. The word lists are a start, not full coverage of Hebrew.
+
+# 2026-11-16 — warehouse 105: colours by business category, from a data file; the old default blue is gone (Claude Code)
+
+- **Root cause:** the colour question recommended `'blue'` and `requirements_text` defaulted to `'blue'`, which mapped to
+  `--color-primary: #1d4ed8`. Every customer who stated no colour got the same blue.
+- **Implemented:**
+  - `omni_prod/vertical_palettes.json` holds 10 palettes (primary, accent, background, ink) and the 32 categories of
+    `reference_catalog.CATEGORIES`, each with its palette and the words that identify it in a brief.
+  - `omni_prod/vertical_palettes.py` checks the file against the catalogue at load. A category without a palette, an
+    unknown palette, a category outside the catalogue, or a colour that is not `#rrggbb` raises PaletteError.
+  - The colour question now recommends `category` ("לפי סוג העסק").
+  - When the customer stated no colour, the Design line carries the category's palette. When the category is not
+    recognised, the line says so and asks for a readable palette, with no hidden default.
+  - A colour the customer stated still wins.
+  - The stated "blue" is now `#1e40af`, so `#1d4ed8` is nowhere in `omni_prod`.
+- **Evidence:** `tests/test_vertical_palettes.py` 10 tests. They cover all 32 categories mapped; a vertical without a
+  palette failing (plus 3 other broken files); contrast of at least 4.5:1 for primary on white and ink on background, in
+  every palette; each category recognised by its own words; the butcher and dental briefs getting different palettes;
+  the stated colour winning; and an unknown business being said, not defaulted. Negative controls
+  `tests/negative_controls/vertical_palettes.json` 4/4. Every spec that touches the changed files passes: cafe-real-rows
+  4/4, first-agent-brief-slice 5/5, image-answer-loop 6/6, latest-answer-wins 2/2, uploaded-main-image 14/14,
+  window-catalog 7/7. Four older tests asserted the old blue default
+  (`test_discovery_and_approval`, `test_intake_palette_preservation` ×2, `test_wp1_gap_detector` ×2). They now assert
+  the owner's rule.
+- **Not checked:** a real build with the new palette (it needs a paid build).
+# 2026-11-16 — the customer approves or rejects each window (Claude Code)
+
+- **Owner's order:** an approval screen for windows. Each window is offered with a one-sentence benefit; the customer
+  approves or rejects it. Acceptance: a rejected window is not built; an approved one enters fact_canon; the gate fails a
+  build missing an approved window.
+- **Implemented:**
+  - `window_catalog.BENEFITS` holds one sentence per window, Hebrew and English, and `offer()` builds the offer.
+  - `discovery.decide_windows` records approved and rejected windows in the brief (customer only). An unknown id raises
+    KeyError; a decision that is not a bool raises ValueError.
+  - `discovery.window_offer` makes the offer, websites only.
+  - `requirements_text` adds a "Rejected windows ... do not add them" line, and the gate fails a page that has a rejected
+    window (`WINDOW_REJECTED`).
+  - Gate 1's approve_spec action and the proposal card both carry the offer. `approve_spec(windows=...)` saves the
+    decisions before the approval, so the approval binds to the fingerprint that includes them, the same way as the
+    waiver.
+  - The API (`V28SpecApproval.windows`) refuses an unknown window with 400 `unknown_window`.
+  - UI: `windowsChoice()` in app.js renders one row per window, with label, benefit and a 44px target. It is used on
+    both approval screens, and it sends EVERY offered window, ticked as true and unticked as false. A window left
+    unticked is recorded as rejected, which the screen says.
+- **Evidence:** `tests/test_window_approval.py` 13 tests. They run the real supervisor up to gate 1, approve_spec with
+  decisions, the saved brief, build_canon, and the real engine with the window gate; and windowsChoice() with app.css in
+  real Chromium (click a row, read() sends all 8). Negative controls `tests/negative_controls/window_approval.json` 4/4
+  PASS, and `window_catalog.json` 7/7 still PASS. The 28 specs that touch the changed files: 23 PASS. 5
+  (item3-route, item4, pr154 NC2, pr176, preview-durable-backend) need fastapi and fail identically on main `c38fbb4`.
+- **Not checked here:** the API route itself (no fastapi in this container; CI runs it); a real paid build with windows.
+# 2026-11-16 — the v24-ci test job no longer runs the whole suite twice (Claude Code)
+
+- **What broke:** #418's `test` job was cancelled at its 20-minute bound, and a cancelled check is not green. The
+  bound is also the CI-cost policy's maximum (`tests/test_ci_workflow_concurrency.py`).
+- **Root cause:** the job ran pytest (7.7 min), then the negative controls (4.8 min), then
+  `scripts/run_international_gate.py`, which **ran the whole pytest suite again** (another ~7.7 min). On #417 the job
+  already took 17.7 minutes; the tests and controls I added today pushed it over.
+- **Fix:** the gate reads the junit report the first run wrote in the same job (`OMNI_PYTEST_REPORT=pytest-report.xml`,
+  set in v24-ci), through `scripts/junit_report.verdict`. A missing, unreadable or empty report, or any failure or
+  error, fails the gate loudly; skips are counted and said. Without the variable (a local run) the gate runs pytest as
+  before.
+- **Evidence:** `tests/test_ci_junit_report.py` 6 tests on junit files that pytest itself wrote, plus the workflow and
+  the gate as committed. Negative controls `ci_junit_report.json` 3/3 (failures counted as green; an empty report
+  green; the workflow not handing the report over). The real gate run with a report: `exit=0` in 2 seconds, with
+  `pytest: 8 tests, 0 failures, 0 errors, 0 skipped`.
+
+# 2026-11-16 — warehouse 107 (was 82): the stored customer session is checked on production and fails out loud (Claude Code)
+
+- **Implemented:** `scripts/customer_session_check.py` and the job `.github/workflows/customer-session.yml` (daily at 04:17 UTC and manual).
+  The job gives the secret `CUSTOMER_STORAGE_STATE` (a Playwright storage_state of a non-founder customer) to the check. The check
+  opens `GET /api/v28/me` on production with the `148ai_session` cookie. Each failure is its own readable `::error` and exit 1, never a
+  skip: `MISSING` (secret absent or empty, with how to set it), `MALFORMED`, `UNAUTHORIZED` (401: expired or revoked), `FOUNDER`
+  (the founder's account proves nothing about customers), `UNEXPECTED`. The cookie value is never printed.
+- **Evidence:** `tests/test_ci_customer_session.py` 9 tests (ci-fast). They run the real HTTP client against a local server that
+  answers like `/api/v28/me`, and read the workflow as committed. Negative controls `tests/negative_controls/customer_session.json`
+  4/4 PASS (missing secret as a skip; 401 accepted; founder accepted; the step skipped when the secret is absent).
+  Run here without the secret: `::error title=customer session MISSING::the secret CUSTOMER_STORAGE_STATE is not set or is empty; ...` exit 1.
+- **Blocked by a named credential:** the secret `CUSTOMER_STORAGE_STATE` does not exist yet. The owner creates it (a test customer
+  that is not the founder). Until then the daily job fails with MISSING. That is the acceptance, said out loud.
+- **Not checked:** a live 200 on production (needs the secret).
+# 2026-11-16 — warehouse 112: every test file is run by a CI job (Claude Code)
+
+- **Found:** 16 test files that need PostgreSQL (they end in `_pg.py` or read `M4D2_DATABASE_URL`) were run by no job. `v24-ci`
+  has no database, so they skipped there, and `intake-budget-pg` runs an explicit list that did not name them. #404 was the same gap.
+- **Implemented:** `scripts/ci_test_coverage.py` (runs in the `fast` job as `tests/test_ci_test_coverage.py`). It fails loudly when:
+  a PostgreSQL file is neither in the pg job's list nor in `tests/pg_not_yet_run.txt` with a reason; a listed file no longer exists;
+  a waiver has no reason, is stale or is also listed; or `v24-ci` stops running every test (`python -m pytest -q --junitxml=...`).
+  The 16 files were added to `intake-budget-pg.yml`. A file that fails in CI's real Postgres moves to `pg_not_yet_run.txt` with the exact failure.
+- **Evidence:** `tests/test_ci_test_coverage.py` 5 passed. Negative controls `tests/negative_controls/ci_test_coverage.json` 4/4 PASS
+  (a new pg file no job runs; the database variable counted; a waiver without a reason; the general run narrowed).
+  `python scripts/ci_test_coverage.py` → `PASS (0 problem(s))`.
+- **Bug of mine found on the way:** the test file named the database variable, so the check flagged the test itself as needing
+  PostgreSQL. Fixed by splitting the string; that the check caught its own test is extra evidence that it works.
+- **The first pg run (#416, 2026-11-16) judged the 16 files:** 6 failed / 509 passed / 7 skipped. The 6 failures were
+  in three files that ran there before (`test_intake_assistant_he`, `test_conversation_os`, `test_intake_approve_and_goal`:
+  the interpreter label read 'model-via-worker', and the API answered 500). The cause is module and environment state
+  that the new files leave behind in the shared process. Two new files skipped: `test_profit_billing_events_pg` needs
+  `OMNI_PROFIT_TEST_DATABASE_URL`, and `test_m4d2b_parity_and_worker` must run in a process that has not imported
+  investor_app.
+- **The second pg run (each file alone):** 13 of 15 pass. Two still fail alone and are waived with their exact failure
+  in `tests/pg_not_yet_run.txt`: `test_conversation_os` (1 failed / 37 passed) and `test_m4d2b_parity_and_worker`
+  (3 failed: no eligible model route for local-coder; a modification classification None instead of 'system_bug').
+  The same run timed out the negative-controls step (5 minutes). On main after #415 that step took 4m39s, because my
+  skill-gate specs run real engine builds. The bound is now 10 minutes.
+- **The change:** 15 files run in a new step, each in its own process, and a skip there is an `::error`. The profit
+  billing file is in `tests/pg_not_yet_run.txt` with its reason. The focused list is back to what it was.
+# 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
+
+- **Owner's order:** wire the 5 a11y skills into G3 (each skill fails a build when it fails), 5 performance skills plus
+  G4, and 5 secrets skills plus G6. Then (owner, the same morning):
+  - strengthen G3 until it fails on a page;
+  - G4 in `warn` mode with a high threshold until warehouse 114 is fixed;
+  - the `OMNI_GATE_<G>` switch reports when it is off, on every build.
+- **G3 fell on the butcher production page (`bld_83529c13...`, served from app.py).** Two broken variants were made
+  from it, each changed in one place. With `--text-dark: #b8bec8`, body text on `#f8fafc` is 1.79:1, so
+  `CONTRAST_LOW` fails the build. With its `:focus-visible` rule removed and `outline:none` on `a:focus, button:focus`,
+  `FOCUS_LOST` fails the build. Both repair to the real page and pass.
+- **Bug found in my own G3 (root cause):** the generated pages set every colour through `var(--...)`, and the contrast
+  probe read only literal hex. It judged no colour pair on the real page and passed it blind; the old probe passes the
+  low-contrast variant. The probe now resolves custom properties (with a var() fallback), and `judged()` counts the
+  pairs it read (4 on the real page). A pair it cannot read (rgb(), a gradient) is not judged and not claimed.
+- **Another bug of mine, caught before push:** `report()` walked the executor chain through `_inner` without a bound. On
+  the worker harness's MagicMock engine every attribute is a new mock, so the walk ran out of memory: a MemoryError in
+  `test_build_failed_announced`, and the kernel killed processes. The fix: the walk stops at MAX_CHAIN (20), follows
+  only real SkillGateExecutor objects (`vars()`, never an invented attribute), and accepts `gate_modes` only as a
+  dict. `test_the_report_walk_is_bounded` is the regression test; the unbounded version is its proof, since it failed
+  that way.
+- **Implemented:**
+  - `omni_prod/skill_units/gate.py`: a gate is every unit whose manifest names it. It wraps the engine's executor;
+    after the sandbox run, each unit's probe runs on every page, and a failing unit is an acceptance failure
+    `gate-<G>-<unit>`, with its code, the page and the findings, which goes to the repair round.
+  - Pages are .html files, or a whole HTML document inside app.py, which is how the generated sites serve their page.
+    A secrets unit (`reads_source`) reads every text file. No page and no source unit means NOT_RUN, said in the log
+    and in `last_gate`.
+  - `OMNI_GATE_<G>` takes `block`, `warn` or `off` (`1` and `0` also work); any other value raises. The defaults are
+    G3 block, G4 warn, G6 block.
+  - Every build writes each gate's mode, OFF included, to the log (`GATE_ON` / `GATE_OFF`) and to the build evidence
+    (`evidence_json.skill_gates`: mode, status, failure codes).
+  - In warn mode the failures are recorded (`GATE_WARN`, `last_gate`, the evidence) and the build goes on.
+  - The worker installs G3, G4 and G6 after the window gate.
+- **New units (each with manifest, probe, ok and broken fixtures, failure codes):**
+  - G4: `perf_blocking_script` (SCRIPT_BLOCKING), `perf_font_display` (FONT_NO_SWAP), `perf_font_preconnect`
+    (FONT_NO_PRECONNECT), `perf_hero_eager` (HERO_LAZY), `perf_lazy_images` (IMG_NOT_LAZY), and
+    `perf_inline_image_weight` (IMAGE_INLINED_HEAVY: an inline data: image over 500,000 base64 characters; the
+    butcher page had 1,735,408). G4 warns on it and does not block, until warehouse 114 is fixed.
+  - G6: `secrets_private_key`, `secrets_api_keys`, `secrets_db_url`, `secrets_bearer`, `secrets_assignment`, on the
+    repository's own scanner `omni_prod/secret_scan.py`, so the build and the repository share one definition. A value
+    read from the environment is not a credential.
+- **Evidence:**
+  - `tests/test_skill_gates.py`, 15 tests:
+    - Each of the 16 units fails a real-engine build through its own broken fixture with its own code, and the repair to
+      the real page passes.
+    - G3 falls on the two real-page variants, in its default mode.
+    - G4 warns by default: the build goes on, with the log line and the evidence.
+    - Every gate says its mode on every build, OFF included, and the evidence carries the gates.
+    - A key in server.py fails G6 even with a clean page.
+    - No page means NOT_RUN, said.
+  - `tests/test_skill_units_a11y.py` checks the parts of all 16 units.
+  - Negative controls: `skill_gates.json` 10/10, `skill_units_perf_secrets.json` 11/11, `skill_units_a11y.json` 6/6. Every spec that touches the changed files: build-failed-announced 4/4, repair-stop-reason-ui 3/3, lens11-image-match 9/9, window-catalog 7/7, worker-build-not-found 3/3; item2 needs psycopg and fails identically on main `c38fbb4`; settle-computed is pg-only.
+    - NC6 puts back the literal-hex-only probe, and the real-page test catches it.
+    - NC8 makes OFF silent, and it is caught.
+    - NC10 makes G4 block by default, and it is caught.
+- **Real-path evidence:** the unchanged butcher page passes all 16 units, so the gates do not block a page customers
+  got. Its hero, as served, was inlined as 1.7MB of base64 (warehouse 114). The recorded page replaced it with a 1x1
+  placeholder; on the real one, G4 would warn, which is the purpose.
+# 2026-11-16 — an accidental production release, and the release mark tightened (Claude Code)
+
+- **What broke:** #413's merge `c38fbb4` deployed BOTH Vercel production (`dpl_DFWp5Yxw1ziP5gJbMGUBWMUejSMu`, READY) and the
+  build worker (deploy-worker run 43820763641). Neither was a release.
+- **Root cause, a bug of mine:** I wrote the literal mark in #413's PR title ("... only on a release (`[release]` or a manual
+  run)"). GitHub copies the PR title into the merge commit's body, and both rules matched the mark anywhere in the message.
+- **Impact:** what went out is main at `c38fbb4`. Its runtime code equals the released `9917eba`; only the workflow, the gate
+  script, tests and STATUS changed. No customer-visible change. The worker deploy was left to finish, because a cancel in the
+  middle of a drain is the riskier step.
+- **Fix:** the mark counts only when the commit's FIRST LINE (the merge title) ENDS with `[release]`, in both
+  `scripts/vercel_ignore_build.mjs` (`isRelease`) and `scripts/release_gate.py` (`is_release`). `OMNI_RELEASE=1` and a
+  manual run of deploy-worker are unchanged. #412's real release title ("Merge pull request #412 from ... [release]")
+  still releases. #413's message verbatim, a mark in the body, a mark mid-title or at its start all do not.
+- **Evidence:** the #413 message is a test case in `tests/test_vercel_ignore_build.py` and `tests/test_release_gate_worker.py`.
+  Negative controls: `vercel_ignore_build.json` NC6 and `release_gate_worker.json` NC4 put back "anywhere in the message"
+  and the new tests catch it.
+- **The working rule from now on:** the literal mark is written only as the last word of a release merge's title. It
+  is never written in a PR title or body.
+
+# 2026-11-16 — warehouse 111 completed: the build worker deploys only on a release (Claude Code)
+
+- **Fix:** `scripts/release_gate.py` + a `release-gate` job in `.github/workflows/deploy-worker.yml`: the `deploy` job runs only when the
+  push's head commit carries `[release]` or the run is manual; otherwise the gate prints `::notice title=release gate::SKIP -- ...`.
+  An unknown event fails loudly. The frozen browser-probe step is untouched. Vercel production follows the same marker (#408).
+- **Evidence:** `tests/test_release_gate_worker.py` 6 tests (the script run as the workflow runs it; the job dependency read from the
+  YAML); controls `release_gate_worker.json` 3/3.
+- **Consequence:** migrations (applied by deploy-worker) now also reach production only on a release.
+
+# 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
+
+- **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
+  (`no_progress_repository_unchanged`, 2026-10-07) and the worker stored the reason; now `app.js stopReasonLine()` says it in
+  the customer's words (he/en table `repairStops`, one entry per reason the engines can emit; an unknown reason is shown, not hidden).
+- **Evidence:** `tests/test_repair_stop_reason_ui.py` 7 tests (real `AutonomousProductEngine` loop, real worker job, customer-view filter,
+  app.js in node). Negative controls `tests/negative_controls/repair_stop_reason_ui.json` 3/3 PASS (NC3 proves the engine stop itself).
+  Full suite, one container, `--continue-on-collection-errors`: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `538e86f` 3138 / 34 / 2799 / 30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the UI function ran in node, not in a browser. The bdi root cause is #396, not this.
+- **Awaiting:** Michael's SHA approval.
+# 2026-11-16 — the first five skills as units: accessibility (Claude Code)
+
+- **Implemented:** `omni_prod/skill_units/` (runner + five units): `skill.a11y.contrast` (CONTRAST_LOW, 4.5:1 on pairs set in one rule),
+  `skill.a11y.focus` (FOCUS_LOST), `skill.a11y.labels` (LABEL_MISSING), `skill.a11y.heading_order` (HEADING_ORDER),
+  `skill.a11y.alt_text` (ALT_MISSING). Each: manifest.json, probe.py (static, no model), fixtures/ok, fixtures/broken with
+  expected.json (code + what is broken), failure_codes.json. An undeclared code raises.
+- **Evidence:** `tests/test_skill_units_a11y.py` 6 tests over every unit and fixture; controls `skill_units_a11y.json` 6/6.
+- **Not done:** the units are not yet a gate (G3, stage D) -- nothing calls them in a build. 98 of the 103 catalogue skills remain.
+  Static only: contrast is judged only where a rule sets both colours; a browser measurement is not claimed.
+# 2026-11-16 — a2-offline NC6 explained and fixed: the fixtures pointed at real hosts (Claude Code)
+
+- **What broke:** NC6 of `a2_collect` (the offline guard disabled) failed now and then with one extra failing test,
+  `test_one_run_counts_every_rejection_by_its_reason` (runs 43746694174 attempts 1-2, 43749460570, and #410's run of 2026-11-16).
+- **Root cause, measured:** the assertion added in `6065cc8` printed it on #410's run: `(35, 31, 29, {'capture_missing': 2, ...})` instead
+  of `(35, 31, 30, {'capture_missing': 1, ...})` -- one more site lost its screenshot. With the guard disabled, the browser really
+  fetched the fixtures' external references (`cdn.example.com`, `images.example.org`, `maps.example.com`, `example.com`: real,
+  resolvable hosts) over the runner's network, so a page's load time, and whether its capture fit in time, varied between runs.
+- **Fix:** the fixtures and tests use reserved `.invalid` hosts (RFC 6761: never resolve, fail at once), so a disabled guard fails the
+  same way every time. No production code changes; the guard and the tests' meaning are unchanged.
+- **Evidence:** `tests/test_a2_collect.py` + `tests/test_a2_extract.py` 30 passed with the real browser here; controls a2_collect 7/7
+  three runs in a row, a2_extract 6/6. **Not proven here:** whether this container could reach the real hosts at all; the proof is the
+  next CI runs of a2-offline.
+
+# 2026-11-16 — A2 steps 8 and 9: the window catalogue and the gate (Claude Code)
+
+- **Implemented:** `omni_prod/window_catalog.py`: the eight windows A2 recognises (mega menu, age gate, cookie banner, entry popup,
+  cart drawer, promo bar, chips, question widget), each with its spec (RTL, focus trap, Escape -- except the age gate, which needs an
+  answer --, 44px buttons, not covering content on a phone, never two at once, age gate before cookies). The spec is written into the
+  build prompt (`discovery.requirements_text`), an approved window is a fact of the canon (`fact_canon.build_canon`, key `window`),
+  and `WindowGateExecutor` (installed by the worker) fails a build whose page lacks an approved window or breaks a rule the static
+  probe can check: WINDOW_MISSING, WINDOW_RULE, WINDOW_ORDER, WINDOW_TWO_OPEN.
+- **Evidence:** `tests/test_window_catalog.py` 17 tests, including the real AutonomousProductEngine failing a build without the approved
+  age gate and passing after a repair adds it; controls `window_catalog.json` 7/7.
+- **Not done (four of five, so NOT "done"):** the customer has no screen yet to approve windows -- `fields.windows` is read only when
+  the customer set it (answer or message). The approval card belongs to the first agent's proposal (P1). Rules that need a browser
+  (focus really trapped, nothing covered on a phone, 44px measured) are in the spec and the prompt, not in the static probe; the probe
+  lists what it checked.
+
+# 2026-11-16 — warehouse 111: production no longer deploys on every push to main (Claude Code)
+
+- **What broke:** there is no test environment; Vercel built production on every push to main, so every merge went straight to
+  customers.
+- **Fix:** `scripts/vercel_ignore_build.mjs` (the project's Ignored Build Step): production builds only a release -- a commit whose
+  message carries `[release]` (written in the merge commit), or a manual production deploy with `OMNI_RELEASE=1`. Anything else on
+  production is skipped and the build log says why; production stays on the last released SHA. Previews still build automatically.
+  The test that asserted "production always builds" encoded the behaviour the owner stopped; it changed in the open.
+- **Evidence:** `tests/test_vercel_ignore_build.py` 8 tests (the real script in node, Vercel's variables); controls
+  `production_on_release.json` 3/3.
+- **Not covered (blocked by a no-touch path):** the build worker is still deployed by `.github/workflows/deploy-worker.yml` on every
+  push to main; changing it touches `.github/workflows/`, which is outside this agent's paths. Recorded in WAREHOUSE.md.
+- **Until a test environment exists:** every check runs against a fixed deployment URL, not the moving production alias.
+# 2026-11-16 — warehouse 77c: a failed build is said in the conversation, with one action (Claude Code)
+
+- **What broke:** a customer whose build failed saw nothing in the conversation; the failure lived only in the build tab.
+- **Fix:** `omni_prod/build_announcement.py`: `FailureWitness` wraps the jobs repository of the live build job and remembers the
+  transition to FAILED; `announce_if_failed` writes one assistant message (idempotent on `build-failed:<id>`): "the build failed",
+  "you were not charged" only when the credits went back, and ONE action -- `retry_build` (back to the approval screen) or, for a
+  detail only the customer can give, `edit_requirements`. Wired in `worker_tasks._run_live_build_job_with_components` (try/finally,
+  so an engine crash is said too). A failure to write is logged as an error, never changes the build. UI: the `retry_build` button;
+  the chat's status line for a failed build is styled as failed.
+- **Evidence:** `tests/test_build_failed_announced.py` 7 tests (the production job through BuildHarness); controls
+  `build_failed_announced.json` 4/4.
+- **Not checked:** no real build, no browser run; the Postgres conversation store is exercised by its in-memory twin here.
+# 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
+
+- **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
+  "דלת עם ידית", even "מוצר") were not read, the question came back, and after three cards the buttons were replaced by
+  "חסרה החלטה על קיבלתי את התמונה. מה יש בה?, ... בלשונית דרישות" (the question printed as the topic, the way forward only in another tab).
+  Reproduced on main `d496a92` on the real supervisor path.
+- **Fix:** `omni_prod/intake/image_answers.py` maps typed words to the option (owner's map: door/handle/product -> product,
+  person/owner/name -> person, place/shop -> place, logo -> logo; first word wins, door/handle always product; no word -> no guess) and
+  keeps the description as the "who/what" answer; the supervisor reads a typed answer only against what the last turn asked or blocked
+  on (`_awaiting`); an image card past the card limit keeps its buttons and says how to answer; no assistant message is sent twice in a
+  row with the same question (`_not_repeated`); the Requirements panel shows the chat's own next question (`discovery.panel_group`);
+  "update the plan" says what is still missing (`app.js stillMissingLine`).
+- **Evidence:** `tests/test_image_answer_loop.py` 11 tests; negative controls `image_answer_loop.json` 6/6 PASS.
+- **Not checked:** no browser run; the UI line ran in node. No model interpreter (the deterministic one reads the words).
+
+# 2026-11-15 — P0-c correction (Claude bug): the Postgres tests of #401 never ran in CI (Claude Code)
+
+- **What was wrong:** `intake-budget-pg` enumerates its test files; `tests/test_company_loss_failed_build_pg.py` was not listed, so
+  the claim in #401 and in the P0-c STATUS entry below ("passed in CI's pg-tests job, 315 passed") was false -- those 315 were other
+  tests. Found by the independent review of 2026-11-15. Two assertions in the pg test would have failed had it run
+  (`provider_cost_truth` is `COMPUTED_FROM_USAGE`, not `computed`; the roll-up is database-wide), and the ledger could have recorded
+  a reservation estimate as a loss when nothing was measured (`CONSERVATIVE_RESERVATION`).
+- **Fix:** the file is in the pg job list; `record_failed_build` writes nothing on `CONSERVATIVE_RESERVATION` (the ledger never records
+  an estimate) and `release_failed` returns `loss_recorded`; the pg test asserts the real values and account-scoped sums, plus the
+  unmeasured case. Negative controls NC4 (file dropped from the job list) and NC5 (estimate guard removed).
+- **Evidence:** offline 13 passed, 5 skipped (pg). Controls NC2–NC5 PASS here (NC1 pg only). The real path on Postgres is verified only
+  when this PR's `pg-tests` job runs the file -- read that job, not this line.
+- **Structural finding for CI (Codex):** an explicit file list means every new `*_pg.py` test is silently not run; discover them.
+
+# 2026-11-15 — P0-b, warehouse 104 + 106: the checks that did not run are an explicit list (Claude Code)
+
+- **Implemented and independently verifiable offline:** `release_policy.QualityReport.not_run` (NOT_RUN / UNKNOWN / NO_CHECKS, required
+  and advisory, with stage and reason) carried by `to_dict()` into the build's stored evidence; `app.js notRunLine()` names the checks
+  in the customer's words on failed and ready builds, and says "no check ran" when a failed build has no report.
+  Warehouse 106: `tests/test_attribution_per_criterion.py` proves on the real `RemoteSandboxRepositoryExecutor` (real `_run`, stub runner
+  that really runs pytest) that a failed verify command fails exactly the criteria it carries; the generator-side cure is PR #210.
+- **Evidence:** `tests/test_not_run_list.py` 12 tests (corrected 2026-11-15 by review: the entry said 15), `tests/test_attribution_per_criterion.py` 3 tests. Negative controls
+  `tests/negative_controls/not_run_list.json` 4/4 PASS. Full suite, one container, `--continue-on-collection-errors`: main `93916ae`
+  collected 3131 / 34 collection errors / 2792 passed / 30 failed / 302 skipped / 36 errors; branch `e07a790` collected 3146 / 34 / 2807 /
+  30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the browser UI was executed in node on the production report, not in a browser. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Open for Michael (spec):** a criterion no verify command covers is a FAILED criterion today (Golden E2E #1, so the repair loop adds
+  the test); item 106's acceptance text says `not_run`. Not changed here.
+- **Awaiting:** Michael's SHA approval; #210 (per-criterion verify) is clean against main and is the fix of 106's root.
+# 2026-11-15 — P0-c, warehouse 103: the provider cost of a failed build is a loss row (Claude Code)
+
+- **Implemented; awaiting the owner's approval of migration 044 and the pg job:** `company_loss.record_failed_build` (cause
+  `failed_build_refunded`, quoted 0, actual = the cost basis, one idempotent row per build, nothing at zero cost) called inside
+  `subscription_store.release_failed`'s own transaction; `infra/postgres/044_company_loss_failed_build.sql` widens the CHECK constraint
+  by the fourth cause (precedent 015, 033), rollback file, staging bootstrap regenerated, `schema_manifest` requires 044.
+- **Evidence (offline):** `tests/test_company_loss_failed_build.py` 5 tests (the exact INSERT and parameters, the cause set, the
+  migration text, bootstrap `--check`, the call site). Negative controls `company_loss_failed_build.json`: NC2, NC3 PASS here; NC1 is
+  pg-only. Full suite, one container: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed / 302 skipped /
+  36 errors; branch `97fd833` 3140 / 34 / 2797 / 30 / 306 / 36 (the four new skips are the pg tests). Failure lists identical (66 lines).
+  The first branch run (`ebbc9e1`) failed two manifest tests; fixed in `97fd833` and re-run.
+- **Not run here (blocked, named):** `tests/test_company_loss_failed_build_pg.py` (4 tests) and NC1 need real PostgreSQL
+  (`M4D2_DATABASE_URL`, the intake-budget-pg job). The real path -- the row inside the refund -- is verified only there.
+- **Blocked by a decision:** migration 044 runs only with the owner's explicit approval (CLAUDE.md §5).
 # 2026-11-15 — P0-a, warehouse 69: output profile + A0 router (Claude Code)
 
 - **Implemented and independently verifiable offline:** `omni_prod/output_profile` (profiles for `website`/`web_app`, an

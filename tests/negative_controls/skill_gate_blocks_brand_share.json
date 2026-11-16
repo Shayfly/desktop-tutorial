@@ -1,0 +1,18 @@
+{
+ "pr": "skill-gate-blocks-brand-share",
+ "sha256": ["tests/test_skill_gate_blocks_brand_share.py", "omni_prod/skill_units/gate.py"],
+ "controls": [
+  {"id": "NC1", "what": "a section with only its heading counts as content",
+   "mutations": [{"file": "omni_prod/skill_units/blocks_empty/probe.py", "old": "len(nodes) <= (1 if heading else 0)", "new": "len(nodes) <= (0 if heading else 0)"}],
+   "targets": ["tests/test_skill_gate_blocks_brand_share.py"], "expect_failed": ["test_a_block_with_content_or_media_is_not_empty", "test_each_falls_on_the_real_page_changed_in_one_place"]},
+  {"id": "NC2", "what": "the brand unit never looks at the page body",
+   "mutations": [{"file": "omni_prod/skill_units/brand_name/probe.py", "old": "    if not any(name in node for node in text_nodes(body)):", "new": "    if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_skill_gate_blocks_brand_share.py"], "expect_failed": ["test_each_falls_on_the_real_page_changed_in_one_place"]},
+  {"id": "NC3", "what": "the share unit takes an empty og value as present",
+   "mutations": [{"file": "omni_prod/skill_units/share_meta/probe.py", "old": "    missing = [p for p in ('og:title', 'og:description') if not og.get(p)]", "new": "    missing = [p for p in ('og:title', 'og:description') if p not in og]"}],
+   "targets": ["tests/test_skill_gate_blocks_brand_share.py"], "expect_failed": ["test_no_title_and_an_empty_og_value_fail"]},
+  {"id": "NC4", "what": "the worker does not install the three gates",
+   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "        for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview\n            install_skill_gate(engine, g)\n", "new": ""}],
+   "targets": ["tests/test_skill_gate_blocks_brand_share.py"], "expect_failed": ["test_the_worker_installs_the_three"]}
+ ]
+}

@@ -1,0 +1,11 @@
+{
+ "name": "skill.a11y.contrast",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G3",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Text and its background, where both are set in the same CSS rule or inline style, have a contrast of at least 4.5:1 (WCAG AA body text)."
+}

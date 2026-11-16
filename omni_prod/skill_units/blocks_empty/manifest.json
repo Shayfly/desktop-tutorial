@@ -1,0 +1,11 @@
+{
+ "name": "skill.blocks.empty",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G1",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "No section (<section>, <article>) whose only visible text is its heading."
+}

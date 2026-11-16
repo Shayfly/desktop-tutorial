@@ -1,0 +1,11 @@
+{
+ "name": "skill.a11y.heading_order",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G3",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "The page has exactly one h1, it is the first heading, and no heading level is skipped going down."
+}
