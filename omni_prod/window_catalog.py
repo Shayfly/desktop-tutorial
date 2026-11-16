@@ -127,7 +127,12 @@ def prompt_lines(approved) -> list[str]:
 
 
 APPROVED_PREFIX = 'Approved windows (each root element carries '
-_APPROVED_LINE = re.compile(r'^- ([a-z_]+) \(', re.M)
+APPROVED_END = '- Never two windows open at once'
+# Production 2026-11-16 ("148 דלתות"): the worker reads the CONTRACT prompt, whose whitespace ProductArchitect.compile
+# collapsed -- no line breaks. A line-start anchor (`^`, re.M) read no approved window there, so the window gate checked
+# nothing and the fact canon lost the windows. A bug of Claude's (3db7d57). Each window is read after whitespace, inside
+# the block `prompt_lines` writes (which always ends with APPROVED_END), on both forms of the prompt.
+_APPROVED_LINE = re.compile(r'(?<!\S)- ([a-z_]+) \(')
 
 
 def approved_in_prompt(prompt: str) -> list[str]:
@@ -135,7 +140,9 @@ def approved_in_prompt(prompt: str) -> list[str]:
     text = prompt or ''
     if APPROVED_PREFIX not in text:
         return []
-    block = text[text.index(APPROVED_PREFIX):]
+    start = text.index(APPROVED_PREFIX)
+    end = text.find(APPROVED_END, start)
+    block = text[start:end if end >= 0 else len(text)]
     return [w for w in _APPROVED_LINE.findall(block) if w in CATALOG]
 
 

@@ -1,3 +1,48 @@
+# 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
+
+- **What broke:** build `bld_426addd34be0457bb1955cd4e9bf372f` (prj_-K3B8ZLIJawPEA) served
+  `<img id="hero-image" src="148ai-asset://upload/1">`. The browser does not know the scheme, so the hero was a broken
+  image.
+- **Root cause, from the production rows (read-only):**
+  - The worker builds from the build contract's prompt (`bc_8ffe607037d3c6c01da5a989`).
+  - `ProductArchitect.compile` stores that prompt with its whitespace collapsed (`" ".join(prompt.split())`):
+    2,414 characters, no line break. `build_requests.prompt` has the same words.
+  - `uploaded_assets._IMAGE_BINDING` was anchored to a line start (`^`, re.M), so on the contract it matched nothing.
+    `install_main_image` returned without a word, no transform replaced the marker, and the raw address reached the
+    browser.
+  - A bug of Claude's (845051a, 2026-11-15).
+- **Both discarded repair rounds had the same cause:** the platform never gave the page the bytes. Round 1 swapped in
+  an http URL ("Unexpected identifier 'http'"); round 2 still had no visible image.
+- **The same class of bug, on the same worker path:**
+  - `window_catalog.approved_in_prompt` (a bug of Claude's, 3db7d57): on a contract build the window gate checked
+    nothing, and the fact canon lost the windows.
+  - `fact_canon.needs_customer_input` (the MISSING line): a QA failure only the customer can fix did not stop the
+    repairs.
+- **The fix:**
+  - The three readers read their text wherever it stands after whitespace, on both the approved text and the
+    one-line contract.
+  - A photo the request places with no binding read for it stops the build before generation, loudly
+    (`UPLOAD_MARKER_UNBOUND`).
+  - A new gate, `asset_markers` (`ASSET_MARKER_UNRESOLVED`), fails a round while any `148ai-asset://` address is left
+    in a file the browser loads. A page with a real URL or a data URI passes.
+  - The gate report now walks through the photo check and the marker gate. Before, the evidence lost every gate's
+    result once a photo was placed; that was a bug of mine from #415.
+- **Evidence:**
+  - `tests/test_contract_prompt_readers.py` has 17 tests on the real path. It uses the production contract row as
+    stored (`tests/fixtures/doors_contract_bc_8ffe6070.json`):
+    - the row reproduces its stored fingerprint `sha256:b20d2a60…` and the prompt digest computed in the database,
+      `7379047b…`;
+    - the photo is read from it, and the sandbox receives the bytes, never the address.
+  - Negative controls: `contract_prompt_readers.json` 9/9. NC9 restores the production state (the anchor plus the
+    silent skip), and the sandbox then receives `src="148ai-asset://upload/1"`, as production did.
+- **Not fixed here (said):**
+  - Two readers lose information on a one-line prompt: a customer review at the end of a line (`fact_canon._QUOTE`)
+    and an image description that ran to the end of its line (`generated_images.describe`).
+  - The real fix for both is that the contract keeps the approved text with its line breaks. That changes every new
+    contract's fingerprint, so it is proposed to the owner, not done.
+  - This fix reaches production only on a release (the owner's call). Until then a new "148 דלתות" build still shows
+    the broken image.
+
 # 2026-11-16 — empty blocks (G1), brand (BRAND) and share (SHARE) gates, one unit each (Claude Code)
 
 - **Owner's order (build track, item 7).**

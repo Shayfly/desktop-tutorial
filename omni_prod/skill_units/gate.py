@@ -146,11 +146,15 @@ def report(engine) -> dict:
     modes = getattr(core, 'gate_modes', None)
     out = {g: {'mode': m} for g, m in modes.items()} if isinstance(modes, dict) else {}
     ex = getattr(core, 'executor', None)
-    for _ in range(MAX_CHAIN):     # bounded: a wrapper chain is short; never follow an object that invents attributes
-        if not isinstance(ex, SkillGateExecutor):
+    # Bounded: a wrapper chain is short. `_inner` is read from the instance's own __dict__ only, so an object that
+    # invents attributes (a MagicMock) ends the walk. It walks THROUGH other wrappers too: the worker installs the
+    # uploaded-image check and the asset-marker gate outside the skill gates (2026-11-16, a bug of mine: the walk
+    # stopped at the first non-gate wrapper, and the evidence lost every gate's result when a photo was placed).
+    for _ in range(MAX_CHAIN):
+        if ex is None:
             break
-        if ex.gate in out and ex.last_gate is not None:
+        if isinstance(ex, SkillGateExecutor) and ex.gate in out and ex.last_gate is not None:
             out[ex.gate].update(status=ex.last_gate['status'],
                                 failures=[{k: f[k] for k in ('unit', 'page', 'code')} for f in ex.last_gate['failures']])
-        ex = vars(ex).get('_inner')
+        ex = getattr(ex, '__dict__', {}).get('_inner')
     return out

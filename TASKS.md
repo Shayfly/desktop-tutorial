@@ -18,5 +18,6 @@
 | WH-107 | Claude Code | Merged; blocked on the owner's secret | #417 (`48d616c` -> `27d19b1`); the secret `CUSTOMER_STORAGE_STATE` is the owner's to create |
 | WIN-APPROVE | Claude Code | Merged | #418 (`5a552a9` -> `b5b36a2`) window approval; v24-ci reads its own pytest report (test job 20+ -> 13 min) |
 | WH-105 | Claude Code | Merged | #419 (`62e164f` -> `4498ec6`) colours by business category from a data file |
-| GATES-2 | Claude Code | In review | #420 HE, G10, G11, G1, BRAND, SHARE; each falls on the real page |
+| GATES-2 | Claude Code | Merged | #420 (`0e0f5fa` -> `72735ef`) HE, G10, G11, G1, BRAND, SHARE; each falls on the real page |
+| DOORS-ASSET | Claude Code | In review | "148 דלתות" broken hero (bld_426addd3): the photo binding is read from the one-line contract prompt; an unbound placed photo stops the build; gate ASSET_MARKER_UNRESOLVED; windows and MISSING readers fixed; NC 9/9. Reaches production only on a release |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
