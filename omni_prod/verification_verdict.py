@@ -23,9 +23,20 @@ UNVERIFIED = 'UNVERIFIED'
 
 def control_exceptions() -> tuple[type[BaseException], ...]:
     from .attempt_ledger import AttemptLedgerUnavailable
-    from .build_control import BuildCancelled
+    from .build_control import BuildCancelled, BuildDeadline
     from .model_policy import ModelPolicyViolation
-    return (BuildCancelled, AttemptLedgerUnavailable, ModelPolicyViolation)
+    # production 2026-11-16 (bld_0e142230): the queue's JobTimeoutException was caught inside the visual check and
+    # reported as "visual check could not verify the product" -- the build went on repairing after its time was up
+    return (BuildCancelled, BuildDeadline, AttemptLedgerUnavailable, ModelPolicyViolation, *queue_timeouts())
+
+
+def queue_timeouts() -> tuple[type[BaseException], ...]:
+    """The queue's own timeout exception, when the queue library is installed (it is, on the worker)."""
+    try:
+        from rq.timeouts import JobTimeoutException
+    except ImportError:
+        return ()
+    return (JobTimeoutException,)
 
 
 def reraise_control(exc: BaseException) -> None:

@@ -294,7 +294,12 @@ class AutonomousProductEngine:
         # gave) stops the repair rounds -- repairing could only invent it again. `missing_input` is set by the worker.
         self.needs_input = []
         missing_input = getattr(self, 'missing_input', None)
+        out_of_time = getattr(self, 'out_of_time', None)
         while not report.passed and rounds < self.max_repair_rounds:
+            if callable(out_of_time) and out_of_time():
+                # the owner 2026-11-16: a build ends itself, on its best version, before the queue kills the worker
+                stop_reason = 'time_budget'
+                break
             if missing_input is not None:
                 self.needs_input = list(missing_input([getattr(f, 'message', '') for f in report.failures]) or ())
                 if self.needs_input:
