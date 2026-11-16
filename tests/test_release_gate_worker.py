@@ -39,11 +39,19 @@ class TheGate(unittest.TestCase):
         self.assertIn('NOT deployed', out)
 
     def test_a_push_with_the_marker_is_deployed(self):
-        for message in ('Merge pull request #406 from x/y [release]', 'title\n\nbody [release]'):
+        for message in ('Merge pull request #406 from x/y [release]', 'title [release]\n\nbody'):
             with self.subTest(message):
                 code, out, written = gate('push', message)
                 self.assertEqual((code, written), (0, 'release=true\n'))
                 self.assertIn('RELEASE', out)
+
+    def test_the_mark_counts_only_at_the_end_of_the_title_line(self):
+        # 2026-11-16: #413's merge (c38fbb4) deployed the worker because its body quoted a title mentioning the mark
+        m413 = ('Merge pull request #413: warehouse 111 completed, the worker deploys only on a release\n\n'
+                'warehouse 111 completed: the build worker deploys only on a release ([release] or a manual run)')
+        for message in (m413, 'title\n\nbody [release]', 'about the [release] rule', '[release] at the start'):
+            with self.subTest(message[:30]):
+                self.assertEqual(gate('push', message)[2], 'release=false\n')
 
     def test_a_manual_run_is_a_release(self):
         self.assertEqual(gate('workflow_dispatch')[2], 'release=true\n')
