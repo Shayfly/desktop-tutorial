@@ -263,12 +263,12 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
-Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
   aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
-Object.assign(T.en, { actRetryBuild:'Try building again', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
@@ -540,6 +540,13 @@ const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now(
 const discPath = () => `/api/v28/projects/${pid()}/discovery`;
 /* The old "describe + choose a mode" composer is replaced by the conversation
    (Unified Conversation OS): the supervisor decides how many questions to ask. */
+// warehouse 113 (owner 2026-11-16): "update the plan" either moves on (the plan is requested) or says what is still
+// missing, by name -- never a silent return to the tab.
+function stillMissingLine(disc) {
+  if (!disc || disc.complete) return '';
+  const names = (disc.questions || []).map(q => q.text).filter(Boolean);
+  return names.length ? `${t('stillMissing')}: ${names.join(' · ')}` : t('stillMissingNone');
+}
 async function sendAnswers(answers, { editing = false } = {}) {
   if(S.updatingAnswers)return;
   const retrySignature=JSON.stringify([S.projectId,S.disc.brief.revision,answers]);
@@ -562,7 +569,7 @@ async function sendAnswers(answers, { editing = false } = {}) {
     S.editQ = null; if (editing) S.editDraft = null; S.plan = null; renderPlan();
     renderDiscovery();
     if (S.disc.complete) await requestBriefPlan();
-    else openTab('req');
+    else { openTab('req'); const m = $('discMsg'); if (m) m.textContent = stillMissingLine(S.disc); }   // warehouse 113
   } catch (e) {
     if (e.status === 409) { try { S.disc = await api(`${discPath()}?lang=${S.lang}`); renderDiscovery(); } catch { /* keep message */ } }
     const m = $('discMsg'); if (m) m.textContent = explain(e);

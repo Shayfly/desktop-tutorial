@@ -10,6 +10,20 @@
 - **Evidence:** `tests/test_build_failed_announced.py` 7 tests (the production job through BuildHarness); controls
   `build_failed_announced.json` 4/4.
 - **Not checked:** no real build, no browser run; the Postgres conversation store is exercised by its in-memory twin here.
+# 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
+
+- **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
+  "דלת עם ידית", even "מוצר") were not read, the question came back, and after three cards the buttons were replaced by
+  "חסרה החלטה על קיבלתי את התמונה. מה יש בה?, ... בלשונית דרישות" (the question printed as the topic, the way forward only in another tab).
+  Reproduced on main `d496a92` on the real supervisor path.
+- **Fix:** `omni_prod/intake/image_answers.py` maps typed words to the option (owner's map: door/handle/product -> product,
+  person/owner/name -> person, place/shop -> place, logo -> logo; first word wins, door/handle always product; no word -> no guess) and
+  keeps the description as the "who/what" answer; the supervisor reads a typed answer only against what the last turn asked or blocked
+  on (`_awaiting`); an image card past the card limit keeps its buttons and says how to answer; no assistant message is sent twice in a
+  row with the same question (`_not_repeated`); the Requirements panel shows the chat's own next question (`discovery.panel_group`);
+  "update the plan" says what is still missing (`app.js stillMissingLine`).
+- **Evidence:** `tests/test_image_answer_loop.py` 11 tests; negative controls `image_answer_loop.json` 6/6 PASS.
+- **Not checked:** no browser run; the UI line ran in node. No model interpreter (the deterministic one reads the words).
 
 # 2026-11-15 — P0-c correction (Claude bug): the Postgres tests of #401 never ran in CI (Claude Code)
 

@@ -1922,7 +1922,7 @@ def _lang(request: Request) -> str:
 def _discovery_view(row, lang: str) -> dict:
     from . import discovery as d
     brief = row.brief
-    group, questions = d.next_group(brief)
+    group, questions = d.panel_group(brief)        # warehouse 113: the chat's own next question, one source
     answered = []
     for q in d.QUESTIONS:
         f = brief.fields.get(q.field)
