@@ -1084,6 +1084,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 capability_evidence = {**capability_evidence, 'image_match': image_match}
         # 2026-11-15 ("סבא שמעון"): the customer's own photo, chosen as the main image as is, goes in unchanged
         from .uploaded_assets import install_main_image
+        from .window_catalog import install as install_window_gate   # A2 step 9: approved windows gate the build
+        install_window_gate(engine, prompt=build_prompt)
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))
