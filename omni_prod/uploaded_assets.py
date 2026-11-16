@@ -5,6 +5,7 @@ storage is preserved: the image is embedded as a data URI before verification.
 """
 import base64
 import hashlib
+import logging
 import re
 import io
 import tokenize
@@ -12,6 +13,7 @@ from .attachments import AttachmentRepository, EXT
 from .autonomous_core import AcceptanceFailure, ExecutionReport
 
 MARKER = '148ai-asset://logo'
+_LOG = logging.getLogger(__name__)
 _BINDING = re.compile(r'Uploaded logo attachment: (att_[a-f0-9]{32}); sha256=([a-f0-9]{64})\.')
 
 
@@ -111,7 +113,15 @@ class _MainImage:
         self.data, self.mime, self.sha256, self.alt, self.index, self.place = data, mime, digest, alt, index, place
         self.width, self.height, self.marker = width, height, f'{UPLOAD_MARKER}{index}'
         self.purpose = f"the customer's own photo, as is ({place})"
-        self.uri = f'data:{mime};base64,' + base64.b64encode(data).decode('ascii')
+        # warehouse 114: the page carries a web-sized rendition (same picture and proportions, upright, light); the
+        # customer's file stays as it is in the attachment store, and `sha256` stays the digest the brief bound.
+        from .web_rendition import rendition
+        r = rendition(data, mime)
+        self.rendition = {k: r[k] for k in ('changed', 'sha256', 'step', 'original_sha256', 'original_bytes')}
+        self.rendition.update(bytes=len(r['data']), mime=r['mime'])
+        if r['changed']:
+            self.data, self.mime, self.width, self.height = r['data'], r['mime'], r['width'], r['height']
+        self.uri = f'data:{self.mime};base64,' + base64.b64encode(self.data).decode('ascii')
 
 
 # The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
@@ -214,6 +224,10 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
     core.repository_transform = _Transform(getattr(core, 'repository_transform', None), images)
     core.executor = MainImageExecutor(core.executor, images)
     core.uploaded_images = images
+    for img in images:                                   # said on every build: what the page carries, and from what
+        _LOG.info('UPLOADED_IMAGE index=%s changed=%s bytes=%s original_bytes=%s size=%sx%s step=%s', img.index,
+                  img.rendition['changed'], img.rendition['bytes'], img.rendition['original_bytes'], img.width,
+                  img.height, img.rendition['step'])
     lines = ["Uploaded images (verified by 148AI): use each one, in its place, with its exact src and alt. Size each "
              'element to its proportions; it must stay responsive (max-width: 100%; height: auto).']
     for img in images:

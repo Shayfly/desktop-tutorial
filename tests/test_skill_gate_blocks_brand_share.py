@@ -21,7 +21,7 @@ def build(gate, page):
     e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'app.py': as_app_py(page)}), repairer=rep,
                                 executor=_Sandbox(), max_repair_rounds=2)
     with mock.patch.dict(os.environ, {}, clear=False):
-        os.environ.pop(f'OMNI_GATE_{gate}', None)
+        os.environ[f'OMNI_GATE_{gate}'] = 'block'      # the blocking behaviour, said explicitly (the default is warn while calibrating)
         G.install(e, gate)
     return e.build('a page'), rep
 
@@ -33,7 +33,7 @@ class TheThreeGates(unittest.TestCase):
                 self.assertEqual(G.gate_units(gate), [unit])
                 with mock.patch.dict(os.environ, {}, clear=False):
                     os.environ.pop(f'OMNI_GATE_{gate}', None)
-                    self.assertEqual(G.mode(gate), 'block')
+                    self.assertEqual(G.mode(gate), 'warn')    # owner 2026-11-16, rule 4: warn until calibrated on three builds
 
     def test_each_falls_on_the_real_page_changed_in_one_place(self):
         for gate, unit in GATES.items():
