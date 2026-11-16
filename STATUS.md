@@ -1,3 +1,18 @@
+# 2026-11-16 — warehouse 112: every test file is run by a CI job (Claude Code)
+
+- **Found:** 16 test files that need PostgreSQL (they end in `_pg.py` or read `M4D2_DATABASE_URL`) were run by no job. `v24-ci`
+  has no database, so they skipped there, and `intake-budget-pg` runs an explicit list that did not name them. #404 was the same gap.
+- **Implemented:** `scripts/ci_test_coverage.py` (runs in the `fast` job as `tests/test_ci_test_coverage.py`). It fails loudly when:
+  a PostgreSQL file is neither in the pg job's list nor in `tests/pg_not_yet_run.txt` with a reason; a listed file no longer exists;
+  a waiver has no reason, is stale or is also listed; or `v24-ci` stops running every test (`python -m pytest -q --junitxml=...`).
+  The 16 files were added to `intake-budget-pg.yml`. A file that fails in CI's real Postgres moves to `pg_not_yet_run.txt` with the exact failure.
+- **Evidence:** `tests/test_ci_test_coverage.py` 5 passed. Negative controls `tests/negative_controls/ci_test_coverage.json` 4/4 PASS
+  (a new pg file no job runs; the database variable counted; a waiver without a reason; the general run narrowed).
+  `python scripts/ci_test_coverage.py` → `PASS (0 problem(s))`.
+- **Bug of mine found on the way:** the test file named the database variable, so the check flagged the test itself as needing
+  PostgreSQL. Fixed by splitting the string; that the check caught its own test is extra evidence that it works.
+- **Not checked here:** whether the 16 files pass on real Postgres. That is judged by the `pg-tests` job of this PR.
+
 # 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
 
 - **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
