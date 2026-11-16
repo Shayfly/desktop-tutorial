@@ -1,8 +1,10 @@
 """Warehouse 111, the worker half (owner 2026-11-16): the build worker is deployed only on a release, like Vercel's
 production (scripts/vercel_ignore_build.mjs).
 
-A release is a push whose head commit message carries RELEASE_MARK ("[release]", written in the merge commit), or a
-manual run (workflow_dispatch). Anything else is not a release: the deploy job is skipped and this step SAYS so, as a
+A release is a push whose head commit's FIRST LINE (the merge commit's title) ENDS with RELEASE_MARK ("[release]"), or
+a manual run (workflow_dispatch). 2026-11-16: #413's merge deployed by accident -- its body quoted a PR title that
+mentioned "[release]" in prose -- so the mark counts only as a deliberate suffix of the title line (the same rule as
+scripts/vercel_ignore_build.mjs). Anything else is not a release: the deploy job is skipped and this step SAYS so, as a
 ::notice with the reason -- never a silent skip. Writes `release=true|false` to $GITHUB_OUTPUT.
 
   python scripts/release_gate.py            # reads GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, GITHUB_OUTPUT
@@ -17,14 +19,19 @@ RELEASE_MARK = '[release]'
 EVENTS = ('push', 'workflow_dispatch')
 
 
+def is_release(message: str) -> bool:
+    return (message or '').split('\n', 1)[0].rstrip().endswith(RELEASE_MARK)
+
+
 def decide(event_name: str, message: str) -> tuple[bool, str]:
     if event_name == 'workflow_dispatch':
         return True, 'manual run (workflow_dispatch): a release'
     if event_name != 'push':
         raise ValueError(f'unknown event {event_name!r}; the release gate knows {EVENTS}')
-    if RELEASE_MARK in (message or ''):
-        return True, f'push with {RELEASE_MARK} in the head commit: a release'
-    return False, f'push without {RELEASE_MARK}: not a release -- the worker is NOT deployed (merge with {RELEASE_MARK}, or run it by hand)'
+    if is_release(message):
+        return True, f'push whose commit title ends with {RELEASE_MARK}: a release'
+    return False, (f'push whose commit title does not end with {RELEASE_MARK}: not a release -- the worker is NOT '
+                   f'deployed (end the merge title with {RELEASE_MARK}, or run it by hand)')
 
 
 def main() -> int:

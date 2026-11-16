@@ -1,3 +1,22 @@
+# 2026-11-16 — an accidental production release, and the release mark tightened (Claude Code)
+
+- **What broke:** #413's merge `c38fbb4` deployed BOTH Vercel production (`dpl_DFWp5Yxw1ziP5gJbMGUBWMUejSMu`, READY) and the
+  build worker (deploy-worker run 43820763641). Neither was a release.
+- **Root cause, a bug of mine:** I wrote the literal mark in #413's PR title ("... only on a release (`[release]` or a manual
+  run)"). GitHub copies the PR title into the merge commit's body, and both rules matched the mark anywhere in the message.
+- **Impact:** what went out is main at `c38fbb4`. Its runtime code equals the released `9917eba`; only the workflow, the gate
+  script, tests and STATUS changed. No customer-visible change. The worker deploy was left to finish, because a cancel in the
+  middle of a drain is the riskier step.
+- **Fix:** the mark counts only when the commit's FIRST LINE (the merge title) ENDS with `[release]`, in both
+  `scripts/vercel_ignore_build.mjs` (`isRelease`) and `scripts/release_gate.py` (`is_release`). `OMNI_RELEASE=1` and a
+  manual run of deploy-worker are unchanged. #412's real release title ("Merge pull request #412 from ... [release]")
+  still releases. #413's message verbatim, a mark in the body, a mark mid-title or at its start all do not.
+- **Evidence:** the #413 message is a test case in `tests/test_vercel_ignore_build.py` and `tests/test_release_gate_worker.py`.
+  Negative controls: `vercel_ignore_build.json` NC6 and `release_gate_worker.json` NC4 put back "anywhere in the message"
+  and the new tests catch it.
+- **The working rule from now on:** the literal mark is written only as the last word of a release merge's title. It
+  is never written in a PR title or body.
+
 # 2026-11-16 — warehouse 111 completed: the build worker deploys only on a release (Claude Code)
 
 - **Fix:** `scripts/release_gate.py` + a `release-gate` job in `.github/workflows/deploy-worker.yml`: the `deploy` job runs only when the
