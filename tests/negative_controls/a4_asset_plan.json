@@ -1,0 +1,184 @@
+{
+ "pr": "a4-asset-plan",
+ "sha256": [
+  "tests/test_a4_asset_plan.py",
+  "omni_prod/a4/__init__.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a generated picture takes the hero from the customer's own photo",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    hero_taken = bool(heroes)\n",
+     "new": "    hero_taken = False\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_a_generated_gallery_picture_outside_the_gallery_is_found",
+    "test_the_customers_hero_wins_and_the_generated_picture_goes_to_the_gallery_with_the_reason"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "two uploaded heroes are planned in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    if len(heroes) > 1:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_be_planned_stops_the_build"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the page-weight budget is not enforced",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "    if total > PAGE_IMAGE_BUDGET_BYTES:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_be_planned_stops_the_build"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a picture before the main image is not found",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "            if earlier:\n",
+     "new": "            if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_a_picture_before_the_main_image_is_found",
+    "test_in_block_mode_a_misplaced_image_fails_the_build_with_what_to_do",
+    "test_it_enters_at_warn_the_build_goes_on_and_the_evidence_says_what_it_found"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the new check blocks from its first day (rule 4: it enters at warn)",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "        if self.mode != 'block':\n            return report\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_it_enters_at_warn_the_build_goes_on_and_the_evidence_says_what_it_found"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "block mode does not block",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "        if self.mode != 'block':\n",
+     "new": "        if True:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_in_block_mode_a_misplaced_image_fails_the_build_with_what_to_do"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the worker builds without the asset plan",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        build_prompt = install_asset_plan(engine, prompt=build_prompt)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_plans_after_the_images_are_bound_and_writes_the_evidence"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the asset plan is missing from the build evidence",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check\n",
+     "new": "    pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_plans_after_the_images_are_bound_and_writes_the_evidence"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a gallery picture outside the gallery is not found",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "            if state != 'ok':\n",
+     "new": "            if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_a_generated_gallery_picture_outside_the_gallery_is_found"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "the check switched off leaves no trace",
+   "mutations": [
+    {
+     "file": "omni_prod/a4/__init__.py",
+     "old": "        _LOG.warning('GATE_OFF gate=%s (OMNI_GATE_%s): this build is NOT checked by %s', GATE, GATE, GATE)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a4_asset_plan.py"
+   ],
+   "expect_failed": [
+    "test_off_is_said_in_the_log_and_in_the_evidence"
+   ]
+  }
+ ]
+}
