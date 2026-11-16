@@ -1,3 +1,18 @@
+# 2026-11-16 — A2 steps 8 and 9: the window catalogue and the gate (Claude Code)
+
+- **Implemented:** `omni_prod/window_catalog.py`: the eight windows A2 recognises (mega menu, age gate, cookie banner, entry popup,
+  cart drawer, promo bar, chips, question widget), each with its spec (RTL, focus trap, Escape -- except the age gate, which needs an
+  answer --, 44px buttons, not covering content on a phone, never two at once, age gate before cookies). The spec is written into the
+  build prompt (`discovery.requirements_text`), an approved window is a fact of the canon (`fact_canon.build_canon`, key `window`),
+  and `WindowGateExecutor` (installed by the worker) fails a build whose page lacks an approved window or breaks a rule the static
+  probe can check: WINDOW_MISSING, WINDOW_RULE, WINDOW_ORDER, WINDOW_TWO_OPEN.
+- **Evidence:** `tests/test_window_catalog.py` 17 tests, including the real AutonomousProductEngine failing a build without the approved
+  age gate and passing after a repair adds it; controls `window_catalog.json` 7/7.
+- **Not done (four of five, so NOT "done"):** the customer has no screen yet to approve windows -- `fields.windows` is read only when
+  the customer set it (answer or message). The approval card belongs to the first agent's proposal (P1). Rules that need a browser
+  (focus really trapped, nothing covered on a phone, 44px measured) are in the spec and the prompt, not in the static probe; the probe
+  lists what it checked.
+
 # 2026-11-16 — warehouse 111: production no longer deploys on every push to main (Claude Code)
 
 - **What broke:** there is no test environment; Vercel built production on every push to main, so every merge went straight to
