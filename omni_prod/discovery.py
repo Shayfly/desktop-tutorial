@@ -863,6 +863,18 @@ def gate_canon(brief: Brief, lang: str = 'he') -> dict:
     return view
 
 
+def approved_windows(brief: 'Brief') -> list[str]:
+    """The in-page windows the customer approved (A2 step 9): `fields.windows`, set by the customer only (an answer or
+    their own message). An unknown window id raises -- never silently dropped."""
+    f = brief.fields.get('windows') or {}
+    if f.get('source') not in ('answer', 'message'):
+        return []
+    from .window_catalog import known
+    value = f.get('value') or []
+    ids = value if isinstance(value, list) else [x.strip() for x in str(value).split(',') if x.strip()]
+    return [known(w).id for w in ids]
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -957,6 +969,8 @@ def requirements_text(brief: Brief) -> str:
     excluded = excluded + image_exclusions(brief)    # the customer's photo shown as is: nothing is generated
     if excluded:   # 77: bound into the fingerprinted contract; product_architect reads only this generated line
         lines.append(CUSTOMER_EXCLUSIONS_PREFIX + json.dumps(sorted(excluded)))
+    from .window_catalog import prompt_lines   # A2 step 8: the spec of every approved window, in the prompt
+    lines.extend(prompt_lines(approved_windows(brief)))
     return '\n'.join(lines)
 
 
