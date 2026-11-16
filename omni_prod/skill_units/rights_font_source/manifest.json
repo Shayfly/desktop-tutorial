@@ -1,0 +1,11 @@
+{
+ "name": "skill.rights.font_source",
+ "input": "the HTML of a generated page, as written (platform assets as their 148ai-asset:// placeholders)",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G5",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Every font the page loads comes from a known source (Google Fonts). A font file or a stylesheet from any other host, and a font file embedded or stored in the build, blocks. A font only NAMED in font-family is a system font and is not loaded."
+}

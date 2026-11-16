@@ -1,0 +1,10 @@
+{
+ "butcher_font_cdn.html": {
+  "code": "FONT_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: the Heebo stylesheet from Google Fonts is replaced by a stylesheet from fonts.cdnfonts.com (Helvetica Neue, a commercial font)"
+ },
+ "butcher_font_file.html": {
+  "code": "FONT_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: an @font-face loads /static/Gotham-Bold.woff2, a font file the build cannot contain and whose licence nobody recorded"
+ }
+}

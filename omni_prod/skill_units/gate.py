@@ -55,7 +55,12 @@ MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # owner 2026-11-16: G4 warns (a unit that warns makes it a gate; without the unit it is a heading) until warehouse 114
 # (the hero image inlined as base64) is fixed; G3 and G6 block.
 DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', 'HE': 'block', 'G10': 'block', 'G11': 'block',
-                'G1': 'block', 'BRAND': 'block', 'SHARE': 'block'}   # HE Hebrew, G10 copy, G11 links, G1 empty blocks
+                'G1': 'block', 'BRAND': 'block', 'SHARE': 'block',   # HE Hebrew, G10 copy, G11 links, G1 empty blocks
+                'G5': 'block'}                                        # G5 rights: an unknown source blocks (owner)
+# Gates that read the page AS WRITTEN: the platform's own assets as their 148ai-asset:// placeholders, not as the
+# bytes the engine's transform put in before the sandbox. G5 judges where an asset comes from, and the placeholder is
+# the record of that; a raster data: URI left after the transform is put back is bytes the platform did not supply.
+AS_WRITTEN = ('G5',)
 _ALIASES = {'1': 'block', '0': 'off'}
 
 
@@ -95,9 +100,18 @@ class SkillGateExecutor:
     """block: the build is not accepted until every unit of the gate passes on every page. warn: the failures are
     recorded (last_gate, the log, the build evidence) and the build goes on."""
 
-    def __init__(self, inner, gate: str, mode_: str = 'block'):
+    def __init__(self, inner, gate: str, mode_: str = 'block', core=None):
         self._inner, self.gate, self.mode, self.last_gate = inner, gate, mode_, None
+        self._core = core                                # the engine core: its transform gives the as-written view
         gate_units(gate)                                 # a gate with no unit raises at install, not mid-build
+
+    def view(self, repository):
+        """The repository this gate reads: as the sandbox got it, or as written for the AS_WRITTEN gates."""
+        if self.gate not in AS_WRITTEN:
+            return repository
+        redact = getattr(getattr(self._core, 'repository_transform', None), 'redact', None)
+        written = redact(repository) if callable(redact) else repository
+        return written if isinstance(written, dict) else repository     # never a transform that invents its result
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
@@ -105,7 +119,7 @@ class SkillGateExecutor:
     def execute(self, *, repository, spec):
         from ..autonomous_core import AcceptanceFailure
         report = self._inner.execute(repository=repository, spec=spec)
-        result = check(self.gate, repository)
+        result = check(self.gate, self.view(repository))
         self.last_gate = {**result, 'mode': self.mode}
         if result['status'] == 'NOT_RUN':
             _LOG.warning('GATE_NOT_RUN gate=%s %s', self.gate, result['reason'])
@@ -136,7 +150,7 @@ def install(engine, gate: str) -> list[str]:
         _LOG.warning('GATE_OFF gate=%s (OMNI_GATE_%s): this build is NOT checked by %s', gate, gate, gate)
         return []
     _LOG.info('GATE_ON gate=%s mode=%s', gate, m)
-    core.executor = SkillGateExecutor(core.executor, gate, m)
+    core.executor = SkillGateExecutor(core.executor, gate, m, core=core)
     return gate_units(gate)
 
 

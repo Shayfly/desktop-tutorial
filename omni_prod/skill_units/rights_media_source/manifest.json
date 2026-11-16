@@ -1,0 +1,11 @@
+{
+ "name": "skill.rights.media_source",
+ "input": "the HTML of a generated page, as written (platform assets as their 148ai-asset:// placeholders)",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G5",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Audio and video have no known source yet: the platform supplies none. Any audio or video on the page -- a file, an embedded player, a script that plays a sound -- blocks until a source for it is recorded."
+}

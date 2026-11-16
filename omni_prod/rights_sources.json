@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "rule": "The owner, 2026-11-16: every asset (font, image, audio) has a known source, and an unknown right blocks -- it is never assumed. A source is known only when it is listed here with the basis it rests on. Each basis was read on the date given; no lawyer reviewed any of them (legal_review).",
+ "sources": {
+  "customer_upload": {
+   "kinds": ["image"],
+   "match": {"marker_prefix": ["148ai-asset://upload/", "148ai-asset://logo"]},
+   "right": "the customer's own file, uploaded in the conversation and placed by the customer's own answer",
+   "basis": "the approved brief binds the attachment by id and sha256 (discovery.requirements_text); the worker serves exactly those bytes",
+   "read_on": "2026-11-16",
+   "legal_review": "none; the customer is not yet asked to declare the right to the file (an approval-flow change, the owner's decision)"
+  },
+  "platform_generated": {
+   "kinds": ["image"],
+   "match": {"marker_prefix": ["148ai-asset://image/"]},
+   "right": "generated for this build by the platform's image model, black-forest-labs/flux-schnell on Replicate, released under Apache-2.0",
+   "basis": "https://replicate.com/black-forest-labs/flux-schnell -- \"Released under the apache-2.0 licence, the model can be used for personal, scientific, and commercial purposes.\"",
+   "read_on": "2026-11-16",
+   "legal_review": "none"
+  },
+  "authored_svg": {
+   "kinds": ["image"],
+   "match": {"authored": ["svg"]},
+   "right": "drawn as code in this build (an inline SVG, an SVG data URI or an .svg file of the build)",
+   "basis": "the generated repository is text only; an SVG in it was written by the build, not copied from a file",
+   "read_on": "2026-11-16",
+   "legal_review": "none; a drawing can still copy a protected mark, and no static check reads that"
+  },
+  "google_fonts": {
+   "kinds": ["font"],
+   "match": {"hosts": ["fonts.googleapis.com", "fonts.gstatic.com"]},
+   "right": "open source licences (SIL Open Font License, Apache, Ubuntu Font License); commercial use allowed",
+   "basis": "https://developers.google.com/fonts/faq -- \"all Google Fonts are open source and are without cost\"; \"you can use them commercially\"",
+   "read_on": "2026-11-16",
+   "legal_review": "none"
+  }
+ }
+}

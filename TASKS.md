@@ -21,3 +21,5 @@
 | GATES-2 | Claude Code | Merged | #420 (`0e0f5fa` -> `72735ef`) HE, G10, G11, G1, BRAND, SHARE; each falls on the real page |
 | DOORS-ASSET | Claude Code | In review | "148 דלתות" broken hero (bld_426addd3): the photo binding is read from the one-line contract prompt; an unbound placed photo stops the build; gate ASSET_MARKER_UNRESOLVED; windows and MISSING readers fixed; NC 9/9. Reaches production only on a release |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
+| GATE-G5 | Claude Code | In review | the rights gate: 3 units (image, font, media source), registry `rights_sources.json` with a basis per source; an unknown source blocks; falls on the real page; NC 10/10 |
+| AGENT-A7 | Claude Code | Next | the rights agent, after its gate G5 |

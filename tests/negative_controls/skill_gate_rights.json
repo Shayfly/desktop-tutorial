@@ -1,0 +1,190 @@
+{
+ "pr": "skill-gate-rights",
+ "sha256": [
+  "tests/test_skill_gate_rights.py",
+  "omni_prod/rights_sources.json",
+  "omni_prod/rights_sources.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the image unit looks and finds nothing (a hotlinked photo passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_image_source/probe.py",
+     "old": "    findings = unknown(html, 'image')\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_finding_never_carries_the_bytes",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the font unit looks and finds nothing (a commercial font from another host passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_font_source/probe.py",
+     "old": "    findings = unknown(html, 'font')\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the media unit looks and finds nothing (background music passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_media_source/probe.py",
+     "old": "    findings = unknown(html, 'media')\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_audio_and_video_have_no_known_source_yet",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "G5 only warns by default (an unknown right does not block)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "                'G5': 'block'}",
+     "new": "                'G5': 'warn'}"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_customers_photo_passes_and_the_sandbox_got_its_bytes",
+    "test_the_gate_is_three_units_and_blocks_by_default",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the gate reads the page as the sandbox got it, not as written (the customer's own photo is 'unknown bytes')",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "AS_WRITTEN = ('G5',)\n",
+     "new": "AS_WRITTEN = ()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_the_customers_photo_passes_and_the_sandbox_got_its_bytes"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "any host is a known source (it assumes)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if host and host in match.get('hosts', ()):\n",
+     "new": "        if host:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_every_way_a_page_carries_an_image",
+    "test_fonts"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a source is accepted without its basis",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if missing:\n            raise RightsSourceError(f'source {sid!r} lacks",
+     "new": "        if False and missing:  # NEGATIVE CONTROL\n            raise RightsSourceError(f'source {sid!r} lacks"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_source_without_its_basis_is_refused"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the worker does not install G5",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'G5')                              # rights",
+     "new": "        pass  # NEGATIVE CONTROL: no G5                              # rights"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate_before_the_photo"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "any embedded image counts as drawn by the build (raster bytes of unknown origin pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "                low.startswith('data:image/svg+xml') or\n",
+     "new": "                low.startswith('data:image/') or  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_finding_never_carries_the_bytes",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a transform that invents its result is followed (the worker harness's mock engine)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        return written if isinstance(written, dict) else repository",
+     "new": "        return written  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_transform_that_invents_its_result_is_not_followed"
+   ]
+  }
+ ]
+}

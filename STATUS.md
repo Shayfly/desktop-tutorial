@@ -1,3 +1,54 @@
+# 2026-11-16 — the rights gate G5: the source of every font, image and audio is known, or the build is blocked (Claude Code)
+
+- **Owner's order:** the agents come after the gates, A7 (rights) first: "checks the source of every asset: font,
+  image, audio. Blocks on an unknown right; it does not assume." And: an agent with no gate that runs it does not go
+  in, so the gate comes first. This entry is the gate. A7 is next and not built yet.
+- **Implemented:**
+  - `omni_prod/rights_sources.json` is the registry of known sources, a data file. Each source states its right, the
+    basis it rests on and the date the basis was read. A source without a basis is refused at load. There are four
+    sources:
+    - the customer's upload;
+    - the image the platform generates (flux-schnell on Replicate, Apache-2.0);
+    - an SVG the build draws;
+    - Google Fonts.
+  - `omni_prod/rights_sources.py` holds the inventory of every asset reference of a page and its judgement. The
+    inventory reads tags, srcset, CSS url(), @font-face, external stylesheets, players embedded from other sites, and
+    any address ending in a font, image, audio or video extension, scripts included.
+  - Three skill units form gate G5: `rights_image_source` (IMAGE_SOURCE_UNKNOWN), `rights_font_source`
+    (FONT_SOURCE_UNKNOWN) and `rights_media_source` (MEDIA_SOURCE_UNKNOWN).
+  - G5 blocks by default (`OMNI_GATE_G5`), and its mode is said on every build like every gate.
+  - G5 reads the page as written: the platform's own assets are their `148ai-asset://` placeholders. So the
+    customer's photo is known, and the same bytes with no record of their source are not.
+  - The worker installs G5 with the other gates.
+- **Audio and video:** no source is known yet, so any audio or video blocks. That is the rule working, not a gap:
+  the platform supplies none until G7.
+- **It falls on a page:** each broken fixture is the real butcher production page, as written, changed in one
+  place:
+  - the hero hotlinked from images.unsplash.com;
+  - the hero as embedded JPEG bytes the platform did not supply;
+  - the Heebo stylesheet replaced by one from fonts.cdnfonts.com;
+  - an `@font-face` loading `/static/Gotham-Bold.woff2`;
+  - background music from cdn.pixabay.com;
+  - an embedded YouTube player.
+
+  The unchanged page passes with its two assets known (Heebo from Google Fonts, the generated hero).
+- **Evidence:** `tests/test_skill_gate_rights.py` has 18 tests. One runs the worker's own photo install on the
+  "148 דלתות" production contract row: the sandbox gets the bytes and G5 passes. Negative controls
+  `skill_gate_rights.json` 10/10.
+- **The two bases were read on 2026-11-16, and no lawyer reviewed them:**
+  - the Google Fonts FAQ: "all Google Fonts are open source", "you can use them commercially";
+  - the Replicate model page of flux-schnell: "Released under the apache-2.0 licence".
+- **Not read by a static check (said, not assumed):**
+  - a font only named in `font-family` (a system font; nothing is loaded);
+  - an address a script builds at run time;
+  - what an external script loads;
+  - whether a drawing copies a protected mark.
+- **The owner's decisions:**
+  - The customer is not asked to declare the right to an uploaded photo. The registry records the upload as "the
+    customer's own file". Asking is an approval-flow change.
+  - Not measured: how many production pages load a stylesheet or a font from another host. Only the butcher page and
+    the doors page were read. Such a page will now go to a repair round.
+
 # 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
 
 - **What broke:** build `bld_426addd34be0457bb1955cd4e9bf372f` (prj_-K3B8ZLIJawPEA) served
