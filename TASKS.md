@@ -20,5 +20,6 @@
 | WH-105 | Claude Code | Merged | #419 (`62e164f` -> `4498ec6`) colours by business category from a data file |
 | GATES-2 | Claude Code | Merged | #420 (`0e0f5fa` -> `72735ef`) HE, G10, G11, G1, BRAND, SHARE; each falls on the real page |
 | DOORS-ASSET | Claude Code | Merged; reaches production only on a release | #421 (`32cac99` -> `b761003`); Vercel production CANCELED on `b761003`, worker `deploy` skipped |
-| FAST-402 | Claude Code | In review | #402 (orphaned by Claude's exit) checked against main `b761003`: 172 files in 21.7 s under the 30 s budget; NC 2/2 |
+| FAST-402 | Claude Code | Merged | #402 (`b7f4980` -> `a4a0845`) the fast suite: 172 files, 21.7 s of a 30 s budget; NC 2/2 |
+| OPS-403 | Claude Code | In review | #403 (orphaned) `scripts/commit_resolved.sh`: the CLAUDE.md conflict with main resolved and committed with the script itself (exit 0) |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |

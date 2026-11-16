@@ -1,0 +1,63 @@
+{
+ "pr": "commit-resolved",
+ "sha256": [
+  "tests/test_commit_resolved.py",
+  "scripts/commit_resolved.sh"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the commit runs with conflict markers left (the #393 failure)",
+   "mutations": [
+    {
+     "file": "scripts/commit_resolved.sh",
+     "old": "[ \"$markers\" = \"0\" ] || { echo \"refusing to commit: $markers conflict marker line(s)\"; exit 3; }",
+     "new": "true  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_commit_resolved.py"
+   ],
+   "expect_failed": [
+    "test_markers_left_refuse_the_commit_and_name_each_file",
+    "test_a_resolved_markdown_rule_is_not_a_marker_and_the_other_file_still_refuses"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the old rule: a line of ======= anywhere counts as a marker (a resolved markdown file is refused)",
+   "mutations": [
+    {
+     "file": "scripts/commit_resolved.sh",
+     "old": "  if [ \"$n\" != \"0\" ]; then n=$((n + $(grep -cE '^=======$' \"$f\" || true))); fi",
+     "new": "  n=$((n + $(grep -cE '^=======$' \"$f\" || true)))  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_commit_resolved.py"
+   ],
+   "expect_failed": [
+    "test_a_resolved_markdown_rule_is_not_a_marker_and_the_other_file_still_refuses",
+    "test_a_verified_resolution_is_committed",
+    "test_broken_json_refuses_the_commit"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a changed JSON file that does not parse is committed",
+   "mutations": [
+    {
+     "file": "scripts/commit_resolved.sh",
+     "old": "    || { echo \"::error title=invalid json::$f\"; exit 4; }",
+     "new": "    || true  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_commit_resolved.py"
+   ],
+   "expect_failed": [
+    "test_broken_json_refuses_the_commit"
+   ]
+  }
+ ]
+}
