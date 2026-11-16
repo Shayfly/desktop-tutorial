@@ -19,25 +19,30 @@ J = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(J)
 
 
-def junit_of(test_source: str) -> Path:
+def junit(tests: int, failures: int = 0, errors: int = 0, skipped: int = 0) -> Path:
+    """A junit report in the shape pytest writes (`<testsuites><testsuite name="pytest" ...>`). The fast job has no
+    pytest installed, so the report is written here; `test_a_report_pytest_itself_wrote` checks the real one."""
     d = Path(tempfile.mkdtemp())
-    (d / 'test_x.py').write_text(test_source)
-    subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', f'--junitxml={d / "r.xml"}',
-                    str(d / 'test_x.py')], capture_output=True, cwd=d)
+    cases = ''.join(f'<testcase classname="t" name="c{i}"/>' for i in range(tests - failures - errors - skipped))
+    cases += ''.join(f'<testcase classname="t" name="f{i}"><failure message="x"/></testcase>' for i in range(failures))
+    cases += ''.join(f'<testcase classname="t" name="e{i}"><error message="x"/></testcase>' for i in range(errors))
+    cases += ''.join(f'<testcase classname="t" name="s{i}"><skipped message="x"/></testcase>' for i in range(skipped))
+    (d / 'r.xml').write_text(f'<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite '
+                             f'name="pytest" errors="{errors}" failures="{failures}" skipped="{skipped}" tests="{tests}">'
+                             f'{cases}</testsuite></testsuites>')
     return d / 'r.xml'
 
 
 class TheVerdict(unittest.TestCase):
     def test_a_green_report_passes_and_says_its_counts(self):
-        ok, detail = J.verdict(junit_of('def test_a():\n    pass\ndef test_b():\n    pass\n'))
+        ok, detail = J.verdict(junit(2))
         self.assertTrue(ok, detail)
         self.assertIn('2 tests, 0 failures, 0 errors', detail)
 
     def test_a_failure_or_an_error_fails(self):
-        for src in ('def test_a():\n    assert False\n', 'import pytest\n@pytest.fixture\ndef f():\n    raise RuntimeError\n'
-                    'def test_a(f):\n    pass\n'):
-            with self.subTest(src[:20]):
-                self.assertFalse(J.verdict(junit_of(src))[0])
+        for report in (junit(3, failures=1), junit(3, errors=1)):
+            with self.subTest(report.read_text()[-60:]):
+                self.assertFalse(J.verdict(report)[0])
 
     def test_missing_unreadable_or_empty_is_not_a_pass(self):
         d = Path(tempfile.mkdtemp())
@@ -50,9 +55,22 @@ class TheVerdict(unittest.TestCase):
         self.assertIn('empty report is not a pass', detail)
 
     def test_skips_are_counted_and_said(self):
-        ok, detail = J.verdict(junit_of('import pytest\ndef test_a():\n    pass\n@pytest.mark.skip\ndef test_b():\n    pass\n'))
+        ok, detail = J.verdict(junit(2, skipped=1))
         self.assertTrue(ok)
         self.assertIn('1 skipped', detail)
+
+    def test_a_report_pytest_itself_wrote(self):
+        try:
+            import pytest  # noqa: F401  (v24-ci has it; the fast job does not)
+        except ImportError:
+            self.skipTest('pytest is not installed in this job; the written-report tests above cover the shape')
+        d = Path(tempfile.mkdtemp())
+        (d / 'test_x.py').write_text('def test_a():\n    pass\ndef test_b():\n    assert False\n')
+        subprocess.run([sys.executable, '-m', 'pytest', '-q', '-p', 'no:cacheprovider', f'--junitxml={d / "r.xml"}',
+                        str(d / 'test_x.py')], capture_output=True, cwd=d)
+        ok, detail = J.verdict(d / 'r.xml')
+        self.assertFalse(ok)
+        self.assertIn('2 tests, 1 failures', detail)
 
 
 class TheJob(unittest.TestCase):
