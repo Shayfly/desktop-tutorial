@@ -12,6 +12,14 @@
 - **Bug of mine found on the way:** the test file named the database variable, so the check flagged the test itself as needing
   PostgreSQL. Fixed by splitting the string; that the check caught its own test is extra evidence that it works.
 - **Not checked here:** whether the 16 files pass on real Postgres. That is judged by the `pg-tests` job of this PR.
+# 2026-11-16 — warehouse 111 completed: the build worker deploys only on a release (Claude Code)
+
+- **Fix:** `scripts/release_gate.py` + a `release-gate` job in `.github/workflows/deploy-worker.yml`: the `deploy` job runs only when the
+  push's head commit carries `[release]` or the run is manual; otherwise the gate prints `::notice title=release gate::SKIP -- ...`.
+  An unknown event fails loudly. The frozen browser-probe step is untouched. Vercel production follows the same marker (#408).
+- **Evidence:** `tests/test_release_gate_worker.py` 6 tests (the script run as the workflow runs it; the job dependency read from the
+  YAML); controls `release_gate_worker.json` 3/3.
+- **Consequence:** migrations (applied by deploy-worker) now also reach production only on a release.
 
 # 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
 

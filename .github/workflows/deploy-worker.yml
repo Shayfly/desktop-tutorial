@@ -38,7 +38,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # warehouse 111 (owner 2026-11-16): the worker is deployed only on a release, like Vercel's production.
+  # A push without [release] in the head commit is said and skipped, never deployed in silence.
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.gate.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Is this a release?
+        id: gate
+        run: python3 scripts/release_gate.py
+
   deploy:
+    needs: release-gate
+    if: needs.release-gate.outputs.release == 'true'
     runs-on: [self-hosted, omni-worker]
     timeout-minutes: 60
     steps:
