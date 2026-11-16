@@ -1,0 +1,6 @@
+{
+ "ALT_MISSING": {
+  "meaning": "an image has no alt, or an empty alt without being marked decorative",
+  "fix": "describe the image in alt, or mark it decorative"
+ }
+}

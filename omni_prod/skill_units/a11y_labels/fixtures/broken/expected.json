@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "LABEL_MISSING",
+  "what_is_broken": "a placeholder is not a label"
+ },
+ "broken2.html": {
+  "code": "LABEL_MISSING",
+  "what_is_broken": "the label points at another id"
+ }
+}

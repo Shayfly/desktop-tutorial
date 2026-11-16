@@ -1,0 +1,6 @@
+{
+ "CONTRAST_LOW": {
+  "meaning": "a text colour on its background is below 4.5:1",
+  "fix": "darken the text or lighten the background until the pair reaches 4.5:1"
+ }
+}

@@ -1,0 +1,6 @@
+{
+ "FOCUS_LOST": {
+  "meaning": "the focus outline is removed without a visible replacement, or tabindex > 0 breaks the order",
+  "fix": "keep an outline or add a :focus-visible style; use tabindex 0 or -1 only"
+ }
+}

@@ -1,0 +1,6 @@
+{
+ "HEADING_ORDER": {
+  "meaning": "no h1, more than one h1, the first heading is not h1, or a level is skipped",
+  "fix": "one h1 first, then h2, h3 in order"
+ }
+}

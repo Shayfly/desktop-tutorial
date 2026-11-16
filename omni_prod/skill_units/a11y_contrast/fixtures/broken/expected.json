@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "CONTRAST_LOW",
+  "what_is_broken": "grey #999 on white is 2.85:1"
+ },
+ "broken2.html": {
+  "code": "CONTRAST_LOW",
+  "what_is_broken": "white on yellow is 1.6:1"
+ }
+}
