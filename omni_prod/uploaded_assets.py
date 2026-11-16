@@ -87,10 +87,17 @@ def install(engine, *, prompt, pool, store, project_id, account_id):
 # check: the build is not accepted until the photo is in a visible <img> with a non-empty alt. No generation, no vision.
 
 MAIN_ACCEPTANCE_ID = 'uploaded-main-image'
-# one line per placed image (discovery.requirements_text): its attachment, digest, marker, place and the role words
-_IMAGE_BINDING = re.compile(r'^Uploaded image (\d{1,2}) attachment: (att_[a-f0-9]{32}); sha256=([a-f0-9]{64}); '
+# one line per placed image (discovery.requirements_text): its attachment, digest, marker, place and the role words.
+# Production 2026-11-16, "148 דלתות" (bld_426addd3, contract bc_8ffe6070): the worker builds from the CONTRACT prompt,
+# which ProductArchitect.compile stores with its whitespace collapsed to single spaces -- no line breaks at all. The
+# binding was anchored to a line start (`^`, re.M), so it never matched there: no transform was installed, the raw
+# src="148ai-asset://upload/1" reached the browser, and the hero was a broken image. A bug of Claude's (845051a). The
+# binding is now read wherever it stands after whitespace, on both the approved text and the collapsed contract.
+_IMAGE_BINDING = re.compile(r'(?<!\S)Uploaded image (\d{1,2}) attachment: (att_[a-f0-9]{32}); sha256=([a-f0-9]{64}); '
                             r'src="(148ai-asset://upload/\1)"; placement: (hero|story|products|gallery); '
-                            r'role (person|product|place|other): "([^"\n]{1,160})"\.', re.M)
+                            r'role (person|product|place|other): "([^"\n]{1,160})"\.')
+_PLACED_MARKER = re.compile(r'148ai-asset://upload/(\d+)')
+UNBOUND_CODE = 'UPLOAD_MARKER_UNBOUND'
 
 
 class _MainImage:
@@ -139,6 +146,13 @@ def install_main_image(engine, *, prompt, pool, store, project_id, account_id):
     """Bind every photo the customer placed as is. Returns the prompt the engine builds from (with each photo's real
     size and place); unchanged when the brief places none. Any integrity problem fails the build loudly."""
     found = list(_IMAGE_BINDING.finditer(prompt or ''))
+    # Never a silent skip: a marker the approved request places with no binding read for it would reach the page raw
+    # (a broken image the repair rounds can only make worse). The build stops here, before any paid generation.
+    unbound = sorted({int(n) for n in _PLACED_MARKER.findall(prompt or '')} - {int(m[1]) for m in found})
+    if unbound:
+        raise ValueError(f'{UNBOUND_CODE}: the approved request places uploaded image(s) '
+                         f'{", ".join(f"148ai-asset://upload/{n}" for n in unbound)} but no binding line was read '
+                         'for them; the page would show a broken image')
     if not found:
         return prompt
     if [int(m[1]) for m in found] != list(range(1, len(found) + 1)):

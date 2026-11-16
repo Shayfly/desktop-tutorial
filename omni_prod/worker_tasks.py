@@ -1098,6 +1098,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))
+        # production 2026-11-16 ("148 דלתות"): no raw 148ai-asset:// address reaches the browser (a broken image)
+        from .asset_markers import install as install_asset_marker_gate
+        install_asset_marker_gate(engine)
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)

@@ -1,0 +1,317 @@
+{
+ "_source": "Production database 148ai-db-v2, table m5_build_contracts, row bc_8ffe607037d3c6c01da5a989 (project prj_-K3B8ZLIJawPEA, \"148 דלתות\"), read-only export 2026-11-16. contract = contract_json as stored. It bound build bld_426addd34be0457bb1955cd4e9bf372f, whose page carried the raw src=\"148ai-asset://upload/1\" (a broken hero image). The test checks the row reproduces the stored contract fingerprint and the prompt digest computed in the database (encode(sha256(convert_to(contract_json->>'prompt','UTF8')),'hex')).",
+ "build_id": "bld_426addd34be0457bb1955cd4e9bf372f",
+ "contract_fingerprint": "sha256:b20d2a602e3bc79e2d2296f2c427528a92d00dcc09b8505dce32b34bd56d2e66",
+ "prompt_sha256": "7379047baf612b98e71fb9d47fef239e02c68c0ae184b7e7e209dc8b1a7536c6",
+ "contract": {
+  "id": "bc_8ffe607037d3c6c01da5a989",
+  "prompt": "אתר אינטרנט לחנות לדלתות פנים עם מבצע מיוחד לגבי דלת פנים לממ״ד במחיר של 1390 ש״ח כולל הובלה והתקנה --- Approved project brief (binding; fingerprint 26a8ae6fddaee980) --- Customer facts (the customer's own words from the conversation; show exactly these values and never other or additional ones): 050-3456723 Call button: the button the customer asked for dials their phone -- a tel: link to +972503456723; never a dead button or a \"#\" link. Sign-in: NONE. Do not add login, sessions, users or roles. Do not store personal or contact details of people. Product kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given. Product decisions v1: {\"version\":1,\"persistence\":\"none\",\"source\":\"customer\"} Audience: Customers / the public Main action: מכירה והבאת לקוחות לחנות דלתות פנים, עם הדגשת מבצע דלת לממ״ד Screens: אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו Initial content: מבצע דלת לממ״ד במחיר 1390 ש״ח כולל הובלה והתקנה Visual references (inspiration only): תמונות של עבודות שבוצעו, כולל דלתות ממ״ד פולימריות במבצע Language: Hebrew (RTL) with an English switch; dates shown as DD/MM/YYYY. Design: style clean; primary colour #15803d; palette #15803d; requested colour description 'green'; font 'Heebo', system-ui, sans-serif (load it from Google Fonts with a system fallback); define these as CSS custom properties. Logo: a text logo with the product name in the header. Uploaded image 1 attachment: att_6d5b3e6de6274a44829dd038da5c4539; sha256=f1684ad30e8fbf976efc13145857740b50be2d3bd4cdea2722ef99656fd4126e; src=\"148ai-asset://upload/1\"; placement: hero; role product: \"דלתות\". The customer's own photo: use it AS IS as the main (hero) image at the top of the page, in a visible img element with exactly this src and this alt. Do not generate, draw, edit or replace it; the worker replaces the marker with the verified image bytes before tests. Semantic capability decisions v1: {\"version\":1,\"decisions\":[{\"key\":\"integration.messaging\",\"reason\":\"קישור וואטסאפ לפנייה הוא לא שליחת הודעות מהמערכת\",\"decision\":\"not_required\",\"evidence\":\"טלפון וואטסאפ 050-3456723\"},{\"key\":\"target.agent\",\"reason\":\"האתר הוא לחנות ולא כולל סוכן AI\",\"decision\":\"not_required\",\"evidence\":\"תבדקו אתרים של דלתות פנים\"}]} Customer exclusions v1: [\"media.image.generate\"]",
+  "status": "READY",
+  "target": "web",
+  "security": [
+   "tenant_isolation",
+   "secret_references_only",
+   "input_validation",
+   "audit_evidence",
+   "no_cross_tenant_resource_access"
+  ],
+  "acceptance": [
+   {
+    "id": "accept-site-content",
+    "text": "Automated acceptance proves: CONTENT-ONLY website: GET / serves the complete approved content, prices, links and logo text exactly as given; no sign-in, no stored visitor data, no record forms and no record API",
+    "requirement_id": "site-content"
+   },
+   {
+    "id": "accept-platform-responsive",
+    "text": "Automated acceptance proves: The page is usable on mobile and desktop web (viewport meta and responsive CSS)",
+    "requirement_id": "platform-responsive"
+   },
+   {
+    "id": "accept-platform-api",
+    "text": "Automated acceptance proves: The server answers HTTP 200 on its health path; no /api/* record endpoint is required",
+    "requirement_id": "platform-api"
+   },
+   {
+    "id": "accept-platform-observability",
+    "text": "Automated acceptance proves: Runtime errors and health are observable without secret leakage",
+    "requirement_id": "platform-observability"
+   },
+   {
+    "id": "accept-platform-deploy",
+    "text": "Automated acceptance proves: Verified immutable release can be deployed separately from preview",
+    "requirement_id": "platform-deploy"
+   },
+   {
+    "id": "accept-platform-secrets",
+    "text": "Automated acceptance proves: Secrets are injected by reference and never embedded in generated source",
+    "requirement_id": "platform-secrets"
+   }
+  ],
+  "created_at": "2026-11-16T11:11:11.311790+00:00",
+  "project_id": "prj_-K3B8ZLIJawPEA",
+  "user_roles": [
+   "user"
+  ],
+  "persistence": "none",
+  "product_spec": {
+   "stack": [
+    "Python standard library",
+    "SQLite (sqlite3)",
+    "Web UI served by the app"
+   ],
+   "title": "אתר אינטרנט לחנות לדלתות פנים עם מבצע מיוחד לגבי דלת פנים לממ״ד במחיר של 1390 ש״",
+   "summary": "Content-only Web site contract for: אתר אינטרנט לחנות לדלתות פנים עם מבצע מיוחד לגבי דלת פנים לממ״ד במחיר של 1390 ש״ח כולל הובלה והתקנה --- Approved project brief (binding; fingerprint 26a8ae6fddaee980) --- Customer facts (the customer's own words from the conversation; show exactly these values and never other or additional ones): 050-3456723 Call button: the button the customer asked for dials their phone -- a tel: link to +972503456723; never a dead button or a \"#\" link. Sign-in: NONE. Do not add login, sessions, users or roles. Do not store personal or contact details of people. Product kind: CONTENT-ONLY website. Visitors only read the page and nothing from visitors is saved; no accounts, no record-saving forms and no record APIs. Show the content, prices and links exactly as given. Product decisions v1: {\"version\":1,\"persistence\":\"none\",\"source\":\"customer\"} Audience: Customers / the public Main action: מכירה והבאת לקוחות לחנות דלתות פנים, עם הדגשת מבצע דלת לממ״ד Screens: אזורים בהתאם לבקשת הלקוח; אין להוסיף מסכי ניהול או CRUD שלא התבקשו Initial content: מבצע דלת לממ״ד במחיר 1390 ש״ח כולל הובלה והתקנה Visual references (inspiration only): תמונות של עבודות שבוצעו, כולל דלתות ממ״ד פולימריות במבצע Language: Hebrew (RTL) with an English switch; dates shown as DD/MM/YYYY. Design: style clean; primary colour #15803d; palette #15803d; requested colour description 'green'; font 'Heebo', system-ui, sans-serif (load it from Google Fonts with a system fallback); define these as CSS custom properties. Logo: a text logo with the product name in the header. Uploaded image 1 attachment: att_6d5b3e6de6274a44829dd038da5c4539; sha256=f1684ad30e8fbf976efc13145857740b50be2d3bd4cdea2722ef99656fd4126e; src=\"148ai-asset://upload/1\"; placement: hero; role product: \"דלתות\". The customer's own photo: use it AS IS as the main (hero) image at the top of the page, in a visible img element with exactly this src and this alt. Do not generate, draw, edit or replace it; the worker replaces the marker with the verified image bytes before tests. Semantic capability decisions v1: {\"version\":1,\"decisions\":[{\"key\":\"integration.messaging\",\"reason\":\"קישור וואטסאפ לפנייה הוא לא שליחת הודעות מהמערכת\",\"decision\":\"not_required\",\"evidence\":\"טלפון וואטסאפ 050-3456723\"},{\"key\":\"target.agent\",\"reason\":\"האתר הוא לחנות ולא כולל סוכן AI\",\"decision\":\"not_required\",\"evidence\":\"תבדקו אתרים של דלתות פנים\"}]} Customer exclusions v1: [\"media.image.generate\"]",
+   "acceptance": [
+    {
+     "id": "accept-site-content",
+     "text": "Automated acceptance proves: CONTENT-ONLY website: GET / serves the complete approved content, prices, links and logo text exactly as given; no sign-in, no stored visitor data, no record forms and no record API",
+     "requirement_id": "site-content"
+    },
+    {
+     "id": "accept-platform-responsive",
+     "text": "Automated acceptance proves: The page is usable on mobile and desktop web (viewport meta and responsive CSS)",
+     "requirement_id": "platform-responsive"
+    },
+    {
+     "id": "accept-platform-api",
+     "text": "Automated acceptance proves: The server answers HTTP 200 on its health path; no /api/* record endpoint is required",
+     "requirement_id": "platform-api"
+    },
+    {
+     "id": "accept-platform-observability",
+     "text": "Automated acceptance proves: Runtime errors and health are observable without secret leakage",
+     "requirement_id": "platform-observability"
+    },
+    {
+     "id": "accept-platform-deploy",
+     "text": "Automated acceptance proves: Verified immutable release can be deployed separately from preview",
+     "requirement_id": "platform-deploy"
+    },
+    {
+     "id": "accept-platform-secrets",
+     "text": "Automated acceptance proves: Secrets are injected by reference and never embedded in generated source",
+     "requirement_id": "platform-secrets"
+    }
+   ],
+   "requirements": [
+    {
+     "id": "site-content",
+     "kind": "functional",
+     "text": "CONTENT-ONLY website: GET / serves the complete approved content, prices, links and logo text exactly as given; no sign-in, no stored visitor data, no record forms and no record API",
+     "mandatory": true
+    },
+    {
+     "id": "platform-responsive",
+     "kind": "quality",
+     "text": "The page is usable on mobile and desktop web (viewport meta and responsive CSS)",
+     "mandatory": true
+    },
+    {
+     "id": "platform-api",
+     "kind": "functional",
+     "text": "The server answers HTTP 200 on its health path; no /api/* record endpoint is required",
+     "mandatory": true
+    },
+    {
+     "id": "platform-observability",
+     "kind": "quality",
+     "text": "Runtime errors and health are observable without secret leakage",
+     "mandatory": true
+    },
+    {
+     "id": "platform-deploy",
+     "kind": "deployment",
+     "text": "Verified immutable release can be deployed separately from preview",
+     "mandatory": true
+    },
+    {
+     "id": "platform-secrets",
+     "kind": "security",
+     "text": "Secrets are injected by reference and never embedded in generated source",
+     "mandatory": true
+    }
+   ]
+  },
+  "cost_envelope": {
+   "quote_basis": "CONSERVATIVE_MAXIMUM",
+   "actual_cost_policy": "PROVIDER_REPORTED_OR_UNKNOWN",
+   "authorization_policy": "M5-T10",
+   "reservation_required": true,
+   "pricing_catalog_version": "runtime-provider-price-catalog"
+  },
+  "artifact_class": "page",
+  "infrastructure": [
+   {
+    "kind": "database",
+    "purpose": "embedded SQLite application data inside the generated app",
+    "required": true,
+    "connection_mode": "SELF_CONTAINED",
+    "environment_scope": "preview_and_production",
+    "secret_reference_only": true
+   }
+  ],
+  "product_family": "self_contained_web_v1",
+  "release_target": "vercel",
+  "capability_plan": {
+   "notes": [
+    "deterministic-minimum-requirements",
+    "approved-semantic-evidence"
+   ],
+   "target_keys": [
+    "target.web"
+   ],
+   "requirements": [
+    {
+     "id": "cap-software-plan",
+     "key": "software.plan",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": []
+    },
+    {
+     "id": "cap-software-architecture",
+     "key": "software.architecture",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-plan"
+     ]
+    },
+    {
+     "id": "cap-software-code-generate",
+     "key": "software.code.generate",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-architecture"
+     ]
+    },
+    {
+     "id": "cap-software-dependencies-install",
+     "key": "software.dependencies.install",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-code-generate"
+     ]
+    },
+    {
+     "id": "cap-software-build",
+     "key": "software.build",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-dependencies-install"
+     ]
+    },
+    {
+     "id": "cap-software-test",
+     "key": "software.test",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-build"
+     ]
+    },
+    {
+     "id": "cap-software-repair",
+     "key": "software.repair",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-test"
+     ]
+    },
+    {
+     "id": "cap-software-preview",
+     "key": "software.preview",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-build"
+     ]
+    },
+    {
+     "id": "cap-software-export",
+     "key": "software.export",
+     "purpose": "minimum real-product build lifecycle",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": [
+      "cap-software-test"
+     ]
+    },
+    {
+     "id": "cap-target-web",
+     "key": "target.web",
+     "purpose": "web product target",
+     "quantity": 1,
+     "required": true,
+     "constraints": {},
+     "dependency_ids": []
+    }
+   ]
+  },
+  "contract_version": 2,
+  "defaults_applied": [
+   "no_login_single_user",
+   "static_content_site",
+   "self_contained_web_v1",
+   "vercel_release_target"
+  ],
+  "data_requirements": [],
+  "persistence_source": "customer",
+  "required_agent_keys": [
+   "agent.chief_orchestrator",
+   "agent.venice",
+   "agent.capability_planner",
+   "agent.cost_planner",
+   "agent.clarification",
+   "agent.code",
+   "agent.backend",
+   "agent.infrastructure",
+   "agent.qa",
+   "agent.repair"
+  ],
+  "required_skill_keys": [
+   "skill.internal.requirements.clarify",
+   "skill.internal.capability.plan",
+   "skill.internal.cost.plan",
+   "skill.internal.infrastructure.plan",
+   "skill.software.plan",
+   "skill.software.architecture",
+   "skill.software.code.generate",
+   "skill.software.dependencies.install",
+   "skill.software.build",
+   "skill.software.test",
+   "skill.software.repair",
+   "skill.software.preview",
+   "skill.software.export",
+   "skill.target.web"
+  ],
+  "contract_fingerprint": "sha256:b20d2a602e3bc79e2d2296f2c427528a92d00dcc09b8505dce32b34bd56d2e66",
+  "storing_capabilities": [],
+  "unresolved_questions": [],
+  "required_integrations": [],
+  "agents_registry_version": "m4.95-v2",
+  "skills_registry_version": "m4.95-v2",
+  "capability_plan_fingerprint": "sha256:b74bba069130c556c6bc806668128e64cf77778f89f0777fb0261db6e64414b9"
+ }
+}
