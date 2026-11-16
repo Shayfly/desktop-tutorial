@@ -1,15 +1,61 @@
 {
  "pr": "ci-junit-report",
- "sha256": ["tests/test_ci_junit_report.py", "scripts/junit_report.py"],
+ "sha256": [
+  "tests/test_ci_junit_report.py",
+  "scripts/junit_report.py"
+ ],
  "controls": [
-  {"id": "NC1", "what": "a report with failures counts as green",
-   "mutations": [{"file": "scripts/junit_report.py", "old": "    return failures == 0 and errors == 0, detail", "new": "    return True, detail  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_ci_junit_report.py"], "expect_failed": ["test_a_failure_or_an_error_fails"]},
-  {"id": "NC2", "what": "an empty report counts as green",
-   "mutations": [{"file": "scripts/junit_report.py", "old": "    if tests == 0:", "new": "    if False:  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_ci_junit_report.py"], "expect_failed": ["test_missing_unreadable_or_empty_is_not_a_pass"]},
-  {"id": "NC3", "what": "the workflow no longer hands the report to the gate (the suite runs twice again)",
-   "mutations": [{"file": ".github/workflows/v24-ci.yml", "old": "        env:\n          OMNI_PYTEST_REPORT: pytest-report.xml\n", "new": ""}],
-   "targets": ["tests/test_ci_junit_report.py"], "expect_failed": ["test_v24_ci_hands_the_gate_its_own_report"]}
+  {
+   "id": "NC1",
+   "what": "a report with failures counts as green",
+   "mutations": [
+    {
+     "file": "scripts/junit_report.py",
+     "old": "    return failures == 0 and errors == 0, detail",
+     "new": "    return True, detail  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_junit_report.py"
+   ],
+   "expect_failed": [
+    "test_a_failure_or_an_error_fails",
+    "test_a_report_pytest_itself_wrote"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "an empty report counts as green",
+   "mutations": [
+    {
+     "file": "scripts/junit_report.py",
+     "old": "    if tests == 0:",
+     "new": "    if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_junit_report.py"
+   ],
+   "expect_failed": [
+    "test_missing_unreadable_or_empty_is_not_a_pass"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the workflow no longer hands the report to the gate (the suite runs twice again)",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "        env:\n          OMNI_PYTEST_REPORT: pytest-report.xml\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_ci_junit_report.py"
+   ],
+   "expect_failed": [
+    "test_v24_ci_hands_the_gate_its_own_report"
+   ]
+  }
  ]
 }
