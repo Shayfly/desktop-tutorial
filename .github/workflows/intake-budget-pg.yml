@@ -88,12 +88,47 @@ jobs:
             tests/integration/test_m5_build_economics_postgres.py tests/test_intake_approve_and_goal.py \
             tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_approval_is_consumed_once \
             tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_one_approval_never_starts_two_builds
+      # Warehouse 112 (owner 2026-11-16): the PostgreSQL test files no job ran before. In the focused list above they
+      # broke three files that ran there before (module and environment state leaked between files: the interpreter
+      # label read 'model-via-worker', the API answered 500), so each runs in its own process. A skip is a failure here.
+      # A file that cannot run yet is in tests/pg_not_yet_run.txt with its reason (scripts/ci_test_coverage.py).
+      - name: PostgreSQL files no job ran before (warehouse 112), each in its own process
+        if: always()
+        timeout-minutes: 12
+        run: |
+          fail=0
+          for f in tests/test_actual_cost_settlement.py tests/test_agent_os.py tests/test_build_cancel_and_log.py \
+                   tests/test_build_state_machine.py \
+                   tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
+                   tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
+                   tests/test_m4d2_live_postgres.py \
+                   tests/test_maintenance_live_postgres.py tests/test_preview_access.py tests/test_release_policy.py; do
+            n=$(basename "$f" .py)
+            if python -m pytest -q -rs -p no:cacheprovider --junitxml="pg112-$n.xml" "$f"; then
+              echo "::notice title=pg 112::PASS $f"
+            else
+              echo "::error title=pg 112::FAIL $f (run alone in its own process)"; fail=1
+            fi
+          done
+          python - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          skipped = []
+          for path in sorted(glob.glob('pg112-*.xml')):
+              for c in ET.parse(path).getroot().iter('testcase'):
+                  if c.find('skipped') is not None:
+                      skipped.append(f"{path}: {c.get('classname')}.{c.get('name')}")
+          for s in skipped:
+              print(f'::error title=pg 112 skipped::{s}')
+          sys.exit(1 if skipped else 0)
+          PY
+          exit $fail
       - name: Evidence notices (readable as check-run annotations, no log access needed)
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"
-      - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci, about 10 seconds)
+      # 2026-11-16: 4m39s on main after #415 (the skill-gate specs run real engine builds), against a 5-minute bound
+      - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci)
         if: always()
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           NC_ENV: pg      # compare with each control's expect_failed_pg; extra failures here are INFO, not FAIL
         run: python scripts/run_negative_controls.py

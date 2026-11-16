@@ -1,0 +1,22 @@
+{
+ "pr": "ci-test-coverage",
+ "sha256": ["tests/test_ci_test_coverage.py", "scripts/ci_test_coverage.py"],
+ "controls": [
+  {"id": "NC1", "what": "a PostgreSQL file no job runs passes (warehouse 112 as it was found)",
+   "mutations": [{"file": "scripts/ci_test_coverage.py", "old": "        if needs_pg(root / f) and f not in listed and f not in waived:", "new": "        if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_ci_test_coverage.py"],
+   "expect_failed": ["test_a_new_postgres_file_no_job_runs_fails", "test_a_file_that_reads_the_database_variable_counts_too"]},
+  {"id": "NC2", "what": "a file that reads M4D2_DATABASE_URL is not seen as needing PostgreSQL",
+   "mutations": [{"file": "scripts/ci_test_coverage.py", "old": " or 'M4D2_DATABASE_URL' in path.read_text(encoding='utf-8', errors='replace')", "new": ""}],
+   "targets": ["tests/test_ci_test_coverage.py"],
+   "expect_failed": ["test_a_file_that_reads_the_database_variable_counts_too"]},
+  {"id": "NC3", "what": "a gap without a reason is accepted",
+   "mutations": [{"file": "scripts/ci_test_coverage.py", "old": "        if not reason.strip():\n            raise ValueError", "new": "        if False:  # NEGATIVE CONTROL\n            raise ValueError"}],
+   "targets": ["tests/test_ci_test_coverage.py"],
+   "expect_failed": ["test_a_named_gap_with_a_reason_is_accepted_and_without_one_raises"]},
+  {"id": "NC4", "what": "the general job may stop collecting every test",
+   "mutations": [{"file": "scripts/ci_test_coverage.py", "old": "    if GENERAL_RUN not in general:", "new": "    if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_ci_test_coverage.py"],
+   "expect_failed": ["test_the_general_job_must_collect_everything"]}
+ ]
+}
