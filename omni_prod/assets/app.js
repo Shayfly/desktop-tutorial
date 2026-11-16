@@ -1487,8 +1487,19 @@ async function dialogAction(fn, okKey) {
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
 // Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
 const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
+// One source of truth for the approval state (the owner, 2026-11-16; production 11:10-11:11 the same day): the panel's
+// plan was fetched while the spec was still waiting for approval, and stayed on screen after the chat approved it --
+// the chat said "approve the budget" while the panel still said "the spec is not approved" and offered that button
+// again. A plan that waits on an approval is dropped the moment the conversation moves past it, and fetched again.
+const APPROVAL_STATE_BLOCKERS = ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'];
+function planWaitsOnApproval(p) {
+  return Boolean(p) && (p.blockers || []).some(b => APPROVAL_STATE_BLOCKERS.includes(b.code));
+}
 function applyConversation(view) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
+  const moved = (view.plan_id || null) !== ((S.chat && S.chat.plan_id) || null)
+    || ((view.turn && view.turn.actions) || []).some(a => a.type === 'approve_build');
+  if (moved && planWaitsOnApproval(S.plan)) S.plan = null;
   S.chat = view;
   if (view.discovery) S.disc = view.discovery;
   S.arch = view.plan || null;
