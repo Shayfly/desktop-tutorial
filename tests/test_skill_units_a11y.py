@@ -20,7 +20,8 @@ class EveryUnitIsComplete(unittest.TestCase):
             with self.subTest(unit):
                 m = U.manifest(unit)
                 self.assertEqual(m['name'], EXPECTED.get(unit, m['name']))
-                self.assertEqual((m['kind'], m['cost_usd'], m['reads_source']), ('probe', 0, False))
+                self.assertEqual((m['kind'], m['cost_usd']), ('probe', 0))
+                self.assertIs(m['reads_source'], m['gate'] == 'G6')       # only the secrets units read every file
                 self.assertTrue(U.failure_codes(unit))
                 self.assertTrue(U.fixtures(unit, 'ok'))
                 self.assertTrue(U.fixtures(unit, 'broken'))

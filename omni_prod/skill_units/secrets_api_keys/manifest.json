@@ -1,0 +1,11 @@
+{
+ "name": "skill.secrets.api_keys",
+ "input": "the text of a generated source file",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G6",
+ "owner": "Claude Code (product)",
+ "reads_source": true,
+ "description": "No provider API key (AWS, GitHub, OpenAI-style sk-) is written into the generated source."
+}

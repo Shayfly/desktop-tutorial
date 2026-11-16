@@ -1,0 +1,11 @@
+{
+ "name": "skill.secrets.assignment",
+ "input": "the text of a generated source file",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G6",
+ "owner": "Claude Code (product)",
+ "reads_source": true,
+ "description": "No password, secret, token or API key is assigned a literal value in the generated source (a value read from the environment is fine)."
+}
