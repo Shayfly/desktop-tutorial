@@ -119,8 +119,11 @@ class TheCardAsksTheTextDoesNot(unittest.TestCase):
                             'מה?', 'לא יודע', 'בסדר'):
                 t = s.turn(project_id='p', account_id='a', lang='he', message=message)
                 for q in t.questions:
-                    self.assertNotIn('?', t.reply, message)
-                    self.assertNotIn(q.he, t.reply, message)
+                    # the owner 2026-11-16 ("the empty question"): the only question in the text is the card's own,
+                    # in its exact words, once, at the end -- never a second wording of it
+                    without = t.reply[:-len(q.he)] if t.reply.endswith(q.he) else t.reply
+                    self.assertNotIn('?', without, message)
+                    self.assertNotIn(q.he, without, message)
                     self.assertNotIn('הבנתי מהבקשה', t.reply, message)              # a guess is not a fact
 
 

@@ -1487,8 +1487,19 @@ async function dialogAction(fn, okKey) {
 const convPath = () => `/api/v28/projects/${pid()}/conversation`;
 // Gate 1 has its own route: approving the spec is not a chat message (an empty message is refused as empty_message).
 const specApprovalPath = () => `/api/v28/projects/${pid()}/spec-approval`;
+// One source of truth for the approval state (the owner, 2026-11-16; production 11:10-11:11 the same day): the panel's
+// plan was fetched while the spec was still waiting for approval, and stayed on screen after the chat approved it --
+// the chat said "approve the budget" while the panel still said "the spec is not approved" and offered that button
+// again. A plan that waits on an approval is dropped the moment the conversation moves past it, and fetched again.
+const APPROVAL_STATE_BLOCKERS = ['spec_not_approved', 'plan_not_verified', 'approval_state_unavailable', 'brief_stale'];
+function planWaitsOnApproval(p) {
+  return Boolean(p) && (p.blockers || []).some(b => APPROVAL_STATE_BLOCKERS.includes(b.code));
+}
 function applyConversation(view) {
   if (view.discovery && S.disc && view.discovery.brief.revision !== S.disc.brief.revision) S.plan = null;
+  const moved = (view.plan_id || null) !== ((S.chat && S.chat.plan_id) || null)
+    || ((view.turn && view.turn.actions) || []).some(a => a.type === 'approve_build');
+  if (moved && planWaitsOnApproval(S.plan)) S.plan = null;
   S.chat = view;
   if (view.discovery) S.disc = view.discovery;
   S.arch = view.plan || null;
@@ -1594,9 +1605,10 @@ function answerQuick(q, value, label) {
   if (S.chat && S.chat.fallback) { sendAnswers({ [q.id]: value }); return; }   // guided flow (no conversation API here)
   sendChat({ answers: { [q.id]: value } }, label);
 }
-function quickReplies(questions) {
+function quickReplies(questions, said) {
+  // the message already asks the question in words (supervisor._label_carries_its_question): the card adds the buttons only
   return h('div', { class: 'quick' }, questions.map(q => h('div', {},
-    h('div', { class: 'qq' }, q.text),
+    q.text && !String(said || '').includes(q.text) ? h('div', { class: 'qq' }, q.text) : null,
     h('div', { class: 'opts' },
       ...(q.kind === 'choice' ? q.options.map(o => h('button', { type: 'button', onclick: () => answerQuick(q, o.value, o.label) },
         o.label, q.suggested === o.value ? ' ✓' : '')) : []),
@@ -1665,7 +1677,7 @@ function renderChat() {
       // CEO 2026-11-08: no questionnaire. Only the buttons the server sent with this turn; never the detector's
       // pending questions as a fallback (Venice asks in words; the server sends none while she leads).
       const qs = (S.chat.turn && S.chat.turn.questions) || [];
-      if (qs.length) bubble.append(quickReplies(qs));
+      if (qs.length) bubble.append(quickReplies(qs, m.content));
       const acts = actionButtons(m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []));
       if (acts) bubble.append(acts);
     }

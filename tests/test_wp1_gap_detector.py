@@ -194,7 +194,9 @@ class TheSupervisorIsDrivenByTheDetector(unittest.TestCase):
         self.assertEqual(t.gaps['question']['field'], 'languages')
         # Michael 2026-11-13: the detector decides WHICH question; its card asks it, the text does not repeat it
         self.assertNotIn(t.gaps['question']['text'], t.reply)
-        self.assertNotIn('?', t.reply)
+        # the owner 2026-11-16: the message carries the card's own question in words, once (never a label alone)
+        self.assertEqual(t.reply.count('?'), 1)
+        self.assertTrue(t.reply.endswith(t.questions[0].he), t.reply)
         shown = t.to_dict('he')                                                   # what the customer's app receives
         self.assertEqual(shown['gaps']['question']['field'], 'languages')
         self.assertEqual([q['field'] for q in shown['questions']], ['languages'])

@@ -2094,12 +2094,14 @@ def _supervisor(key: str, account_id: str | None = None):
     # (pricing.m5_build_terms), not a fixed 60.
     credits = _M5_BUILD_CREDITS
     budget_usd = Decimal(os.getenv('OMNI_EXTERNAL_BUDGET_USD', '0.50') or '0.50')
+    credits_from_plan = False
     if account_id is not None:
         from .pricing import m5_build_terms, m5_llm_budget
         try:
             plan = _v28.subscriptions.plan_for(account_id)
             cost_class, credits = m5_build_terms(plan.code)
             budget_usd = m5_llm_budget(plan, cost_class, credits)[0]   # same budget the build will reserve
+            credits_from_plan = True
         except Exception:
             logging.getLogger(__name__).warning('intake: plan build terms unavailable for %s; showing defaults',
                                                 account_id, exc_info=True)
@@ -2111,7 +2113,7 @@ def _supervisor(key: str, account_id: str | None = None):
             prompt = (row.brief.prompt + '\n' + d.requirements_text(row.brief))[:12000]   # = _brief_prompt
             return _plan_admission(account_id, project_id, prompt, row, MemoryBuildContractRepository(), lang)[0]
     return ConversationSupervisor(briefs=_brief_repo(), store=_conversation_store(), gateway=None,
-                                  credits=credits, context=_project_context(key),
+                                  credits=credits, credits_from_plan=credits_from_plan, context=_project_context(key),
                                   budget_usd=budget_usd,
                                   reservations=reservations, enqueue=enqueue, admission=admission)
 

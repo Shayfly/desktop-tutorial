@@ -30,7 +30,10 @@ class ConversationUXTests(unittest.TestCase):
         # QUESTIONS-001 verified the value taken from the request; since Michael 2026-11-13 the CARD does it: it is
         # pre-selected from the request, and the text neither asks again nor restates the unconfirmed guess
         self.assertEqual(t.to_dict('he')['questions'][0].get('suggested'), 'yes')
-        self.assertNotIn('?', t.reply)
+        # the owner 2026-11-16 ("the empty question"): the message carries the card's question in words, once; the
+        # card adds the buttons and does not repeat it. It is still asked once, and no guess is restated.
+        self.assertEqual(t.reply.count('?'), 1)
+        self.assertTrue(t.reply.endswith(t.questions[0].he), t.reply)
         self.assertNotIn('הבנתי מהבקשה', t.reply)
         self.assertNotIn(t.gaps['question']['text'], t.reply)
 

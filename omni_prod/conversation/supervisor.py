@@ -25,6 +25,7 @@ builds and versions are.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -324,12 +325,14 @@ def _bindable_images(attachments) -> list[dict]:
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
-                 reservations=None, enqueue=None, admission=None):
+                 reservations=None, enqueue=None, admission=None, credits_from_plan: bool = False):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
         self.architect = architect or ChiefArchitect()
         self.credits = credits
+        # True only when `credits` was read from THIS account's plan. A default is not a price: it is never said as one.
+        self.plan_credits = credits if credits_from_plan and credits is not None else None
         self.budget_usd = budget_usd
         self.context = context or (lambda project_id: {})   # durable build/version state (read-only)
         self.worker_interpreter = worker_interpreter           # injected in tests
@@ -528,7 +531,7 @@ class ConversationSupervisor:
         if held is not None:
             return held
         from ..intake import approval_flow as AF
-        t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
+        t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
         items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
                        key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
         summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
@@ -550,7 +553,7 @@ class ConversationSupervisor:
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
-                t['range'].format(lo=lo, hi=hi), t['gate1']]
+                AF.range_line(lang, lo, hi), t['gate1']]
 
     def _plan(self, project_id, row):
         try:
@@ -657,6 +660,7 @@ class ConversationSupervisor:
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
                     turn.actions.append(action)
+        self._label_carries_its_question(turn, lang)
         turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
@@ -755,7 +759,7 @@ class ConversationSupervisor:
                 return cached['plan']
             return self.architect.plan(C.build(row.brief), budget_usd=self.budget_usd, status='PROPOSED')
         plan, record = AF.verified_plan(make_plan, row.brief, row.fingerprint)
-        lo_hi = AF.cost_range(row.brief)
+        lo_hi = AF.cost_range(row.brief, self.plan_credits)
         parts = [t['stage2'] + ' —']
         turn.venice = {'agent': 'agent.venice', 'mode': 'planning', 'stage': t['stage2'], 'cost_range_credits': list(lo_hi)}
         turn.interpretation = {'verification': record}
@@ -790,7 +794,31 @@ class ConversationSupervisor:
         turn.reply = ' '.join(parts)
         return self._finish(project_id, account_id, turn, request_key)
 
+    @staticmethod
+    def _label_carries_its_question(turn, lang=None) -> None:
+        """The owner, 2026-11-16 ("the empty question"): the chat said "One question before we continue:" and nothing
+        after it. The question lived only in the card of the live turn, so the stored message asked nothing: in the
+        history, after a reload, or read aloud, the customer saw a label with no question (production 2026-11-16
+        11:05-11:09: five such messages in one conversation). The message now carries the question in words; the card
+        adds the buttons and does not repeat the text (app.js quickReplies). A label with no question to carry is a
+        bug said in the log, and the label is not shown."""
+        for key, T in _TXT.items():
+            label = T['ask_one']
+            reply = (turn.reply or '').rstrip()
+            if not reply.endswith(label):
+                continue
+            q = turn.questions[0] if turn.questions else None
+            text = ((q.he if (lang or key) != 'en' else q.en) or '').strip() if q is not None else ''
+            if text:
+                turn.reply = reply + ' ' + text
+            else:
+                logging.getLogger(__name__).error('ASK_LABEL_WITHOUT_QUESTION questions=%s',
+                                                  [getattr(x, 'id', None) for x in turn.questions or ()])
+                turn.reply = reply[:-len(label)].rstrip() or T['nothing']
+            return
+
     def _finish(self, project_id, account_id, turn, request_key):
+        self._label_carries_its_question(turn)
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}), 'asked': [],
@@ -1465,8 +1493,8 @@ class ConversationSupervisor:
         if intent == 'cost':
             if not plan or not row.complete:               # before gate 1 the range is said, never hidden
                 from ..intake import approval_flow as AF
-                lo, hi = AF.cost_range(row.brief)
-                return AF.text(lang)['range'].format(lo=lo, hi=hi) + ' ' + T['cost_unknown']
+                lo, hi = AF.cost_range(row.brief, self.plan_credits)
+                return AF.range_line(lang, lo, hi) + ('' if lo == hi else ' ' + T['cost_unknown'])
             return T['cost'].format(credits=self.credits if self.credits is not None else '—',
                                     cap=plan['budget']['graph_authorized_usd'])
         if intent == 'feasibility':

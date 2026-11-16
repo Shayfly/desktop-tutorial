@@ -100,9 +100,15 @@ class CustomerOnlyQuestion(unittest.TestCase):
         t = self.next_customer_only()                                      # then the other one, with its buttons
         self.assertEqual([q.id for q in t.questions], [second])
         self.assertIn(MODEL_CONTEXT, t.reply)                              # ... and the model's context
-        for qid in answer:                                                 # the card asked each; the text never did
-            self.assertFalse(any(d.BY_ID[qid].he in (m.get('content') or '') for m in self.s.store.messages_for('p')
-                                 if m['role'] == 'assistant'), qid)
+        # the owner 2026-11-16 ("the empty question"): a message that only announces a question carries the card's own
+        # question in words, once, at its end (the card then shows buttons only). The model never asks it in its words.
+        for qid in answer:
+            for m in self.s.store.messages_for('p'):
+                content = (m.get('content') or '') if m['role'] == 'assistant' else ''
+                if d.BY_ID[qid].he in content:
+                    self.assertTrue(content.endswith(d.BY_ID[qid].he), content)
+                    self.assertEqual(content.count(d.BY_ID[qid].he), 1, content)
+                    self.assertEqual(content.count('?'), d.BY_ID[qid].he.count('?'), content)
 
     def test_a_field_held_open_after_a_typed_answer_is_still_asked(self):
         # production 2026-11-12: after an unsettled repeat content_only was "held open" and never asked again

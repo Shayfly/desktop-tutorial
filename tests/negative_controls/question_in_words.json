@@ -1,0 +1,115 @@
+{
+ "pr": "question-in-words",
+ "sha256": [
+  "tests/test_question_in_words.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/assets/app.js",
+  "tests/test_ci_playwright_install.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the turn stores the label alone again (production 2026-11-16 11:05-11:09)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        self._label_carries_its_question(turn, lang)\n        turn.reply = self._not_repeated(project_id, turn, T)",
+     "new": "        turn.reply = self._not_repeated(project_id, turn, T)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_question_in_words.py"
+   ],
+   "expect_failed": [
+    "test_the_message_that_announces_a_question_asks_it",
+    "test_english_carries_the_english_question",
+    "test_no_stored_message_is_a_label_alone_all_the_way_to_the_summary"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a label with no question to carry is shown in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                turn.reply = reply[:-len(label)].rstrip() or T['nothing']",
+     "new": "                pass  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_question_in_words.py"
+   ],
+   "expect_failed": [
+    "test_a_label_with_no_question_is_logged_and_not_shown"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the finish path (gate 1 held, approvals) skips the rule",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        self._label_carries_its_question(turn)\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_question_in_words.py"
+   ],
+   "expect_failed": [
+    "test_the_finish_path_carries_the_question_too"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the card repeats the question the message already asks",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "    q.text && !String(said || '').includes(q.text) ? h('div', { class: 'qq' }, q.text) : null,",
+     "new": "    h('div', { class: 'qq' }, q.text),  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_question_in_words.py"
+   ],
+   "expect_failed": [
+    "test_the_card_does_not_repeat_a_question_the_message_already_asks"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the English turn carries the Hebrew question",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "(q.he if (lang or key) != 'en' else q.en)",
+     "new": "(q.he if (lang or key) != 'en' else q.he)"
+    }
+   ],
+   "targets": [
+    "tests/test_question_in_words.py"
+   ],
+   "expect_failed": [
+    "test_english_carries_the_english_question"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the real-browser test of the approval state and the card is dropped from CI",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/approval_one_truth_browser.cjs\n        timeout-minutes: 3\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_ci_playwright_install.py"
+   ],
+   "expect_failed": [
+    "test_browser_tests_still_run_after_install"
+   ]
+  }
+ ]
+}

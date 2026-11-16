@@ -1,3 +1,26 @@
+# 2026-11-16 — releases, and the three chat contradictions of stage A (Claude Code)
+
+- **Released (the owner's order):** #422 `349d729` -> `4e16eeb` (docs only; the worker was deployed by a manual run of
+  deploy-worker on `4e16eeb`, run 43973795367, success: the path filter does not start it on a docs merge);
+  #405 `795bbae` -> `1dc1fbd`.
+- **Root causes, each seen in production (project of 2026-11-16 11:05-11:11, read-only query of `intake_messages`):**
+  - *Price.* The chat said "45-200" at gate 1 and "500" at gate 2. The price is set by the plan alone
+    (`pricing.m5_build_terms`); the range ignored the plan. Now the plan's price is said once, from gate 1.
+  - *The empty question.* Five stored messages were exactly "שאלה אחת לפני שממשיכים:". The question lived only in
+    the card of the live turn. Now the message carries the card's question in words, and the card adds buttons only.
+  - *Chat vs panel.* The customer approved the spec twice (11:10:21, 11:11:01). The panel's plan was fetched before
+    the approval and kept its `spec_not_approved` blocker after the chat approved. Now it is dropped and fetched again.
+- **Evidence:** `tests/test_plan_price_said_once.py` (8), `tests/test_question_in_words.py` (7),
+  `tests/approval_one_truth_browser.cjs` (real Chromium: passes here, and fails on main's app.js with "1 !== 2" plan
+  fetches); negative controls `plan_price_said_once` 6/6 and `question_in_words` 6/6; `scripts/test_fast.sh` exit 0;
+  declarations 72 -> 81, none lost.
+- **Changes a rule, said openly:** Michael 2026-11-13 "the card asks, the text does not". The owner's later order (the
+  empty question is a bug) wins: the question is still shown once, in the message; the card no longer repeats it.
+- **Not verified:** no live build on production after the release yet; the browser test uses a fixture API.
+- **Open:** a walk that clicks the first option of every card can loop on "האם האתר שומר מידע?" (seen in a local
+  walk, root cause not found yet); the chat's 8-field summary and the panel's summary are still two builders
+  (warehouse 101); `provider_liability_unknown` has no customer wording in app.js.
+
 # 2026-11-16 — the pre-live package (#405, orphaned) checked against main and taken over (Claude Code)
 
 - **Owner's order:** check the orphaned PRs against main; merge what is still right, or close with an explanation.
