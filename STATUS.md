@@ -1,3 +1,23 @@
+# 2026-11-16 — the worker dies mid-build; conversations that end on an unanswerable question (Claude Code)
+
+- **Merged:** #423 `0ebb903` -> `dfe6817` (chat truth; not released yet).
+- **Worker death, root cause (production, read-only):** `bld_426addd3` and `bld_0e142230` were killed 15 minutes after
+  they started: the queue's 900-second job timeout, with no terminal state written. `bld_0e142230`'s event 810 reads
+  "visual check could not verify the product: desktop: JobTimeoutException: Task exceeded maximum timeout value (900
+  seconds)": the timeout was caught as a failed check and the build went on repairing.
+- **Fix:** the build ends itself (no new repair round after 13 min; stop with `build_timeout` at 17 min; queue limit
+  20 min); `BuildDeadline` and the queue's `JobTimeoutException` are control exceptions, never a check failure; the
+  customer has words for `build_timeout`, `provider_liability_unknown` and the `time_budget` repair stop.
+- **Dead ends, found by walking every way through the cards of four requests:** 80 of 252 walks ended on a question
+  with no card and no answer the chat could take ("האם האתר שומר מידע?" after "personal details are stored"; the
+  English workflow question for a short request). After the fix: 0 of 252 (220 summaries, 32 stated blockers).
+- **Evidence:** `tests/test_build_deadline.py` (16, with rq installed; 2 are NOT_RUN without it),
+  `tests/test_no_dead_end_conversation.py` (4); negative controls `build_deadline` 9/9, `no_dead_end` 5/5;
+  `scripts/test_fast.sh` exit 0; declarations 81 -> 88, none lost.
+- **Not verified:** no production build has run on the new limits; the limits 13/17/20 are a decision (DECISIONS.md).
+- **Open:** warehouse 115 (verify on a real build), 116 (the A2 live job does not exist in code), 117 (a build with a
+  photo end to end on production was not tested).
+
 # 2026-11-16 — releases, and the three chat contradictions of stage A (Claude Code)
 
 - **Released (the owner's order):** #422 `349d729` -> `4e16eeb` (docs only; the worker was deployed by a manual run of
