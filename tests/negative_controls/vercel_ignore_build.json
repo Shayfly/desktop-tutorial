@@ -20,7 +20,8 @@
    ],
    "expect_failed": [
     "test_a_code_change_builds_its_preview",
-    "test_a_rename_out_of_docs_is_code"
+    "test_a_rename_out_of_docs_is_code",
+    "test_previews_still_build_automatically"
    ]
   },
   {
@@ -42,24 +43,19 @@
   },
   {
    "id": "NC3",
-   "what": "production obeys the docs rule (production would lag main)",
+   "what": "production ignores the release rule and falls through to the preview rules (warehouse 111: it would build every push again)",
    "mutations": [
     {
      "file": "scripts/vercel_ignore_build.mjs",
-     "old": "  if (env === 'production') return { build: true, reason: 'production always builds' };\n  if (env !== 'preview') return",
-     "new": "  if (env !== 'preview' && env !== 'production') return"
-    },
-    {
-     "file": "scripts/vercel_ignore_build.mjs",
-     "old": "  if (env === 'preview' && !NO_PREVIEW.includes(ref)) {",
-     "new": "  if ((env === 'preview' || env === 'production') && !NO_PREVIEW.includes(ref)) {"
+     "old": "  if (env === 'production') {\n    if (release === '1')",
+     "new": "  if (false) {  // NEGATIVE CONTROL\n    if (release === '1')"
     }
    ],
    "targets": [
     "tests/test_vercel_ignore_build.py"
    ],
    "expect_failed": [
-    "test_production_always_builds_even_for_docs"
+    "test_production_builds_only_a_release"
    ]
   },
   {
