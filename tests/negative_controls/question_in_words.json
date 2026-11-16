@@ -3,7 +3,8 @@
  "sha256": [
   "tests/test_question_in_words.py",
   "omni_prod/conversation/supervisor.py",
-  "omni_prod/assets/app.js"
+  "omni_prod/assets/app.js",
+  "tests/test_ci_playwright_install.py"
  ],
  "controls": [
   {
@@ -91,6 +92,23 @@
    ],
    "expect_failed": [
     "test_english_carries_the_english_question"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the real-browser test of the approval state and the card is dropped from CI",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "      - run: node tests/approval_one_truth_browser.cjs\n        timeout-minutes: 3\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_ci_playwright_install.py"
+   ],
+   "expect_failed": [
+    "test_browser_tests_still_run_after_install"
    ]
   }
  ]

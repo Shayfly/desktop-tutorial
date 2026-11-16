@@ -40,6 +40,7 @@ class PlaywrightInstallTests(unittest.TestCase):
     def test_browser_tests_still_run_after_install(self):
         runs = [s.get('run', '') for s in self.steps]
         self.assertIn('node tests/customer_flow_browser.cjs', runs)
+        self.assertIn('node tests/approval_one_truth_browser.cjs', runs)     # chat and panel: one approval state
 
 
 if __name__ == '__main__':

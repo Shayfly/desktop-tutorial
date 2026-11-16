@@ -281,6 +281,7 @@ jobs:
           node --check tests/customer_flow_browser.cjs
           node --check tests/preview_frame_browser.cjs
           node --check tests/project_scope_browser.cjs
+          node --check tests/approval_one_truth_browser.cjs
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       # 2026-10-27: `playwright install --with-deps` hung for the whole 5-minute step on 2 of the last ~15 runs
       # (normally ~22s), which skipped the browser tests and failed customer-ui without testing anything. The
@@ -308,6 +309,8 @@ jobs:
       - run: node tests/preview_frame_browser.cjs
         timeout-minutes: 3
       - run: node tests/project_scope_browser.cjs
+        timeout-minutes: 3
+      - run: node tests/approval_one_truth_browser.cjs
         timeout-minutes: 3
   customer-ui:
     # Preserve the required check name and fail closed if classification fails.
