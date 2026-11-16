@@ -261,8 +261,10 @@ if __name__ == '__main__':
 
 def executor_chain(engine) -> list[str]:
     """The class names of the engine's executor wrappers, outermost first (bounded; each wrapper's own `_inner`)."""
+    # 20, the code's own bound (skill_units.gate.MAX_CHAIN): the worker installs 9 skill gates and the asset-marker gate
+    # outside the image check (2026-11-16), so a bound of 10 never reached it
     chain, ex = [], getattr(engine, 'executor', None)
-    for _ in range(10):
+    for _ in range(20):
         if ex is None:
             break
         chain.append(type(ex).__name__)
