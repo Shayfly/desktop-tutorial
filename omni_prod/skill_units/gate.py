@@ -54,7 +54,7 @@ MODES = ('block', 'warn', 'off')
 MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # owner 2026-11-16: G4 warns (a unit that warns makes it a gate; without the unit it is a heading) until warehouse 114
 # (the hero image inlined as base64) is fixed; G3 and G6 block.
-DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', 'HE': 'block', 'G10': 'block'}   # HE: Hebrew; G10: copy
+DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', 'HE': 'block', 'G10': 'block', 'G11': 'block'}   # HE: Hebrew; G10: copy; G11: links
 _ALIASES = {'1': 'block', '0': 'off'}
 
 

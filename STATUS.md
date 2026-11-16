@@ -1,3 +1,31 @@
+# 2026-11-16 — the copy gate (G10, 2 skills) and the links gate (G11, 3 skills) (Claude Code)
+
+- **Owner's order (build track, items 3 and 6):** a generic-copy gate (filler sentences) and a links gate (`tel:`, a
+  whole address, navigation). Both fall on a page before they go in.
+- **G10:**
+  - `copy_filler` (COPY_FILLER): generic sentences that say nothing about the business, a closed list in Hebrew and
+    English ("ברוכים הבאים לאתר שלנו", "Welcome to our website").
+  - `copy_placeholder` (COPY_PLACEHOLDER): text left to be replaced ("lorem ipsum", "[שם העסק]", "{{business_name}}",
+    "טקסט לדוגמה", example.com, 123-456-7890), in the text and in links.
+- **G11:**
+  - `links_tel` (TEL_BROKEN): every `tel:` link dials a valid Israeli number the page shows, and every phone the page
+    shows has a `tel:` link.
+  - `links_anchor` (ANCHOR_BROKEN): every `href="#x"` has an element with id x.
+  - `links_address` (ADDRESS_INCOMPLETE): an address the page labels ("כתובת:") has a house number and a city (a closed
+    list of cities). A heading such as "כתובת והתקשרות" is not a label.
+- **They fall on a page:** each unit's broken fixture is the real butcher production page changed in one place, and
+  each gate (block by default) fails the build on it. The changes:
+  - "ברוכים הבאים לאתר שלנו!" added;
+  - the address replaced by "[כתובת העסק]";
+  - both call buttons dialling 050400016, a digit short;
+  - a "מחירים" link to a missing #prices;
+  - the address without its number and city.
+  The unchanged page passes all five units.
+- **Evidence:** `tests/test_skill_gate_copy.py` 6 and `tests/test_skill_gate_links.py` 6. Negative controls
+  `skill_gate_copy.json` 5/5 and `skill_gate_links.json` 5/5. The other gate specs on this branch still pass:
+  `skill_gate_he` 6/6, `skill_gates` 10/10, `skill_units_a11y` 6/6.
+- **Not checked:** pages other than the butcher page.
+
 # 2026-11-16 — the Hebrew gate (HE): grammar, gender agreement, translationese (Claude Code)
 
 - **Owner's order (build track, item 2):** a Hebrew gate with 3 skills. "A gate that has not been shown to fail does not

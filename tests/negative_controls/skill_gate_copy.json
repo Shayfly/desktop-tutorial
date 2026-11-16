@@ -1,21 +1,97 @@
 {
  "pr": "skill-gate-copy",
- "sha256": ["tests/test_skill_gate_copy.py", "omni_prod/skill_units/gate.py"],
+ "sha256": [
+  "tests/test_skill_gate_copy.py",
+  "omni_prod/skill_units/gate.py"
+ ],
  "controls": [
-  {"id": "NC1", "what": "the filler unit has an empty list",
-   "mutations": [{"file": "omni_prod/skill_units/copy_filler/probe.py", "old": "for p in FILLER]", "new": "for p in ()]"}],
-   "targets": ["tests/test_skill_gate_copy.py"], "expect_failed": ["test_each_unit_falls_on_the_real_page_changed_in_one_place", "test_placeholders_in_text_and_links"]},
-  {"id": "NC2", "what": "the placeholder unit misses bracketed placeholders",
-   "mutations": [{"file": "omni_prod/skill_units/copy_placeholder/probe.py", "old": "|\\[\\s*(?:שם|כתובת|טלפון|business|company|your)[^\\]]{0,30}\\]", "new": ""}],
-   "targets": ["tests/test_skill_gate_copy.py"], "expect_failed": ["test_each_unit_falls_on_the_real_page_changed_in_one_place", "test_placeholders_in_text_and_links"]},
-  {"id": "NC3", "what": "the placeholder unit does not read links",
-   "mutations": [{"file": "omni_prod/skill_units/copy_placeholder/probe.py", "old": "        if tag == 'a' and _TEXT.search(href):", "new": "        if False:  # NEGATIVE CONTROL"}],
-   "targets": ["tests/test_skill_gate_copy.py"], "expect_failed": ["test_placeholders_in_text_and_links"]},
-  {"id": "NC4", "what": "the copy gate warns instead of blocking",
-   "mutations": [{"file": "omni_prod/skill_units/gate.py", "old": "'HE': 'block', 'G10': 'block'}", "new": "'HE': 'block', 'G10': 'warn'}"}],
-   "targets": ["tests/test_skill_gate_copy.py"], "expect_failed": ["test_each_unit_falls_on_the_real_page_changed_in_one_place", "test_the_gate_is_two_units_and_blocks_by_default"]},
-  {"id": "NC5", "what": "the worker does not install the copy gate",
-   "mutations": [{"file": "omni_prod/worker_tasks.py", "old": "        install_skill_gate(engine, 'G10')                             # copy: filler and placeholders\n", "new": ""}],
-   "targets": ["tests/test_skill_gate_copy.py"], "expect_failed": ["test_the_worker_installs_the_gate"]}
+  {
+   "id": "NC1",
+   "what": "the filler unit has an empty list",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/copy_filler/probe.py",
+     "old": "for p in FILLER]",
+     "new": "for p in ()]"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_copy.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_placeholders_in_text_and_links"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the placeholder unit misses bracketed placeholders",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/copy_placeholder/probe.py",
+     "old": "|\\[\\s*(?:שם|כתובת|טלפון|business|company|your)[^\\]]{0,30}\\]",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_copy.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_placeholders_in_text_and_links"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the placeholder unit does not read links",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/copy_placeholder/probe.py",
+     "old": "        if tag == 'a' and _TEXT.search(href):",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_copy.py"
+   ],
+   "expect_failed": [
+    "test_placeholders_in_text_and_links"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the copy gate warns instead of blocking",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "'HE': 'block', 'G10': 'block',",
+     "new": "'HE': 'block', 'G10': 'warn',"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_copy.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_gate_is_two_units_and_blocks_by_default"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the worker does not install the copy gate",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'G10')                             # copy: filler and placeholders\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_copy.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate"
+   ]
+  }
  ]
 }
