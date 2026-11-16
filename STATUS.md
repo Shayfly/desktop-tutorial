@@ -1,3 +1,17 @@
+# 2026-11-16 — a2-offline NC6 explained and fixed: the fixtures pointed at real hosts (Claude Code)
+
+- **What broke:** NC6 of `a2_collect` (the offline guard disabled) failed now and then with one extra failing test,
+  `test_one_run_counts_every_rejection_by_its_reason` (runs 43746694174 attempts 1-2, 43749460570, and #410's run of 2026-11-16).
+- **Root cause, measured:** the assertion added in `6065cc8` printed it on #410's run: `(35, 31, 29, {'capture_missing': 2, ...})` instead
+  of `(35, 31, 30, {'capture_missing': 1, ...})` -- one more site lost its screenshot. With the guard disabled, the browser really
+  fetched the fixtures' external references (`cdn.example.com`, `images.example.org`, `maps.example.com`, `example.com`: real,
+  resolvable hosts) over the runner's network, so a page's load time, and whether its capture fit in time, varied between runs.
+- **Fix:** the fixtures and tests use reserved `.invalid` hosts (RFC 6761: never resolve, fail at once), so a disabled guard fails the
+  same way every time. No production code changes; the guard and the tests' meaning are unchanged.
+- **Evidence:** `tests/test_a2_collect.py` + `tests/test_a2_extract.py` 30 passed with the real browser here; controls a2_collect 7/7
+  three runs in a row, a2_extract 6/6. **Not proven here:** whether this container could reach the real hosts at all; the proof is the
+  next CI runs of a2-offline.
+
 # 2026-11-16 — A2 steps 8 and 9: the window catalogue and the gate (Claude Code)
 
 - **Implemented:** `omni_prod/window_catalog.py`: the eight windows A2 recognises (mega menu, age gate, cookie banner, entry popup,
