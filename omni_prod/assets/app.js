@@ -263,12 +263,12 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
-Object.assign(T.he, { actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
   aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
-Object.assign(T.en, { actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+Object.assign(T.en, { actRetryBuild:'Try building again', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
@@ -1589,6 +1589,8 @@ function actionButtons(actions) {
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
     // warehouse 69 (A0): a type without an output profile was refused; the one action is to describe a site or app instead
     if (a.type === 'describe_web_instead') out.push(h('button', { type: 'button', class: 'primary', onclick: () => { const i = $('chatInput'); if (i) i.focus(); } }, t('actDescribeInstead')));
+    // warehouse 77c: a failed build's one action in the conversation -- back to the approval screen to try again
+    if (a.type === 'retry_build') out.push(h('button', { type: 'button', class: 'primary', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actRetryBuild')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
       onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(a.attachment_ids && a.attachment_ids.length ? { attachment_ids: a.attachment_ids } : null); } }, t('actConfirmMod')));
@@ -1629,7 +1631,7 @@ function renderChat() {
     const counts = (S.tasks && S.tasks.tasks || []).reduce((a, x) => { a[x.state] = (a[x.state] || 0) + 1; return a; }, {});
     const label = st === 'ready' ? t('buildReady') : st === 'failed' ? `${t('buildFailed')}: ${friendlyError(S.build)}` :
       st === 'cancelled' ? t('buildCancelled') : `${t('buildRunning')}${S.build.phase ? ` · ${S.build.phase}` : ''}`;
-    kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('build') }, label,
+    kids.push(h('button', { type: 'button', class: `statusline ghost${st === 'failed' ? ' bad' : ''}`, onclick: () => openTab('build') }, label,
       counts.SUCCEEDED ? ` · ${counts.SUCCEEDED} ${t('ts_SUCCEEDED')}` : ''));
   }
   if (S.mod && S.mod.status) kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('change') },
