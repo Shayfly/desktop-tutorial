@@ -1,0 +1,11 @@
+{
+ "name": "skill.he.grammar",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "HE",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "The Hebrew text has no repeated word, no double superlative (\"הכי ... ביותר\") and no article on the first noun of a construct (\"הבית קפה\")."
+}

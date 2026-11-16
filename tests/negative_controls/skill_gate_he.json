@@ -1,0 +1,116 @@
+{
+ "pr": "skill-gate-he",
+ "sha256": [
+  "tests/test_skill_gate_he.py",
+  "omni_prod/skill_units/__init__.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the grammar unit misses the double superlative",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_grammar/probe.py",
+     "old": "        for m in _SUPER.finditer(node):",
+     "new": "        for m in _SUPER.finditer(''):  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the gender unit takes a masculine noun with a feminine adjective",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_gender/probe.py",
+     "old": "            elif g == 'm' and adj in _FEM_ADJ:",
+     "new": "            elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_findings_say_the_correct_form"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the translationese unit has an empty list",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/he_translationese/probe.py",
+     "old": "for p, fix in PHRASES.items()]",
+     "new": "for p, fix in {}.items()]"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_findings_say_the_correct_form"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the page text is joined across elements (the hours table's two cells read as a repeated word) -- the unchanged real page then fails too (\"שבת\" + \"שבת סגור\")",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/__init__.py",
+     "old": "    for chunk in re.split(r'<[^>]+>', body):",
+     "new": "    for chunk in [re.sub(r'<[^>]+>', ' ', body)]:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_text_is_read_one_node_at_a_time",
+    "test_the_unchanged_page_passes"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the Hebrew gate warns instead of blocking",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "'G6': 'block', 'HE': 'block'}",
+     "new": "'G6': 'block', 'HE': 'warn'}"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_the_gate_is_three_units_and_blocks_by_default"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the worker does not install the Hebrew gate",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'HE')                              # Hebrew: grammar, gender, translationese\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+{
+ "name": "skill.he.gender",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "HE",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "A noun and the adjective right after it agree in gender, and so do שני/שתי and their noun (closed word lists; a word outside them is not judged)."
+}

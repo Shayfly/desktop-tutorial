@@ -1,3 +1,26 @@
+# 2026-11-16 — the Hebrew gate (HE): grammar, gender agreement, translationese (Claude Code)
+
+- **Owner's order (build track, item 2):** a Hebrew gate with 3 skills. "A gate that has not been shown to fail does not
+  go in."
+- **Implemented:**
+  - Three units in `omni_prod/skill_units/`, each a closed rule list and no model:
+    - `he_grammar` (HE_GRAMMAR): a repeated word, except Hebrew's own reduplications ("לאט לאט"); a double
+      superlative ("הכי ... ביותר"); the article on the first noun of a construct ("הבית קפה").
+    - `he_gender` (HE_GENDER): a noun and the adjective right after it, and שני/שתי with their noun, from closed noun
+      and adjective lists. A word outside the lists is not judged.
+    - `he_translationese` (HE_TRANSLATIONESE): 18 calques ("בסוף היום", "אל תהססו") with the natural Hebrew.
+  - The text is read one text node at a time (`skill_units.text_nodes`). The real page's hours table has a "שבת" cell
+    next to a "שבת סגור" cell; joined, they would read as a repeated word.
+  - Gate `HE`, mode `block` by default (`OMNI_GATE_HE`). The worker installs it after G6, and it reports like the other
+    gates.
+- **It falls on a page:** each unit's broken fixture is the real butcher production page (`bld_83529c13...`) changed in
+  one place: "הבשר הכי איכותי ביותר", "השעות פתיחה", "בשר טרייה", "אל תהססו לפנות". The gate fails the build on each,
+  in its default mode, and the repair to the unchanged page passes. The unchanged page passes all three.
+- **Evidence:** `tests/test_skill_gate_he.py`, 7 tests. Negative controls `tests/negative_controls/skill_gate_he.json`
+  6/6, among them: text joined across elements (then the unchanged page fails too), the gate set to warn, and the
+  worker not installing it.
+- **Not checked:** pages other than the butcher page. The word lists are a start, not full coverage of Hebrew.
+
 # 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
 
 - **Owner's order:** wire the 5 a11y skills into G3 (each skill fails a build when it fails), 5 performance skills plus
