@@ -128,13 +128,17 @@ GOLDEN = {
     'תבנה לי דף לחנות הפרחים שלי, "שושנת העמקים". שיהיה כפתור להתקשר וכפתור וואטסאפ.':
         # 2026-11-13 (the cafe fix): no waiver was given, so the spec lists the phone as MISSING instead of
         # saying "approved without it" (was 8734a337...)
-        'sha256:0c2919477294892d47c92ea8b2e0ce0fd6869175919fdb26729b422fd30dd301',
+        # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 0c291947...)
+        'sha256:7ad9ea46ba89c4411413f108350ec985e231bf5b557d3e15dfe63dead926ec10',
     'אני רוצה מערכת לניהול תורים למספרה שלי, בלי התחברות, הלקוחות ישאירו טלפון':
-        'sha256:d2b5797832ca497631b873da796320b679b40f708661191d72d67ff69ee25439',
+        # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was d2b57978...)
+        'sha256:99a3ccd75d2a90bf4c3f66c34520ab1db558f457ade93e925769060d618f5e06',
     'Build a team task tracker web app: users sign up and log in, create projects, add tasks with due dates':
-        'sha256:13cf38076cffe1318b5b16aebc7de51b9b2e2e25317c66bd3b2f3ec7dfab8a8b',
+        # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 13cf3807...)
+        'sha256:051707d17377223b8d574b2c167335795288a95ceb4acff620ca435eef383dc7',
     'דף לבית קפה עם תפריט ותשלום אונליין בכרטיס אשראי':
-        'sha256:3eb158327ac74c76c640d3ee9ad7efcdfba337dd51c123370270a56459bccff4',
+        # 2026-11-16 warehouse 105: no colour stated -> the business category's palette, not blue (was 3eb15832...)
+        'sha256:6ab2a7a305f33642ecce95003b154f522896db595f5deb95a561479cc8e84831',
 }
 
 
