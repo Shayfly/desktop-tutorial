@@ -37,19 +37,34 @@ def preview_host_queue(runtime_host: str) -> str:
         raise ValueError('runtime_host is required for a host-scoped queue')
     return PREVIEW_HOST_QUEUE_PREFIX + safe[:120]
 
+# The time a build may take, in one place (the owner, 2026-11-16: "the worker dies in the middle of a build").
+# Production, 2026-11-16: bld_426addd3 and bld_0e142230 were both killed 15 minutes after they started -- the queue's
+# 900-second job timeout -- in repair round 5-6, with no terminal state written: the customer watched a build that
+# "stopped responding" until the 45-minute janitor failed it as worker_lost. A build now ends ITSELF, in order:
+#   BUILD_REPAIR_UNTIL_SECONDS   no new repair round starts after this; the best version so far is judged as usual
+#   BUILD_STOP_AT_SECONDS        the next step boundary raises BuildDeadline: FAILED build_timeout, settled, said
+#   BUILD_JOB_TIMEOUT_SECONDS    the queue's own limit, the last resort; it must never be the one that ends a build
+# The longest accepted build of 2026-11-13..15 took 8:57 (3 repair rounds); the repair budget leaves 4 minutes more.
+BUILD_REPAIR_UNTIL_SECONDS = 780
+BUILD_STOP_AT_SECONDS = 1020
+BUILD_JOB_TIMEOUT_SECONDS = 1200
+if not 0 < BUILD_REPAIR_UNTIL_SECONDS < BUILD_STOP_AT_SECONDS < BUILD_JOB_TIMEOUT_SECONDS - 120:
+    raise RuntimeError('build time budget out of order: repair < stop < job timeout - 120 s')
+
+
 def queue(redis_url: str, queue_name: str = BUILD_QUEUE, **redis_kwargs):
     from rq import Queue
     return Queue(
         queue_name,
         connection=redis_connection(redis_url, **redis_kwargs),
-        default_timeout=900,
+        default_timeout=BUILD_JOB_TIMEOUT_SECONDS,
     )
 
 def enqueue_build(
     redis_url: str,
     func_path: str,
     *args,
-    timeout: int = 900,
+    timeout: int = BUILD_JOB_TIMEOUT_SECONDS,
     job_id: str | None = None,
     queue_name: str = BUILD_QUEUE,
     **redis_kwargs,

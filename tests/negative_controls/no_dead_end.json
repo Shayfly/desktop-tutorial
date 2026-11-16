@@ -1,0 +1,97 @@
+{
+ "pr": "no-dead-end",
+ "sha256": [
+  "tests/test_no_dead_end_conversation.py",
+  "omni_prod/discovery.py",
+  "omni_prod/product_architect.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "stored personal details are no persistence decision again: the contract asks a question with no card",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    elif v.get('content_only') == 'no' or stores_by_own_answer(brief):",
+     "new": "    elif v.get('content_only') == 'no':"
+    }
+   ],
+   "targets": [
+    "tests/test_no_dead_end_conversation.py"
+   ],
+   "expect_failed": [
+    "test_every_way_through_the_cards_ends_at_the_summary_or_a_stated_blocker",
+    "test_stored_personal_details_are_a_persistence_decision"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the workflow question is asked although the brief names the audience and the goal",
+   "mutations": [
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "        if re.search(r'(?<!\\S)Audience: \\S', block) and re.search(r'(?<!\\S)Main action: \\S', block):",
+     "new": "        if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_no_dead_end_conversation.py"
+   ],
+   "expect_failed": [
+    "test_every_way_through_the_cards_ends_at_the_summary_or_a_stated_blocker",
+    "test_a_brief_that_names_audience_and_goal_is_not_asked_for_the_workflow"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a delegated value counts as the customer's decision",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "if f.get('source') in ('answer', 'message')}",
+     "new": "}"
+    }
+   ],
+   "targets": [
+    "tests/test_no_dead_end_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_delegated_value_decides_nothing"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "'do not store personal details' no longer takes the personal data back",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    if own.get('personal_data') == 'yes' and brief.values().get('access_scope') != 'no_personal':",
+     "new": "    if own.get('personal_data') == 'yes':"
+    }
+   ],
+   "targets": [
+    "tests/test_no_dead_end_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_delegated_value_decides_nothing"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "text the customer typed is read as the server's brief block",
+   "mutations": [
+    {
+     "file": "omni_prod/product_architect.py",
+     "old": "        block = approved.rsplit(BRIEF_MARKER, 1)[1] if BRIEF_MARKER in (approved or '') else ''",
+     "new": "        block = approved or ''"
+    }
+   ],
+   "targets": [
+    "tests/test_no_dead_end_conversation.py"
+   ],
+   "expect_failed": [
+    "test_a_brief_that_names_audience_and_goal_is_not_asked_for_the_workflow"
+   ]
+  }
+ ]
+}

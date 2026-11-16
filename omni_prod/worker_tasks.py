@@ -416,7 +416,11 @@ def failure_code(exc: BaseException) -> str:
     from .model_policy import ModelPolicyViolation
     from .agent_os.recorder import PlanViolation
     from .attempt_ledger import AttemptLedgerUnavailable
+    from .build_control import BuildDeadline
+    from .verification_verdict import queue_timeouts
     text = str(exc)
+    if isinstance(exc, (BuildDeadline, *queue_timeouts())):   # the build's own limit, or the queue's as the last resort
+        return 'build_timeout'
     if isinstance(exc, AttemptLedgerUnavailable):
         return 'attempt_ledger_unavailable'
     if isinstance(exc, PlanViolation):
@@ -860,8 +864,10 @@ def evaluate_release_gates(*, result, quality, security, rights) -> tuple[bool, 
         # Name what still failed (the UI shows this under technical details).
         last = '; '.join(f'{getattr(f, "acceptance_id", "?")}: {getattr(f, "message", "")}'[:240]
                          for f in report_failures[:4])
+        out_of_time = getattr(result, 'stop_reason', '') == 'time_budget'
         return False, 'verification_failed', (
             f'build did not pass sandbox verification after {getattr(result, "repair_rounds", "?")} repair round(s)'
+            + (' (stopped repairing: the build was out of time)' if out_of_time else '')
             + (f'; still failing: {last}' if last else ''))[:2000]
     if not quality.passed:
         blockers = '; '.join(getattr(quality, 'blockers', ()) or ()) or 'no blocker detail'
