@@ -253,6 +253,42 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         named |= set(re.findall(r"'(\w+)'", loop.group(1))) if loop else set()
         self.assertGreaterEqual(len(named), 9)
         self.assertEqual(named - set(G.DEFAULT_MODE), set())      # a gate with no stated default would block in silence
+        self.assertEqual(named, set(G.WORKER_GATES))              # the rehearsal installs this list: the same gates
+
+    def test_the_rehearsal_runs_the_gates_a_customers_build_runs(self):
+        from pathlib import Path
+        from types import SimpleNamespace
+        from omni_prod.skill_units import gate as G
+        engine = SimpleNamespace(executor=SimpleNamespace(execute=lambda **k: None))
+        installed = G.install_all(engine)
+        self.assertEqual(tuple(installed), G.WORKER_GATES)
+        self.assertEqual(set(engine.gate_modes), set(G.WORKER_GATES))
+        src = (Path(__file__).resolve().parent.parent / 'omni_prod' / 'rehearsal.py').read_text(encoding='utf-8')
+        self.assertLess(src.index('install_all(engine)'), src.index('result = engine.build(prompt)'))
+        self.assertIn("report['skill_gates'] = skill_gate_report(engine)", src)
+
+    def test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only(self):
+        import os
+        from unittest import mock
+        from omni_prod.autonomous_core import AutonomousProductEngine
+        from omni_prod.skill_units import gate as G
+        page = BUTCHER['page'].replace('</body>', '<p>ברוכים הבאים לאתר שלנו</p><img src="x.png"></body>')
+        e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'app.py': as_app_py(page)}),
+                                    repairer=_Files({'app.py': as_app_py(page)}), executor=_Sandbox(), max_repair_rounds=0)
+        with mock.patch.dict(os.environ, {'OMNI_GATE_G3': 'warn'}):
+            os.environ.pop('OMNI_GATE_G10', None)
+            G.install(e, 'G3')
+            G.install(e, 'G10')
+        e.build('a page')
+        rep = G.report(e)
+        g10 = rep['G10']
+        self.assertEqual((g10['mode'], g10['status']), ('warn', 'fail'))
+        finding = g10['failures'][0]['findings'][0]
+        self.assertIn('ברוכים הבאים', finding['where'] + finding['why'])
+        self.assertLessEqual(len(g10['failures'][0]['findings']), G.MAX_CALIBRATION_FINDINGS)
+        self.assertEqual(rep['G3']['status'], 'fail')
+        self.assertTrue(all('findings' not in f for f in rep['G3']['failures']))     # proven gate: codes only
+        self.assertNotIn('G6', G.CALIBRATING)                                        # a secret is never copied
 
     def test_a_calibrating_gate_can_still_be_set_to_block(self):
         import os

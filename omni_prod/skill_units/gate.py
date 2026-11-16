@@ -144,8 +144,30 @@ def install(engine, gate: str) -> list[str]:
     return gate_units(gate)
 
 
+# Every gate a build runs, in the order the worker installs them. One list: the rehearsal installs the same gates, so a
+# calibration build cannot check less than a customer's build.
+WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')
+MAX_CALIBRATION_FINDINGS = 3      # per failure, in the evidence of a gate that is still calibrating
+MAX_FINDING_CHARS = 200
+
+
+def install_all(engine) -> dict:
+    """Install every gate of WORKER_GATES; returns {gate: units}."""
+    missing = [g for g in WORKER_GATES if g not in DEFAULT_MODE]
+    if missing:
+        raise ValueError(f'gates with no stated default mode: {missing}')
+    return {g: install(engine, g) for g in WORKER_GATES}
+
+
+def _calibration_findings(failure: dict) -> list[dict]:
+    return [{'where': str(f.get('where', ''))[:MAX_FINDING_CHARS], 'why': str(f.get('why', ''))[:MAX_FINDING_CHARS]}
+            for f in (failure.get('findings') or [])[:MAX_CALIBRATION_FINDINGS]]
+
+
 def report(engine) -> dict:
-    """What the build evidence carries: per gate its mode and its last result (codes only), OFF included."""
+    """What the build evidence carries: per gate its mode and its last result, OFF included. Codes only -- except a
+    gate that is still CALIBRATING: its findings (bounded) are kept too, because calibrating a gate means reading
+    what it flagged on real pages. G6 reads source files and is never in that list: a secret is never copied here."""
     core = getattr(engine, 'core', engine)
     modes = getattr(core, 'gate_modes', None)
     out = {g: {'mode': m} for g, m in modes.items()} if isinstance(modes, dict) else {}
@@ -158,7 +180,10 @@ def report(engine) -> dict:
         if ex is None:
             break
         if isinstance(ex, SkillGateExecutor) and ex.gate in out and ex.last_gate is not None:
+            keep = ex.gate in CALIBRATING and not any(manifest(u)['reads_source'] for u in gate_units(ex.gate))
             out[ex.gate].update(status=ex.last_gate['status'],
-                                failures=[{k: f[k] for k in ('unit', 'page', 'code')} for f in ex.last_gate['failures']])
+                                failures=[{**{k: f[k] for k in ('unit', 'page', 'code')},
+                                           **({'findings': _calibration_findings(f)} if keep else {})}
+                                          for f in ex.last_gate['failures']])
         ex = getattr(ex, '__dict__', {}).get('_inner')
     return out
