@@ -206,9 +206,10 @@ QUESTIONS: tuple[Question, ...] = (
              recommended='clean'),
     Question('color', 'color', 'design', 'אילו צבעים תרצו? אפשר לתאר במילים', 'Which colours? Describe them in your own words',
              'הצבע הראשי משמש לכפתורים ולכותרות; הטקסט תמיד יישאר קריא.', 'Used for buttons and headings; text stays readable.',
-             kind='text', options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
+             kind='text', options=(_o('category', 'לפי סוג העסק', 'By the type of business'),
+                      _o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
                       _o('orange', 'כתום', 'Orange'), _o('teal', 'טורקיז', 'Teal'), _o('neutral', 'אפור/שחור', 'Neutral')),
-             recommended='blue'),
+             recommended='category'),   # warehouse 105: no single default blue; the category's palette (data file)
     Question('font', 'font', 'design', 'איזה גופן?', 'Which font?',
              'כל האפשרויות תומכות בעברית ורישיונן ידוע (Google Fonts, OFL).', 'All support Hebrew and have a known licence (OFL).',
              options=(_o('heebo', 'Heebo — נקי ומודרני', 'Heebo — clean'), _o('assistant', 'Assistant — רך וקריא', 'Assistant — soft'),
@@ -712,7 +713,7 @@ def missing(brief: Brief) -> dict:
 
 # ---- what the builders receive ----------------------------------------------
 
-_COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
+_COLOR_HEX = {'blue': '#1e40af', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
               'neutral': '#334155', 'white': '#ffffff', 'black': '#000000', 'red': '#dc2626',
               'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080',
               # CEO 2026-11-09: the cafe brief said "חום, קרם וירוק" and the summary showed only green.
@@ -973,12 +974,16 @@ def requirements_text(brief: Brief) -> str:
                                   'past_and_future': 'a sensible range (no year before 1900 or after 10 years ahead)'}.get(dates, dates) + '.')
     if v.get('duplicates') == 'block':
         lines.append('Duplicates: block them on the server (also under two simultaneous requests) and explain why.')
-    style, color, font = v.get('style', 'clean'), v.get('color', 'blue'), v.get('font', 'heebo')
+    style, color, font = v.get('style', 'clean'), v.get('color', 'category'), v.get('font', 'heebo')
     tokens = palette_css(color)
-    colours = (f'primary colour {tokens[0]}; palette {", ".join(tokens)}' if tokens else
-               f'requested colour description {color!r}; resolve it to valid CSS colours')
-    if tokens:
-        colours += f'; requested colour description {color!r}'
+    stated = (brief.fields.get('color') or {}).get('source') in ('answer', 'message') and color != 'category'
+    if tokens and stated:
+        colours = f'primary colour {tokens[0]}; palette {", ".join(tokens)}; requested colour description {color!r}'
+    elif stated:
+        colours = f'requested colour description {color!r}; resolve it to valid CSS colours'
+    else:   # warehouse 105: no colour from the customer -> the business category's palette (vertical_palettes.json)
+        from .vertical_palettes import design_colours
+        colours = design_colours(brief.prompt + '\n' + customer_text(brief))
     lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':

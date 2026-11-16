@@ -53,7 +53,8 @@ class EngineTests(unittest.TestCase):
 
     def test_delegation_is_marked_and_recommend_mode_completes(self):
         b = d.answer(d.start('מערכת לניהול משימות לצוות'), {'color': d.DELEGATE})
-        self.assertEqual(b.fields['color'], {'value': 'blue', 'source': 'delegated', 'question_id': 'color',
+        # warehouse 105 (owner 2026-11-16): a delegated colour is the business category's palette, not a default blue
+        self.assertEqual(b.fields['color'], {'value': 'category', 'source': 'delegated', 'question_id': 'color',
                                              'confidence': 'recommended'})
         r = d.start('אתר לניהול ספרייה עם מנויים', d.RECOMMEND)
         self.assertTrue(d.complete(r))
