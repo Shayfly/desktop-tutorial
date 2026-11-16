@@ -84,16 +84,44 @@ jobs:
             tests/test_visual_edit.py tests/test_conversation_ux.py tests/test_worker_build_not_found.py tests/test_reservation_reconciler_pg.py tests/test_failed_build_release_pg.py tests/test_settle_computed_pg.py tests/test_founder_cap_exempt_pg.py tests/test_failed_builds_off_cap_pg.py tests/test_queue_position_pg.py tests/test_first_agent_brief_slice_pg.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py tests/test_live_core_migration.py \
             tests/test_reference_store_pg.py tests/test_company_loss_failed_build_pg.py \
-            tests/integration/test_profit_billing_events_pg.py tests/test_actual_cost_settlement.py tests/test_agent_os.py \
-            tests/test_build_cancel_and_log.py tests/test_build_state_machine.py tests/test_conversation_os.py \
-            tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
-            tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
-            tests/test_m4d2_live_postgres.py tests/test_m4d2b_parity_and_worker.py tests/test_maintenance_live_postgres.py \
-            tests/test_preview_access.py tests/test_release_policy.py \
             tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
             tests/integration/test_m5_build_economics_postgres.py tests/test_intake_approve_and_goal.py \
             tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_approval_is_consumed_once \
             tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_one_approval_never_starts_two_builds
+      # Warehouse 112 (owner 2026-11-16): the PostgreSQL test files no job ran before. In the focused list above they
+      # broke three files that ran there before (module and environment state leaked between files: the interpreter
+      # label read 'model-via-worker', the API answered 500), so each runs in its own process. A skip is a failure here.
+      # A file that cannot run yet is in tests/pg_not_yet_run.txt with its reason (scripts/ci_test_coverage.py).
+      - name: PostgreSQL files no job ran before (warehouse 112), each in its own process
+        if: always()
+        timeout-minutes: 12
+        run: |
+          fail=0
+          for f in tests/test_actual_cost_settlement.py tests/test_agent_os.py tests/test_build_cancel_and_log.py \
+                   tests/test_build_state_machine.py tests/test_conversation_os.py \
+                   tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
+                   tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
+                   tests/test_m4d2_live_postgres.py tests/test_m4d2b_parity_and_worker.py \
+                   tests/test_maintenance_live_postgres.py tests/test_preview_access.py tests/test_release_policy.py; do
+            n=$(basename "$f" .py)
+            if python -m pytest -q -rs -p no:cacheprovider --junitxml="pg112-$n.xml" "$f"; then
+              echo "::notice title=pg 112::PASS $f"
+            else
+              echo "::error title=pg 112::FAIL $f (run alone in its own process)"; fail=1
+            fi
+          done
+          python - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          skipped = []
+          for path in sorted(glob.glob('pg112-*.xml')):
+              for c in ET.parse(path).getroot().iter('testcase'):
+                  if c.find('skipped') is not None:
+                      skipped.append(f"{path}: {c.get('classname')}.{c.get('name')}")
+          for s in skipped:
+              print(f'::error title=pg 112 skipped::{s}')
+          sys.exit(1 if skipped else 0)
+          PY
+          exit $fail
       - name: Evidence notices (readable as check-run annotations, no log access needed)
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"

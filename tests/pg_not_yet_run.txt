@@ -1,3 +1,4 @@
 # Test files that need PostgreSQL and are NOT run by intake-budget-pg yet, each with the reason (warehouse 112).
 # A file here is a known gap, said out loud; scripts/ci_test_coverage.py refuses an entry without a reason and a
 # PostgreSQL-dependent file that is in neither place. Format: tests/<path>.py  # reason
+tests/integration/test_profit_billing_events_pg.py  # needs OMNI_PROFIT_TEST_DATABASE_URL, a disposable database the pg job does not create yet; every live test skips without it (seen in #416's first pg run, 2026-11-16)
