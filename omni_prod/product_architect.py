@@ -307,7 +307,7 @@ class ProductArchitect:
 
         data_requirements = resolved.data_requirements
         integrations = integrations_found
-        questions = self._material_questions(intent, data_requirements)
+        questions = self._material_questions(intent, data_requirements, approved=clean)
         if resolved.source == P.KEYWORD and resolved.persistence == P.NONE:
             # 8.2 backstop: nothing in the request stores data and the customer has not decided. Discovery should have
             # asked; if a contract still gets here it is not READY -- the same two choices, never a silent default.
@@ -601,7 +601,17 @@ class ProductArchitect:
         return tuple(dict.fromkeys(result))
 
     @staticmethod
-    def _material_questions(prompt: str, data_requirements: tuple[str, ...]) -> tuple[ClarificationQuestion, ...]:
+    def _material_questions(prompt: str, data_requirements: tuple[str, ...], *,
+                            approved: str = '') -> tuple[ClarificationQuestion, ...]:
+        # 2026-11-16: a short request ("דף נחיתה למאפייה שלי") whose approved brief already says who uses the product
+        # and what it is for was still asked "What is the primary business workflow and who will use it?" -- in
+        # English, with no card, and nothing the customer typed could answer it (80 of 252 walked conversations ended
+        # there). The brief's own Audience and Main action lines ARE that answer.
+        from .discovery import BRIEF_MARKER
+        block = approved.rsplit(BRIEF_MARKER, 1)[1] if BRIEF_MARKER in (approved or '') else ''
+        # the block is read after whitespace was collapsed, so the labels are matched as words, not as line starts
+        if re.search(r'(?<!\S)Audience: \S', block) and re.search(r'(?<!\S)Main action: \S', block):
+            return ()
         low = prompt.casefold().strip()
         generic = {
             "build me an app", "build an app", "make me an app", "create an app",
