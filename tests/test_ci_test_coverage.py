@@ -49,9 +49,10 @@ class TheCheckCatches(unittest.TestCase):
     def test_a_named_gap_with_a_reason_is_accepted_and_without_one_raises(self):
         (self.root / 'tests' / 'test_new_ledger_pg.py').write_text('import unittest\n')
         nyr = self.root / 'tests' / 'pg_not_yet_run.txt'
-        nyr.write_text('tests/test_new_ledger_pg.py  # needs a fixture table not in the migrations yet\n')
+        kept = nyr.read_text()                       # the repository's own waivers stay; the new line is added
+        nyr.write_text(kept + 'tests/test_new_ledger_pg.py  # needs a fixture table not in the migrations yet\n')
         self.assertEqual(C.problems(self.root), [])
-        nyr.write_text('tests/test_new_ledger_pg.py\n')
+        nyr.write_text(kept + 'tests/test_new_ledger_pg.py\n')
         with self.assertRaises(ValueError):
             C.problems(self.root)
 
