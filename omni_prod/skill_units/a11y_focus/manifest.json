@@ -1,0 +1,11 @@
+{
+ "name": "skill.a11y.focus",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G3",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "A keyboard user always sees where the focus is: no rule removes the focus outline without a :focus-visible style, and no tabindex above 0."
+}

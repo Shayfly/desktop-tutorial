@@ -1,3 +1,13 @@
+# 2026-11-16 — the first five skills as units: accessibility (Claude Code)
+
+- **Implemented:** `omni_prod/skill_units/` (runner + five units): `skill.a11y.contrast` (CONTRAST_LOW, 4.5:1 on pairs set in one rule),
+  `skill.a11y.focus` (FOCUS_LOST), `skill.a11y.labels` (LABEL_MISSING), `skill.a11y.heading_order` (HEADING_ORDER),
+  `skill.a11y.alt_text` (ALT_MISSING). Each: manifest.json, probe.py (static, no model), fixtures/ok, fixtures/broken with
+  expected.json (code + what is broken), failure_codes.json. An undeclared code raises.
+- **Evidence:** `tests/test_skill_units_a11y.py` 6 tests over every unit and fixture; controls `skill_units_a11y.json` 6/6.
+- **Not done:** the units are not yet a gate (G3, stage D) -- nothing calls them in a build. 98 of the 103 catalogue skills remain.
+  Static only: contrast is judged only where a rule sets both colours; a browser measurement is not claimed.
+
 # 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
 
 - **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
