@@ -28,3 +28,5 @@
 | STAGE-A-456 | Claude Code | Done | #423 `0ebb903` -> `dfe6817` |
 | STAGE-A-3 | Claude Code | In review | worker death: build ends itself; NC 9/9; warehouse 115 |
 | DEAD-END | Claude Code | In review | 80 of 252 walks stuck -> 0; NC 5/5 |
+| GATES-WARN | Claude Code | In review | six uncalibrated gates warn; rehearsal runs the worker gates; NC 6/6 |
+| W114-A | Claude Code | In review | web-sized rendition of uploaded and generated images; NC 8/8 |

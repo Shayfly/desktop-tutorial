@@ -1,3 +1,25 @@
+# 2026-11-17 — uncalibrated gates warn; the page carries a light rendition of every photo (Claude Code)
+
+- **Merged:** #424 `5556c28` -> `a5ab25d` (the worker's time budget; the dead ends). Not released yet.
+- **Gates (the owner's rule 4):** HE, G10, G11, G1, BRAND and SHARE were installed on the worker at `block` without
+  the three calibration builds. They now warn by default (`gate.CALIBRATING`); G3 and G6 still block, G4 still warns.
+  A calibrating gate's findings (bounded, 3 per failure) are kept in `evidence.skill_gates`, and the golden rehearsal
+  installs the same gates as the worker (`gate.WORKER_GATES`), so a gate can be calibrated on real generated pages.
+- **Photos (warehouse 114, first half):** the butcher's hero (bld_83529c13, a GENERATED image) went into the page as
+  1,735,408 base64 characters. Every uploaded or generated image over 360 KB is now carried as a web-sized WebP
+  rendition (at most 1600 px, upright, same proportions, transparency kept); a light image is carried byte for byte;
+  the original and its digest are untouched. Pillow joins `requirements-production.txt` (the worker image).
+- **Evidence:** `tests/test_web_rendition.py` (14: phone-sized photos made with a real encoder; the G4 unit that
+  measured the butcher page fails on the original and passes on the rendition), `tests/test_skill_gates.py` (+5);
+  negative controls `photo_weight` 8/8, `gates_calibrating` 6/6; declarations 68 -> 75, none lost.
+- **Not verified:** the worker image has not been built with Pillow yet (the deploy builds images before it drains);
+  no gate has been calibrated on a real build yet.
+- **Still open in 114:** the photo is still inside the HTML (no browser cache). Serving it as a file needs the
+  sandbox request, the stored version and the preview to carry binary files; the map is in warehouse 114.
+- **Checked and found already built (stage B 9-12):** image relevance for generated images (`image_match`, lens 11),
+  the mobile 390 px render check (`visual_qa`), the links units (`links_tel`, `links_address`, `links_anchor`) and
+  the empty-block unit (`blocks_empty`).
+
 # 2026-11-16 — the worker dies mid-build; conversations that end on an unanswerable question (Claude Code)
 
 - **Merged:** #423 `0ebb903` -> `dfe6817` (chat truth; not released yet).
