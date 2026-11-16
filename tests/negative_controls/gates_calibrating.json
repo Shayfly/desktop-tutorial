@@ -21,6 +21,7 @@
     "tests/test_skill_gate_he.py"
    ],
    "expect_failed": [
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only",
     "test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block",
     "test_the_gate_is_three_units_and_blocks_by_default"
    ]
@@ -40,7 +41,8 @@
    ],
    "expect_failed": [
     "test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block",
-    "test_every_gate_the_worker_installs_has_a_stated_default"
+    "test_every_gate_the_worker_installs_has_a_stated_default",
+    "test_the_rehearsal_runs_the_gates_a_customers_build_runs"
    ]
   },
   {
@@ -108,7 +110,8 @@
     "tests/test_skill_gates.py"
    ],
    "expect_failed": [
-    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only",
+    "test_g4_warns_by_default_and_the_build_goes_on"
    ]
   }
  ]
