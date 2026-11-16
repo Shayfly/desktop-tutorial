@@ -259,6 +259,17 @@ if __name__ == '__main__':
     unittest.main()
 
 
+def executor_chain(engine) -> list[str]:
+    """The class names of the engine's executor wrappers, outermost first (bounded; each wrapper's own `_inner`)."""
+    chain, ex = [], getattr(engine, 'executor', None)
+    for _ in range(10):
+        if ex is None:
+            break
+        chain.append(type(ex).__name__)
+        ex = vars(ex).get('_inner') if hasattr(ex, '__dict__') else None
+    return chain
+
+
 class TheWorkerWiresItIn(unittest.TestCase):
     """_run_live_build_job hands the stage's verified images to code generation, before engine.build."""
 
@@ -301,7 +312,9 @@ class TheWorkerWiresItIn(unittest.TestCase):
         self.assertIn('src="148ai-asset://image/1"', prompt)
         self.assertIn('40x30 px', prompt)
         self.assertEqual(len(engine.generated_images), 1)
-        self.assertIsInstance(engine.executor, G.GeneratedImagesExecutor)
+        # 2026-11-16: the skill gates (G3/G4/G6) wrap the executor after the images do; the image check is still in
+        # the chain (walked through each wrapper's own `_inner`, bounded)
+        self.assertIn('GeneratedImagesExecutor', executor_chain(engine))
 
     def test_no_image_in_the_plan_the_prompt_is_unchanged(self):
         store = MemoryStore()
@@ -309,4 +322,4 @@ class TheWorkerWiresItIn(unittest.TestCase):
         ev = {'required_ready': True, 'status': 'VERIFIED', 'requirements': []}
         engine, prompt = self.run_build(plan, ev, store)
         self.assertNotIn(G.MARKER_PREFIX, prompt)
-        self.assertNotIsInstance(engine.executor, G.GeneratedImagesExecutor)
+        self.assertNotIn('GeneratedImagesExecutor', executor_chain(engine))   # anywhere in the chain, not only outside

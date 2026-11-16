@@ -55,7 +55,8 @@
     "tests/test_vercel_ignore_build.py"
    ],
    "expect_failed": [
-    "test_production_builds_only_a_release"
+    "test_production_builds_only_a_release",
+    "test_the_mark_counts_only_at_the_end_of_the_title_line"
    ]
   },
   {
@@ -90,6 +91,23 @@
    ],
    "expect_failed": [
     "test_a_rename_out_of_docs_is_code"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the release mark counts anywhere in the commit message again (#413's accidental production release, 2026-11-16)",
+   "mutations": [
+    {
+     "file": "scripts/vercel_ignore_build.mjs",
+     "old": "  return String(message || '').split('\\n')[0].trimEnd().endsWith(RELEASE_MARK);",
+     "new": "  return String(message || '').includes(RELEASE_MARK);  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_vercel_ignore_build.py"
+   ],
+   "expect_failed": [
+    "test_the_mark_counts_only_at_the_end_of_the_title_line"
    ]
   }
  ]
