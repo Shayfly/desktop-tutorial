@@ -541,10 +541,10 @@ class ConversationSupervisor:
         # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
         from .. import discovery as d
         canon = d.gate_canon(row.brief, lang)                                            # #335 (c)
+        offer = d.window_offer(row.brief, lang)     # owner 2026-11-16: each window with its benefit, approve or reject
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
                              'canon': {k: canon[k] for k in ('status', 'hash', 'facts')},
-                             # owner 2026-11-16: each window offered with its benefit; the customer approves or rejects
-                             'windows': d.window_offer(row.brief, lang)})
+                             **({'windows': offer} if offer else {})})       # no offer, no key (an app has no windows)
         from .. import build_readiness as R
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
