@@ -23,7 +23,8 @@ from omni_prod.skill_units import gate as G
 
 A11Y = ['a11y_alt_text', 'a11y_contrast', 'a11y_focus', 'a11y_heading_order', 'a11y_labels']
 SECRETS = ['secrets_api_keys', 'secrets_assignment', 'secrets_bearer', 'secrets_db_url', 'secrets_private_key']
-PERF = ['perf_blocking_script', 'perf_font_display', 'perf_font_preconnect', 'perf_hero_eager', 'perf_lazy_images']
+PERF = ['perf_blocking_script', 'perf_font_display', 'perf_font_preconnect', 'perf_hero_eager', 'perf_inline_image_weight',
+        'perf_lazy_images']
 BUTCHER = json.loads((Path(__file__).parent / 'fixtures' / 'butcher_served_page_2026_11_14.json').read_text(encoding='utf-8'))
 
 
@@ -103,7 +104,7 @@ class TheGate(unittest.TestCase):
             with self.subTest(gate):
                 result = G.check(gate, {'app.py': as_app_py(BUTCHER['page'])})
                 self.assertEqual(result['status'], 'pass', result['failures'])
-                self.assertEqual(len(result['checked']), 5)
+                self.assertEqual(len(result['checked']), len(G.gate_units(gate)))
         self.assertIn('bld_83529c132a864075945080e9390484cb', BUTCHER['_source'])
 
     def test_a_secret_in_the_server_code_fails_even_with_a_clean_page(self):
@@ -124,10 +125,80 @@ class TheGate(unittest.TestCase):
         self.assertIn('GATE_NOT_RUN gate=G3', logs.output[0])
 
 
+def real_page_broken(unit: str, name: str) -> str:
+    return dict((n, h) for n, h, _ in U.fixtures(unit, 'broken'))[name]
+
+
+class G3FallsOnTheRealPage(unittest.TestCase):
+    """Owner 2026-11-16: "a gate that has not been shown to fail does not go in". The broken pages are the real
+    production page of the butcher build, changed in one place each; G3 in its default mode fails the build on them."""
+
+    def build(self, page):
+        rep = _Files({'app.py': as_app_py(BUTCHER['page'])})
+        e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'app.py': as_app_py(page)}), repairer=rep,
+                                    executor=_Sandbox(), max_repair_rounds=2)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('OMNI_GATE_G3', None)                    # the default mode: block
+            G.install(e, 'G3')
+        return e.build('a page'), rep
+
+    def test_low_contrast_on_the_real_page_fails_the_build(self):
+        result, rep = self.build(real_page_broken('a11y_contrast', 'butcher_low_contrast.html'))
+        [failure] = [f for f in rep.failures[0] if f['acceptance_id'] == 'gate-G3-a11y_contrast']
+        self.assertIn("CONTRAST_LOW (skill.a11y.contrast) on app.py#1", failure['message'])
+        self.assertIn("'ratio': 1.79", failure['message'])
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 1))
+
+    def test_a_removed_focus_on_the_real_page_fails_the_build(self):
+        result, rep = self.build(real_page_broken('a11y_focus', 'butcher_focus_removed.html'))
+        self.assertIn('gate-G3-a11y_focus', [f['acceptance_id'] for f in rep.failures[0]])
+
+    def test_the_real_page_is_judged_not_passed_blind(self):
+        # the first contrast probe read only literal hex; this page sets every colour through var(--...), so it judged
+        # nothing and passed. Now its colour pairs are read.
+        from omni_prod.skill_units.a11y_contrast.probe import judged
+        self.assertGreaterEqual(judged(BUTCHER['page']), 4)
+
+
+class G4Warns(unittest.TestCase):
+    def test_g4_warns_by_default_and_the_build_goes_on(self):
+        heavy = dict((n, h) for n, h, _ in U.fixtures('perf_inline_image_weight', 'broken'))['broken1.html']
+        e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'index.html': heavy}),
+                                    repairer=_Files({'index.html': heavy}), executor=_Sandbox(), max_repair_rounds=1)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('OMNI_GATE_G4', None)
+            self.assertEqual(G.mode('G4'), 'warn')
+            G.install(e, 'G4')
+        with self.assertLogs('omni_prod.skill_units.gate', 'WARNING') as logs:
+            result = e.build('a page')
+        self.assertEqual(result.status, 'ready')
+        self.assertIn('GATE_WARN gate=G4 perf_inline_image_weight:IMAGE_INLINED_HEAVY', ' '.join(logs.output))
+        self.assertEqual(G.report(e)['G4']['mode'], 'warn')
+        self.assertIn({'unit': 'perf_inline_image_weight', 'page': 'index.html', 'code': 'IMAGE_INLINED_HEAVY'},
+                      G.report(e)['G4']['failures'])
+
+
 class TheSwitch(unittest.TestCase):
+    def test_every_gate_states_its_mode_on_every_build_off_included(self):
+        e = SimpleNamespace(executor=_Sandbox())
+        with mock.patch.dict(os.environ, {'OMNI_GATE_G3': '1', 'OMNI_GATE_G4': 'warn', 'OMNI_GATE_G6': '0'}):
+            with self.assertLogs('omni_prod.skill_units.gate', 'INFO') as logs:
+                for g in ('G3', 'G4', 'G6'):
+                    G.install(e, g)
+        self.assertEqual(G.report(e), {'G3': {'mode': 'block'}, 'G4': {'mode': 'warn'}, 'G6': {'mode': 'off'}})
+        self.assertIn('GATE_OFF gate=G6', ' '.join(logs.output))
+
+    def test_the_build_evidence_carries_the_gates(self):
+        from omni_prod import worker_tasks
+        src = inspect.getsource(worker_tasks._run_live_build_job)
+        self.assertIn("evidence['skill_gates'] = skill_gate_report(engine)", src)
+        self.assertLess(src.index("evidence['skill_gates']"), src.index('target = BuildStatus.READY if ready'))
+
     def test_on_by_default_off_said_and_an_unknown_value_raises(self):
         with mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop('OMNI_GATE_G3', None)
+            for g in ('OMNI_GATE_G3', 'OMNI_GATE_G4', 'OMNI_GATE_G6'):
+                os.environ.pop(g, None)
+            self.assertEqual((G.mode('G3'), G.mode('G4'), G.mode('G6')), ('block', 'warn', 'block'))
             self.assertTrue(G.enabled('G3'))
         e = SimpleNamespace(executor=_Sandbox())
         with mock.patch.dict(os.environ, {'OMNI_GATE_G3': '0'}), self.assertLogs('omni_prod.skill_units.gate', 'WARNING'):

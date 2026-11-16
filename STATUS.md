@@ -1,7 +1,18 @@
 # 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
 
 - **Owner's order:** wire the 5 a11y skills into G3 (each skill fails a build when it fails), 5 performance skills plus
-  G4, and 5 secrets skills plus G6.
+  G4, and 5 secrets skills plus G6. Then (owner, the same morning):
+  - strengthen G3 until it fails on a page;
+  - G4 in `warn` mode with a high threshold until warehouse 114 is fixed;
+  - the `OMNI_GATE_<G>` switch reports when it is off, on every build.
+- **G3 fell on the butcher production page (`bld_83529c13...`, served from app.py).** Two broken variants were made
+  from it, each changed in one place. With `--text-dark: #b8bec8`, body text on `#f8fafc` is 1.79:1, so
+  `CONTRAST_LOW` fails the build. With its `:focus-visible` rule removed and `outline:none` on `a:focus, button:focus`,
+  `FOCUS_LOST` fails the build. Both repair to the real page and pass.
+- **Bug found in my own G3 (root cause):** the generated pages set every colour through `var(--...)`, and the contrast
+  probe read only literal hex. It judged no colour pair on the real page and passed it blind; the old probe passes the
+  low-contrast variant. The probe now resolves custom properties (with a var() fallback), and `judged()` counts the
+  pairs it read (4 on the real page). A pair it cannot read (rgb(), a gradient) is not judged and not claimed.
 - **Implemented:**
   - `omni_prod/skill_units/gate.py`: a gate is every unit whose manifest names it. It wraps the engine's executor;
     after the sandbox run, each unit's probe runs on every page, and a failing unit is an acceptance failure
@@ -9,26 +20,37 @@
   - Pages are .html files, or a whole HTML document inside app.py, which is how the generated sites serve their page.
     A secrets unit (`reads_source`) reads every text file. No page and no source unit means NOT_RUN, said in the log
     and in `last_gate`.
-  - `OMNI_GATE_<G>`: "1" (the default) blocks, "0" turns the gate off (said in the log), and any other value raises.
+  - `OMNI_GATE_<G>` takes `block`, `warn` or `off` (`1` and `0` also work); any other value raises. The defaults are
+    G3 block, G4 warn, G6 block.
+  - Every build writes each gate's mode, OFF included, to the log (`GATE_ON` / `GATE_OFF`) and to the build evidence
+    (`evidence_json.skill_gates`: mode, status, failure codes).
+  - In warn mode the failures are recorded (`GATE_WARN`, `last_gate`, the evidence) and the build goes on.
   - The worker installs G3, G4 and G6 after the window gate.
 - **New units (each with manifest, probe, ok and broken fixtures, failure codes):**
   - G4: `perf_blocking_script` (SCRIPT_BLOCKING), `perf_font_display` (FONT_NO_SWAP), `perf_font_preconnect`
-    (FONT_NO_PRECONNECT), `perf_hero_eager` (HERO_LAZY), `perf_lazy_images` (IMG_NOT_LAZY).
+    (FONT_NO_PRECONNECT), `perf_hero_eager` (HERO_LAZY), `perf_lazy_images` (IMG_NOT_LAZY), and
+    `perf_inline_image_weight` (IMAGE_INLINED_HEAVY: an inline data: image over 500,000 base64 characters; the
+    butcher page had 1,735,408). G4 warns on it and does not block, until warehouse 114 is fixed.
   - G6: `secrets_private_key`, `secrets_api_keys`, `secrets_db_url`, `secrets_bearer`, `secrets_assignment`, on the
     repository's own scanner `omni_prod/secret_scan.py`, so the build and the repository share one definition. A value
     read from the environment is not a credential.
-- **Evidence:** `tests/test_skill_gates.py`. Every one of the 15 units fails a real-engine build through its own
-  broken fixture, with its own code. The repair to the real page then passes. A page that keeps failing fails the build.
-  A broken page inside app.py fails. A key in server.py fails G6 even with a clean page. No page means NOT_RUN, said.
-  The switch defaults on, says when it is off, and raises on an unknown value. The worker installs G3, G4 and G6.
-  `tests/test_skill_units_a11y.py` checks the five parts of every unit, all 15. Negative controls:
-  `skill_gates.json` 5/5, `skill_units_perf_secrets.json` 10/10 (one empty probe per new unit), `skill_units_a11y.json`
-  6/6. `test_secret_scan_ci_exemption` (the repository tree is clean) passes with the new fixtures.
-- **Real-path evidence:** the real production page of the butcher build (`bld_83529c13...`, served from app.py) passes
-  all 15 units, so the gates do not block a page customers got.
-- **Found and NOT gated (warehouse 114):** that same production page carried its hero image inline as 1.7MB of base64.
-  A page-weight unit would fail every build with an image, and the model cannot repair it: the platform inlines the
-  image. So no weight unit was added; the platform must serve the image as a file first.
+- **Evidence:**
+  - `tests/test_skill_gates.py`, 15 tests:
+    - Each of the 16 units fails a real-engine build through its own broken fixture with its own code, and the repair to
+      the real page passes.
+    - G3 falls on the two real-page variants, in its default mode.
+    - G4 warns by default: the build goes on, with the log line and the evidence.
+    - Every gate says its mode on every build, OFF included, and the evidence carries the gates.
+    - A key in server.py fails G6 even with a clean page.
+    - No page means NOT_RUN, said.
+  - `tests/test_skill_units_a11y.py` checks the parts of all 16 units.
+  - Negative controls: `skill_gates.json` 10/10, `skill_units_perf_secrets.json` 11/11, `skill_units_a11y.json` 6/6.
+    - NC6 puts back the literal-hex-only probe, and the real-page test catches it.
+    - NC8 makes OFF silent, and it is caught.
+    - NC10 makes G4 block by default, and it is caught.
+- **Real-path evidence:** the unchanged butcher page passes all 16 units, so the gates do not block a page customers
+  got. Its hero, as served, was inlined as 1.7MB of base64 (warehouse 114). The recorded page replaced it with a 1x1
+  placeholder; on the real one, G4 would warn, which is the purpose.
 
 # 2026-11-16 — warehouse 111 completed: the build worker deploys only on a release (Claude Code)
 

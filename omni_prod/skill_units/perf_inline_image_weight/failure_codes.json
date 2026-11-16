@@ -1,0 +1,6 @@
+{
+ "IMAGE_INLINED_HEAVY": {
+  "meaning": "a large image is inlined in the page as base64",
+  "fix": "serve the image as a file (warehouse 114)"
+ }
+}

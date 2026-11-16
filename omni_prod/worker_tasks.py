@@ -1352,6 +1352,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
                                               spent=spent, external_calls=calls)
         actual_cost = spent if evidence['billing'] == 'settled' else None
+    from .skill_units.gate import report as skill_gate_report
+    evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,
