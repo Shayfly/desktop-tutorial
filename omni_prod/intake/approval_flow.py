@@ -65,8 +65,15 @@ def spec_invalid_reason(brief, messages, fingerprint: str) -> str | None:
 
 # ------------------------------------------------------------------ cost
 
-def cost_range(brief) -> tuple[int, int]:
-    """The range said while listening: same rule as agent.venice (intake.venice.cost_range), read from the brief."""
+def cost_range(brief, plan_credits: int | None = None) -> tuple[int, int]:
+    """The cost said while listening. The price of a build is set by the customer's plan alone (pricing.m5_build_terms),
+    so when the plan is known the "range" is that one number, said from the first message (the owner, 2026-11-16: the
+    chat said 45-200 and the panel said 500; one of them was false). Only with no known plan is it an estimate: the
+    same rule as agent.venice (intake.venice.cost_range), read from the brief."""
+    if plan_credits is not None:
+        if isinstance(plan_credits, bool) or not isinstance(plan_credits, int) or plan_credits < 0:
+            raise ValueError(f'plan_credits must be a non-negative int, got {plan_credits!r}')
+        return plan_credits, plan_credits
     from .families import classify_family
     v = brief.values()
     low, high = M5_CLASS_BUILD_CREDITS[CostClass.LIGHT], CostClass.STANDARD
@@ -74,6 +81,12 @@ def cost_range(brief) -> tuple[int, int]:
     if classify_family(brief.prompt) == 'web_app' and heavy:
         high = CostClass.ADVANCED
     return low, M5_CLASS_BUILD_CREDITS[high]
+
+
+def range_line(lang: str, lo: int, hi: int) -> str:
+    """One number when the plan set the price, a range only when it is an estimate."""
+    t = text(lang)
+    return t['price'].format(c=lo) if lo == hi else t['range'].format(lo=lo, hi=hi)
 
 
 def compare(rng: tuple[int, int], exact: int | None) -> dict:
@@ -147,6 +160,8 @@ def verified_plan(make_plan, brief, approved_fingerprint: str) -> tuple[dict | N
 TEXT = {
     'he': {'stage1': 'שלב 1 מתוך 2', 'stage2': 'שלב 2 מתוך 2',
            'spec': 'זה המפרט שהבנתי: {summary}.',
+           'price': 'עלות הבנייה במסלול שלך: {c} קרדיטים.',
+           'exact_same': 'העלות: {exact} קרדיטים, כפי שנאמר.',
            'range': 'הערכת עלות: {lo}–{hi} קרדיטים.',
            'gate1': 'אם זה נכון, אשרו את המפרט ואז אכין תוכנית. לא נבנית תוכנית ולא מחויב דבר לפני האישור.',
            'gate1_needed': 'קודם צריך לאשר את המפרט; לא מכינים תוכנית לפני כן.',
@@ -161,6 +176,8 @@ TEXT = {
            'gate2': 'כדי להתחיל לבנות, אשרו את התקציב.'},
     'ar': {'stage1': 'المرحلة 1 من 2', 'stage2': 'المرحلة 2 من 2',
            'spec': 'هذه المواصفات كما فهمتها: {summary}.',
+           'price': 'تكلفة البناء في باقتك: {c} رصيدًا.',
+           'exact_same': 'التكلفة: {exact} رصيدًا، كما ذُكر.',
            'range': 'تقدير التكلفة: {lo}–{hi} رصيدًا.',
            'gate1': 'إذا كانت صحيحة، وافق على المواصفات ثم أُعدّ خطة. لا خطة ولا خصم قبل الموافقة.',
            'gate1_needed': 'يجب الموافقة على المواصفات أولًا؛ لا خطة قبل ذلك.',
@@ -175,6 +192,8 @@ TEXT = {
            'gate2': 'لبدء البناء، وافق على الميزانية.'},
     'en': {'stage1': 'Step 1 of 2', 'stage2': 'Step 2 of 2',
            'spec': 'This is the spec as I understood it: {summary}.',
+           'price': 'This build costs {c} credits on your plan.',
+           'exact_same': 'The cost is {exact} credits, as said.',
            'range': 'Cost estimate: {lo}–{hi} credits.',
            'gate1': 'If it is right, approve the spec and I will prepare a plan. No plan is made and nothing is charged before you approve.',
            'gate1_needed': 'The spec has to be approved first; no plan is made before that.',
@@ -198,6 +217,8 @@ def budget_lines(cmp: dict, lang: str, complexity: str | None) -> list[str]:
     t, (lo, hi) = text(lang), cmp['range']
     if cmp['exact'] is None:
         return [t['exact_unknown'].format(lo=lo, hi=hi)]
+    if lo == hi == cmp['exact']:              # the plan's price was said at gate 1; nothing to compare
+        return [t['exact_same'].format(exact=cmp['exact'])]
     lines = [t['exact'].format(exact=cmp['exact'], lo=lo, hi=hi)]
     if cmp['outside_range'] == 'above':
         lines.append(t['above'].format(lo=lo, hi=hi, d=cmp['exact'] - hi, cx=complexity or '—'))

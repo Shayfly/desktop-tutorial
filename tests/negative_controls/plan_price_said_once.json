@@ -1,0 +1,114 @@
+{
+ "pr": "plan-price-said-once",
+ "sha256": [
+  "tests/test_plan_price_said_once.py",
+  "omni_prod/intake/approval_flow.py",
+  "omni_prod/conversation/supervisor.py",
+  "omni_prod/investor_app.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "gate 1 ignores the plan's price and says the estimate range again (the 45-200 vs 500 contradiction)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)",
+     "new": "t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_a_known_plan_is_one_number_at_gate1_never_a_range",
+    "test_hebrew_says_the_plan_number"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a default (60) is treated as the plan's price",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "self.plan_credits = credits if credits_from_plan and credits is not None else None",
+     "new": "self.plan_credits = credits  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_a_default_is_not_a_price_and_keeps_the_estimate"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "gate 2 compares the plan's price with a range again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "lo_hi = AF.cost_range(row.brief, self.plan_credits)",
+     "new": "lo_hi = AF.cost_range(row.brief)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_gate2_repeats_the_same_number_and_flags_nothing"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the cost question before approval answers with the estimate",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                lo, hi = AF.cost_range(row.brief, self.plan_credits)",
+     "new": "                lo, hi = AF.cost_range(row.brief)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_asking_the_cost_before_approval_gives_the_plan_number"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a plan price that is not a number is accepted in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/approval_flow.py",
+     "old": "        if isinstance(plan_credits, bool) or not isinstance(plan_credits, int) or plan_credits < 0:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_a_plan_price_that_is_not_a_number_is_refused"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the live supervisor never tells the chat the price came from the plan",
+   "mutations": [
+    {
+     "file": "omni_prod/investor_app.py",
+     "old": "credits=credits, credits_from_plan=credits_from_plan, context=_project_context(key),",
+     "new": "credits=credits, context=_project_context(key),  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_plan_price_said_once.py"
+   ],
+   "expect_failed": [
+    "test_the_live_supervisor_marks_the_plan_price_only_after_the_plan_was_read"
+   ]
+  }
+ ]
+}
