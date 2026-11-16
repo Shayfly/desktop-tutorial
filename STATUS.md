@@ -1,3 +1,17 @@
+# 2026-11-16 — warehouse 107 (was 82): the stored customer session is checked on production and fails out loud (Claude Code)
+
+- **Implemented:** `scripts/customer_session_check.py` and the job `.github/workflows/customer-session.yml` (daily at 04:17 UTC and manual).
+  The job gives the secret `CUSTOMER_STORAGE_STATE` (a Playwright storage_state of a non-founder customer) to the check. The check
+  opens `GET /api/v28/me` on production with the `148ai_session` cookie. Each failure is its own readable `::error` and exit 1, never a
+  skip: `MISSING` (secret absent or empty, with how to set it), `MALFORMED`, `UNAUTHORIZED` (401: expired or revoked), `FOUNDER`
+  (the founder's account proves nothing about customers), `UNEXPECTED`. The cookie value is never printed.
+- **Evidence:** `tests/test_ci_customer_session.py` 9 tests (ci-fast). They run the real HTTP client against a local server that
+  answers like `/api/v28/me`, and read the workflow as committed. Negative controls `tests/negative_controls/customer_session.json`
+  4/4 PASS (missing secret as a skip; 401 accepted; founder accepted; the step skipped when the secret is absent).
+  Run here without the secret: `::error title=customer session MISSING::the secret CUSTOMER_STORAGE_STATE is not set or is empty; ...` exit 1.
+- **Blocked by a named credential:** the secret `CUSTOMER_STORAGE_STATE` does not exist yet. The owner creates it (a test customer
+  that is not the founder). Until then the daily job fails with MISSING. That is the acceptance, said out loud.
+- **Not checked:** a live 200 on production (needs the secret).
 # 2026-11-16 — warehouse 112: every test file is run by a CI job (Claude Code)
 
 - **Found:** 16 test files that need PostgreSQL (they end in `_pg.py` or read `M4D2_DATABASE_URL`) were run by no job. `v24-ci`
