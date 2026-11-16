@@ -1,0 +1,6 @@
+{
+ "IMG_NOT_LAZY": {
+  "meaning": "an image below the first is downloaded on load",
+  "fix": "add loading=\"lazy\" to every image after the first"
+ }
+}

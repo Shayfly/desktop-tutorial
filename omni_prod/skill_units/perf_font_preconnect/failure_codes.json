@@ -1,0 +1,6 @@
+{
+ "FONT_NO_PRECONNECT": {
+  "meaning": "Google Fonts are loaded without a preconnect to the font host",
+  "fix": "add <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin> before the font stylesheet"
+ }
+}

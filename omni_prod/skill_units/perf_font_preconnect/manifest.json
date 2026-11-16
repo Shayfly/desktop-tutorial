@@ -1,0 +1,11 @@
+{
+ "name": "skill.perf.font_preconnect",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G4",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "A page that loads Google Fonts preconnects to fonts.gstatic.com, so the font files start downloading before the CSS that names them arrives."
+}

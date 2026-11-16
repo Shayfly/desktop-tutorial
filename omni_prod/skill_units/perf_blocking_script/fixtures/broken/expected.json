@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "SCRIPT_BLOCKING",
+  "what_is_broken": "a CDN script in the head with no defer"
+ }
+}

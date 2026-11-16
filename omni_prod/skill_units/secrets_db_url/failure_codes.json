@@ -1,0 +1,6 @@
+{
+ "DB_PASSWORD_IN_SOURCE": {
+  "meaning": "a database password is in the generated source",
+  "fix": "read the database URL from the environment"
+ }
+}
