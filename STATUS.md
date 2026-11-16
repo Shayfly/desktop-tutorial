@@ -14,6 +14,14 @@
 - **Evidence:** `tests/test_build_deadline.py` (16, with rq installed; 2 are NOT_RUN without it),
   `tests/test_no_dead_end_conversation.py` (4); negative controls `build_deadline` 9/9, `no_dead_end` 5/5;
   `scripts/test_fast.sh` exit 0; declarations 81 -> 88, none lost.
+- **Correction (a counting bug of Claude's):** the declaration counts reported today as "72 -> 81" (#423) and
+  "81 -> 88/89" here were wrong in absolute terms: the script counted the four keys of each old path-only entry as
+  four records. The differences were right. The real counts: 40 on `912924d`, 45 after #405, 54 after #423, 68 here
+  (14 added in this PR: 8 for the code, 5 for the regenerated status files and the T4 lock, 1 for the file itself...
+  see `git log` for each). No declaration was lost at any step (checked record by record).
+- **CI lesson:** `validate` failed on `861312d`: the agent registry, the department matrix and the T4 evidence lock
+  were stale after `queueing.py` and `verification_verdict.py` changed. The fast suite does not cover them; they
+  are regenerated here, and Claude now runs those derived-status tests before every push that touches `omni_prod`.
 - **Not verified:** no production build has run on the new limits; the limits 13/17/20 are a decision (DECISIONS.md).
 - **Open:** warehouse 115 (verify on a real build), 116 (the A2 live job does not exist in code), 117 (a build with a
   photo end to end on production was not tested).
