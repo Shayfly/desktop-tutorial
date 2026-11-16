@@ -1,0 +1,6 @@
+{
+ "FONT_NO_SWAP": {
+  "meaning": "a web font hides text while it loads",
+  "fix": "add &display=swap to the Google Fonts URL, or font-display: swap to the @font-face rule"
+ }
+}

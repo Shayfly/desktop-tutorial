@@ -6,5 +6,9 @@
  "broken2.html": {
   "code": "FOCUS_LOST",
   "what_is_broken": "tabindex 3 jumps the keyboard order"
+ },
+ "butcher_focus_removed.html": {
+  "code": "FOCUS_LOST",
+  "what_is_broken": "the real production page, butcher build bld_83529c132a864075945080e9390484cb (tests/fixtures/butcher_served_page_2026_11_14.json) with its :focus-visible rule removed and outline:none on a:focus, button:focus"
  }
 }

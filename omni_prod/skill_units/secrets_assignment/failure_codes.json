@@ -1,0 +1,6 @@
+{
+ "HARDCODED_CREDENTIAL": {
+  "meaning": "a credential is hard-coded in the generated source",
+  "fix": "read it from the environment (os.environ / process.env) on the server"
+ }
+}

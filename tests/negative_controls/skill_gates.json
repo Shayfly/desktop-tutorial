@@ -1,0 +1,195 @@
+{
+ "pr": "skill-gates",
+ "sha256": [
+  "tests/test_skill_gates.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the gate looks and does not block (a failing unit leaves the build passing)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        if result['status'] == 'pass':\n            return report",
+     "new": "        if True:  # NEGATIVE CONTROL\n            return report"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_a_broken_page_served_from_app_py_fails_too",
+    "test_a_page_that_keeps_failing_fails_the_build",
+    "test_a_removed_focus_on_the_real_page_fails_the_build",
+    "test_a_secret_in_the_server_code_fails_even_with_a_clean_page",
+    "test_each_unit_fails_a_build_when_it_fails",
+    "test_g4_warns_by_default_and_the_build_goes_on",
+    "test_low_contrast_on_the_real_page_fails_the_build"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a page served from app.py is not checked (every generated site serves its page from app.py)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        elif path.endswith(('.py', '.jinja', '.j2')):",
+     "new": "        elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_a_broken_page_served_from_app_py_fails_too",
+    "test_a_removed_focus_on_the_real_page_fails_the_build",
+    "test_low_contrast_on_the_real_page_fails_the_build",
+    "test_the_real_production_page_passes_all_five"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the gate is off by default",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "    raw = os.environ.get(f'OMNI_GATE_{gate}', DEFAULT_MODE.get(gate, 'block')).strip().lower()",
+     "new": "    raw = os.environ.get(f'OMNI_GATE_{gate}', 'off').strip().lower()"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_a_removed_focus_on_the_real_page_fails_the_build",
+    "test_g4_warns_by_default_and_the_build_goes_on",
+    "test_low_contrast_on_the_real_page_fails_the_build",
+    "test_on_by_default_off_said_and_an_unknown_value_raises",
+    "test_the_report_walk_is_bounded"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the worker does not install G3",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'G3')                              # accessibility\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a secrets unit reads only the pages, not the server code (a key in server.py ships)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        for path, html in (sources if reads_source[unit] else found):",
+     "new": "        for path, html in found:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_a_secret_in_the_server_code_fails_even_with_a_clean_page"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the contrast probe does not resolve var(): the real page is passed blind again (G3 as it was)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/a11y_contrast/probe.py",
+     "old": "    return _VAR.sub(sub, value)",
+     "new": "    return value  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_low_contrast_on_the_real_page_fails_the_build",
+    "test_the_real_page_is_judged_not_passed_blind"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "G4 warns in silence (no log line)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        if self.mode == 'warn':\n            _LOG.warning(",
+     "new": "        if self.mode == 'warn':\n            return report  # NEGATIVE CONTROL\n            _LOG.warning("
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_g4_warns_by_default_and_the_build_goes_on"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a gate switched off says nothing",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        _LOG.warning('GATE_OFF gate=%s (OMNI_GATE_%s): this build is NOT checked by %s', gate, gate, gate)\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_every_gate_states_its_mode_on_every_build_off_included",
+    "test_on_by_default_off_said_and_an_unknown_value_raises"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the build evidence does not carry the gates",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_the_build_evidence_carries_the_gates"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "G4 blocks by default while warehouse 114 is open",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block'}",
+     "new": "DEFAULT_MODE = {'G3': 'block', 'G4': 'block', 'G6': 'block'}"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gates.py"
+   ],
+   "expect_failed": [
+    "test_g4_warns_by_default_and_the_build_goes_on",
+    "test_on_by_default_off_said_and_an_unknown_value_raises"
+   ]
+  }
+ ]
+}

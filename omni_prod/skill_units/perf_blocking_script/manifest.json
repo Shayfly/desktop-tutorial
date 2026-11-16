@@ -1,0 +1,11 @@
+{
+ "name": "skill.perf.blocking_script",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G4",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "An external <script src> without defer, async or type=\"module\" stops the page from rendering until it downloads and runs."
+}

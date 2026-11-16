@@ -1,0 +1,6 @@
+{
+ "PRIVATE_KEY_IN_SOURCE": {
+  "meaning": "a private key is in the generated source",
+  "fix": "remove it; keep keys in the platform secret store, never in the product"
+ }
+}
