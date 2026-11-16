@@ -1095,6 +1095,7 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         install_skill_gate(engine, 'G11')                             # links: tel, anchors, address
         for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview
             install_skill_gate(engine, g)
+        install_skill_gate(engine, 'G5')                              # rights: every font, image, audio has a known source
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))

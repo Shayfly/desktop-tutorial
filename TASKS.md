@@ -26,3 +26,5 @@
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
 | STAGE-A-456 | Claude Code | In review | chat-truth: one price, the question in words, one approval state; NC 6/6 + 6/6; browser test fails on main app.js |
 | REL-1116 | Claude Code | Done | #422 `349d729` -> `4e16eeb` (worker: run 43973795367); #405 `795bbae` -> `1dc1fbd` |
+| GATE-G5 | Claude Code | In review | the rights gate: 3 units (image, font, media and frames), registry `rights_sources.json` with a basis per source; an unknown source blocks; reads every served file as written; rewritten after an independent review found holes; NC 20/20 |
+| AGENT-A7 | Claude Code | Next | the rights agent, after its gate G5 |

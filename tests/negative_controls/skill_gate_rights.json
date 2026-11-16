@@ -1,0 +1,385 @@
+{
+ "pr": "skill-gate-rights",
+ "sha256": [
+  "tests/test_skill_gate_rights.py",
+  "omni_prod/rights_sources.json",
+  "omni_prod/rights_sources.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the image unit looks and finds nothing (a hotlinked photo passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_image_source/probe.py",
+     "old": "    findings = unknown(html, 'image', path)\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_file_too_large_to_read_blocks_every_unit",
+    "test_a_finding_never_carries_the_bytes",
+    "test_a_page_that_takes_its_addresses_from_variables_has_its_constants_judged",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_embedded_bytes_in_code_are_bytes_of_unknown_origin",
+    "test_every_layer_the_worker_chains_gives_its_placeholder_back",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the font unit looks and finds nothing (a commercial font from another host passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_font_source/probe.py",
+     "old": "    findings = unknown(html, 'font', path)\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_file_too_large_to_read_blocks_every_unit",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the media unit looks and finds nothing (background music passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/rights_media_source/probe.py",
+     "old": "    findings = unknown(html, ('media', 'embed'), path)\n",
+     "new": "    findings = []  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_file_too_large_to_read_blocks_every_unit",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_audio_video_and_frames",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "G5 only warns by default (an unknown right does not block)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "                'G5': 'block'}",
+     "new": "                'G5': 'warn'}"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_every_layer_the_worker_chains_gives_its_placeholder_back",
+    "test_the_customers_photo_passes_and_the_sandbox_got_its_bytes",
+    "test_the_gate_is_three_units_and_blocks_by_default",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the gate reads the files as the sandbox got them, not as written (the customer's own photo is 'unknown bytes')",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "AS_WRITTEN = ('G5',)\n",
+     "new": "AS_WRITTEN = ()  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_every_layer_the_worker_chains_gives_its_placeholder_back",
+    "test_the_customers_photo_passes_and_the_sandbox_got_its_bytes"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "any host is a known source (it assumes)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "    if host and host in match.get('hosts', ()):\n",
+     "new": "    if host:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_link_is_not_a_load",
+    "test_a_page_that_takes_its_addresses_from_variables_has_its_constants_judged",
+    "test_a_photograph_wrapped_in_an_svg_is_still_a_photograph",
+    "test_a_script_that_puts_media_on_the_page_has_every_address_judged",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_audio_video_and_frames",
+    "test_css_in_every_form",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_every_way_a_page_carries_an_image",
+    "test_the_parser_is_not_fooled"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a source is accepted without its basis",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if missing:\n            raise RightsSourceError(f'source {sid!r} lacks",
+     "new": "        if False and missing:  # NEGATIVE CONTROL\n            raise RightsSourceError(f'source {sid!r} lacks"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_source_without_its_basis_is_refused"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the worker does not install G5",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'G5')                              # rights",
+     "new": "        pass  # NEGATIVE CONTROL: no G5                              # rights"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate_before_the_photo"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "embedded bytes count as drawn by the build (raster bytes of unknown origin pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "    if low.startswith('data:'):\n        return None, 'bytes embedded in the file that the platform did not supply'\n",
+     "new": "    if low.startswith('data:'):\n        return 'authored_svg', 'NEGATIVE CONTROL'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_finding_never_carries_the_bytes",
+    "test_a_photograph_wrapped_in_an_svg_is_still_a_photograph",
+    "test_audio_video_and_frames",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place",
+    "test_every_layer_the_worker_chains_gives_its_placeholder_back",
+    "test_the_same_bytes_with_no_record_of_their_source_block"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a transform that invents its result is followed (the worker harness's mock engine)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        return written if isinstance(written, dict) else repository",
+     "new": "        return written  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_transform_that_invents_its_result_is_not_followed"
+   ]
+  },
+  {
+   "id": "NC11",
+   "what": "the units read whole <html> documents only (a stylesheet, a script file and a fragment pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "'served' if manifest(u).get('reads_served') else 'page'",
+     "new": "'served' if False else 'page'"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_page_that_takes_its_addresses_from_variables_has_its_constants_judged",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_embedded_bytes_in_code_are_bytes_of_unknown_origin"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "an address with no file extension in a script that builds images is not judged (the Unsplash gallery passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "            judge_all = bool(_MEDIA_SINK.search(code))\n",
+     "new": "            judge_all = False  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_script_that_puts_media_on_the_page_has_every_address_judged",
+    "test_a_stylesheet_a_script_file_and_a_fragment_constant",
+    "test_the_parser_is_not_fooled"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "anything that starts like a placeholder is a known source",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if (re.fullmatch(re.escape(prefix) + r'\\d{1,3}', ref) if prefix.endswith('/') else ref == prefix):\n",
+     "new": "        if ref.startswith(prefix):  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_placeholder_must_be_exactly_one_the_platform_writes"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "an SVG data: URI is 'drawn by the build' without being read (a wrapped photograph passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "            if low.startswith('data:image/svg+xml'):\n                self._svg(ref, where)\n                return\n",
+     "new": "            if low.startswith('data:image/svg+xml'):\n                self.found[ref] = {'kind': 'image', 'ref': ref, 'where': where, 'svg': True}  # NEGATIVE CONTROL\n                return\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_photograph_wrapped_in_an_svg_is_still_a_photograph"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "an @import address is cut at its first ';' (Google Fonts with two weights is blocked as an image)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "_CSS_IMPORT = re.compile(r'@import\\s*(?:url\\(\\s*)?(?:\"([^\"]+)\"|\\'([^\\']+)\\'|([^\"\\')\\s;]+))', re.I)",
+     "new": "_CSS_IMPORT = re.compile(r'@import\\s*(?:url\\(\\s*)?[\"\\']?()()([^\"\\')\\s;]+)', re.I)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_google_fonts_in_every_form_is_known"
+   ]
+  },
+  {
+   "id": "NC16",
+   "what": "a file with more references than the bound passes without being fully read",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "    if inv.overflow:\n",
+     "new": "    if False and inv.overflow:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_file_too_large_to_read_blocks_every_unit"
+   ]
+  },
+  {
+   "id": "NC17",
+   "what": "any frame from the map's host is the map",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if not prefixes:\n            return True\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n            return True\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_audio_video_and_frames"
+   ]
+  },
+  {
+   "id": "NC18",
+   "what": "a link target in a script is judged as a load (a WhatsApp button is blocked)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "            if _LINK_CONTEXT.search(before):\n                continue\n",
+     "new": "            if False:  # NEGATIVE CONTROL\n                continue\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_link_is_not_a_load"
+   ]
+  },
+  {
+   "id": "NC19",
+   "what": "a long base64 literal in code is not read (embedded bytes pass)",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "            self.blobs(source, 'the code')\n",
+     "new": "            pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_embedded_bytes_in_code_are_bytes_of_unknown_origin"
+   ]
+  },
+  {
+   "id": "NC20",
+   "what": "an address constant of a page that takes its addresses from variables is not judged",
+   "mutations": [
+    {
+     "file": "omni_prod/rights_sources.py",
+     "old": "        if not (self.dynamic_load or fetches):\n            return\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n            return\n"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_rights.py"
+   ],
+   "expect_failed": [
+    "test_a_page_that_takes_its_addresses_from_variables_has_its_constants_judged"
+   ]
+  }
+ ]
+}

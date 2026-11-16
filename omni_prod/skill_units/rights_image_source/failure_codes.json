@@ -1,0 +1,6 @@
+{
+ "IMAGE_SOURCE_UNKNOWN": {
+  "meaning": "an image whose source is not known: the right to show it cannot be shown",
+  "fix": "use only the image src values the prompt gives (148ai-asset://...), or an SVG you draw yourself; remove every other image and never link an image from another site"
+ }
+}

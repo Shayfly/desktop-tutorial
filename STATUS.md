@@ -78,6 +78,58 @@
   - negative controls `fast_suite.json` 2/2;
   - `scripts/ci_test_coverage.py` PASS.
 - **No CI job runs the fast suite yet.** Its `light` job is part of #405.
+# 2026-11-16 — the rights gate G5: the source of every font, image and audio is known, or the build is blocked (Claude Code)
+
+- **Owner's order:** the agents come after the gates, A7 (rights) first: "checks the source of every asset: font,
+  image, audio. Blocks on an unknown right; it does not assume." And: an agent with no gate that runs it does not go
+  in, so the gate comes first. This entry is the gate.
+- **Implemented:**
+  - `omni_prod/rights_sources.json` is the registry of known sources, a data file. Each source states its right, the
+    basis it rests on and the date the basis was read. A source without a basis is refused at load. Six sources:
+    - the customer's upload, and the image the platform generates (flux-schnell on Replicate, Apache-2.0);
+    - an SVG the build draws, and a path the build serves itself;
+    - Google Fonts, and a Google map embedded in a frame.
+  - `omni_prod/rights_sources.py` reads every asset reference of one served file and judges it.
+  - Three skill units form gate G5: `rights_image_source` (IMAGE_SOURCE_UNKNOWN), `rights_font_source`
+    (FONT_SOURCE_UNKNOWN) and `rights_media_source` (MEDIA_SOURCE_UNKNOWN: audio, video and frames from other sites).
+  - G5 blocks by default (`OMNI_GATE_G5`), and its mode is said on every build like every gate.
+  - G5 reads the files as written: the platform's own assets are their `148ai-asset://` placeholders. So the
+    customer's photo is known, and the same bytes with no record of their source are not.
+  - G5 reads every served file (pages, stylesheets, scripts, Python and template files), not only whole documents.
+  - The worker installs G5 with the other gates.
+- **An independent review before the push found the first version full of holes; a bug of mine.** It read pages with
+  regular expressions and only whole `<html>` documents. What passed although unknown, each now a test:
+  - a photo gallery built by a script from addresses with no file extension (images.unsplash.com, picsum.photos);
+  - an asset loaded from a stylesheet file, a script file or a fragment in a Python constant;
+  - a `>` inside an earlier attribute, and a comment opener inside `<style>`, which hid what followed;
+  - a photograph wrapped in an SVG data: URI;
+  - `image-set()`, an escaped `url`, `@import` with no space, lazy-loading `data-src`, `<body background>`,
+    `imagesrcset`, `<object>` with no extension, and a player in a frame on any host outside a list of six;
+  - anything that merely started like a placeholder.
+
+  What was blocked although legitimate: Google Fonts loaded with `@import` and two weights (read as an unknown
+  image), and an empty `data:,` favicon.
+- **The fix:** the reading is rewritten on `html.parser`, with separate readers for CSS, scripts, JSON-LD, SVG data:
+  URIs and Python constants. A script that puts media on the page has every address literal judged, with or without
+  an extension; an address that is plainly a link target (`href`, `window.open`, `location`) is not a load.
+- **It falls on a page:** each broken fixture is the real butcher production page, as written, changed in one
+  place: the hero hotlinked from images.unsplash.com; the hero as embedded JPEG bytes; the Heebo stylesheet replaced
+  by one from fonts.cdnfonts.com; an `@font-face` loading a font file from another host; background music from
+  cdn.pixabay.com; an embedded YouTube player. The unchanged page passes with its two assets known.
+- **Evidence:** `tests/test_skill_gate_rights.py`, 29 tests. Two run the worker's own installs: the photo of the
+  "148 דלתות" production contract, and the logo, right-to-left, a generated image and the photo chained in the
+  worker's order. Negative controls `skill_gate_rights.json` 20/20.
+- **The bases were read on 2026-11-16, and no lawyer reviewed them:** the Google Fonts FAQ, the Replicate model page
+  of flux-schnell, and the Google Maps Embed API pages.
+- **What a static reading cannot see (said, not assumed):**
+  - an address a script builds at run time from pieces, and what an external script loads;
+  - a font only named in `font-family` (a system font; nothing is loaded);
+  - whether a drawing copies a protected mark.
+  - The real request list of the page in a browser would close the first of these. It is not built.
+- **The owner's decisions:**
+  - The customer is not asked to declare the right to an uploaded photo. Asking is an approval-flow change.
+  - Not measured: how many production pages load a stylesheet, a font or a frame from another host. Only the
+    butcher page and the doors page were read. Such a page now goes to a repair round.
 
 # 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
 

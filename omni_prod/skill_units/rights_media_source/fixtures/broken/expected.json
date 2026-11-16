@@ -1,0 +1,10 @@
+{
+ "butcher_background_music.html": {
+  "code": "MEDIA_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: background music is added from cdn.pixabay.com"
+ },
+ "butcher_video_player.html": {
+  "code": "MEDIA_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: a YouTube player is embedded"
+ }
+}
