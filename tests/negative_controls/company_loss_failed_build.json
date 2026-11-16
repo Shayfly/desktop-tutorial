@@ -1,0 +1,31 @@
+{
+ "pr": "company-loss-failed-build",
+ "sha256": ["tests/test_company_loss_failed_build.py", "tests/test_company_loss_failed_build_pg.py",
+            "infra/postgres/044_company_loss_failed_build.sql"],
+ "controls": [
+  {"id": "NC1", "what": "release_failed refunds the customer and writes no loss row (warehouse 103 as it was found)",
+   "envs": ["pg"],
+   "mutations": [{"file": "omni_prod/subscription_store.py",
+                  "old": "                    record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,\n                                        funding_source=row[4], truth=truth)\n",
+                  "new": "                    pass  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_company_loss_failed_build_pg.py", "tests/test_company_loss_failed_build.py"],
+   "expect_failed": ["test_release_failed_writes_the_row_inside_the_refund_transaction"],
+   "expect_failed_pg": ["test_release_failed_writes_the_row_inside_the_refund_transaction",
+                        "test_a_failed_build_with_a_cost_is_one_loss_row_for_the_whole_cost",
+                        "test_the_loss_ledger_equals_the_failed_builds_provider_cost",
+                        "test_an_internal_qa_build_is_recorded_with_its_funding_source"]},
+  {"id": "NC2", "what": "the loss row carries the cost as quoted too, so the overrun is zero and nothing is written",
+   "mutations": [{"file": "omni_prod/company_loss.py",
+                  "old": "                          quoted_usd=0, actual_usd=actual_usd, cause=FAILED_BUILD_REFUNDED, build_id=build_id,",
+                  "new": "                          quoted_usd=actual_usd, actual_usd=actual_usd, cause=FAILED_BUILD_REFUNDED, build_id=build_id,  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_company_loss_failed_build.py"],
+   "expect_failed": ["test_a_failed_build_with_a_provider_cost_is_one_loss_row_for_the_whole_cost"]},
+  {"id": "NC3", "what": "the migration forgets the fourth cause: the constraint would reject every failed-build row",
+   "mutations": [{"file": "infra/postgres/044_company_loss_failed_build.sql",
+                  "old": "    cause IN ('metered_overrun', 'budget_capped_shortfall', 'unreconciled_unknown', 'failed_build_refunded'));",
+                  "new": "    cause IN ('metered_overrun', 'budget_capped_shortfall', 'unreconciled_unknown'));  -- NEGATIVE CONTROL"}],
+   "targets": ["tests/test_company_loss_failed_build.py"],
+   "expect_failed": ["test_the_cause_is_in_the_closed_set_and_the_migration_declares_it",
+                     "test_the_staging_bootstrap_carries_the_migration"]}
+ ]
+}
