@@ -1,3 +1,15 @@
+# 2026-11-16 — warehouse 77c: a failed build is said in the conversation, with one action (Claude Code)
+
+- **What broke:** a customer whose build failed saw nothing in the conversation; the failure lived only in the build tab.
+- **Fix:** `omni_prod/build_announcement.py`: `FailureWitness` wraps the jobs repository of the live build job and remembers the
+  transition to FAILED; `announce_if_failed` writes one assistant message (idempotent on `build-failed:<id>`): "the build failed",
+  "you were not charged" only when the credits went back, and ONE action -- `retry_build` (back to the approval screen) or, for a
+  detail only the customer can give, `edit_requirements`. Wired in `worker_tasks._run_live_build_job_with_components` (try/finally,
+  so an engine crash is said too). A failure to write is logged as an error, never changes the build. UI: the `retry_build` button;
+  the chat's status line for a failed build is styled as failed.
+- **Evidence:** `tests/test_build_failed_announced.py` 7 tests (the production job through BuildHarness); controls
+  `build_failed_announced.json` 4/4.
+- **Not checked:** no real build, no browser run; the Postgres conversation store is exercised by its in-memory twin here.
 # 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
 
 - **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
