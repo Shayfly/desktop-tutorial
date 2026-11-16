@@ -1,11 +1,12 @@
 {
  "name": "skill.rights.image_source",
- "input": "the HTML of a generated page, as written (platform assets as their 148ai-asset:// placeholders)",
+ "input": "one served file of a generated build, as written (platform assets as their 148ai-asset:// placeholders), and its path",
  "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
  "kind": "probe",
  "cost_usd": 0,
  "gate": "G5",
  "owner": "Claude Code (product)",
  "reads_source": false,
- "description": "Every image of the page has a known source: a photo the customer uploaded, an image the platform generated, or an SVG the build drew. Any other image -- a hotlinked address, bytes of unknown origin, a file the build cannot contain -- blocks."
+ "description": "Every image of the page has a known source: a photo the customer uploaded, an image the platform generated, or an SVG the build drew. Any other image -- a hotlinked address, bytes of unknown origin, a file the build cannot contain -- blocks.",
+ "reads_served": true
 }

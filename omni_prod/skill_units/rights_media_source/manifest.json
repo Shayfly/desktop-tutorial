@@ -1,11 +1,12 @@
 {
  "name": "skill.rights.media_source",
- "input": "the HTML of a generated page, as written (platform assets as their 148ai-asset:// placeholders)",
+ "input": "one served file of a generated build, as written (platform assets as their 148ai-asset:// placeholders), and its path",
  "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
  "kind": "probe",
  "cost_usd": 0,
  "gate": "G5",
  "owner": "Claude Code (product)",
  "reads_source": false,
- "description": "Audio and video have no known source yet: the platform supplies none. Any audio or video on the page -- a file, an embedded player, a script that plays a sound -- blocks until a source for it is recorded."
+ "description": "Audio, video and frames embedded from other sites have a known source. The platform supplies no audio or video yet, so audio or video from another site, embedded bytes, a sound played by script, or a player in an iframe blocks; a Google map is the one embedded frame with a recorded basis.",
+ "reads_served": true
 }

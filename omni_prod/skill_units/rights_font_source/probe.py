@@ -2,6 +2,6 @@
 from omni_prod.rights_sources import unknown
 
 
-def probe(html):
-    findings = unknown(html, 'font')
+def probe(html, path=None):
+    findings = unknown(html, 'font', path)
     return {'status': 'fail', 'code': 'FONT_SOURCE_UNKNOWN', 'findings': findings} if findings else {'status': 'pass'}

@@ -77,18 +77,30 @@ def enabled(gate: str) -> bool:
     return mode(gate) != 'off'
 
 
+def served_of(repository: dict[str, str]) -> list[tuple[str, str]]:
+    """(path, text) of every file a browser loads or a server serves: what a unit with reads_served reads. A page
+    is not only its <html> document -- a stylesheet, a script file and a fragment in a Python constant load assets
+    too (an independent review, 2026-11-16: the rights units read whole documents only and passed the rest)."""
+    from ..rights_sources import SERVED_EXT
+    return [(path, text) for path, text in sorted(repository.items())
+            if isinstance(text, str) and path.lower().endswith(SERVED_EXT)]
+
+
 def check(gate: str, repository: dict[str, str]) -> dict:
     """{'status': 'pass'|'fail'|'NOT_RUN', 'failures': [{unit, page, code, findings}], 'checked': [...]}."""
     found = pages(repository)
     sources = sources_of(repository)
+    served = served_of(repository)
     members = gate_units(gate)
-    reads_source = {u: bool(manifest(u)['reads_source']) for u in members}
-    if not found and not any(reads_source.values()):
+    reads = {u: ('source' if manifest(u)['reads_source'] else 'served' if manifest(u).get('reads_served') else 'page')
+             for u in members}
+    targets = {'page': found, 'source': sources, 'served': served}
+    if not any(targets[r] for r in reads.values()):
         return {'status': 'NOT_RUN', 'reason': 'no HTML page in the generated repository', 'failures': [], 'checked': []}
     failures, checked = [], []
     for unit in members:
-        for path, html in (sources if reads_source[unit] else found):   # a source unit reads every text file
-            result = run(unit, html)
+        for path, html in targets[reads[unit]]:           # a source unit reads every text file, a served unit the served ones
+            result = run(unit, html, path)
             checked.append(f'{unit} on {path}')
             if result['status'] == 'fail':
                 failures.append({'unit': unit, 'page': path, 'code': result['code'],

@@ -2,6 +2,6 @@
 from omni_prod.rights_sources import unknown
 
 
-def probe(html):
-    findings = unknown(html, 'image')
+def probe(html, path=None):
+    findings = unknown(html, 'image', path)
     return {'status': 'fail', 'code': 'IMAGE_SOURCE_UNKNOWN', 'findings': findings} if findings else {'status': 'pass'}
