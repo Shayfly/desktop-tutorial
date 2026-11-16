@@ -12,6 +12,8 @@
 - **Evidence:** `tests/test_web_rendition.py` (14: phone-sized photos made with a real encoder; the G4 unit that
   measured the butcher page fails on the original and passes on the rendition), `tests/test_skill_gates.py` (+5);
   negative controls `photo_weight` 8/8, `gates_calibrating` 6/6; declarations 68 -> 75, none lost.
+- **CI lesson:** `validate` failed on `ea19bf6`: `requirements.txt` (Vercel) must list exactly the pins of
+  `requirements-production.txt` (`tests/test_vercel_entrypoint.py`). Pillow is added to both.
 - **Not verified:** the worker image has not been built with Pillow yet (the deploy builds images before it drains);
   no gate has been calibrated on a real build yet.
 - **Still open in 114:** the photo is still inside the HTML (no browser cache). Serving it as a file needs the
