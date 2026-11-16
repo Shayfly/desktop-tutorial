@@ -54,8 +54,12 @@ MODES = ('block', 'warn', 'off')
 MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # owner 2026-11-16: G4 warns (a unit that warns makes it a gate; without the unit it is a heading) until warehouse 114
 # (the hero image inlined as base64) is fixed; G3 and G6 block.
-DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', 'HE': 'block', 'G10': 'block', 'G11': 'block',
-                'G1': 'block', 'BRAND': 'block', 'SHARE': 'block'}   # HE Hebrew, G10 copy, G11 links, G1 empty blocks
+# The owner, 2026-11-16 (rule 4): a new gate enters at warn -- three builds, calibration, a proven fall on a broken page
+# -- and only then blocks. CALIBRATING names the gates that have not finished that; each one warns by default, and its
+# findings are in the log and in the build evidence of every build. Moving a gate to block = removing it from here,
+# with the three builds as evidence. (HE Hebrew, G10 copy, G11 links, G1 empty blocks, BRAND brand name, SHARE preview.)
+CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')
+DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'warn' for g in CALIBRATING}}
 _ALIASES = {'1': 'block', '0': 'off'}
 
 

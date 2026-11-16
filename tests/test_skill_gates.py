@@ -226,3 +226,37 @@ class TheSwitch(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
+    """The owner, 2026-11-16, rule 4: a new gate enters at warn; three builds, calibration, a proven fall on a broken
+    page, and only then block."""
+    def test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block(self):
+        import os
+        from unittest import mock
+        from omni_prod.skill_units import gate as G
+        self.assertEqual(set(G.CALIBRATING), {'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE'})
+        with mock.patch.dict(os.environ, {}, clear=False):
+            for gate in (*G.CALIBRATING, 'G3', 'G4', 'G6'):
+                os.environ.pop(f'OMNI_GATE_{gate}', None)
+            for gate in G.CALIBRATING:
+                self.assertEqual(G.mode(gate), 'warn', gate)
+            self.assertEqual((G.mode('G3'), G.mode('G6'), G.mode('G4')), ('block', 'block', 'warn'))
+
+    def test_every_gate_the_worker_installs_has_a_stated_default(self):
+        import re
+        from pathlib import Path
+        from omni_prod.skill_units import gate as G
+        src = (Path(__file__).resolve().parent.parent / 'omni_prod' / 'worker_tasks.py').read_text(encoding='utf-8')
+        named = set(re.findall(r"install_skill_gate\(engine, '(\w+)'\)", src))
+        loop = re.search(r"for g in \(([^)]*)\):\s*#[^\n]*\n\s*install_skill_gate\(engine, g\)", src)
+        named |= set(re.findall(r"'(\w+)'", loop.group(1))) if loop else set()
+        self.assertGreaterEqual(len(named), 9)
+        self.assertEqual(named - set(G.DEFAULT_MODE), set())      # a gate with no stated default would block in silence
+
+    def test_a_calibrating_gate_can_still_be_set_to_block(self):
+        import os
+        from unittest import mock
+        from omni_prod.skill_units import gate as G
+        with mock.patch.dict(os.environ, {'OMNI_GATE_HE': 'block'}):
+            self.assertEqual(G.mode('HE'), 'block')

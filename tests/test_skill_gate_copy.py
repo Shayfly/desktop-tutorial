@@ -22,7 +22,7 @@ def build(page):
     e = AutonomousProductEngine(architect=_Arch(), generator=_Files({'app.py': as_app_py(page)}), repairer=rep,
                                 executor=_Sandbox(), max_repair_rounds=2)
     with mock.patch.dict(os.environ, {}, clear=False):
-        os.environ.pop('OMNI_GATE_G10', None)
+        os.environ['OMNI_GATE_G10'] = 'block'      # the blocking behaviour, said explicitly (the default is warn while calibrating)
         G.install(e, 'G10')
     return e.build('a page'), rep
 
@@ -32,7 +32,7 @@ class TheCopyGate(unittest.TestCase):
         self.assertEqual(G.gate_units('G10'), COPY)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop('OMNI_GATE_G10', None)
-            self.assertEqual(G.mode('G10'), 'block')
+            self.assertEqual(G.mode('G10'), 'warn')    # owner 2026-11-16, rule 4: warn until calibrated on three builds
 
     def test_each_unit_falls_on_the_real_page_changed_in_one_place(self):
         for unit in COPY:
