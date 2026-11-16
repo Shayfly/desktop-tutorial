@@ -1,0 +1,6 @@
+{
+ "HERO_LAZY": {
+  "meaning": "the first image is lazy-loaded and delays the largest paint",
+  "fix": "remove loading=\"lazy\" from the first image (or set loading=\"eager\")"
+ }
+}

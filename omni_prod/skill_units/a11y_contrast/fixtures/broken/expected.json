@@ -1,0 +1,14 @@
+{
+ "broken1.html": {
+  "code": "CONTRAST_LOW",
+  "what_is_broken": "grey #999 on white is 2.85:1"
+ },
+ "broken2.html": {
+  "code": "CONTRAST_LOW",
+  "what_is_broken": "white on yellow is 1.6:1"
+ },
+ "butcher_low_contrast.html": {
+  "code": "CONTRAST_LOW",
+  "what_is_broken": "the real production page, butcher build bld_83529c132a864075945080e9390484cb (tests/fixtures/butcher_served_page_2026_11_14.json) with --text-dark changed to #b8bec8: body text on #f8fafc is 1.79:1"
+ }
+}

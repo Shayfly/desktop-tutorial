@@ -1,0 +1,11 @@
+{
+ "name": "skill.he.translationese",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "HE",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "No phrase translated word for word from English (\"בסוף היום\", \"אל תהססו\") from a closed list, each with its natural Hebrew."
+}

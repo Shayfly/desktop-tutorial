@@ -1,0 +1,112 @@
+{
+ "pr": "image-answer-loop",
+ "sha256": [
+  "tests/test_image_answer_loop.py",
+  "omni_prod/intake/image_answers.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a typed answer to an image choice is not read (warehouse 113 as it was found)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "                typed = answers_for(asked, message)\n",
+     "new": "                typed = {}  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_the_card_keeps_its_buttons_and_the_chat_says_how_to_answer",
+    "test_the_production_sentence_moves_the_conversation_to_the_end"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the same assistant message is sent twice in a row",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        turn.reply = self._not_repeated(project_id, turn, T)\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_the_same_message_is_never_sent_twice_in_a_row"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the panel and the chat ask different questions at once",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "    image_q = next_image_question(brief)\n    if image_q is not None:\n        return image_q.group, [image_q]\n",
+     "new": "    image_q = None  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_the_panel_shows_the_chats_question_and_only_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "after three cards the image question loses its buttons and points at the tab (the dead end)",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        if q.field in d.IMAGE_FIELDS:\n",
+     "new": "        if False:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_the_card_keeps_its_buttons_and_the_chat_says_how_to_answer"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "'update the plan' returns to the tab in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const names = (disc.questions || []).map(q => q.text).filter(Boolean);\n",
+     "new": "  return '';  // NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_an_incomplete_brief_names_what_is_missing"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a door is read as the place it belongs to",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/image_answers.py",
+     "old": "        return 'product'\n    kind = _first(text, KIND_WORDS)",
+     "new": "        pass  # NEGATIVE CONTROL\n    kind = _first(text, KIND_WORDS)"
+    }
+   ],
+   "targets": [
+    "tests/test_image_answer_loop.py"
+   ],
+   "expect_failed": [
+    "test_the_category_words_of_the_owner"
+   ]
+  }
+ ]
+}

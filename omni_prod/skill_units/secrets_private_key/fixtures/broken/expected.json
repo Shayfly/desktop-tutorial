@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "PRIVATE_KEY_IN_SOURCE",
+  "what_is_broken": "an RSA private key block in the page"
+ }
+}

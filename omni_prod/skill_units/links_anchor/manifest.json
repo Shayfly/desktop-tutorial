@@ -1,0 +1,11 @@
+{
+ "name": "skill.links.anchor",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G11",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Every in-page link (href=\"#...\") points to an element with that id."
+}

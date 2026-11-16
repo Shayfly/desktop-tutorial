@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "FONT_NO_SWAP",
+  "what_is_broken": "Google Fonts URL without display=swap"
+ },
+ "broken2.html": {
+  "code": "FONT_NO_SWAP",
+  "what_is_broken": "@font-face without font-display"
+ }
+}

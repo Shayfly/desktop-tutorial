@@ -1,0 +1,10 @@
+{
+ "butcher_double_superlative.html": {
+  "code": "HE_GRAMMAR",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, changed in one place: \"הכי איכותי ביותר\": a double superlative"
+ },
+ "butcher_construct.html": {
+  "code": "HE_GRAMMAR",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, changed in one place: \"השעות פתיחה\": the article belongs on \"פתיחה\""
+ }
+}

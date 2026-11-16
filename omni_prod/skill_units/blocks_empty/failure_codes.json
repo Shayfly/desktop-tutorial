@@ -1,0 +1,6 @@
+{
+ "EMPTY_BLOCK": {
+  "meaning": "a section has a heading and nothing under it",
+  "fix": "fill the block with the customer's content, or remove it"
+ }
+}

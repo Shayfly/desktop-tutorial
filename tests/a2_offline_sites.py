@@ -39,8 +39,8 @@ a.cta{{background:var(--accent);color:#fff;padding:14px 22px;display:inline-bloc
 _LTR = ('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Butcher</title></head>'
         '<body><h1>The corner butcher</h1><section>Meat, poultry</section></body></html>')
 _EXTERNAL = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">'
-             '<script src="https://cdn.example.com/tracker.js"></script></head><body><h1>קצב</h1>'
-             '<img src="https://images.example.org/hero.jpg" alt=""></body></html>')
+             '<script src="https://cdn.example.invalid/tracker.js"></script></head><body><h1>קצב</h1>'
+             '<img src="https://images.example.invalid/hero.jpg" alt=""></body></html>')
 _TALL = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>'
          '<body><div style="height:25000px">ארוך מאוד</div></body></html>')
 _SLOW = ('<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>'
@@ -66,7 +66,7 @@ footer{padding:48px 24px;font-size:14px;color:#57534e}</style></head><body>
 <img src="/photo.png" alt="דלפק"></section>
 <section id="products"><h2>המוצרים</h2><ul class="products"><li>בקר</li><li>עוף</li><li>הודו</li><li>קציצות</li></ul></section>
 <section><h2>שעות פתיחה</h2><table><tr><th>א׳–ה׳</th><td>07:00–19:00</td></tr></table><small>שבת סגור</small></section>
-<section><h2>איך מגיעים</h2><iframe src="https://maps.example.com/embed" class="map" width="400" height="200"></iframe></section>
+<section><h2>איך מגיעים</h2><iframe src="https://maps.example.invalid/embed" class="map" width="400" height="200"></iframe></section>
 <section><h2>צור קשר</h2><form><input type="text" name="n"><input type="tel" name="t"><button style="background:#9a3412;color:#fff">שליחה</button></form></section>
 <footer>פרטי העסק</footer>
 <a class="tel" href="tel:+97250000000">חיוג</a><div class="cookies">האתר משתמש בעוגיות</div>

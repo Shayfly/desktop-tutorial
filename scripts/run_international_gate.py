@@ -19,7 +19,17 @@ def run(name,argv):
     return p.returncode==0
 ok=True
 ok &= run('compileall',[sys.executable,'-m','compileall','-q','omni_prod','tests'])
-ok &= run('pytest',[sys.executable,'-m','pytest','-q'])
+# 2026-11-16: in the v24-ci test job the suite has already run (pytest-report.xml); running it a second time here
+# took 7.7 minutes and pushed the job past its 20-minute bound. With OMNI_PYTEST_REPORT the gate reads that report;
+# without it (a local run) it runs pytest as before.
+import os
+from scripts.junit_report import verdict
+_report=os.environ.get('OMNI_PYTEST_REPORT')
+if _report:
+    _ok,_detail=verdict(ROOT/_report)
+    ok &= check('pytest',_ok,_detail)
+else:
+    ok &= run('pytest',[sys.executable,'-m','pytest','-q'])
 ok &= check('benchmark_catalog',len(CASES)>=200,f'{len(CASES)} cases')
 spec=demo_spec('Build an international multilingual CRM with teams and mobile workflow'); repo=create_demo_repository('Build an international multilingual CRM with teams and mobile workflow',spec)
 q=assess_repository(spec=spec,repository=repo,minimum_score=75); sec=hostile_repository_scan(repo)

@@ -93,7 +93,7 @@ class OnRenderedPages(unittest.TestCase):
             self.assertNotIn(words, dumped)
 
     def test_nothing_left_the_machine(self):
-        self.assertEqual(sorted(set(self.session.blocked)), ['maps.example.com'])
+        self.assertEqual(sorted(set(self.session.blocked)), ['maps.example.invalid'])
 
     # ---- 109 / 110 (the owner, 2026-11-15 23:26) ------------------------------------------------------------------
     def test_a_page_with_no_style_of_its_own_is_rejected_no_styles(self):

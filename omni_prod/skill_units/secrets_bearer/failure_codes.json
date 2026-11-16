@@ -1,0 +1,6 @@
+{
+ "TOKEN_IN_SOURCE": {
+  "meaning": "a bearer token is in the generated source",
+  "fix": "obtain the token at run time on the server; never ship it in the page"
+ }
+}

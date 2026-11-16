@@ -1,0 +1,6 @@
+{
+ "ANCHOR_BROKEN": {
+  "meaning": "an in-page link points to no element",
+  "fix": "give the section the id the link names, or fix the link"
+ }
+}

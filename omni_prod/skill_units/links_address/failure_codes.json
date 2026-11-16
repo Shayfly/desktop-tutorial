@@ -1,0 +1,6 @@
+{
+ "ADDRESS_INCOMPLETE": {
+  "meaning": "a labelled address has no house number or no city",
+  "fix": "write the full address: street, number and city"
+ }
+}

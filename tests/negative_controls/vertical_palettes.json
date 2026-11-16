@@ -1,0 +1,87 @@
+{
+ "pr": "vertical-palettes",
+ "sha256": [
+  "tests/test_vertical_palettes.py",
+  "omni_prod/vertical_palettes.py",
+  "omni_prod/vertical_palettes.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a vertical loses its palette in the data file (the butcher) -- the loader refuses the whole file, so every test that reads it fails loudly",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.json",
+     "old": "  \"butcher\":            {\"palette\": \"crimson\",  \"words\": [\"אטליז\", \"קצביה\", \"קצב\", \"butcher\"]},\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_vertical_palettes.py"
+   ],
+   "expect_failed": [
+    "test_a_butcher_without_a_colour_gets_the_butcher_palette",
+    "test_a_vertical_without_a_palette_fails",
+    "test_all_32_verticals_are_mapped_to_a_palette",
+    "test_an_unknown_business_is_said_not_defaulted",
+    "test_every_palette_is_readable",
+    "test_every_vertical_is_recognised_by_its_own_words",
+    "test_the_customers_colour_wins",
+    "test_two_verticals_get_two_palettes"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the loader accepts a vertical without a palette",
+   "mutations": [
+    {
+     "file": "omni_prod/vertical_palettes.py",
+     "old": "    if missing:\n        raise PaletteError",
+     "new": "    if False:  # NEGATIVE CONTROL\n        raise PaletteError"
+    }
+   ],
+   "targets": [
+    "tests/test_vertical_palettes.py"
+   ],
+   "expect_failed": [
+    "test_a_vertical_without_a_palette_fails"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a site whose customer stated no colour gets the default blue again",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        colours = design_colours(brief.prompt + '\\n' + customer_text(brief))",
+     "new": "        colours = 'primary colour #1e40af; palette #1e40af'  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_vertical_palettes.py"
+   ],
+   "expect_failed": [
+    "test_a_butcher_without_a_colour_gets_the_butcher_palette",
+    "test_an_unknown_business_is_said_not_defaulted",
+    "test_two_verticals_get_two_palettes"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the colour question recommends blue again",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "             recommended='category'),",
+     "new": "             recommended='blue'),"
+    }
+   ],
+   "targets": [
+    "tests/test_vertical_palettes.py"
+   ],
+   "expect_failed": [
+    "test_the_colour_question_recommends_the_category_not_blue"
+   ]
+  }
+ ]
+}

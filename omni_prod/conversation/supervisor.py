@@ -168,6 +168,10 @@ _TXT = {
            'verify': 'רק לוודא — הבנתי מהבקשה: {label}. נכון?',
            'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע בלשונית "דרישות".',
            'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור בלשונית "דרישות".',
+           'image_still': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר ללחוץ על אחד הכפתורים, או לכתוב במילים: {opts}.',
+           'image_still_text': 'עדיין חסר לי משפט קצר על התמונה כדי להמשיך — למשל "הדלת של החנות" או "סבא שמעון, הבעלים".',
+           'rephrase_q': 'עוד לא קיבלתי תשובה לשאלה הזאת. אפשר ללחוץ על אחת האפשרויות למטה, או לכתוב אותה במילים.',
+           'rephrase': 'לא זיהיתי שינוי מההודעה הקודמת. כתבו מה תרצו לשנות או להוסיף, או שאלו "מה חסר?".',
            'safe_suffix': ' (ברירת מחדל בטוחה)',
            'why': 'למה אני שואל: {why}', 'unsure': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי" ואבחר {rec}. תמיד אפשר לשנות אחר כך.',
            'unsure_norec': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי". תמיד אפשר לשנות אחר כך.',
@@ -182,6 +186,10 @@ _TXT = {
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
+           'image_still': 'I still need an answer about {topic} to continue. Press one of the buttons, or write it in words: {opts}.',
+           'image_still_text': 'I still need a short sentence about the image to continue, for example "the shop door" or "Shimon, the owner".',
+           'rephrase_q': 'I have not had an answer to this question yet. Press one of the options below, or write it in words.',
+           'rephrase': 'I did not see anything new since the last message. Tell me what to change or add, or ask "what is missing?".',
            'safe_suffix': ' (safe default)',
            'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
            'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
@@ -226,11 +234,15 @@ SHORT = {
     'he': {'audience': 'קהל', 'goal': 'מטרה', 'login': 'התחברות', 'personal_data': 'פרטים אישיים', 'access_scope': 'גישה',
            'screens': 'מסכים', 'languages': 'שפה', 'content': 'תוכן התחלתי', 'dates': 'תאריכים', 'duplicates': 'כפילויות',
            'style': 'סגנון', 'color': 'צבע', 'font': 'גופן', 'logo': 'לוגו', 'references': 'השראה',
-           'content_only': 'אתר תוכן בלבד', 'unavailable': 'יכולת שאינה זמינה כרגע'},
+           'content_only': 'אתר תוכן בלבד', 'unavailable': 'יכולת שאינה זמינה כרגע',
+           'image_kind': 'מה בתמונה', 'image_identity': 'מי או מה בתמונה', 'image_use': 'מה לעשות עם התמונה',
+           'image_place': 'איפה התמונה תופיע'},
     'en': {'audience': 'audience', 'goal': 'goal', 'login': 'sign-in', 'personal_data': 'personal data', 'access_scope': 'access',
            'screens': 'screens', 'languages': 'language', 'content': 'starting content', 'dates': 'dates',
            'duplicates': 'duplicates', 'style': 'style', 'color': 'colour', 'font': 'font', 'logo': 'logo',
-           'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability'},
+           'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability',
+           'image_kind': 'what is in the image', 'image_identity': 'who or what is in the image',
+           'image_use': 'what to do with the image', 'image_place': 'where the image goes'},
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
@@ -517,7 +529,8 @@ class ConversationSupervisor:
             return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
-        items = sorted(row.brief.fields.items(), key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)
+        items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
+                       key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
         summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
                                                             if v.get('confidence') == SAFE_CONFIDENCE else '')
                             for k, v in items[:8] if 'value' in v)
@@ -528,8 +541,10 @@ class ConversationSupervisor:
         # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
         from .. import discovery as d
         canon = d.gate_canon(row.brief, lang)                                            # #335 (c)
+        offer = d.window_offer(row.brief, lang)     # owner 2026-11-16: each window with its benefit, approve or reject
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
-                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
+                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')},
+                             **({'windows': offer} if offer else {})})       # no offer, no key (an app has no windows)
         from .. import build_readiness as R
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
@@ -642,6 +657,7 @@ class ConversationSupervisor:
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
                     turn.actions.append(action)
+        turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
@@ -669,7 +685,7 @@ class ConversationSupervisor:
 
     # ------------------------------------------------------------- gate 1 -> plan -> verifier -> gate 2
     def approve_spec(self, *, project_id: str, account_id: str, brief_fingerprint: str, request_key: str | None = None,
-                     lang: str | None = None, canon_ack: bool = False) -> Turn:
+                     lang: str | None = None, canon_ack: bool = False, windows: dict | None = None) -> Turn:
         """Gate 1: the customer approves THIS spec (by fingerprint). Only now is a plan made; the separate verifier
         checks it before the customer sees it; then gate 2 shows the exact cost next to the range said earlier."""
         from ..intake import approval_flow as AF
@@ -698,6 +714,15 @@ class ConversationSupervisor:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
                                    expected_revision=row.revision, request_key=None)
             turn.brief_row = row
+        if feasible and windows:
+            # owner 2026-11-16: the windows the customer approved or rejected on the approval screen are part of the
+            # spec (an approved one is built and gated, a rejected one is not built), so the approval binds to the
+            # fingerprint that includes them -- the same way as the waiver above.
+            brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            if d.decide_windows(brief, windows):
+                row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                       expected_revision=row.revision, request_key=None)
+                turn.brief_row = row
         flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
                                         for m in self.store.messages_for(project_id, limit=2)) else {}
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,
@@ -816,8 +841,16 @@ class ConversationSupervisor:
         if row is not None and message and not answers and not attachments:
             # the customer answers "who is in the photo?" by typing: the message IS that answer, not a new request
             asked = d.next_image_question(row.brief)
-            if asked is not None and asked.kind == 'text' and self._last_asked(project_id) == asked.id:
+            awaiting = self._awaiting(project_id)
+            if asked is not None and asked.kind == 'text' and (asked.id in awaiting or asked.field in awaiting):
                 answers, message = {asked.id: message[:300]}, ''
+            elif asked is not None and (asked.id in awaiting or asked.field in awaiting):
+                # warehouse 113 (owner 2026-11-16): a typed answer to an image choice ("זאת הדלת של החנות") is read by
+                # words -- the loop asked again and again because only a button could answer it
+                from ..intake.image_answers import answers_for
+                typed = answers_for(asked, message)
+                if typed:
+                    answers, message = typed, ''
         refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model
         if refused is not None:
             return refused
@@ -1027,6 +1060,32 @@ class ConversationSupervisor:
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         return turn
 
+    def _not_repeated(self, project_id, turn, T) -> str:
+        """Warehouse 113: the assistant never sends the same message twice in a row. When nothing moved, it says so in
+        other words (and, with a question card, points at the card) instead of repeating itself."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return turn.reply
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        if not last or (last.get('content') or '').strip() != (turn.reply or '').strip():
+            return turn.reply
+        if list(((last.get('interpretation') or {}).get('asked') or ())) != [q.id for q in turn.questions]:
+            return turn.reply                     # the same short line over a NEW question card is progress, not a repeat
+        alt = T['rephrase_q'] if turn.questions else T['rephrase']
+        return alt if alt.strip() != (last.get('content') or '').strip() else alt + ' (' + T['ask_one'].rstrip(':') + ')'
+
+    def _awaiting(self, project_id) -> set:
+        """What the last assistant turn waits for: the question ids it showed (`asked`) and the fields it said were
+        blocking (`blocked`). A typed answer is read against these only, never against a question nobody asked."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return set()
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        meta = (last or {}).get('interpretation') or {}
+        return set(meta.get('asked') or ()) | set(meta.get('blocked') or ())
+
     def _last_asked(self, project_id) -> str | None:
         """The question id the last assistant turn showed (stored as `asked`), or None."""
         try:
@@ -1056,6 +1115,13 @@ class ConversationSupervisor:
         if not d.needs_customer(q, row.brief) or self._cards_shown(project_id, q.id) < CARD_LIMIT:
             return
         topic = _short(q.field, lang)
+        if q.field in d.IMAGE_FIELDS:
+            # warehouse 113: the image's role has no safe default and is never delegated, so blocking it behind the
+            # Requirements tab left the customer with no way forward in the chat. The card stays, with its buttons,
+            # and the text says how to answer -- in words or by a button.
+            turn.reply = T['image_still'].format(
+                topic=topic, opts=' / '.join(o.he if lang == 'he' else o.en for o in q.options)) if q.options else T['image_still_text']
+            return
         if q.field in SAFE_DEFAULT:
             brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
             value = SAFE_DEFAULT[q.field]

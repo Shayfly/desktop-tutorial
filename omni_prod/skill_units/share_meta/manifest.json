@@ -1,0 +1,11 @@
+{
+ "name": "skill.share.meta",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "SHARE",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "A page shared in WhatsApp or Facebook shows a title and a description (og:title, og:description)."
+}

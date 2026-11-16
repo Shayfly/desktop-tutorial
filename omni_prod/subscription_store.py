@@ -498,11 +498,12 @@ class PostgresSubscriptionService:
                     # Warehouse 103 (owner 2026-11-15): the provider cost of a failed build is a company loss -- the
                     # customer is refunded, the provider was paid -- and it is a row in company_loss_events, not only a
                     # number on the reservation. Same transaction as the refund; nothing when the cost is zero.
-                    record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,
-                                        funding_source=row[4], truth=truth)
+                    loss = record_failed_build(cur, build_id=build_id, account_id=user_id, project_id=row[5], actual_usd=basis,
+                                               funding_source=row[4], truth=truth)
                     if row[4] == 'internal_qa':          # internal QA never touched the customer plan counters
                         return {'build_id': build_id, 'action': 'released_failed', 'credits_refunded': 0,
-                                'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa'}
+                                'provider_cost_basis_usd': str(basis), 'funding_source': 'internal_qa',
+                                'loss_recorded': loss is not None}
                     # Michael 2026-11-14 (#356): a failed build's provider cost does not count against the plan's
                     # monthly budget -- up to FREE_FAILED_BUILDS_PER_MONTH failures with a cost in the UTC calendar month
                     # (the subscription's cycle). Counted under the subscription row lock, so two failures settling at
@@ -527,7 +528,8 @@ class PostgresSubscriptionService:
                             'provider_cost_basis_usd': str(basis),
                             'provider_cost_truth': truth,
                             'counted_against_plan_budget': counted,
-                            'failed_builds_with_cost_this_month': earlier + 1}
+                            'failed_builds_with_cost_this_month': earlier + 1,
+                            'loss_recorded': loss is not None}
 
     def release(self, *, build_id: str) -> None:
         with self._pool.connection() as conn:

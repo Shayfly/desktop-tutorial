@@ -126,7 +126,10 @@ jobs:
       - name: Capability auditor (agent 47) -- no registry inflation
         run: python -m omni_prod.agent_os.audit
       - run: python scripts/run_hostile_static_suite.py
-      - run: python scripts/run_international_gate.py
+      - name: International gate (reads the pytest report above instead of running the suite a second time)
+        run: python scripts/run_international_gate.py
+        env:
+          OMNI_PYTEST_REPORT: pytest-report.xml
   publish-report:
     # smoke/ci-last-run.md: the latest main CI result, readable without job logs.
     # main pushes only. The bot never pushes to main: the report goes to the

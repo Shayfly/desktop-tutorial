@@ -1,0 +1,11 @@
+{
+ "name": "skill.perf.inline_image_weight",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G4",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "No image is inlined in the page as a data: URI larger than 500,000 base64 characters (about 370KB); a photo is served as a file the browser can cache."
+}

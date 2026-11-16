@@ -1,0 +1,29 @@
+{
+ "pr": "repair-stop-reason-ui",
+ "sha256": ["tests/test_repair_stop_reason_ui.py", "omni_prod/assets/app.js"],
+ "controls": [
+  {"id": "NC1", "what": "the customer's screen says nothing about why the repair stopped (warehouse 102 as it was found)",
+   "mutations": [{"file": "omni_prod/assets/app.js",
+                  "old": "  const words = t('repairStops') || {};",
+                  "new": "  return '';  // NEGATIVE CONTROL"}],
+   "targets": ["tests/test_repair_stop_reason_ui.py"],
+   "expect_failed": ["test_an_unchanged_repository_is_explained_in_the_customers_words",
+                     "test_every_reason_the_engines_can_emit_has_words_in_both_languages",
+                     "test_a_reason_without_words_is_shown_not_hidden"]},
+  {"id": "NC2", "what": "the worker drops the engine's reason from the job's evidence",
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "            'repair_stop_reason': getattr(result, 'stop_reason', None) or None,",
+                  "new": "            'repair_stop_reason': None,  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_repair_stop_reason_ui.py"],
+   "expect_failed": ["test_the_worker_stores_the_engines_reason_on_the_failed_job"]},
+  {"id": "NC3", "what": "the engine no longer stops on an unchanged repository and pays for identical rounds",
+   "mutations": [{"file": "omni_prod/autonomous_core.py",
+                  "old": "            if fingerprint in seen:",
+                  "new": "            if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_repair_stop_reason_ui.py", "tests/test_repair_stop_loss.py"],
+   "expect_failed": ["test_the_real_engine_stops_at_once_when_the_repository_did_not_change",
+                     "test_an_unchanged_repository_is_explained_in_the_customers_words",
+                     "test_unchanged_repository_stops_without_re_verifying",
+                     "test_cycle_stops_and_keeps_repository_paired_with_report"]}
+ ]
+}

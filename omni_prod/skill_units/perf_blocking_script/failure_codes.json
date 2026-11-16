@@ -1,0 +1,6 @@
+{
+ "SCRIPT_BLOCKING": {
+  "meaning": "an external script blocks rendering",
+  "fix": "add defer (or async, or type=\"module\") to the script tag"
+ }
+}

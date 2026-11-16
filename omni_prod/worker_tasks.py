@@ -1084,9 +1084,23 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
                 capability_evidence = {**capability_evidence, 'image_match': image_match}
         # 2026-11-15 ("סבא שמעון"): the customer's own photo, chosen as the main image as is, goes in unchanged
         from .uploaded_assets import install_main_image
+        from .window_catalog import install as install_window_gate   # A2 step 9: approved windows gate the build
+        install_window_gate(engine, prompt=build_prompt)
+        from .skill_units.gate import install as install_skill_gate   # owner 2026-11-16: skill units block (G3, G4, G6)
+        install_skill_gate(engine, 'G3')                              # accessibility
+        install_skill_gate(engine, 'G4')                              # performance budget
+        install_skill_gate(engine, 'G6')                              # secrets
+        install_skill_gate(engine, 'HE')                              # Hebrew: grammar, gender, translationese
+        install_skill_gate(engine, 'G10')                             # copy: filler and placeholders
+        install_skill_gate(engine, 'G11')                             # links: tel, anchors, address
+        for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview
+            install_skill_gate(engine, g)
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))
+        # production 2026-11-16 ("148 דלתות"): no raw 148ai-asset:// address reaches the browser (a broken image)
+        from .asset_markers import install as install_asset_marker_gate
+        install_asset_marker_gate(engine)
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
@@ -1346,6 +1360,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         evidence['billing'] = resolve_billing(subscriptions, build_id=build_id, ready=ready,
                                               spent=spent, external_calls=calls)
         actual_cost = spent if evidence['billing'] == 'settled' else None
+    from .skill_units.gate import report as skill_gate_report
+    evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,
@@ -1456,40 +1472,56 @@ def _run_live_build_job_with_components(build_id: str, *, jobs, workspace, compo
         InfrastructureProvisioningService, PostgresInfrastructureBindingRepository)
     from .providers.managed_web_saas import build_managed_web_saas_provisioner
     from .spec_repository import PostgresSpecRepository
-    _run_live_build_job(
-        build_id,
-        jobs=jobs,
-        platform=_v28,
-        workspace=workspace,
-        components_factory=components_factory,
-        quality_fn=assess_repository,
-        security_fn=hostile_repository_scan,
-        min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
-        # M5 Task 9: when an image provider is configured, media.image.generate
-        # (product icon / brand visual) is routed, executed, stored and verified;
-        # otherwise the requirement stays explicitly NOT_CONFIGURED.
-        capability_stage=build_image_capability_stage(
-            env=os.environ, repository=PostgresCapabilityRepository(_v28_pool),
-            artifact_store=getattr(workspace, 'storage', None),
-            journal=PostgresSubmissionJournal(_v28_pool),
-            worker_id=f'{socket.gethostname()}:{os.getpid()}',
-        ),
-        # M5 Task 6/7: contract-bound builds need their generated-app
-        # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an
-        # explicit NOT_CONFIGURED provisioner and the build fails closed.
-        infrastructure_stage=InfrastructureProvisioningService(
-            provisioner=build_managed_web_saas_provisioner(),
-            repository=PostgresInfrastructureBindingRepository(_v28_pool),
-        ),
-        infrastructure_environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview'),
-        # Checked after the job is claimed, so a misconfigured worker fails
-        # the build (and releases its credits) instead of leaving it QUEUED
-        # with credits reserved forever.
-        preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
-        spec_repo=PostgresSpecRepository(_v28_pool),
-        agent_recorder=agent_recorder,
-        attempt_pool=_v28_pool,
-    )
+    from .build_announcement import FailureWitness, announce_if_failed
+    from .conversation.store import PostgresConversationStore, schema_ready
+    # warehouse 77c (owner 2026-11-16): a failed build is said in the conversation, with one action
+    witness = FailureWitness(jobs)
+    try:
+        _run_live_build_job(
+            build_id,
+            jobs=witness,
+            platform=_v28,
+            workspace=workspace,
+            components_factory=components_factory,
+            quality_fn=assess_repository,
+            security_fn=hostile_repository_scan,
+            min_quality=int(os.getenv('OMNI_MIN_QUALITY_SCORE', '80')),
+            # M5 Task 9: when an image provider is configured, media.image.generate
+            # (product icon / brand visual) is routed, executed, stored and verified;
+            # otherwise the requirement stays explicitly NOT_CONFIGURED.
+            capability_stage=build_image_capability_stage(
+                env=os.environ, repository=PostgresCapabilityRepository(_v28_pool),
+                artifact_store=getattr(workspace, 'storage', None),
+                journal=PostgresSubmissionJournal(_v28_pool),
+                worker_id=f'{socket.gethostname()}:{os.getpid()}',
+            ),
+            # M5 Task 6/7: contract-bound builds need their generated-app
+            # infrastructure LIVE. Without OMNI_GENAPP_* configuration this is an
+            # explicit NOT_CONFIGURED provisioner and the build fails closed.
+            infrastructure_stage=InfrastructureProvisioningService(
+                provisioner=build_managed_web_saas_provisioner(),
+                repository=PostgresInfrastructureBindingRepository(_v28_pool),
+            ),
+            infrastructure_environment=os.getenv('OMNI_GENAPP_BUILD_ENVIRONMENT', 'preview'),
+            # Checked after the job is claimed, so a misconfigured worker fails
+            # the build (and releases its credits) instead of leaving it QUEUED
+            # with credits reserved forever.
+            preflight=lambda: ensure_durable_workspace(workspace, purpose='Durable async build'),
+            spec_repo=PostgresSpecRepository(_v28_pool),
+            agent_recorder=agent_recorder,
+            attempt_pool=_v28_pool,
+        )
+    finally:
+        conversation = PostgresConversationStore(_v28_pool) if _v28_pool is not None and schema_ready(_v28_pool) else None
+        announce_if_failed(witness, conversation=conversation, request=_safe_request(jobs, build_id), build_id=build_id)
+
+
+def _safe_request(jobs, build_id):
+    try:
+        return jobs.get_request(build_id)
+    except Exception:
+        logging.getLogger(__name__).exception('BUILD_FAILED_NOT_ANNOUNCED build=%s: the job request is unreadable', build_id)
+        return None
 
 
 # --------------------------------------------------------------------------
