@@ -325,12 +325,14 @@ def _bindable_images(attachments) -> list[dict]:
 class ConversationSupervisor:
     def __init__(self, *, briefs, store, gateway=None, architect: ChiefArchitect | None = None, credits: int | None = None,
                  budget_usd: Decimal = Decimal('0.50'), context=None, worker_interpreter=None,
-                 reservations=None, enqueue=None, admission=None):
+                 reservations=None, enqueue=None, admission=None, credits_from_plan: bool = False):
         self.briefs = briefs            # brief repository (latest/save) -- the source of truth
         self.store = store              # conversation store (messages, plans)
         self.gateway = gateway
         self.architect = architect or ChiefArchitect()
         self.credits = credits
+        # True only when `credits` was read from THIS account's plan. A default is not a price: it is never said as one.
+        self.plan_credits = credits if credits_from_plan and credits is not None else None
         self.budget_usd = budget_usd
         self.context = context or (lambda project_id: {})   # durable build/version state (read-only)
         self.worker_interpreter = worker_interpreter           # injected in tests
@@ -529,7 +531,7 @@ class ConversationSupervisor:
         if held is not None:
             return held
         from ..intake import approval_flow as AF
-        t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
+        t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief, self.plan_credits)
         items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
                        key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
         summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
@@ -551,7 +553,7 @@ class ConversationSupervisor:
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
                     for k in d.customer_exclusions(row.brief)]      # 77: said in the spec the customer approves
         return [t['stage1'] + ' —', t['spec'].format(summary=summary or '—'), *excluded, *canon['lines'],
-                t['range'].format(lo=lo, hi=hi), t['gate1']]
+                AF.range_line(lang, lo, hi), t['gate1']]
 
     def _plan(self, project_id, row):
         try:
@@ -757,7 +759,7 @@ class ConversationSupervisor:
                 return cached['plan']
             return self.architect.plan(C.build(row.brief), budget_usd=self.budget_usd, status='PROPOSED')
         plan, record = AF.verified_plan(make_plan, row.brief, row.fingerprint)
-        lo_hi = AF.cost_range(row.brief)
+        lo_hi = AF.cost_range(row.brief, self.plan_credits)
         parts = [t['stage2'] + ' —']
         turn.venice = {'agent': 'agent.venice', 'mode': 'planning', 'stage': t['stage2'], 'cost_range_credits': list(lo_hi)}
         turn.interpretation = {'verification': record}
@@ -1491,8 +1493,8 @@ class ConversationSupervisor:
         if intent == 'cost':
             if not plan or not row.complete:               # before gate 1 the range is said, never hidden
                 from ..intake import approval_flow as AF
-                lo, hi = AF.cost_range(row.brief)
-                return AF.text(lang)['range'].format(lo=lo, hi=hi) + ' ' + T['cost_unknown']
+                lo, hi = AF.cost_range(row.brief, self.plan_credits)
+                return AF.range_line(lang, lo, hi) + ('' if lo == hi else ' ' + T['cost_unknown'])
             return T['cost'].format(credits=self.credits if self.credits is not None else '—',
                                     cap=plan['budget']['graph_authorized_usd'])
         if intent == 'feasibility':
