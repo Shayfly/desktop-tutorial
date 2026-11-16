@@ -35,18 +35,16 @@ class WorkflowConcurrencyTests(unittest.TestCase):
         def read(name):
             return yaml.safe_load((ROOT / '.github/workflows' / name).read_text(encoding='utf-8'))
         jobs = read('v24-ci.yml')['jobs']
-        # the owner, 2026-11-16 00:30: `test` may be skipped on a DRAFT pull request only -- exactly this condition,
-        # nothing scope-based -- and ready_for_review re-runs it; `light` runs on every push, drafts too
-        self.assertEqual(jobs['test'].get('if'),
-                         "github.event_name != 'pull_request' || github.event.pull_request.draft == false")
-        self.assertIn('ready_for_review', read('v24-ci.yml')[True]['pull_request']['types'])
+        self.assertNotIn('if', jobs['test'])
+        # 2026-11-16: `light` runs on every push and blocks a deleted line with no signed declaration (the owner).
+        # `test` is never skipped: a skipped required check reads as passing (an independent review found that a
+        # re-run of a draft-era run would report it skipped on a ready head, so the draft skip was not carried).
         self.assertNotIn('if', jobs['light'])
-        # 2026-11-16: `light` measures undeclared deletions and says them; it never fails a PR on them. Blocking is
-        # identity.yml's, in a freeze. A blocking step here would make every PR wait for the owner's signature.
-        [declared] = [s for s in jobs['light']['steps'] if 'deletions_declared.py "$anchor"' in s.get('run', '')]
-        self.assertIn('deletions_declared.py "$anchor" \\\n', declared['run'])
-        self.assertIn('|| echo "::notice title=light deletions::', declared['run'])
-        self.assertIn('scripts/test_fast.sh', [s.get('run') for s in jobs['light']['steps']])
+        runs = [s.get('run', '') for s in jobs['light']['steps']]
+        self.assertIn('scripts/test_fast.sh', runs)
+        [declared] = [r for r in runs if 'deletions_declared.py "$anchor"' in r]
+        self.assertTrue(declared.rstrip().endswith('python3 scripts/deletions_declared.py "$anchor"'))   # its exit code decides
+        self.assertNotIn('ready_for_review', str(read('v24-ci.yml')[True]['pull_request']))
         self.assertIn("needs.changes.outputs.heavy == 'true'", jobs['browser-tests']['if'])
         pg_jobs = read('intake-budget-pg.yml')['jobs']
         pg = pg_jobs['pg-tests']

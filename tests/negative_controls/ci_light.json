@@ -7,12 +7,12 @@
  "controls": [
   {
    "id": "NC1",
-   "what": "the light job fails every PR that rewrites a line until the owner signs a declaration",
+   "what": "the light job only reports a deleted line with no signed declaration (documentation, not protection)",
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
-     "old": "          python3 scripts/deletions_declared.py \"$anchor\" \\\n            || echo \"::notice title=light deletions::lines deleted without a signed declaration -- measured, not blocking here (identity.yml blocks them in a freeze)\"\n",
-     "new": "          python3 scripts/deletions_declared.py \"$anchor\"\n"
+     "old": "          python3 scripts/deletions_declared.py \"$anchor\"\n",
+     "new": "          python3 scripts/deletions_declared.py \"$anchor\" || echo \"::notice::measured\"\n"
     }
    ],
    "targets": [
@@ -24,12 +24,12 @@
   },
   {
    "id": "NC2",
-   "what": "the full test job is skipped by a scope condition, not only on a draft",
+   "what": "the full test job is skipped on a draft (a skipped required check reads as passing)",
    "mutations": [
     {
      "file": ".github/workflows/v24-ci.yml",
-     "old": "    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false\n",
-     "new": "    if: needs.changes.outputs.code == 'true'\n"
+     "old": "  test:\n    runs-on: ubuntu-latest\n",
+     "new": "  test:\n    if: github.event.pull_request.draft == false\n    runs-on: ubuntu-latest\n"
     }
    ],
    "targets": [
