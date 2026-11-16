@@ -65,7 +65,7 @@
   },
   {
    "id": "NC4",
-   "what": "the screen sends only the ticked windows, so a rejection is never recorded",
+   "what": "the screen sends only the ticked windows, so a rejection is never recorded (caught in node, which CI runs everywhere)",
    "mutations": [
     {
      "file": "omni_prod/assets/app.js",
@@ -77,7 +77,7 @@
     "tests/test_window_approval.py"
    ],
    "expect_failed": [
-    "test_the_customer_ticks_and_the_approval_sends_every_window"
+    "test_read_sends_every_window_ticked_or_not_in_node"
    ]
   }
  ]

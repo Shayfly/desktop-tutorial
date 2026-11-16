@@ -118,6 +118,22 @@
   PASS, and `window_catalog.json` 7/7 still PASS. The 28 specs that touch the changed files: 23 PASS. 5
   (item3-route, item4, pr154 NC2, pr176, preview-durable-backend) need fastapi and fail identically on main `c38fbb4`.
 - **Not checked here:** the API route itself (no fastapi in this container; CI runs it); a real paid build with windows.
+# 2026-11-16 — the v24-ci test job no longer runs the whole suite twice (Claude Code)
+
+- **What broke:** #418's `test` job was cancelled at its 20-minute bound, and a cancelled check is not green. The
+  bound is also the CI-cost policy's maximum (`tests/test_ci_workflow_concurrency.py`).
+- **Root cause:** the job ran pytest (7.7 min), then the negative controls (4.8 min), then
+  `scripts/run_international_gate.py`, which **ran the whole pytest suite again** (another ~7.7 min). On #417 the job
+  already took 17.7 minutes; the tests and controls I added today pushed it over.
+- **Fix:** the gate reads the junit report the first run wrote in the same job (`OMNI_PYTEST_REPORT=pytest-report.xml`,
+  set in v24-ci), through `scripts/junit_report.verdict`. A missing, unreadable or empty report, or any failure or
+  error, fails the gate loudly; skips are counted and said. Without the variable (a local run) the gate runs pytest as
+  before.
+- **Evidence:** `tests/test_ci_junit_report.py` 6 tests on junit files that pytest itself wrote, plus the workflow and
+  the gate as committed. Negative controls `ci_junit_report.json` 3/3 (failures counted as green; an empty report
+  green; the workflow not handing the report over). The real gate run with a report: `exit=0` in 2 seconds, with
+  `pytest: 8 tests, 0 failures, 0 errors, 0 skipped`.
+
 # 2026-11-16 — warehouse 107 (was 82): the stored customer session is checked on production and fails out loud (Claude Code)
 
 - **Implemented:** `scripts/customer_session_check.py` and the job `.github/workflows/customer-session.yml` (daily at 04:17 UTC and manual).
