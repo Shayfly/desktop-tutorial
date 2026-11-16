@@ -1,0 +1,31 @@
+name: Customer session
+
+# Warehouse 107 (owner 2026-11-16): the stored non-founder customer session (secret CUSTOMER_STORAGE_STATE) is checked
+# against production every day. A missing secret, a 401 or the founder's account fails the job with a readable
+# ::error -- never a skip (scripts/customer_session_check.py, tests/test_ci_customer_session.py).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: customer-session
+  cancel-in-progress: false
+
+jobs:
+  customer-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Load the customer session and check it on production
+        env:
+          BASE_URL: https://148aiv28.vercel.app
+          CUSTOMER_STORAGE_STATE: ${{ secrets.CUSTOMER_STORAGE_STATE }}
+        run: python3 scripts/customer_session_check.py

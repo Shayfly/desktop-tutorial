@@ -69,6 +69,95 @@
   worker not installing it.
 - **Not checked:** pages other than the butcher page. The word lists are a start, not full coverage of Hebrew.
 
+# 2026-11-16 — warehouse 105: colours by business category, from a data file; the old default blue is gone (Claude Code)
+
+- **Root cause:** the colour question recommended `'blue'` and `requirements_text` defaulted to `'blue'`, which mapped to
+  `--color-primary: #1d4ed8`. Every customer who stated no colour got the same blue.
+- **Implemented:**
+  - `omni_prod/vertical_palettes.json` holds 10 palettes (primary, accent, background, ink) and the 32 categories of
+    `reference_catalog.CATEGORIES`, each with its palette and the words that identify it in a brief.
+  - `omni_prod/vertical_palettes.py` checks the file against the catalogue at load. A category without a palette, an
+    unknown palette, a category outside the catalogue, or a colour that is not `#rrggbb` raises PaletteError.
+  - The colour question now recommends `category` ("לפי סוג העסק").
+  - When the customer stated no colour, the Design line carries the category's palette. When the category is not
+    recognised, the line says so and asks for a readable palette, with no hidden default.
+  - A colour the customer stated still wins.
+  - The stated "blue" is now `#1e40af`, so `#1d4ed8` is nowhere in `omni_prod`.
+- **Evidence:** `tests/test_vertical_palettes.py` 10 tests. They cover all 32 categories mapped; a vertical without a
+  palette failing (plus 3 other broken files); contrast of at least 4.5:1 for primary on white and ink on background, in
+  every palette; each category recognised by its own words; the butcher and dental briefs getting different palettes;
+  the stated colour winning; and an unknown business being said, not defaulted. Negative controls
+  `tests/negative_controls/vertical_palettes.json` 4/4. Every spec that touches the changed files passes: cafe-real-rows
+  4/4, first-agent-brief-slice 5/5, image-answer-loop 6/6, latest-answer-wins 2/2, uploaded-main-image 14/14,
+  window-catalog 7/7. Four older tests asserted the old blue default
+  (`test_discovery_and_approval`, `test_intake_palette_preservation` ×2, `test_wp1_gap_detector` ×2). They now assert
+  the owner's rule.
+- **Not checked:** a real build with the new palette (it needs a paid build).
+# 2026-11-16 — the customer approves or rejects each window (Claude Code)
+
+- **Owner's order:** an approval screen for windows. Each window is offered with a one-sentence benefit; the customer
+  approves or rejects it. Acceptance: a rejected window is not built; an approved one enters fact_canon; the gate fails a
+  build missing an approved window.
+- **Implemented:**
+  - `window_catalog.BENEFITS` holds one sentence per window, Hebrew and English, and `offer()` builds the offer.
+  - `discovery.decide_windows` records approved and rejected windows in the brief (customer only). An unknown id raises
+    KeyError; a decision that is not a bool raises ValueError.
+  - `discovery.window_offer` makes the offer, websites only.
+  - `requirements_text` adds a "Rejected windows ... do not add them" line, and the gate fails a page that has a rejected
+    window (`WINDOW_REJECTED`).
+  - Gate 1's approve_spec action and the proposal card both carry the offer. `approve_spec(windows=...)` saves the
+    decisions before the approval, so the approval binds to the fingerprint that includes them, the same way as the
+    waiver.
+  - The API (`V28SpecApproval.windows`) refuses an unknown window with 400 `unknown_window`.
+  - UI: `windowsChoice()` in app.js renders one row per window, with label, benefit and a 44px target. It is used on
+    both approval screens, and it sends EVERY offered window, ticked as true and unticked as false. A window left
+    unticked is recorded as rejected, which the screen says.
+- **Evidence:** `tests/test_window_approval.py` 13 tests. They run the real supervisor up to gate 1, approve_spec with
+  decisions, the saved brief, build_canon, and the real engine with the window gate; and windowsChoice() with app.css in
+  real Chromium (click a row, read() sends all 8). Negative controls `tests/negative_controls/window_approval.json` 4/4
+  PASS, and `window_catalog.json` 7/7 still PASS. The 28 specs that touch the changed files: 23 PASS. 5
+  (item3-route, item4, pr154 NC2, pr176, preview-durable-backend) need fastapi and fail identically on main `c38fbb4`.
+- **Not checked here:** the API route itself (no fastapi in this container; CI runs it); a real paid build with windows.
+# 2026-11-16 — warehouse 107 (was 82): the stored customer session is checked on production and fails out loud (Claude Code)
+
+- **Implemented:** `scripts/customer_session_check.py` and the job `.github/workflows/customer-session.yml` (daily at 04:17 UTC and manual).
+  The job gives the secret `CUSTOMER_STORAGE_STATE` (a Playwright storage_state of a non-founder customer) to the check. The check
+  opens `GET /api/v28/me` on production with the `148ai_session` cookie. Each failure is its own readable `::error` and exit 1, never a
+  skip: `MISSING` (secret absent or empty, with how to set it), `MALFORMED`, `UNAUTHORIZED` (401: expired or revoked), `FOUNDER`
+  (the founder's account proves nothing about customers), `UNEXPECTED`. The cookie value is never printed.
+- **Evidence:** `tests/test_ci_customer_session.py` 9 tests (ci-fast). They run the real HTTP client against a local server that
+  answers like `/api/v28/me`, and read the workflow as committed. Negative controls `tests/negative_controls/customer_session.json`
+  4/4 PASS (missing secret as a skip; 401 accepted; founder accepted; the step skipped when the secret is absent).
+  Run here without the secret: `::error title=customer session MISSING::the secret CUSTOMER_STORAGE_STATE is not set or is empty; ...` exit 1.
+- **Blocked by a named credential:** the secret `CUSTOMER_STORAGE_STATE` does not exist yet. The owner creates it (a test customer
+  that is not the founder). Until then the daily job fails with MISSING. That is the acceptance, said out loud.
+- **Not checked:** a live 200 on production (needs the secret).
+# 2026-11-16 — warehouse 112: every test file is run by a CI job (Claude Code)
+
+- **Found:** 16 test files that need PostgreSQL (they end in `_pg.py` or read `M4D2_DATABASE_URL`) were run by no job. `v24-ci`
+  has no database, so they skipped there, and `intake-budget-pg` runs an explicit list that did not name them. #404 was the same gap.
+- **Implemented:** `scripts/ci_test_coverage.py` (runs in the `fast` job as `tests/test_ci_test_coverage.py`). It fails loudly when:
+  a PostgreSQL file is neither in the pg job's list nor in `tests/pg_not_yet_run.txt` with a reason; a listed file no longer exists;
+  a waiver has no reason, is stale or is also listed; or `v24-ci` stops running every test (`python -m pytest -q --junitxml=...`).
+  The 16 files were added to `intake-budget-pg.yml`. A file that fails in CI's real Postgres moves to `pg_not_yet_run.txt` with the exact failure.
+- **Evidence:** `tests/test_ci_test_coverage.py` 5 passed. Negative controls `tests/negative_controls/ci_test_coverage.json` 4/4 PASS
+  (a new pg file no job runs; the database variable counted; a waiver without a reason; the general run narrowed).
+  `python scripts/ci_test_coverage.py` → `PASS (0 problem(s))`.
+- **Bug of mine found on the way:** the test file named the database variable, so the check flagged the test itself as needing
+  PostgreSQL. Fixed by splitting the string; that the check caught its own test is extra evidence that it works.
+- **The first pg run (#416, 2026-11-16) judged the 16 files:** 6 failed / 509 passed / 7 skipped. The 6 failures were
+  in three files that ran there before (`test_intake_assistant_he`, `test_conversation_os`, `test_intake_approve_and_goal`:
+  the interpreter label read 'model-via-worker', and the API answered 500). The cause is module and environment state
+  that the new files leave behind in the shared process. Two new files skipped: `test_profit_billing_events_pg` needs
+  `OMNI_PROFIT_TEST_DATABASE_URL`, and `test_m4d2b_parity_and_worker` must run in a process that has not imported
+  investor_app.
+- **The second pg run (each file alone):** 13 of 15 pass. Two still fail alone and are waived with their exact failure
+  in `tests/pg_not_yet_run.txt`: `test_conversation_os` (1 failed / 37 passed) and `test_m4d2b_parity_and_worker`
+  (3 failed: no eligible model route for local-coder; a modification classification None instead of 'system_bug').
+  The same run timed out the negative-controls step (5 minutes). On main after #415 that step took 4m39s, because my
+  skill-gate specs run real engine builds. The bound is now 10 minutes.
+- **The change:** 15 files run in a new step, each in its own process, and a skip there is an `::error`. The profit
+  billing file is in `tests/pg_not_yet_run.txt` with its reason. The focused list is back to what it was.
 # 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
 
 - **Owner's order:** wire the 5 a11y skills into G3 (each skill fails a build when it fails), 5 performance skills plus

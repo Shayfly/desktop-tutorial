@@ -125,6 +125,7 @@ const T = {
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
+    windowsTitle:'חלונות באתר', windowsHint:'סמנו כל חלון שתרצו באתר. חלון שלא מסומן לא ייבנה.',
     canonAck:'אני מאשר/ת בנייה בלי הפרטים החסרים שלמעלה (הם לא יומצאו, והחלק שתלוי בהם יושמט)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
@@ -252,6 +253,7 @@ const T = {
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
+    windowsTitle:'Windows on the site', windowsHint:'Tick each window you want on the site. A window left unticked is not built.',
     canonAck:'I confirm building without the missing details above (they are not invented; the part that needs them is left out)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
@@ -762,7 +764,8 @@ async function approveAndBuild() {
   const m = $('propMsg'); if (m) m.textContent = t('propApproving');
   try {
     applyConversation(await api(specApprovalPath(), { method: 'POST',
-      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey() } }));
+      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey(),
+              windows: S.proposalWindows ? S.proposalWindows.read() : undefined } }));
     await requestBriefPlan(false);
     if (S.plan && S.plan.can_build) await startBuild();
     else if (m) m.textContent = (S.plan && S.plan.blocked_reason) ? S.plan.blocked_reason.message : t('readinessBlocked');
@@ -773,6 +776,7 @@ function proposalCard() {
   if (!pr) return [];
   if (!pr.ok || !pr.cards) return [h('section', { class: 'proposal pending' }, h('p', {}, t('propNotYet')))];
   const price = proposalPrice(pr.price);
+  S.proposalWindows = windowsChoice(pr.windows);
   const rowsOf = card => card.rows.map((r, i) => {
     const open = S.proposalOpen === r.key;
     const editor = open ? h('div', { class: 'rowEdit' },
@@ -801,6 +805,7 @@ function proposalCard() {
     h('div', { class: 'propLists' },
       h('div', {}, h('h3', {}, t('propIncluded')), h('ul', {}, pr.included.map(x => h('li', {}, x)))),
       h('div', {}, h('h3', {}, t('propExcluded')), h('ul', {}, pr.excluded.map(x => h('li', {}, x))))),
+    S.proposalWindows.node,
     h('div', { class: 'row propActions' },
       h('button', { type: 'button', class: 'primary', id: 'approveAndBuildBtn',
                     disabled: Boolean(S.build && !isTerminal(S.build.status)), onclick: approveAndBuild }, t('propApprove')),
@@ -1597,6 +1602,17 @@ function quickReplies(questions) {
         o.label, q.suggested === o.value ? ' ✓' : '')) : []),
       q.delegable ? h('button', { type: 'button', class: 'del', onclick: () => answerQuick(q, '__delegate__', t('delegateShort')) }, t('delegateShort')) : null))));
 }
+// owner 2026-11-16: the approval screen offers each window with its one-sentence benefit; the customer approves (ticks)
+// or rejects (leaves unticked) each one. read() is what the approval sends: every offered window, true or false.
+function windowsChoice(offer) {
+  if (!offer || !offer.length) return { node: null, read: () => undefined };
+  const boxes = offer.map(w => h('input', { type: 'checkbox', checked: w.state === 'approved', 'data-window': w.id }));
+  const node = h('fieldset', { class: 'windowsChoice' }, h('legend', {}, t('windowsTitle')),
+    h('p', { class: 'hint' }, t('windowsHint')),
+    ...offer.map((w, i) => h('label', { class: 'windowOpt', 'data-window': w.id }, boxes[i],
+      h('span', { class: 'wtext' }, h('b', {}, w.label), h('span', { class: 'benefit' }, w.benefit)))));
+  return { node, read: () => Object.fromEntries(offer.map((w, i) => [w.id, Boolean(boxes[i].checked)])) };
+}
 function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
@@ -1606,8 +1622,11 @@ function actionButtons(actions) {
     if (a.type === 'approve_spec') {
       // Michael 2026-11-10 condition 3: an incomplete fact canon needs an explicit tick before the spec is approved.
       const incomplete = a.canon && a.canon.status === 'CANON_INCOMPLETE';
+      const wins = windowsChoice(a.windows);
+      if (wins.node) out.push(wins.node);
       const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => sendChat(
-        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false },
+        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false,
+          windows: wins.read() },
         t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec'));
       const box = incomplete ? h('input', { type: 'checkbox', id: 'canonAck', onchange: (e) => { btn.disabled = !e.target.checked; } }) : null;
       if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));

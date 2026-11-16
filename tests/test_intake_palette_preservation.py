@@ -19,13 +19,14 @@ class PalettePreservationTests(unittest.TestCase):
         colour = next(p.value for p in proposals if p.field == 'color')
         self.assertEqual(colour, 'כחול, לבן')
         contract = from_brief(d.start(PROMPT, mode=d.RECOMMEND))
-        self.assertEqual(contract.design_preferences['palette_css'], ['#1d4ed8', '#ffffff'])
+        # warehouse 105: the stated blue is #1e40af (the old default blue's hex is gone from the product)
+        self.assertEqual(contract.design_preferences['palette_css'], ['#1e40af', '#ffffff'])
 
     def test_builder_receives_valid_primary_and_full_palette(self):
         brief = d.answer(d.start('Build a website'), {'color': 'כחול ולבן'})
         text = d.requirements_text(brief)
-        self.assertIn('primary colour #1d4ed8', text)
-        self.assertIn('palette #1d4ed8, #ffffff', text)
+        self.assertIn('primary colour #1e40af', text)
+        self.assertIn('palette #1e40af, #ffffff', text)
         self.assertNotIn('primary colour כחול ולבן', text)
 
     def test_single_and_repeated_hex_colours_survive_conversation(self):
