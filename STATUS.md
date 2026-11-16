@@ -8,6 +8,19 @@
 - **Not done:** the units are not yet a gate (G3, stage D) -- nothing calls them in a build. 98 of the 103 catalogue skills remain.
   Static only: contrast is judged only where a rule sets both colours; a browser measurement is not claimed.
 
+# 2026-11-16 — warehouse 111: production no longer deploys on every push to main (Claude Code)
+
+- **What broke:** there is no test environment; Vercel built production on every push to main, so every merge went straight to
+  customers.
+- **Fix:** `scripts/vercel_ignore_build.mjs` (the project's Ignored Build Step): production builds only a release -- a commit whose
+  message carries `[release]` (written in the merge commit), or a manual production deploy with `OMNI_RELEASE=1`. Anything else on
+  production is skipped and the build log says why; production stays on the last released SHA. Previews still build automatically.
+  The test that asserted "production always builds" encoded the behaviour the owner stopped; it changed in the open.
+- **Evidence:** `tests/test_vercel_ignore_build.py` 8 tests (the real script in node, Vercel's variables); controls
+  `production_on_release.json` 3/3.
+- **Not covered (blocked by a no-touch path):** the build worker is still deployed by `.github/workflows/deploy-worker.yml` on every
+  push to main; changing it touches `.github/workflows/`, which is outside this agent's paths. Recorded in WAREHOUSE.md.
+- **Until a test environment exists:** every check runs against a fixed deployment URL, not the moving production alias.
 # 2026-11-16 — warehouse 77c: a failed build is said in the conversation, with one action (Claude Code)
 
 - **What broke:** a customer whose build failed saw nothing in the conversation; the failure lived only in the build tab.
