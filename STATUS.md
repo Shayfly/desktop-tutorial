@@ -1,3 +1,28 @@
+# 2026-11-16 — warehouse 105: colours by business category, from a data file; the old default blue is gone (Claude Code)
+
+- **Root cause:** the colour question recommended `'blue'` and `requirements_text` defaulted to `'blue'`, which mapped to
+  `--color-primary: #1d4ed8`. Every customer who stated no colour got the same blue.
+- **Implemented:**
+  - `omni_prod/vertical_palettes.json` holds 10 palettes (primary, accent, background, ink) and the 32 categories of
+    `reference_catalog.CATEGORIES`, each with its palette and the words that identify it in a brief.
+  - `omni_prod/vertical_palettes.py` checks the file against the catalogue at load. A category without a palette, an
+    unknown palette, a category outside the catalogue, or a colour that is not `#rrggbb` raises PaletteError.
+  - The colour question now recommends `category` ("לפי סוג העסק").
+  - When the customer stated no colour, the Design line carries the category's palette. When the category is not
+    recognised, the line says so and asks for a readable palette, with no hidden default.
+  - A colour the customer stated still wins.
+  - The stated "blue" is now `#1e40af`, so `#1d4ed8` is nowhere in `omni_prod`.
+- **Evidence:** `tests/test_vertical_palettes.py` 10 tests. They cover all 32 categories mapped; a vertical without a
+  palette failing (plus 3 other broken files); contrast of at least 4.5:1 for primary on white and ink on background, in
+  every palette; each category recognised by its own words; the butcher and dental briefs getting different palettes;
+  the stated colour winning; and an unknown business being said, not defaulted. Negative controls
+  `tests/negative_controls/vertical_palettes.json` 4/4. Every spec that touches the changed files passes: cafe-real-rows
+  4/4, first-agent-brief-slice 5/5, image-answer-loop 6/6, latest-answer-wins 2/2, uploaded-main-image 14/14,
+  window-catalog 7/7. Four older tests asserted the old blue default
+  (`test_discovery_and_approval`, `test_intake_palette_preservation` ×2, `test_wp1_gap_detector` ×2). They now assert
+  the owner's rule.
+- **Not checked:** a real build with the new palette (it needs a paid build).
+
 # 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
 
 - **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
