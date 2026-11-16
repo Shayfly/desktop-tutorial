@@ -122,7 +122,10 @@
     "tests/test_a2_extract.py"
    ],
    "expect_failed": [
+    "test_a_linked_stylesheet_that_did_not_load_is_rejected_not_measured",
+    "test_a_page_with_no_style_of_its_own_is_rejected_no_styles",
     "test_dark_and_light_hero",
+    "test_every_field_says_who_set_it",
     "test_hero_and_rhythm",
     "test_no_text_of_the_site_is_kept",
     "test_nothing_left_the_machine",
