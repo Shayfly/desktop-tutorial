@@ -152,7 +152,7 @@ def _ui_page():
 class TheScreen(unittest.TestCase):
     """app.js's own windowsChoice() and h() in a real Chromium page."""
 
-    def test_the_customer_ticks_and_the_approval_sends_every_window(self):
+    def test_the_screen_shows_every_window_with_its_benefit_and_a_row_click_ticks_it(self):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:  # pragma: no cover
@@ -172,9 +172,32 @@ class TheScreen(unittest.TestCase):
             self.assertIn('חלון שלא מסומן לא ייבנה', pg.locator('.windowsChoice').inner_text())
             self.assertGreaterEqual(pg.locator('.windowOpt').first.bounding_box()['height'], 44)
             pg.locator('.windowOpt[data-window="age_gate"]').click()          # the whole row is the target
-            sent = pg.evaluate('W.read()')
+            ticked = pg.evaluate("[...document.querySelectorAll('.windowOpt input')].map(i => i.checked)")
             b.close()
-        self.assertEqual(sent, {w: w == 'age_gate' for w in W.CATALOG})     # every window, approved or rejected
+        # the click on the row ticks its box (read()'s content is checked in node, where CI can run it)
+        self.assertEqual(ticked, [w == 'age_gate' for w in W.CATALOG])
+
+    def test_read_sends_every_window_ticked_or_not_in_node(self):
+        """The same app.js windowsChoice() and h() in node with a minimal DOM (CI has node but no browser): an offer
+        with one approved window, one more ticked, the rest left as they are -- read() sends all 8, true or false."""
+        import shutil
+        import subprocess
+        if not shutil.which('node'):  # pragma: no cover
+            self.skipTest('node runs app.js')
+        translations, h, choice = _ui_page()
+        offer = W.offer('he', approved=['age_gate'])
+        dom = ("class El{constructor(t){this.nodeType=1;this.tagName=t;this.attrs={};this.children=[];this.checked=false}"
+               "setAttribute(k,v){this.attrs[k]=v;if(k==='checked')this.checked=true}append(...k){this.children.push(...k)}"
+               "addEventListener(){}set className(v){this.attrs.class=v}}\n"
+               "const document={createElement:t=>new El(t)};\n"
+               "function inputs(n,out=[]){if(n&&n.tagName==='input')out.push(n);for(const c of (n&&n.children)||[])inputs(c,out);return out;}\n")
+        js = (dom + translations + "\nconst S={lang:'he'};\nfunction t(k){return T[S.lang][k];}\n" + h + '\n' + choice +
+              f'\nconst W = windowsChoice({json.dumps(offer, ensure_ascii=False)});'
+              "\nfor (const i of inputs(W.node)) if (i.attrs['data-window'] === 'cookie_banner') i.checked = true;"
+              '\nconsole.log(JSON.stringify({sent: W.read(), rows: inputs(W.node).length}));')
+        out = json.loads(subprocess.run(['node', '-e', js], capture_output=True, text=True, check=True).stdout)
+        self.assertEqual(out['rows'], len(W.CATALOG))
+        self.assertEqual(out['sent'], {w: w in ('age_gate', 'cookie_banner') for w in W.CATALOG})
 
     def test_both_approval_screens_send_the_decisions(self):
         src = APP.read_text(encoding='utf-8')
