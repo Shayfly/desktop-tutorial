@@ -44,7 +44,8 @@ class PostgresReferenceStoreTests(unittest.TestCase):
     def setUp(self):
         from omni_prod.reference_store import PostgresReferenceStore
         with self.pool.connection() as conn:
-            for table in ('collect_queue', 'category_adjacency', 'reference_cards'):
+            for table in ('offer_alerts', 'offer_rejections', 'reference_offers', 'collect_queue',
+                          'category_adjacency', 'reference_cards'):
                 conn.execute(f'DELETE FROM {table}')
         self.store = PostgresReferenceStore(self.pool)
 
@@ -97,6 +98,27 @@ class PostgresReferenceStoreTests(unittest.TestCase):
         self.store.request_collect('pgt_fish', 'domain_rejected', 'brf_2')
         mine = [r for r in self.store.open_collect_requests() if r['category'] == 'pgt_fish']
         self.assertEqual(mine, [{'category': 'pgt_fish', 'reason': 'domain_rejected', 'brief_id': 'brf_1'}])
+
+    def test_the_alert_on_real_tables_ten_of_thirty_then_every_five_reset_only_by_the_owner(self):
+        from omni_prod import reference_offers as O
+        from tests.test_reference_offers import at, run_alert_scenario
+        self.assertEqual(run_alert_scenario(self.store), [10, 15, 20])
+        self.assertEqual(O.status_report(self.store, ['cafes'])['alerts'],
+                         [{'category': 'cafes', 'rejections': 20, 'offers': 30, 'alerts': 3}])
+        O.owner_changed(self.store, 'cafes', by='shai', now=at(300))
+        self.assertEqual(O.status_report(self.store, ['cafes'])['alerts'], [])
+        self.assertIsNone(O.check_alert(self.store, 'cafes', now=at(301)))
+
+    def test_what_a_customer_rejected_is_not_offered_to_that_customer_again(self):
+        from omni_prod import reference_offers as O
+        self.store.add_card(card(911, vertical='cafes'), extraction_version='x1')
+        self.store.add_card(card(912, vertical='cafes', total=8), extraction_version='x1')
+        first = O.next_offer(self.store, brief_id='b', category='cafes', now=NOW, want=1)['cards'][0]
+        O.reject(self.store, brief_id='b', category='cafes', level='domain', card_id=first.card_id, signal='disliked',
+                 now=NOW)
+        self.assertNotEqual(O.next_offer(self.store, brief_id='b', category='cafes', now=NOW, want=1)['cards'][0].card_id,
+                            first.card_id)
+        self.assertEqual(self.store.rejected_keys('b'), {O.card_key(first.card_id)})
 
 
 if __name__ == '__main__':

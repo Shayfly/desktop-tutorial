@@ -1,0 +1,89 @@
+{
+ "pr": "not-run-list",
+ "sha256": [
+  "tests/test_not_run_list.py",
+  "tests/test_attribution_per_criterion.py",
+  "omni_prod/release_policy.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the report's not_run list is empty whatever did not run (warehouse 104 as it was found: a count, no names)",
+   "mutations": [
+    {
+     "file": "omni_prod/release_policy.py",
+     "old": "        return [{'stage': c.stage, 'check': c.check, 'status': c.status, 'required': c.required, 'reason': c.detail}\n                for c in self.checks if c.status in (NOT_RUN, UNKNOWN, NO_CHECKS)]",
+     "new": "        return []  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_not_run_list.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_died_in_its_tests_names_every_check_it_never_reached",
+    "test_a_build_whose_browser_check_did_not_run_stores_it_by_name",
+    "test_a_ready_build_stores_only_advisory_entries",
+    "test_a_ready_build_with_an_advisory_check_not_run_still_says_so",
+    "test_a_required_check_that_did_not_run_is_listed_and_blocks_ready",
+    "test_the_failed_build_names_the_five_checks_in_the_customers_words",
+    "test_zero_executed_tests_are_listed_not_passed"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the stored evidence drops the list (the report knows, the record does not)",
+   "mutations": [
+    {
+     "file": "omni_prod/release_policy.py",
+     "old": "                'not_run': self.not_run,\n",
+     "new": "                'not_run': [],  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_not_run_list.py"
+   ],
+   "expect_failed": [
+    "test_a_build_that_died_in_its_tests_names_every_check_it_never_reached",
+    "test_a_build_whose_browser_check_did_not_run_stores_it_by_name",
+    "test_a_ready_build_stores_only_advisory_entries",
+    "test_a_ready_build_with_an_advisory_check_not_run_still_says_so",
+    "test_the_failed_build_names_the_five_checks_in_the_customers_words"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the customer's screen says nothing about checks that did not run",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "  const names = t('checkNames') || {};",
+     "new": "  return '';  // NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_not_run_list.py"
+   ],
+   "expect_failed": [
+    "test_the_failed_build_names_the_five_checks_in_the_customers_words",
+    "test_a_ready_build_with_an_advisory_check_not_run_still_says_so"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a failed verify command is attributed to every criterion of the spec, not to its own (warehouse 106 as it was found)",
+   "mutations": [
+    {
+     "file": "omni_prod/remote_sandbox.py",
+     "old": "                failures.extend(AcceptanceFailure(aid,verify_failure_message(check.name,check.argv,r['returncode'],'remote verification failed')+(f' at {p}' if p else ''),_window(out)) for aid in check.acceptance_ids)",
+     "new": "                failures.extend(AcceptanceFailure(aid,verify_failure_message(check.name,check.argv,r['returncode'],'remote verification failed')+(f' at {p}' if p else ''),_window(out)) for aid in valid)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_attribution_per_criterion.py"
+   ],
+   "expect_failed": [
+    "test_one_verify_entry_per_criterion_fails_only_the_criterion_whose_test_failed"
+   ]
+  }
+ ]
+}

@@ -9,6 +9,10 @@ paid the actual. Three things leave 148AI paying more than it collected:
                            which cannot be pushed onto the customer mid-build
   unreconciled_unknown     an UNKNOWN liability resolved by billing evidence
                            at an amount above what was reserved
+  failed_build_refunded    a build that FAILED after the provider was paid:
+                           the customer is refunded in full (release_failed),
+                           so the whole provider cost is ours (warehouse 103,
+                           owner 2026-11-15; migration 044)
 
 Every one of these must be a row, not a log line: `company_loss_events` is the
 only durable answer to "how much did we lose, and on what". The ledger is
@@ -30,7 +34,8 @@ Q = Decimal('0.00000001')
 METERED_OVERRUN = 'metered_overrun'
 BUDGET_CAPPED_SHORTFALL = 'budget_capped_shortfall'
 UNRECONCILED_UNKNOWN = 'unreconciled_unknown'
-CAUSES = (METERED_OVERRUN, BUDGET_CAPPED_SHORTFALL, UNRECONCILED_UNKNOWN)
+FAILED_BUILD_REFUNDED = 'failed_build_refunded'
+CAUSES = (METERED_OVERRUN, BUDGET_CAPPED_SHORTFALL, UNRECONCILED_UNKNOWN, FAILED_BUILD_REFUNDED)
 
 def _q(value) -> Decimal:
     return Decimal(str(value)).quantize(Q, rounding=ROUND_CEILING)
@@ -66,6 +71,26 @@ def record_overrun(cur, *, source: str, idempotency_key: str, quoted_usd, actual
          quoted, actual, overrun, cause, json.dumps(evidence or {}, default=str, ensure_ascii=False)),
     )
     return overrun
+
+def record_failed_build(cur, *, build_id: str, account_id: str | None, project_id: str | None, actual_usd,
+                        funding_source: str | None, truth: str | None) -> Decimal | None:
+    """Warehouse 103: the provider cost of a build that FAILED is a loss row. The customer paid nothing (quoted 0: the
+    credits went back), the provider was paid `actual_usd`. One row per build (idempotent on `failed-build:<id>`),
+    inside the caller's transaction, so the refund and its loss commit together. A failed build with no provider
+    cost writes nothing (there is no loss). Internal-QA builds are recorded too -- the money left either way -- and
+    the roll-up can group them by `evidence.funding_source`.
+
+    `truth` is the settlement basis (subscription_store._basis): ACTUAL or COMPUTED_FROM_USAGE were measured;
+    CONSERVATIVE_RESERVATION means nothing was measured and `actual_usd` is the reservation's estimate. The ledger's
+    rule is "always actual - quoted, never an estimate", so that case writes nothing and the caller says so
+    (review finding of 2026-11-15 on #401)."""
+    if truth == 'CONSERVATIVE_RESERVATION':
+        return None
+    return record_overrun(cur, source='release_failed', idempotency_key=f'failed-build:{build_id}',
+                          quoted_usd=0, actual_usd=actual_usd, cause=FAILED_BUILD_REFUNDED, build_id=build_id,
+                          account_id=account_id, project_id=project_id,
+                          evidence={'funding_source': funding_source, 'provider_cost_truth': truth,
+                                    'refund': 'credits released in full (DELIVERY-001)'})
 
 def rollup(cur, *, since: str | None = None) -> dict:
     """Company loss grouped by cause. `since` is a timestamptz text or None."""

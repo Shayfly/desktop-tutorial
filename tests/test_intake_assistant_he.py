@@ -238,7 +238,8 @@ class QuestionSkillTests(unittest.TestCase):
         from omni_prod.intake.question_skills import PLAYBOOKS, checklist
         from omni_prod.intake.interpreter import contextual_user
         self.assertEqual(set(PLAYBOOKS), set(FAMILIES))
-        self.assertEqual(checklist(None), list(PLAYBOOKS['web_app']))
+        with self.assertRaises(LookupError):   # warehouse 69: no silent web-app default (this line used to assert it)
+            checklist(None)
         user = contextual_user('אני רוצה משחק פלטפורמה קטן לטלפון', None, [])
         self.assertIn('expert_checklist', user)
         self.assertTrue(user.endswith('אני רוצה משחק פלטפורמה קטן לטלפון'))

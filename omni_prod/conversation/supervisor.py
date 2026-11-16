@@ -122,6 +122,7 @@ class Turn:
     gate: str | None = None                        # 'spec': this turn asked for gate 1 (approve the spec)
     venice: dict | None = None                     # agent.venice: mode, the visible stage, the cost range
     blocked: list = field(default_factory=list)    # feasibility blockers said in this turn (no plan before gate 1)
+    unsupported: str | None = None                 # A0 (warehouse 69): the family refused in this turn (no output profile)
 
     def to_dict(self, lang: str) -> dict:
         return {'intent': self.intent, 'language': self.language, 'reply': self.reply,
@@ -129,7 +130,8 @@ class Turn:
                               for q in self.questions],
                 'actions': self.actions, 'plan_id': self.plan_id,
                 'plan': _plan_view(self.plan) if self.plan else None, 'contract': self.contract,
-                'interpretation': self.interpretation, 'gaps': self.gaps, 'venice': self.venice}
+                'interpretation': self.interpretation, 'gaps': self.gaps, 'venice': self.venice,
+                'unsupported': self.unsupported}
 
 
 def _plan_view(plan: dict) -> dict:
@@ -166,6 +168,10 @@ _TXT = {
            'verify': 'רק לוודא — הבנתי מהבקשה: {label}. נכון?',
            'safe_default': 'לא קיבלתי תשובה על {topic}, אז הפעלתי ברירת מחדל בטוחה: {label}. אפשר לשנות בכל רגע בלשונית "דרישות".',
            'card_blocked': 'חסרה החלטה על {topic}, ובלעדיה לא ממשיכים. אפשר לבחור בלשונית "דרישות".',
+           'image_still': 'עדיין חסרה לי תשובה על {topic} כדי להמשיך. אפשר ללחוץ על אחד הכפתורים, או לכתוב במילים: {opts}.',
+           'image_still_text': 'עדיין חסר לי משפט קצר על התמונה כדי להמשיך — למשל "הדלת של החנות" או "סבא שמעון, הבעלים".',
+           'rephrase_q': 'עוד לא קיבלתי תשובה לשאלה הזאת. אפשר ללחוץ על אחת האפשרויות למטה, או לכתוב אותה במילים.',
+           'rephrase': 'לא זיהיתי שינוי מההודעה הקודמת. כתבו מה תרצו לשנות או להוסיף, או שאלו "מה חסר?".',
            'safe_suffix': ' (ברירת מחדל בטוחה)',
            'why': 'למה אני שואל: {why}', 'unsure': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי" ואבחר {rec}. תמיד אפשר לשנות אחר כך.',
            'unsure_norec': 'אם לא בטוחים, אפשר ללחוץ "בחרו עבורי". תמיד אפשר לשנות אחר כך.',
@@ -175,10 +181,15 @@ _TXT = {
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
            'image_change': 'שינוי של התמונה עצמה עוד לא זמין אצלנו. אפשר להשתמש בה כמו שהיא, או רק כהשראה.',
+           'image_hero_taken': 'כבר יש בדף תמונה ראשית אחת. בחרו לתמונה הזו מקום אחר.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
     'en': {'safe_default': 'No answer on {topic}, so I applied a safe default: {label}. You can change it any time in the "Requirements" tab.',
            'card_blocked': 'A decision on {topic} is missing, and we cannot continue without it. You can choose in the "Requirements" tab.',
+           'image_still': 'I still need an answer about {topic} to continue. Press one of the buttons, or write it in words: {opts}.',
+           'image_still_text': 'I still need a short sentence about the image to continue, for example "the shop door" or "Shimon, the owner".',
+           'rephrase_q': 'I have not had an answer to this question yet. Press one of the options below, or write it in words.',
+           'rephrase': 'I did not see anything new since the last message. Tell me what to change or add, or ask "what is missing?".',
            'safe_suffix': ' (safe default)',
            'got': 'Got it', 'assumed': 'I chose for you (change anything any time)', 'ask': 'To continue I need one short answer',
            'content_saved': 'I saved the content you wrote in the project summary, exactly as written. Any earlier approval is cancelled; please approve the updated version.',
@@ -211,6 +222,7 @@ _TXT = {
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
            'attached_bound': '(I saved {n} in the project request.)',
            'image_change': 'Changing the image itself is not available yet. It can be used as is, or as inspiration only.',
+           'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
 }
@@ -222,11 +234,15 @@ SHORT = {
     'he': {'audience': 'קהל', 'goal': 'מטרה', 'login': 'התחברות', 'personal_data': 'פרטים אישיים', 'access_scope': 'גישה',
            'screens': 'מסכים', 'languages': 'שפה', 'content': 'תוכן התחלתי', 'dates': 'תאריכים', 'duplicates': 'כפילויות',
            'style': 'סגנון', 'color': 'צבע', 'font': 'גופן', 'logo': 'לוגו', 'references': 'השראה',
-           'content_only': 'אתר תוכן בלבד', 'unavailable': 'יכולת שאינה זמינה כרגע'},
+           'content_only': 'אתר תוכן בלבד', 'unavailable': 'יכולת שאינה זמינה כרגע',
+           'image_kind': 'מה בתמונה', 'image_identity': 'מי או מה בתמונה', 'image_use': 'מה לעשות עם התמונה',
+           'image_place': 'איפה התמונה תופיע'},
     'en': {'audience': 'audience', 'goal': 'goal', 'login': 'sign-in', 'personal_data': 'personal data', 'access_scope': 'access',
            'screens': 'screens', 'languages': 'language', 'content': 'starting content', 'dates': 'dates',
            'duplicates': 'duplicates', 'style': 'style', 'color': 'colour', 'font': 'font', 'logo': 'logo',
-           'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability'},
+           'references': 'references', 'content_only': 'content-only site', 'unavailable': 'an unavailable capability',
+           'image_kind': 'what is in the image', 'image_identity': 'who or what is in the image',
+           'image_use': 'what to do with the image', 'image_place': 'where the image goes'},
 }
 # "I don't know / what? / why?" -- explain why the open question matters and
 # offer the recommendation, instead of repeating the same sentence.
@@ -638,6 +654,7 @@ class ConversationSupervisor:
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
                     turn.actions.append(action)
+        turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
@@ -656,6 +673,7 @@ class ConversationSupervisor:
                                                'actions': turn.actions, 'plan_id': turn.plan_id,
                                                **({'gate': turn.gate} if getattr(turn, 'gate', None) else {}),
                                                **({'blocked': turn.blocked} if getattr(turn, 'blocked', None) else {}),
+                                               **({'unsupported': turn.unsupported} if turn.unsupported else {}),
                                                **({'venice': turn.venice} if getattr(turn, 'venice', None) else {})},
                                interpreter=(turn.interpretation or {}).get('interpreter', 'deterministic'),
                                cost_usd=turn.cost_usd, request_key=request_key,
@@ -784,13 +802,46 @@ class ConversationSupervisor:
         c = complexity.classify(message, history, confirmed=confirmed, proposed=proposed)
         return c, lanes.choose(c.level)
 
+    def _route_output(self, row, message, lang) -> Turn | None:
+        """A0 (warehouse 69, released 2026-11-15): the output type is decided before the interpreter, the model and
+        the brief. A type without an output profile is refused in the customer's words -- "not yet; this, yes" --
+        with no default chosen, no question asked, no brief saved and no model called. The exit is the keyboard:
+        the customer describes the site or app instead and the conversation continues as usual.
+        A new project reads the whole message (the classifier's rules). A project that already has a brief refuses
+        only an EXPLICIT request for another product, so an answer that mentions games in passing never restarts it."""
+        if not message:
+            return None
+        from ..intake.families import classify_family, requested_family
+        from ..output_profile import route
+        family = classify_family(message) if row is None else requested_family(message)
+        if family is None:
+            return None
+        routing = route(family)                  # a family the registry does not know raises here, never defaults
+        if routing.supported:
+            return None
+        turn = Turn('requirements', lang, routing.not_yet(lang), row, [])
+        turn.unsupported = family
+        turn.actions.append({'type': 'describe_web_instead', 'family': family})
+        return turn
+
     def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
         if row is not None and message and not answers and not attachments:
             # the customer answers "who is in the photo?" by typing: the message IS that answer, not a new request
             asked = d.next_image_question(row.brief)
-            if asked is not None and asked.kind == 'text' and self._last_asked(project_id) == asked.id:
+            awaiting = self._awaiting(project_id)
+            if asked is not None and asked.kind == 'text' and (asked.id in awaiting or asked.field in awaiting):
                 answers, message = {asked.id: message[:300]}, ''
+            elif asked is not None and (asked.id in awaiting or asked.field in awaiting):
+                # warehouse 113 (owner 2026-11-16): a typed answer to an image choice ("זאת הדלת של החנות") is read by
+                # words -- the loop asked again and again because only a button could answer it
+                from ..intake.image_answers import answers_for
+                typed = answers_for(asked, message)
+                if typed:
+                    answers, message = typed, ''
+        refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model
+        if refused is not None:
+            return refused
         cls, lane = (self._classify(project_id, row, message) if message else (None, None))
         interp = None
         if message:
@@ -827,6 +878,8 @@ class ConversationSupervisor:
                 new_brief.assets['logo'] = {k:a[k] for k in ('id','sha256','mime','size_bytes')}
                 new_brief = d.answer(new_brief, {'logo':'later'})
         images = _bindable_images(attachments)
+        decided = {img.get('sha256') for img in new_brief.assets.get('images') or ()}
+        images = [a for a in images if a['sha256'] not in decided]    # an image whose role is decided is not re-asked
         if images and not (len(attachments) == 1 and re.search(r'לוגו|\blogo\b', message, re.I)):
             # Production 2026-11-15 ("סבא שמעון"): any other image was dropped silently. Now it is bound to the brief
             # and the customer is asked what it is for (image_use, never delegated). A NEW image asks again.
@@ -897,6 +950,8 @@ class ConversationSupervisor:
             turn.cost_state, turn.reservation_id = interp.cost_state, interp.reservation_id
         turn.gaps = gaps
         parts = []
+        if any(k.startswith('image_place_') for k in answers) and row.brief.hints.get('image_hero_taken') == 'yes':
+            parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
         if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):
             parts.append(T['image_change'])          # not recorded: the question stays open (discovery._settle_image)
         # The model's conversational advice is not an action: the authoritative
@@ -993,6 +1048,32 @@ class ConversationSupervisor:
         self._card_limit(project_id, account_id, turn, lang, T, request_key)
         return turn
 
+    def _not_repeated(self, project_id, turn, T) -> str:
+        """Warehouse 113: the assistant never sends the same message twice in a row. When nothing moved, it says so in
+        other words (and, with a question card, points at the card) instead of repeating itself."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return turn.reply
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        if not last or (last.get('content') or '').strip() != (turn.reply or '').strip():
+            return turn.reply
+        if list(((last.get('interpretation') or {}).get('asked') or ())) != [q.id for q in turn.questions]:
+            return turn.reply                     # the same short line over a NEW question card is progress, not a repeat
+        alt = T['rephrase_q'] if turn.questions else T['rephrase']
+        return alt if alt.strip() != (last.get('content') or '').strip() else alt + ' (' + T['ask_one'].rstrip(':') + ')'
+
+    def _awaiting(self, project_id) -> set:
+        """What the last assistant turn waits for: the question ids it showed (`asked`) and the fields it said were
+        blocking (`blocked`). A typed answer is read against these only, never against a question nobody asked."""
+        try:
+            prev = self.store.messages_for(project_id, limit=6)
+        except Exception:
+            return set()
+        last = next((m for m in reversed(prev) if m.get('role') == 'assistant'), None)
+        meta = (last or {}).get('interpretation') or {}
+        return set(meta.get('asked') or ()) | set(meta.get('blocked') or ())
+
     def _last_asked(self, project_id) -> str | None:
         """The question id the last assistant turn showed (stored as `asked`), or None."""
         try:
@@ -1022,6 +1103,13 @@ class ConversationSupervisor:
         if not d.needs_customer(q, row.brief) or self._cards_shown(project_id, q.id) < CARD_LIMIT:
             return
         topic = _short(q.field, lang)
+        if q.field in d.IMAGE_FIELDS:
+            # warehouse 113: the image's role has no safe default and is never delegated, so blocking it behind the
+            # Requirements tab left the customer with no way forward in the chat. The card stays, with its buttons,
+            # and the text says how to answer -- in words or by a button.
+            turn.reply = T['image_still'].format(
+                topic=topic, opts=' / '.join(o.he if lang == 'he' else o.en for o in q.options)) if q.options else T['image_still_text']
+            return
         if q.field in SAFE_DEFAULT:
             brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
             value = SAFE_DEFAULT[q.field]

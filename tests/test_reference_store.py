@@ -26,11 +26,14 @@ def _statements(sql):
 
 class Migration043(unittest.TestCase):
     def test_043_is_the_newest_and_the_manifest_requires_it(self):
-        from omni_prod.schema_manifest import EXPECTED_VERSIONS, REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME
-        found = discover_migrations(UP.parent)
-        self.assertEqual((found[-1].version, found[-1].name), (43, 'reference_store'))
-        self.assertEqual((REQUIRED_MIGRATION, REQUIRED_MIGRATION_NAME, EXPECTED_VERSIONS[-1]),
-                         (43, '043_reference_store', 43))
+        # 2026-11-15 (P0-c, migration 044): this pinned 043 as the newest migration, which every later migration must
+        # move. What it means is kept: 043 is shipped, and the code requires at least it.
+        from omni_prod.schema_manifest import EXPECTED_VERSIONS, REQUIRED_MIGRATION
+        found = {m.version: m.name for m in discover_migrations(UP.parent)}
+        self.assertEqual(found.get(43), 'reference_store')
+        self.assertIn(43, EXPECTED_VERSIONS)
+        self.assertGreaterEqual(REQUIRED_MIGRATION, 43)
+        self.assertEqual(REQUIRED_MIGRATION, max(found))        # the newest shipped migration is the required one
 
     def test_additive_only_and_touches_nothing_that_exists(self):
         stmts = _statements(UP.read_text())
