@@ -433,3 +433,4 @@ body.signed-in main{flex:1;min-height:0;display:flex;flex-direction:column}
 .propPrice{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}.propPrice b{font-size:1.6rem}
 .propLists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
 @media (max-width:520px){.propLists{grid-template-columns:1fr}}
+.statusline.bad{color:var(--bad);border-color:var(--bad)}

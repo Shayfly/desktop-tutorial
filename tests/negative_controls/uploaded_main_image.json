@@ -58,24 +58,26 @@
     "tests/test_uploaded_main_image.py"
    ],
    "expect_failed": [
-    "test_as_is_binds_the_photo_and_generates_nothing"
+    "test_as_is_binds_the_photo_and_generates_nothing",
+    "test_only_a_photo_in_the_main_place_replaces_generation"
    ]
   },
   {
    "id": "NC4",
-   "what": "a page without the customer's photo is accepted",
+   "what": "a page without one of the customer's placed photos is accepted",
    "mutations": [
     {
      "file": "omni_prod/uploaded_assets.py",
-     "old": "        if state == 'ok':\n            return report",
-     "new": "        if True:  # NEGATIVE CONTROL\n            return report"
+     "old": "        if not problems:\n            return report\n        return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)\n\n\ndef install_main_image",
+     "new": "        if True:  # NEGATIVE CONTROL\n            return report\n        return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)\n\n\ndef install_main_image"
     }
    ],
    "targets": [
     "tests/test_uploaded_main_image.py"
    ],
    "expect_failed": [
-    "test_a_page_without_the_photo_is_not_accepted"
+    "test_a_page_without_the_photo_is_not_accepted",
+    "test_every_placed_photo_must_be_on_the_page"
    ]
   },
   {
@@ -101,8 +103,8 @@
    "mutations": [
     {
      "file": "omni_prod/uploaded_assets.py",
-     "old": "        if mime not in EXT or hashlib.sha256(data).hexdigest() != digest:\n            raise ValueError('uploaded main image integrity mismatch')",
-     "new": "        if mime not in EXT:  # NEGATIVE CONTROL\n            raise ValueError('uploaded main image integrity mismatch')"
+     "old": "        if mime not in EXT or hashlib.sha256(data).hexdigest() != digest:\n            raise ValueError('uploaded image integrity mismatch')",
+     "new": "        if mime not in EXT:  # NEGATIVE CONTROL\n            raise ValueError('uploaded image integrity mismatch')"
     }
    ],
    "targets": [
@@ -132,19 +134,19 @@
   },
   {
    "id": "NC8",
-   "what": "the photo's alt ignores the role the customer gave",
+   "what": "the photo's alt is not the role the customer gave",
    "mutations": [
     {
      "file": "omni_prod/uploaded_assets.py",
-     "old": "    if role:\n        return role.group(1)",
-     "new": "    if False:  # NEGATIVE CONTROL\n        return role.group(1)"
+     "old": "m[3], m[7], row.get('width')",
+     "new": "m[3], 'image', row.get('width')"
     }
    ],
    "targets": [
     "tests/test_uploaded_main_image.py"
    ],
    "expect_failed": [
-    "test_kind_then_who_then_what_to_do_and_the_role_reaches_alt_and_canon"
+    "test_the_worker_installs_every_placed_photo_from_the_brief"
    ]
   },
   {
@@ -170,7 +172,7 @@
    "mutations": [
     {
      "file": "omni_prod/discovery.py",
-     "old": "    if image:   # Michael 2026-11-15: the image's role is part of what the customer approves",
+     "old": "    if images:   # Michael 2026-11-15: the image's role is part of what the customer approves",
      "new": "    if False:   # NEGATIVE CONTROL"
     }
    ],
@@ -201,6 +203,65 @@
     "test_kind_then_who_then_what_to_do_and_the_role_reaches_alt_and_canon",
     "test_the_production_upload_is_bound_and_asked_what_it_is_first",
     "test_the_whole_conversation_reaches_the_spec_with_the_photo"
+   ]
+  },
+  {
+   "id": "NC12",
+   "what": "a second main image is accepted (one per page)",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        if place == 'hero' and main_image(new) is not None:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_main_image.py"
+   ],
+   "expect_failed": [
+    "test_one_main_image_per_page_said_and_asked_again"
+   ]
+  },
+  {
+   "id": "NC13",
+   "what": "an 'as is' photo is decided without asking where it goes",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "        if v['image_use'] == 'as_is' and not place:\n            return new",
+     "new": "        if False:  # NEGATIVE CONTROL\n            return new"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_main_image.py"
+   ],
+   "expect_failed": [
+    "test_a_new_image_asks_its_role_again",
+    "test_a_quote_in_the_role_cannot_break_the_alt",
+    "test_as_is_binds_the_photo_and_generates_nothing",
+    "test_kind_then_who_then_what_to_do_and_the_role_reaches_alt_and_canon",
+    "test_one_main_image_per_page_said_and_asked_again",
+    "test_only_a_photo_in_the_main_place_replaces_generation",
+    "test_the_whole_conversation_reaches_the_spec_with_the_photo",
+    "test_the_worker_installs_every_placed_photo_from_the_brief",
+    "test_two_photos_two_places_two_markers"
+   ]
+  },
+  {
+   "id": "NC14",
+   "what": "a decided photo uploaded again is asked about again",
+   "mutations": [
+    {
+     "file": "omni_prod/conversation/supervisor.py",
+     "old": "        images = [a for a in images if a['sha256'] not in decided]",
+     "new": "        images = images  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_main_image.py"
+   ],
+   "expect_failed": [
+    "test_a_decided_photo_uploaded_again_is_not_asked_again"
    ]
   }
  ]

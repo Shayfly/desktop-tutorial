@@ -63,11 +63,13 @@ class TheUploadIsBoundAndAsked(unittest.TestCase):
         self.assertEqual(_asked(t), ['image_use'])
         self.assertEqual(d.BY_ID['image_use'].recommended, 'as_is')          # suggested by kind
         t = s.turn(project_id='p', account_id='a', answers={'image_use': 'as_is'}, lang='he')
+        self.assertEqual(_asked(t), ['image_place_person'])                 # then: where on the page
+        self.assertEqual(d.BY_ID['image_place_person'].recommended, 'hero')
+        t = s.turn(project_id='p', account_id='a', answers={'image_place_person': 'hero'}, lang='he')
         brief = briefs.latest('p').brief
-        self.assertIn(f'{d.MAIN_IMAGE_ALT_PREFIX}person: "{WHO}"', d.requirements_text(brief))
-        self.assertIn(f'תמונה שהעלית (אדם): {WHO} — תופיע בדף כמו שהיא.', d.gate_canon(brief)['lines'])
-        from omni_prod.uploaded_assets import main_image_alt
-        self.assertEqual(main_image_alt(brief.prompt + '\n' + d.requirements_text(brief)), WHO)
+        self.assertIn(f'role person: "{WHO}"', d.requirements_text(brief))
+        self.assertIn(f'תמונה שהעלית (אדם): {WHO} — תופיע בדף כמו שהיא, התמונה הראשית בראש הדף.',
+                      d.gate_canon(brief)['lines'])
 
     def test_the_whole_conversation_reaches_the_spec_with_the_photo(self):
         s, briefs = _conversation()
@@ -165,9 +167,10 @@ class AsIsMeansAsIs(unittest.TestCase):
 
     def test_as_is_binds_the_photo_and_generates_nothing(self):
         from omni_prod.product_architect import ProductArchitect
-        b = self._brief('as_is')
+        b = d.answer(self._brief('as_is'), {'image_place_person': 'hero'})
         text = d.requirements_text(b)
-        self.assertIn(f'{d.MAIN_IMAGE_PREFIX}{PHOTO["id"]}; sha256={PHOTO["sha256"]}.', text)
+        self.assertIn(f'{d.UPLOADED_IMAGE_PREFIX}1 attachment: {PHOTO["id"]}; sha256={PHOTO["sha256"]}; '
+                      f'src="{d.MAIN_IMAGE_MARKER}"; placement: hero;', text)
         self.assertIn(d.MAIN_IMAGE_MARKER, text)
         keys = [r.key for r in ProductArchitect().compile(b.prompt + '\n' + text, project_id='p',
                                                           contract_version=1).capability_plan.requirements]
@@ -237,11 +240,17 @@ class TheWorkerUsesTheBytes(unittest.TestCase):
         self.assertTrue(MainImageExecutor(_Executor(passing={good}), img).execute(
             repository={'app.py': good}, spec='s').passed)
 
-    def test_the_worker_installs_it_from_the_brief_line(self):
+    def test_the_worker_installs_every_placed_photo_from_the_brief(self):
         from unittest.mock import MagicMock, patch
         from omni_prod import uploaded_assets as U
         digest = hashlib.sha256(self.DATA).hexdigest()
-        prompt = SHIMON + f'\n{d.MAIN_IMAGE_PREFIX}{PHOTO["id"]}; sha256={digest}. This is the customer\'s own photo.'
+        b = d.start(SHIMON)
+        for n, (kind, who, place) in enumerate((('person', WHO, 'hero'), ('product', 'שיפודי פרגית', 'products')), 1):
+            b.assets['image'] = {**PHOTO, 'id': f'att_{n:032x}', 'sha256': digest}
+            for a in ({'image_kind': kind}, {f'image_who_{kind}': who}, {'image_use': 'as_is'},
+                      {f'image_place_{kind}': place}):
+                b = d.answer(b, a)
+        prompt = b.prompt + '\n' + d.requirements_text(b)
         row = {'sha256': digest, 'mime': 'image/jpeg', 'width': 1080, 'height': 1920}
         engine = MagicMock(spec=['executor', 'repository_transform'])
         engine.repository_transform = None
@@ -250,14 +259,76 @@ class TheWorkerUsesTheBytes(unittest.TestCase):
             Repo.return_value.read.return_value = self.DATA
             out = U.install_main_image(engine, prompt=prompt, pool=object(), store=object(), project_id='p',
                                        account_id='a')
-        self.assertIn('1080x1920 px', out)
-        self.assertIsInstance(engine.executor, U.MainImageExecutor)
+        self.assertIn(f'- image 1: src="148ai-asset://upload/1"; place: hero; 1080x1920 px; image/jpeg; alt="{WHO}"', out)
+        self.assertIn('- image 2: src="148ai-asset://upload/2"; place: products; 1080x1920 px; image/jpeg; '
+                      'alt="שיפודי פרגית"', out)
+        self.assertEqual([i.alt for i in engine.executor.images], [WHO, 'שיפודי פרגית'])
         self.assertEqual(U.install_main_image(engine, prompt=SHIMON, pool=None, store=None, project_id='p',
                                               account_id='a'), SHIMON)   # no photo line: nothing changes
         row['sha256'] = '0' * 64
         with patch.object(U, 'AttachmentRepository') as Repo, self.assertRaises(ValueError):
             Repo.return_value.get.return_value = row
             U.install_main_image(engine, prompt=prompt, pool=object(), store=object(), project_id='p', account_id='a')
+
+    def test_every_placed_photo_must_be_on_the_page(self):
+        from omni_prod.uploaded_assets import MAIN_ACCEPTANCE_ID, MainImageExecutor, _MainImage
+        from tests.test_repair_stop_loss import _Executor
+        a = _MainImage(self.DATA, 'image/jpeg', hashlib.sha256(self.DATA).hexdigest(), WHO, index=1, place='hero')
+        other = self.DATA + b'skewers'
+        b = _MainImage(other, 'image/jpeg', hashlib.sha256(other).hexdigest(), 'שיפודים', index=2, place='products')
+        only_first = f'<img src="{a.uri}" alt="{WHO}">'
+        report = MainImageExecutor(_Executor(passing={only_first}), [a, b]).execute(
+            repository={'app.py': only_first}, spec='s')
+        self.assertFalse(report.passed)
+        self.assertEqual([f.acceptance_id for f in report.failures], [MAIN_ACCEPTANCE_ID])
+        self.assertIn('148ai-asset://upload/2', report.failures[0].message)
+
+
+class SeveralPlaces(unittest.TestCase):
+    """Michael 2026-11-15, step 3: a page holds several images, and "where" decides the place."""
+
+    def _decide(self, b, n, kind, who, place):
+        b.assets['image'] = {**PHOTO, 'id': f'att_{n:032x}', 'sha256': f'{n:x}' * 64}
+        for a in ({'image_kind': kind}, {f'image_who_{kind}': who}, {'image_use': 'as_is'}):
+            b = d.answer(b, a)
+        return d.answer(b, {f'image_place_{kind}': place})
+
+    def test_two_photos_two_places_two_markers(self):
+        b = self._decide(d.start(SHIMON), 1, 'person', WHO, 'hero')
+        b = self._decide(b, 2, 'product', 'שיפודי פרגית', 'products')
+        self.assertEqual([(i['place'], i['marker']) for i in d.placed_images(b)],
+                         [('hero', '148ai-asset://upload/1'), ('products', '148ai-asset://upload/2')])
+        self.assertNotIn('image', b.assets)                                    # decided: ready for the next one
+        self.assertEqual(len(d.image_canon_lines(b)), 2)
+
+    def test_one_main_image_per_page_said_and_asked_again(self):
+        b = self._decide(d.start(SHIMON), 1, 'person', WHO, 'hero')
+        b = self._decide(b, 2, 'place', 'הדלפק', 'hero')
+        self.assertEqual(len(d.placed_images(b)), 1)
+        self.assertEqual(b.hints.get('image_hero_taken'), 'yes')
+        self.assertEqual(d.next_image_question(b).id, 'image_place_place')
+        b = d.answer(b, {'image_place_place': 'gallery'})
+        self.assertEqual([i['place'] for i in d.placed_images(b)], ['hero', 'gallery'])
+
+    def test_the_place_is_suggested_by_kind(self):
+        self.assertEqual({k: d.BY_ID[f'image_place_{k}'].recommended for k in ('person', 'product', 'place', 'other')},
+                         {'person': 'hero', 'product': 'products', 'place': 'hero', 'other': 'gallery'})
+
+    def test_only_a_photo_in_the_main_place_replaces_generation(self):
+        b = self._decide(d.start(SHIMON), 1, 'product', 'שיפודים', 'products')
+        self.assertEqual(d.image_exclusions(b), [])                 # the generated main image is still made
+        b = self._decide(b, 2, 'person', WHO, 'hero')
+        self.assertEqual(d.image_exclusions(b), ['media.image.generate'])
+
+    def test_a_decided_photo_uploaded_again_is_not_asked_again(self):
+        s, briefs = _conversation()
+        s.turn(project_id='p', account_id='a', message='התמונה', attachments=[PHOTO], lang='he')
+        for a in ({'image_kind': 'person'}, {'image_who_person': WHO}, {'image_use': 'as_is'},
+                  {'image_place_person': 'hero'}):
+            s.turn(project_id='p', account_id='a', answers=a, lang='he')
+        t = s.turn(project_id='p', account_id='a', message='שוב התמונה', attachments=[PHOTO], lang='he')
+        self.assertNotIn('image', briefs.latest('p').brief.assets)
+        self.assertNotIn('image_kind', _asked(t))
 
 
 if __name__ == '__main__':

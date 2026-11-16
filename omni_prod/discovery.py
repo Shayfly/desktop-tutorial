@@ -75,6 +75,9 @@ GROUP_TITLES = {
 }
 
 IMAGE_KINDS = ('person', 'product', 'place', 'logo', 'other')
+IMAGE_PLACES = ('hero', 'story', 'products', 'gallery')
+IMAGE_PLACES_HE = {'hero': 'התמונה הראשית בראש הדף', 'story': 'ליד הסיפור שלנו', 'products': 'באזור המוצרים',
+                   'gallery': 'בגלריה'}
 _IMAGE_WHO = {   # the identity question, by kind (Michael 2026-11-15)
     'person': ('מי בתמונה, ומה התפקיד שלו או שלה בעסק?', 'Who is in the photo, and what is their role in the business?',
                'למשל: "סבא שמעון, הבעלים". זה ייכתב בתיאור התמונה בדף.'),
@@ -112,6 +115,13 @@ IMAGE_QUESTIONS = (
              'And what should I do with it? I suggest inspiration only.', _IMAGE_USE_WHY, _IMAGE_USE_WHY_EN,
              options=_IMAGE_USE_OPTIONS, recommended='inspiration', delegable=False,
              ask_if=lambda v: bool(v.get('_image')) and v.get('image_kind') == 'other' and bool(v.get('image_identity'))),
+    # Michael 2026-11-15 (step 3): a page holds several images, and "where" decides the place -- suggested by kind
+    *(Question(f'image_place_{kind}', 'image_place', 'design',
+               f'איפה בדף היא תופיע? ההמלצה שלי: {IMAGE_PLACES_HE[rec]}.', f'Where on the page? I suggest: {rec}.',
+               'תמונה ראשית יש אחת בדף; בשאר המקומות אפשר כמה.', 'A page has one main image; other places take several.',
+               options=tuple(_o(p, IMAGE_PLACES_HE[p], p) for p in IMAGE_PLACES), recommended=rec, delegable=False,
+               ask_if=lambda v, k=kind: bool(v.get('_image')) and v.get('image_kind') == k and v.get('image_use') == 'as_is')
+      for kind, rec in (('person', 'hero'), ('product', 'products'), ('place', 'hero'), ('other', 'gallery'))),
 )
 
 
@@ -431,18 +441,25 @@ def customer_exclusions(brief: 'Brief') -> list[str]:
     return [k for k in unpriced_keys(brief) if excludable(k)]
 
 
-MAIN_IMAGE_MARKER = '148ai-asset://upload/1'
-MAIN_IMAGE_PREFIX = 'Uploaded main image attachment: '
-MAIN_IMAGE_ALT_PREFIX = 'Uploaded main image role (its alt is these exact words): '
+UPLOAD_MARKER = '148ai-asset://upload/'
+UPLOADED_IMAGE_PREFIX = 'Uploaded image '
+MAIN_IMAGE_MARKER = UPLOAD_MARKER + '1'      # the first placed image (kept for readers of #385/#388)
+_SECTION = {'hero': 'the main (hero) image at the top of the page', 'story': 'the story/about section',
+            'products': 'the products section', 'gallery': 'a gallery section'}
+
+
+def placed_images(brief: 'Brief') -> list[dict]:
+    """The customer's images with their full role (kind, words, as is, place), in the order they were decided.
+    Each has its own marker 148ai-asset://upload/<n>."""
+    out = [dict(img) for img in brief.assets.get('images') or () if img.get('use') == 'as_is' and img.get('place')]
+    for n, img in enumerate(out, start=1):
+        img['marker'] = f'{UPLOAD_MARKER}{n}'
+    return out
 
 
 def main_image(brief: 'Brief') -> dict | None:
-    """The uploaded image the customer chose to show as is, or None."""
-    img = brief.assets.get('image')
-    f = brief.fields.get('image_use') or {}
-    if img and f.get('value') == 'as_is' and f.get('source') == 'answer':
-        return img
-    return None
+    """The image the customer placed as the main image, or None."""
+    return next((img for img in placed_images(brief) if img['place'] == 'hero'), None)
 
 
 _KIND_HE = {'person': 'אדם', 'product': 'מוצר', 'place': 'מקום', 'other': 'אחר'}
@@ -457,14 +474,18 @@ def image_role(brief: 'Brief') -> dict | None:
     return {'kind': v['image_kind'], 'alt': alt, 'use': v.get('image_use')}
 
 
-def image_canon_line(brief: 'Brief', lang: str = 'he') -> str | None:
-    role = image_role(brief)
-    if role is None or not role.get('use'):
-        return None
-    use = {'as_is': 'תופיע בדף כמו שהיא', 'inspiration': 'השראה בלבד, לא מוצגת בדף'}[role['use']] if lang == 'he' else \
-        {'as_is': 'shown on the page as is', 'inspiration': 'inspiration only, not shown'}[role['use']]
-    return (f'תמונה שהעלית ({_KIND_HE[role["kind"]]}): {role["alt"]} — {use}.' if lang == 'he'
-            else f'Your image ({role["kind"]}): {role["alt"]} -- {use}.')
+def image_canon_lines(brief: 'Brief', lang: str = 'he') -> list[str]:
+    """One line per decided image: what it is, the customer's words, and what happens to it (where it appears)."""
+    out = []
+    for img in brief.assets.get('images') or ():
+        if img.get('use') == 'as_is':
+            use = (f'תופיע בדף כמו שהיא, {IMAGE_PLACES_HE[img["place"]]}' if lang == 'he'
+                   else f'shown on the page as is, {img["place"]}')
+        else:
+            use = 'השראה בלבד, לא מוצגת בדף' if lang == 'he' else 'inspiration only, not shown'
+        out.append(f'תמונה שהעלית ({_KIND_HE[img["kind"]]}): {img["alt"]} — {use}.' if lang == 'he'
+                   else f'Your image ({img["kind"]}): {img["alt"]} -- {use}.')
+    return out
 
 
 def image_exclusions(brief: 'Brief') -> list[str]:
@@ -574,7 +595,7 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
     return _settle_image(brief, new, answers)
 
 
-IMAGE_FIELDS = ('image_kind', 'image_identity', 'image_use')
+IMAGE_FIELDS = ('image_kind', 'image_identity', 'image_use', 'image_place')
 
 
 def next_image_question(brief: 'Brief') -> 'Question | None':
@@ -599,12 +620,39 @@ def _settle_image(before: 'Brief', new: 'Brief', answers: Mapping[str, str]) -> 
     if new.values().get('image_use') == 'change':
         new.fields.pop('image_use', None)
         new.hints['image_change'] = 'asked'
+    new.hints.pop('image_hero_taken', None)
+    v, img = new.values(), new.assets.get('image')
+    if img and v.get('image_kind') in _KIND_HE and v.get('image_identity') and v.get('image_use') in ('as_is', 'inspiration'):
+        place = v.get('image_place') if v['image_use'] == 'as_is' else None
+        if v['image_use'] == 'as_is' and not place:
+            return new                                   # "where" is the next question
+        if place == 'hero' and main_image(new) is not None:
+            new.fields.pop('image_place', None)          # one main image per page: asked again, said why
+            new.hints['image_hero_taken'] = 'yes'
+            return new
+        role = image_role(new)
+        new.assets['images'] = list(new.assets.get('images') or ()) + [
+            {**{k: img.get(k) for k in ('id', 'sha256', 'mime', 'size_bytes', 'width', 'height')},
+             'kind': role['kind'], 'alt': role['alt'], 'use': v['image_use'], **({'place': place} if place else {})}]
+        new.assets.pop('image')                          # decided: the next upload starts a new role
+        for f in IMAGE_FIELDS:
+            new.fields.pop(f, None)
     return new
 
 
 def pending(brief: Brief) -> list[Question]:
     vals = _ctx(brief)
     return [q for q in QUESTIONS if q.field not in brief.fields and q.id not in brief.skipped and q.ask_if(vals)]
+
+
+def panel_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
+    """What the Requirements panel asks next -- the same source as the chat (warehouse 113, owner 2026-11-16). While an
+    uploaded image's role is open, the chat asks exactly that one question, so the panel shows only it: never two
+    different questions open at once in two places."""
+    image_q = next_image_question(brief)
+    if image_q is not None:
+        return image_q.group, [image_q]
+    return next_group(brief, limit)
 
 
 def next_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
@@ -809,9 +857,9 @@ def gate_canon(brief: Brief, lang: str = 'he') -> dict:
     view = gate_view(brief.prompt + '\n' + requirements_text(brief), customer_text=customer_text(brief),
                      family='website' if is_website(brief) else 'app', lang=lang,
                      needs=facts['needs'], waived=facts['waived'])
-    image = image_canon_line(brief, lang)
-    if image:   # Michael 2026-11-15: the image's role is part of what the customer approves
-        view['lines'] = list(view['lines']) + [image]
+    images = image_canon_lines(brief, lang)
+    if images:   # Michael 2026-11-15: the image's role is part of what the customer approves
+        view['lines'] = list(view['lines']) + images
     return view
 
 
@@ -889,18 +937,16 @@ def requirements_text(brief: Brief) -> str:
         lines.append(f'Uploaded logo attachment: {logo["id"]}; sha256={logo["sha256"]}. '
                      'Use the original uploaded logo in a visible img element with src="148ai-asset://logo". '
                      'The worker replaces this marker with the verified image bytes before tests; do not recreate the logo.')
-    shown = main_image(brief)
-    if shown:
-        lines.append(f'{MAIN_IMAGE_PREFIX}{shown["id"]}; sha256={shown["sha256"]}. '
-                     "This is the customer's own photo: use it AS IS as the main (hero) image, in a visible img element "
-                     f'with src="{MAIN_IMAGE_MARKER}" and a non-empty alt. Do not generate, draw, edit or replace it; '
-                     'the worker replaces this marker with the verified image bytes before tests.')
-        role = image_role(brief)
-        if role:   # Michael 2026-11-15: the role goes into the alt (the customer's own words)
-            lines.append(f'{MAIN_IMAGE_ALT_PREFIX}{role["kind"]}: "{role["alt"]}"')
-    elif brief.assets.get('image') and v.get('image_use') == 'inspiration':
-        lines.append(f'Uploaded image {brief.assets["image"]["id"]}: the customer chose inspiration only. '
-                     'Do not show it on the page.')
+    for n, img in enumerate(placed_images(brief), start=1):
+        # Michael 2026-11-15: several images; each in the place the customer chose, its alt the customer's own words
+        lines.append(f'{UPLOADED_IMAGE_PREFIX}{n} attachment: {img["id"]}; sha256={img["sha256"]}; '
+                     f'src="{img["marker"]}"; placement: {img["place"]}; role {img["kind"]}: "{img["alt"]}". '
+                     f"The customer's own photo: use it AS IS as {_SECTION[img['place']]}, in a visible img element "
+                     'with exactly this src and this alt. Do not generate, draw, edit or replace it; the worker replaces '
+                     'the marker with the verified image bytes before tests.')
+    for img in brief.assets.get('images') or ():
+        if img.get('use') == 'inspiration':
+            lines.append(f'Uploaded image {img["id"]}: the customer chose inspiration only. Do not show it on the page.')
     delegated = [k for k, f in brief.fields.items() if f.get('source') == 'delegated']
     if delegated:
         lines.append('Chosen by 148AI on the user\'s behalf (recommended defaults): ' + ', '.join(sorted(delegated)) + '.')

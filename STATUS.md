@@ -1,3 +1,89 @@
+# 2026-11-16 — warehouse 77c: a failed build is said in the conversation, with one action (Claude Code)
+
+- **What broke:** a customer whose build failed saw nothing in the conversation; the failure lived only in the build tab.
+- **Fix:** `omni_prod/build_announcement.py`: `FailureWitness` wraps the jobs repository of the live build job and remembers the
+  transition to FAILED; `announce_if_failed` writes one assistant message (idempotent on `build-failed:<id>`): "the build failed",
+  "you were not charged" only when the credits went back, and ONE action -- `retry_build` (back to the approval screen) or, for a
+  detail only the customer can give, `edit_requirements`. Wired in `worker_tasks._run_live_build_job_with_components` (try/finally,
+  so an engine crash is said too). A failure to write is logged as an error, never changes the build. UI: the `retry_build` button;
+  the chat's status line for a failed build is styled as failed.
+- **Evidence:** `tests/test_build_failed_announced.py` 7 tests (the production job through BuildHarness); controls
+  `build_failed_announced.json` 4/4.
+- **Not checked:** no real build, no browser run; the Postgres conversation store is exercised by its in-memory twin here.
+# 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
+
+- **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
+  "דלת עם ידית", even "מוצר") were not read, the question came back, and after three cards the buttons were replaced by
+  "חסרה החלטה על קיבלתי את התמונה. מה יש בה?, ... בלשונית דרישות" (the question printed as the topic, the way forward only in another tab).
+  Reproduced on main `d496a92` on the real supervisor path.
+- **Fix:** `omni_prod/intake/image_answers.py` maps typed words to the option (owner's map: door/handle/product -> product,
+  person/owner/name -> person, place/shop -> place, logo -> logo; first word wins, door/handle always product; no word -> no guess) and
+  keeps the description as the "who/what" answer; the supervisor reads a typed answer only against what the last turn asked or blocked
+  on (`_awaiting`); an image card past the card limit keeps its buttons and says how to answer; no assistant message is sent twice in a
+  row with the same question (`_not_repeated`); the Requirements panel shows the chat's own next question (`discovery.panel_group`);
+  "update the plan" says what is still missing (`app.js stillMissingLine`).
+- **Evidence:** `tests/test_image_answer_loop.py` 11 tests; negative controls `image_answer_loop.json` 6/6 PASS.
+- **Not checked:** no browser run; the UI line ran in node. No model interpreter (the deterministic one reads the words).
+
+# 2026-11-15 — P0-c correction (Claude bug): the Postgres tests of #401 never ran in CI (Claude Code)
+
+- **What was wrong:** `intake-budget-pg` enumerates its test files; `tests/test_company_loss_failed_build_pg.py` was not listed, so
+  the claim in #401 and in the P0-c STATUS entry below ("passed in CI's pg-tests job, 315 passed") was false -- those 315 were other
+  tests. Found by the independent review of 2026-11-15. Two assertions in the pg test would have failed had it run
+  (`provider_cost_truth` is `COMPUTED_FROM_USAGE`, not `computed`; the roll-up is database-wide), and the ledger could have recorded
+  a reservation estimate as a loss when nothing was measured (`CONSERVATIVE_RESERVATION`).
+- **Fix:** the file is in the pg job list; `record_failed_build` writes nothing on `CONSERVATIVE_RESERVATION` (the ledger never records
+  an estimate) and `release_failed` returns `loss_recorded`; the pg test asserts the real values and account-scoped sums, plus the
+  unmeasured case. Negative controls NC4 (file dropped from the job list) and NC5 (estimate guard removed).
+- **Evidence:** offline 13 passed, 5 skipped (pg). Controls NC2–NC5 PASS here (NC1 pg only). The real path on Postgres is verified only
+  when this PR's `pg-tests` job runs the file -- read that job, not this line.
+- **Structural finding for CI (Codex):** an explicit file list means every new `*_pg.py` test is silently not run; discover them.
+
+# 2026-11-15 — P0-b, warehouse 104 + 106: the checks that did not run are an explicit list (Claude Code)
+
+- **Implemented and independently verifiable offline:** `release_policy.QualityReport.not_run` (NOT_RUN / UNKNOWN / NO_CHECKS, required
+  and advisory, with stage and reason) carried by `to_dict()` into the build's stored evidence; `app.js notRunLine()` names the checks
+  in the customer's words on failed and ready builds, and says "no check ran" when a failed build has no report.
+  Warehouse 106: `tests/test_attribution_per_criterion.py` proves on the real `RemoteSandboxRepositoryExecutor` (real `_run`, stub runner
+  that really runs pytest) that a failed verify command fails exactly the criteria it carries; the generator-side cure is PR #210.
+- **Evidence:** `tests/test_not_run_list.py` 15 tests, `tests/test_attribution_per_criterion.py` 3 tests. Negative controls
+  `tests/negative_controls/not_run_list.json` 4/4 PASS. Full suite, one container, `--continue-on-collection-errors`: main `93916ae`
+  collected 3131 / 34 collection errors / 2792 passed / 30 failed / 302 skipped / 36 errors; branch `e07a790` collected 3146 / 34 / 2807 /
+  30 / 302 / 36. Failure lists identical (66 lines).
+- **Not checked:** no real build; the browser UI was executed in node on the production report, not in a browser. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Open for Michael (spec):** a criterion no verify command covers is a FAILED criterion today (Golden E2E #1, so the repair loop adds
+  the test); item 106's acceptance text says `not_run`. Not changed here.
+- **Awaiting:** Michael's SHA approval; #210 (per-criterion verify) is clean against main and is the fix of 106's root.
+# 2026-11-15 — P0-c, warehouse 103: the provider cost of a failed build is a loss row (Claude Code)
+
+- **Implemented; awaiting the owner's approval of migration 044 and the pg job:** `company_loss.record_failed_build` (cause
+  `failed_build_refunded`, quoted 0, actual = the cost basis, one idempotent row per build, nothing at zero cost) called inside
+  `subscription_store.release_failed`'s own transaction; `infra/postgres/044_company_loss_failed_build.sql` widens the CHECK constraint
+  by the fourth cause (precedent 015, 033), rollback file, staging bootstrap regenerated, `schema_manifest` requires 044.
+- **Evidence (offline):** `tests/test_company_loss_failed_build.py` 5 tests (the exact INSERT and parameters, the cause set, the
+  migration text, bootstrap `--check`, the call site). Negative controls `company_loss_failed_build.json`: NC2, NC3 PASS here; NC1 is
+  pg-only. Full suite, one container: main `93916ae` 3131 collected / 34 collection errors / 2792 passed / 30 failed / 302 skipped /
+  36 errors; branch `97fd833` 3140 / 34 / 2797 / 30 / 306 / 36 (the four new skips are the pg tests). Failure lists identical (66 lines).
+  The first branch run (`ebbc9e1`) failed two manifest tests; fixed in `97fd833` and re-run.
+- **Not run here (blocked, named):** `tests/test_company_loss_failed_build_pg.py` (4 tests) and NC1 need real PostgreSQL
+  (`M4D2_DATABASE_URL`, the intake-budget-pg job). The real path -- the row inside the refund -- is verified only there.
+- **Blocked by a decision:** migration 044 runs only with the owner's explicit approval (CLAUDE.md §5).
+# 2026-11-15 — P0-a, warehouse 69: output profile + A0 router (Claude Code)
+
+- **Implemented and independently verifiable offline:** `omni_prod/output_profile` (profiles for `website`/`web_app`, an
+  `unsupported` entry with the customer's sentence for every other family, truth check at import), A0 in
+  `conversation/supervisor._route_output` before the interpreter and the model, `families.requested_family` and the
+  opening-product rule, `question_skills.checklist` raises on an unknown family, UI action `describe_web_instead`.
+- **Evidence:** `tests/test_output_profile_router.py` 16 passed. Negative controls `tests/negative_controls/output_profile_router.json`
+  5/5 PASS (NC2 first FAILED against a weaker test; the test now isolates the first truth check). Full suite in one
+  container, `--continue-on-collection-errors`: main `93916ae` collected 3131 / 34 collection errors / 2792 passed / 30 failed /
+  302 skipped / 36 errors; branch `3db9457` collected 3147 / 34 / 2808 / 30 / 302 / 36. Failure lists identical (66 lines).
+  The first branch run showed one extra failure (`test_discovery_and_approval`), fixed in `3db9457` before push.
+- **Not checked:** no real model build; the refusal was exercised with the deterministic interpreter only. The 34 uncollected
+  files (fastapi, psycopg, docker absent here) are not measured.
+- **Awaiting:** Michael's SHA approval; PR merges after #397 (the warehouse docs).
+
 # Governance audit update — 2026-10-27 (ChatGPT/Codex)
 
 - GREEN (GitHub CI reported, not independently rerun): PR #151 SHA `547e65726434267bee757ffff0ee48da4bbaf754` (6/6), #154 SHA `d7688475d9fc661fce8b668d9658e96e1fc783c1` (5/5), #155 SHA `71f922ec723c5fb19d5139e4699807391c7114d3` (5/5), #152 SHA `f8581f079d8bdb7e656fda7fad2d33ae450a1e3c` (5/5). Source: GitHub Actions runs attached to each SHA.
