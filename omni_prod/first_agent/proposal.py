@@ -32,6 +32,8 @@ def view(row) -> dict:
     out = {'revision': row.revision, 'brief_fingerprint': row.fingerprint, 'ok': verdict['ok'],
            'price': verdict['price'], 'facts': facts.get('facts', []), 'included': list(INCLUDED_HE),
            'excluded': list(EXCLUDED_HE)}
+    from ..discovery import window_offer
+    out['windows'] = window_offer(brief)      # owner 2026-11-16: approved or rejected one by one on this screen
     if verdict['ok']:
         out.update(cards=verdict['cards'], removed=verdict['removed'])
     else:

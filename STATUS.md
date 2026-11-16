@@ -1,3 +1,29 @@
+# 2026-11-16 — the customer approves or rejects each window (Claude Code)
+
+- **Owner's order:** an approval screen for windows. Each window is offered with a one-sentence benefit; the customer
+  approves or rejects it. Acceptance: a rejected window is not built; an approved one enters fact_canon; the gate fails a
+  build missing an approved window.
+- **Implemented:**
+  - `window_catalog.BENEFITS` holds one sentence per window, Hebrew and English, and `offer()` builds the offer.
+  - `discovery.decide_windows` records approved and rejected windows in the brief (customer only). An unknown id raises
+    KeyError; a decision that is not a bool raises ValueError.
+  - `discovery.window_offer` makes the offer, websites only.
+  - `requirements_text` adds a "Rejected windows ... do not add them" line, and the gate fails a page that has a rejected
+    window (`WINDOW_REJECTED`).
+  - Gate 1's approve_spec action and the proposal card both carry the offer. `approve_spec(windows=...)` saves the
+    decisions before the approval, so the approval binds to the fingerprint that includes them, the same way as the
+    waiver.
+  - The API (`V28SpecApproval.windows`) refuses an unknown window with 400 `unknown_window`.
+  - UI: `windowsChoice()` in app.js renders one row per window, with label, benefit and a 44px target. It is used on
+    both approval screens, and it sends EVERY offered window, ticked as true and unticked as false. A window left
+    unticked is recorded as rejected, which the screen says.
+- **Evidence:** `tests/test_window_approval.py` 13 tests. They run the real supervisor up to gate 1, approve_spec with
+  decisions, the saved brief, build_canon, and the real engine with the window gate; and windowsChoice() with app.css in
+  real Chromium (click a row, read() sends all 8). Negative controls `tests/negative_controls/window_approval.json` 4/4
+  PASS, and `window_catalog.json` 7/7 still PASS. The 28 specs that touch the changed files: 23 PASS. 5
+  (item3-route, item4, pr154 NC2, pr176, preview-durable-backend) need fastapi and fail identically on main `c38fbb4`.
+- **Not checked here:** the API route itself (no fastapi in this container; CI runs it); a real paid build with windows.
+
 # 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
 
 - **Implemented and independently verifiable offline:** the engine already stopped at once on an unchanged repository
