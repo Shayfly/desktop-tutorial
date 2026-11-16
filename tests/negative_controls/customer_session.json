@@ -1,0 +1,22 @@
+{
+ "pr": "customer-session",
+ "sha256": ["tests/test_ci_customer_session.py", "scripts/customer_session_check.py"],
+ "controls": [
+  {"id": "NC1", "what": "a missing secret is a quiet skip (exit 0), the failure the owner forbade",
+   "mutations": [{"file": "scripts/customer_session_check.py", "old": "        print(f'::error title=customer session {p.code}::{p}')\n        return 1", "new": "        print(f'::error title=customer session {p.code}::{p}')\n        return 0 if p.code == 'MISSING' else 1  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_ci_customer_session.py"],
+   "expect_failed": ["test_a_missing_secret_is_a_readable_failure_not_a_skip"]},
+  {"id": "NC2", "what": "a 401 is taken as a live session",
+   "mutations": [{"file": "scripts/customer_session_check.py", "old": "    if status == 401:", "new": "    if status == 401 and False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_ci_customer_session.py"],
+   "expect_failed": ["test_a_401_fails_out_loud"]},
+  {"id": "NC3", "what": "the founder's session passes as a customer",
+   "mutations": [{"file": "scripts/customer_session_check.py", "old": "    if m5_founder_account(account_id):", "new": "    if False:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_ci_customer_session.py"],
+   "expect_failed": ["test_the_founders_session_is_not_a_customer"]},
+  {"id": "NC4", "what": "the job skips when the secret is absent",
+   "mutations": [{"file": ".github/workflows/customer-session.yml", "old": "      - name: Load the customer session and check it on production\n", "new": "      - name: Load the customer session and check it on production\n        if: env.CUSTOMER_STORAGE_STATE != ''\n"}],
+   "targets": ["tests/test_ci_customer_session.py"],
+   "expect_failed": ["test_the_job_gives_the_secret_to_the_check_and_cannot_skip"]}
+ ]
+}

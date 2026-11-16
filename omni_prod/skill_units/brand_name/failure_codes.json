@@ -1,0 +1,6 @@
+{
+ "BRAND_MISSING": {
+  "meaning": "the business name is not shown on the page",
+  "fix": "show the business name in the header"
+ }
+}

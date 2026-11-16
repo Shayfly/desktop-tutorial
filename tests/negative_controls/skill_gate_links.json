@@ -1,0 +1,95 @@
+{
+ "pr": "skill-gate-links",
+ "sha256": [
+  "tests/test_skill_gate_links.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "a tel: link that dials another number than the page shows passes (the real-page variant is also an invalid number, caught by the validity rule)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_tel/probe.py",
+     "old": "            elif shown and d not in shown:",
+     "new": "            elif False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_links.py"
+   ],
+   "expect_failed": [
+    "test_phones"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a phone shown without a link passes",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_tel/probe.py",
+     "old": "    for d in sorted(shown - dialled):",
+     "new": "    for d in []:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_links.py"
+   ],
+   "expect_failed": [
+    "test_phones"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "a broken in-page link passes",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_anchor/probe.py",
+     "old": "and a['href'][1:] not in ids]",
+     "new": "and False]"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_links.py"
+   ],
+   "expect_failed": [
+    "test_anchors_and_addresses",
+    "test_each_unit_falls_on_the_real_page_changed_in_one_place"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "an address without a city passes (the real-page variant also lacks the number, caught by that rule)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/links_address/probe.py",
+     "old": "                                   ('a city', any(c in address for c in CITIES))) if not ok]",
+     "new": "                                   ('a city', True)) if not ok]"
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_links.py"
+   ],
+   "expect_failed": [
+    "test_anchors_and_addresses"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the worker does not install the links gate",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_skill_gate(engine, 'G11')                             # links: tel, anchors, address\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_skill_gate_links.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_installs_the_gate"
+   ]
+  }
+ ]
+}

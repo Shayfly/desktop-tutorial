@@ -93,7 +93,7 @@ class OnRenderedPages(unittest.TestCase):
             self.assertNotIn(words, dumped)
 
     def test_nothing_left_the_machine(self):
-        self.assertEqual(sorted(set(self.session.blocked)), ['maps.example.com'])
+        self.assertEqual(sorted(set(self.session.blocked)), ['maps.example.invalid'])
 
 
 if __name__ == '__main__':

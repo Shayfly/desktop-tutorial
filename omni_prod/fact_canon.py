@@ -285,6 +285,10 @@ def build_canon(request_text: str, *, source: str = 'brief') -> Canon:
     # Typed counts the customer gave ("מעל 50 ביקורות" -> reviewCount 50, "4.9 כוכבים" -> rating 4.9).
     for kind, value, ref in count_facts(text):
         add(kind, value, ref)
+    # A2 step 9 (owner 2026-11-16): a window the customer approved is a fact the page must show
+    from .window_catalog import approved_in_prompt, known
+    for wid in approved_in_prompt(text):
+        add('window', wid, known(wid).he)
     return canon
 
 
@@ -497,6 +501,11 @@ def needs_customer_input(messages, prompt: str) -> list[str]:
     and the failure is the truth gate refusing an invented one. A waived fact is on the omit line instead and is
     repaired (removed) as usual."""
     text = ' '.join(str(m) for m in messages or ())
-    line = next((ln for ln in (prompt or '').splitlines() if ln.startswith(MISSING_PREFIX)), '')
-    listed = [k for k in _NEEDS if re.search(rf'(?<![a-z]){k}(?![a-z])', line[len(MISSING_PREFIX):])]
+    # The line is MISSING_PREFIX + '; '.join(keys) + '.'. It is read up to its own full stop, not by line: the worker
+    # builds from the contract prompt, whose line breaks ProductArchitect.compile collapsed (production 2026-11-16).
+    # The LAST occurrence is the server-generated one (the approved brief is appended after the customer's text).
+    prompt = prompt or ''
+    at = prompt.rfind(MISSING_PREFIX)
+    line = prompt[at + len(MISSING_PREFIX):].split('.', 1)[0] if at >= 0 else ''
+    listed = [k for k in _NEEDS if re.search(rf'(?<![a-z]){k}(?![a-z])', line)]
     return [k for k in listed if _INVENTED[k] in text]

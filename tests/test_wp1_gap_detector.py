@@ -109,7 +109,7 @@ class NoFieldIsMaterialByDeclaration(unittest.TestCase):
 
     def test_a_button_colour_is_not_material_unless_this_request_makes_it_so(self):
         plain = spec('website', 'אני רוצה אתר למספרה שלי')
-        self.assertEqual(plain.detect()['assumed']['color'], 'blue')
+        self.assertEqual(plain.detect()['assumed']['color'], 'category')     # warehouse 105: the category's palette
         self.assertNotIn('color', plain.detect()['missing_material'])
         brand = spec('website', 'אני רוצה אתר למספרה שלי בצבעי המותג')
         self.assertIn('color', brand.detect()['missing_material'])             # material for THIS request
@@ -128,7 +128,7 @@ class MandatoryBehaviour(unittest.TestCase):
     def test_2_missing_non_material_is_not_asked_and_is_an_assumption_with_its_default(self):
         s = spec('website', SALON['en'])
         g = s.detect()
-        self.assertEqual(g['assumed'], {'color': 'blue', 'font': 'heebo', 'logo': 'text', 'references': 'none'})
+        self.assertEqual(g['assumed'], {'color': 'category', 'font': 'heebo', 'logo': 'text', 'references': 'none'})
         asked = []
         while (q := Questioner().next(s)) is not None:
             asked.append(q.field)

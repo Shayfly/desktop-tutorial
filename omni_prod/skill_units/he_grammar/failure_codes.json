@@ -1,0 +1,6 @@
+{
+ "HE_GRAMMAR": {
+  "meaning": "a grammar error in the Hebrew text (a repeated word, a double superlative, the article on the wrong noun of a construct)",
+  "fix": "fix the sentence as the finding says"
+ }
+}

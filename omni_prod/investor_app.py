@@ -1922,7 +1922,7 @@ def _lang(request: Request) -> str:
 def _discovery_view(row, lang: str) -> dict:
     from . import discovery as d
     brief = row.brief
-    group, questions = d.next_group(brief)
+    group, questions = d.panel_group(brief)        # warehouse 113: the chat's own next question, one source
     answered = []
     for q in d.QUESTIONS:
         f = brief.fields.get(q.field)
@@ -2027,6 +2027,8 @@ class V28SpecApproval(BaseModel):
     request_key: str | None = Field(default=None, max_length=80)
     # Michael 2026-11-10 condition 3: an incomplete fact canon is approved only with this box ticked.
     canon_ack: bool = False
+    # owner 2026-11-16: the customer's approve (true) / reject (false) of each offered window
+    windows: dict[str, bool] | None = Field(default=None, max_length=20)
 
 
 class V28AttachmentUpload(BaseModel):
@@ -2218,11 +2220,15 @@ def v28_spec_approval(project_id: str, req: V28SpecApproval, request: Request) -
     store = _conversation_store()
     if req.request_key and store.find_reply(project_id, req.request_key):
         return _conversation_view(project_id, lang or 'he')   # a retried click: no second approval
+    from .window_catalog import CATALOG as _WINDOWS
+    unknown = sorted(set(req.windows or {}) - set(_WINDOWS))
+    if unknown:   # a window id the catalogue does not know is refused out loud, never dropped
+        raise HTTPException(400, detail={'error': 'unknown_window', 'message': f'unknown windows: {unknown}'})
     try:
         turn = _supervisor(key, account.id).approve_spec(project_id=project_id, account_id=account.id,
                                                          brief_fingerprint=req.brief_fingerprint,
                                                          request_key=req.request_key, lang=lang,
-                                                         canon_ack=req.canon_ack)
+                                                         canon_ack=req.canon_ack, windows=req.windows)
     except StaleBrief as exc:
         raise HTTPException(409, detail={'error': 'brief_stale', 'message': str(exc)}) from exc
     return _conversation_view(project_id, turn.language, turn)

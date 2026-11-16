@@ -1,0 +1,194 @@
+{
+ "pr": "contract-prompt-readers",
+ "sha256": [
+  "tests/test_contract_prompt_readers.py",
+  "tests/fixtures/doors_contract_bc_8ffe6070.json"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the photo binding is anchored to a line start again (the production failure: the contract has no line breaks)",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "_IMAGE_BINDING = re.compile(r'(?<!\\S)Uploaded image",
+     "new": "_IMAGE_BINDING = re.compile(r'^Uploaded image"
+    },
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "                            r'role (person|product|place|other): \"([^\"\\n]{1,160})\"\\.')\n",
+     "new": "                            r'role (person|product|place|other): \"([^\"\\n]{1,160})\"\\.', re.M)  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_report_walks_through_the_photo_check_and_the_marker_gate",
+    "test_the_photo_binding",
+    "test_the_photo_binding_is_read_from_the_contract",
+    "test_the_sandbox_gets_the_photo_bytes_never_the_raw_address"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a placed photo with no binding read is skipped silently again (the raw address reaches the page)",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "    if unbound:\n",
+     "new": "    if False and unbound:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_a_placed_address_without_a_binding_stops_the_build_before_generation",
+    "test_an_address_without_its_own_binding_is_named"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the marker gate looks and never fails (a raw 148ai-asset:// page passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "        if not self.last_found:\n",
+     "new": "        if True:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_a_page_served_from_app_py_is_read_too_and_documentation_is_not",
+    "test_a_page_with_a_raw_asset_address_fails",
+    "test_an_address_the_model_invented_fails_the_round_and_the_repair_removes_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the marker gate does not read a page served from app.py",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "SERVED = ('.html', '.htm', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.py', '.css', '.json',",
+     "new": "SERVED = ('.html', '.htm', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.vue', '.svelte', '.css', '.json',  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_a_page_served_from_app_py_is_read_too_and_documentation_is_not"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the marker gate flags every URL (a page with a real URL would fail: the passing half is not vacuous)",
+   "mutations": [
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "_MARKER = re.compile(r'148ai-asset://[A-Za-z0-9_./-]*')",
+     "new": "_MARKER = re.compile(r'[a-z0-9-]+://[A-Za-z0-9_./-]*')  # NEGATIVE CONTROL"
+    },
+    {
+     "file": "omni_prod/asset_markers.py",
+     "old": "or SCHEME not in source:\n",
+     "new": "or '://' not in source:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_a_page_with_a_real_url_passes",
+    "test_an_address_the_model_invented_fails_the_round_and_the_repair_removes_it"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the approved-windows reader is anchored to a line start again (the window gate checks nothing on a contract build)",
+   "mutations": [
+    {
+     "file": "omni_prod/window_catalog.py",
+     "old": "_APPROVED_LINE = re.compile(r'(?<!\\S)- ([a-z_]+) \\(')",
+     "new": "_APPROVED_LINE = re.compile(r'^- ([a-z_]+) \\(', re.M)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_the_approved_and_rejected_windows_and_the_canon",
+    "test_the_window_gate_holds_a_contract_build"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the MISSING-facts line is read by line again (the repairs invent the phone on a contract build)",
+   "mutations": [
+    {
+     "file": "omni_prod/fact_canon.py",
+     "old": "    line = prompt[at + len(MISSING_PREFIX):].split('.', 1)[0] if at >= 0 else ''\n",
+     "new": "    line = next((ln[len(MISSING_PREFIX):] for ln in prompt.splitlines() if ln.startswith(MISSING_PREFIX)), '')  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_the_missing_phone_stops_the_repairs_on_both"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the gate report stops at the first wrapper that is not a gate again (the evidence loses every gate when a photo is placed)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "        if ex is None:\n            break\n",
+     "new": "        if not isinstance(ex, SkillGateExecutor):  # NEGATIVE CONTROL\n            break\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_the_gate_report_walks_through_the_photo_check_and_the_marker_gate"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the production state of bld_426addd3: the binding anchored to a line start AND the silent skip -- the raw address reaches the sandbox",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "_IMAGE_BINDING = re.compile(r'(?<!\\S)Uploaded image",
+     "new": "_IMAGE_BINDING = re.compile(r'^Uploaded image"
+    },
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "                            r'role (person|product|place|other): \"([^\"\\n]{1,160})\"\\.')\n",
+     "new": "                            r'role (person|product|place|other): \"([^\"\\n]{1,160})\"\\.', re.M)  # NEGATIVE CONTROL\n"
+    },
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "    if unbound:\n",
+     "new": "    if False and unbound:  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_contract_prompt_readers.py"
+   ],
+   "expect_failed": [
+    "test_a_placed_address_without_a_binding_stops_the_build_before_generation",
+    "test_an_address_without_its_own_binding_is_named",
+    "test_the_photo_binding",
+    "test_the_photo_binding_is_read_from_the_contract",
+    "test_the_sandbox_gets_the_photo_bytes_never_the_raw_address"
+   ]
+  }
+ ]
+}

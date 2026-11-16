@@ -206,9 +206,10 @@ QUESTIONS: tuple[Question, ...] = (
              recommended='clean'),
     Question('color', 'color', 'design', 'אילו צבעים תרצו? אפשר לתאר במילים', 'Which colours? Describe them in your own words',
              'הצבע הראשי משמש לכפתורים ולכותרות; הטקסט תמיד יישאר קריא.', 'Used for buttons and headings; text stays readable.',
-             kind='text', options=(_o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
+             kind='text', options=(_o('category', 'לפי סוג העסק', 'By the type of business'),
+                      _o('blue', 'כחול', 'Blue'), _o('green', 'ירוק', 'Green'), _o('purple', 'סגול', 'Purple'),
                       _o('orange', 'כתום', 'Orange'), _o('teal', 'טורקיז', 'Teal'), _o('neutral', 'אפור/שחור', 'Neutral')),
-             recommended='blue'),
+             recommended='category'),   # warehouse 105: no single default blue; the category's palette (data file)
     Question('font', 'font', 'design', 'איזה גופן?', 'Which font?',
              'כל האפשרויות תומכות בעברית ורישיונן ידוע (Google Fonts, OFL).', 'All support Hebrew and have a known licence (OFL).',
              options=(_o('heebo', 'Heebo — נקי ומודרני', 'Heebo — clean'), _o('assistant', 'Assistant — רך וקריא', 'Assistant — soft'),
@@ -645,6 +646,16 @@ def pending(brief: Brief) -> list[Question]:
     return [q for q in QUESTIONS if q.field not in brief.fields and q.id not in brief.skipped and q.ask_if(vals)]
 
 
+def panel_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
+    """What the Requirements panel asks next -- the same source as the chat (warehouse 113, owner 2026-11-16). While an
+    uploaded image's role is open, the chat asks exactly that one question, so the panel shows only it: never two
+    different questions open at once in two places."""
+    image_q = next_image_question(brief)
+    if image_q is not None:
+        return image_q.group, [image_q]
+    return next_group(brief, limit)
+
+
 def next_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
     """The next small group: contradictions first, then the group order."""
     todo = pending(brief)
@@ -702,7 +713,7 @@ def missing(brief: Brief) -> dict:
 
 # ---- what the builders receive ----------------------------------------------
 
-_COLOR_HEX = {'blue': '#1d4ed8', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
+_COLOR_HEX = {'blue': '#1e40af', 'green': '#15803d', 'purple': '#7c3aed', 'orange': '#c2410c', 'teal': '#0f766e',
               'neutral': '#334155', 'white': '#ffffff', 'black': '#000000', 'red': '#dc2626',
               'yellow': '#facc15', 'pink': '#ec4899', 'cream': '#fffdd0', 'gold': '#ffd700', 'gray': '#808080',
               # CEO 2026-11-09: the cafe brief said "חום, קרם וירוק" and the summary showed only green.
@@ -853,6 +864,57 @@ def gate_canon(brief: Brief, lang: str = 'he') -> dict:
     return view
 
 
+def approved_windows(brief: 'Brief') -> list[str]:
+    """The in-page windows the customer approved (A2 step 9): `fields.windows`, set by the customer only (an answer or
+    their own message). An unknown window id raises -- never silently dropped."""
+    f = brief.fields.get('windows') or {}
+    if f.get('source') not in ('answer', 'message'):
+        return []
+    from .window_catalog import known
+    value = f.get('value') or []
+    ids = value if isinstance(value, list) else [x.strip() for x in str(value).split(',') if x.strip()]
+    return [known(w).id for w in ids]
+
+
+def rejected_windows(brief: 'Brief') -> list[str]:
+    """The windows the customer rejected on the approval screen (owner 2026-11-16): never built."""
+    f = brief.fields.get('windows_rejected') or {}
+    from .window_catalog import known
+    customer = f.get('source') in ('answer', 'message')       # only the customer rejects a window
+    return [known(w).id for w in (f.get('value') or [])] if customer else []
+
+
+def decide_windows(brief: 'Brief', decisions: dict) -> bool:
+    """Record the customer's approve/reject of each offered window (the approval screen). `decisions` maps a window id
+    to True (approved) or False (rejected); an id not in it keeps its earlier decision. An unknown id raises KeyError
+    and a value that is not a bool raises ValueError -- nothing is guessed. Returns True when the brief changed."""
+    from .window_catalog import CATALOG, known
+    for wid, ok in (decisions or {}).items():
+        known(wid)
+        if not isinstance(ok, bool):
+            raise ValueError(f'window {wid!r}: the decision must be true or false, not {ok!r}')
+    approved, rejected = set(approved_windows(brief)), set(rejected_windows(brief))
+    for wid, ok in (decisions or {}).items():
+        (approved if ok else rejected).add(wid)
+        (rejected if ok else approved).discard(wid)
+    before = (approved_windows(brief), rejected_windows(brief))
+    after = ([w for w in CATALOG if w in approved], [w for w in CATALOG if w in rejected])
+    if after == before:
+        return False
+    for key, value in zip(('windows', 'windows_rejected'), after):
+        brief.fields[key] = {'value': value, 'source': 'answer', 'question_id': 'windows', 'confidence': 'confirmed'}
+    return True
+
+
+def window_offer(brief: 'Brief', lang: str = 'he') -> list[dict]:
+    """What the approval screen offers: every catalogue window with its benefit and the current decision, for a
+    website brief; nothing for other products."""
+    if not is_website(brief):
+        return []
+    from .window_catalog import offer
+    return offer(lang, approved_windows(brief), rejected_windows(brief))
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -912,12 +974,16 @@ def requirements_text(brief: Brief) -> str:
                                   'past_and_future': 'a sensible range (no year before 1900 or after 10 years ahead)'}.get(dates, dates) + '.')
     if v.get('duplicates') == 'block':
         lines.append('Duplicates: block them on the server (also under two simultaneous requests) and explain why.')
-    style, color, font = v.get('style', 'clean'), v.get('color', 'blue'), v.get('font', 'heebo')
+    style, color, font = v.get('style', 'clean'), v.get('color', 'category'), v.get('font', 'heebo')
     tokens = palette_css(color)
-    colours = (f'primary colour {tokens[0]}; palette {", ".join(tokens)}' if tokens else
-               f'requested colour description {color!r}; resolve it to valid CSS colours')
-    if tokens:
-        colours += f'; requested colour description {color!r}'
+    stated = (brief.fields.get('color') or {}).get('source') in ('answer', 'message') and color != 'category'
+    if tokens and stated:
+        colours = f'primary colour {tokens[0]}; palette {", ".join(tokens)}; requested colour description {color!r}'
+    elif stated:
+        colours = f'requested colour description {color!r}; resolve it to valid CSS colours'
+    else:   # warehouse 105: no colour from the customer -> the business category's palette (vertical_palettes.json)
+        from .vertical_palettes import design_colours
+        colours = design_colours(brief.prompt + '\n' + customer_text(brief))
     lines.append(f'Design: style {style}; {colours}; font {_FONT.get(font, font)} '
                  '(load it from Google Fonts with a system fallback); define these as CSS custom properties.')
     if v.get('logo') == 'text':
@@ -947,6 +1013,9 @@ def requirements_text(brief: Brief) -> str:
     excluded = excluded + image_exclusions(brief)    # the customer's photo shown as is: nothing is generated
     if excluded:   # 77: bound into the fingerprinted contract; product_architect reads only this generated line
         lines.append(CUSTOMER_EXCLUSIONS_PREFIX + json.dumps(sorted(excluded)))
+    from .window_catalog import prompt_lines, rejected_lines   # A2 step 8: the spec of every approved window
+    lines.extend(prompt_lines(approved_windows(brief)))
+    lines.extend(rejected_lines(rejected_windows(brief)))      # owner 2026-11-16: a rejected window is not built
     return '\n'.join(lines)
 
 

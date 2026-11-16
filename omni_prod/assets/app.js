@@ -79,6 +79,10 @@ const T = {
     accept:'אישור השינוי', reject:'דחייה', modAccepted:'השינוי אושר ונשמר כגרסה חדשה.', modRejected:'השינוי נדחה.',
     modFailed:'השינוי נכשל: ', classification:'סיווג',
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
+    checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
+    checkNames:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
+    repairStopped:'התיקון האוטומטי נעצר',
+    repairStops:{no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -121,6 +125,7 @@ const T = {
     chatHelloTitle:'מה נבנה היום?', chatHello:'ספרו במילים שלכם מה אתם צריכים — אני אשאל רק מה שחשוב, אציע תוכנית ועלות, ושום דבר לא ייבנה בלי האישור שלכם.',
     tab_req:'דרישות', tab_plan:'תוכנית ועלות', tab_build:'בנייה', tab_change:'שינוי', tab_versions:'גרסאות', tab_details:'פרטים', tab_built:'המוצר',
     actShowPlan:'הצגת הסיכום, התוכנית והעלות', actApprove:'לאישור והתחלת בנייה', actApproveSpec:'אישור המפרט',
+    windowsTitle:'חלונות באתר', windowsHint:'סמנו כל חלון שתרצו באתר. חלון שלא מסומן לא ייבנה.',
     canonAck:'אני מאשר/ת בנייה בלי הפרטים החסרים שלמעלה (הם לא יומצאו, והחלק שתלוי בהם יושמט)', actConfirmMod:'שליחת השינוי לביצוע',
     delegateShort:'בחרו עבורי', convNotReady:'השיחה החכמה עוד לא מותקנת בשרת הזה (חסר עדכון מסד נתונים 036). השאלות המודרכות עובדות כרגיל.', fallbackNote:'השיחה החכמה עוד לא מותקנת בשרת הזה, אז עברתי לשאלות המודרכות. הן מופיעות בלשונית "דרישות" ונשמרות.', archTitle:'תוכנית העבודה (מחלקות ומשימות)', feasibility:'היתכנות', layer:'שלב',
     f_FEASIBLE:'יש היתכנות טכנית', f_FEASIBLE_WITH_CONSTRAINTS:'היתכנות טכנית עם מגבלות', f_BLOCKED:'חסום כרגע', f_UNSUPPORTED:'לא נתמך עדיין', f_UNKNOWN:'לא ידוע',
@@ -201,6 +206,10 @@ const T = {
     accept:'Accept change', reject:'Reject', modAccepted:'Change accepted and saved as a new version.', modRejected:'Change rejected.',
     modFailed:'Change failed: ', classification:'Classification',
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
+    checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
+    checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
+    repairStopped:'Automatic repair stopped',
+    repairStops:{no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -244,6 +253,7 @@ const T = {
     chatHelloTitle:'What shall we build today?', chatHello:'Tell me in your own words what you need. I only ask what matters, propose a plan and a cost, and nothing is built without your approval.',
     tab_req:'Requirements', tab_plan:'Plan & cost', tab_build:'Build', tab_change:'Change', tab_versions:'Versions', tab_details:'Details', tab_built:'Product',
     actShowPlan:'Show summary, plan and cost', actApprove:'Go to approval', actApproveSpec:'Approve the spec',
+    windowsTitle:'Windows on the site', windowsHint:'Tick each window you want on the site. A window left unticked is not built.',
     canonAck:'I confirm building without the missing details above (they are not invented; the part that needs them is left out)', actConfirmMod:'Send this change',
     delegateShort:'Choose for me', convNotReady:'The conversation is not installed on this server yet (database migration 036 pending). Guided questions still work.', fallbackNote:'The conversation is not installed on this server yet, so I switched to the guided questions. They are in the "Requirements" tab and are saved.', archTitle:'Work plan (departments and tasks)', feasibility:'Feasibility', layer:'Step',
     f_FEASIBLE:'Technically feasible', f_FEASIBLE_WITH_CONSTRAINTS:'Technically feasible with limitations', f_BLOCKED:'Blocked for now', f_UNSUPPORTED:'Not supported yet', f_UNKNOWN:'Unknown',
@@ -259,12 +269,12 @@ const S = {
   durable: false, plan: null, build: null, versions: [], previewId: null, preview: null,
   mod: null, timers: {},
 };
-Object.assign(T.he, { openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
+Object.assign(T.he, { actRetryBuild:'לנסות לבנות שוב', stillMissing:'כדי להמשיך חסר עוד', stillMissingNone:'כדי להמשיך חסרה עוד תשובה אחת בשיחה.', actDescribeInstead:'לתאר אתר או אפליקציה במקום', openRequirements:'לבחירה בלשונית "דרישות"', updateDraft:'עדכן את התוכנית', editAll:'עריכת הבקשה', minimizeContext:'מזעור החלון',
   colourExample:'למשל: ורוד עדין עם שמנת וזהב', fontSample:'כך ייראה הטקסט באתר שלכם', fontUnavailable:'הדוגמה עדיין לא נטענה',
   guidedMode:'מצב שאלון מובנה — שיחת AI אינה פעילה כרגע', aiMode:'מצב שיחת AI מוגדר — הזמינות תלויה בספק ובתקציב', draftNote:'אפשר לשנות כמה פרטים. רק ״עדכן״ יחיל את השינויים.',
   aiFallback:'התשובה הזו נבנתה מכללים קבועים, בלי מודל בינה מלאכותית.',
   attachmentSchema:'צירוף תמונות אינו זמין בפריסה הזאת: נדרש עדכון מסד הנתונים (038). התמונה והטקסט נשמרו כאן לניסיון חוזר.' });
-Object.assign(T.en, { openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
+Object.assign(T.en, { actRetryBuild:'Try building again', stillMissing:'Still missing before we continue', stillMissingNone:'One more answer is needed in the chat before we continue.', actDescribeInstead:'Describe a site or app instead', openRequirements:'Choose in the "Requirements" tab', updateDraft:'Update the plan', editAll:'Edit requirements', minimizeContext:'Minimize panel',
   colourExample:'For example: soft pink with cream and gold', fontSample:'This is how your website text will look', fontUnavailable:'Preview has not loaded yet',
   guidedMode:'Guided questionnaire — AI conversation is not active right now', aiMode:'AI conversation configured — availability depends on provider and budget', draftNote:'Change as many details as you like. Only Update applies the changes.',
   attachmentSchema:'Image attachments need database migration 038 on this deployment. Your image and text remain here for retry.' });
@@ -536,6 +546,13 @@ const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now(
 const discPath = () => `/api/v28/projects/${pid()}/discovery`;
 /* The old "describe + choose a mode" composer is replaced by the conversation
    (Unified Conversation OS): the supervisor decides how many questions to ask. */
+// warehouse 113 (owner 2026-11-16): "update the plan" either moves on (the plan is requested) or says what is still
+// missing, by name -- never a silent return to the tab.
+function stillMissingLine(disc) {
+  if (!disc || disc.complete) return '';
+  const names = (disc.questions || []).map(q => q.text).filter(Boolean);
+  return names.length ? `${t('stillMissing')}: ${names.join(' · ')}` : t('stillMissingNone');
+}
 async function sendAnswers(answers, { editing = false } = {}) {
   if(S.updatingAnswers)return;
   const retrySignature=JSON.stringify([S.projectId,S.disc.brief.revision,answers]);
@@ -558,7 +575,7 @@ async function sendAnswers(answers, { editing = false } = {}) {
     S.editQ = null; if (editing) S.editDraft = null; S.plan = null; renderPlan();
     renderDiscovery();
     if (S.disc.complete) await requestBriefPlan();
-    else openTab('req');
+    else { openTab('req'); const m = $('discMsg'); if (m) m.textContent = stillMissingLine(S.disc); }   // warehouse 113
   } catch (e) {
     if (e.status === 409) { try { S.disc = await api(`${discPath()}?lang=${S.lang}`); renderDiscovery(); } catch { /* keep message */ } }
     const m = $('discMsg'); if (m) m.textContent = explain(e);
@@ -747,7 +764,8 @@ async function approveAndBuild() {
   const m = $('propMsg'); if (m) m.textContent = t('propApproving');
   try {
     applyConversation(await api(specApprovalPath(), { method: 'POST',
-      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey() } }));
+      body: { brief_fingerprint: pr.brief_fingerprint, canon_ack: true, request_key: newKey(),
+              windows: S.proposalWindows ? S.proposalWindows.read() : undefined } }));
     await requestBriefPlan(false);
     if (S.plan && S.plan.can_build) await startBuild();
     else if (m) m.textContent = (S.plan && S.plan.blocked_reason) ? S.plan.blocked_reason.message : t('readinessBlocked');
@@ -758,6 +776,7 @@ function proposalCard() {
   if (!pr) return [];
   if (!pr.ok || !pr.cards) return [h('section', { class: 'proposal pending' }, h('p', {}, t('propNotYet')))];
   const price = proposalPrice(pr.price);
+  S.proposalWindows = windowsChoice(pr.windows);
   const rowsOf = card => card.rows.map((r, i) => {
     const open = S.proposalOpen === r.key;
     const editor = open ? h('div', { class: 'rowEdit' },
@@ -786,6 +805,7 @@ function proposalCard() {
     h('div', { class: 'propLists' },
       h('div', {}, h('h3', {}, t('propIncluded')), h('ul', {}, pr.included.map(x => h('li', {}, x)))),
       h('div', {}, h('h3', {}, t('propExcluded')), h('ul', {}, pr.excluded.map(x => h('li', {}, x))))),
+    S.proposalWindows.node,
     h('div', { class: 'row propActions' },
       h('button', { type: 'button', class: 'primary', id: 'approveAndBuildBtn',
                     disabled: Boolean(S.build && !isTerminal(S.build.status)), onclick: approveAndBuild }, t('propApprove')),
@@ -1080,11 +1100,13 @@ function renderTrack() {
   $('track').replaceChildren(...steps);
   renderControls(); renderLog();
   const msg = $('buildMsg'); msg.className = 'msg';
-  if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); }
+  if (status === 'ready') { msg.className = 'msg ok'; msg.textContent = t('buildReady'); const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr)); }
   else if (status === 'cancelled') { msg.textContent = t('buildCancelled'); }
   else if (status === 'failed') {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
+    const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr));   // warehouse 104
+    const why = stopReasonLine(b); if (why) msg.append(h('div', { class: 'stop' }, why));   // warehouse 102
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
     // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
     if (b.result_version_id) {
@@ -1185,6 +1207,33 @@ function renderSharing(p) {
   const kids = [h('span', {}, t('shareLabel') + ': '), sel];
   if (mode === 'SHARED' && S.shareUrl) kids.push(h('input', { readonly: true, value: S.shareUrl, dir: 'ltr', 'aria-label': t('shareLink'), onfocus: (e) => e.target.select() }));
   box.replaceChildren(...kids);
+}
+// warehouse 104 (owner, 2026-11-15): the checks that did not run are named, never hidden in a count or in "did not pass
+// or did not run". The list is the quality report's own (release_policy.QualityReport.not_run); a failed build with no
+// report stopped before any check.
+// Review 2026-11-15: "no check ran" is said only for the failure codes the worker emits before any check (the engine
+// died); a failed build whose report could not be generated, or a report stored before the list existed, says nothing
+// rather than guessing.
+function notRunLine(b) {
+  const NO_REPORT_BEFORE_CHECKS = ['worker_exception', 'model_budget_exhausted', 'model_unavailable', 'provider_quota_exhausted', 'model_policy_blocked', 'attempt_ledger_unavailable', 'plan_violation'];
+  const status = b ? String(b.status || '').toLowerCase() : '';
+  if (status !== 'failed' && status !== 'ready') return '';
+  const qr = b.evidence && b.evidence.quality_report;
+  if (!qr) return status === 'failed' && NO_REPORT_BEFORE_CHECKS.includes(b.error_code) ? t('checksNoneRan') : '';
+  if (!Array.isArray(qr.not_run)) return '';
+  const names = t('checkNames') || {};
+  const list = qr.not_run.map(c => names[c.check] || c.check);
+  return list.length ? `${t('checksNotRun')}: ${list.join(', ')}.` : '';
+}
+// warehouse 102 (owner, 2026-11-15, narrow scope): why the automatic repair stopped, in the customer's words. The reason
+// is the engine's own (autonomous_core stop_reason, stored by the worker as evidence.repair_stop_reason); a reason the
+// table does not know is shown as it is, never hidden.
+function stopReasonLine(b) {
+  if (!b || String(b.status || '').toLowerCase() !== 'failed') return '';
+  const reason = b.evidence && b.evidence.repair_stop_reason;
+  if (!reason || reason === 'passed' || reason === 'no_repair_adopted') return '';
+  const words = t('repairStops') || {};
+  return words[reason] || `${t('repairStopped')}: ${reason}`;
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
@@ -1553,6 +1602,17 @@ function quickReplies(questions) {
         o.label, q.suggested === o.value ? ' ✓' : '')) : []),
       q.delegable ? h('button', { type: 'button', class: 'del', onclick: () => answerQuick(q, '__delegate__', t('delegateShort')) }, t('delegateShort')) : null))));
 }
+// owner 2026-11-16: the approval screen offers each window with its one-sentence benefit; the customer approves (ticks)
+// or rejects (leaves unticked) each one. read() is what the approval sends: every offered window, true or false.
+function windowsChoice(offer) {
+  if (!offer || !offer.length) return { node: null, read: () => undefined };
+  const boxes = offer.map(w => h('input', { type: 'checkbox', checked: w.state === 'approved', 'data-window': w.id }));
+  const node = h('fieldset', { class: 'windowsChoice' }, h('legend', {}, t('windowsTitle')),
+    h('p', { class: 'hint' }, t('windowsHint')),
+    ...offer.map((w, i) => h('label', { class: 'windowOpt', 'data-window': w.id }, boxes[i],
+      h('span', { class: 'wtext' }, h('b', {}, w.label), h('span', { class: 'benefit' }, w.benefit)))));
+  return { node, read: () => Object.fromEntries(offer.map((w, i) => [w.id, Boolean(boxes[i].checked)])) };
+}
 function actionButtons(actions) {
   const out = [];
   for (const a of actions || []) {
@@ -1562,14 +1622,21 @@ function actionButtons(actions) {
     if (a.type === 'approve_spec') {
       // Michael 2026-11-10 condition 3: an incomplete fact canon needs an explicit tick before the spec is approved.
       const incomplete = a.canon && a.canon.status === 'CANON_INCOMPLETE';
+      const wins = windowsChoice(a.windows);
+      if (wins.node) out.push(wins.node);
       const btn = h('button', { type: 'button', disabled: incomplete, onclick: () => sendChat(
-        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false },
+        { brief_fingerprint: a.brief_fingerprint, canon_ack: incomplete ? Boolean(box && box.checked) : false,
+          windows: wins.read() },
         t('actApproveSpec'), specApprovalPath) }, t('actApproveSpec'));
       const box = incomplete ? h('input', { type: 'checkbox', id: 'canonAck', onchange: (e) => { btn.disabled = !e.target.checked; } }) : null;
       if (incomplete) out.push(h('label', { class: 'canonAck', for: 'canonAck' }, box, ' ', t('canonAck')));
       out.push(btn);
     }
     if (a.type === 'show_plan') out.push(h('button', { type: 'button', class: 'secondary', onclick: () => { if (S.plan) openTab('plan'); else requestBriefPlan(true); } }, t('actShowPlan')));
+    // warehouse 69 (A0): a type without an output profile was refused; the one action is to describe a site or app instead
+    if (a.type === 'describe_web_instead') out.push(h('button', { type: 'button', class: 'primary', onclick: () => { const i = $('chatInput'); if (i) i.focus(); } }, t('actDescribeInstead')));
+    // warehouse 77c: a failed build's one action in the conversation -- back to the approval screen to try again
+    if (a.type === 'retry_build') out.push(h('button', { type: 'button', class: 'primary', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actRetryBuild')));
     if (a.type === 'approve_build') out.push(h('button', { type: 'button', onclick: async () => { if (!S.plan) await requestBriefPlan(); openTab('plan'); const b = $('confirmBtn'); if (b) b.focus(); } }, t('actApprove')));
     if (a.type === 'confirm_modification') out.push(h('button', { type: 'button', disabled: modActive() || !currentVersionId(),
       onclick: () => { $('followup').value = a.request; openTab('change'); sendModification(a.attachment_ids && a.attachment_ids.length ? { attachment_ids: a.attachment_ids } : null); } }, t('actConfirmMod')));
@@ -1610,7 +1677,7 @@ function renderChat() {
     const counts = (S.tasks && S.tasks.tasks || []).reduce((a, x) => { a[x.state] = (a[x.state] || 0) + 1; return a; }, {});
     const label = st === 'ready' ? t('buildReady') : st === 'failed' ? `${t('buildFailed')}: ${friendlyError(S.build)}` :
       st === 'cancelled' ? t('buildCancelled') : `${t('buildRunning')}${S.build.phase ? ` · ${S.build.phase}` : ''}`;
-    kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('build') }, label,
+    kids.push(h('button', { type: 'button', class: `statusline ghost${st === 'failed' ? ' bad' : ''}`, onclick: () => openTab('build') }, label,
       counts.SUCCEEDED ? ` · ${counts.SUCCEEDED} ${t('ts_SUCCEEDED')}` : ''));
   }
   if (S.mod && S.mod.status) kids.push(h('button', { type: 'button', class: 'statusline ghost', onclick: () => openTab('change') },

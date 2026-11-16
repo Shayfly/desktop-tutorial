@@ -60,7 +60,7 @@ _COMMON = (
     # The conversation's language implies the product's (LANG-001), unless the request says it serves people from abroad.
     Field('languages', 'he', 'text_direction', 2, implies=(('__conversation__', ''),), raises=((6, _ABROAD),)),
     Field('style', 'clean', 'look_and_feel', 2, raises=((3, _LOOK),)),
-    Field('color', 'blue', 'brand_colour', 0, raises=((3, _BRAND),)),     # a button colour is not material ... unless
+    Field('color', 'category', 'brand_colour', 0, raises=((3, _BRAND),)),     # a button colour is not material ... unless
     Field('font', 'heebo', 'typeface', 0, raises=((3, _READABLE),)),      # ... the request makes it so
     Field('logo', 'text', 'header_logo'),
     Field('references', 'none', 'inspiration'),

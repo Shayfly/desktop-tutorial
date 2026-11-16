@@ -1,0 +1,14 @@
+{
+ "broken1.html": {
+  "code": "HEADING_ORDER",
+  "what_is_broken": "the first heading is h2"
+ },
+ "broken2.html": {
+  "code": "HEADING_ORDER",
+  "what_is_broken": "h2 jumps to h4"
+ },
+ "broken3.html": {
+  "code": "HEADING_ORDER",
+  "what_is_broken": "two h1 elements"
+ }
+}
