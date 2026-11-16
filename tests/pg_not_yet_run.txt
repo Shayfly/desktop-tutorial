@@ -2,3 +2,5 @@
 # A file here is a known gap, said out loud; scripts/ci_test_coverage.py refuses an entry without a reason and a
 # PostgreSQL-dependent file that is in neither place. Format: tests/<path>.py  # reason
 tests/integration/test_profit_billing_events_pg.py  # needs OMNI_PROFIT_TEST_DATABASE_URL, a disposable database the pg job does not create yet; every live test skips without it (seen in #416's first pg run, 2026-11-16)
+tests/test_conversation_os.py  # alone on real Postgres (#416 run 2, 2026-11-16): 1 failed / 37 passed -- test_memory_survives_restart_and_retries_are_idempotent: AssertionError: False is not true
+tests/test_m4d2b_parity_and_worker.py  # alone on real Postgres (#416 run 2): 3 failed -- ModelGatewayError: no eligible model route (local-coder: quality unknown; classification requires >= 70), and a modification classification None != 'system_bug'

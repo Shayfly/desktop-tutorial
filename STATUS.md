@@ -17,6 +17,11 @@
   that the new files leave behind in the shared process. Two new files skipped: `test_profit_billing_events_pg` needs
   `OMNI_PROFIT_TEST_DATABASE_URL`, and `test_m4d2b_parity_and_worker` must run in a process that has not imported
   investor_app.
+- **The second pg run (each file alone):** 13 of 15 pass. Two still fail alone and are waived with their exact failure
+  in `tests/pg_not_yet_run.txt`: `test_conversation_os` (1 failed / 37 passed) and `test_m4d2b_parity_and_worker`
+  (3 failed: no eligible model route for local-coder; a modification classification None instead of 'system_bug').
+  The same run timed out the negative-controls step (5 minutes). On main after #415 that step took 4m39s, because my
+  skill-gate specs run real engine builds. The bound is now 10 minutes.
 - **The change:** 15 files run in a new step, each in its own process, and a skip there is an `::error`. The profit
   billing file is in `tests/pg_not_yet_run.txt` with its reason. The focused list is back to what it was.
 # 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
