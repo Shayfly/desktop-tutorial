@@ -529,7 +529,8 @@ class ConversationSupervisor:
             return held
         from ..intake import approval_flow as AF
         t, (lo, hi) = AF.text(lang), AF.cost_range(row.brief)
-        items = sorted(row.brief.fields.items(), key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)
+        items = sorted(((k, v) for k, v in row.brief.fields.items() if k not in ('windows', 'windows_rejected')),
+                       key=lambda kv: kv[1].get('confidence') != SAFE_CONFIDENCE)    # windows: their own choice below
         summary = '; '.join(_label(k, v['value'], lang) + (_TXT['he' if lang == 'he' else 'en']['safe_suffix']
                                                             if v.get('confidence') == SAFE_CONFIDENCE else '')
                             for k, v in items[:8] if 'value' in v)
@@ -540,8 +541,10 @@ class ConversationSupervisor:
         # business site is a visible warning (CANON_INCOMPLETE), never a silent pass.
         from .. import discovery as d
         canon = d.gate_canon(row.brief, lang)                                            # #335 (c)
+        offer = d.window_offer(row.brief, lang)     # owner 2026-11-16: each window with its benefit, approve or reject
         turn.actions.append({'type': 'approve_spec', 'brief_revision': row.revision, 'brief_fingerprint': row.fingerprint,
-                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')}})
+                             'canon': {k: canon[k] for k in ('status', 'hash', 'facts')},
+                             **({'windows': offer} if offer else {})})       # no offer, no key (an app has no windows)
         from .. import build_readiness as R
         excluded = [(f'{R.display_name(k, lang)} עדיין לא זמין, ולכן ייבנה בלעדיו.' if lang == 'he' else
                      f'{R.display_name(k, lang)} is not available yet, so it is built without it.')
@@ -682,7 +685,7 @@ class ConversationSupervisor:
 
     # ------------------------------------------------------------- gate 1 -> plan -> verifier -> gate 2
     def approve_spec(self, *, project_id: str, account_id: str, brief_fingerprint: str, request_key: str | None = None,
-                     lang: str | None = None, canon_ack: bool = False) -> Turn:
+                     lang: str | None = None, canon_ack: bool = False, windows: dict | None = None) -> Turn:
         """Gate 1: the customer approves THIS spec (by fingerprint). Only now is a plan made; the separate verifier
         checks it before the customer sees it; then gate 2 shows the exact cost next to the range said earlier."""
         from ..intake import approval_flow as AF
@@ -711,6 +714,15 @@ class ConversationSupervisor:
             row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
                                    expected_revision=row.revision, request_key=None)
             turn.brief_row = row
+        if feasible and windows:
+            # owner 2026-11-16: the windows the customer approved or rejected on the approval screen are part of the
+            # spec (an approved one is built and gated, a rejected one is not built), so the approval binds to the
+            # fingerprint that includes them -- the same way as the waiver above.
+            brief = d.Brief.from_dict(json.loads(json.dumps(row.brief.to_dict())))
+            if d.decide_windows(brief, windows):
+                row = self.briefs.save(project_id=project_id, account_id=account_id, brief=brief,
+                                       expected_revision=row.revision, request_key=None)
+                turn.brief_row = row
         flow = {'flow': AF.FLOW} if any((m.get('interpretation') or {}).get('flow') == AF.FLOW
                                         for m in self.store.messages_for(project_id, limit=2)) else {}
         self.store.add_message(project_id=project_id, account_id=account_id, role='customer', content=shown,

@@ -875,6 +875,45 @@ def approved_windows(brief: 'Brief') -> list[str]:
     return [known(w).id for w in ids]
 
 
+def rejected_windows(brief: 'Brief') -> list[str]:
+    """The windows the customer rejected on the approval screen (owner 2026-11-16): never built."""
+    f = brief.fields.get('windows_rejected') or {}
+    from .window_catalog import known
+    customer = f.get('source') in ('answer', 'message')       # only the customer rejects a window
+    return [known(w).id for w in (f.get('value') or [])] if customer else []
+
+
+def decide_windows(brief: 'Brief', decisions: dict) -> bool:
+    """Record the customer's approve/reject of each offered window (the approval screen). `decisions` maps a window id
+    to True (approved) or False (rejected); an id not in it keeps its earlier decision. An unknown id raises KeyError
+    and a value that is not a bool raises ValueError -- nothing is guessed. Returns True when the brief changed."""
+    from .window_catalog import CATALOG, known
+    for wid, ok in (decisions or {}).items():
+        known(wid)
+        if not isinstance(ok, bool):
+            raise ValueError(f'window {wid!r}: the decision must be true or false, not {ok!r}')
+    approved, rejected = set(approved_windows(brief)), set(rejected_windows(brief))
+    for wid, ok in (decisions or {}).items():
+        (approved if ok else rejected).add(wid)
+        (rejected if ok else approved).discard(wid)
+    before = (approved_windows(brief), rejected_windows(brief))
+    after = ([w for w in CATALOG if w in approved], [w for w in CATALOG if w in rejected])
+    if after == before:
+        return False
+    for key, value in zip(('windows', 'windows_rejected'), after):
+        brief.fields[key] = {'value': value, 'source': 'answer', 'question_id': 'windows', 'confidence': 'confirmed'}
+    return True
+
+
+def window_offer(brief: 'Brief', lang: str = 'he') -> list[dict]:
+    """What the approval screen offers: every catalogue window with its benefit and the current decision, for a
+    website brief; nothing for other products."""
+    if not is_website(brief):
+        return []
+    from .window_catalog import offer
+    return offer(lang, approved_windows(brief), rejected_windows(brief))
+
+
 def requirements_text(brief: Brief) -> str:
     """Binding block appended to the build prompt (English for the models,
     user wording quoted). Includes the brief fingerprint so the contract, and
@@ -969,8 +1008,9 @@ def requirements_text(brief: Brief) -> str:
     excluded = excluded + image_exclusions(brief)    # the customer's photo shown as is: nothing is generated
     if excluded:   # 77: bound into the fingerprinted contract; product_architect reads only this generated line
         lines.append(CUSTOMER_EXCLUSIONS_PREFIX + json.dumps(sorted(excluded)))
-    from .window_catalog import prompt_lines   # A2 step 8: the spec of every approved window, in the prompt
+    from .window_catalog import prompt_lines, rejected_lines   # A2 step 8: the spec of every approved window
     lines.extend(prompt_lines(approved_windows(brief)))
+    lines.extend(rejected_lines(rejected_windows(brief)))      # owner 2026-11-16: a rejected window is not built
     return '\n'.join(lines)
 
 

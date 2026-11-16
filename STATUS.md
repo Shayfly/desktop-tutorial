@@ -1,3 +1,44 @@
+# 2026-11-16 — the customer approves or rejects each window (Claude Code)
+
+- **Owner's order:** an approval screen for windows. Each window is offered with a one-sentence benefit; the customer
+  approves or rejects it. Acceptance: a rejected window is not built; an approved one enters fact_canon; the gate fails a
+  build missing an approved window.
+- **Implemented:**
+  - `window_catalog.BENEFITS` holds one sentence per window, Hebrew and English, and `offer()` builds the offer.
+  - `discovery.decide_windows` records approved and rejected windows in the brief (customer only). An unknown id raises
+    KeyError; a decision that is not a bool raises ValueError.
+  - `discovery.window_offer` makes the offer, websites only.
+  - `requirements_text` adds a "Rejected windows ... do not add them" line, and the gate fails a page that has a rejected
+    window (`WINDOW_REJECTED`).
+  - Gate 1's approve_spec action and the proposal card both carry the offer. `approve_spec(windows=...)` saves the
+    decisions before the approval, so the approval binds to the fingerprint that includes them, the same way as the
+    waiver.
+  - The API (`V28SpecApproval.windows`) refuses an unknown window with 400 `unknown_window`.
+  - UI: `windowsChoice()` in app.js renders one row per window, with label, benefit and a 44px target. It is used on
+    both approval screens, and it sends EVERY offered window, ticked as true and unticked as false. A window left
+    unticked is recorded as rejected, which the screen says.
+- **Evidence:** `tests/test_window_approval.py` 13 tests. They run the real supervisor up to gate 1, approve_spec with
+  decisions, the saved brief, build_canon, and the real engine with the window gate; and windowsChoice() with app.css in
+  real Chromium (click a row, read() sends all 8). Negative controls `tests/negative_controls/window_approval.json` 4/4
+  PASS, and `window_catalog.json` 7/7 still PASS. The 28 specs that touch the changed files: 23 PASS. 5
+  (item3-route, item4, pr154 NC2, pr176, preview-durable-backend) need fastapi and fail identically on main `c38fbb4`.
+- **Not checked here:** the API route itself (no fastapi in this container; CI runs it); a real paid build with windows.
+# 2026-11-16 — the v24-ci test job no longer runs the whole suite twice (Claude Code)
+
+- **What broke:** #418's `test` job was cancelled at its 20-minute bound, and a cancelled check is not green. The
+  bound is also the CI-cost policy's maximum (`tests/test_ci_workflow_concurrency.py`).
+- **Root cause:** the job ran pytest (7.7 min), then the negative controls (4.8 min), then
+  `scripts/run_international_gate.py`, which **ran the whole pytest suite again** (another ~7.7 min). On #417 the job
+  already took 17.7 minutes; the tests and controls I added today pushed it over.
+- **Fix:** the gate reads the junit report the first run wrote in the same job (`OMNI_PYTEST_REPORT=pytest-report.xml`,
+  set in v24-ci), through `scripts/junit_report.verdict`. A missing, unreadable or empty report, or any failure or
+  error, fails the gate loudly; skips are counted and said. Without the variable (a local run) the gate runs pytest as
+  before.
+- **Evidence:** `tests/test_ci_junit_report.py` 6 tests on junit files that pytest itself wrote, plus the workflow and
+  the gate as committed. Negative controls `ci_junit_report.json` 3/3 (failures counted as green; an empty report
+  green; the workflow not handing the report over). The real gate run with a report: `exit=0` in 2 seconds, with
+  `pytest: 8 tests, 0 failures, 0 errors, 0 skipped`.
+
 # 2026-11-16 — warehouse 107 (was 82): the stored customer session is checked on production and fails out loud (Claude Code)
 
 - **Implemented:** `scripts/customer_session_check.py` and the job `.github/workflows/customer-session.yml` (daily at 04:17 UTC and manual).

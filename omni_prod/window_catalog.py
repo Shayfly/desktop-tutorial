@@ -21,7 +21,7 @@ from dataclasses import dataclass
 ATTR = 'data-148-window'
 CLOSE_ATTR = 'data-148-close'
 ACCEPTANCE_PREFIX = 'window-'
-CODES = ('WINDOW_MISSING', 'WINDOW_RULE', 'WINDOW_ORDER', 'WINDOW_TWO_OPEN')
+CODES = ('WINDOW_MISSING', 'WINDOW_RULE', 'WINDOW_ORDER', 'WINDOW_TWO_OPEN', 'WINDOW_REJECTED')
 
 
 @dataclass(frozen=True)
@@ -73,6 +73,38 @@ CATALOG: dict[str, WindowSpec] = {w.id: w for w in (
 )}
 
 
+# The approval screen (owner 2026-11-16): each window is offered with ONE sentence saying what it gives the customer's
+# business; the customer approves or rejects it. Every catalogue window has one (a test holds it).
+BENEFITS: dict[str, tuple[str, str]] = {
+    'mega_menu': ('מבקרים מוצאים כל מחלקה בלחיצה אחת, גם כשיש הרבה מוצרים.',
+                  'Visitors reach every department in one click, even with many products.'),
+    'age_gate': ('האתר מבקש אישור גיל לפני הכניסה, כנדרש במכירת אלכוהול או טבק.',
+                 'The site asks for an age confirmation before entry, as selling alcohol or tobacco requires.'),
+    'cookie_banner': ('המבקרים מאשרים עוגיות, כפי שחוק הפרטיות מצפה כשמודדים תנועה באתר.',
+                      'Visitors consent to cookies, as privacy law expects when the site measures traffic.'),
+    'entry_popup': ('מבצע שקופץ פעם אחת בכניסה הופך מבקר חדש לקונה.',
+                    'An offer shown once on arrival turns a new visitor into a buyer.'),
+    'cart_drawer': ('הלקוח רואה את הסל בצד המסך וממשיך לקנות בלי לעזוב את הדף.',
+                    'The customer sees the cart at the side and keeps shopping without leaving the page.'),
+    'promo_bar': ('פס דק בראש הדף מודיע על מבצע או משלוח חינם בלי להסתיר תוכן.',
+                  'A thin bar at the top announces a sale or free delivery without hiding content.'),
+    'chips': ('כפתורי סינון מהירים עוזרים למצוא מוצר לפי סוג בנגיעה אחת.',
+              'Quick filter chips help find a product by type in one tap.'),
+    'question_widget': ('מבקר שואל שאלה מכל מקום באתר, ואתם מקבלים פנייה במקום מבקר שעזב.',
+                        'A visitor asks a question from anywhere on the site, and you get an enquiry instead of a lost visitor.'),
+}
+
+
+def offer(lang: str = 'he', approved=(), rejected=()) -> list[dict]:
+    """The windows the approval screen offers, in catalogue order, each with its one-sentence benefit and the
+    customer's current decision ('approved', 'rejected' or None)."""
+    he = lang != 'en'
+    approved, rejected = set(approved), set(rejected)
+    return [{'id': w.id, 'label': w.he if he else w.en, 'benefit': BENEFITS[w.id][0 if he else 1],
+             'state': 'approved' if w.id in approved else 'rejected' if w.id in rejected else None}
+            for w in CATALOG.values()]
+
+
 def known(window_id: str) -> WindowSpec:
     if window_id not in CATALOG:
         raise KeyError(f'unknown window {window_id!r}; one of {sorted(CATALOG)}')
@@ -107,6 +139,21 @@ def approved_in_prompt(prompt: str) -> list[str]:
     return [w for w in _APPROVED_LINE.findall(block) if w in CATALOG]
 
 
+REJECTED_PREFIX = 'Rejected windows (the customer said no; do not add them to the page): '
+_REJECTED_LINE = re.compile(re.escape(REJECTED_PREFIX) + r'([a-z_, ]+)\.')
+
+
+def rejected_lines(rejected) -> list[str]:
+    """The windows the customer rejected, as one prompt line. An unknown id raises."""
+    ids = [known(w).id for w in rejected]
+    return [REJECTED_PREFIX + ', '.join(ids) + '.'] if ids else []
+
+
+def rejected_in_prompt(prompt: str) -> list[str]:
+    m = _REJECTED_LINE.search(prompt or '')
+    return [w.strip() for w in m.group(1).split(',') if w.strip() in CATALOG] if m else []
+
+
 def canon_facts(approved) -> list[dict]:
     """An approved window is a fact the page must show (step 9: it enters the fact canon)."""
     return [{'key': 'window', 'value': known(w).id, 'source': 'approval', 'source_ref': known(w).he} for w in approved]
@@ -133,7 +180,7 @@ def window_roots(html: str) -> list[tuple[int, str, dict]]:
     return out
 
 
-def probe(html: str, approved, *, scripts: str = '', lang: str = 'he') -> dict:
+def probe(html: str, approved, *, scripts: str = '', lang: str = 'he', rejected=()) -> dict:
     """Check a page against its approved windows. Returns {'failures': [{code, window, message}], 'checked': [...]}.
     `scripts` is the page's JavaScript (inline and files), where the Escape and Tab handling live."""
     roots = window_roots(html)
@@ -165,6 +212,11 @@ def probe(html: str, approved, *, scripts: str = '', lang: str = 'he') -> dict:
             start = by_id[wid][0]
             if CLOSE_ATTR not in (html or '')[start:start + 6000]:
                 fail('WINDOW_RULE', wid, f'the {w.en} has no close button with {CLOSE_ATTR}')
+    for wid in rejected:
+        checked.append(f'{wid}: rejected, not on the page')
+        if wid in by_id:
+            fail('WINDOW_REJECTED', wid, f'the customer rejected the {known(wid).en}, and the page has one '
+                                         f'({ATTR}="{wid}")')
     if lang == 'he' and approved:
         checked.append('page: dir=rtl')
         m = re.search(r'<html\b([^>]*)>', html or '', re.I)
@@ -190,10 +242,12 @@ def _page(repository: dict[str, str]) -> tuple[str, str]:
 
 
 class WindowGateExecutor:
-    """The build is not accepted until every approved window is on the page and keeps the checkable rules."""
+    """The build is not accepted until every approved window is on the page and keeps the checkable rules, and no
+    rejected window is on it."""
 
-    def __init__(self, inner, approved, *, lang: str = 'he'):
+    def __init__(self, inner, approved, *, lang: str = 'he', rejected=()):
         self._inner, self.approved, self.lang = inner, [known(w).id for w in approved], lang
+        self.rejected = [known(w).id for w in rejected]
         self.last_windows = None
 
     def __getattr__(self, name):
@@ -203,7 +257,7 @@ class WindowGateExecutor:
         from .autonomous_core import AcceptanceFailure, ExecutionReport
         report = self._inner.execute(repository=repository, spec=spec)
         html, js = _page(repository)
-        result = probe(html, self.approved, scripts=js, lang=self.lang)
+        result = probe(html, self.approved, scripts=js, lang=self.lang, rejected=self.rejected)
         self.last_windows = result
         if not result['failures']:
             return report
@@ -213,9 +267,10 @@ class WindowGateExecutor:
 
 
 def install(engine, *, prompt: str, lang: str = 'he') -> list[str]:
-    """Wrap the engine's executor with the window gate when the build prompt carries approved windows."""
-    approved = approved_in_prompt(prompt)
-    if approved:
+    """Wrap the engine's executor with the window gate when the build prompt carries approved or rejected windows.
+    Returns the approved ids."""
+    approved, rejected = approved_in_prompt(prompt), rejected_in_prompt(prompt)
+    if approved or rejected:
         core = getattr(engine, 'core', engine)
-        core.executor = WindowGateExecutor(core.executor, approved, lang=lang)
+        core.executor = WindowGateExecutor(core.executor, approved, lang=lang, rejected=rejected)
     return approved
