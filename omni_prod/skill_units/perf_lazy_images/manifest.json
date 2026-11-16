@@ -1,0 +1,11 @@
+{
+ "name": "skill.perf.lazy_images",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G4",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Images after the first are lazy-loaded (loading=\"lazy\"), so a long page does not download every picture before it is seen."
+}

@@ -12,6 +12,106 @@
 - **Blocked by a named credential:** the secret `CUSTOMER_STORAGE_STATE` does not exist yet. The owner creates it (a test customer
   that is not the founder). Until then the daily job fails with MISSING. That is the acceptance, said out loud.
 - **Not checked:** a live 200 on production (needs the secret).
+# 2026-11-16 — warehouse 112: every test file is run by a CI job (Claude Code)
+
+- **Found:** 16 test files that need PostgreSQL (they end in `_pg.py` or read `M4D2_DATABASE_URL`) were run by no job. `v24-ci`
+  has no database, so they skipped there, and `intake-budget-pg` runs an explicit list that did not name them. #404 was the same gap.
+- **Implemented:** `scripts/ci_test_coverage.py` (runs in the `fast` job as `tests/test_ci_test_coverage.py`). It fails loudly when:
+  a PostgreSQL file is neither in the pg job's list nor in `tests/pg_not_yet_run.txt` with a reason; a listed file no longer exists;
+  a waiver has no reason, is stale or is also listed; or `v24-ci` stops running every test (`python -m pytest -q --junitxml=...`).
+  The 16 files were added to `intake-budget-pg.yml`. A file that fails in CI's real Postgres moves to `pg_not_yet_run.txt` with the exact failure.
+- **Evidence:** `tests/test_ci_test_coverage.py` 5 passed. Negative controls `tests/negative_controls/ci_test_coverage.json` 4/4 PASS
+  (a new pg file no job runs; the database variable counted; a waiver without a reason; the general run narrowed).
+  `python scripts/ci_test_coverage.py` → `PASS (0 problem(s))`.
+- **Bug of mine found on the way:** the test file named the database variable, so the check flagged the test itself as needing
+  PostgreSQL. Fixed by splitting the string; that the check caught its own test is extra evidence that it works.
+- **Not checked here:** whether the 16 files pass on real Postgres. That is judged by the `pg-tests` job of this PR.
+# 2026-11-16 — the skill units block builds: G3 accessibility, G4 performance, G6 secrets (Claude Code)
+
+- **Owner's order:** wire the 5 a11y skills into G3 (each skill fails a build when it fails), 5 performance skills plus
+  G4, and 5 secrets skills plus G6. Then (owner, the same morning):
+  - strengthen G3 until it fails on a page;
+  - G4 in `warn` mode with a high threshold until warehouse 114 is fixed;
+  - the `OMNI_GATE_<G>` switch reports when it is off, on every build.
+- **G3 fell on the butcher production page (`bld_83529c13...`, served from app.py).** Two broken variants were made
+  from it, each changed in one place. With `--text-dark: #b8bec8`, body text on `#f8fafc` is 1.79:1, so
+  `CONTRAST_LOW` fails the build. With its `:focus-visible` rule removed and `outline:none` on `a:focus, button:focus`,
+  `FOCUS_LOST` fails the build. Both repair to the real page and pass.
+- **Bug found in my own G3 (root cause):** the generated pages set every colour through `var(--...)`, and the contrast
+  probe read only literal hex. It judged no colour pair on the real page and passed it blind; the old probe passes the
+  low-contrast variant. The probe now resolves custom properties (with a var() fallback), and `judged()` counts the
+  pairs it read (4 on the real page). A pair it cannot read (rgb(), a gradient) is not judged and not claimed.
+- **Another bug of mine, caught before push:** `report()` walked the executor chain through `_inner` without a bound. On
+  the worker harness's MagicMock engine every attribute is a new mock, so the walk ran out of memory: a MemoryError in
+  `test_build_failed_announced`, and the kernel killed processes. The fix: the walk stops at MAX_CHAIN (20), follows
+  only real SkillGateExecutor objects (`vars()`, never an invented attribute), and accepts `gate_modes` only as a
+  dict. `test_the_report_walk_is_bounded` is the regression test; the unbounded version is its proof, since it failed
+  that way.
+- **Implemented:**
+  - `omni_prod/skill_units/gate.py`: a gate is every unit whose manifest names it. It wraps the engine's executor;
+    after the sandbox run, each unit's probe runs on every page, and a failing unit is an acceptance failure
+    `gate-<G>-<unit>`, with its code, the page and the findings, which goes to the repair round.
+  - Pages are .html files, or a whole HTML document inside app.py, which is how the generated sites serve their page.
+    A secrets unit (`reads_source`) reads every text file. No page and no source unit means NOT_RUN, said in the log
+    and in `last_gate`.
+  - `OMNI_GATE_<G>` takes `block`, `warn` or `off` (`1` and `0` also work); any other value raises. The defaults are
+    G3 block, G4 warn, G6 block.
+  - Every build writes each gate's mode, OFF included, to the log (`GATE_ON` / `GATE_OFF`) and to the build evidence
+    (`evidence_json.skill_gates`: mode, status, failure codes).
+  - In warn mode the failures are recorded (`GATE_WARN`, `last_gate`, the evidence) and the build goes on.
+  - The worker installs G3, G4 and G6 after the window gate.
+- **New units (each with manifest, probe, ok and broken fixtures, failure codes):**
+  - G4: `perf_blocking_script` (SCRIPT_BLOCKING), `perf_font_display` (FONT_NO_SWAP), `perf_font_preconnect`
+    (FONT_NO_PRECONNECT), `perf_hero_eager` (HERO_LAZY), `perf_lazy_images` (IMG_NOT_LAZY), and
+    `perf_inline_image_weight` (IMAGE_INLINED_HEAVY: an inline data: image over 500,000 base64 characters; the
+    butcher page had 1,735,408). G4 warns on it and does not block, until warehouse 114 is fixed.
+  - G6: `secrets_private_key`, `secrets_api_keys`, `secrets_db_url`, `secrets_bearer`, `secrets_assignment`, on the
+    repository's own scanner `omni_prod/secret_scan.py`, so the build and the repository share one definition. A value
+    read from the environment is not a credential.
+- **Evidence:**
+  - `tests/test_skill_gates.py`, 15 tests:
+    - Each of the 16 units fails a real-engine build through its own broken fixture with its own code, and the repair to
+      the real page passes.
+    - G3 falls on the two real-page variants, in its default mode.
+    - G4 warns by default: the build goes on, with the log line and the evidence.
+    - Every gate says its mode on every build, OFF included, and the evidence carries the gates.
+    - A key in server.py fails G6 even with a clean page.
+    - No page means NOT_RUN, said.
+  - `tests/test_skill_units_a11y.py` checks the parts of all 16 units.
+  - Negative controls: `skill_gates.json` 10/10, `skill_units_perf_secrets.json` 11/11, `skill_units_a11y.json` 6/6. Every spec that touches the changed files: build-failed-announced 4/4, repair-stop-reason-ui 3/3, lens11-image-match 9/9, window-catalog 7/7, worker-build-not-found 3/3; item2 needs psycopg and fails identically on main `c38fbb4`; settle-computed is pg-only.
+    - NC6 puts back the literal-hex-only probe, and the real-page test catches it.
+    - NC8 makes OFF silent, and it is caught.
+    - NC10 makes G4 block by default, and it is caught.
+- **Real-path evidence:** the unchanged butcher page passes all 16 units, so the gates do not block a page customers
+  got. Its hero, as served, was inlined as 1.7MB of base64 (warehouse 114). The recorded page replaced it with a 1x1
+  placeholder; on the real one, G4 would warn, which is the purpose.
+# 2026-11-16 — an accidental production release, and the release mark tightened (Claude Code)
+
+- **What broke:** #413's merge `c38fbb4` deployed BOTH Vercel production (`dpl_DFWp5Yxw1ziP5gJbMGUBWMUejSMu`, READY) and the
+  build worker (deploy-worker run 43820763641). Neither was a release.
+- **Root cause, a bug of mine:** I wrote the literal mark in #413's PR title ("... only on a release (`[release]` or a manual
+  run)"). GitHub copies the PR title into the merge commit's body, and both rules matched the mark anywhere in the message.
+- **Impact:** what went out is main at `c38fbb4`. Its runtime code equals the released `9917eba`; only the workflow, the gate
+  script, tests and STATUS changed. No customer-visible change. The worker deploy was left to finish, because a cancel in the
+  middle of a drain is the riskier step.
+- **Fix:** the mark counts only when the commit's FIRST LINE (the merge title) ENDS with `[release]`, in both
+  `scripts/vercel_ignore_build.mjs` (`isRelease`) and `scripts/release_gate.py` (`is_release`). `OMNI_RELEASE=1` and a
+  manual run of deploy-worker are unchanged. #412's real release title ("Merge pull request #412 from ... [release]")
+  still releases. #413's message verbatim, a mark in the body, a mark mid-title or at its start all do not.
+- **Evidence:** the #413 message is a test case in `tests/test_vercel_ignore_build.py` and `tests/test_release_gate_worker.py`.
+  Negative controls: `vercel_ignore_build.json` NC6 and `release_gate_worker.json` NC4 put back "anywhere in the message"
+  and the new tests catch it.
+- **The working rule from now on:** the literal mark is written only as the last word of a release merge's title. It
+  is never written in a PR title or body.
+
+# 2026-11-16 — warehouse 111 completed: the build worker deploys only on a release (Claude Code)
+
+- **Fix:** `scripts/release_gate.py` + a `release-gate` job in `.github/workflows/deploy-worker.yml`: the `deploy` job runs only when the
+  push's head commit carries `[release]` or the run is manual; otherwise the gate prints `::notice title=release gate::SKIP -- ...`.
+  An unknown event fails loudly. The frozen browser-probe step is untouched. Vercel production follows the same marker (#408).
+- **Evidence:** `tests/test_release_gate_worker.py` 6 tests (the script run as the workflow runs it; the job dependency read from the
+  YAML); controls `release_gate_worker.json` 3/3.
+- **Consequence:** migrations (applied by deploy-worker) now also reach production only on a release.
 
 # 2026-11-15 — P0-d, warehouse 102 (narrow): why the automatic repair stopped reaches the customer (Claude Code)
 

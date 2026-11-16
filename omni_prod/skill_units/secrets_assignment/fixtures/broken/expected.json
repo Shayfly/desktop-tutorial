@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "HARDCODED_CREDENTIAL",
+  "what_is_broken": "a password assigned a literal"
+ }
+}

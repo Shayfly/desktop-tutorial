@@ -84,6 +84,12 @@ jobs:
             tests/test_visual_edit.py tests/test_conversation_ux.py tests/test_worker_build_not_found.py tests/test_reservation_reconciler_pg.py tests/test_failed_build_release_pg.py tests/test_settle_computed_pg.py tests/test_founder_cap_exempt_pg.py tests/test_failed_builds_off_cap_pg.py tests/test_queue_position_pg.py tests/test_first_agent_brief_slice_pg.py \
             tests/test_worker_deploy_recovery.py tests/test_migration_rollback_tolerance.py tests/test_live_core_migration.py \
             tests/test_reference_store_pg.py tests/test_company_loss_failed_build_pg.py \
+            tests/integration/test_profit_billing_events_pg.py tests/test_actual_cost_settlement.py tests/test_agent_os.py \
+            tests/test_build_cancel_and_log.py tests/test_build_state_machine.py tests/test_conversation_os.py \
+            tests/test_crash_recovery_and_change_parity.py tests/test_golden_mod_path_live_postgres.py \
+            tests/test_intelligence_plane.py tests/test_janitor_redispatch.py tests/test_m4d2_live_fastapi_redis.py \
+            tests/test_m4d2_live_postgres.py tests/test_m4d2b_parity_and_worker.py tests/test_maintenance_live_postgres.py \
+            tests/test_preview_access.py tests/test_release_policy.py \
             tests/test_evidence_export.py tests/test_real_docker_drain_recovery.py \
             tests/integration/test_m5_build_economics_postgres.py tests/test_intake_approve_and_goal.py \
             tests/test_discovery_and_approval.py::LiveBriefAndApprovalTests::test_approval_is_consumed_once \

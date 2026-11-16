@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "FONT_NO_PRECONNECT",
+  "what_is_broken": "Google Fonts with no preconnect"
+ }
+}

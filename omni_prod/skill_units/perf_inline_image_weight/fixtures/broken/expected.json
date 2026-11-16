@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "IMAGE_INLINED_HEAVY",
+  "what_is_broken": "a hero image inlined as 500,004 base64 characters (the butcher page had 1,735,408)"
+ }
+}
