@@ -78,8 +78,11 @@ class TheDataFile(unittest.TestCase):
 
 class TheOldBlueIsGone(unittest.TestCase):
     def test_1d4ed8_is_nowhere_in_the_product(self):
+        # the skill units' fixtures under omni_prod/skill_units/*/fixtures/ are recorded production pages (the butcher
+        # page, built with the old blue); they are evidence of what customers got, not product code
         found = [str(p.relative_to(ROOT)) for p in (ROOT / 'omni_prod').rglob('*')
-                 if p.suffix in ('.py', '.js', '.css', '.json', '.html') and '1d4ed8' in p.read_text(errors='ignore').lower()]
+                 if p.suffix in ('.py', '.js', '.css', '.json', '.html') and 'fixtures' not in p.parts
+                 and '1d4ed8' in p.read_text(errors='ignore').lower()]
         self.assertEqual(found, [])
 
     def test_the_colour_question_recommends_the_category_not_blue(self):
