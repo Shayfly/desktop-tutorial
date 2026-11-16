@@ -78,7 +78,14 @@ def record_failed_build(cur, *, build_id: str, account_id: str | None, project_i
     credits went back), the provider was paid `actual_usd`. One row per build (idempotent on `failed-build:<id>`),
     inside the caller's transaction, so the refund and its loss commit together. A failed build with no provider
     cost writes nothing (there is no loss). Internal-QA builds are recorded too -- the money left either way -- and
-    the roll-up can group them by `evidence.funding_source`."""
+    the roll-up can group them by `evidence.funding_source`.
+
+    `truth` is the settlement basis (subscription_store._basis): ACTUAL or COMPUTED_FROM_USAGE were measured;
+    CONSERVATIVE_RESERVATION means nothing was measured and `actual_usd` is the reservation's estimate. The ledger's
+    rule is "always actual - quoted, never an estimate", so that case writes nothing and the caller says so
+    (review finding of 2026-11-15 on #401)."""
+    if truth == 'CONSERVATIVE_RESERVATION':
+        return None
     return record_overrun(cur, source='release_failed', idempotency_key=f'failed-build:{build_id}',
                           quoted_usd=0, actual_usd=actual_usd, cause=FAILED_BUILD_REFUNDED, build_id=build_id,
                           account_id=account_id, project_id=project_id,
