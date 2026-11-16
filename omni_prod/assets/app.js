@@ -62,6 +62,8 @@ const T = {
       rights_gate_not_clear:'הגרסה נשמרה, אבל חסר אישור זכויות לפני פרסום.',
       unsupported_dependency:'הקוד ביקש ספרייה חיצונית שעדיין לא נתמכת בפלטפורמה.',
       worker_lost:'הבנייה הפסיקה להגיב ושוחררה. לא חויבו קרדיטים. אפשר לנסות שוב.',
+      build_timeout:'הבנייה נמשכה יותר מדי זמן ונעצרה לפני שהושלמה. חויב רק מה שכבר נוצל. אפשר לנסות שוב.',
+      provider_liability_unknown:'הבנייה נעצרה באמצע. עוד לא ברור כמה נוצל, ולכן הסכום שמור עד שהחיוב יתברר. אפשר לנסות שוב.',
       worker_exception:'אירעה תקלה פנימית במהלך הבנייה. הצוות קיבל את הפרטים.',
       model_budget_exhausted:'הבנייה הגיעה לתקרת העלות שנקבעה לה ונעצרה לפני שהושלמה. אפשר לנסות שוב.',
       model_unavailable:'ספקי ה־AI לא היו זמינים כרגע (עומס או מכסה). אפשר לנסות שוב בעוד כמה דקות.',
@@ -82,7 +84,7 @@ const T = {
     checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
     checkNames:{preview_starts:'הפעלת ניסיון', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'מראה הדף במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר שאינו הכותב', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
     repairStopped:'התיקון האוטומטי נעצר',
-    repairStops:{no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.'},
+    repairStops:{time_budget:'התיקון האוטומטי נעצר: הבנייה הגיעה למגבלת הזמן שלה, ולכן לא התחיל סבב תיקון נוסף.', no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -189,6 +191,8 @@ const T = {
       rights_gate_not_clear:'The version was saved but needs rights clearance before publishing.',
       unsupported_dependency:'The code asked for an external library the platform does not support yet.',
       worker_lost:'The build stopped responding and was released. No credits were charged. You can try again.',
+      build_timeout:'The build took too long and was stopped before it finished. Only what was already used is charged. You can try again.',
+      provider_liability_unknown:'The build stopped part-way. What was used is not known yet, so the amount stays reserved until the charge is settled. You can try again.',
       worker_exception:'An internal error occurred during the build. The details were recorded.',
       model_budget_exhausted:'The build reached its cost ceiling and stopped before it was finished. You can try again.',
       model_unavailable:'The AI providers were not available right now (load or quota). Try again in a few minutes.',
@@ -209,7 +213,7 @@ const T = {
     checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
     checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'how the page looks on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'a reviewer who is not the author', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
     repairStopped:'Automatic repair stopped',
-    repairStops:{no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.'},
+    repairStops:{time_budget:'Automatic repair stopped: the build reached its time limit, so no further repair round was started.', no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1062,7 +1066,7 @@ function renderTrack() {
   // shown as skipped, never as done (a failed build once showed the quality
   // gates as passed although generation had failed before them).
   const FAIL_STEP = { infrastructure_not_configured: 1, capability_not_configured: 2, capability_gate_failed: 2, image_mismatch: 2,
-    worker_exception: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
+    worker_exception: 3, build_timeout: 3, provider_liability_unknown: 3, worker_lost: 3, preview_not_ready: 3, model_budget_exhausted: 3, model_unavailable: 3, provider_quota_exhausted: 3, model_policy_blocked: 3, verification_failed: 3, release_policy_failed: 4, quality_gate_failed: 4, security_gate_failed: 4, rights_gate_not_clear: 4 };
   const failedIdx = failedCode in FAIL_STEP ? FAIL_STEP[failedCode] : -1;
   const preview = S.preview;
   const steps = [];

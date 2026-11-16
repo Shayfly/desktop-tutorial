@@ -1,0 +1,174 @@
+{
+ "pr": "build-deadline",
+ "sha256": [
+  "tests/test_build_deadline.py",
+  "omni_prod/build_control.py",
+  "omni_prod/queueing.py",
+  "omni_prod/verification_verdict.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/autonomous_core.py",
+  "omni_prod/assets/app.js"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the build no longer stops itself at its limit (production 2026-11-16: the queue killed it instead)",
+   "mutations": [
+    {
+     "file": "omni_prod/build_control.py",
+     "old": "        if self.elapsed() >= self.stop_at_seconds:",
+     "new": "        if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_past_the_limit_the_next_step_raises_and_says_so_to_the_customer"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the queue's timeout is swallowed by a check again (bld_0e142230)",
+   "mutations": [
+    {
+     "file": "omni_prod/verification_verdict.py",
+     "old": "    return (BuildCancelled, BuildDeadline, AttemptLedgerUnavailable, ModelPolicyViolation, *queue_timeouts())",
+     "new": "    return (BuildCancelled, BuildDeadline, AttemptLedgerUnavailable, ModelPolicyViolation)  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_the_queues_timeout_is_re_raised_too"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the build's own deadline is reported by a check instead of ending the build",
+   "mutations": [
+    {
+     "file": "omni_prod/verification_verdict.py",
+     "old": "    return (BuildCancelled, BuildDeadline, AttemptLedgerUnavailable, ModelPolicyViolation, *queue_timeouts())",
+     "new": "    return (BuildCancelled, AttemptLedgerUnavailable, ModelPolicyViolation, *queue_timeouts())  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_a_check_re_raises_the_deadline_instead_of_reporting_it"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the repair loop starts a new round although the build is out of time",
+   "mutations": [
+    {
+     "file": "omni_prod/autonomous_core.py",
+     "old": "            if callable(out_of_time) and out_of_time():",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_a_build_out_of_time_starts_no_new_round_and_is_judged_on_its_best",
+    "test_the_loop_asks_before_every_round_and_names_the_reason"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a timeout is reported as a generic internal error",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "    if isinstance(exc, (BuildDeadline, *queue_timeouts())):   # the build's own limit, or the queue's as the last resort\n        return 'build_timeout'\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_a_deadline_is_a_failure_with_its_own_code_not_a_cancel",
+    "test_the_queues_own_timeout_gets_the_same_code"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "the queue's limit is again below the build's own limit",
+   "mutations": [
+    {
+     "file": "omni_prod/queueing.py",
+     "old": "BUILD_JOB_TIMEOUT_SECONDS = 1200",
+     "new": "BUILD_JOB_TIMEOUT_SECONDS = 1139"
+    },
+    {
+     "file": "omni_prod/queueing.py",
+     "old": "if not 0 < BUILD_REPAIR_UNTIL_SECONDS < BUILD_STOP_AT_SECONDS < BUILD_JOB_TIMEOUT_SECONDS - 120:",
+     "new": "if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_repair_stops_before_the_build_stops_before_the_queue_kills"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "the engine is not given the control's clock, so the loop never knows it is out of time",
+   "mutations": [
+    {
+     "file": "omni_prod/build_control.py",
+     "old": "    getattr(engine, 'core', engine).out_of_time = control.out_of_repair_time\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_install_gives_the_engine_the_controls_clock"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a build that stopped on time has no words for the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/assets/app.js",
+     "old": "      build_timeout:'הבנייה נמשכה יותר מדי זמן ונעצרה לפני שהושלמה. חויב רק מה שכבר נוצל. אפשר לנסות שוב.',\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_every_way_a_build_can_stop_on_time_has_words_in_both_languages"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "a wrong time budget is accepted in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/build_control.py",
+     "old": "            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:",
+     "new": "            if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_build_deadline.py"
+   ],
+   "expect_failed": [
+    "test_a_wrong_budget_is_refused"
+   ]
+  }
+ ]
+}
