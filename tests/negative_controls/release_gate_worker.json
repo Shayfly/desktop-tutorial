@@ -1,0 +1,24 @@
+{
+ "pr": "release-gate-worker",
+ "sha256": ["tests/test_release_gate_worker.py", "scripts/release_gate.py"],
+ "controls": [
+  {"id": "NC1", "what": "the worker deploys every push again (warehouse 111 as it was found)",
+   "mutations": [{"file": "scripts/release_gate.py",
+                  "old": "    if RELEASE_MARK in (message or ''):",
+                  "new": "    if True:  # NEGATIVE CONTROL"}],
+   "targets": ["tests/test_release_gate_worker.py"],
+   "expect_failed": ["test_a_push_without_the_marker_is_not_deployed_and_says_so"]},
+  {"id": "NC2", "what": "the deploy job no longer depends on the gate",
+   "mutations": [{"file": ".github/workflows/deploy-worker.yml",
+                  "old": "    if: needs.release-gate.outputs.release == 'true'\n",
+                  "new": ""}],
+   "targets": ["tests/test_release_gate_worker.py"],
+   "expect_failed": ["test_the_deploy_job_runs_only_on_a_release"]},
+  {"id": "NC3", "what": "an unknown event is quietly treated as a push",
+   "mutations": [{"file": "scripts/release_gate.py",
+                  "old": "    if event_name != 'push':\n        raise ValueError",
+                  "new": "    if False:  # NEGATIVE CONTROL\n        raise ValueError"}],
+   "targets": ["tests/test_release_gate_worker.py"],
+   "expect_failed": ["test_an_unknown_event_fails_loudly"]}
+ ]
+}
