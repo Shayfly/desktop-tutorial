@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "TOKEN_IN_SOURCE",
+  "what_is_broken": "a fixed bearer token in a request header"
+ }
+}

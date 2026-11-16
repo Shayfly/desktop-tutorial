@@ -1,0 +1,6 @@
+{
+ "API_KEY_IN_SOURCE": {
+  "meaning": "a provider API key is in the generated source",
+  "fix": "remove it; call the provider from the server with a key from the environment"
+ }
+}

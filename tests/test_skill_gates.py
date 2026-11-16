@@ -1,0 +1,149 @@
+"""Owner 2026-11-16: wire the five accessibility units into G3 -- each unit fails a build when it fails.
+
+Real path: the production worker installs the gate (source check); the gate wraps the real AutonomousProductEngine's
+executor; each unit's own broken fixture, as the generated page, fails the build with that unit's code, and a repair
+to its ok fixture passes. The real production page of the butcher build (bld_83529c13..., served from app.py, read
+with the read-only inspect-round-artifacts workflow) passes all five -- the gate does not block a page customers got.
+The generator, repairer and sandbox are fakes (no model, no Docker); the gate, the probes and the engine are not.
+"""
+from __future__ import annotations
+
+import inspect
+import json
+import os
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
+
+from omni_prod import skill_units as U
+from omni_prod.autonomous_core import AutonomousProductEngine, ExecutionReport
+from omni_prod.repository_patch import parse_patch
+from omni_prod.skill_units import gate as G
+
+A11Y = ['a11y_alt_text', 'a11y_contrast', 'a11y_focus', 'a11y_heading_order', 'a11y_labels']
+SECRETS = ['secrets_api_keys', 'secrets_assignment', 'secrets_bearer', 'secrets_db_url', 'secrets_private_key']
+PERF = ['perf_blocking_script', 'perf_font_display', 'perf_font_preconnect', 'perf_hero_eager', 'perf_lazy_images']
+BUTCHER = json.loads((Path(__file__).parent / 'fixtures' / 'butcher_served_page_2026_11_14.json').read_text(encoding='utf-8'))
+
+
+def as_app_py(html: str) -> str:
+    return f'HTML_CONTENT = """{html}"""\n\nif __name__ == "__main__":\n    print(HTML_CONTENT)\n'
+
+
+class _Arch:
+    def create_spec(self, prompt):
+        return SimpleNamespace(acceptance=(SimpleNamespace(id='A1', text='the page'),), requirements=())
+
+
+class _Files:
+    def __init__(self, files):
+        self.files, self.failures = files, []
+
+    def generate(self, spec):
+        return parse_patch({'files': [{'path': k, 'content': v} for k, v in self.files.items()]})
+
+    def repair(self, *, spec, repo_summary, failures):
+        self.failures.append(failures)
+        return parse_patch({'files': [{'path': k, 'content': v} for k, v in self.files.items()]})
+
+
+class _Sandbox:
+    def execute(self, *, repository, spec):
+        return ExecutionReport(True, (), 'sandbox ok', tests_executed=3)
+
+
+def engine(first: dict, repaired: dict, rounds=2, gate='G3'):
+    rep = _Files(repaired)
+    e = AutonomousProductEngine(architect=_Arch(), generator=_Files(first), repairer=rep, executor=_Sandbox(),
+                                max_repair_rounds=rounds)
+    with mock.patch.dict(os.environ, {f'OMNI_GATE_{gate}': '1'}):
+        G.install(e, gate)
+    return e, rep
+
+
+class TheGate(unittest.TestCase):
+    def test_g3_is_the_five_accessibility_units_and_g4_the_five_performance_units(self):
+        self.assertEqual(G.gate_units('G3'), A11Y)
+        self.assertEqual(G.gate_units('G4'), PERF)
+        self.assertEqual(G.gate_units('G6'), SECRETS)
+        with self.assertRaises(ValueError):
+            G.gate_units('G99')
+
+    def test_each_unit_fails_a_build_when_it_fails(self):
+        for gate, members in (('G3', A11Y), ('G4', PERF), ('G6', SECRETS)):
+            for unit in members:
+                with self.subTest(unit):
+                    self._fails_then_repairs(gate, unit)
+
+    def _fails_then_repairs(self, gate, unit):
+        # the unit's own broken fixture is the generated page; the repair returns the real production page, which
+        # passes every unit (a unit's ok fixture is minimal and may fail a sibling unit, e.g. it has no <h1>)
+        [(_, broken, expected), *_] = U.fixtures(unit, 'broken')
+        e, rep = engine({'index.html': broken}, {'index.html': BUTCHER['page']}, gate=gate)
+        result = e.build('a page')
+        first = {f['acceptance_id']: f['message'] for f in rep.failures[0] if f['acceptance_id'].startswith(f'gate-{gate}-')}
+        self.assertIn(f'gate-{gate}-{unit}', first)
+        self.assertTrue(first[f'gate-{gate}-{unit}'].startswith(expected['code']), first)
+        self.assertEqual((result.status, result.repair_rounds), ('ready', 1))     # the repair fixes it
+
+    def test_a_page_that_keeps_failing_fails_the_build(self):
+        [(_, broken, _), *_] = U.fixtures('a11y_contrast', 'broken')
+        e, _ = engine({'index.html': broken}, {'index.html': broken}, rounds=1)
+        self.assertEqual(e.build('a page').status, 'failed')
+
+    def test_a_broken_page_served_from_app_py_fails_too(self):
+        [(_, broken, _), *_] = U.fixtures('a11y_labels', 'broken')
+        e, rep = engine({'app.py': as_app_py(broken)}, {'app.py': as_app_py(BUTCHER['page'])})
+        self.assertEqual(e.build('a page').status, 'ready')
+        self.assertIn('gate-G3-a11y_labels', [f['acceptance_id'] for f in rep.failures[0]])
+
+    def test_the_real_production_page_passes_all_five(self):
+        for gate in ('G3', 'G4', 'G6'):
+            with self.subTest(gate):
+                result = G.check(gate, {'app.py': as_app_py(BUTCHER['page'])})
+                self.assertEqual(result['status'], 'pass', result['failures'])
+                self.assertEqual(len(result['checked']), 5)
+        self.assertIn('bld_83529c132a864075945080e9390484cb', BUTCHER['_source'])
+
+    def test_a_secret_in_the_server_code_fails_even_with_a_clean_page(self):
+        leak = 'import os\nDATABASE = "postgresql://shop:' + 'Xk29sd81hf3Qpl' + '@db.shop.test/shop"\n'
+        e, rep = engine({'index.html': BUTCHER['page'], 'server.py': leak},
+                        {'index.html': BUTCHER['page'], 'server.py': 'import os\nDATABASE = os.environ["DATABASE_URL"]\n'},
+                        gate='G6')
+        self.assertEqual(e.build('a page').status, 'ready')
+        self.assertEqual([f['acceptance_id'] for f in rep.failures[0]], ['gate-G6-secrets_db_url'])
+        self.assertIn('server.py', rep.failures[0][0]['message'])
+
+    def test_no_page_is_not_run_and_said(self):
+        e, _ = engine({'main.py': 'print(1)\n'}, {'main.py': 'print(1)\n'})
+        with self.assertLogs('omni_prod.skill_units.gate', 'WARNING') as logs:
+            result = e.build('a script')
+        self.assertEqual(result.status, 'ready')
+        self.assertEqual(e.executor.last_gate['status'], 'NOT_RUN')
+        self.assertIn('GATE_NOT_RUN gate=G3', logs.output[0])
+
+
+class TheSwitch(unittest.TestCase):
+    def test_on_by_default_off_said_and_an_unknown_value_raises(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('OMNI_GATE_G3', None)
+            self.assertTrue(G.enabled('G3'))
+        e = SimpleNamespace(executor=_Sandbox())
+        with mock.patch.dict(os.environ, {'OMNI_GATE_G3': '0'}), self.assertLogs('omni_prod.skill_units.gate', 'WARNING'):
+            self.assertEqual(G.install(e, 'G3'), [])
+        self.assertIsInstance(e.executor, _Sandbox)
+        with mock.patch.dict(os.environ, {'OMNI_GATE_G3': 'yes'}), self.assertRaises(ValueError):
+            G.install(e, 'G3')
+
+    def test_the_worker_installs_the_gate(self):
+        from omni_prod import worker_tasks
+        src = inspect.getsource(worker_tasks._run_live_build_job)
+        self.assertIn("install_skill_gate(engine, 'G3')", src)
+        self.assertIn("install_skill_gate(engine, 'G4')", src)
+        self.assertIn("install_skill_gate(engine, 'G6')", src)
+        self.assertLess(src.index('install_window_gate(engine'), src.index("install_skill_gate(engine, 'G3')"))
+
+
+if __name__ == '__main__':
+    unittest.main()

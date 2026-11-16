@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "API_KEY_IN_SOURCE",
+  "what_is_broken": "an sk- key in a page script"
+ },
+ "broken2.html": {
+  "code": "API_KEY_IN_SOURCE",
+  "what_is_broken": "an AWS access key id in a page script"
+ }
+}

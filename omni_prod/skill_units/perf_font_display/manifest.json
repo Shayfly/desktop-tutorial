@@ -1,0 +1,11 @@
+{
+ "name": "skill.perf.font_display",
+ "input": "the HTML of a generated page",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G4",
+ "owner": "Claude Code (product)",
+ "reads_source": false,
+ "description": "Web fonts swap in (Google Fonts with display=swap, @font-face with font-display), so text shows at once instead of staying invisible while the font loads."
+}

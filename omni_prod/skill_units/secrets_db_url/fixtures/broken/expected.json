@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "DB_PASSWORD_IN_SOURCE",
+  "what_is_broken": "a postgres URL with a password"
+ }
+}

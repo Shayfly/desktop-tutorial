@@ -1086,6 +1086,10 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         from .uploaded_assets import install_main_image
         from .window_catalog import install as install_window_gate   # A2 step 9: approved windows gate the build
         install_window_gate(engine, prompt=build_prompt)
+        from .skill_units.gate import install as install_skill_gate   # owner 2026-11-16: skill units block (G3, G4, G6)
+        install_skill_gate(engine, 'G3')                              # accessibility
+        install_skill_gate(engine, 'G4')                              # performance budget
+        install_skill_gate(engine, 'G6')                              # secrets
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))

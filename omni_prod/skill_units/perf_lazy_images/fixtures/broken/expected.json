@@ -1,0 +1,6 @@
+{
+ "broken1.html": {
+  "code": "IMG_NOT_LAZY",
+  "what_is_broken": "the second image downloads on load"
+ }
+}
