@@ -137,13 +137,13 @@ class Offline(unittest.TestCase):
         before = len(self.session.blocked)
         v = self._verify('external')
         self.assertEqual(v['outcome'], 'pass')
-        self.assertEqual(sorted(set(self.session.blocked[before:])), ['cdn.example.com', 'images.example.org'])
+        self.assertEqual(sorted(set(self.session.blocked[before:])), ['cdn.example.invalid', 'images.example.invalid'])
         from omni_prod.a2.verify import verify
-        real = verify(self.session, {'candidate_id': candidate_id('https://example.com/'), 'url': 'https://example.com/',
+        real = verify(self.session, {'candidate_id': candidate_id('https://example.invalid/'), 'url': 'https://example.invalid/',
                                      'tier': 1, 'source': 'library'})
         self.assertEqual((real['rejection']['reason_code'], real['rejection']['measured']),
                          ('not_live', 'blocked_offline'))                     # never reached, not even robots.txt
-        self.assertEqual(self.session.blocked[-1], 'example.com')
+        self.assertEqual(self.session.blocked[-1], 'example.invalid')
 
     # ---------------------------------------------------------------- 1.3 capture
     def test_two_full_page_screenshots_stored_by_their_digest(self):
