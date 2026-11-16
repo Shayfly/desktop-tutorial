@@ -70,12 +70,19 @@ class VercelIgnoredBuildStep(unittest.TestCase):
         self.assertIn('not a release', out)
         self.assertNotIn('FETCH', out)
         for kwargs, why in (({'message': 'Merge pull request #406 [release]'}, 'release commit'),
-                            ({'message': 'title\n\nbody [release]'}, 'release commit'),
+
                             ({'release': '1'}, 'manual release')):
             code, out = run('production', 'main', answer=CASES['docs'], **kwargs)
             self.assertEqual(code, BUILD, (kwargs, out))
             self.assertIn(why, out)
         self.assertEqual(run('production', 'main', release='0', message='x')[0], SKIP)      # only "1" releases
+
+    def test_the_mark_counts_only_at_the_end_of_the_title_line(self):
+        # 2026-11-16: #413's merge (c38fbb4) went to production because its body quoted a title mentioning the mark
+        for message in ("Merge pull request #413: warehouse 111 completed, the worker deploys only on a release\n\nwarehouse 111 completed: the build worker deploys only on a release ([release] or a manual run)", 'title\n\nbody [release]', 'about the [release] rule', '[release] at the start'):
+            with self.subTest(message[:30]):
+                self.assertEqual(run('production', 'main', message=message)[0], SKIP)
+        self.assertEqual(run('production', 'main', message='Merge pull request #412 from x/y [release]  ')[0], BUILD)
 
     def test_previews_still_build_automatically(self):
         code, out = run('preview', 'fix/x', CASES['code']['head'], CASES['code'], message='no marker')
