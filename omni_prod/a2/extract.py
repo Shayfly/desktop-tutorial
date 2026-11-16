@@ -301,12 +301,84 @@ def from_measures(m: dict) -> dict:
     return {'skeleton': skeleton, 'extraction': extraction}
 
 
+# 109 / 110 (the owner, 2026-11-15 23:26): a page with no style of its own is not a card, and every field says whether
+# the PAGE set it (authored) or the browser did (ua-default). Measured, not guessed: the same DOM is measured a second
+# time with every author style switched off; a value that does not change is the browser's, not the site's.
+_STYLES_JS = r"""
+() => {
+  let active = 0, missing = 0;
+  for (const l of document.querySelectorAll('link[rel~=stylesheet]')) {
+    // not loaded: no sheet, an HTTP error, or a sheet with no rules (Chromium keeps an empty sheet for a 404)
+    const t = performance.getEntriesByName(l.href)[0];
+    let rules = 1; try { rules = l.sheet ? l.sheet.cssRules.length : 0; } catch (e) { rules = 1; }
+    if (!l.sheet || (t && t.responseStatus >= 400) || rules === 0) missing++;
+  }
+  for (const s of document.styleSheets) {
+    let n = 0; try { n = s.cssRules.length; } catch (e) { n = 1; }       // cross-origin: present, rules unreadable
+    if (n > 0 && !s.disabled) active++;
+  }
+  return {active, missing, inline: document.querySelectorAll('[style]').length};
+}
+"""
+_AUTHOR_OFF_JS = r"""
+() => {
+  for (const s of document.styleSheets) { try { s.disabled = true; } catch (e) {} }
+  try { document.adoptedStyleSheets = []; } catch (e) {}
+  for (const el of document.querySelectorAll('[style]')) el.removeAttribute('style');
+}
+"""
+FIELD_SOURCE_KEYS = ('type_scale_px', 'rhythm', 'hero', 'columns', 'cta_shape')
+
+
+class ExtractRejected(Exception):
+    """A page the extractor refuses, loudly, with its reason code (no_styles | stylesheet_missing)."""
+
+    def __init__(self, reason_code: str, measured):
+        super().__init__(f'{reason_code}: {measured}')
+        self.reason_code, self.measured = reason_code, measured
+
+
+def styles_verdict(styles: dict) -> str | None:
+    """109: None when the page has style of its own; else the rejection reason."""
+    if styles.get('missing'):
+        return 'stylesheet_missing'             # a stylesheet the page links did not load: never measured as defaults
+    if not styles.get('active') and not styles.get('inline'):
+        return 'no_styles'
+    return None
+
+
+def field_source(authored: dict, ua: dict) -> dict:
+    """110: per field, 'authored' when the page's own styles changed it, 'ua-default' when the browser alone gives it."""
+    a_sk, u_sk = authored['skeleton'], ua['skeleton']
+    a_ex, u_ex = authored['extraction'], ua['extraction']
+    same = {'type_scale_px': a_sk['type_scale_px'] == u_sk['type_scale_px'],
+            'rhythm': a_sk['rhythm'] == u_sk['rhythm'],
+            'hero': a_sk['hero'] == u_sk['hero'],
+            'columns': a_sk['columns'] == u_sk['columns'],
+            'cta_shape': a_ex['cta']['shape'] == u_ex['cta']['shape']}
+    out = {k: 'ua-default' if same[k] else 'authored' for k in FIELD_SOURCE_KEYS}
+    for role, entry in a_ex['palette'].items():
+        theirs = u_ex['palette'].get(role)
+        out[role] = 'ua-default' if theirs and theirs['hex'] == entry['hex'] else 'authored'
+    return out
+
+
 def extract(session, url: str, *, width: int = 1440) -> dict:
-    """Open the page (offline session: only allowed hosts) and extract. Both parts are schema-checked."""
+    """Open the page (offline session: only allowed hosts) and extract. Both parts are schema-checked.
+
+    Raises ExtractRejected (109) for a page with no style of its own or a linked stylesheet that did not load.
+    extraction.field_source (110) says, field by field, whether the page or the browser set it."""
     with session.page(width=width, height=900) as page:
         page.goto(url, wait_until='load', timeout=15000)
+        styles = page.evaluate(_STYLES_JS)
+        verdict = styles_verdict(styles)
+        if verdict:
+            raise ExtractRejected(verdict, styles)
         measures = page.evaluate(_JS, _SECTION_WORDS)
+        page.evaluate(_AUTHOR_OFF_JS)
+        ua_measures = page.evaluate(_JS, _SECTION_WORDS)
     out = from_measures(measures)
+    out['extraction']['field_source'] = field_source(out, from_measures(ua_measures))
     _check('skeleton', out['skeleton'])
     _check('extraction', out['extraction'])
     return out

@@ -77,7 +77,10 @@
    ],
    "expect_failed": [
     "test_a_page_without_the_photo_is_not_accepted",
-    "test_every_placed_photo_must_be_on_the_page"
+    "test_every_placed_photo_must_be_on_the_page",
+    "test_a_photo_outside_its_section_is_told_to_move_into_it",
+    "test_a_place_the_page_does_not_have_says_what_is_missing_and_what_to_add",
+    "test_the_same_photo_in_two_places_is_checked_in_each"
    ]
   },
   {
@@ -262,6 +265,24 @@
    ],
    "expect_failed": [
     "test_a_decided_photo_uploaded_again_is_not_asked_again"
+   ]
+  },
+  {
+   "id": "NC15",
+   "what": "a photo's place is not checked (a story photo in the footer passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/uploaded_assets.py",
+     "old": "            if state != 'missing' and img.place in _PLACE_HE:",
+     "new": "            if False:  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_uploaded_main_image.py"
+   ],
+   "expect_failed": [
+    "test_a_photo_outside_its_section_is_told_to_move_into_it",
+    "test_a_place_the_page_does_not_have_says_what_is_missing_and_what_to_add"
    ]
   }
  ]

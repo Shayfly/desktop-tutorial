@@ -1,0 +1,72 @@
+# needs_env (the owner, 2026-11-15 22:50): tests that cannot run in the Claude container because packages are absent
+# (fastapi, psycopg, psycopg_pool, boto3, botocore). MEASURED, never by name: the full suite was run on main 86eb9bb
+# and again on 0633b52 (2026-11-16, same 66 lines), and every listed id failed or errored ONLY on one of these imports
+# (junit message per test). Lines are either a module (collection error) or a test node id.
+# In CI (packages installed) nothing here is skipped. Locally: pytest -m "not needs_env".
+# Changed only by re-measuring with scripts in the same way; a test is never added here because it fails for another reason.
+tests/integration/test_financial_fault_experiment.py
+tests/integration/test_profit_billing_events_pg.py::test_database_guard_rejects_connection_overrides[postgresql://localhost/profit_test?dbname=production]
+tests/integration/test_profit_billing_events_pg.py::test_database_guard_rejects_connection_overrides[postgresql://localhost/profit_test?host=127.0.0.1,remote.example]
+tests/integration/test_profit_billing_events_pg.py::test_database_guard_rejects_connection_overrides[postgresql://localhost/profit_test?host=remote.example]
+tests/integration/test_profit_billing_events_pg.py::test_database_guard_rejects_connection_overrides[postgresql://localhost/profit_test?hostaddr=192.0.2.1]
+tests/integration/test_profit_billing_events_pg.py::test_database_guard_rejects_connection_overrides[postgresql://localhost/profit_test?service=production]
+tests/test_api_security.py
+tests/test_auth.py
+tests/test_auth_error_mapping.py
+tests/test_bootstrap.py
+tests/test_build_allowance_message.py
+tests/test_customer_font_security.py
+tests/test_database_pool_health.py::test_pool_checks_connections_before_handing_them_to_requests
+tests/test_db_fingerprint.py
+tests/test_deployment_endpoint_public.py
+tests/test_e2e_contract.py
+tests/test_evidence_export.py::OneOffRunTests::test_the_file_runs_from_stdin_so_no_merge_or_worker_deploy_is_needed
+tests/test_frozen_run_conditions_20261110.py::CanonNeedsAnExplicitTick::test_api_model_and_supervisor_accept_the_tick
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_failed_download_fails_the_job
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_failed_get_never_prints_a_key_shaped_token_in_any_annotation
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_key_shaped_filename_is_redacted_in_the_title_too
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_missing_build_a_missing_key_or_a_requested_absent_round_fails
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_repository_that_is_not_the_recorded_one_fails_the_job
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_a_wrong_metadata_checksum_fails_the_job
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_an_existing_build_with_no_snapshots_cannot_report_success
+tests/test_inspect_round_artifacts_workflow.py::ReaderAgainstFakes::test_clean_read_prints_verifies_redacts_and_saves_the_zip
+tests/test_intake_assistant_he.py::ConversationDeliveryStatusTests::test_status_reflects_the_interpreter_used_for_each_saved_turn
+tests/test_intake_credits_by_plan.py
+tests/test_live_auth_matrix.py
+tests/test_live_core_migration.py
+tests/test_m495_truth_readiness_api.py
+tests/test_m4_acceptance.py::AcceptanceW::test_W_every_non_fastapi_test_module_passes
+tests/test_m5_build_contract_binding.py
+tests/test_m5_build_economics.py
+tests/test_m5_identity_lifecycle.py
+tests/test_m5_public_path_truth.py
+tests/test_plan_reserve_allowance.py
+tests/test_preflight_propagation_real_behaviour.py::PreflightFallbackReachesTheRealBehaviourCheck::test_an_unresolved_plan_reaches_behaviour_as_it_is_and_costs_a_real_round
+tests/test_preflight_propagation_real_behaviour.py::PreflightFallbackReachesTheRealBehaviourCheck::test_control_a_valid_narrow_fix_passes_with_zero_counted_rounds
+tests/test_preview_allowance_full_reserve.py
+tests/test_profit_protection.py
+tests/test_projects.py
+tests/test_r2_config_diagnostic.py::test_diagnostic_detects_loaded_secret_mismatch_without_disclosing_credentials
+tests/test_r2_config_diagnostic.py::test_diagnostic_reads_only_configuration_without_object_requests
+tests/test_r2_storage_signing.py::test_r2_put_is_signed_without_unsupported_chunked_checksum
+tests/test_r2_storage_signing.py::test_standard_s3_configuration_is_preserved
+tests/test_replicate_connection.py::test_authenticated_route_returns_only_connection_result
+tests/test_replicate_connection.py::test_check_route_requires_session_before_provider_call
+tests/test_replicate_image_test.py::test_routes_refuse_unauthenticated_paid_calls
+tests/test_replicate_image_test.py::test_storage_probe_returns_only_safe_failure_category
+tests/test_repo_summary_secrets.py
+tests/test_runtime_bridge.py::test_generate_export_uses_real_packaged_runtime
+tests/test_runtime_bridge.py::test_runtime_status_bridge
+tests/test_v23_investor_grade.py
+tests/test_v24_auth.py
+tests/test_v24_international.py
+tests/test_v24_native_remote.py
+tests/test_v25_unified_v10_parity.py
+tests/test_v26_universal_pro.py
+tests/test_v27_rights_company_os.py
+tests/test_v28_148ai_launch.py
+tests/test_vercel_entrypoint.py
+tests/test_verification_group.py
+tests/test_worker_deploy_recovery.py::ActiveJobGateTests::test_exit_codes_of_the_command
+tests/test_worker_deploy_recovery.py::TolerateUnverifiedTests::test_the_real_command_with_an_unreachable_database_and_redis
+tests/test_worker_no_contact_measurement.py

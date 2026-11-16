@@ -1,0 +1,43 @@
+{
+ "pr": "ci-light",
+ "sha256": [
+  "tests/test_ci_workflow_concurrency.py",
+  ".github/workflows/v24-ci.yml"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the light job only reports a deleted line with no signed declaration (documentation, not protection)",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "          python3 scripts/deletions_declared.py \"$anchor\"\n",
+     "new": "          python3 scripts/deletions_declared.py \"$anchor\" || echo \"::notice::measured\"\n"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_workflow_concurrency.py"
+   ],
+   "expect_failed": [
+    "test_heavy_jobs_are_gated_but_security_suite_is_always_present"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the full test job is skipped on a draft (a skipped required check reads as passing)",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "  test:\n    runs-on: ubuntu-latest\n",
+     "new": "  test:\n    if: github.event.pull_request.draft == false\n    runs-on: ubuntu-latest\n"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_workflow_concurrency.py"
+   ],
+   "expect_failed": [
+    "test_heavy_jobs_are_gated_but_security_suite_is_always_present"
+   ]
+  }
+ ]
+}
