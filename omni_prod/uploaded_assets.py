@@ -114,6 +114,36 @@ class _MainImage:
         self.uri = f'data:{mime};base64,' + base64.b64encode(data).decode('ascii')
 
 
+# The owner, 2026-11-16 00:18 / 00:49: a photo placed in "the story" must sit INSIDE a story section, not anywhere on
+# the page. Sections are recognised by the same words the reference extractor uses (a2.extract._SECTION_WORDS),
+# read from the section's opening tag (id/class) and its first heading. The hero has no section word: it is first.
+_PLACE_HE = {'story': 'הסיפור שלנו', 'products': 'המוצרים שלנו', 'gallery': 'גלריה'}
+_SECTION_BLOCK = re.compile(r'<section\b([^>]*)>(.*?)</section\s*>', re.S | re.I)
+_HEADING = re.compile(r'<h[1-4]\b[^>]*>(.*?)</h[1-4]\s*>', re.S | re.I)
+
+
+def place_state(repository: dict, img) -> str:
+    """'ok' | 'no_section' (the page has no section for this place) | 'wrong_section' (it has one; the photo is
+    outside it). Only for story / products / gallery; every other place is 'ok' here."""
+    if img.place not in _PLACE_HE:
+        return 'ok'
+    from .a2.extract import _SECTION_WORDS
+    words = re.compile(_SECTION_WORDS[img.place], re.I)
+    found = False
+    for path, source in repository.items():
+        if not isinstance(source, str):
+            continue
+        for attrs, body in _SECTION_BLOCK.findall(source):
+            heading = _HEADING.search(body)
+            label = attrs + ' ' + re.sub(r'<[^>]+>', ' ', heading.group(1) if heading else '')
+            if not words.search(label):
+                continue
+            found = True
+            if img.marker in body or img.uri in body:
+                return 'ok'
+    return 'wrong_section' if found else 'no_section'
+
+
 class MainImageExecutor:
     """The build is not accepted until EVERY placed photo is in a visible <img> with its alt."""
 
@@ -137,6 +167,18 @@ class MainImageExecutor:
             elif state == 'no_alt':
                 problems.append(AcceptanceFailure(MAIN_ACCEPTANCE_ID, (
                     f"The customer's uploaded image {img.index} has an empty or missing alt. Use alt=\"{img.alt}\".")))
+            if state != 'missing' and img.place in _PLACE_HE:
+                where = place_state(repository, img)
+                he = _PLACE_HE[img.place]
+                if where == 'no_section':
+                    problems.append(AcceptanceFailure(MAIN_ACCEPTANCE_ID, (
+                        f"The customer's uploaded image {img.index} belongs in the {img.place} section, and the page "
+                        f'has no such section. Add <section> with the heading "{he}" and put '
+                        f'<img src="{img.marker}" alt="{img.alt}"> inside it.')))
+                elif where == 'wrong_section':
+                    problems.append(AcceptanceFailure(MAIN_ACCEPTANCE_ID, (
+                        f"The customer's uploaded image {img.index} is on the page but not inside the {img.place} "
+                        f'section ("{he}"). Move <img src="{img.marker}" alt="{img.alt}"> into that <section>.')))
         if not problems:
             return report
         return ExecutionReport(False, tuple(report.failures) + tuple(problems), report.build_log)

@@ -1,0 +1,70 @@
+{
+ "pr": "a2-styles-109-110",
+ "sha256": [
+  "tests/test_a2_extract.py",
+  "tests/a2_offline_sites.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "109 off: a page with no style of its own (or a stylesheet that did not load) becomes a card",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "        if verdict:\n            raise ExtractRejected(verdict, styles)",
+     "new": "        if False:  # NEGATIVE CONTROL\n            raise ExtractRejected(verdict, styles)"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_a_linked_stylesheet_that_did_not_load_is_rejected_not_measured",
+    "test_a_page_with_no_style_of_its_own_is_rejected_no_styles"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "110 off: every field is called authored",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "    out = {k: 'ua-default' if same[k] else 'authored' for k in FIELD_SOURCE_KEYS}",
+     "new": "    out = {k: 'authored' for k in FIELD_SOURCE_KEYS}  # NEGATIVE CONTROL"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_every_field_says_who_set_it"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "110 measured with the author styles still on (the second measure is the first)",
+   "envs": [
+    "a2"
+   ],
+   "mutations": [
+    {
+     "file": "omni_prod/a2/extract.py",
+     "old": "        page.evaluate(_AUTHOR_OFF_JS)\n",
+     "new": "        pass  # NEGATIVE CONTROL\n"
+    }
+   ],
+   "targets": [
+    "tests/test_a2_extract.py"
+   ],
+   "expect_failed": [
+    "test_every_field_says_who_set_it"
+   ]
+  }
+ ]
+}

@@ -1,3 +1,34 @@
+# 2026-11-16 — the pre-live package (#405, orphaned) checked against main and taken over (Claude Code)
+
+- **Owner's order:** check the orphaned PRs against main; merge what is still right, or close with an explanation.
+- **Still right, kept as written:**
+  - `needs_env`: the measured 66 (34 modules, 32 test ids) are marked; `-m "not needs_env"` collects none of them,
+    and CI collects everything.
+  - The CI split: `light` runs on every push, drafts too (the fast suite, changed JSON parses, no conflict marker).
+    `test` is skipped only on a draft, and `ready_for_review` re-runs it.
+  - a2 109 / 110: a page with no style of its own is rejected; every extracted field says who set it.
+  - The capture rejection carries the exception's message, not only its class.
+  - A placed photo must sit inside its section; a missing section says what to add.
+- **Changed on takeover, and why:**
+  - The draft skip of the `test` job is not carried. An independent review found that a re-run of a run started
+    while the PR was a draft reports `test` as skipped on a ready head, and a skipped required check reads as
+    passing. `test` runs on every push, as on main.
+  - `light` blocks a PR that deletes or rewrites a line with no signed declaration, as its author wrote it. The
+    owner decided this on 2026-11-16: "without this the declarations are documentation, not protection; only a
+    signed declaration releases". (I had first made the step report only; that is reverted.)
+- **Waiting for the owner's signature:** five declarations, bound to the digest of the lines deleted, with
+  `"reviewer": "pending"`: `omni_prod/a2/capture.py`, `omni_prod/a2/extract.py`, `omni_prod/discovery.py`,
+  `tests/negative_controls/uploaded_main_image.json` and `docs/identity/allowed-deletions.json` itself. Records: 40
+  on main, 45 here, 5 pending. Claude does not sign for a person. Until the owner signs, `light` fails on this PR.
+- **Evidence:**
+  - Merged with main it merges clean, including `uploaded_assets.py`, which #421 changed today.
+  - Its own tests pass, 112 with the neighbours.
+  - Negative controls: `uploaded_main_image` 15/15, `fast_suite` 2/2, `contract_prompt_readers` 9/9, and the new
+    `ci_light` 2/2 (NC1 makes the step report only; NC2 skips `test` on a draft).
+  - The a2 controls (`a2_styles`, `a2_extract`, `a2_collect`) run only in the a2 CI job.
+- **Not done in this PR (as its author said):** capture steps 2 and 3. The message is now recorded; the fix by type
+  comes after it is seen in CI.
+
 # 2026-11-16 — `scripts/commit_resolved.sh` (#403, orphaned) checked against main and taken over (Claude Code)
 
 - **Owner's order:** check the orphaned PRs against main; merge what is still right.

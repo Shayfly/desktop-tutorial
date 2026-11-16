@@ -284,6 +284,51 @@ class TheWorkerUsesTheBytes(unittest.TestCase):
         self.assertIn('148ai-asset://upload/2', report.failures[0].message)
 
 
+class ThePlaceIsChecked(unittest.TestCase):
+    """The owner, 2026-11-16 00:18 / 00:49: the same photo may sit in two places, each checked in its own place; a
+    photo for a place the page does not have fails with what is missing and what to add."""
+    DATA = b'\xff\xd8\xff' + b'two-places'
+
+    def _run(self, page, images):
+        from omni_prod.uploaded_assets import MainImageExecutor
+        from tests.test_repair_stop_loss import _Executor
+        return MainImageExecutor(_Executor(passing={page}), images).execute(repository={'app.py': page}, spec='s')
+
+    def _img(self, index, place, data=None):
+        from omni_prod.uploaded_assets import _MainImage
+        data = data or self.DATA
+        return _MainImage(data, 'image/jpeg', hashlib.sha256(data).hexdigest(), WHO, index=index, place=place)
+
+    def test_the_same_photo_in_two_places_is_checked_in_each(self):
+        hero, gallery = self._img(1, 'hero'), self._img(2, 'gallery')          # same bytes, two markers
+        self.assertEqual(hero.sha256, gallery.sha256)
+        both = (f'<header><img src="{hero.marker}" alt="{WHO}"></header>'
+                f'<section id="gallery"><h2>גלריה</h2><img src="{gallery.marker}" alt="{WHO}"></section>')
+        self.assertTrue(self._run(both, [hero, gallery]).passed)
+        only_hero = f'<header><img src="{hero.marker}" alt="{WHO}"></header><section><h2>גלריה</h2></section>'
+        report = self._run(only_hero, [hero, gallery])
+        self.assertFalse(report.passed)
+        self.assertIn('148ai-asset://upload/2', report.failures[0].message)
+
+    def test_a_place_the_page_does_not_have_says_what_is_missing_and_what_to_add(self):
+        story = self._img(1, 'story')
+        page = f'<main><h1>אטליז</h1></main><footer><img src="{story.marker}" alt="{WHO}"></footer>'
+        report = self._run(page, [story])
+        self.assertFalse(report.passed)
+        msg = report.failures[0].message
+        self.assertIn('the page has no such section', msg)
+        self.assertIn('Add <section> with the heading "הסיפור שלנו"', msg)
+
+    def test_a_photo_outside_its_section_is_told_to_move_into_it(self):
+        story = self._img(1, 'story')
+        page = (f'<section><h2>הסיפור שלנו</h2><p>25 שנה</p></section>'
+                f'<footer><img src="{story.marker}" alt="{WHO}"></footer>')
+        msg = self._run(page, [story]).failures[0].message
+        self.assertIn('not inside the story section', msg)
+        inside = f'<section class="about"><h2>הסיפור שלנו</h2><img src="{story.marker}" alt="{WHO}"></section>'
+        self.assertTrue(self._run(inside, [story]).passed)
+
+
 class SeveralPlaces(unittest.TestCase):
     """Michael 2026-11-15, step 3: a page holds several images, and "where" decides the place."""
 

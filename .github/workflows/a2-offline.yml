@@ -94,3 +94,10 @@ jobs:
         env:
           NC_ENV: a2
         run: python scripts/run_negative_controls.py a2_extract
+      # 109 / 110 (the owner, 2026-11-15 23:26): no style of its own is not a card; every field says who set it
+      - name: Negative controls (A2 styles 109/110)
+        if: always()
+        timeout-minutes: 5
+        env:
+          NC_ENV: a2
+        run: python scripts/run_negative_controls.py a2_styles

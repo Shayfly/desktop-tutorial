@@ -181,6 +181,9 @@
                             "properties": {"fields": {"type": "integer", "minimum": 0, "maximum": 30},
                                            "types": {"type": "array", "uniqueItems": true, "maxItems": 8,
                                                      "items": {"enum": ["text", "tel", "email", "number", "date", "checkbox", "radio", "search"]}}}}},
+        "field_source": {"type": "object", "description": "110: per field, whether the page set it (authored) or the browser did (ua-default); ua-default stays out of frequency statistics.",
+                         "propertyNames": {"enum": ["type_scale_px", "rhythm", "hero", "columns", "cta_shape", "bg", "surface", "line", "text", "muted", "accent", "accent_text"]},
+                         "additionalProperties": {"enum": ["authored", "ua-default"]}},
         "tone": {"enum": ["formal", "friendly"], "description": "The one field a model chooses (closed list); absent until it is chosen."}
       }
     },
