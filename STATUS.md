@@ -8,7 +8,10 @@
   script's line.
 - **Evidence:** the resolution was committed with the script itself: `scripts/commit_resolved.sh .` exited 0 and
   printed `committed c33b560`. Against main the PR adds 65 lines in 3 files and deletes none.
-- **Not tested (as its author said):** exit code 5.
+- **Added on takeover:** the PR had only hand-run evidence. `tests/test_commit_resolved.py` (6 tests) now runs the
+  script on a temporary repository with a real conflict: exit 2, 3 (each file named), 4 and 0. Negative controls
+  `commit_resolved.json` 3/3; NC2 is the old rule (a `=======` anywhere), which refuses a resolved markdown file.
+- **Not tested:** exit code 5. After the script's own `git add`, no case leaves a path unmerged.
 
 # 2026-11-16 — the fast suite (#402, orphaned) checked against main and taken over (Claude Code)
 
