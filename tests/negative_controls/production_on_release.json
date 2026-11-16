@@ -1,0 +1,24 @@
+{
+ "pr": "production-on-release",
+ "sha256": ["tests/test_vercel_ignore_build.py", "scripts/vercel_ignore_build.mjs"],
+ "controls": [
+  {"id": "NC1", "what": "production builds every push to main again (warehouse 111 as it was found)",
+   "mutations": [{"file": "scripts/vercel_ignore_build.mjs",
+                  "old": "    return { build: false, reason: `production: not a release",
+                  "new": "    return { build: true, reason: `production: not a release"}],
+   "targets": ["tests/test_vercel_ignore_build.py"],
+   "expect_failed": ["test_production_builds_only_a_release"]},
+  {"id": "NC2", "what": "the release marker is ignored: no release ever reaches production",
+   "mutations": [{"file": "scripts/vercel_ignore_build.mjs",
+                  "old": "    if (String(message).includes(RELEASE_MARK)) return",
+                  "new": "    if (false) return"}],
+   "targets": ["tests/test_vercel_ignore_build.py"],
+   "expect_failed": ["test_production_builds_only_a_release"]},
+  {"id": "NC3", "what": "the commit message is not passed to the decision",
+   "mutations": [{"file": "scripts/vercel_ignore_build.mjs",
+                  "old": "message: process.env.VERCEL_GIT_COMMIT_MESSAGE || ''",
+                  "new": "message: ''"}],
+   "targets": ["tests/test_vercel_ignore_build.py"],
+   "expect_failed": ["test_production_builds_only_a_release"]}
+ ]
+}
