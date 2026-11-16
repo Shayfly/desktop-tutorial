@@ -1,3 +1,15 @@
+# 2026-11-16 — the fast suite (#402, orphaned) checked against main and taken over (Claude Code)
+
+- **Owner's order:** #402, #403 and #405 were orphaned when Claude left. Check each against main, merge what is
+  still right, or close it with an explanation.
+- **#402 is still right.** Merged with main `b761003` it merges clean. Its evidence:
+  - `scripts/test_fast.sh` runs its 172 measured files in 21.7 s, within the 30 s budget;
+  - `tests/test_fast_suite.py` passes; there are 392 test files now, against 369 measured, inside the 100-file
+    band;
+  - negative controls `fast_suite.json` 2/2;
+  - `scripts/ci_test_coverage.py` PASS.
+- **No CI job runs the fast suite yet.** Its `light` job is part of #405.
+
 # 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
 
 - **What broke:** build `bld_426addd34be0457bb1955cd4e9bf372f` (prj_-K3B8ZLIJawPEA) served
