@@ -1594,9 +1594,10 @@ function answerQuick(q, value, label) {
   if (S.chat && S.chat.fallback) { sendAnswers({ [q.id]: value }); return; }   // guided flow (no conversation API here)
   sendChat({ answers: { [q.id]: value } }, label);
 }
-function quickReplies(questions) {
+function quickReplies(questions, said) {
+  // the message already asks the question in words (supervisor._label_carries_its_question): the card adds the buttons only
   return h('div', { class: 'quick' }, questions.map(q => h('div', {},
-    h('div', { class: 'qq' }, q.text),
+    q.text && !String(said || '').includes(q.text) ? h('div', { class: 'qq' }, q.text) : null,
     h('div', { class: 'opts' },
       ...(q.kind === 'choice' ? q.options.map(o => h('button', { type: 'button', onclick: () => answerQuick(q, o.value, o.label) },
         o.label, q.suggested === o.value ? ' ✓' : '')) : []),
@@ -1665,7 +1666,7 @@ function renderChat() {
       // CEO 2026-11-08: no questionnaire. Only the buttons the server sent with this turn; never the detector's
       // pending questions as a fallback (Venice asks in words; the server sends none while she leads).
       const qs = (S.chat.turn && S.chat.turn.questions) || [];
-      if (qs.length) bubble.append(quickReplies(qs));
+      if (qs.length) bubble.append(quickReplies(qs, m.content));
       const acts = actionButtons(m.actions && m.actions.length ? m.actions : ((S.chat.turn && S.chat.turn.actions) || []));
       if (acts) bubble.append(acts);
     }

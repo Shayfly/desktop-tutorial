@@ -25,6 +25,7 @@ builds and versions are.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -657,6 +658,7 @@ class ConversationSupervisor:
                            {'type': 'edit_requirements', 'brief_revision': turn.brief_row.revision}):
                 if not any(a['type'] == action['type'] for a in turn.actions):
                     turn.actions.append(action)
+        self._label_carries_its_question(turn, lang)
         turn.reply = self._not_repeated(project_id, turn, T)
         paid = turn.reservation_id is not None
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
@@ -790,7 +792,31 @@ class ConversationSupervisor:
         turn.reply = ' '.join(parts)
         return self._finish(project_id, account_id, turn, request_key)
 
+    @staticmethod
+    def _label_carries_its_question(turn, lang=None) -> None:
+        """The owner, 2026-11-16 ("the empty question"): the chat said "One question before we continue:" and nothing
+        after it. The question lived only in the card of the live turn, so the stored message asked nothing: in the
+        history, after a reload, or read aloud, the customer saw a label with no question (production 2026-11-16
+        11:05-11:09: five such messages in one conversation). The message now carries the question in words; the card
+        adds the buttons and does not repeat the text (app.js quickReplies). A label with no question to carry is a
+        bug said in the log, and the label is not shown."""
+        for key, T in _TXT.items():
+            label = T['ask_one']
+            reply = (turn.reply or '').rstrip()
+            if not reply.endswith(label):
+                continue
+            q = turn.questions[0] if turn.questions else None
+            text = ((q.he if (lang or key) != 'en' else q.en) or '').strip() if q is not None else ''
+            if text:
+                turn.reply = reply + ' ' + text
+            else:
+                logging.getLogger(__name__).error('ASK_LABEL_WITHOUT_QUESTION questions=%s',
+                                                  [getattr(x, 'id', None) for x in turn.questions or ()])
+                turn.reply = reply[:-len(label)].rstrip() or T['nothing']
+            return
+
     def _finish(self, project_id, account_id, turn, request_key):
+        self._label_carries_its_question(turn)
         self.store.add_message(project_id=project_id, account_id=account_id, role='assistant', content=turn.reply,
                                brief_revision=turn.brief_row.revision if turn.brief_row else None,
                                interpretation={'intent': turn.intent, **(turn.interpretation or {}), 'asked': [],
