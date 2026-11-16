@@ -1,0 +1,6 @@
+{
+ "LABEL_MISSING": {
+  "meaning": "a form field has no accessible name",
+  "fix": "add <label for=\"id\"> or aria-label"
+ }
+}

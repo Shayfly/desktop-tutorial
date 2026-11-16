@@ -1,0 +1,10 @@
+{
+ "broken1.html": {
+  "code": "ALT_MISSING",
+  "what_is_broken": "no alt at all"
+ },
+ "broken2.html": {
+  "code": "ALT_MISSING",
+  "what_is_broken": "empty alt on a content image"
+ }
+}
