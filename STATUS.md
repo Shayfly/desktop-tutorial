@@ -1,3 +1,31 @@
+# 2026-11-16 — the pre-live package (#405, orphaned) checked against main and taken over (Claude Code)
+
+- **Owner's order:** check the orphaned PRs against main; merge what is still right, or close with an explanation.
+- **Still right, kept as written:**
+  - `needs_env`: the measured 66 (34 modules, 32 test ids) are marked; `-m "not needs_env"` collects none of them,
+    and CI collects everything.
+  - The CI split: `light` runs on every push, drafts too (the fast suite, changed JSON parses, no conflict marker).
+    `test` is skipped only on a draft, and `ready_for_review` re-runs it.
+  - a2 109 / 110: a page with no style of its own is rejected; every extracted field says who set it.
+  - The capture rejection carries the exception's message, not only its class.
+  - A placed photo must sit inside its section; a missing section says what to add.
+- **Changed on takeover, and why:**
+  - As written, `light` failed every PR that deletes or rewrites any line, STATUS.md included, until the owner
+    signed a declaration for it. That contradicts the owner's standing merge rule (green CI on the exact SHA), under
+    which eight PRs merged today. The later, explicit rule wins, and the contradiction is reported.
+  - `light` now measures such lines and says them. Blocking stays where it was: `identity.yml`, when the gate freeze
+    is active or site_auth_v2 is touched. **The owner decides whether it should block on every PR.**
+  - The six declarations the PR carried were unsigned (`"reviewer": "pending"`). Outside a freeze nothing reads
+    them, and Claude does not sign for a person, so they are not carried. Records before and after: 40 and 40.
+- **Evidence:**
+  - Merged with main it merges clean, including `uploaded_assets.py`, which #421 changed today.
+  - Its own tests pass, 112 with the neighbours.
+  - Negative controls: `uploaded_main_image` 15/15, `fast_suite` 2/2, `contract_prompt_readers` 9/9, and the new
+    `ci_light` 2/2 (NC1 puts the blocking step back).
+  - The a2 controls (`a2_styles`, `a2_extract`, `a2_collect`) run only in the a2 CI job.
+- **Not done in this PR (as its author said):** capture steps 2 and 3. The message is now recorded; the fix by type
+  comes after it is seen in CI.
+
 # 2026-11-16 — `scripts/commit_resolved.sh` (#403, orphaned) checked against main and taken over (Claude Code)
 
 - **Owner's order:** check the orphaned PRs against main; merge what is still right.

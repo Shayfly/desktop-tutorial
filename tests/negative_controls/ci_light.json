@@ -1,0 +1,43 @@
+{
+ "pr": "ci-light",
+ "sha256": [
+  "tests/test_ci_workflow_concurrency.py",
+  ".github/workflows/v24-ci.yml"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the light job fails every PR that rewrites a line until the owner signs a declaration",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "          python3 scripts/deletions_declared.py \"$anchor\" \\\n            || echo \"::notice title=light deletions::lines deleted without a signed declaration -- measured, not blocking here (identity.yml blocks them in a freeze)\"\n",
+     "new": "          python3 scripts/deletions_declared.py \"$anchor\"\n"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_workflow_concurrency.py"
+   ],
+   "expect_failed": [
+    "test_heavy_jobs_are_gated_but_security_suite_is_always_present"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the full test job is skipped by a scope condition, not only on a draft",
+   "mutations": [
+    {
+     "file": ".github/workflows/v24-ci.yml",
+     "old": "    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false\n",
+     "new": "    if: needs.changes.outputs.code == 'true'\n"
+    }
+   ],
+   "targets": [
+    "tests/test_ci_workflow_concurrency.py"
+   ],
+   "expect_failed": [
+    "test_heavy_jobs_are_gated_but_security_suite_is_always_present"
+   ]
+  }
+ ]
+}

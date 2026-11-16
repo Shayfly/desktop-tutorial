@@ -41,6 +41,12 @@ class WorkflowConcurrencyTests(unittest.TestCase):
                          "github.event_name != 'pull_request' || github.event.pull_request.draft == false")
         self.assertIn('ready_for_review', read('v24-ci.yml')[True]['pull_request']['types'])
         self.assertNotIn('if', jobs['light'])
+        # 2026-11-16: `light` measures undeclared deletions and says them; it never fails a PR on them. Blocking is
+        # identity.yml's, in a freeze. A blocking step here would make every PR wait for the owner's signature.
+        [declared] = [s for s in jobs['light']['steps'] if 'deletions_declared.py "$anchor"' in s.get('run', '')]
+        self.assertIn('deletions_declared.py "$anchor" \\\n', declared['run'])
+        self.assertIn('|| echo "::notice title=light deletions::', declared['run'])
+        self.assertIn('scripts/test_fast.sh', [s.get('run') for s in jobs['light']['steps']])
         self.assertIn("needs.changes.outputs.heavy == 'true'", jobs['browser-tests']['if'])
         pg_jobs = read('intake-budget-pg.yml')['jobs']
         pg = pg_jobs['pg-tests']

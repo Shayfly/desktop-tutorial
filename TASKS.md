@@ -22,4 +22,5 @@
 | DOORS-ASSET | Claude Code | Merged; reaches production only on a release | #421 (`32cac99` -> `b761003`); Vercel production CANCELED on `b761003`, worker `deploy` skipped |
 | FAST-402 | Claude Code | Merged | #402 (`b7f4980` -> `a4a0845`) the fast suite: 172 files, 21.7 s of a 30 s budget; NC 2/2 |
 | OPS-403 | Claude Code | In review | #403 (orphaned) `scripts/commit_resolved.sh`: the CLAUDE.md conflict with main resolved and committed with the script itself (exit 0) |
+| PRELIVE-405 | Claude Code | In review | #405 (orphaned) checked against main: needs_env, the `light` CI job, a2 109/110, the capture message, photo places; `light` measures undeclared deletions and does not block on them (the owner decides); the 6 unsigned declarations are not carried |
 | WH-114 | Claude Code | Open | the hero image inlined as 1.7MB base64; G4 warns on it |
