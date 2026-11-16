@@ -1,0 +1,3 @@
+# Test files that need PostgreSQL and are NOT run by intake-budget-pg yet, each with the reason (warehouse 112).
+# A file here is a known gap, said out loud; scripts/ci_test_coverage.py refuses an entry without a reason and a
+# PostgreSQL-dependent file that is in neither place. Format: tests/<path>.py  # reason

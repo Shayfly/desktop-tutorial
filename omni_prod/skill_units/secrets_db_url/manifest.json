@@ -1,0 +1,11 @@
+{
+ "name": "skill.secrets.db_url",
+ "input": "the text of a generated source file",
+ "output": "{'status': 'pass'} or {'status': 'fail', 'code', 'findings'}",
+ "kind": "probe",
+ "cost_usd": 0,
+ "gate": "G6",
+ "owner": "Claude Code (product)",
+ "reads_source": true,
+ "description": "No database URL with a password (postgres, mysql, mongodb) is written into the generated source."
+}

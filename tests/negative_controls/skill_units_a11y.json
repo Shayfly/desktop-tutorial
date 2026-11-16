@@ -3,7 +3,7 @@
  "sha256": ["tests/test_skill_units_a11y.py", "omni_prod/skill_units/__init__.py"],
  "controls": [
   {"id": "NC1", "what": "the contrast probe never fails (an empty probe)",
-   "mutations": [{"file": "omni_prod/skill_units/a11y_contrast/probe.py", "old": "            if ratio < MIN:", "new": "            if False:  # NEGATIVE CONTROL"}],
+   "mutations": [{"file": "omni_prod/skill_units/a11y_contrast/probe.py", "old": "        if ratio < MIN:", "new": "        if False:  # NEGATIVE CONTROL"}],
    "targets": ["tests/test_skill_units_a11y.py"], "expect_failed": ["test_broken_fixtures_fail_with_their_code", "test_the_measured_ratio_is_reported"]},
   {"id": "NC2", "what": "the focus probe accepts a removed outline",
    "mutations": [{"file": "omni_prod/skill_units/a11y_focus/probe.py", "old": "and not has_visible:", "new": "and False:  # NEGATIVE CONTROL"}],
