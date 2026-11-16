@@ -1,3 +1,44 @@
+# 2026-11-16 — warehouse 77c: a failed build is said in the conversation, with one action (Claude Code)
+
+- **What broke:** a customer whose build failed saw nothing in the conversation; the failure lived only in the build tab.
+- **Fix:** `omni_prod/build_announcement.py`: `FailureWitness` wraps the jobs repository of the live build job and remembers the
+  transition to FAILED; `announce_if_failed` writes one assistant message (idempotent on `build-failed:<id>`): "the build failed",
+  "you were not charged" only when the credits went back, and ONE action -- `retry_build` (back to the approval screen) or, for a
+  detail only the customer can give, `edit_requirements`. Wired in `worker_tasks._run_live_build_job_with_components` (try/finally,
+  so an engine crash is said too). A failure to write is logged as an error, never changes the build. UI: the `retry_build` button;
+  the chat's status line for a failed build is styled as failed.
+- **Evidence:** `tests/test_build_failed_announced.py` 7 tests (the production job through BuildHarness); controls
+  `build_failed_announced.json` 4/4.
+- **Not checked:** no real build, no browser run; the Postgres conversation store is exercised by its in-memory twin here.
+# 2026-11-16 — warehouse 113: the image-question loop that kept customers from building (Claude Code)
+
+- **What broke:** after an upload, "what is in the image?" could only be answered by a button. Typed answers ("זאת הדלת של החנות",
+  "דלת עם ידית", even "מוצר") were not read, the question came back, and after three cards the buttons were replaced by
+  "חסרה החלטה על קיבלתי את התמונה. מה יש בה?, ... בלשונית דרישות" (the question printed as the topic, the way forward only in another tab).
+  Reproduced on main `d496a92` on the real supervisor path.
+- **Fix:** `omni_prod/intake/image_answers.py` maps typed words to the option (owner's map: door/handle/product -> product,
+  person/owner/name -> person, place/shop -> place, logo -> logo; first word wins, door/handle always product; no word -> no guess) and
+  keeps the description as the "who/what" answer; the supervisor reads a typed answer only against what the last turn asked or blocked
+  on (`_awaiting`); an image card past the card limit keeps its buttons and says how to answer; no assistant message is sent twice in a
+  row with the same question (`_not_repeated`); the Requirements panel shows the chat's own next question (`discovery.panel_group`);
+  "update the plan" says what is still missing (`app.js stillMissingLine`).
+- **Evidence:** `tests/test_image_answer_loop.py` 11 tests; negative controls `image_answer_loop.json` 6/6 PASS.
+- **Not checked:** no browser run; the UI line ran in node. No model interpreter (the deterministic one reads the words).
+
+# 2026-11-15 — P0-c correction (Claude bug): the Postgres tests of #401 never ran in CI (Claude Code)
+
+- **What was wrong:** `intake-budget-pg` enumerates its test files; `tests/test_company_loss_failed_build_pg.py` was not listed, so
+  the claim in #401 and in the P0-c STATUS entry below ("passed in CI's pg-tests job, 315 passed") was false -- those 315 were other
+  tests. Found by the independent review of 2026-11-15. Two assertions in the pg test would have failed had it run
+  (`provider_cost_truth` is `COMPUTED_FROM_USAGE`, not `computed`; the roll-up is database-wide), and the ledger could have recorded
+  a reservation estimate as a loss when nothing was measured (`CONSERVATIVE_RESERVATION`).
+- **Fix:** the file is in the pg job list; `record_failed_build` writes nothing on `CONSERVATIVE_RESERVATION` (the ledger never records
+  an estimate) and `release_failed` returns `loss_recorded`; the pg test asserts the real values and account-scoped sums, plus the
+  unmeasured case. Negative controls NC4 (file dropped from the job list) and NC5 (estimate guard removed).
+- **Evidence:** offline 13 passed, 5 skipped (pg). Controls NC2–NC5 PASS here (NC1 pg only). The real path on Postgres is verified only
+  when this PR's `pg-tests` job runs the file -- read that job, not this line.
+- **Structural finding for CI (Codex):** an explicit file list means every new `*_pg.py` test is silently not run; discover them.
+
 # 2026-11-15 — P0-b, warehouse 104 + 106: the checks that did not run are an explicit list (Claude Code)
 
 - **Implemented and independently verifiable offline:** `release_policy.QualityReport.not_run` (NOT_RUN / UNKNOWN / NO_CHECKS, required

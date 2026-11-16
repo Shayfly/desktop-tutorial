@@ -66,11 +66,29 @@ class TheLedgerWriter(unittest.TestCase):
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         self.assertIn('044_company_loss_failed_build', (ROOT / 'infra' / 'staging' / 'bootstrap_neon_empty.sql').read_text(encoding='utf-8'))
 
+    def test_the_pg_job_runs_the_postgres_test_file(self):
+        # 2026-11-15 review of #401 (Claude bug): intake-budget-pg enumerates its test files, so a new *_pg.py file that is
+        # not listed never runs -- and this one was not listed while its PR said "passed in the pg job".
+        job = (ROOT / '.github' / 'workflows' / 'intake-budget-pg.yml').read_text(encoding='utf-8')
+        self.assertIn('tests/test_company_loss_failed_build_pg.py', job)
+
+    def test_an_estimate_is_never_recorded_as_a_loss(self):
+        cur = RecordingCursor()
+        self.assertIsNone(L.record_failed_build(cur, build_id='bld_est', account_id='u', project_id='p', actual_usd=Decimal('2.003'),
+                                                funding_source='plan', truth='CONSERVATIVE_RESERVATION'))
+        self.assertEqual(cur.calls, [])
+        for truth in ('ACTUAL', 'COMPUTED_FROM_USAGE'):
+            cur = RecordingCursor()
+            self.assertEqual(L.record_failed_build(cur, build_id='bld_m', account_id='u', project_id='p', actual_usd=COST,
+                                                   funding_source='plan', truth=truth), COST)
+            self.assertEqual(len(cur.calls), 1)
+
     def test_release_failed_writes_the_row_inside_the_refund_transaction(self):
         # a guard on the call site; the behaviour itself runs on PostgreSQL in test_company_loss_failed_build_pg.py
         text = (ROOT / 'omni_prod' / 'subscription_store.py').read_text(encoding='utf-8')
         body = text[text.index('def release_failed('):text.index('def release(')]
-        self.assertRegex(body, r"record_failed_build\(cur, build_id=build_id, account_id=user_id, project_id=row\[5\], actual_usd=basis")
+        self.assertRegex(body, r"loss = record_failed_build\(cur, build_id=build_id, account_id=user_id, project_id=row\[5\], actual_usd=basis")
+        self.assertEqual(body.count("'loss_recorded': loss is not None"), 2, 'both return paths say whether a loss row was written')
         self.assertLess(body.index('record_failed_build('), body.index("if row[4] == 'internal_qa'"),
                         'internal-QA builds are recorded too: the money left either way')
 

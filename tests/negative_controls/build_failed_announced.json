@@ -1,0 +1,30 @@
+{
+ "pr": "build-failed-announced",
+ "sha256": ["tests/test_build_failed_announced.py", "omni_prod/build_announcement.py"],
+ "controls": [
+  {"id": "NC1", "what": "the witness does not see the FAILED transition (a failed build says nothing, warehouse 77c as it was found)",
+   "mutations": [{"file": "omni_prod/build_announcement.py",
+                  "old": "        if kw.get('target') == BuildStatus.FAILED and ok is not False:\n",
+                  "new": "        if False:  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_build_failed_announced.py"],
+   "expect_failed": ["test_a_build_that_fails_its_checks_writes_one_message_with_one_action", "test_an_engine_crash_is_said_too"]},
+  {"id": "NC2", "what": "the production worker no longer wraps its jobs",
+   "mutations": [{"file": "omni_prod/worker_tasks.py",
+                  "old": "            jobs=witness,\n",
+                  "new": "            jobs=jobs,  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_build_failed_announced.py"],
+   "expect_failed": ["test_the_production_worker_wraps_its_jobs_and_announces"]},
+  {"id": "NC3", "what": "the message offers two actions instead of one",
+   "mutations": [{"file": "omni_prod/build_announcement.py",
+                  "old": "                               'actions': [action]}}\n",
+                  "new": "                               'actions': [action, {'type': 'edit_requirements', 'build_id': build_id}]}}  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_build_failed_announced.py"],
+   "expect_failed": ["test_a_build_that_fails_its_checks_writes_one_message_with_one_action", "test_a_missing_customer_detail_asks_for_it_instead_of_a_retry", "test_an_engine_crash_is_said_too"]},
+  {"id": "NC4", "what": "'you were not charged' is said whatever the billing was",
+   "mutations": [{"file": "omni_prod/build_announcement.py",
+                  "old": "    if billing == 'released':\n",
+                  "new": "    if True:  # NEGATIVE CONTROL\n"}],
+   "targets": ["tests/test_build_failed_announced.py"],
+   "expect_failed": ["test_the_refund_is_said_only_when_the_credits_went_back"]}
+ ]
+}
