@@ -81,6 +81,8 @@ const T = {
     gateNames:{verification:'אימות', quality:'איכות', security:'אבטחה', rights:'זכויות'},
     checksNotRun:'בדיקות שלא רצו', checksNoneRan:'אף בדיקה לא רצה: הבנייה נעצרה לפני הבדיקות.',
     checkNames:{preview_starts:'הפעלה ניסיונית', behavioural_acceptance:'בדיקת התנהגות', browser_flow:'בדיקת דפדפן', visual_layout_desktop_mobile:'פריסה במחשב ובטלפון', qa_review:'סקירת איכות', qa_review_blocking_findings:'ממצאי סקירת האיכות', reviewer_independent_of_author:'סוקר עצמאי', sandbox_build_and_tests:'בדיקות הקוד', cross_file_consistency:'עקביות בין הקבצים', dependency_allowlist:'ספריות מאושרות', approved_criteria_covered:'כיסוי הדרישות שאושרו', quality_score:'ציון איכות', static_security_scan:'סריקת אבטחה', rights_clear:'זכויות', acceptance_criteria_defined:'הגדרת דרישות קבלה'},
+    repairStopped:'התיקון האוטומטי נעצר',
+    repairStops:{no_progress_repository_unchanged:'התיקון האוטומטי נעצר: סבב התיקון האחרון לא שינה שום קובץ, ולכן סבב נוסף לא היה משנה דבר.', no_progress_repository_cycle:'התיקון האוטומטי נעצר: התיקון חזר לגרסה שכבר נבדקה ונכשלה.', no_progress_empty_patch:'התיקון האוטומטי נעצר: סבב התיקון לא הציע שום שינוי.', no_progress_same_failure:'התיקון האוטומטי נעצר: סבב התיקון נגמר באותו כשל בדיוק כמו הסבב שלפניו.', max_repair_rounds:'התיקון האוטומטי נעצר: נגמרו סבבי התיקון שהוקצו לבנייה הזאת.', needs_customer_input:'התיקון האוטומטי נעצר: חסר פרט שרק אתם יכולים לתת.'},
     gates:'בדיקות', usage:'שימוש בספקים', costActual:'עלות בפועל', costBasis:'בסיס העלות', warnings:'אזהרות',
     requestIds:'מזהי בקשות', tokens:'טוקנים (קלט/פלט)', none:'אין',
     backendMissing:'<b>בנייה לא זמינה בשרת הזה.</b> נדרשים PostgreSQL ואחסון S3. אפשר להירשם, לנהל פרויקטים ולראות תוכנית ועלות.',
@@ -205,6 +207,8 @@ const T = {
     gateNames:{verification:'Verification', quality:'Quality', security:'Security', rights:'Rights'},
     checksNotRun:'Checks that did not run', checksNoneRan:'No check ran: the build stopped before the checks.',
     checkNames:{preview_starts:'trial start-up', behavioural_acceptance:'behaviour check', browser_flow:'browser check', visual_layout_desktop_mobile:'layout on desktop and phone', qa_review:'quality review', qa_review_blocking_findings:'quality review findings', reviewer_independent_of_author:'independent reviewer', sandbox_build_and_tests:'code tests', cross_file_consistency:'consistency between files', dependency_allowlist:'approved libraries', approved_criteria_covered:'coverage of the approved requirements', quality_score:'quality score', static_security_scan:'security scan', rights_clear:'rights', acceptance_criteria_defined:'acceptance criteria defined'},
+    repairStopped:'Automatic repair stopped',
+    repairStops:{no_progress_repository_unchanged:'Automatic repair stopped: the last repair round changed no file, so another round would have changed nothing.', no_progress_repository_cycle:'Automatic repair stopped: the repair went back to a version that was already checked and failed.', no_progress_empty_patch:'Automatic repair stopped: the repair round proposed no change.', no_progress_same_failure:'Automatic repair stopped: the repair round ended in exactly the same failure as the round before.', max_repair_rounds:'Automatic repair stopped: the repair rounds allotted to this build are used up.', needs_customer_input:'Automatic repair stopped: a detail only you can give is missing.'},
     gates:'Checks', usage:'Provider usage', costActual:'Actual cost', costBasis:'Cost basis', warnings:'Warnings',
     requestIds:'Request IDs', tokens:'Tokens (in/out)', none:'None',
     backendMissing:'<b>Building is not available on this server.</b> It needs PostgreSQL and S3 storage. You can sign up, manage projects and see a plan and cost.',
@@ -1097,6 +1101,7 @@ function renderTrack() {
     // Customer-facing reason; the raw technical message stays one click away.
     msg.replaceChildren(`${t('buildFailed')}: ${friendlyError(b)}`);
     const nr = notRunLine(b); if (nr) msg.append(h('div', { class: 'notrun' }, nr));   // warehouse 104
+    const why = stopReasonLine(b); if (why) msg.append(h('div', { class: 'stop' }, why));   // warehouse 102
     if (b.error_message) msg.append(h('details', { class: 'tech' }, h('summary', {}, t('techDetails')), h('code', { dir: 'ltr' }, b.error_message)));
     // CEO 2026-11-08: a failed founder build keeps its best candidate as a draft version; open it next to the failures.
     if (b.result_version_id) {
@@ -1209,6 +1214,16 @@ function notRunLine(b) {
   const names = t('checkNames') || {};
   const list = (qr.not_run || []).map(c => names[c.check] || c.check);
   return list.length ? `${t('checksNotRun')}: ${list.join(', ')}.` : '';
+}
+// warehouse 102 (owner, 2026-11-15, narrow scope): why the automatic repair stopped, in the customer's words. The reason
+// is the engine's own (autonomous_core stop_reason, stored by the worker as evidence.repair_stop_reason); a reason the
+// table does not know is shown as it is, never hidden.
+function stopReasonLine(b) {
+  if (!b || String(b.status || '').toLowerCase() !== 'failed') return '';
+  const reason = b.evidence && b.evidence.repair_stop_reason;
+  if (!reason || reason === 'passed' || reason === 'no_repair_adopted') return '';
+  const words = t('repairStops') || {};
+  return words[reason] || `${t('repairStopped')}: ${reason}`;
 }
 function friendlyError(b) {
   const known = (t('errCodes') || {})[b.error_code];
