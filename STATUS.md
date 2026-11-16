@@ -1,3 +1,23 @@
+# 2026-11-16 — empty blocks (G1), brand (BRAND) and share (SHARE) gates, one unit each (Claude Code)
+
+- **Owner's order (build track, item 7).**
+- **Implemented:**
+  - `blocks_empty` (EMPTY_BLOCK): a `<section>` or `<article>` whose only visible text is its heading. A block with
+    media (img, iframe, form, video) is not empty.
+  - `brand_name` (BRAND_MISSING): the business name in `<title>`, before its separator, is shown on the page, not
+    only in the tab. A page with no title fails.
+  - `share_meta` (SHARE_META_MISSING): og:title and og:description are present and not empty. og:image is not
+    required yet: the hero is inlined as base64 (warehouse 114), so there is no image URL to give.
+  - All three gates block by default, and the worker installs them after G11.
+- **They fall on a page:** each broken fixture is the real butcher page changed in one place: an empty "גלריה"
+  section; a title naming "הקצבייה של משה", which the page never shows; og:description removed. The unchanged page
+  passes all three.
+- **Evidence:** `tests/test_skill_gate_blocks_brand_share.py` 6 tests. Negative controls
+  `skill_gate_blocks_brand_share.json` 4/4.
+- **Build track not done:** item 4, image relevance. The vision check (lens 11) exists but runs on founder builds
+  only (rollout), and making it a customer gate costs a model call per image. Item 5, mobile rendering at 390 with a
+  real screenshot, needs the browser sandbox in the build path. Both are said, not faked.
+
 # 2026-11-16 — the copy gate (G10, 2 skills) and the links gate (G11, 3 skills) (Claude Code)
 
 - **Owner's order (build track, items 3 and 6):** a generic-copy gate (filler sentences) and a links gate (`tel:`, a
