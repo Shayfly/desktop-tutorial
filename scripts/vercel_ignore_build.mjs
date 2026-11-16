@@ -5,7 +5,7 @@
 // Rules:
 //   * production builds ONLY on a release (warehouse 111, owner 2026-11-16: there is no test environment, so an automatic
 //     production deploy of every push to main put every merge in front of customers). A release is a commit whose
-//     message carries RELEASE_MARK ("[release]" -- written in the merge commit's title or body), or a deployment with
+//     FIRST LINE (the merge commit's title) ENDS with RELEASE_MARK ("[release]"), or a deployment with
 //     OMNI_RELEASE=1 set on it (a manual production deploy). Everything else on production is skipped and says why;
 //     production then stays on the last released SHA until the next release;
 //   * a preview of a branch in NO_PREVIEW is skipped;
@@ -23,12 +23,17 @@ export const DOCS_ONLY = [/^docs\//, /^CLAUDE\.md$/];
 export const COMPARE_FILE_LIMIT = 300;
 
 export const RELEASE_MARK = '[release]';
+// 2026-11-16: #413's merge released by accident -- its body quoted a PR title that mentioned "[release]" in prose. The
+// mark counts only as a deliberate suffix of the title line; anywhere else it is text (same rule: scripts/release_gate.py).
+export function isRelease(message) {
+  return String(message || '').split('\n')[0].trimEnd().endsWith(RELEASE_MARK);
+}
 
 export function decide({ env, ref, files, message = '', release = '' }) {
   if (env === 'production') {
     if (release === '1') return { build: true, reason: 'production: manual release (OMNI_RELEASE=1)' };
-    if (String(message).includes(RELEASE_MARK)) return { build: true, reason: `production: release commit (${RELEASE_MARK})` };
-    return { build: false, reason: `production: not a release -- merge with ${RELEASE_MARK} in the commit message, or deploy manually with OMNI_RELEASE=1` };
+    if (isRelease(message)) return { build: true, reason: `production: release commit (title ends with ${RELEASE_MARK})` };
+    return { build: false, reason: `production: not a release -- end the merge commit's title with ${RELEASE_MARK}, or deploy manually with OMNI_RELEASE=1` };
   }
   if (env !== 'preview') return { build: true, reason: `unknown VERCEL_ENV ${JSON.stringify(env)}: building` };
   if (NO_PREVIEW.includes(ref)) return { build: false, reason: `no previews for ${ref}` };
