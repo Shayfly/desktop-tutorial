@@ -1,3 +1,15 @@
+# 2026-11-16 — `scripts/commit_resolved.sh` (#403, orphaned) checked against main and taken over (Claude Code)
+
+- **Owner's order:** check the orphaned PRs against main; merge what is still right.
+- **#403 is still right.** The script commits a conflict resolution only after three checks pass: no conflict
+  marker is left, every changed JSON file parses, and no path is still unmerged.
+- **Its one conflict with main** was the first line of CLAUDE.md section 8, which main had changed (the owner signs,
+  not Michael) and extended (the count before and after). The resolution keeps main's two lines and adds the
+  script's line.
+- **Evidence:** the resolution was committed with the script itself: `scripts/commit_resolved.sh .` exited 0 and
+  printed `committed c33b560`. Against main the PR adds 65 lines in 3 files and deletes none.
+- **Not tested (as its author said):** exit code 5.
+
 # 2026-11-16 — the fast suite (#402, orphaned) checked against main and taken over (Claude Code)
 
 - **Owner's order:** #402, #403 and #405 were orphaned when Claude left. Check each against main, merge what is
