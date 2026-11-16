@@ -4,7 +4,8 @@
   "tests/test_web_rendition.py",
   "omni_prod/web_rendition.py",
   "omni_prod/uploaded_assets.py",
-  "requirements-production.txt"
+  "requirements-production.txt",
+  "omni_prod/generated_images.py"
  ],
  "controls": [
   {
@@ -107,7 +108,8 @@
    ],
    "expect_failed": [
     "test_it_fits_the_budget_and_the_screen",
-    "test_the_page_passes_the_unit_that_failed_on_the_butcher"
+    "test_the_page_passes_the_unit_that_failed_on_the_butcher",
+    "test_the_real_collect_path_carries_the_light_rendition_and_keeps_the_verified_digest"
    ]
   },
   {
@@ -125,6 +127,23 @@
    ],
    "expect_failed": [
     "test_the_worker_image_installs_the_same_pillow_the_tests_use"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "a generated image goes into the page at full weight again (the butcher's hero was generated)",
+   "mutations": [
+    {
+     "file": "omni_prod/generated_images.py",
+     "old": "        if light['changed']:\n            data, mime, width, height = light['data'], light['mime'], light['width'], light['height']\n",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_web_rendition.py"
+   ],
+   "expect_failed": [
+    "test_the_real_collect_path_carries_the_light_rendition_and_keeps_the_verified_digest"
    ]
   }
  ]

@@ -75,6 +75,30 @@ class AHeavyPhotoBecomesLight(unittest.TestCase):
         self.assertTrue(img.rendition['changed'])
 
 
+class AGeneratedImageBecomesLightToo(unittest.TestCase):
+    """The butcher's 1.7 MB hero was a GENERATED image: the platform's own picture goes through the same rendition."""
+    def test_the_real_collect_path_carries_the_light_rendition_and_keeps_the_verified_digest(self):
+        from types import SimpleNamespace
+        from omni_prod import generated_images as G
+        data = photo(size=(1920, 1080), fmt='PNG')
+        self.assertGreater(len(base64.b64encode(data)), 1_700_000)
+        digest = hashlib.sha256(data).hexdigest()
+        plan = SimpleNamespace(requirements=[SimpleNamespace(id='r1', key=G.IMAGE_CAPABILITY, purpose='hero/brand visual',
+                                                             constraints={'subject': 'נתחי בקר טריים'})])
+        evidence = {'requirements': [{'requirement_id': 'r1', 'capability_key': G.IMAGE_CAPABILITY, 'status': 'VERIFIED',
+                                      'verification': {'artifacts': [{'artifact_key': 'k1', 'sha256': digest}]}}]}
+        store = SimpleNamespace(get_bytes=lambda key: data)
+        with self.assertLogs(G.__name__, level='INFO') as logs:
+            (img,) = G.collect(plan=plan, evidence=evidence, store=store, prompt='אטליז')
+        self.assertEqual(img.sha256, digest)
+        self.assertEqual(img.mime, 'image/webp')
+        self.assertLessEqual(len(img.data), W.BUDGET_BYTES)
+        self.assertAlmostEqual(img.width / img.height, 1920 / 1080, places=2)
+        self.assertEqual(run_unit('perf_inline_image_weight', f'<img src="{img.uri}" alt="x">')['status'], 'pass')
+        self.assertIn('GENERATED_IMAGE index=1 changed=True', logs.output[0])
+        self.assertEqual(G.placement({'index.html': f'<img src="{img.marker}" alt="בשר">'}, img), 'ok')
+
+
 class TheRules(unittest.TestCase):
     def test_a_light_photo_is_carried_byte_for_byte(self):
         data = photo(size=(800, 600), quality=70)

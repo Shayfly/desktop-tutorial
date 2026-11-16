@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import logging
 import re
 import tokenize
 from dataclasses import dataclass
@@ -41,6 +42,7 @@ _ICON_TERMS = ('לוגו', 'סמליל', 'אייקון', 'logo', 'app icon', 'fa
 _PURPOSE_HE = {'hero': 'תמונה ראשית', 'icon': 'סמל המוצר'}
 _PURPOSE_EN = {'hero': 'Main image', 'icon': 'Product icon'}
 _BRIEF_SPLIT = '--- Approved project brief'
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -188,6 +190,14 @@ def collect(*, plan, evidence: dict | None, store, prompt: str) -> list[Generate
         if art.get('sha256') and art['sha256'] != digest:
             raise ValueError(f'generated image {key} does not match its verified sha256')
         mime, width, height = sniff_image(data)
+        # warehouse 114 (the butcher, bld_83529c13: the generated hero went into the page as 1,735,408 base64
+        # characters): the page carries a web-sized rendition; `sha256` stays the digest of the verified artifact.
+        from .web_rendition import rendition
+        light = rendition(data, mime)
+        if light['changed']:
+            data, mime, width, height = light['data'], light['mime'], light['width'], light['height']
+        _LOG.info('GENERATED_IMAGE index=%s changed=%s bytes=%s original_bytes=%s size=%sx%s step=%s', index,
+                  light['changed'], len(data), light['original_bytes'], width, height, light['step'])
         seen[rid] = seen.get(rid, 0) + 1
         images.append(GeneratedImage(
             index=index, requirement_id=rid, purpose=purposes.get(rid, 'image'), mime=mime, width=width,
