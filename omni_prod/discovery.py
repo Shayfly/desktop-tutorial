@@ -645,6 +645,16 @@ def pending(brief: Brief) -> list[Question]:
     return [q for q in QUESTIONS if q.field not in brief.fields and q.id not in brief.skipped and q.ask_if(vals)]
 
 
+def panel_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
+    """What the Requirements panel asks next -- the same source as the chat (warehouse 113, owner 2026-11-16). While an
+    uploaded image's role is open, the chat asks exactly that one question, so the panel shows only it: never two
+    different questions open at once in two places."""
+    image_q = next_image_question(brief)
+    if image_q is not None:
+        return image_q.group, [image_q]
+    return next_group(brief, limit)
+
+
 def next_group(brief: Brief, limit: int = 4) -> tuple[str | None, list[Question]]:
     """The next small group: contradictions first, then the group order."""
     todo = pending(brief)
