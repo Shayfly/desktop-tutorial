@@ -1,3 +1,32 @@
+# 2026-11-17 — the owner's human test: the image question looped; the conversation ran on Haiku (Claude Code)
+
+- **Merged and released:** #443 `444d3d4` -> `a3bf297` (the browser check: a visible message rewritten after a save is
+  feedback).
+- **The owner's conversation (prj_9GM6q4KQX-tu9A, "קצביה של שמעון", read from intake_messages):**
+  - The image question ("ומה לעשות עם התמונה?") came back three times. Asked for a caricature of Shimon -- a change
+    the platform cannot make -- then "מה שאתה רוצה תעשה אתה" ("do what you want"), neither moved it; the owner wrote
+    "גם ככה לא מקשיב". Roots: a change asked again had no resolution, and handing the choice over was not read for
+    `image_use`. Fixed: a caricature/drawing is read as a change; the first time it is said to be unavailable, the
+    second time (or when handed over) the question's own recommendation is taken and said in one sentence. Real
+    path tests `tests/test_image_change_not_a_loop.py` (the owner's own sequence); controls 4/4.
+  - **The conversation ran on Haiku, not Sonnet:** production intake runs through Venice
+    (`OMNI_INTAKE_PROVIDER=venice`) with an allowlist of Haiku and Qwen and a price ceiling of $0.18/$0.90 per million;
+    Venice picks the cheapest listed model. D10 changed the routed gateway, which production intake does not use, and
+    the conversation rehearsal ran on the routed gateway too -- so it never tested the production path. Switching
+    needs higher caps (project $0.15, daily $1.00 today): question 2 in DECISIONS, the owner's.
+  - Two misread answers, fixed: (1) "רק אני יכול לשנות מחירים" -- who EDITS the site -- was read as audience
+    "internal team" (a deterministic rule, high confidence); an editing verb after "only I" is no longer an audience.
+    (2) "לא אני משנה את האתר דרך כאן בעתיד", the answer to "האם צריך התחברות עם סיסמה?", was not read (a typed answer
+    had to name an option), so the model's guess (roles) stayed and became a blocker; a leading "לא" now answers a
+    yes/no question when the message names no option of its own ("לא, צריך הרשאות למנהל ועובד" stays roles; "לא
+    יודע", "לא בטוח", "לא משנה" are not a no). Tests `tests/test_owner_answers_are_read.py` (the owner's words, the
+    real path); controls 4/4.
+  - Not fixed yet: "אז בלי" was read by the model as a message cut short (it came after the misread login blocker,
+    which no longer arises); one turn timed out at the model ("העומס אצל ספק המודל").
+- **The butcher build (bld_2b5225d1) failed with `model_unavailable`:** the code model answered with an analysis
+  before the JSON (gemini-3.8-flash and gemini-3.1-flash-lite), and the OpenAI route is skipped: CREDIT_EXHAUSTED
+  since 2026-11-17 07:56 UTC (HTTP 429, "no credits remaining") -- an account balance, the owner's.
+
 # 2026-11-17 — the browser check called a working lead form "no feedback" (Claude Code)
 
 - **Merged and released:** #442 `0d9bfe3` -> `04dcec6` (D5, D7 part 1, D8, the agent asks the subject first). Live

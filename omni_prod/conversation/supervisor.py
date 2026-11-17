@@ -184,6 +184,7 @@ _TXT = {
            'attached_note': '(שמרתי {n}; היא מועברת כהקשר לשינוי, בלי ניתוח תמונה אוטומטי.)',
            'attached_bound': '(שמרתי {n} בבקשה של הפרויקט.)',
            'image_change': 'שינוי של התמונה עצמה עוד לא זמין אצלנו. אפשר להשתמש בה כמו שהיא, או רק כהשראה.',
+           'image_change_defaulted': 'שינוי של התמונה עצמה (למשל קריקטורה) עוד לא זמין, אז כדי להתקדם בחרתי: {choice}. אפשר לשנות בכל רגע.',
            'image_hero_taken': 'כבר יש בדף תמונה ראשית אחת. בחרו לתמונה הזו מקום אחר.',
            'attached_kept': '(שמרתי {n} בפרויקט; מההודעה הזו היא לא נכנסת לבנייה.)',
            'images': lambda n: 'תמונה אחת' if n == 1 else f'{n} תמונות'},
@@ -227,6 +228,7 @@ _TXT = {
            'attached_note': '(I saved {n}; it goes with the change as context, without automatic image analysis.)',
            'attached_bound': '(I saved {n} in the project request.)',
            'image_change': 'Changing the image itself is not available yet. It can be used as is, or as inspiration only.',
+           'image_change_defaulted': 'Changing the image itself (a caricature, for example) is not available yet, so to move on I chose: {choice}. You can change it any time.',
            'image_hero_taken': 'The page already has its one main image. Choose another place for this image.',
            'attached_kept': '(I saved {n} in the project; from this message it does not go into the build.)',
            'images': lambda n: 'one image' if n == 1 else f'{n} images'},
@@ -913,6 +915,7 @@ class ConversationSupervisor:
 
     def _requirements(self, project_id, account_id, row, message, answers, request_key, lang, T, attachments=()) -> Turn:
         from ..intake import lanes
+        image_defaulted = None
         if row is not None and message and not answers and not attachments:
             # the customer answers "who is in the photo?" by typing: the message IS that answer, not a new request
             asked = d.next_image_question(row.brief)
@@ -924,6 +927,11 @@ class ConversationSupervisor:
                 # words -- the loop asked again and again because only a button could answer it
                 from ..intake.image_answers import answers_for
                 typed = answers_for(asked, message)
+                if (typed.get(asked.id) == 'change' and asked.recommended
+                        and row.brief.hints.get('image_change') == 'asked'):
+                    # the owner, 2026-11-17: a change was already said to be unavailable; asking a third time is the
+                    # loop. One question, then the closest available choice -- the question's own recommendation, said.
+                    typed, image_defaulted = {asked.id: asked.recommended}, asked.recommended
                 if typed:
                     answers, message = typed, ''
         refused = self._route_output(row, message, lang)    # A0 (warehouse 69): the output type, before any model
@@ -1058,6 +1066,8 @@ class ConversationSupervisor:
             parts.append(T['image_hero_taken'])      # one main image per page: the place is asked again
         if any(answers.get(q) == 'change' for q in ('image_use', 'image_use_other')):
             parts.append(T['image_change'])          # not recorded: the question stays open (discovery._settle_image)
+        if image_defaulted:
+            parts.append(T['image_change_defaulted'].format(choice=_label('image_use', image_defaulted, lang)))
         # The model's conversational advice is not an action: the authoritative
         # questions, changes, blockers and approval controls below still apply.
         if interp is not None and interp.reply and not res.conflicts:

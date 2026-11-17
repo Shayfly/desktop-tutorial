@@ -27,7 +27,9 @@ _OTHER = r'משהו אחר|אחר|something else|other'
 
 USE_WORDS: tuple[tuple[str, str], ...] = (
     ('inspiration', r'השראה|לא להציג|inspiration'),
-    ('change', r'לשנות|לערוך|לעבד|שנה|change|edit'),
+    # the owner's own words, 2026-11-17 ("תעשו ממנו קריקטורה של קצב"): a drawing made FROM the photo is a change
+    ('change', r'לשנות|לערוך|לעבד|שנה|קריקטורה|קריקטורות|ציור|איור|מצויר|מצוירת|לצייר|תצייר|תציירו|'
+               r'change|edit|cartoon|caricature|illustration'),
     ('as_is', r'כמו שהיא|כמו שהוא|כמו שזה|כמו שהן|להשתמש|תשתמש|בלי שינוי|בלי לשנות|as is|use it'),
 )
 
@@ -41,6 +43,12 @@ PLACE_WORDS: tuple[tuple[str, str], ...] = (
 # words that only introduce the answer; what is left after them is the customer's description
 _FILLER = re.compile(r'^\s*(?:זאת|זה|זו|זוהי|זהו|יש בה|יש בתמונה|בתמונה|בתמונה יש|התמונה של|תמונה של|it is|this is|it\'s)\s*',
                      re.I)
+
+
+# "do what you want" (the owner, 2026-11-17, after the same image question came back three times): the customer hands
+# the choice over -- the question's own recommendation is taken, said, and never asked again.
+DELEGATE = re.compile(r'תחליט|תחליטו|תבחר|תבחרו|מה שאתה רוצה|מה שאתם רוצים|מה שבא לך|מה שנראה לך|לא משנה לי|'
+                      r'you decide|up to you|whatever you want|your call', re.I)
 
 
 def _first(text: str, table) -> str | None:
@@ -90,6 +98,8 @@ def answers_for(question, text: str) -> dict[str, str]:
         return out
     if qid in ('image_use', 'image_use_other'):
         use = _first(text, USE_WORDS)
+        if use is None and DELEGATE.search(text) and question.recommended:
+            use = question.recommended
         return {qid: use} if use else {}
     if qid.startswith('image_place_'):
         place = _first(text, PLACE_WORDS)

@@ -83,6 +83,14 @@ DECIDING: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
+# A question asked as yes/no ("האם צריך התחברות עם סיסמה?") is answered by a leading "לא" -- but only when the message
+# names no option of its own ("לא, צריך הרשאות למנהל ועובד" names roles). The owner, 2026-11-17: "לא אני משנה את האתר
+# דרך כאן בעתיד" was not read, the model's guess (roles) stayed and became a blocker. "לא יודע", "לא בטוח" and "לא משנה"
+# are not a no.
+LEADING_NO = r'^\s*(?:לא(?!\s+(?:יודע|יודעת|בטוח|בטוחה|הבנתי|ברור|משנה))|no(?!\s+idea)|nope)(?:\W|$)'
+YES_NO_QUESTIONS = {'login': 'none'}
+
+
 def typed_choice(question, text: str) -> str | None:
     """The option a typed message names for this question, or None (none named, or two different ones)."""
     words = WORDS.get(getattr(question, 'id', ''))
@@ -95,6 +103,8 @@ def typed_choice(question, text: str) -> str | None:
     hits = {value for value, rx in words.items() if re.search(rx, t, re.I)}
     if len(hits) == 2 and {'yes', 'no'} <= hits:
         return None                                    # "כן... לא" -- not an answer
+    if not hits and question.id in YES_NO_QUESTIONS and re.search(LEADING_NO, t, re.I):
+        return YES_NO_QUESTIONS[question.id]
     return hits.pop() if len(hits) == 1 else None
 
 
