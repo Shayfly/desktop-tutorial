@@ -1105,6 +1105,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))
+        # G8 (stage F): the product keeps answering under load; warns until it is calibrated
+        from .runtime_load import install as install_runtime_load
+        install_runtime_load(engine)
         # A4 (the owner 2026-11-16, stage D): one asset plan -- every image, uploaded or generated, has one place
         from .a4 import install as install_asset_plan
         build_prompt = install_asset_plan(engine, prompt=build_prompt)
@@ -1372,6 +1375,8 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         actual_cost = spent if evidence['billing'] == 'settled' else None
     from .skill_units.gate import report as skill_gate_report
     evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
+    from .runtime_load import report as runtime_load_report
+    evidence['runtime_load'] = runtime_load_report(engine)    # G8: the measurement of the last check
     from .a4 import report as asset_plan_report
     evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check
     target = BuildStatus.READY if ready else BuildStatus.FAILED

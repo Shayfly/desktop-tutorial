@@ -40,6 +40,8 @@ def run(prompt: str) -> dict:
     try:
         from .skill_units.gate import install_all
         install_all(engine)
+        from .runtime_load import install as install_runtime_load
+        install_runtime_load(engine)
     except Exception as exc:
         report['skill_gates_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
@@ -68,6 +70,8 @@ def run(prompt: str) -> dict:
         )
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
+    from .runtime_load import report as runtime_load_report
+    report['runtime_load'] = runtime_load_report(engine)
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
