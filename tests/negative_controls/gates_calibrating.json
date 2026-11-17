@@ -1,0 +1,117 @@
+{
+ "pr": "gates-calibrating",
+ "sha256": [
+  "tests/test_gates_calibrating.py",
+  "omni_prod/skill_units/gate.py",
+  "omni_prod/rehearsal.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "an uncalibrated gate blocks by default again",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "**{g: 'warn' for g in CALIBRATING}}",
+     "new": "**{g: 'block' for g in CALIBRATING}}"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py",
+    "tests/test_skill_gate_he.py"
+   ],
+   "expect_failed": [
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only",
+    "test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block",
+    "test_the_gate_is_three_units_and_blocks_by_default"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a gate is dropped from the calibrating list without evidence, and blocks in silence",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')",
+     "new": "CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND')"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_every_calibrating_gate_warns_by_default_and_the_proven_ones_block",
+    "test_every_gate_the_worker_installs_has_a_stated_default",
+    "test_the_rehearsal_runs_the_gates_a_customers_build_runs"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the rehearsal builds without the gates (a calibration build would check less than a customer's)",
+   "mutations": [
+    {
+     "file": "omni_prod/rehearsal.py",
+     "old": "        install_all(engine)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_the_rehearsal_runs_the_gates_a_customers_build_runs"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "a gate the worker installs is missing from the list the rehearsal installs",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')",
+     "new": "WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND')"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_every_gate_the_worker_installs_has_a_stated_default"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "a calibrating gate's findings are dropped from the evidence (nothing to calibrate on)",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "**({'findings': _calibration_findings(f)} if keep else {})}",
+     "new": "}"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a blocking gate's findings are copied into the evidence too",
+   "mutations": [
+    {
+     "file": "omni_prod/skill_units/gate.py",
+     "old": "            keep = ex.gate in CALIBRATING and not any(manifest(u)['reads_source'] for u in gate_units(ex.gate))",
+     "new": "            keep = True"
+    }
+   ],
+   "targets": [
+    "tests/test_gates_calibrating.py"
+   ],
+   "expect_failed": [
+    "test_a_calibrating_gate_keeps_its_findings_and_a_blocking_one_keeps_codes_only"
+   ]
+  }
+ ]
+}

@@ -35,6 +35,13 @@ def run(prompt: str) -> dict:
                                                                  contract_version=1).to_dict())
     except Exception as exc:
         report['acceptance_scope_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # The same skill gates a customer's build runs (gate.WORKER_GATES), each in its own mode. A calibrating gate warns:
+    # its findings are in the report, which is how a gate is calibrated on real generated pages before it blocks.
+    try:
+        from .skill_units.gate import install_all
+        install_all(engine)
+    except Exception as exc:
+        report['skill_gates_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
         result = engine.build(prompt)
     except Exception as exc:
@@ -59,6 +66,8 @@ def run(prompt: str) -> dict:
             browser_check=getattr(getattr(engine, 'executor', None), 'last_probe', None),
             behavior_acceptance=__import__('omni_prod.worker_tasks', fromlist=['x']).behavior_evidence(engine),
         )
+    from .skill_units.gate import report as skill_gate_report
+    report['skill_gates'] = skill_gate_report(engine)
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
@@ -103,6 +112,11 @@ def annotations(report: dict) -> list[str]:
              note('files', ', '.join(report.get('files') or []) + '\n' + (report.get('manifest') or ''))]
     lines.append(note('taxonomy', f"first_pass={report.get('first_pass')} failures="
                                   + json.dumps(report.get('failure_taxonomy') or [], ensure_ascii=False)))
+    if report.get('skill_gates') or report.get('skill_gates_error'):
+        lines.append(note('skill gates', report.get('skill_gates_error') or '\n'.join(
+            f"{g} mode={r.get('mode')} status={r.get('status', 'NOT_RUN')} "
+            + json.dumps(r.get('failures') or [], ensure_ascii=False)[:600]
+            for g, r in report['skill_gates'].items())))
     if report.get('tokens'):
         lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
                                   f"{json.dumps(report.get('same_tokens_cost_usd'))}"))
