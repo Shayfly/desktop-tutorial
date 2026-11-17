@@ -1,0 +1,6 @@
+{
+ "FONT_SOURCE_UNKNOWN": {
+  "meaning": "a font, or a stylesheet that can load fonts, from a source that is not known",
+  "fix": "load fonts only from Google Fonts (fonts.googleapis.com) or name system fonts; remove every other font file and external stylesheet"
+ }
+}

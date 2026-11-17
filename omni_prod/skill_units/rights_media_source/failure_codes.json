@@ -1,0 +1,6 @@
+{
+ "MEDIA_SOURCE_UNKNOWN": {
+  "meaning": "audio or video whose source is not known: the platform supplies none yet",
+  "fix": "remove the audio or video; the platform cannot yet show the right to any"
+ }
+}

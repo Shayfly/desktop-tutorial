@@ -1,0 +1,10 @@
+{
+ "butcher_hotlinked_photo.html": {
+  "code": "IMAGE_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: the hero image is hotlinked from images.unsplash.com instead of the image the platform generated"
+ },
+ "butcher_unknown_bytes.html": {
+  "code": "IMAGE_SOURCE_UNKNOWN",
+  "what_is_broken": "the real production page of the butcher build bld_83529c132a864075945080e9390484cb, as written, changed in one place: the hero image is a JPEG embedded as base64 that the platform did not supply"
+ }
+}

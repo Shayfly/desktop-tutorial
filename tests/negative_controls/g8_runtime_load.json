@@ -1,0 +1,184 @@
+{
+ "pr": "g8-runtime-load",
+ "sha256": [
+  "tests/test_g8_runtime_load_rules.py",
+  "tests/test_g8_runtime_load.py",
+  "omni_prod/runtime_load.py",
+  "omni_prod/worker_tasks.py",
+  "omni_prod/rehearsal.py",
+  "omni_prod/skill_units/gate.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "failed answers under load are not counted",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "    if m.get('errors') or m.get('requests') != REQUESTS:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_limit_is_judged_on_its_own",
+    "test_warn_records_and_goes_on_and_block_fails_on_the_same_measurement"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "a server that died under load passes",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "    if not m.get('alive'):",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_limit_is_judged_on_its_own"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "slow answers pass",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "    if isinstance(m.get('p95_ms'), (int, float)) and m['p95_ms'] > P95_LIMIT_MS:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_limit_is_judged_on_its_own"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the memory limit is not judged",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "    if isinstance(m.get('rss_kb'), int) and m['rss_kb'] > RSS_LIMIT_KB:",
+     "new": "    if False:"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_each_limit_is_judged_on_its_own"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the new gate blocks from its first day (rule 4)",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "        if not findings or self.mode != 'block':\n            return report\n",
+     "new": "        if not findings:\n            return report\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_warn_records_and_goes_on_and_block_fails_on_the_same_measurement"
+   ]
+  },
+  {
+   "id": "NC6",
+   "what": "a check that could not run passes in block mode",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "        if self.mode != 'block':\n            return report\n        from .verification_verdict import unverified      # NOT_RUN is not PASS\n",
+     "new": "        return report\n        from .verification_verdict import unverified\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_what_cannot_run_is_not_run_never_a_pass"
+   ]
+  },
+  {
+   "id": "NC7",
+   "what": "a deadline inside the load run is swallowed as NOT_RUN",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "            reraise_control(exc)               # a cancel, a deadline or a budget stop ends the build; it is not a result\n",
+     "new": "            pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_a_deadline_ends_the_build_instead_of_being_a_result"
+   ]
+  },
+  {
+   "id": "NC8",
+   "what": "the worker builds without G8",
+   "mutations": [
+    {
+     "file": "omni_prod/worker_tasks.py",
+     "old": "        install_runtime_load(engine)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_worker_and_the_rehearsal_install_it_and_the_evidence_carries_it"
+   ]
+  },
+  {
+   "id": "NC9",
+   "what": "the load is one request at a time (no concurrency, so a single-threaded server passes)",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "REQUESTS, CONCURRENCY = 60, 6",
+     "new": "REQUESTS, CONCURRENCY = 60, 1"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_the_run_is_bounded"
+   ]
+  },
+  {
+   "id": "NC10",
+   "what": "a server that never started is reported as passing",
+   "mutations": [
+    {
+     "file": "omni_prod/runtime_load.py",
+     "old": "    if not m.get('started'):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "targets": [
+    "tests/test_g8_runtime_load_rules.py"
+   ],
+   "expect_failed": [
+    "test_a_server_that_never_started_is_its_own_finding"
+   ]
+  }
+ ]
+}

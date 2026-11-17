@@ -12,7 +12,7 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         import os
         from unittest import mock
         from omni_prod.skill_units import gate as G
-        self.assertEqual(set(G.CALIBRATING), {'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE'})
+        self.assertEqual(set(G.CALIBRATING), {'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5', 'A4', 'G8', 'GAME', 'APPLE'})
         with mock.patch.dict(os.environ, {}, clear=False):
             for gate in (*G.CALIBRATING, 'G3', 'G4', 'G6'):
                 os.environ.pop(f'OMNI_GATE_{gate}', None)
@@ -73,6 +73,62 @@ class ANewGateWarnsUntilItIsCalibrated(unittest.TestCase):
         from omni_prod.skill_units import gate as G
         with mock.patch.dict(os.environ, {'OMNI_GATE_HE': 'block'}):
             self.assertEqual(G.mode('HE'), 'block')
+
+
+class ThePageAsServed(unittest.TestCase):
+    """Calibration finding of 2026-11-17 (rehearsals 44025252867, 44025259144): a page kept as a Python template was
+    read from its source, and its template fields were called placeholders and a missing business name."""
+    TEMPLATE = ('<!doctype html><html lang="he" dir="rtl"><head><title>{SITE_TITLE}</title></head><body>'
+                '<h1>{SITE_TITLE}</h1><main>{packages_html}</main></body></html>')
+    SERVED = ('<!doctype html><html lang="he" dir="rtl"><head><title>קפה נחמה</title></head><body>'
+              '<h1>קפה נחמה</h1><main><p>קפה ומאפה 28 ש"ח</p></main></body></html>')
+
+    def repo(self):
+        return {'app.py': f'PAGE = """{self.TEMPLATE}"""\n'}
+
+    def test_from_the_source_the_template_fields_are_findings_and_from_the_served_page_they_are_not(self):
+        from omni_prod.skill_units import gate as G
+        self.assertEqual(G.check('G10', self.repo())['status'], 'fail')                 # what the rehearsals showed
+        served = G.check('G10', self.repo(), {'/': self.SERVED})
+        self.assertEqual((served['status'], served['failures']), ('pass', []))
+        self.assertTrue(all('(as served)' in line for line in served['checked']))
+        self.assertEqual(G.check('BRAND', self.repo(), {'/': self.SERVED})['status'], 'pass')
+
+    def test_a_real_placeholder_on_the_served_page_is_still_found(self):
+        from omni_prod.skill_units import gate as G
+        bad = self.SERVED.replace('קפה ומאפה 28 ש"ח', 'Lorem ipsum dolor sit amet')
+        self.assertEqual(G.check('G10', self.repo(), {'/': bad})['status'], 'fail')
+
+    def test_the_source_is_read_when_the_served_copy_cannot_be_trusted(self):
+        from omni_prod.skill_units import gate as G
+        cut = self.SERVED[:-20]                                                          # no closing </html>: cut
+        long = self.SERVED.replace('</main>', '<p>' + 'א' * G.SERVED_PAGE_LIMIT + '</p></main>')
+        two = {**self.repo(), 'about.html': self.SERVED}
+        plain = {'index.html': self.SERVED.replace('קפה ומאפה', 'Lorem ipsum dolor sit amet')}
+        for repo, rendered in ((self.repo(), {'/': cut}), (self.repo(), {'/': long}), (self.repo(), None),
+                               (self.repo(), {'assets': 'x'}), (two, {'/': self.SERVED})):
+            self.assertFalse(any('(as served)' in line for line in G.check('G10', repo, rendered)['checked']))
+        # a page that is not a template is read as written even when a served copy exists
+        self.assertEqual(G.check('G10', plain, {'/': self.SERVED})['status'], 'fail')
+
+    def test_the_gate_uses_the_served_page_of_this_round_only(self):
+        from omni_prod.autonomous_core import ExecutionReport
+        from omni_prod.skill_units import gate as G
+
+        class Inner:
+            last_pages = {'/': ThePageAsServed.SERVED}
+
+            def __init__(self, passed):
+                self.passed = passed
+
+            def execute(self, *, repository, spec):
+                return ExecutionReport(self.passed, (), '')
+        ok = G.SkillGateExecutor(Inner(True), 'G10', 'warn')
+        ok.execute(repository=self.repo(), spec=None)
+        self.assertEqual(ok.last_gate['status'], 'pass')
+        stale = G.SkillGateExecutor(Inner(False), 'G10', 'warn')                         # the smoke did not run this round
+        stale.execute(repository=self.repo(), spec=None)
+        self.assertEqual(stale.last_gate['status'], 'fail')
 
 
 if __name__ == '__main__':

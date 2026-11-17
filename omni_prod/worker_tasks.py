@@ -1101,12 +1101,25 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         install_skill_gate(engine, 'G11')                             # links: tel, anchors, address
         for g in ('G1', 'BRAND', 'SHARE'):                            # empty blocks, brand name, share preview
             install_skill_gate(engine, g)
+        install_skill_gate(engine, 'G5')                              # rights: every font, image, audio has a known source
         build_prompt = install_main_image(engine, prompt=build_prompt, pool=attempt_pool,
                                           store=getattr(workspace, 'storage', None),
                                           project_id=request.get('public_project_id'), account_id=str(request['user_id']))
+        # G8 (stage F): the product keeps answering under load; warns until it is calibrated
+        from .runtime_load import install as install_runtime_load
+        install_runtime_load(engine)
+        # A4 (the owner 2026-11-16, stage D): one asset plan -- every image, uploaded or generated, has one place
+        from .a4 import install as install_asset_plan
+        build_prompt = install_asset_plan(engine, prompt=build_prompt)
         # production 2026-11-16 ("148 דלתות"): no raw 148ai-asset:// address reaches the browser (a broken image)
         from .asset_markers import install as install_asset_marker_gate
         install_asset_marker_gate(engine)
+        # G-APPLE (the owner 2026-11-17): the design contract is locked and the gate installed LAST, right before the
+        # build; it warns until it is calibrated. Its two reviewers use the build's own routed, budgeted gateway.
+        from .g_apple import install as install_apple_gate
+        from .attempt_ledger import TaskTaggedGateway as _ReviewGateway
+        build_prompt = install_apple_gate(engine, prompt=build_prompt,
+                                          gateway=_ReviewGateway(getattr(gateway, '_inner', gateway), 'review'))
         _report_phase(jobs, build_id, 'GENERATING', 'generating code, building, testing and repairing')
         from .fact_canon import needs_customer_input
         getattr(engine, 'core', engine).missing_input = (                    # #335 (d)
@@ -1368,6 +1381,12 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
         actual_cost = spent if evidence['billing'] == 'settled' else None
     from .skill_units.gate import report as skill_gate_report
     evidence['skill_gates'] = skill_gate_report(engine)       # every gate's mode (OFF included) and result
+    from .g_apple import report as apple_gate_report
+    evidence['g_apple'] = apple_gate_report(engine)           # the design contract and the gate's findings
+    from .runtime_load import report as runtime_load_report
+    evidence['runtime_load'] = runtime_load_report(engine)    # G8: the measurement of the last check
+    from .a4 import report as asset_plan_report
+    evidence['asset_plan'] = asset_plan_report(engine)        # A4: which image is where, and the placement check
     target = BuildStatus.READY if ready else BuildStatus.FAILED
     jobs.transition(
         build_id=build_id, expected=BuildStatus.RUNNING, target=target,

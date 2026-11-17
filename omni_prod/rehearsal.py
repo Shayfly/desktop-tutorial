@@ -20,6 +20,39 @@ import sys
 import time
 
 
+MAX_BRIEF_STEPS = 40
+
+
+def approved_prompt(request: str, answers: dict) -> str:
+    """The prompt a CUSTOMER's build gets: the request plus the approved brief block (discovery.requirements_text),
+    built by the conversation's own functions. Calibration, 2026-11-17 (rehearsals 44025252867, 44025259144): a raw
+    request has no brief, so a cafe's page was contracted as an app ("missing required behavior kinds: auth,
+    data_create, role") and its phone number was called invented -- failures no customer's build has.
+    `answers` are the customer's own answers to the questions that may never be defaulted ({question id: value});
+    every other question is delegated, as "you decide" does. A question that must be answered and is not in
+    `answers` raises: nothing is guessed."""
+    from . import discovery as d
+    brief = d.start(request)
+    for _ in range(MAX_BRIEF_STEPS):                      # bounded: the catalogue is finite
+        must = d.must_ask(brief)
+        if must:
+            q = must[0]
+            if q.id not in answers:
+                raise ValueError(f'the brief needs the customer\'s answer to {q.id!r} '
+                                 f'(one of {[o.value for o in q.options]}); pass it in answers')
+            brief = d.answer(brief, {q.id: answers[q.id]})
+            continue
+        if d.catalog_complete(brief):
+            break
+        _, group = d.next_group(brief)
+        if not group:
+            break
+        brief = d.answer(brief, {q.id: d.DELEGATE for q in group})
+    else:
+        raise ValueError(f'the brief was not complete after {MAX_BRIEF_STEPS} steps')
+    return (brief.prompt + '\n' + d.requirements_text(brief))[:12000]
+
+
 def run(prompt: str) -> dict:
     from .investor_app import _live_components
     from .quality_gate import assess_repository
@@ -40,8 +73,26 @@ def run(prompt: str) -> dict:
     try:
         from .skill_units.gate import install_all
         install_all(engine)
+        from .runtime_load import install as install_runtime_load
+        install_runtime_load(engine)
+        # A request for a game is also judged as a game (omni_prod/game_runtime). The game profile is NOT open to
+        # customers; this is how the engine is proven able to build one before the profile is declared (a profile is
+        # a promise the engine must keep, output_profile.check_truth).
+        from .intake.families import classify_family
+        report['family'] = classify_family(prompt)
+        if report['family'] == 'game':
+            from .game_runtime import install as install_game_runtime
+            install_game_runtime(engine)
     except Exception as exc:
         report['skill_gates_error'] = f'{type(exc).__name__}: {exc}'[:300]
+    # G-APPLE, last, right before the build: the design contract goes into the prompt, as in a customer's build.
+    try:
+        from .attempt_ledger import TaskTaggedGateway
+        from .g_apple import install as install_apple_gate
+        prompt = install_apple_gate(engine, prompt=prompt,
+                                    gateway=TaskTaggedGateway(getattr(gateway, '_inner', gateway), 'review'))
+    except Exception as exc:
+        report['g_apple_error'] = f'{type(exc).__name__}: {exc}'[:300]
     try:
         result = engine.build(prompt)
     except Exception as exc:
@@ -68,6 +119,12 @@ def run(prompt: str) -> dict:
         )
     from .skill_units.gate import report as skill_gate_report
     report['skill_gates'] = skill_gate_report(engine)
+    from .g_apple import report as apple_gate_report
+    report['g_apple'] = apple_gate_report(engine)
+    from .runtime_load import report as runtime_load_report
+    report['runtime_load'] = runtime_load_report(engine)
+    from .game_runtime import report as game_runtime_report
+    report['game_runtime'] = game_runtime_report(engine)
     report['failure_taxonomy'] = getattr(engine, 'failure_taxonomy', [])
     report['first_pass'] = getattr(engine, 'first_pass', None)
     spent, calls = spend_snapshot(gateway)
@@ -117,6 +174,19 @@ def annotations(report: dict) -> list[str]:
             f"{g} mode={r.get('mode')} status={r.get('status', 'NOT_RUN')} "
             + json.dumps(r.get('failures') or [], ensure_ascii=False)[:600]
             for g, r in report['skill_gates'].items())))
+    if report.get('g_apple') or report.get('g_apple_error'):
+        apple = report.get('g_apple') or {}
+        last = apple.get('last') or {}
+        lines.append(note('g-apple', report.get('g_apple_error') or json.dumps({
+            'mode': apple.get('mode'), 'contract': (apple.get('contract') or {}).get('fingerprint'),
+            'status': last.get('status'), 'reason': last.get('reason'), 'not_run': last.get('not_run'),
+            'static': [(f['code'], f['where']) for f in last.get('static') or []][:25],
+            'render': [(f['code'], f['width'], f['selector']) for f in last.get('render') or []][:25],
+            'reviewers': [{k: r.get(k) for k in ('reviewer', 'status', 'p0', 'reason', 'category_marks', 'findings')}
+                          for r in last.get('reviewers') or []]}, ensure_ascii=False)))
+    if (report.get('runtime_load') or {}).get('last') or (report.get('game_runtime') or {}).get('last'):
+        lines.append(note('runtime', json.dumps({'family': report.get('family'), 'load': report['runtime_load'].get('last'),
+                                                 'game': report['game_runtime'].get('last')}, ensure_ascii=False)))
     if report.get('tokens'):
         lines.append(note('cost', f"tokens {json.dumps(report['tokens'])}\nsame tokens on each model (USD): "
                                   f"{json.dumps(report.get('same_tokens_cost_usd'))}"))
@@ -144,9 +214,16 @@ def annotations(report: dict) -> list[str]:
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv or not argv[0].strip():
-        print('usage: python -m omni_prod.rehearsal "<prompt>"', file=sys.stderr)
+        print('usage: python -m omni_prod.rehearsal "<prompt>" [\'{"content_only": "yes", ...}\']', file=sys.stderr)
         return 2
-    report = run(argv[0])
+    prompt, brief_mode = argv[0], len(argv) > 1 and bool(argv[1].strip())
+    if brief_mode:                                        # the customer's path: an approved brief, not a raw request
+        answers = json.loads(argv[1])
+        if not isinstance(answers, dict):
+            raise ValueError('answers must be a JSON object of question id -> value')
+        prompt = approved_prompt(argv[0], answers)
+    report = run(prompt)
+    report['brief_mode'] = brief_mode
     print('REHEARSAL ' + json.dumps(report, ensure_ascii=False))
     for line in annotations(report):
         print(line)

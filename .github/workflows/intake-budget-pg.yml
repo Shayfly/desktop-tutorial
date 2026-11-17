@@ -126,9 +126,10 @@ jobs:
         if: always()
         run: cat evidence-notices.txt 2>/dev/null || echo "::warning title=evidence::no evidence notices were written"
       # 2026-11-16: 4m39s on main after #415 (the skill-gate specs run real engine builds), against a 5-minute bound
+      # 2026-11-17: over 10 minutes on #426 (five new specs); the job's own limit is 20 and its tests take about 4
       - name: Negative controls (one SPEC ::notice per spec; the same runner as v24-ci)
         if: always()
-        timeout-minutes: 10
+        timeout-minutes: 14
         env:
           NC_ENV: pg      # compare with each control's expect_failed_pg; extra failures here are INFO, not FAIL
         run: python scripts/run_negative_controls.py

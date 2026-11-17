@@ -83,8 +83,8 @@
    "mutations": [
     {
      "file": "omni_prod/skill_units/gate.py",
-     "old": "CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')",
-     "new": "CALIBRATING = ('G10', 'G11', 'G1', 'BRAND', 'SHARE')"
+     "old": "    'HE',        # Hebrew: grammar, gender, translationese\n",
+     "new": ""
     }
    ],
    "targets": [

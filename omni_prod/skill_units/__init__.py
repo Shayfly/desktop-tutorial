@@ -33,9 +33,11 @@ def failure_codes(unit: str) -> dict:
     return json.loads((ROOT / unit / 'failure_codes.json').read_text(encoding='utf-8'))
 
 
-def run(unit: str, html: str) -> dict:
-    """Run one unit's probe; a code the unit does not declare raises."""
-    result = importlib.import_module(f'{__name__}.{unit}.probe').probe(html)
+def run(unit: str, html: str, path: str | None = None) -> dict:
+    """Run one unit's probe; a code the unit does not declare raises. A unit that reads served files (its manifest
+    says reads_served) is also told the file's path, so it can read a stylesheet as CSS and a script as a script."""
+    probe = importlib.import_module(f'{__name__}.{unit}.probe').probe
+    result = probe(html, path) if manifest(unit).get('reads_served') else probe(html)
     if result.get('status') not in ('pass', 'fail'):
         raise ValueError(f'{unit}: probe returned status {result.get("status")!r}')
     if result['status'] == 'fail' and result.get('code') not in failure_codes(unit):

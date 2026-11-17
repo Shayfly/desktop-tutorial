@@ -1,3 +1,56 @@
+# 2026-11-17 — three new checks, all entering at warn: G5 rights, A4 asset plan, G8 runtime and load (Claude Code)
+
+- **G5 (rights), rewritten after an independent review:** every served file is read with a real parser (HTML, CSS,
+  scripts that build media, JSON-LD, SVG data: URIs); the source of every font, image and media file must be one the
+  registry names (`omni_prod/rights_sources.json`). It reads the page as written (the platform's own assets as their
+  placeholders). The worker installs it.
+- **A4 (assets agent), first slice:** one asset plan per build. A generated image had no place at all -- the code
+  model chose. Now every image has one place by stated rules (the customer's photo keeps its place and the hero; a
+  generated picture is the hero only when the hero is free), the generator is told the plan, and the finished page
+  is checked against it. A plan that cannot be (two heroes, over 12 images, over 1.5 MB together) stops the build.
+- **G8 (runtime and load):** the product is started in the sandbox and asked for its page 60 times, 6 at a time. It
+  must answer every request, stay up, answer within 1.5 s at the 95th percentile and hold under 256 MB.
+- **G-APPLE, the design gate (the owner's relayed spec, 2026-11-17), in this PR at warn:**
+  - *Design contract, locked before code* (`omni_prod/g_apple/contract.py`): from the approved brief's Design line --
+    a type scale, the 8-grid (4 is the one half step), a semantic palette whose every text pair's contrast is
+    computed and corrected, two weights, one radius, motion tokens. One accent: the palette's second colour is
+    dropped, and the contract says so. The generator gets the `:root` block and may use nothing else.
+  - *Static enforcement and the refusal list* (`static.py`): raw colour, px off the scale, a third weight, a second
+    radius, a missing contract, missing `:focus-visible` / `:hover` / `:active`; gradient hero with outlined text,
+    three icon cards, carousel, shadow everywhere, 24px everywhere, everything centred, a second accent, more than
+    two button styles, emoji as icons, lorem.
+  - *Render probe* (`render.py`, sandbox browser, 390 / 768 / 1440 / 320, one full-page screenshot each): sideways
+    scroll, cut text, a control under 44 px, off-grid spacing, line length outside 55-75, the 30 / 60 character
+    string test.
+  - *Two separate vision reviewers* (`reviewers.py`): typography/layout and brand/category, findings with a selector
+    and a severity; P0 blocks (in block mode); a reviewer never proposes code; the category clause makes a page with
+    no visible mark of its business a P0.
+  - Installed last, right before the build, in the worker and in the rehearsal; evidence key `g_apple`.
+  - **Decisions made while building it (said, not hidden):** line length is judged at 768 and 1440 only (at 320-390
+    a 55-character line needs unreadably small text); the reviewers see the two screenshots visual QA returns (1440
+    and 390) -- the four-width screenshots stay in the sandbox and only their digests are reported; the old butcher
+    page predates the contract and fails it by design (30+ findings), so "P0 = 0 on the butcher page" is measured
+    on a butcher page BUILT under the contract.
+  - **Per the owner: negative controls and the move to block are tomorrow.** Tests today: `tests/test_g_apple.py`
+    (20) and `tests/test_g_apple_render.py` (6, four of them in a real browser).
+  - **Not verified:** no real build has run under the contract; the reviewers have not run on a real vision model.
+- **CI time, root cause and fix (a513b1a):** `test` was cancelled and `pg-tests` failed with no failing test. The
+  negative controls ran after pytest inside `test`, and with five new specs the two passed the job's 20-minute limit
+  (pytest 8.5 min; the controls over 11). Fix: G8's controls target a server-free rules file (6 min -> 11 s); the
+  controls run in their own job, `negative-controls`, beside the tests (the follow-up the workflow's own comment asked
+  for); the pg job's control step gets 14 minutes of its 20. Every spec still runs on every push.
+- **All three warn (`gate.CALIBRATING`):** findings and measurements go to the log and the build evidence
+  (`skill_gates`, `asset_plan`, `runtime_load`); none blocks before three calibration builds. The rehearsal installs
+  the same checks.
+- **Evidence:** `tests/test_skill_gate_rights.py`, `tests/test_a4_asset_plan.py` (17), `tests/test_g8_runtime_load.py`
+  (15: real servers are started -- a healthy one, one that dies under load, one that answers 500, a slow one, one
+  that never starts -- and the script passes the real sandbox request policy); negative controls
+  `skill_gate_rights` 20/20, `a4_asset_plan` 10/10, `g8_runtime_load`, `gates_calibrating` 6/6.
+- **Not verified:** none of the three has run in the real sandbox or on a real build; G8's limits are first guesses
+  to calibrate, and its memory reading depends on the sandbox exposing /proc (said as NOT_RUN when it does not).
+- **Not in the repository (asked in DECISIONS.md):** the skills triage list (88 keep / 32 merge / 17 drop) and
+  `parked/`; stage E cannot start without them.
+
 # 2026-11-17 — uncalibrated gates warn; the page carries a light rendition of every photo (Claude Code)
 
 - **Merged:** #424 `5556c28` -> `a5ab25d` (the worker's time budget; the dead ends). Not released yet.
@@ -138,6 +191,58 @@
   - negative controls `fast_suite.json` 2/2;
   - `scripts/ci_test_coverage.py` PASS.
 - **No CI job runs the fast suite yet.** Its `light` job is part of #405.
+# 2026-11-16 — the rights gate G5: the source of every font, image and audio is known, or the build is blocked (Claude Code)
+
+- **Owner's order:** the agents come after the gates, A7 (rights) first: "checks the source of every asset: font,
+  image, audio. Blocks on an unknown right; it does not assume." And: an agent with no gate that runs it does not go
+  in, so the gate comes first. This entry is the gate.
+- **Implemented:**
+  - `omni_prod/rights_sources.json` is the registry of known sources, a data file. Each source states its right, the
+    basis it rests on and the date the basis was read. A source without a basis is refused at load. Six sources:
+    - the customer's upload, and the image the platform generates (flux-schnell on Replicate, Apache-2.0);
+    - an SVG the build draws, and a path the build serves itself;
+    - Google Fonts, and a Google map embedded in a frame.
+  - `omni_prod/rights_sources.py` reads every asset reference of one served file and judges it.
+  - Three skill units form gate G5: `rights_image_source` (IMAGE_SOURCE_UNKNOWN), `rights_font_source`
+    (FONT_SOURCE_UNKNOWN) and `rights_media_source` (MEDIA_SOURCE_UNKNOWN: audio, video and frames from other sites).
+  - G5 blocks by default (`OMNI_GATE_G5`), and its mode is said on every build like every gate.
+  - G5 reads the files as written: the platform's own assets are their `148ai-asset://` placeholders. So the
+    customer's photo is known, and the same bytes with no record of their source are not.
+  - G5 reads every served file (pages, stylesheets, scripts, Python and template files), not only whole documents.
+  - The worker installs G5 with the other gates.
+- **An independent review before the push found the first version full of holes; a bug of mine.** It read pages with
+  regular expressions and only whole `<html>` documents. What passed although unknown, each now a test:
+  - a photo gallery built by a script from addresses with no file extension (images.unsplash.com, picsum.photos);
+  - an asset loaded from a stylesheet file, a script file or a fragment in a Python constant;
+  - a `>` inside an earlier attribute, and a comment opener inside `<style>`, which hid what followed;
+  - a photograph wrapped in an SVG data: URI;
+  - `image-set()`, an escaped `url`, `@import` with no space, lazy-loading `data-src`, `<body background>`,
+    `imagesrcset`, `<object>` with no extension, and a player in a frame on any host outside a list of six;
+  - anything that merely started like a placeholder.
+
+  What was blocked although legitimate: Google Fonts loaded with `@import` and two weights (read as an unknown
+  image), and an empty `data:,` favicon.
+- **The fix:** the reading is rewritten on `html.parser`, with separate readers for CSS, scripts, JSON-LD, SVG data:
+  URIs and Python constants. A script that puts media on the page has every address literal judged, with or without
+  an extension; an address that is plainly a link target (`href`, `window.open`, `location`) is not a load.
+- **It falls on a page:** each broken fixture is the real butcher production page, as written, changed in one
+  place: the hero hotlinked from images.unsplash.com; the hero as embedded JPEG bytes; the Heebo stylesheet replaced
+  by one from fonts.cdnfonts.com; an `@font-face` loading a font file from another host; background music from
+  cdn.pixabay.com; an embedded YouTube player. The unchanged page passes with its two assets known.
+- **Evidence:** `tests/test_skill_gate_rights.py`, 29 tests. Two run the worker's own installs: the photo of the
+  "148 דלתות" production contract, and the logo, right-to-left, a generated image and the photo chained in the
+  worker's order. Negative controls `skill_gate_rights.json` 20/20.
+- **The bases were read on 2026-11-16, and no lawyer reviewed them:** the Google Fonts FAQ, the Replicate model page
+  of flux-schnell, and the Google Maps Embed API pages.
+- **What a static reading cannot see (said, not assumed):**
+  - an address a script builds at run time from pieces, and what an external script loads;
+  - a font only named in `font-family` (a system font; nothing is loaded);
+  - whether a drawing copies a protected mark.
+  - The real request list of the page in a browser would close the first of these. It is not built.
+- **The owner's decisions:**
+  - The customer is not asked to declare the right to an uploaded photo. Asking is an approval-flow change.
+  - Not measured: how many production pages load a stylesheet, a font or a frame from another host. Only the
+    butcher page and the doors page were read. Such a page now goes to a repair round.
 
 # 2026-11-16 — "148 דלתות": the customer's photo was a broken image; the contract prompt has no line breaks (Claude Code)
 

@@ -1,0 +1,98 @@
+{
+ "version": 1,
+ "rule": "The owner, 2026-11-16: every asset (font, image, audio) has a known source, and an unknown right blocks -- it is never assumed. A source is known only when it is listed here with the basis it rests on. Each basis was read on the date given; no lawyer reviewed any of them (legal_review).",
+ "sources": {
+  "customer_upload": {
+   "kinds": [
+    "image"
+   ],
+   "match": {
+    "marker_prefix": [
+     "148ai-asset://upload/",
+     "148ai-asset://logo"
+    ]
+   },
+   "right": "the customer's own file, uploaded in the conversation and placed by the customer's own answer",
+   "basis": "the approved brief binds the attachment by id and sha256 (discovery.requirements_text); the worker serves exactly those bytes",
+   "read_on": "2026-11-16",
+   "legal_review": "none; the customer is not yet asked to declare the right to the file (an approval-flow change, the owner's decision)"
+  },
+  "platform_generated": {
+   "kinds": [
+    "image"
+   ],
+   "match": {
+    "marker_prefix": [
+     "148ai-asset://image/"
+    ]
+   },
+   "right": "generated for this build by the platform's image model, black-forest-labs/flux-schnell on Replicate, released under Apache-2.0",
+   "basis": "https://replicate.com/black-forest-labs/flux-schnell -- \"Released under the apache-2.0 licence, the model can be used for personal, scientific, and commercial purposes.\"",
+   "read_on": "2026-11-16",
+   "legal_review": "none"
+  },
+  "authored_svg": {
+   "kinds": [
+    "image"
+   ],
+   "match": {
+    "authored": [
+     "svg"
+    ]
+   },
+   "right": "drawn as code in this build (an inline SVG, an SVG data URI or an .svg file of the build)",
+   "basis": "the generated repository is text only; an SVG in it was written by the build, not copied from a file",
+   "read_on": "2026-11-16",
+   "legal_review": "none; a drawing can still copy a protected mark, and no static check reads that"
+  },
+  "google_fonts": {
+   "kinds": [
+    "font"
+   ],
+   "match": {
+    "hosts": [
+     "fonts.googleapis.com",
+     "fonts.gstatic.com"
+    ]
+   },
+   "right": "open source licences (SIL Open Font License, Apache, Ubuntu Font License); commercial use allowed",
+   "basis": "https://developers.google.com/fonts/faq -- \"all Google Fonts are open source and are without cost\"; \"you can use them commercially\"",
+   "read_on": "2026-11-16",
+   "legal_review": "none"
+  },
+  "build_served": {
+   "kinds": [
+    "font",
+    "image",
+    "media"
+   ],
+   "match": {
+    "own": [
+     "path"
+    ]
+   },
+   "right": "a path the build serves itself",
+   "basis": "the generated repository is text only: what it serves is text it wrote, a platform placeholder, or bytes embedded in a file -- and embedded bytes (a data: URI, a long base64 literal) are judged on their own and are unknown",
+   "read_on": "2026-11-16",
+   "legal_review": "none; a path whose file does not exist is a broken link, which the visual check reports, not a right"
+  },
+  "google_maps_embed": {
+   "kinds": [
+    "embed"
+   ],
+   "match": {
+    "hosts": [
+     "www.google.com",
+     "maps.google.com"
+    ],
+    "path_prefix": [
+     "/maps"
+    ]
+   },
+   "right": "a Google map embedded in an iframe; usage of the Maps Embed API is free of charge, under the Google Maps Platform Terms of Service",
+   "basis": "https://developers.google.com/maps/documentation/embed/get-started -- \"Place an interactive map or Street View panorama on your web page with Maps Embed API\"; https://developers.google.com/maps/documentation/embed/usage-and-billing -- \"Maps Embed usage is available at no charge\"",
+   "read_on": "2026-11-16",
+   "legal_review": "none; the Google Maps Platform Terms of Service were not read"
+  }
+ }
+}

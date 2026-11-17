@@ -194,6 +194,7 @@ class VisualQAExecutor:
         self._enabled = enabled
         self.screenshot_sink = None
         self.design_critic = None          # design_review.DesignCritic, installed per build (2026-11-09)
+        self.last_shots = None             # {viewport: screenshot bytes} of the last check (G-APPLE's reviewers read them)
         self.last_visual: dict | None = None
         self.visual_rounds: list[dict] = []
 
@@ -252,6 +253,7 @@ class VisualQAExecutor:
                     entry['screenshot_error'] = type(exc).__name__
             viewports[name] = entry
         enforce = enforced_rules()
+        self.last_shots = dict(shots)
         blocking = [(v, f) for v, e in viewports.items() for f in e.get('findings', []) if f['kind'] in enforce]
         if status == 'NOT_RUN' and not blocking:       # T4: a viewport that was not inspected verified nothing
             self.last_visual = {'status': 'NOT_RUN', 'mode': 'enforce' if enforce else 'shadow', 'viewports': viewports}

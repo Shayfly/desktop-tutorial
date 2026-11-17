@@ -57,9 +57,28 @@ MAX_CHAIN = 20           # the longest executor wrapper chain report() walks
 # The owner, 2026-11-16 (rule 4): a new gate enters at warn -- three builds, calibration, a proven fall on a broken page
 # -- and only then blocks. CALIBRATING names the gates that have not finished that; each one warns by default, and its
 # findings are in the log and in the build evidence of every build. Moving a gate to block = removing it from here,
-# with the three builds as evidence. (HE Hebrew, G10 copy, G11 links, G1 empty blocks, BRAND brand name, SHARE preview.)
-CALIBRATING = ('HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')
+# with the three builds as evidence. (HE Hebrew, G10 copy, G11 links, G1 empty blocks, BRAND brand name, SHARE preview,
+# G5 rights: the source of every font, image and media file; A4: the asset plan's placement check, omni_prod/a4.)
+# One gate per line, so adding a gate never rewrites another gate's line (a negative control that removes one gate
+# must keep matching; tests/test_negative_controls_apply.py).
+CALIBRATING = (
+    'HE',        # Hebrew: grammar, gender, translationese
+    'G10',       # copy: filler and placeholders
+    'G11',       # links: tel, anchors, address
+    'G1',        # empty blocks
+    'BRAND',     # brand name
+    'SHARE',     # share preview
+    'G5',        # rights: the source of every font, image and media file
+    'A4',        # the asset plan's placement check (omni_prod/a4)
+    'G8',        # runtime and load (omni_prod/runtime_load)
+    'GAME',      # a game plays (omni_prod/game_runtime)
+    'APPLE',     # the design gate: contract, refusal list, render, two reviewers (omni_prod/g_apple)
+)
 DEFAULT_MODE = {'G3': 'block', 'G4': 'warn', 'G6': 'block', **{g: 'warn' for g in CALIBRATING}}
+# Gates that read the page AS WRITTEN: the platform's own assets as their 148ai-asset:// placeholders, not as the
+# bytes the engine's transform put in before the sandbox. G5 judges where an asset comes from, and the placeholder is
+# the record of that; a raster data: URI left after the transform is put back is bytes the platform did not supply.
+AS_WRITTEN = ('G5',)
 _ALIASES = {'1': 'block', '0': 'off'}
 
 
@@ -76,18 +95,50 @@ def enabled(gate: str) -> bool:
     return mode(gate) != 'off'
 
 
-def check(gate: str, repository: dict[str, str]) -> dict:
-    """{'status': 'pass'|'fail'|'NOT_RUN', 'failures': [{unit, page, code, findings}], 'checked': [...]}."""
-    found = pages(repository)
+def served_of(repository: dict[str, str]) -> list[tuple[str, str]]:
+    """(path, text) of every file a browser loads or a server serves: what a unit with reads_served reads. A page
+    is not only its <html> document -- a stylesheet, a script file and a fragment in a Python constant load assets
+    too (an independent review, 2026-11-16: the rights units read whole documents only and passed the rest)."""
+    from ..rights_sources import SERVED_EXT
+    return [(path, text) for path, text in sorted(repository.items())
+            if isinstance(text, str) and path.lower().endswith(SERVED_EXT)]
+
+
+SERVED_PAGE_LIMIT = 44_000        # the preview smoke returns at most 45,000 characters of GET /; a longer page is cut
+_TEMPLATE_FIELD = re.compile(r'\{[A-Za-z_][^{}\n]{0,80}\}')
+
+
+def served_copy(found: list[tuple[str, str]], rendered) -> list[tuple[str, str]]:
+    """Calibration, 2026-11-17 (rehearsals 44025252867 and 44025259144): a generated site keeps its page as a Python
+    template -- `<title>{SITE_TITLE}</title>`, `{packages_html}` -- and fills it when it serves. Read from the source,
+    the copy gate called the template fields "placeholders left in the page" and the brand gate said the business
+    name is missing: both wrong, on two builds of two. "The gates judge the page the product SERVES, not its source"
+    (Michael 2026-11-10). When the repository has ONE page, that page is a template, and the preview smoke of THIS
+    round returned the whole page GET / serves, the page units read that served copy. Otherwise they read the source,
+    as before -- never a guess about which page is which, and never a page that was cut."""
+    page = (rendered or {}).get('/') if isinstance(rendered, dict) else None
+    if (len(found) != 1 or not isinstance(page, str) or not _TEMPLATE_FIELD.search(found[0][1])
+            or len(page) >= SERVED_PAGE_LIMIT or '</html' not in page.lower()):
+        return found
+    return [(found[0][0] + ' (as served)', page)]
+
+
+def check(gate: str, repository: dict[str, str], rendered=None) -> dict:
+    """{'status': 'pass'|'fail'|'NOT_RUN', 'failures': [{unit, page, code, findings}], 'checked': [...]}.
+    `rendered`: the preview smoke's {'/': html} of this round, when it passed (see served_copy)."""
+    found = served_copy(pages(repository), rendered)
     sources = sources_of(repository)
+    served = served_of(repository)
     members = gate_units(gate)
-    reads_source = {u: bool(manifest(u)['reads_source']) for u in members}
-    if not found and not any(reads_source.values()):
+    reads = {u: ('source' if manifest(u)['reads_source'] else 'served' if manifest(u).get('reads_served') else 'page')
+             for u in members}
+    targets = {'page': found, 'source': sources, 'served': served}
+    if not any(targets[r] for r in reads.values()):
         return {'status': 'NOT_RUN', 'reason': 'no HTML page in the generated repository', 'failures': [], 'checked': []}
     failures, checked = [], []
     for unit in members:
-        for path, html in (sources if reads_source[unit] else found):   # a source unit reads every text file
-            result = run(unit, html)
+        for path, html in targets[reads[unit]]:           # a source unit reads every text file, a served unit the served ones
+            result = run(unit, html, path)
             checked.append(f'{unit} on {path}')
             if result['status'] == 'fail':
                 failures.append({'unit': unit, 'page': path, 'code': result['code'],
@@ -99,9 +150,18 @@ class SkillGateExecutor:
     """block: the build is not accepted until every unit of the gate passes on every page. warn: the failures are
     recorded (last_gate, the log, the build evidence) and the build goes on."""
 
-    def __init__(self, inner, gate: str, mode_: str = 'block'):
+    def __init__(self, inner, gate: str, mode_: str = 'block', core=None):
         self._inner, self.gate, self.mode, self.last_gate = inner, gate, mode_, None
+        self._core = core                                # the engine core: its transform gives the as-written view
         gate_units(gate)                                 # a gate with no unit raises at install, not mid-build
+
+    def view(self, repository):
+        """The repository this gate reads: as the sandbox got it, or as written for the AS_WRITTEN gates."""
+        if self.gate not in AS_WRITTEN:
+            return repository
+        redact = getattr(getattr(self._core, 'repository_transform', None), 'redact', None)
+        written = redact(repository) if callable(redact) else repository
+        return written if isinstance(written, dict) else repository     # never a transform that invents its result
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
@@ -109,7 +169,9 @@ class SkillGateExecutor:
     def execute(self, *, repository, spec):
         from ..autonomous_core import AcceptanceFailure
         report = self._inner.execute(repository=repository, spec=spec)
-        result = check(self.gate, repository)
+        # the served page of THIS round only: the smoke keeps its last page when a later round fails before it runs
+        rendered = getattr(self._inner, 'last_pages', None) if report.passed else None
+        result = check(self.gate, self.view(repository), rendered if isinstance(rendered, dict) else None)
         self.last_gate = {**result, 'mode': self.mode}
         if result['status'] == 'NOT_RUN':
             _LOG.warning('GATE_NOT_RUN gate=%s %s', self.gate, result['reason'])
@@ -140,13 +202,13 @@ def install(engine, gate: str) -> list[str]:
         _LOG.warning('GATE_OFF gate=%s (OMNI_GATE_%s): this build is NOT checked by %s', gate, gate, gate)
         return []
     _LOG.info('GATE_ON gate=%s mode=%s', gate, m)
-    core.executor = SkillGateExecutor(core.executor, gate, m)
+    core.executor = SkillGateExecutor(core.executor, gate, m, core=core)
     return gate_units(gate)
 
 
 # Every gate a build runs, in the order the worker installs them. One list: the rehearsal installs the same gates, so a
 # calibration build cannot check less than a customer's build.
-WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE')
+WORKER_GATES = ('G3', 'G4', 'G6', 'HE', 'G10', 'G11', 'G1', 'BRAND', 'SHARE', 'G5')
 MAX_CALIBRATION_FINDINGS = 3      # per failure, in the evidence of a gate that is still calibrating
 MAX_FINDING_CHARS = 200
 
