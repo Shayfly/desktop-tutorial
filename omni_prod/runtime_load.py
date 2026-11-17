@@ -134,7 +134,8 @@ def judge(m: dict) -> list[dict]:
 _FIX = {'LOAD_ERRORS': 'Every request must be answered: handle requests concurrently (ThreadingHTTPServer, not '
                        'HTTPServer) and never raise out of a handler.',
         'RUNTIME_CRASHED': 'The server must keep running: catch errors inside each handler and never exit the process.',
-        'LOAD_SLOW': 'Build the page once and serve it from memory; do no slow work on every request.',
+        'LOAD_SLOW': 'Build the page once and serve it from memory, do no slow work on every request, and handle '
+                     'requests concurrently (ThreadingHTTPServer) so visitors do not queue behind each other.',
         'MEMORY_HIGH': 'Do not keep per-request data in memory; hold the page once.',
         'NOT_STARTED': 'The server must listen on 0.0.0.0:$PORT and answer the health path within seconds.'}
 

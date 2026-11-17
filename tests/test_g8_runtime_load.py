@@ -45,6 +45,7 @@ GOOD = app()
 CRASHES = app('        if COUNT[0] > 20: os._exit(3)')                     # dies in the middle of the load
 ERRORS = app('        if COUNT[0] % 4 == 0:\n            self.send_error(500); return')
 SLOW = app(f'        time.sleep({R.P95_LIMIT_MS / 1000 + 0.6})')            # every answer over the limit
+ONE_AT_A_TIME = app('        time.sleep(0.4)', server='HTTPServer')     # fine alone, queues when six ask at once
 NEVER_STARTS = {'app.py': 'import sys; sys.exit(2)\n', '.omni/project.json': MANIFEST}
 
 
@@ -139,6 +140,13 @@ class TheRulesAndTheBounds(unittest.TestCase):
         codes = {f['code'] for f in gate.last_load['findings']}
         self.assertIn('LOAD_SLOW', codes)
         self.assertGreater(gate.last_load['measured']['p95_ms'], R.P95_LIMIT_MS)
+
+    def test_a_server_that_answers_one_visitor_at_a_time_is_found_because_six_ask_at_once(self):
+        gate, report = run(ONE_AT_A_TIME, 'block')
+        m = gate.last_load['measured']
+        self.assertIn('LOAD_SLOW', {f['code'] for f in gate.last_load['findings']}, m)
+        self.assertGreater(m['p95_ms'], R.P95_LIMIT_MS)                    # each answer takes 0.4 s; the queue makes it 2 s+
+        self.assertIn('concurrently', ' '.join(f.message for f in report.failures) + R._FIX['LOAD_ERRORS'])
 
     def test_the_run_is_bounded(self):
         self.assertLessEqual(R.REQUESTS, 200)
