@@ -1,3 +1,19 @@
+# 2026-11-17 — "content only" is asked, not dropped (Claude Code)
+
+- **Merged and released:** #436 `6ad3eed` -> `227d23c` (doors palette; the measure rule keeps its check; no phone
+  from a hash).
+- **What broke ("148 דלתות"):** the owner answered "תוכן בלבד: כן", then "פרטים אישיים: כן". The first answer was
+  dropped in silence (`_drop_inapplicable`) and the site became a leads database.
+- **Fix:** neither answer is dropped. When "personal details: yes" follows the customer's own "content only: yes",
+  one question is asked in words (`storage_intent`, not delegable): "only the business details are shown -- nothing
+  is stored" settles both answers as a content site; "the site stores visitors' details" settles it as a site that
+  stores. Until it is answered the brief cannot be approved.
+- **A test that pinned the old behaviour is changed knowingly:** `test_no_dead_end_conversation`'s walk "content
+  only: yes, then personal details: yes" ended at the summary with records; it now passes through the new question
+  (answered "visitors") and ends at the same summary.
+- **Evidence:** `tests/test_content_only_is_asked_not_dropped.py` 5 passed (through the real conversation);
+  controls `content_only_asked` 5/5; `test_fast.sh` exit 0.
+
 # 2026-11-17 — what "148 דלתות" still showed: no palette for doors, a measure rule that failed its own check, a phone read from a hash (Claude Code)
 
 - **Merged:** #435 `cdc0bb3` -> `0316cbe` (the rehearsal asks the release policy).

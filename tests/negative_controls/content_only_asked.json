@@ -1,0 +1,95 @@
+{
+ "pr": "content-only-asked",
+ "sha256": [
+  "tests/test_content_only_is_asked_not_dropped.py",
+  "omni_prod/discovery.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the conflict is never marked",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "                new.hints['storage_conflict'] = 'yes'  ",
+     "new": "                pass  "
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_asked_not_dropped.py"
+   ],
+   "expect_failed": [
+    "test_the_question_is_asked_with_its_words_and_nothing_is_dropped"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "content-only is dropped while the question waits",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "            if fld == 'content_only' and vals.get('_storage_conflict'):\n                continue ",
+     "new": "            if False:\n                continue "
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_asked_not_dropped.py"
+   ],
+   "expect_failed": [
+    "test_the_question_is_asked_with_its_words_and_nothing_is_dropped"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "'business details only' does not restore content-only",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "                    new.fields['content_only'] = {'value': 'yes',",
+     "new": "                    new.fields['content_only'] = {'value': 'no',"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_asked_not_dropped.py"
+   ],
+   "expect_failed": [
+    "test_business_details_only_is_a_content_site"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the question can be delegated",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "             delegable=False, ask_if=lambda v: bool(v.get('_storage_conflict'))),",
+     "new": "             recommended='visitors', ask_if=lambda v: bool(v.get('_storage_conflict'))),"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_asked_not_dropped.py"
+   ],
+   "expect_failed": [
+    "test_it_cannot_be_delegated",
+    "test_the_question_is_asked_with_its_words_and_nothing_is_dropped"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the conflict mark is never cleared",
+   "mutations": [
+    {
+     "file": "omni_prod/discovery.py",
+     "old": "                new.hints.pop('storage_conflict', None)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "targets": [
+    "tests/test_content_only_is_asked_not_dropped.py"
+   ],
+   "expect_failed": [
+    "test_visitors_details_is_a_site_that_stores"
+   ]
+  }
+ ]
+}

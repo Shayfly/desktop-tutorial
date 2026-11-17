@@ -54,3 +54,5 @@
 | REHEARSAL-POLICY | Claude Code | In review | the rehearsal asks the release policy; NC 5/5 |
 | REHEARSAL-POLICY-DONE | Claude Code | Done | #435 `cdc0bb3` -> `0316cbe` |
 | DOORS-FOLLOWUP | Claude Code | In review | doors palette; measure rule 35rem; no phone from a hash; NC 3/3 + 1/1 (content-only fix withdrawn: DECISIONS 9) |
+| DOORS-FOLLOWUP-DONE | Claude Code | Done | #436 `6ad3eed` -> `227d23c`, released |
+| CONTENT-ONLY-ASKED | Claude Code | In review | the content-only / personal-details conflict is asked in words, not dropped; NC 5/5 |

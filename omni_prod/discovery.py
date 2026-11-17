@@ -166,6 +166,19 @@ QUESTIONS: tuple[Question, ...] = (
              # stale (8.4), which is asked again.
              ask_if=lambda v: v.get('login', 'none') == 'none' and v.get('personal_data') != 'yes'
              and v.get('access_scope') != 'add_login' and (not v.get('_strong') or v.get('_stale'))),
+    # Production 2026-11-17 ("148 דלתות"): "content only: yes", then "personal details: yes" -- the first answer was
+    # dropped in silence (_drop_inapplicable) and the site became a leads database. Neither answer is dropped now:
+    # the conflict is asked once, in words, and the customer's choice settles both fields (answer()).
+    Question('storage_intent', 'storage_intent', 'access',
+             'אמרתם קודם שהאתר לא שומר כלום מהמבקרים, ועכשיו שיישמרו פרטים אישיים. מה נכון?',
+             'You said the site stores nothing from visitors, and now that personal details are stored. Which is it?',
+             'אם רק פרטי העסק שלכם (טלפון, כתובת) מוצגים באתר — זה אתר תוכן, ולא נשמר כלום.',
+             'If only your business details (phone, address) are shown, it is a content site and nothing is stored.',
+             options=(_o('business', 'רק פרטי העסק מוצגים באתר — לא נשמר כלום מהמבקרים',
+                         'Only the business details are shown; nothing from visitors is stored'),
+                      _o('visitors', 'האתר שומר פרטים של מבקרים (למשל טופס פנייה)',
+                         'The site stores visitors\' details (e.g. a contact form)')),
+             delegable=False, ask_if=lambda v: bool(v.get('_storage_conflict'))),
     Question('access_scope', 'access_scope', 'access',
              'ביקשתם בלי התחברות, אבל יישמרו פרטים אישיים ואנשים מבחוץ ישתמשו. איך להמשיך?',
              'No sign-in, personal data and outside users: how should we proceed?',
@@ -381,6 +394,7 @@ def _ctx(brief: 'Brief') -> dict:
     v['_stale'] = brief.hints.get('persistence_stale') == 'yes'
     v['_unpriced'] = unpriced_keys(brief)                     # 77, read by the "unavailable" question
     v['_image'] = bool(brief.assets.get('image'))             # an uploaded image waits for its role
+    v['_storage_conflict'] = brief.hints.get('storage_conflict') == 'yes'
     return v
 
 
@@ -554,6 +568,8 @@ def _drop_inapplicable(brief: Brief) -> None:
         # a field several questions share (the image's identity and use, one question per kind) goes only when NONE
         # of its questions applies; every other field has exactly one question, as before
         for fld in dict.fromkeys(q.field for q in QUESTIONS):
+            if fld == 'content_only' and vals.get('_storage_conflict'):
+                continue                                   # kept until the customer settles storage_intent
             if fld in brief.fields and not any(q.ask_if(vals) for q in QUESTIONS if q.field == fld):
                 del brief.fields[fld]
                 changed = True
@@ -582,7 +598,22 @@ def answer(brief: Brief, answers: Mapping[str, str]) -> Brief:
         else:
             if q.kind == 'choice' and value not in {o.value for o in q.options}:
                 raise ValueError(f'invalid option for {qid}')
+            own_content_only = (new.fields.get('content_only') or {})
+            stated_content_only = (own_content_only.get('value') if own_content_only.get('source') in ('answer', 'message')
+                                   else None)
             new.fields[q.field] = {'value': value[:2000], 'source': 'answer', 'question_id': qid, 'confidence': 'confirmed'}
+            if qid == 'personal_data' and value == 'yes' and stated_content_only == 'yes':
+                new.hints['storage_conflict'] = 'yes'           # asked (storage_intent); nothing is dropped meanwhile
+            if qid == 'storage_intent':
+                new.hints.pop('storage_conflict', None)
+                if value == 'business':
+                    new.fields['personal_data'] = {'value': 'no', 'source': 'answer', 'question_id': qid,
+                                                   'confidence': 'confirmed'}
+                    new.fields['content_only'] = {'value': 'yes', 'source': 'answer', 'question_id': qid,
+                                                  'confidence': 'confirmed'}
+                else:
+                    new.fields['content_only'] = {'value': 'no', 'source': 'answer', 'question_id': qid,
+                                                  'confidence': 'confirmed'}
             # The answer decides the covered field too (one question). Michael 2026-11-14 (b4): the LATEST answer wins.
             # Before, a personal_data already confirmed "yes" was kept, so "לא לשמור פרטים אישיים" changed nothing and
             # the conversation asked again; access_scope is only asked BECAUSE personal_data is "yes", so it always
