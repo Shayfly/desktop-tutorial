@@ -38,6 +38,9 @@ def check(data: dict, categories) -> None:
     extra = sorted(set(mapped) - set(categories))
     if extra:
         raise PaletteError(f'categories not in the catalogue: {extra}')
+    stray = sorted(set(data.get('near') or {}) - set(categories))
+    if stray:
+        raise PaletteError(f'near words for categories not in the catalogue: {stray}')
     for slug, entry in mapped.items():
         if entry.get('palette') not in palettes:
             raise PaletteError(f'category {slug!r}: no palette named {entry.get("palette")!r}')
@@ -66,6 +69,47 @@ def category_of(text: str) -> str | None:
     return min(hits)[2] if hits else None
 
 
+_WORD = re.compile(r'[a-z\u05d0-\u05ea"\u05f4]{3,}')
+# with no shared word at all there is nothing to be near: a professional, high-contrast palette (DECISIONS 7)
+NO_SIGNAL = 'lawyers'
+
+
+def _grams(word: str) -> set:
+    w = f' {word} '
+    return {w[i:i + 3] for i in range(len(w) - 2)}
+
+
+def nearest_category(text: str) -> tuple[str, float]:
+    """DECISIONS 7 (the owner 2026-11-17): a brief whose category is not recognised and whose customer did not answer
+    the colour question takes the palette of the NEAREST category: first a related word the data file lists under
+    "near" (a pizzeria is near restaurants), then an inflection of a category word by letter trigrams (one-letter
+    Hebrew prefixes stripped; the threshold keeps a shared generic noun -- "מכון", "חנות" -- from counting). Returns (category, score 0..1); with no shared
+    trigram at all, (NO_SIGNAL, 0.0). Deterministic: the same text, the same category."""
+    exact = category_of(text)
+    if exact:
+        return exact, 1.0
+    t = (text or '').lower()
+    hits = [(m.start(), -len(word), slug) for slug, related in sorted((load().get('near') or {}).items())
+            for word in related for m in [re.search(_PRE + re.escape(word.lower()) + _END, t)] if m]
+    if hits:                                       # a related word the data file names: near by declaration
+        return min(hits)[2], 0.9
+    words = set()
+    for w in _WORD.findall((text or '').lower()):
+        words.add(w)
+        if w[0] in 'הובשלמכ' and len(w) > 4:
+            words.add(w[1:])
+    best = (0.0, NO_SIGNAL)
+    for slug, entry in sorted(load()['categories'].items()):
+        for cw in entry['words']:
+            g = _grams(cw.lower())
+            for w in words:
+                h = _grams(w)
+                score = len(g & h) / len(g | h)
+                if score > best[0]:
+                    best = (score, slug)
+    return (best[1], round(best[0], 3)) if best[0] >= 0.55 else (NO_SIGNAL, 0.0)
+
+
 def palette_for(category: str) -> tuple[str, dict]:
     """(palette name, {primary, accent, background, ink}) of a catalogue category. An unknown category raises."""
     data = load()
@@ -79,8 +123,16 @@ def design_colours(text: str) -> str:
     """The colour clause of the build prompt for a brief whose customer stated no colour."""
     category = category_of(text)
     if category is None:
-        return ('colours: the customer stated none and the business category is not recognised; choose a palette that '
-                'fits this business, with text at least 4.5:1 against its background, and name it in the page CSS')
+        # DECISIONS 7: never "choose something" -- the nearest category's palette, said as such (G-APPLE then runs)
+        near, score = nearest_category(text)
+        if not score:   # nothing near at all: the colour question (DECISIONS 7, part 2) is the only honest source
+            return ('colours: the customer stated none and the business category is not recognised; choose a palette '
+                    'that fits this business, with text at least 4.5:1 against its background, and name it in the '
+                    'page CSS')
+        name, p = palette_for(near)
+        return (f'primary colour {p["primary"]}; palette {p["primary"]}, {p["accent"]}, {p["background"]}, {p["ink"]} '
+                f'(primary, accent, background, text: the "{name}" palette of the nearest category, {near}, '
+                f'similarity {score} -- the customer stated no colour and the business category is not recognised)')
     name, p = palette_for(category)
     return (f'primary colour {p["primary"]}; palette {p["primary"]}, {p["accent"]}, {p["background"]}, {p["ink"]} '
             f'(primary, accent, background, text: the "{name}" palette of the {category} category -- the customer '

@@ -1240,6 +1240,9 @@ def _run_live_build_job(build_id: str, *, jobs, platform, workspace, components_
             'infrastructure': infrastructure_evidence,
             'repair_rounds': result.repair_rounds,
             'repair_stop_reason': getattr(result, 'stop_reason', None) or None,
+            # DECISIONS 8: every edit the repairer made to a builder's test, and every one it was refused
+            'test_edits': (lambda g: g.evidence() if g is not None else None)(
+                getattr(getattr(engine, 'core', engine), 'test_edits', None)),
             **taxonomy_evidence(engine, ready=bool(ready and result.report.passed and result.status == 'ready')),
             'build_log_tail': result.report.build_log[-4000:],
             'model_route_events': [e.__dict__ for e in getattr(gateway, 'events', [])], **rejected_json_evidence(gateway),

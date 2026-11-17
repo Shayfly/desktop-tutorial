@@ -115,3 +115,43 @@ def asked_in_words(question, lang: str) -> str:
 
 def has_question(reply: str) -> bool:
     return '?' in (reply or '')
+
+
+# Rehearsal 44126201300 (2026-11-17, the live model): a customer who wrote only "אתר" reached the approval in three
+# turns -- nobody asked what the site is about, and the build would start from one word. A request names its subject
+# when it says what the business or topic is: a quoted name, a catalogue category, or at least two words beyond the
+# product word and filler (a phone or a street alone says where, not what).
+SUBJECT_ID = 'subject'
+_FILLER = frozenset('''
+אתר אתרים דף דפים נחיתה אפליקציה אפליקציית מערכת תוכנה אפ app site website page landing
+לי לנו את של עם בלי ללא כן לא רק גם זה זאת זו אני אנחנו אתם שלי שלנו שלך רוצה רוצים צריך צריכה צריכים
+תבנה תבנו בנה לבנות תעשה תעשו לעשות תכין תכינו חדש חדשה פשוט פשוטה יפה יפים טוב טובה מהר בבקשה היי שלום
+אפשר יש בשביל עבור כמו תדמית תדמיתי עסק לעסק העסק עסקי טלפון משהו קצת מאוד ממש איזה בסיסי בסיסית מקצועי מקצועית a an the for my me i we need want build make please
+'''.split())
+_WORDS = re.compile(r'[א-תA-Za-z]{2,}')
+_QUOTED_NAME = re.compile(r'["״“”][^"״“”]{2,40}["״“”]')
+
+
+def _content_words(text: str) -> list[str]:
+    out = []
+    for w in _WORDS.findall((text or '').lower()):
+        bare = w[1:] if w[0] in 'הובשלמכ' and len(w) > 3 and w[1:] in _FILLER else w
+        if w not in _FILLER and bare not in _FILLER:
+            out.append(w)
+    return out
+
+
+def names_a_subject(text: str) -> bool:
+    """Does the request say what the site or app is about?"""
+    text = text or ''
+    if _QUOTED_NAME.search(text):
+        return True
+    from ..vertical_palettes import category_of
+    if category_of(text):
+        return True
+    return len(_content_words(text)) >= 2
+
+
+SUBJECT_QUESTION = {'he': 'ספרו לי במשפט או שניים על מה זה: שם העסק או הנושא, מה אתם עושים, ולמי זה מיועד?',
+                    'en': 'Tell me in a sentence or two what this is about: the business or topic, what you do, and '
+                          'who it is for?'}
