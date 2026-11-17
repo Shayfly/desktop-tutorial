@@ -200,7 +200,6 @@
     "tests/test_uploaded_main_image.py"
    ],
    "expect_failed": [
-    "test_a_new_image_asks_its_role_again",
     "test_an_image_alone_before_any_build_is_bound_too",
     "test_change_is_said_unavailable_and_never_becomes_as_is",
     "test_kind_then_who_then_what_to_do_and_the_role_reaches_alt_and_canon",

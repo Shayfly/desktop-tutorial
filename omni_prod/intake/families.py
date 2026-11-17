@@ -155,9 +155,15 @@ def requested_family(text: str) -> str | None:
 
 
 def named_family(text: str) -> str | None:
-    """The family only when the text actually names a product; None for a follow-up such as an answer."""
+    """The family only when the text actually names a product; None for a follow-up such as an answer.
+    A bare "דף" names a product only when it is asked for ("תבנה לי דף") or opens the message: "בראש הדף" in an answer
+    is a place on the page, not a new product (found 2026-11-17 when "דף" became a website word)."""
     t = _norm(text)
-    if any(re.search(product, t, re.I) for _, product in _PRODUCTS) or any(re.search(p, t, re.I) for _, p in _RULES):
+    named = [p for f, p in _PRODUCTS]
+    named[[f for f, _ in _PRODUCTS].index('website')] = _PRODUCTS[[f for f, _ in _PRODUCTS].index('website')][1].replace(
+        '|דף(?![\\w֐-׿])', '')
+    if (any(re.search(product, t, re.I) for product in named) or any(re.search(p, t, re.I) for _, p in _RULES)
+            or _explicit(t) or _opening(t)):
         return classify_family(text)
     return None
 
