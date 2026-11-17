@@ -25,7 +25,7 @@ class TheRulesAndTheBounds(unittest.TestCase):
             self.assertIn(code, R._FIX)
 
     def test_a_server_that_never_started_is_its_own_finding(self):
-        self.assertEqual([f['code'] for f in R.judge({'started': False, 'requests': 0})], ['NOT_STARTED'])
+        self.assertEqual([f['code'] for f in R.judge({'started': False, 'requests': 0})], ['LOAD_NOT_STARTED'])
 
     def test_warn_records_and_goes_on_and_block_fails_on_the_same_measurement(self):
         import json

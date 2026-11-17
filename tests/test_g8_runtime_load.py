@@ -111,7 +111,7 @@ class OnRealServers(unittest.TestCase):
     def test_a_server_that_never_starts_is_said(self):
         gate, report = run(NEVER_STARTS, 'block')
         self.assertFalse(report.passed)
-        self.assertEqual([f['code'] for f in gate.last_load['findings']], ['NOT_STARTED'])
+        self.assertEqual([f['code'] for f in gate.last_load['findings']], ['LOAD_NOT_STARTED'])
 
     def test_in_warn_mode_the_build_goes_on_and_the_finding_is_recorded(self):
         with self.assertLogs(R.__name__, level='INFO') as logs:

@@ -32,7 +32,7 @@ REQUESTS, CONCURRENCY = 60, 6
 P95_LIMIT_MS = 1500
 RSS_LIMIT_KB = 262_144            # 256 MB
 START_SECONDS, WALL_SECONDS = 20, 45
-CODES = ('LOAD_ERRORS', 'RUNTIME_CRASHED', 'LOAD_SLOW', 'MEMORY_HIGH', 'NOT_STARTED')
+CODES = ('LOAD_ERRORS', 'RUNTIME_CRASHED', 'LOAD_SLOW', 'MEMORY_HIGH', 'LOAD_NOT_STARTED')
 _LOG = logging.getLogger(__name__)
 
 # Runs inside the sandbox; standard library only. Prints one line: "RUNTIME-LOAD <json>".
@@ -117,7 +117,7 @@ def parse(stdout: str) -> dict | None:
 def judge(m: dict) -> list[dict]:
     """[{code, why}] for one measurement. Each limit is judged on its own; nothing is averaged away."""
     if not m.get('started'):
-        return [{'code': 'NOT_STARTED', 'why': f'the server did not answer within {START_SECONDS} s'}]
+        return [{'code': 'LOAD_NOT_STARTED', 'why': f'the server did not answer within {START_SECONDS} s'}]
     found = []
     if m.get('errors') or m.get('requests') != REQUESTS:
         found.append({'code': 'LOAD_ERRORS', 'why': f"{m.get('errors')} of {m.get('requests')} requests failed, "
@@ -137,7 +137,7 @@ _FIX = {'LOAD_ERRORS': 'Every request must be answered: handle requests concurre
         'LOAD_SLOW': 'Build the page once and serve it from memory, do no slow work on every request, and handle '
                      'requests concurrently (ThreadingHTTPServer) so visitors do not queue behind each other.',
         'MEMORY_HIGH': 'Do not keep per-request data in memory; hold the page once.',
-        'NOT_STARTED': 'The server must listen on 0.0.0.0:$PORT and answer the health path within seconds.'}
+        'LOAD_NOT_STARTED': 'The server must listen on 0.0.0.0:$PORT and answer the health path within seconds.'}
 
 
 class RuntimeLoadExecutor:

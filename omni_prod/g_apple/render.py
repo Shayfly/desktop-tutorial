@@ -24,7 +24,7 @@ MIN_CONTROL = 44
 MEASURE_MIN, MEASURE_MAX = 55, 75
 MEASURE_FROM_WIDTH = 768
 MAX_ELEMENTS = 60
-CODES = ('H_SCROLL', 'CLIPPED_TEXT', 'CONTROL_UNDER_44', 'OFF_GRID', 'MEASURE', 'STRING_30', 'STRING_60', 'NOT_STARTED',
+CODES = ('H_SCROLL', 'CLIPPED_TEXT', 'CONTROL_UNDER_44', 'OFF_GRID', 'MEASURE', 'STRING_30', 'STRING_60', 'APPLE_NOT_STARTED',
          'PAGE_ERROR')
 
 # Runs inside the sandbox (browser profile). argv[1] = width. Prints one line: "APPLE-RENDER <json>".
@@ -124,7 +124,7 @@ def findings(measured: dict) -> list[dict]:
     """[{code, width, selector, why}] of one width's measurement."""
     w = measured.get('width')
     if not measured.get('started'):
-        return [{'code': 'NOT_STARTED', 'width': w, 'selector': '', 'why': 'the server did not answer'}]
+        return [{'code': 'APPLE_NOT_STARTED', 'width': w, 'selector': '', 'why': 'the server did not answer'}]
     out = [{'code': 'PAGE_ERROR', 'width': w, 'selector': '', 'why': str(e)[:200]} for e in (measured.get('errors') or [])[:3]]
     for f in measured.get('findings') or []:
         if isinstance(f, dict) and f.get('code') in CODES:

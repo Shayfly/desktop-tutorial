@@ -68,7 +68,7 @@ class TheBounds(unittest.TestCase):
         self.assertIn('if (++n > maxEl', R.PROBE)
 
     def test_a_server_that_never_started_and_a_malformed_report_are_said(self):
-        self.assertEqual([f['code'] for f in R.findings({'width': 390, 'started': False, 'findings': []})], ['NOT_STARTED'])
+        self.assertEqual([f['code'] for f in R.findings({'width': 390, 'started': False, 'findings': []})], ['APPLE_NOT_STARTED'])
         self.assertIsNone(R.parse('no report here'))
         self.assertIsNone(R.parse('APPLE-RENDER {"width": 390}'))
         self.assertEqual(R.findings({'width': 390, 'started': True, 'findings': [{'code': 'INVENTED', 'why': 'x'}]}), [])
