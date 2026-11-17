@@ -1,3 +1,17 @@
+# 2026-11-17 — conversation agent, phase 2: the model asks the customer's decisions in its own words (Claude Code)
+
+- **Merged and released:** #438 `f22c53d` -> `acbbbc8` (phase 1, behind `OMNI_INTAKE_AGENT`).
+- **Phase 2 (same flag):** the model gets `context.ask_next` -- the decision only the customer may make that is
+  still open, in the detector's order: what it means, why it matters, the choices in plain words -- placed first in the
+  context (the context is cut at 2,400 characters). Its rules: ask that one question in your own words for this
+  business, one sentence on why it matters, the choices named naturally, never answer it for them. With the agent
+  there are no "asked with buttons" topics.
+- **Also fixed:** the expert checklist came from the family of the LAST message, so after "כן" a doors site got the
+  web-app checklist (business rules, managers). It now comes from the request.
+- **Evidence:** `tests/test_conversation_agent_asks_in_its_words.py` 4 passed; controls `conversation_agent_phase2`
+  5/5; `test_fast.sh` exit 0.
+- **NOT verified:** what the live model writes with these rules (phase 4: real conversations).
+
 # 2026-11-17 — conversation agent, phase 1: no question cards (Claude Code)
 
 - **The owner's order (2026-11-17):** no ready-made questionnaire; the first conversation is with a live model

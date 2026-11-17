@@ -57,3 +57,5 @@
 | DOORS-FOLLOWUP-DONE | Claude Code | Done | #436 `6ad3eed` -> `227d23c`, released |
 | CONTENT-ONLY-ASKED | Claude Code | In review | the content-only / personal-details conflict is asked in words, not dropped; NC 5/5 |
 | AGENT-1 | Claude Code | In review | conversation agent phase 1: no question cards, questions in words, typed answers; NC 6/6 |
+| AGENT-1-DONE | Claude Code | Done | #438 `f22c53d` -> `acbbbc8`, released |
+| AGENT-2 | Claude Code | In review | the model asks customer decisions in its own words (ask_next); checklist from the request; NC 5/5 |

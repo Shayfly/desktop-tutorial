@@ -1,0 +1,94 @@
+{
+ "pr": "conversation-agent-phase2",
+ "sha256": [
+  "tests/test_conversation_agent_asks_in_its_words.py",
+  "omni_prod/intake/interpreter.py"
+ ],
+ "controls": [
+  {
+   "id": "NC1",
+   "what": "the model is not told which decision to ask",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    context = {**({'ask_next': _ask_next(brief, still_open)} if _agent_on() and brief is not None else {}),",
+     "new": "    context = {**({}),"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_asks_in_its_words.py"
+   ],
+   "expect_failed": [
+    "test_with_the_agent_the_open_decision_is_given_to_the_model_to_ask"
+   ]
+  },
+  {
+   "id": "NC2",
+   "what": "the buttons are still announced with the agent on",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "               'asked_with_buttons': [] if _agent_on() else [",
+     "new": "               'asked_with_buttons': [] if False else ["
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_asks_in_its_words.py"
+   ],
+   "expect_failed": [
+    "test_with_the_agent_the_open_decision_is_given_to_the_model_to_ask"
+   ]
+  },
+  {
+   "id": "NC3",
+   "what": "the checklist follows the last message again",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    expert = checklist(family or classify_family(brief.prompt if brief is not None and brief.prompt else message))",
+     "new": "    expert = checklist(family or classify_family(message))"
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_asks_in_its_words.py"
+   ],
+   "expect_failed": [
+    "test_the_checklist_is_the_products_not_the_last_messages"
+   ]
+  },
+  {
+   "id": "NC4",
+   "what": "the catalogue's order instead of the detector's",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "    for name in still_open:  ",
+     "new": "    for name in [q.field for q in d.QUESTIONS if q.field in still_open]:  "
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_asks_in_its_words.py"
+   ],
+   "expect_failed": [
+    "test_with_the_agent_the_open_decision_is_given_to_the_model_to_ask"
+   ]
+  },
+  {
+   "id": "NC5",
+   "what": "the rules do not forbid answering for the customer",
+   "mutations": [
+    {
+     "file": "omni_prod/intake/interpreter.py",
+     "old": "Never answer it for them, never assume it.",
+     "new": ""
+    }
+   ],
+   "targets": [
+    "tests/test_conversation_agent_asks_in_its_words.py"
+   ],
+   "expect_failed": [
+    "test_the_rules_tell_it_to_ask_in_its_own_words_and_never_answer_for_them"
+   ]
+  }
+ ]
+}
