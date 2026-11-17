@@ -22,6 +22,13 @@
   `vertical_palettes` 4/4, `doors_palette` 3/3.
 - **Evidence:** full suite on the branch: 1 failed, 3840 passed -- the one is `test_m4_acceptance` W, the local
   300-second subprocess timeout (287 s on main; it passes in CI). `test_fast.sh` 1428 passed.
+- **Live conversation rehearsal on production code (run 44126201300, Sonnet route):** doors PASSED (5 turns, 0 cards,
+  approval, facts kept, $0.0517), butcher PASSED (4 turns, $0.0848), bare FAILED: "אתר" alone reached the approval in
+  three turns without anyone asking what the site is about (the phone it was to be given never came). Also: in agent
+  mode the agent said "I need your explicit confirmation with the button" -- there is no button. Both fixed: the
+  agent asks the subject first, never offers the approval without it, and the answer joins the request the build
+  starts from; the sensitive line says "in words". Classification corpus: 4 of 101 requests have no subject, all
+  four genuinely ("אתר", "build me a 2d game", "סרטון תדמית לעסק", "שלום, אתר לעסק שלי"). Controls `agent_subject` 5/5.
 - **NOT done:** D7 part 2, the one colour question in words, is held until after the owner's human test (it changes the
   conversation itself).
 
